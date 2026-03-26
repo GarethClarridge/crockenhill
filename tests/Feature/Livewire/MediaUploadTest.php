@@ -12,6 +12,7 @@ use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -343,6 +344,7 @@ class MediaUploadTest extends TestCase
             ClassifyServiceSections::class,
             TranscribeSpeechSegments::class,
             ClassifySpeechSections::class,
+            ProjectLivestreamServiceStructure::class,
             AlignWithOos::class,
             ExtractSermon::class,
             SubmitToProcessing::class,

@@ -12,6 +12,8 @@ final class ChurchServiceProcessingTimeline
 
     public const CLASSIFY_SPEECH_SECTIONS = 'classify_speech_sections';
 
+    public const PROJECT_LIVESTREAM_SERVICE_STRUCTURE = 'project_livestream_service_structure';
+
     public const ALIGN_WITH_OOS = 'align_with_oos';
 
     public const EXTRACT_SERMON = 'extract_sermon';
@@ -35,6 +37,10 @@ final class ChurchServiceProcessingTimeline
             [
                 'key' => self::CLASSIFY_SPEECH_SECTIONS,
                 'label' => 'Classify speech sections',
+            ],
+            [
+                'key' => self::PROJECT_LIVESTREAM_SERVICE_STRUCTURE,
+                'label' => 'Project service structure',
             ],
             [
                 'key' => self::ALIGN_WITH_OOS,

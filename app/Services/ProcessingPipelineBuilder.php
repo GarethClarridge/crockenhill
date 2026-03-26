@@ -18,6 +18,7 @@ use App\Jobs\IdentifySpeaker;
 use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -100,6 +101,7 @@ class ProcessingPipelineBuilder
             new ClassifyServiceSections($log),
             new TranscribeSpeechSegments($log),
             new ClassifySpeechSections($log),
+            new ProjectLivestreamServiceStructure($log),
             new AlignWithOos($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
@@ -146,6 +148,7 @@ class ProcessingPipelineBuilder
             new ClassifyServiceSections($log, preserveRunStatus: true),
             new TranscribeSpeechSegments($log),
             new ClassifySpeechSections($log),
+            new ProjectLivestreamServiceStructure($log),
             new AlignWithOos($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
