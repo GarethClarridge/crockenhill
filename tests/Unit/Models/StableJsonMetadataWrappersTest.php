@@ -114,9 +114,9 @@ class StableJsonMetadataWrappersTest extends TestCase
 
         $this->assertInstanceOf(ServiceSectionMetadata::class, $section->metadata);
 
-        $metadata = $section->metadataData();
+        $metadata = $section->metadata;
 
-        $this->assertSame('medium', $metadata->confidenceLevel);
+        $this->assertSame('medium', $metadata?->confidenceLevel);
         $this->assertSame('inferred', $metadata->oosAlignment?->songMatchType);
         $this->assertSame('Mary Helper', $metadata->childrensTalkSpeaker?->reviewed['preacher_name'] ?? null);
         $this->assertSame('Mary Helper', $section->publicationChildrensTalkSpeaker()['preacher_name'] ?? null);

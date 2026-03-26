@@ -160,18 +160,7 @@ class Sermon extends Model implements Sitemapable
 
     public function getPlainThumbnailFilePathAttribute(): ?string
     {
-        return $this->thumbnailMetadataData()?->plainThumbnailPath;
-    }
-
-    public function thumbnailMetadataData(): ?ThumbnailMetadata
-    {
-        $metadata = $this->thumbnail_metadata;
-
-        if ($metadata instanceof ThumbnailMetadata) {
-            return $metadata;
-        }
-
-        return ThumbnailMetadata::fromArray($metadata);
+        return $this->thumbnail_metadata?->plainThumbnailPath;
     }
 
     public function getSeriesUrlAttribute(): ?string

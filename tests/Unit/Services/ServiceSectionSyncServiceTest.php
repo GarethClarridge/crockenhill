@@ -187,7 +187,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         ]);
 
         $section->refresh();
-        $metadata = $section->metadataData()->toArray();
+        $metadata = $section->metadata?->toArray() ?? [];
 
         $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
         $this->assertNull($section->published_sermon_id);

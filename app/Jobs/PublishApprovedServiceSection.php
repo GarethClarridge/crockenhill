@@ -109,7 +109,7 @@ class PublishApprovedServiceSection implements ShouldQueue
                 throw new \RuntimeException('Unable to resolve processing identity for section publication');
             }
 
-            $sectionMetadata = $section->metadataData()->toArray();
+            $sectionMetadata = $section->metadata?->toArray() ?? [];
             $publicationMetadata = is_array($sectionMetadata['publication'] ?? null)
                 ? $sectionMetadata['publication']
                 : [];

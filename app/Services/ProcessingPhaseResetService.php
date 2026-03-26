@@ -46,7 +46,7 @@ class ProcessingPhaseResetService
 
     private function resetSubmitToProcessing(MediaProcessingLog $processingLog): void
     {
-        $metadata = $processingLog->processingMetadataData()->toArray();
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
         unset($metadata['final_video_path'], $metadata['sermon_creation_completed_at']);
 
         $existingSermon = $processingLog->sermon;

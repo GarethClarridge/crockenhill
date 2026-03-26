@@ -53,7 +53,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'duration' => 400.0,
             'title' => "Children's Talk",
         ]);
-        $section->metadata = array_merge($section->metadataData()->toArray(), [
+        $section->metadata = array_merge($section->metadata?->toArray() ?? [], [
             'publication' => [
                 'approved_signature' => $section->classificationSignature(),
                 'approved_at' => now()->toIso8601String(),
@@ -251,7 +251,7 @@ class PublishApprovedServiceSectionTest extends TestCase
                 ],
             ],
         ]);
-        $section->metadata = array_merge($section->metadataData()->toArray(), [
+        $section->metadata = array_merge($section->metadata?->toArray() ?? [], [
             'publication' => [
                 'approved_signature' => $section->classificationSignature(),
                 'approved_at' => now()->toIso8601String(),
@@ -310,7 +310,7 @@ class PublishApprovedServiceSectionTest extends TestCase
                 ],
             ],
         ]);
-        $section->metadata = array_merge($section->metadataData()->toArray(), [
+        $section->metadata = array_merge($section->metadata?->toArray() ?? [], [
             'publication' => [
                 'approved_signature' => $section->classificationSignature(),
                 'approved_at' => now()->toIso8601String(),

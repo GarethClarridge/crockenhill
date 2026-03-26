@@ -88,7 +88,7 @@ class ProcessingRunFailureHandler
             $tempFiles[] = $processingLog->source_file_path;
         }
 
-        $metadata = $processingLog->processingMetadataData()->toArray();
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
 
         foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {
             if (is_string($metadata[$key] ?? null) && $metadata[$key] !== '') {
