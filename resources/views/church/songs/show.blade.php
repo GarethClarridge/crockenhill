@@ -57,6 +57,20 @@
             </div>
         </div>
 
+        @if ($videoUrl)
+            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div class="flex items-center gap-2 border-b border-gray-100 px-6 py-4">
+                    <x-heroicon-o-play-circle class="h-4 w-4 flex-shrink-0 text-cbc-teal" aria-hidden="true" />
+                    <h2 class="font-display text-xl text-gray-900">Watch</h2>
+                </div>
+                <div class="p-6">
+                    <video src="{{ $videoUrl }}" class="w-full rounded-lg" controls>
+                        Your browser does not support the video element.
+                    </video>
+                </div>
+            </div>
+        @endif
+
         <x-card heading="Lyrics">
             @if ($song->lyrics_plain)
                 <pre class="not-prose whitespace-pre-wrap font-sans text-sm leading-7 text-gray-800">{{ $song->lyrics_plain }}</pre>

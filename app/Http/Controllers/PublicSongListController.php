@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Song;
 use App\Services\PublicSongUsageService;
+use App\Services\SongVideoService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -31,7 +32,7 @@ class PublicSongListController extends Controller
         ]);
     }
 
-    public function show(Song $song, PublicSongUsageService $songUsageService): View
+    public function show(Song $song, PublicSongUsageService $songUsageService, SongVideoService $songVideoService): View
     {
         $this->abortIfDisabled();
 
@@ -41,6 +42,9 @@ class PublicSongListController extends Controller
 
         $stats = $songUsageService->statsForSong($song);
         $usageHistory = $songUsageService->usageHistoryForSong($song);
+
+        $displayVideo = $songVideoService->getDisplayVideoForSong($song);
+        $videoUrl = $displayVideo ? $songVideoService->getVideoUrl($displayVideo) : null;
 
         return view('church.songs.show', [
             'heading' => $song->title,
@@ -52,6 +56,7 @@ class PublicSongListController extends Controller
             'usageCount' => $stats['usage_count'],
             'lastSungDate' => $stats['last_sung_date'],
             'usageHistory' => $usageHistory,
+            'videoUrl' => $videoUrl,
         ]);
     }
 

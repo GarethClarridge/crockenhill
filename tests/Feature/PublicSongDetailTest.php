@@ -13,6 +13,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Models\SongVideo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
@@ -162,5 +163,97 @@ class PublicSongDetailTest extends TestCase
         $this->get(route('church.songs.show', $song->slug))
             ->assertOk()
             ->assertSee('CCLI 123456');
+    }
+
+    #[Test]
+    public function video_player_is_shown_when_song_has_a_video(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $song = Song::factory()->create(['title' => 'In Christ Alone']);
+
+        SongVideo::factory()->create([
+            'song_id' => $song->id,
+            'video_file_path' => 'sermons/songs/'.$song->id.'/test-video.mp4',
+            'recorded_date' => '2026-03-01',
+        ]);
+
+        $response = $this->get(route('church.songs.show', $song->slug));
+
+        $response->assertOk();
+        $response->assertSee('<video', false);
+        $response->assertSee('sermons/songs/'.$song->id.'/test-video.mp4', false);
+    }
+
+    #[Test]
+    public function video_player_is_not_shown_when_song_has_no_video(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $song = Song::factory()->create(['title' => 'How Great Thou Art']);
+
+        $response = $this->get(route('church.songs.show', $song->slug));
+
+        $response->assertOk();
+        $response->assertDontSee('<video', false);
+    }
+
+    #[Test]
+    public function featured_video_takes_priority_over_most_recent(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $song = Song::factory()->create(['title' => 'Blessed Assurance']);
+
+        SongVideo::factory()->create([
+            'song_id' => $song->id,
+            'video_file_path' => 'sermons/songs/'.$song->id.'/recent.mp4',
+            'recorded_date' => '2026-03-20',
+            'is_featured' => false,
+        ]);
+
+        SongVideo::factory()->featured()->create([
+            'song_id' => $song->id,
+            'video_file_path' => 'sermons/songs/'.$song->id.'/featured.mp4',
+            'recorded_date' => '2026-01-01',
+        ]);
+
+        $response = $this->get(route('church.songs.show', $song->slug));
+
+        $response->assertOk();
+        $response->assertSee('sermons/songs/'.$song->id.'/featured.mp4', false);
+        $response->assertDontSee('recent.mp4', false);
+    }
+
+    #[Test]
+    public function manual_upload_without_featured_flag_does_not_show_video(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $song = Song::factory()->create(['title' => 'To God Be The Glory']);
+
+        SongVideo::factory()->manual()->create([
+            'song_id' => $song->id,
+            'video_file_path' => 'sermons/songs/'.$song->id.'/manual.mp4',
+        ]);
+
+        $response = $this->get(route('church.songs.show', $song->slug));
+
+        $response->assertOk();
+        $response->assertDontSee('<video', false);
+    }
+
+    #[Test]
+    public function unauthenticated_users_are_still_redirected_to_login(): void
+    {
+        $song = Song::factory()->create();
+
+        SongVideo::factory()->create([
+            'song_id' => $song->id,
+            'recorded_date' => '2026-03-01',
+        ]);
+
+        $this->get(route('church.songs.show', $song->slug))
+            ->assertRedirect('/login');
     }
 }
