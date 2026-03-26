@@ -77,7 +77,7 @@ class CalendarService
             ->get();
     }
 
-    public function manuallyCategorizeEvent(int $eventId, string $meetingSlug): CalendarEvent
+    public function manuallyCategorizeEvent(int $eventId, string $meetingSlug): CalendarCategorizationResult
     {
         $event = CalendarEvent::findOrFail($eventId);
 
@@ -85,6 +85,8 @@ class CalendarService
             'meeting_slug' => $meetingSlug,
             'is_categorized_automatically' => false,
         ]);
+
+        $googleSynced = false;
 
         try {
             $googleEvent = Event::find($event->google_event_id);
@@ -100,6 +102,7 @@ class CalendarService
 
                 $googleEvent->googleEvent->setExtendedProperties($extendedProperties);
                 $googleEvent->save();
+                $googleSynced = true;
             }
         } catch (\Exception $e) {
             Log::warning('Failed to update Google Calendar extended property', [
@@ -109,6 +112,6 @@ class CalendarService
             ]);
         }
 
-        return $event;
+        return new CalendarCategorizationResult($event, $googleSynced);
     }
 }

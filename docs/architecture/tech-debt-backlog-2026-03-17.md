@@ -1894,7 +1894,7 @@ The backlog is ordered for safety:
   - `external-integration-boundary-review-2026-03-18.md`
 
 ### TD-043 - Move storage and container I/O out of the remaining model methods
-- Status: `Open`
+- Status: `Completed`
 - Priority: P3
 - Impact: Low-Medium
 - Risk: Low
@@ -1918,7 +1918,7 @@ The backlog is ordered for safety:
   - `public-read-side-architecture-review-2026-03-18.md`
 
 ### TD-044 - Fix calendar manual categorization to report Google sync failure distinctly
-- Status: `Open`
+- Status: `Completed`
 - Priority: P3
 - Impact: Low
 - Risk: Low

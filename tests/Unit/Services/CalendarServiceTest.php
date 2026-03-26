@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use App\Services\CalendarCategorizationResult;
 use App\Services\CalendarService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -256,8 +257,10 @@ class CalendarServiceTest extends TestCase
         // manuallyCategorizeEvent updates DB then tries Google (which will fail gracefully)
         $result = $this->service->manuallyCategorizeEvent($event->id, 'sunday-morning');
 
-        $this->assertEquals('sunday-morning', $result->meeting_slug);
-        $this->assertFalse($result->is_categorized_automatically);
+        $this->assertInstanceOf(CalendarCategorizationResult::class, $result);
+        $this->assertEquals('sunday-morning', $result->event->meeting_slug);
+        $this->assertFalse($result->event->is_categorized_automatically);
+        $this->assertFalse($result->googleSynced);
 
         $event->refresh();
         $this->assertEquals('sunday-morning', $event->meeting_slug);

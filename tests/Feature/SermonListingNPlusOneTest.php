@@ -31,14 +31,14 @@ class SermonListingNPlusOneTest extends TestCase
     public function repository_query_results_include_all_required_columns_for_meta_description(): void
     {
         // Create 1 sermon with a summary and show_summary = true
-        Sermon::factory()->create([
+        $created = Sermon::factory()->create([
             'meta_description' => null,
             'summary' => 'Some unique summary for this test.',
             'show_summary' => true,
         ]);
 
         $repository = new SermonRepository;
-        $sermon = $repository->publicSermonQuery()->first();
+        $sermon = $repository->publicSermonQuery()->whereKey($created->id)->first();
 
         $this->assertNotNull($sermon);
 

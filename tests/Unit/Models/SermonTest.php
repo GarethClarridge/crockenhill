@@ -250,10 +250,11 @@ class SermonTest extends TestCase
     {
         Config::set('sermons.childrens_talks.public', false);
 
-        Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
-        Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
+        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
+        $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
 
-        $results = Sermon::whereVisibleInSitemap()->get();
+        $ids = [$sermon->id, $childrensTalk->id];
+        $results = Sermon::whereVisibleInSitemap()->whereIn('id', $ids)->get();
 
         $this->assertTrue($results->every(fn (Sermon $s) => $s->content_type === SermonContentType::Sermon));
         $this->assertCount(1, $results);
@@ -264,9 +265,10 @@ class SermonTest extends TestCase
     {
         Config::set('sermons.childrens_talks.public', true);
 
-        Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
-        Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
+        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
+        $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
 
-        $this->assertCount(2, Sermon::whereVisibleInSitemap()->get());
+        $ids = [$sermon->id, $childrensTalk->id];
+        $this->assertCount(2, Sermon::whereVisibleInSitemap()->whereIn('id', $ids)->get());
     }
 }
