@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -251,46 +250,6 @@ class Page extends Model implements HasMedia, Sitemapable
             ->format('webp')
             ->quality(80)
             ->nonQueued();
-    }
-
-    /**
-     * Check if the page has a heading image (Media Library or new storage).
-     */
-    public function hasImage(): bool
-    {
-        if ($this->getFirstMedia('headings')) {
-            return true;
-        }
-
-        return Storage::disk('public')->exists("pages/headings/large/{$this->slug}.webp");
-    }
-
-    /**
-     * Get responsive image srcset for the heading image.
-     *
-     * Returns a srcset string suitable for use in an img tag's srcset attribute.
-     */
-    public function getHeadingImageSrcsetAttribute(): ?string
-    {
-        $media = $this->getFirstMedia('headings');
-
-        if (! $media) {
-            return null;
-        }
-
-        $srcset = [];
-
-        if ($media->hasGeneratedConversion('mobile')) {
-            $srcset[] = $media->getUrl('mobile').' 640w';
-        }
-        if ($media->hasGeneratedConversion('tablet')) {
-            $srcset[] = $media->getUrl('tablet').' 1024w';
-        }
-        if ($media->hasGeneratedConversion('desktop')) {
-            $srcset[] = $media->getUrl('desktop').' 1920w';
-        }
-
-        return ! empty($srcset) ? implode(', ', $srcset) : null;
     }
 
     /**

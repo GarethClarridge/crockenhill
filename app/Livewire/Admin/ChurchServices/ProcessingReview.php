@@ -8,6 +8,7 @@ use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\MediaType;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\MediaProcessingLog;
+use App\Services\VideoStorageService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -83,6 +84,10 @@ class ProcessingReview extends Component
 
     private function checkSourceAvailable(MediaProcessingLog $log): bool
     {
-        return $log->sourceVideoExists();
+        if (! is_string($log->source_file_path) || $log->source_file_path === '') {
+            return false;
+        }
+
+        return app(VideoStorageService::class)->sourceVideoExistsForPath($log->source_file_path);
     }
 }

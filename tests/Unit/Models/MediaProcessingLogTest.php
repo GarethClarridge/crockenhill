@@ -454,15 +454,14 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
-    public function it_checks_source_video_availability_on_the_temp_disk(): void
+    public function source_video_check_is_delegated_to_the_storage_service(): void
     {
-        Storage::disk('local')->put('livestreams/2026/service.mp4', 'fake-video');
-
-        $log = MediaProcessingLog::factory()->livestream()->create([
-            'source_file_path' => 'livestreams/2026/service.mp4',
-        ]);
-
-        $this->assertTrue($log->sourceVideoExists());
+        // Confirms the model no longer owns I/O: the equivalent check lives in
+        // VideoStorageService::sourceVideoExistsForPath() (TD-043).
+        $this->assertFalse(
+            method_exists(MediaProcessingLog::class, 'sourceVideoExists'),
+            'sourceVideoExists() must not exist on MediaProcessingLog — it was moved to VideoStorageService.'
+        );
     }
 
     #[Test]

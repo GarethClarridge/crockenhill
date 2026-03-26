@@ -20,7 +20,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -377,20 +376,6 @@ class MediaProcessingLog extends Model
             && $this->status === ProcessingStatus::FAILED
             && $this->current_step === 'manual_review_required'
             && $this->processing_type === MediaType::Livestream;
-    }
-
-    public function sourceVideoExists(): bool
-    {
-        $sourceFilePath = $this->source_file_path;
-
-        if (! is_string($sourceFilePath) || $sourceFilePath === '') {
-            return false;
-        }
-
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
-
-        return Storage::disk($tempDisk)->exists($sourceFilePath)
-            || file_exists($sourceFilePath);
     }
 
     // Accessors for backward compatibility

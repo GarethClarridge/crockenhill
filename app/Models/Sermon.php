@@ -253,9 +253,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function scopeWhereVisibleInSitemap(Builder $query): Builder
     {
-        $exposurePolicy = app(\App\Services\SermonExposurePolicy::class);
-
-        if ($exposurePolicy->childrensTalksArePublic()) {
+        if ((bool) config('sermons.childrens_talks.public', false)) {
             return $query;
         }
 
