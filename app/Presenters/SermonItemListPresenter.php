@@ -60,11 +60,8 @@ class SermonItemListPresenter
                         '@type' => 'WebPage',
                         '@id' => $publicUrl,
                     ],
+                    'image' => $thumbnailUrl ?: asset('images/Primary.png'),
                 ];
-
-                if ($thumbnailUrl !== null) {
-                    $item['image'] = $thumbnailUrl;
-                }
 
                 return [
                     '@type' => 'ListItem',
