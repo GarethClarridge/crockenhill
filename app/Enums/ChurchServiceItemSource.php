@@ -13,12 +13,18 @@ enum ChurchServiceItemSource: string
     case EMAIL = 'email';
     case OPENLP = 'openlp';
     case MANUAL = 'manual';
+    case LIVESTREAM = 'livestream';
 
     public function isHumanProvided(): bool
     {
         return match ($this) {
             self::EMAIL, self::MANUAL => true,
-            self::OPENLP => false,
+            self::OPENLP, self::LIVESTREAM => false,
         };
+    }
+
+    public function isDetected(): bool
+    {
+        return $this === self::LIVESTREAM;
     }
 }

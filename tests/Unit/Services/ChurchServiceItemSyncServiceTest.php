@@ -12,6 +12,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Services\ChurchServiceItemSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -553,6 +554,200 @@ class ChurchServiceItemSyncServiceTest extends TestCase
                 ],
             ],
         ], $result['conflicts']);
+    }
+
+    #[Test]
+    public function test_livestream_source_creates_items_successfully(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Amazing Grace', 'Amazing Grace', null),
+            $this->incomingItem(2, 'custom', 'Sermon', 'Sermon', null),
+        ], ChurchServiceItemSource::LIVESTREAM);
+
+        $items = $churchService->fresh('items')?->items;
+        $this->assertCount(2, $items);
+        $this->assertSame(
+            [ChurchServiceItemSource::LIVESTREAM, ChurchServiceItemSource::LIVESTREAM],
+            $items->pluck('source')->all()
+        );
+    }
+
+    #[Test]
+    public function test_livestream_source_normalises_from_string(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Prayer', 'Prayer', null),
+        ], 'livestream');
+
+        /** @var ChurchServiceItem $item */
+        $item = $churchService->fresh('items')?->items->sole();
+        $this->assertSame(ChurchServiceItemSource::LIVESTREAM, $item->source);
+    }
+
+    #[Test]
+    public function test_livestream_does_not_share_merge_authority_with_openlp(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $openlpItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => ChurchServiceItemSource::OPENLP->value,
+            'title' => 'Notices',
+            'source_title' => 'Notices',
+        ]);
+
+        // Livestream syncs with no matching item — OPENLP item should be preserved
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Welcome', 'Welcome', null),
+        ], ChurchServiceItemSource::LIVESTREAM);
+
+        $openlpItem->refresh();
+        $this->assertNull($openlpItem->deleted_at);
+        $this->assertSame(ChurchServiceItemSource::OPENLP, $openlpItem->source);
+        $this->assertDatabaseCount('church_service_items', 2);
+    }
+
+    #[Test]
+    public function test_livestream_does_not_delete_unmatched_human_items(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $humanItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => ChurchServiceItemSource::MANUAL->value,
+            'title' => 'Opening Prayer',
+            'source_title' => 'Opening Prayer',
+        ]);
+
+        // Livestream syncs — should preserve human-authored items
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Welcome', 'Welcome', null),
+        ], ChurchServiceItemSource::LIVESTREAM);
+
+        $humanItem->refresh();
+        $this->assertNull($humanItem->deleted_at);
+        $this->assertSame(ChurchServiceItemSource::MANUAL, $humanItem->source);
+    }
+
+    #[Test]
+    public function test_human_source_deletes_unmatched_livestream_non_song_items(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $livestreamItem = ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Detected Prayer',
+            'source_title' => 'Detected Prayer',
+        ]);
+
+        // Manual edit syncs — should soft-delete unmatched livestream non-song items
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Opening Prayer', 'Opening Prayer', null),
+        ], ChurchServiceItemSource::MANUAL);
+
+        $this->assertSoftDeleted('church_service_items', ['id' => $livestreamItem->id]);
+    }
+
+    #[Test]
+    public function test_human_source_preserves_unmatched_livestream_songs(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $livestreamSong = ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Detected Song',
+            'source_title' => 'Detected Song',
+        ]);
+
+        // Manual edit syncs — unmatched livestream songs should be preserved (not replace_mode)
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'custom', 'Opening Prayer', 'Opening Prayer', null),
+        ], ChurchServiceItemSource::MANUAL);
+
+        $livestreamSong->refresh();
+        $this->assertNull($livestreamSong->deleted_at);
+        $this->assertSame(ChurchServiceItemSource::LIVESTREAM, $livestreamSong->source);
+
+        $this->assertCount(1, collect($result['conflicts'])->where('type', 'preserved_existing_song'));
+    }
+
+    #[Test]
+    public function test_livestream_rerun_replaces_previous_livestream_items(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Old Detected Prayer',
+            'source_title' => 'Old Detected Prayer',
+        ]);
+
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'songs',
+            'title' => 'Old Detected Song',
+            'source_title' => 'Old Detected Song',
+        ]);
+
+        // Livestream re-sync — should replace all previous livestream items (same source = merge authority)
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'New Song', 'New Song', null),
+        ], ChurchServiceItemSource::LIVESTREAM);
+
+        $activeItems = $churchService->items()->get();
+        $this->assertCount(1, $activeItems);
+        $this->assertSame('New Song', $activeItems->first()->title);
+        $this->assertSame(ChurchServiceItemSource::LIVESTREAM, $activeItems->first()->source);
+    }
+
+    #[Test]
+    public function test_canonical_update_service_accepts_livestream_source(): void
+    {
+        Event::fake();
+
+        $churchService = ChurchService::factory()->create([
+            'service' => SermonService::MORNING,
+            'needs_review' => false,
+            'import_metadata' => ['confidence_score' => 1.0],
+        ]);
+
+        $item = ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Detected Welcome',
+        ]);
+
+        $canonicalState = app(\App\Services\ChurchServiceCanonicalStateService::class);
+        $before = $canonicalState->snapshot($churchService->load('items'));
+
+        $item->update(['title' => 'Detected Welcome (updated)']);
+
+        $updateService = app(\App\Services\ChurchServiceCanonicalUpdateService::class);
+        $result = $updateService->finalize($churchService, $before, ChurchServiceItemSource::LIVESTREAM);
+        $result->refresh();
+
+        $this->assertSame('livestream', $result->import_metadata['canonical_conflict']['incoming_source']);
+
+        Event::assertDispatched(
+            \App\Events\ChurchServiceCanonicalListChanged::class,
+            fn ($event): bool => $event->churchServiceId === $result->id && $event->source === 'livestream'
+        );
     }
 
     /**

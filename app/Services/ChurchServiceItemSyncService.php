@@ -418,6 +418,14 @@ class ChurchServiceItemSyncService
             return true;
         }
 
+        if ($incomingSource->isDetected() && ! $existingSource->isDetected()) {
+            return false;
+        }
+
+        if ($incomingSource->isHumanProvided() && $existingSource->isDetected()) {
+            return true;
+        }
+
         return true;
     }
 

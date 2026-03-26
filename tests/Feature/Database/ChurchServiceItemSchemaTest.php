@@ -45,6 +45,18 @@ class ChurchServiceItemSchemaTest extends TestCase
     }
 
     #[Test]
+    public function it_accepts_livestream_as_a_valid_source_value(): void
+    {
+        $item = ChurchServiceItem::factory()->livestream()->create();
+
+        $source = DB::table('church_service_items')
+            ->where('id', $item->id)
+            ->value('source');
+
+        $this->assertSame(ChurchServiceItemSource::LIVESTREAM->value, $source);
+    }
+
+    #[Test]
     public function it_enforces_unique_active_positions_per_service(): void
     {
         $item = ChurchServiceItem::factory()->create([

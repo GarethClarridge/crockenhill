@@ -89,4 +89,12 @@ class ChurchServiceItemFactory extends Factory
             ]),
         ];
     }
+
+    public function livestream(): static
+    {
+        return $this->state(fn (): array => [
+            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'openlp_search_title' => null,
+        ]);
+    }
 }
