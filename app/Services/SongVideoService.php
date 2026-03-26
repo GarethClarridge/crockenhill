@@ -28,6 +28,10 @@ class SongVideoService
     public function featureVideo(SongVideo $video): void
     {
         DB::transaction(function () use ($video): void {
+            // Lock the song row to serialize concurrent feature operations,
+            // preventing two simultaneous requests from both setting is_featured = true.
+            Song::query()->lockForUpdate()->find($video->song_id);
+
             SongVideo::query()
                 ->where('song_id', $video->song_id)
                 ->where('is_featured', true)
@@ -76,8 +80,11 @@ class SongVideoService
 
     public function createFromExtraction(ServiceSection $section, string $videoPath): SongVideo
     {
-        /** @var \App\Models\ChurchServiceItem $item caller validates this is non-null */
         $item = $section->churchServiceItem;
+        if (! $item instanceof \App\Models\ChurchServiceItem || $item->song_id === null) {
+            throw new \RuntimeException('createFromExtraction requires a section with a linked ChurchServiceItem and song_id');
+        }
+
         $processingLog = $section->processingLog;
         $churchService = $processingLog->churchService;
 

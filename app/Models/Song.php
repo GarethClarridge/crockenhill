@@ -121,7 +121,7 @@ class Song extends Model
      */
     public function videos(): HasMany
     {
-        return $this->hasMany(SongVideo::class)->orderBy('recorded_date', 'desc');
+        return $this->hasMany(SongVideo::class)->orderByRaw('recorded_date IS NULL, recorded_date DESC');
     }
 
     /**
@@ -140,8 +140,8 @@ class Song extends Model
         }
 
         return $this->hasOne(SongVideo::class)
-            ->orderByRaw('recorded_date IS NULL, recorded_date DESC')
-            ->where('recorded_date', '!=', null)
+            ->whereNotNull('recorded_date')
+            ->orderByDesc('recorded_date')
             ->first();
     }
 }

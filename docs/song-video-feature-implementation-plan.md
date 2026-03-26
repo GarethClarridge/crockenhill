@@ -64,9 +64,9 @@ Create the `song_videos` table, `SongVideo` model, factory, and wire up relation
 - Helper: `isFeatured(): bool`
 
 **Add relationships to `Song` model:**
-- `videos(): HasMany` ordered by `recorded_date desc`
+- `videos(): HasMany` — ordered nulls-last by `recorded_date`: `orderByRaw('recorded_date IS NULL, recorded_date DESC')`. Simple `orderBy('recorded_date', 'desc')` is insufficient — MySQL sorts NULLs first with DESC, causing manual uploads to appear above dated recordings.
 - `featuredVideo(): HasOne` where `is_featured = true`
-- `displayVideo(): ?SongVideo` method — returns featured video, falling back to most recent. **Must sort nulls last** for `recorded_date` to avoid manual uploads (null date) outranking dated videos: `orderByRaw('recorded_date IS NULL, recorded_date DESC')`
+- `displayVideo(): ?SongVideo` method — returns featured video, falling back to most recent dated video. Filters out null-date records with `whereNotNull('recorded_date')` then `orderByDesc('recorded_date')`. A song with only manual uploads and no featured video returns null (see R2.5).
 
 **Factory: `database/factories/SongVideoFactory.php`**
 - Default state with fake video path, duration, recorded_date
@@ -90,7 +90,9 @@ Create the `song_videos` table, `SongVideo` model, factory, and wire up relation
 ## PR 2: Section Publication Handler Infrastructure
 
 ### Goal
-Introduce a handler pattern for post-extraction publication, replacing scattered type-specific conditionals. Extract existing sermon/children's-talk logic into `SermonPublicationHandler`. **This is a pure refactor — zero behavior change, all existing tests must pass.**
+Introduce a handler pattern for post-extraction publication, replacing scattered type-specific conditionals. Extract existing sermon/children's-talk logic into `SermonPublicationHandler`. All existing tests must pass.
+
+> **Note:** This PR is primarily a refactor, but it includes two genuine behavioral additions: (1) the `NOT_APPLICABLE → PUBLISHED` state machine transition (which no existing code path triggers yet), and (2) the constraint relaxation migration below (which changes what the database considers valid for published sections). These are intentional — without them, PR 3 cannot function.
 
 ### Architecture
 
@@ -146,7 +148,7 @@ class SectionPublicationHandlerFactory
 
 **Config change: `config/media-processing.php`**
 
-Replace `extract_types` and `publishable_types` with a unified `handlers` map:
+The `section_publishing` block uses a unified `handlers` map — a section type with a registered handler is extractable and publishable; types without handlers go to NOT_APPLICABLE:
 ```php
 'section_publishing' => [
     'enabled' => true,
@@ -158,8 +160,6 @@ Replace `extract_types` and `publishable_types` with a unified `handlers` map:
     'retain_unpublished_hours' => 48,
 ],
 ```
-
-A section type with a registered handler is extractable and publishable. Types without handlers are NOT_APPLICABLE. This replaces the separate `extract_types` and `publishable_types` arrays.
 
 ### Refactoring Targets
 
@@ -175,10 +175,10 @@ A section type with a registered handler is extractable and publishable. Types w
 - Replace inline sermon creation logic with `$handler->publish($section)`
 - Remove hardcoded children's talk speaker check (now in handler's `publish()`)
 
-**`ServiceSectionSyncService`** — add handler cleanup hooks:
-- In `cleanupExtractedAssets()` path (signature change): also call `$handler->onSectionRemoved($section)` if handler exists
-- In stale section deletion: call `$handler->onSectionRemoved($section)` before delete
-- Replace inline `detachPublishedLinkBeforeStaleDelete()` with handler call
+**`ServiceSectionSyncService`** — add handler cleanup hooks via a `notifyHandlerOfRemoval()` method:
+- Called before `cleanupExtractedAssets()` when a section's classification signature changes
+- Called before stale section deletion
+- If no handler is registered for the section type, logs a warning if a published sermon was linked
 
 **`ServiceSectionPublicationTransitionService`** — update `isPublishableType()` and state machine:
 - Check handler registry instead of `publishable_types` config
@@ -198,12 +198,7 @@ A section type with a registered handler is extractable and publishable. Types w
 
 ### Tests
 
-All existing tests must pass unchanged — this is a pure refactor:
-- `tests/Feature/Jobs/PrepareSectionPublicationCandidatesTest.php` — no changes needed
-- `tests/Feature/Jobs/PublishApprovedServiceSectionTest.php` — no changes needed
-- `tests/Unit/Services/ServiceSectionSyncServiceTest.php` — no changes needed
-
-New tests:
+All existing tests must pass. New tests:
 - `tests/Unit/Services/SectionPublication/SermonPublicationHandlerTest.php` — unit test the extracted logic
 - `tests/Unit/Services/SectionPublication/SectionPublicationHandlerFactoryTest.php` — resolution, null for unknown types
 
@@ -211,14 +206,17 @@ New tests:
 - `app/Contracts/SectionPublicationHandler.php` (new)
 - `app/Services/SectionPublication/SermonPublicationHandler.php` (new)
 - `app/Services/SectionPublication/SectionPublicationHandlerFactory.php` (new)
-- `config/media-processing.php` (edit — replace extract_types/publishable_types with handlers map)
+- `config/media-processing.php` (edit — ensure handlers map is in place)
 - `app/Jobs/PrepareSectionPublicationCandidates.php` (refactor — delegate to handlers)
 - `app/Jobs/PublishApprovedServiceSection.php` (refactor — delegate to handler)
-- `app/Services/ServiceSectionSyncService.php` (edit — add handler cleanup hooks)
+- `app/Services/ServiceSectionSyncService.php` (edit — add `notifyHandlerOfRemoval()` cleanup hook)
 - `app/Services/ServiceSectionPublicationTransitionService.php` (edit — use handler registry, add NOT_APPLICABLE → PUBLISHED transition)
+- `database/migrations/xxxx_relax_service_section_publication_constraints_for_song_videos.php` (new — **required**)
 - `tests/Unit/Services/SectionPublication/SermonPublicationHandlerTest.php` (new)
 - `tests/Unit/Services/SectionPublication/SectionPublicationHandlerFactoryTest.php` (new)
 - `tests/Unit/Services/ServiceSectionPublicationTransitionServiceTest.php` (extend — verify NOT_APPLICABLE → PUBLISHED is allowed)
+
+> **Critical:** The `service_sections` table has CHECK constraints that assume all published sections have a `published_sermon_id` (not null) and an `extracted_audio_path` (not null). Song sections violate both: they produce a `SongVideo` (no Sermon) and extract video only (no audio). Without the relaxation migration, `SongPublicationHandler::publish()` causes a DB constraint violation when setting `publication_status = 'published'`. This migration must ship in PR 2, before PR 3 introduces the song handler.
 
 ---
 
@@ -234,15 +232,15 @@ Create `SongVideoService` and `SongPublicationHandler`, enable automatic extract
 Methods:
 - `getVideoUrl(SongVideo $video): string` — generates CDN or local URL using `Storage::disk(sermon_disk)->url()`, same pattern as `SermonStorageService::getVideoUrl()`
 - `getDisplayVideoForSong(Song $song): ?SongVideo` — returns featured or most recent video (eager-loadable query, nulls-last ordering)
-- `featureVideo(SongVideo $video): void` — transaction: unset any existing featured video for the song, set this one
+- `featureVideo(SongVideo $video): void` — transaction: lock the parent `Song` row with `lockForUpdate()` first (to serialize concurrent requests), then unset any existing featured video for the song, then set this one. A partial unique index (`WHERE is_featured = true`) would be the DB-level alternative but MySQL does not support partial indexes, making application-level locking the correct approach here.
 - `unfeatureVideo(SongVideo $video): void` — unset `is_featured`
 - `deleteVideo(SongVideo $video): void` — delete stored file from sermon_disk, delete record. **For auto-extracted videos** (has `service_section_id`): also reset the linked `ServiceSection` publication status to NOT_APPLICABLE and clear `published_at`, so the pipeline can re-extract on the next run. Without this reset, `PrepareSectionPublicationCandidates` skips PUBLISHED sections unconditionally.
 - `createFromUpload(Song $song, UploadedFile $file): SongVideo` — store file on sermon_disk at `sermons/songs/{song_id}/{ulid}.mp4` (ULID prefix prevents filename collisions), create record
-- `createFromExtraction(ServiceSection $section, string $videoPath): SongVideo` — create record linking to section's song, service, and recorded date
+- `createFromExtraction(ServiceSection $section, string $videoPath): SongVideo` — create record linking to section's song, service, and recorded date. `duration` is sourced from `$section->duration` (the classification timecode difference, not probed from the output file); `recorded_date` from the linked `ChurchService->date`. Requires `processingLog` and `churchServiceItem` to be eager-loaded on the section.
 
 **Handler: `app/Services/SectionPublication/SongPublicationHandler.php`**
 - `requiresAudioExtraction()`: false — songs only need video
-- `isEligible()`: requires `song_match_type === CONFIRMED` and non-null `song_id` on the linked `ChurchServiceItem` (R1.2)
+- `isEligible()`: requires `$section->hasConfirmedSongMatch()` (i.e. `song_match_type === CONFIRMED` on the `ServiceSection`, not on `ChurchServiceItem`) AND non-null `song_id` on the linked `ChurchServiceItem` (R1.2)
 - `afterExtraction()`: no-op
 - `requiresApproval()`: false
 - `publish()`:
@@ -383,7 +381,10 @@ Both `SermonStorageService::getVideoUrl()` and the new `SongVideoService::getVid
 - This differs from sermon sections (`sermons/sections/{id}/video.mp4`) to keep song videos organized by song.
 
 ### Null `recorded_date` Ordering
-Manual uploads have `recorded_date = null`. The `displayVideo()` query must sort nulls last to prevent manual uploads from outranking dated videos in the "most recent" fallback. Use `orderByRaw('recorded_date IS NULL, recorded_date DESC')`. A song with only manual uploads and no featured video intentionally returns no display video — the admin must explicitly feature one.
+Manual uploads have `recorded_date = null`. The `videos()` relationship must sort nulls last using `orderByRaw('recorded_date IS NULL, recorded_date DESC')` — simple `orderBy('recorded_date', 'desc')` is insufficient because MySQL sorts NULLs first with `DESC`. The `displayVideo()` method handles this differently: it filters out null-date records entirely with `whereNotNull('recorded_date')`, so a song with only manual uploads and no featured video returns null — the admin must explicitly feature one.
+
+### File Promotion Atomicity
+`SongPublicationHandler::publish()` promotes the extracted video file to sermon_disk (I/O) and then creates the `SongVideo` record (DB) inside the same `DB::transaction()`. The transaction wraps the DB operations only — a file promotion cannot be rolled back by SQL. If the DB insert fails after a successful file promotion, the promoted file is orphaned on disk. This is a known tradeoff shared with `SermonPublicationHandler`. Mitigation: the idempotency check (`SongVideo` existence by `service_section_id`) means re-runs will skip creation if the record was committed on a later retry, and the unique constraint prevents duplicates. Operators should periodically audit `sermons/songs/` against the `song_videos` table if storage hygiene is a concern.
 
 ### Idempotency & Self-Healing
 The unique constraint on `service_section_id` is the primary guard against duplicate `SongVideo` records. The handler checks for existence before creating and skips gracefully.

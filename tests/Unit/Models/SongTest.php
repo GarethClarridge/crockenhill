@@ -86,6 +86,20 @@ class SongTest extends TestCase
     }
 
     #[Test]
+    public function videos_relationship_sorts_manual_uploads_with_null_date_last(): void
+    {
+        $song = Song::factory()->create();
+        SongVideo::factory()->manual()->create(['song_id' => $song->id]);
+        SongVideo::factory()->create(['song_id' => $song->id, 'recorded_date' => '2025-06-01']);
+        SongVideo::factory()->manual()->create(['song_id' => $song->id]);
+        SongVideo::factory()->create(['song_id' => $song->id, 'recorded_date' => '2025-01-01']);
+
+        $dates = $song->videos->pluck('recorded_date')->map(fn ($d) => $d?->format('Y-m-d'))->toArray();
+
+        $this->assertSame(['2025-06-01', '2025-01-01', null, null], $dates);
+    }
+
+    #[Test]
     public function featured_video_relationship_returns_featured_video(): void
     {
         $song = Song::factory()->create();
