@@ -17,7 +17,7 @@ class MediaProcessingIdentityResolver
      */
     public function resolve(MediaProcessingLog $processingLog): ?array
     {
-        $metadata = $processingLog->processingMetadataData()->toArray();
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
 
         return $this->resolveFromValues(
             $processingLog->extracted_date?->toDateString(),

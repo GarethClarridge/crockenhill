@@ -173,10 +173,10 @@ class MediaProcessingLogTest extends TestCase
             'song_clusters' => $songClusters,
         ]);
 
-        $this->assertSame('ID3 Title', $log->processingMetadataData()->id3Metadata?->title);
-        $this->assertSame('ratio_below_threshold', $log->manualReviewData()?->reasonCode);
-        $this->assertSame($processingMetadata, $log->processingMetadataData()->toArray());
-        $this->assertSame($songClusters, $log->songClustersData()->toArray());
+        $this->assertSame('ID3 Title', $log->processing_metadata->id3Metadata?->title);
+        $this->assertSame('ratio_below_threshold', $log->processing_metadata?->manualReview?->reasonCode);
+        $this->assertSame($processingMetadata, $log->processing_metadata?->toArray());
+        $this->assertSame($songClusters, $log->song_clusters?->toArray());
     }
 
     #[Test]

@@ -95,7 +95,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             $updateData = [];
 
             // Get ID3 metadata from processing log if available
-            $id3Metadata = $this->processingLog->processingMetadataData()->id3Metadata;
+            $id3Metadata = $this->processingLog->processing_metadata?->id3Metadata;
 
             // Only update title if not set by ID3 tags OR if ID3 title looks like a filename
             $id3Title = $id3Metadata?->title;
@@ -163,7 +163,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                     $updateData = [];
 
                     // Get ID3 metadata from processing log if available
-                    $id3Metadata = $this->processingLog->processingMetadataData()->id3Metadata;
+                    $id3Metadata = $this->processingLog->processing_metadata?->id3Metadata;
 
                     // Only update fields not set by ID3 tags OR if ID3 title looks like a filename
                     $id3Title = $id3Metadata?->title;

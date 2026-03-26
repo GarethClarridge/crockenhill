@@ -280,7 +280,7 @@ class AnalyzeSegments implements ShouldQueue
      */
     private function getVisualClusters(): ?array
     {
-        $rawClusters = $this->processingLog->songClustersData()->toArray();
+        $rawClusters = $this->processingLog->song_clusters?->toArray() ?? [];
 
         if ($rawClusters === []) {
             return null;

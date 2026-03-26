@@ -124,7 +124,7 @@ class UpdateSermonRecord implements ShouldQueue
         \App\Models\MediaProcessingLog $processingLog,
         SermonTranscriptReader $transcriptReader,
     ): SermonAnalysis {
-        $analysis = $processingLog->aiAnalysisData();
+        $analysis = $processingLog->ai_analysis;
 
         if ($analysis instanceof SermonAnalysis) {
             Log::info('Consuming stored AI analysis for sermon update', [

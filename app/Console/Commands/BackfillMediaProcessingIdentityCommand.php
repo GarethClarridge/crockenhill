@@ -54,7 +54,7 @@ class BackfillMediaProcessingIdentityCommand extends Command
             foreach ($logs as $log) {
                 $metrics['processed']++;
 
-                $metadata = $log->processingMetadataData()->toArray();
+                $metadata = $log->processing_metadata?->toArray() ?? [];
                 $parsedDate = $identityResolver->parseDate($metadata['extracted_date'] ?? null);
                 $parsedService = $identityResolver->parseService($metadata['extracted_service'] ?? null);
 

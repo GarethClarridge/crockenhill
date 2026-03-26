@@ -59,7 +59,7 @@ class SaveServiceSectionTest extends TestCase
         );
 
         $section->refresh();
-        $metadata = $section->metadataData()->toArray();
+        $metadata = $section->metadata?->toArray() ?? [];
 
         $this->assertSame(ServiceSectionType::PRAYER, $section->section_type);
         $this->assertSame('Pastoral Prayer', $section->title);
