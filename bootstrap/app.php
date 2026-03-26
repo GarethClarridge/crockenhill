@@ -32,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
-        $trustedProxies = env('TRUSTED_PROXIES');
+        $trustedProxies = config('app.trusted_proxies');
 
         if (is_string($trustedProxies) && trim($trustedProxies) !== '') {
             $middleware->trustProxies(at: $trustedProxies);

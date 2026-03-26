@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
@@ -16,7 +17,7 @@ use Livewire\WithPagination;
 
 class ListUsers extends Component
 {
-    use EscapesLikeWildcards, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'created_at';
 
@@ -44,6 +45,11 @@ class ListUsers extends Component
     #[Url(except: self::DEFAULT_SORT_DIRECTION)]
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
+    public function mount(): void
+    {
+        $this->authorizeAdmin();
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -60,6 +66,8 @@ class ListUsers extends Component
 
     public function delete(User $user): void
     {
+        $this->authorizeAdmin();
+
         if ($user->id === auth()->id()) {
             $this->error('Cannot delete yourself');
 
@@ -72,6 +80,8 @@ class ListUsers extends Component
 
     public function toggleAdmin(User $user): void
     {
+        $this->authorizeAdmin();
+
         if ($user->id === auth()->id()) {
             $this->error('Cannot modify your own admin status');
 

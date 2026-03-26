@@ -9,6 +9,7 @@ use App\Actions\InboundEmail\InboundEmailPreviewFactory;
 use App\Actions\InboundEmail\RejectInboundEmail;
 use App\Actions\InboundEmail\ReparseInboundEmail;
 use App\Enums\InboundEmailStatus;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\InboundEmail;
 use App\Traits\EscapesLikeWildcards;
@@ -22,6 +23,7 @@ use Livewire\WithPagination;
 class ReviewInboundEmails extends Component
 {
     use EscapesLikeWildcards;
+    use WithAdminAuthorization;
     use WithNotifications;
     use WithPagination;
 
@@ -33,6 +35,7 @@ class ReviewInboundEmails extends Component
 
     public function mount(): void
     {
+        $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
 
@@ -48,6 +51,8 @@ class ReviewInboundEmails extends Component
 
     public function approve(int $inboundEmailId, ApproveInboundEmailImport $action): mixed
     {
+        $this->authorizeAdmin();
+
         $inboundEmail = $this->findReviewableEmail($inboundEmailId);
         if (! $inboundEmail instanceof InboundEmail) {
             $this->error('Inbound email not found.');
@@ -99,6 +104,8 @@ class ReviewInboundEmails extends Component
 
     public function reparse(int $inboundEmailId, ReparseInboundEmail $action): void
     {
+        $this->authorizeAdmin();
+
         $inboundEmail = $this->findReviewableEmail($inboundEmailId);
         if (! $inboundEmail instanceof InboundEmail) {
             $this->error('Inbound email not found.');
@@ -119,6 +126,8 @@ class ReviewInboundEmails extends Component
 
     public function reject(int $inboundEmailId, RejectInboundEmail $action): void
     {
+        $this->authorizeAdmin();
+
         $inboundEmail = $this->findReviewableEmail($inboundEmailId);
         if (! $inboundEmail instanceof InboundEmail) {
             $this->error('Inbound email not found.');
