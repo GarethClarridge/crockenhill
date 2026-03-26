@@ -400,6 +400,16 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
+     * Get the latest processing log for this sermon.
+     *
+     * @return HasOne<MediaProcessingLog, $this>
+     */
+    public function latestProcessingLog(): HasOne
+    {
+        return $this->hasOne(MediaProcessingLog::class)->latestOfMany();
+    }
+
+    /**
      * Check if this sermon has a transcript available
      *
      * Performance Optimization: Trust the database column presence to avoid

@@ -47,10 +47,10 @@ class ChurchServiceCanonicalUpdateService
             ? json_decode($originalImportMetadata, true)
             : [];
         $originalImportMetadata = is_array($originalImportMetadata) ? $originalImportMetadata : [];
-        $importMetadataData = $freshChurchService->importMetadataData();
-        $reviewedPreviously = is_string($importMetadataData->manualReview?->reviewedAt);
+        $importMetadataData = $freshChurchService->import_metadata;
+        $reviewedPreviously = is_string($importMetadataData?->manualReview?->reviewedAt);
         $shouldReopenReview = $reviewedPreviously && ($changes !== [] || $conflicts !== []);
-        $importMetadata = $importMetadataData->toArray();
+        $importMetadata = $importMetadataData?->toArray() ?? [];
 
         if ($changes !== [] || $conflicts !== []) {
             $canonicalConflict = [

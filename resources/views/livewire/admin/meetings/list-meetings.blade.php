@@ -109,7 +109,13 @@
                     colspan="{{ count($headers) + 1 }}"
                     title="No meetings found"
                     :hasFilters="$hasFilters"
-                />
+                >
+                    @if(!$hasFilters)
+                        <x-button link="{{ route('admin.meetings.create') }}" variant="primary" icon="plus" inline>
+                            Create Meeting
+                        </x-button>
+                    @endif
+                </x-admin.empty-state>
             @endforelse
         </tbody>
     </table>

@@ -111,13 +111,4 @@ class ChurchService extends Model
     {
         return $this->hasMany(MediaProcessingLog::class);
     }
-
-    public function importMetadataData(): ChurchServiceImportMetadata
-    {
-        $metadata = $this->import_metadata;
-
-        return $metadata instanceof ChurchServiceImportMetadata
-            ? $metadata
-            : ChurchServiceImportMetadata::fromArray($metadata);
-    }
 }
