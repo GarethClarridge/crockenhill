@@ -21,6 +21,13 @@ class ProcessingReview extends Component
 
     public bool $confirming = false;
 
+    private VideoStorageService $videoStorageService;
+
+    public function boot(VideoStorageService $videoStorageService): void
+    {
+        $this->videoStorageService = $videoStorageService;
+    }
+
     public function mount(MediaProcessingLog $processingLog): void
     {
         if ($processingLog->processing_type !== MediaType::Livestream) {
@@ -88,6 +95,6 @@ class ProcessingReview extends Component
             return false;
         }
 
-        return app(VideoStorageService::class)->sourceVideoExistsForPath($log->source_file_path);
+        return $this->videoStorageService->sourceVideoExistsForPath($log->source_file_path);
     }
 }
