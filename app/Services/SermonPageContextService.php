@@ -53,7 +53,7 @@ class SermonPageContextService
 
     private function resolveReadingSection(Sermon $sermon): ?ServiceSection
     {
-        $publishedSection = $sermon->publishedServiceSection()->first();
+        $publishedSection = $sermon->publishedServiceSection;
 
         if ($publishedSection instanceof ServiceSection) {
             return $this->queryReadingSection($publishedSection->media_processing_log_id);
@@ -84,18 +84,14 @@ class SermonPageContextService
     private function resolveProcessingLog(Sermon $sermon): ?MediaProcessingLog
     {
         if (is_string($sermon->livestream_processing_id) && $sermon->livestream_processing_id !== '') {
-            $processingLog = MediaProcessingLog::query()
-                ->where('processing_id', $sermon->livestream_processing_id)
-                ->first();
+            $processingLog = $sermon->livestreamProcessing;
 
             if ($processingLog instanceof MediaProcessingLog) {
                 return $processingLog;
             }
         }
 
-        return $sermon->processingLogs()
-            ->latest('id')
-            ->first();
+        return $sermon->latestProcessingLog;
     }
 
     private function bibleGatewayUrl(string $reference): string
