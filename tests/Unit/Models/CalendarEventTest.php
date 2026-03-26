@@ -35,6 +35,8 @@ class CalendarEventTest extends TestCase
         foreach ($data as $key => $value) {
             if ($value instanceof \Illuminate\Support\Carbon) {
                 $this->assertEquals($value->timestamp, $event->$key->timestamp);
+            } elseif ($key === 'status') {
+                $this->assertEquals($value, $event->$key->value);
             } else {
                 $this->assertEquals($value, $event->$key);
             }
