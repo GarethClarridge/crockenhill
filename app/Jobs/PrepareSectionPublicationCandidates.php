@@ -108,6 +108,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         }
 
         $pendingApprovalCount = 0;
+        $autoPublishCount = 0;
 
         foreach ($sections as $section) {
             $handler = $handlerFactory->forSection($section);
@@ -156,6 +157,14 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 continue;
             }
 
+            if (! $handler->requiresApproval()) {
+                $section->save();
+                AutoPublishServiceSection::dispatch($section->id);
+                $autoPublishCount++;
+
+                continue;
+            }
+
             if (
                 $section->publication_status !== ServiceSectionPublicationStatus::PENDING_APPROVAL
                 && ! $publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL)
@@ -170,7 +179,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
         $this->logStepComplete(
             ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
-            sprintf('Prepared %d publication candidate(s)', $pendingApprovalCount)
+            sprintf('Prepared %d approval candidate(s), dispatched %d auto-publish job(s)', $pendingApprovalCount, $autoPublishCount)
         );
     }
 

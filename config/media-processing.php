@@ -184,6 +184,7 @@ return [
         'enabled' => env('SERVICE_SECTION_PUBLISHING_ENABLED', true),
         'handlers' => [
             'childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class,
+            'song' => \App\Services\SectionPublication\SongPublicationHandler::class,
             // 'sermon' => \App\Services\SectionPublication\SermonPublicationHandler::class, // future
         ],
         'require_high_confidence' => env('SERVICE_SECTION_PUBLISH_REQUIRE_HIGH_CONFIDENCE', true),
