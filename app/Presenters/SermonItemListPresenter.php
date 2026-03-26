@@ -30,11 +30,13 @@ class SermonItemListPresenter
             'numberOfItems' => $flatSermons->count(),
             'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) {
                 $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
+                $publicUrl = $this->sermonViewPresenter->publicUrl($sermon);
 
                 $item = [
-                    '@type' => 'CreativeWork',
+                    '@type' => 'Article',
+                    'headline' => $sermon->title,
                     'name' => $sermon->title,
-                    'url' => $this->sermonViewPresenter->publicUrl($sermon),
+                    'url' => $publicUrl,
                     'description' => $sermon->meta_description,
                     'datePublished' => $sermon->date->toIso8601String(),
                     'inLanguage' => 'en-GB',
@@ -45,6 +47,18 @@ class SermonItemListPresenter
                     'author' => [
                         '@type' => 'Person',
                         'name' => $sermon->displayPreacherName(),
+                    ],
+                    'publisher' => [
+                        '@type' => 'Organization',
+                        'name' => config('organization.name'),
+                        'logo' => [
+                            '@type' => 'ImageObject',
+                            'url' => asset('images/Primary.png'),
+                        ],
+                    ],
+                    'mainEntityOfPage' => [
+                        '@type' => 'WebPage',
+                        '@id' => $publicUrl,
                     ],
                 ];
 
