@@ -53,10 +53,7 @@ class SermonPageContextService
 
     private function resolveReadingSection(Sermon $sermon): ?ServiceSection
     {
-        /**
-         * Performance Optimization: Use relationships instead of manual queries to leverage
-         * eager loading and prevent N+1 queries on the sermon page.
-         */
+        // Use eager-loaded relationship to avoid N+1 queries on individual sermon pages
         $publishedSection = $sermon->publishedServiceSection;
 
         if ($publishedSection instanceof ServiceSection) {
@@ -87,9 +84,7 @@ class SermonPageContextService
 
     private function resolveProcessingLog(Sermon $sermon): ?MediaProcessingLog
     {
-        /**
-         * Performance Optimization: Use relationships to leverage potential eager loading.
-         */
+        // Use eager-loaded relationship to avoid N+1 queries on individual sermon pages
         if (is_string($sermon->livestream_processing_id) && $sermon->livestream_processing_id !== '') {
             $processingLog = $sermon->livestreamProcessing;
 

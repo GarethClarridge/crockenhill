@@ -13,6 +13,18 @@ class SermonListingNPlusOneTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected function tearDown(): void
+    {
+        $sitemapService = app(\App\Services\SitemapService::class);
+        $sitemapFile = $sitemapService->getFilePath();
+
+        if (file_exists($sitemapFile)) {
+            unlink($sitemapFile);
+        }
+
+        parent::tearDown();
+    }
+
     /**
      * @test
      */
@@ -58,9 +70,5 @@ class SermonListingNPlusOneTest extends TestCase
         // Sitemap entries for sermons include <video:description> and <image:caption>
         // Both use meta_description or summary
         $this->assertStringContainsString('Sitemap unique summary', $content);
-
-        if (file_exists($sitemapFile)) {
-            unlink($sitemapFile);
-        }
     }
 }
