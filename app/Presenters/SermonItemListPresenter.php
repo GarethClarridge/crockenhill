@@ -32,7 +32,7 @@ class SermonItemListPresenter
                 $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
 
                 $item = [
-                    '@type' => 'CreativeWork',
+                    '@type' => 'Article',
                     'name' => $sermon->title,
                     'url' => $this->sermonViewPresenter->publicUrl($sermon),
                     'description' => $sermon->meta_description,
