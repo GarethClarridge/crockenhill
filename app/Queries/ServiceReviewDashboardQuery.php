@@ -154,7 +154,7 @@ class ServiceReviewDashboardQuery
      *     service:ChurchService|null,
      *     sections:array<int, array{reasons:array<int, array{key:string}>}>
      * }>  $groups
-     * @return array{service_groups:int,sections:int,services_needing_review:int,pending_approvals:int}
+     * @return array{service_groups:int,sections:int,services_needing_review:int,pending_approvals:int,pending_merges:int}
      */
     public function summary(array $groups): array
     {
@@ -170,12 +170,23 @@ class ServiceReviewDashboardQuery
                 ->filter(fn (array $entry): bool => collect($entry['reasons'])->contains('key', 'pending_approval'))
                 ->count());
 
+        $pendingMerges = $this->pendingMergeCount();
+
         return [
             'service_groups' => count($groups),
             'sections' => $sections,
             'services_needing_review' => $servicesNeedingReview,
             'pending_approvals' => $pendingApprovals,
+            'pending_merges' => $pendingMerges,
         ];
+    }
+
+    public function pendingMergeCount(): int
+    {
+        return ChurchService::query()
+            ->whereNotNull('import_metadata')
+            ->whereRaw("JSON_CONTAINS_PATH(import_metadata, 'one', '$.pending_structure_merge.incoming_source')")
+            ->count();
     }
 
     /**

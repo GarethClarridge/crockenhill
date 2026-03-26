@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Data\StructureMergeResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
+use Illuminate\Support\Facades\Log;
 
 class ChurchServiceStructureMergeService
 {
@@ -80,6 +81,12 @@ class ChurchServiceStructureMergeService
             $syncResult,
         );
 
+        Log::info('Structure merge: auto-merged', [
+            'church_service_id' => $churchService->id,
+            'incoming_source' => $incomingSource->value,
+            'items_synced' => count($incomingItems),
+        ]);
+
         return new StructureMergeResult(
             churchService: $churchService,
             incomingSource: $incomingSource,
@@ -129,6 +136,14 @@ class ChurchServiceStructureMergeService
             'needs_review' => true,
             'import_metadata' => $importMetadata,
         ])->save();
+
+        Log::info('Structure merge: staged for review', [
+            'church_service_id' => $churchService->id,
+            'incoming_source' => $incomingSource->value,
+            'conflict_count' => count($stagedConflicts),
+            'proposed_item_count' => count($incomingItems),
+            'classification' => $classification,
+        ]);
 
         return new StructureMergeResult(
             churchService: $churchService->fresh() ?? $churchService,

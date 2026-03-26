@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
+use App\Actions\ServiceReview\ResolvePendingStructureMerge;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Livewire\Traits\WithNotifications;
@@ -15,6 +16,7 @@ use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ServiceRecordTimeline;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -43,6 +45,8 @@ class ShowChurchService extends Component
         $warnings = is_array($importMetadata['warnings'] ?? null) ? $importMetadata['warnings'] : [];
         $confidenceScore = $importMetadata['confidence_score'] ?? null;
         $processingRuns = $this->relatedProcessingRuns();
+        $pendingMerge = $this->churchService->import_metadata?->pendingStructureMerge;
+        $hasPendingMerge = $pendingMerge !== null && $pendingMerge->incomingSource !== null;
 
         return view('livewire.admin.church-services.show-church-service', [
             'importMetadata' => $importMetadata,
@@ -51,6 +55,7 @@ class ShowChurchService extends Component
             'processingRuns' => $processingRuns,
             'processingTimelines' => $this->buildProcessingTimelines($processingRuns),
             'serviceTimelines' => $this->buildServiceTimelines($processingRuns),
+            'pendingMerge' => $hasPendingMerge ? $pendingMerge : null,
         ])->layout('layouts.admin', [
             'title' => 'Service: '.$this->churchService->date->format('j M Y'),
             'heading' => 'Service: '.$this->churchService->date->format('j M Y').' '.$this->churchService->service->label(),
@@ -88,6 +93,43 @@ class ShowChurchService extends Component
         app(\App\Services\ProcessingRunOrchestrator::class)->reclassify($processingLog);
 
         $this->success('Section reclassification queued');
+    }
+
+    public function acceptIncomingMerge(): void
+    {
+        $this->resolvePendingMerge('accept_incoming');
+    }
+
+    public function keepCurrentStructure(): void
+    {
+        $this->resolvePendingMerge('keep_current');
+    }
+
+    private function resolvePendingMerge(string $resolution): void
+    {
+        $userId = is_numeric(Auth::id()) ? (int) Auth::id() : 0;
+
+        $result = app(ResolvePendingStructureMerge::class)->execute(
+            $this->churchService,
+            $resolution,
+            $userId,
+        );
+
+        if (! $result->applied) {
+            $this->error($result->reason);
+
+            return;
+        }
+
+        $this->churchService = $result->churchService->load([
+            'items' => fn ($query) => $query
+                ->with('song:id,title')
+                ->orderBy('position')
+                ->orderBy('id'),
+        ]);
+
+        $label = $resolution === 'accept_incoming' ? 'Incoming items applied' : 'Current structure preserved';
+        $this->success($label.'. Merge resolved.');
     }
 
     /**

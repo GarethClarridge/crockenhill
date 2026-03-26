@@ -64,6 +64,12 @@
                 </div>
             </x-card>
 
+            @if($pendingMerge)
+                @include('livewire.admin.church-services.partials.pending-structure-merge', [
+                    'pendingMerge' => $pendingMerge,
+                ])
+            @endif
+
             @if($processingRuns->isEmpty())
                 @include('livewire.admin.church-services.partials.planned-only-list', [
                     'items' => $churchService->items,

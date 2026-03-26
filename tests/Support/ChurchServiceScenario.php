@@ -48,6 +48,13 @@ final class ChurchServiceScenario
         return $this;
     }
 
+    public function livestream(): self
+    {
+        $this->attributes['source'] = 'livestream';
+
+        return $this;
+    }
+
     public function needsReview(bool $needsReview = true): self
     {
         $this->attributes['needs_review'] = $needsReview;

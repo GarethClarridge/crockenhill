@@ -970,6 +970,211 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function show_component_displays_pending_merge_panel_when_conflicts_exist(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = $this->churchServiceScenario()
+            ->livestream()
+            ->state([
+                'date' => '2026-03-23',
+                'service' => SermonService::MORNING,
+                'needs_review' => true,
+                'import_metadata' => [
+                    'pending_structure_merge' => [
+                        'incoming_source' => 'openlp',
+                        'created_at' => now()->toIso8601String(),
+                        'confidence' => ['current' => 'high', 'incoming' => 'high'],
+                        'conflicts' => [
+                            [
+                                'type' => 'title_conflict',
+                                'current_item' => ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace'],
+                                'incoming_item' => ['position' => 1, 'type' => 'songs', 'title' => 'How Great Thou Art'],
+                            ],
+                        ],
+                        'proposed_items' => [
+                            ['position' => 1, 'type' => 'songs', 'title' => 'How Great Thou Art'],
+                        ],
+                        'classification' => ['auto_merge' => [], 'review_required' => [0], 'unmatched_incoming' => []],
+                    ],
+                ],
+            ])
+            ->create();
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Pending Structure Merge')
+            ->assertSee('Title differs')
+            ->assertSee('Amazing Grace')
+            ->assertSee('How Great Thou Art')
+            ->assertSee('Accept incoming')
+            ->assertSee('Keep current');
+    }
+
+    #[Test]
+    public function show_component_does_not_display_merge_panel_when_no_pending_merge(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = $this->churchServiceScenario()
+            ->state([
+                'date' => '2026-03-23',
+                'service' => SermonService::MORNING,
+                'needs_review' => false,
+            ])
+            ->create();
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertDontSee('Pending Structure Merge');
+    }
+
+    #[Test]
+    public function show_component_accept_incoming_merge_resolves_and_clears_panel(): void
+    {
+        $this->actingAs($this->admin);
+        Event::fake();
+
+        $service = $this->churchServiceScenario()
+            ->livestream()
+            ->state([
+                'date' => '2026-03-23',
+                'service' => SermonService::MORNING,
+                'needs_review' => true,
+                'import_metadata' => [
+                    'pending_structure_merge' => [
+                        'incoming_source' => 'openlp',
+                        'created_at' => now()->toIso8601String(),
+                        'confidence' => ['current' => 'high', 'incoming' => 'high'],
+                        'conflicts' => [
+                            [
+                                'type' => 'title_conflict',
+                                'current_item' => ['position' => 1, 'type' => 'songs', 'title' => 'Old Song'],
+                                'incoming_item' => ['position' => 1, 'type' => 'songs', 'title' => 'New Song'],
+                            ],
+                        ],
+                        'proposed_items' => [
+                            ['position' => 1, 'type' => 'songs', 'title' => 'New Song', 'source_title' => null, 'openlp_search_title' => 'new song@', 'song_id' => null, 'metadata' => null],
+                        ],
+                        'classification' => ['auto_merge' => [], 'review_required' => [0], 'unmatched_incoming' => []],
+                    ],
+                ],
+            ])
+            ->create();
+
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Old Song',
+            'metadata' => [
+                'livestream_projection' => [
+                    'processing_id' => 'test',
+                    'service_section_id' => 1,
+                    'source_segment_ids' => [],
+                    'confidence_level' => 'high',
+                ],
+            ],
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Pending Structure Merge')
+            ->call('acceptIncomingMerge')
+            ->assertDispatched('notify');
+
+        $fresh = $service->fresh();
+        $this->assertFalse($fresh->needs_review);
+        $metadata = $fresh->import_metadata?->toArray() ?? [];
+        $this->assertArrayNotHasKey('pending_structure_merge', $metadata);
+        $this->assertArrayHasKey('structure_merge_resolution', $metadata);
+    }
+
+    #[Test]
+    public function show_component_keep_current_preserves_items_and_clears_panel(): void
+    {
+        $this->actingAs($this->admin);
+        Event::fake();
+
+        $service = $this->churchServiceScenario()
+            ->livestream()
+            ->state([
+                'date' => '2026-03-23',
+                'service' => SermonService::MORNING,
+                'needs_review' => true,
+                'import_metadata' => [
+                    'pending_structure_merge' => [
+                        'incoming_source' => 'openlp',
+                        'created_at' => now()->toIso8601String(),
+                        'confidence' => ['current' => 'high', 'incoming' => 'high'],
+                        'conflicts' => [
+                            [
+                                'type' => 'title_conflict',
+                                'current_item' => ['position' => 1, 'type' => 'songs', 'title' => 'Current Song'],
+                                'incoming_item' => ['position' => 1, 'type' => 'songs', 'title' => 'Incoming Song'],
+                            ],
+                        ],
+                        'proposed_items' => [
+                            ['position' => 1, 'type' => 'songs', 'title' => 'Incoming Song', 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
+                        ],
+                        'classification' => ['auto_merge' => [], 'review_required' => [0], 'unmatched_incoming' => []],
+                    ],
+                ],
+            ])
+            ->create();
+
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Current Song',
+            'metadata' => [
+                'livestream_projection' => [
+                    'processing_id' => 'test',
+                    'service_section_id' => 1,
+                    'source_segment_ids' => [],
+                    'confidence_level' => 'high',
+                ],
+            ],
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->call('keepCurrentStructure')
+            ->assertDispatched('notify');
+
+        $fresh = $service->fresh();
+        $this->assertFalse($fresh->needs_review);
+
+        $items = $fresh->items()->orderBy('position')->get();
+        $this->assertSame('Current Song', $items->first()->title);
+    }
+
+    #[Test]
+    public function list_component_shows_pending_merge_badge(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->churchServiceScenario()
+            ->livestream()
+            ->state([
+                'date' => '2026-03-23',
+                'service' => SermonService::MORNING,
+                'needs_review' => true,
+                'import_metadata' => [
+                    'pending_structure_merge' => [
+                        'incoming_source' => 'openlp',
+                        'created_at' => now()->toIso8601String(),
+                        'confidence' => ['current' => 'high', 'incoming' => 'high'],
+                        'conflicts' => [],
+                        'proposed_items' => [],
+                        'classification' => ['auto_merge' => [], 'review_required' => [], 'unmatched_incoming' => []],
+                    ],
+                ],
+            ])
+            ->create();
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSee('Pending merge');
+    }
+
+    #[Test]
     public function non_admin_cannot_access_service_admin_components(): void
     {
         $user = User::factory()->create([

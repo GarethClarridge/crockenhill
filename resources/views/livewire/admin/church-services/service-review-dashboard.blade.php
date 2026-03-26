@@ -15,7 +15,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <p class="text-xs font-medium uppercase tracking-wider text-gray-500">Service groups</p>
             <p class="mt-2 font-display text-3xl">{{ $summary['service_groups'] }}</p>
@@ -31,6 +31,10 @@
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <p class="text-xs font-medium uppercase tracking-wider text-gray-500">Pending approvals</p>
             <p class="mt-2 font-display text-3xl">{{ $summary['pending_approvals'] }}</p>
+        </div>
+        <div class="rounded-lg border {{ $summary['pending_merges'] > 0 ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-white' }} p-4 shadow-sm">
+            <p class="text-xs font-medium uppercase tracking-wider text-gray-500">Pending merges</p>
+            <p class="mt-2 font-display text-3xl">{{ $summary['pending_merges'] }}</p>
         </div>
     </div>
 
@@ -53,6 +57,11 @@
                                 <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-800">
                                     Service needs review
                                 </span>
+                            @endif
+                            @if($group['service']?->import_metadata?->pendingStructureMerge?->incomingSource)
+                                <a href="{{ route('admin.services.show', $group['service']) }}" class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 no-underline hover:bg-amber-200" wire:navigate>
+                                    Pending merge
+                                </a>
                             @endif
                         </div>
                         <p class="mt-1 text-sm text-gray-500">

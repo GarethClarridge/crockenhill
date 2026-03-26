@@ -1,0 +1,146 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Actions\ServiceReview;
+
+use App\Data\StructureMergeResolution;
+use App\Enums\ChurchServiceItemSource;
+use App\Models\ChurchService;
+use App\Services\ChurchServiceCanonicalStateService;
+use App\Services\ChurchServiceCanonicalUpdateService;
+use App\Services\ChurchServiceItemSyncService;
+use App\Services\ChurchServiceReviewStateService;
+use Illuminate\Support\Facades\Log;
+
+class ResolvePendingStructureMerge
+{
+    public function __construct(
+        private readonly ChurchServiceCanonicalStateService $canonicalStateService,
+        private readonly ChurchServiceItemSyncService $itemSyncService,
+        private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
+        private readonly ChurchServiceReviewStateService $reviewStateService,
+    ) {}
+
+    /**
+     * Resolve a pending structure merge by accepting the incoming items or keeping the current ones.
+     */
+    public function execute(
+        ChurchService $churchService,
+        string $resolution,
+        int $userId,
+    ): StructureMergeResolution {
+        $pendingMerge = $churchService->import_metadata?->pendingStructureMerge;
+
+        if ($pendingMerge === null || $pendingMerge->incomingSource === null) {
+            return new StructureMergeResolution(
+                churchService: $churchService,
+                resolution: $resolution,
+                applied: false,
+                reason: 'No pending structure merge found',
+            );
+        }
+
+        return match ($resolution) {
+            'accept_incoming' => $this->acceptIncoming($churchService, $pendingMerge->proposedItems, $pendingMerge->incomingSource, $userId),
+            'keep_current' => $this->keepCurrent($churchService, $userId),
+            default => new StructureMergeResolution(
+                churchService: $churchService,
+                resolution: $resolution,
+                applied: false,
+                reason: 'Unknown resolution: '.$resolution,
+            ),
+        };
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $proposedItems
+     */
+    private function acceptIncoming(
+        ChurchService $churchService,
+        array $proposedItems,
+        string $incomingSourceValue,
+        int $userId,
+    ): StructureMergeResolution {
+        $incomingSource = ChurchServiceItemSource::tryFrom($incomingSourceValue) ?? ChurchServiceItemSource::MANUAL;
+
+        $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
+
+        $syncResult = $this->itemSyncService->sync($churchService, $proposedItems, $incomingSource, [
+            'replace_mode' => true,
+        ]);
+
+        $churchService = $this->canonicalUpdateService->finalize(
+            $churchService,
+            $beforeSnapshot,
+            $incomingSource,
+            $syncResult,
+        );
+
+        $this->clearPendingMerge($churchService, 'accept_incoming', $userId);
+
+        Log::info('Pending structure merge resolved: accepted incoming', [
+            'church_service_id' => $churchService->id,
+            'incoming_source' => $incomingSourceValue,
+            'resolved_by_user_id' => $userId,
+            'items_synced' => count($proposedItems),
+        ]);
+
+        return new StructureMergeResolution(
+            churchService: $churchService,
+            resolution: 'accept_incoming',
+            applied: true,
+            reason: 'Incoming '.$incomingSourceValue.' items applied and canonical list updated',
+        );
+    }
+
+    private function keepCurrent(
+        ChurchService $churchService,
+        int $userId,
+    ): StructureMergeResolution {
+        $incomingSource = $churchService->import_metadata?->pendingStructureMerge->incomingSource ?? 'unknown';
+
+        $this->clearPendingMerge($churchService, 'keep_current', $userId);
+
+        Log::info('Pending structure merge resolved: kept current', [
+            'church_service_id' => $churchService->id,
+            'incoming_source' => $incomingSource,
+            'resolved_by_user_id' => $userId,
+        ]);
+
+        return new StructureMergeResolution(
+            churchService: $churchService,
+            resolution: 'keep_current',
+            applied: true,
+            reason: 'Current canonical items preserved; incoming '.$incomingSource.' data discarded',
+        );
+    }
+
+    private function clearPendingMerge(ChurchService $churchService, string $resolution, int $userId): void
+    {
+        $importMetadata = $churchService->import_metadata?->toArray() ?? [];
+
+        $importMetadata['structure_merge_resolution'] = [
+            'resolution' => $resolution,
+            'resolved_at' => now()->toIso8601String(),
+            'resolved_by_user_id' => $userId,
+            'original_incoming_source' => $importMetadata['pending_structure_merge']['incoming_source'] ?? null,
+            'conflict_count' => count($importMetadata['pending_structure_merge']['conflicts'] ?? []),
+        ];
+
+        unset($importMetadata['pending_structure_merge']);
+
+        $importMetadata['manual_review'] = [
+            'reviewed_at' => now()->toIso8601String(),
+            'reviewed_by_user_id' => $userId,
+        ];
+
+        $normalizedColumns = $this->reviewStateService->normalizedColumns($importMetadata);
+
+        $churchService->forceFill([
+            'needs_review' => false,
+            'import_metadata' => $importMetadata,
+            ...$normalizedColumns,
+        ])->save();
+    }
+}

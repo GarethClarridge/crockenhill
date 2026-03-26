@@ -90,15 +90,22 @@
                                 <span class="text-sm uppercase">{{ $churchService->source }}</span>
                             </td>
                             <td class="px-4 py-3">
-                                @if($churchService->needs_review)
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
-                                        Needs review
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cbc-teal-light/15 text-cbc-teal-dark">
-                                        Ready
-                                    </span>
-                                @endif
+                                <div class="flex flex-wrap gap-1">
+                                    @if($churchService->needs_review)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
+                                            Needs review
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cbc-teal-light/15 text-cbc-teal-dark">
+                                            Ready
+                                        </span>
+                                    @endif
+                                    @if($churchService->has_pending_merge)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                            Pending merge
+                                        </span>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-4 py-3">
                                 <p class="text-sm font-medium">{{ $churchService->original_filename ?: '-' }}</p>

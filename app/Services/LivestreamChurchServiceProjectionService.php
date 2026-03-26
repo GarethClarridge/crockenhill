@@ -253,6 +253,11 @@ class LivestreamChurchServiceProjectionService
      */
     private function skipped(string $reason, ?int $churchServiceId = null): array
     {
+        Log::info('Livestream projection skipped', [
+            'reason' => $reason,
+            'church_service_id' => $churchServiceId,
+        ]);
+
         return [
             'projected' => false,
             'reason' => $reason,
