@@ -324,7 +324,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function latestProcessingLog(): HasOne
     {
-        return $this->hasOne(MediaProcessingLog::class)->latestOfMany();
+        return $this->hasOne(MediaProcessingLog::class, 'sermon_id')->latestOfMany();
     }
 
     /**
@@ -479,6 +479,10 @@ class Sermon extends Model implements Sitemapable
         /**
          * Performance Optimization: Check if relationship is already loaded to prevent N+1 queries.
          */
+        if ($this->relationLoaded('latestProcessingLog')) {
+            return ! empty($this->transcript_file_path) || $this->latestProcessingLog !== null;
+        }
+
         if ($this->relationLoaded('processingLogs')) {
             return ! empty($this->transcript_file_path) || $this->processingLogs->isNotEmpty();
         }
