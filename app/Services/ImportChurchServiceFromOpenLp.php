@@ -15,10 +15,10 @@ class ImportChurchServiceFromOpenLp
 {
     public function __construct(
         private readonly OpenLpServiceParser $parser,
-        private readonly ChurchServiceCanonicalStateService $canonicalStateService,
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
         private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceSongLinker $songLinker,
+        private readonly ChurchServiceStructureMergeService $mergeService,
     ) {}
 
     public function import(UploadedFile $uploadedFile): OpenLpImportResult
@@ -30,7 +30,68 @@ class ImportChurchServiceFromOpenLp
             ->where('service', $parsed->service->value)
             ->first();
 
-        $beforeSnapshot = $this->canonicalStateService->snapshot($existingService);
+        if ($existingService instanceof ChurchService) {
+            return $this->importIntoExistingService($uploadedFile, $parsed, $existingService);
+        }
+
+        return $this->importAsNewService($uploadedFile, $parsed);
+    }
+
+    private function importIntoExistingService(
+        UploadedFile $uploadedFile,
+        \App\Data\OpenLpParseResult $parsed,
+        ChurchService $existingService,
+    ): OpenLpImportResult {
+        try {
+            $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
+
+            $existingService->fill([
+                'source' => ChurchServiceItemSource::OPENLP->value,
+                'original_filename' => $uploadedFile->getClientOriginalName(),
+                'import_metadata' => array_replace_recursive($existingMetadata, $parsed->importMetadata),
+            ]);
+            $existingService->save();
+        } catch (UniqueConstraintViolationException) {
+            $existingService = ChurchService::query()
+                ->where('date', $parsed->date)
+                ->where('service', $parsed->service->value)
+                ->firstOrFail();
+        }
+
+        $mergeResult = $this->mergeService->merge(
+            $existingService,
+            $parsed->items,
+            ChurchServiceItemSource::OPENLP,
+        );
+
+        $linkResult = [
+            'dry_run' => false,
+            'processed' => 0,
+            'matched' => 0,
+            'unmatched' => 0,
+            'updated' => 0,
+            'unchanged' => 0,
+            'cleared' => 0,
+        ];
+
+        if ($mergeResult->wasMerged) {
+            $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
+        }
+
+        return new OpenLpImportResult(
+            churchService: $mergeResult->churchService,
+            parseResult: $parsed,
+            wasCreated: false,
+            syncResult: $mergeResult->syncResult,
+            linkResult: $linkResult,
+        );
+    }
+
+    private function importAsNewService(
+        UploadedFile $uploadedFile,
+        \App\Data\OpenLpParseResult $parsed,
+    ): OpenLpImportResult {
+        $beforeSnapshot = [];
         $wasCreated = false;
         $syncResult = [];
         $linkResult = [

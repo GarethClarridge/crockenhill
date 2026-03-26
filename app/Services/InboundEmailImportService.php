@@ -17,10 +17,10 @@ use InvalidArgumentException;
 class InboundEmailImportService
 {
     public function __construct(
-        private readonly ChurchServiceCanonicalStateService $canonicalStateService,
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
         private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceSongLinker $songLinker,
+        private readonly ChurchServiceStructureMergeService $mergeService,
     ) {}
 
     public function storeParseResult(InboundEmail $inboundEmail, OosEmailParseResult $parseResult, bool $isReparse = false): void
@@ -128,25 +128,85 @@ class InboundEmailImportService
             ->where('date', $parseResult->date)
             ->where('service', $parseResult->service->value)
             ->first();
-        $beforeSnapshot = $this->canonicalStateService->snapshot($existingService);
+
+        $importMetadata = $parseResult->importMetadata;
+
+        if ($reviewedByUserId !== null) {
+            $importMetadata = array_replace_recursive($importMetadata, [
+                'admin_review' => [
+                    'approved_at' => now()->toIso8601String(),
+                    'approved_by_user_id' => $reviewedByUserId,
+                    'mode' => $reviewMode,
+                ],
+            ]);
+        }
+
+        if ($existingService instanceof ChurchService) {
+            return $this->importIntoExistingService(
+                $inboundEmail, $parseResult, $existingService, $importMetadata, $reviewedByUserId, $reviewMode,
+            );
+        }
+
+        return $this->importAsNewService(
+            $inboundEmail, $parseResult, $importMetadata, $reviewedByUserId, $reviewMode,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $importMetadata
+     */
+    private function importIntoExistingService(
+        InboundEmail $inboundEmail,
+        OosEmailParseResult $parseResult,
+        ChurchService $existingService,
+        array $importMetadata,
+        ?int $reviewedByUserId,
+        string $reviewMode,
+    ): ChurchService {
+        $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
+
+        $existingService->fill([
+            'source' => ChurchServiceItemSource::EMAIL->value,
+            'needs_review' => $reviewedByUserId === null ? $parseResult->needsReview : false,
+            'import_metadata' => array_replace_recursive($existingMetadata, $importMetadata),
+        ]);
+        $existingService->save();
+
+        $mergeResult = $this->mergeService->merge(
+            $existingService,
+            $parseResult->items,
+            ChurchServiceItemSource::EMAIL,
+        );
+
+        if ($mergeResult->wasMerged) {
+            $this->songLinker->linkForService($mergeResult->churchService);
+        }
+
+        $this->markEmailAsProcessed($inboundEmail, $mergeResult->churchService, $reviewedByUserId, $reviewMode);
+
+        return $mergeResult->churchService;
+    }
+
+    /**
+     * @param  array<string, mixed>  $importMetadata
+     */
+    private function importAsNewService(
+        InboundEmail $inboundEmail,
+        OosEmailParseResult $parseResult,
+        array $importMetadata,
+        ?int $reviewedByUserId,
+        string $reviewMode,
+    ): ChurchService {
+        $beforeSnapshot = [];
         $syncResult = [];
 
-        $churchService = DB::transaction(function () use ($inboundEmail, $parseResult, $reviewedByUserId, $reviewMode, &$syncResult): ChurchService {
-            $importMetadata = $parseResult->importMetadata;
+        /** @var SermonService $service */
+        $service = $parseResult->service;
 
-            if ($reviewedByUserId !== null) {
-                $importMetadata = array_replace_recursive($importMetadata, [
-                    'admin_review' => [
-                        'approved_at' => now()->toIso8601String(),
-                        'approved_by_user_id' => $reviewedByUserId,
-                        'mode' => $reviewMode,
-                    ],
-                ]);
-            }
-
+        $churchService = DB::transaction(function () use ($parseResult, $service, $importMetadata, $reviewedByUserId, &$syncResult): ChurchService {
             $churchService = ChurchService::query()->firstOrNew([
                 'date' => $parseResult->date,
-                'service' => $parseResult->service->value,
+                'service' => $service->value,
             ]);
             $existingMetadata = $churchService->import_metadata?->toArray() ?? [];
 
@@ -160,26 +220,13 @@ class InboundEmailImportService
             $syncResult = $this->itemSyncService->sync($churchService, $parseResult->items, ChurchServiceItemSource::EMAIL);
             $this->songLinker->linkForService($churchService);
 
-            $inboundEmail->processing_metadata = $this->mergeProcessingMetadata(
-                $inboundEmail->processing_metadata,
-                [
-                    'imported_church_service_id' => $churchService->id,
-                    'imported_at' => now()->toIso8601String(),
-                    'review' => $reviewedByUserId === null ? [] : [
-                        'approved_at' => now()->toIso8601String(),
-                        'approved_by_user_id' => $reviewedByUserId,
-                        'mode' => $reviewMode,
-                    ],
-                ],
-            );
-            $inboundEmail->status = InboundEmailStatus::PROCESSED;
-            $inboundEmail->save();
-
             /** @var ChurchService $freshChurchService */
             $freshChurchService = $churchService->fresh(['items']) ?? $churchService;
 
             return $freshChurchService;
         });
+
+        $this->markEmailAsProcessed($inboundEmail, $churchService, $reviewedByUserId, $reviewMode);
 
         return $this->canonicalUpdateService->finalize(
             $churchService,
@@ -187,6 +234,28 @@ class InboundEmailImportService
             ChurchServiceItemSource::EMAIL,
             $syncResult,
         );
+    }
+
+    private function markEmailAsProcessed(
+        InboundEmail $inboundEmail,
+        ChurchService $churchService,
+        ?int $reviewedByUserId,
+        string $reviewMode,
+    ): void {
+        $inboundEmail->processing_metadata = $this->mergeProcessingMetadata(
+            $inboundEmail->processing_metadata,
+            [
+                'imported_church_service_id' => $churchService->id,
+                'imported_at' => now()->toIso8601String(),
+                'review' => $reviewedByUserId === null ? [] : [
+                    'approved_at' => now()->toIso8601String(),
+                    'approved_by_user_id' => $reviewedByUserId,
+                    'mode' => $reviewMode,
+                ],
+            ],
+        );
+        $inboundEmail->status = InboundEmailStatus::PROCESSED;
+        $inboundEmail->save();
     }
 
     public function markAsProcessedFromManualReview(InboundEmail $inboundEmail, ChurchService $churchService, int $reviewedByUserId): void
