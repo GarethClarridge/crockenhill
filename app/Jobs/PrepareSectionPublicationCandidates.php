@@ -264,7 +264,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
             $section->extracted_at = now();
             $section->metadata = ServiceSectionMetadata::fromArray(array_replace(
-                $section->metadataData()->toArray(),
+                $section->metadata?->toArray() ?? [],
                 [
                     'publication_candidate_extraction' => [
                         'processing_id' => $this->processingLog->processing_id,
@@ -301,7 +301,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             return false;
         }
 
-        $provenance = $section->metadataData()->toArray()['publication_candidate_extraction'] ?? null;
+        $metadata = $section->metadata?->toArray() ?? [];
+        $provenance = $metadata['publication_candidate_extraction'] ?? null;
 
         if (! is_array($provenance)) {
             return true;

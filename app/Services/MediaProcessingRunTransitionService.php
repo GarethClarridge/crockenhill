@@ -79,7 +79,7 @@ class MediaProcessingRunTransitionService
             return false;
         }
 
-        $metadata = $processingLog->processingMetadataData()->toArray();
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
         $metadata['manual_review'] = (new ProcessingManualReviewMetadata(
             status: 'required',
             reasonCode: $reasonCode,
@@ -98,8 +98,8 @@ class MediaProcessingRunTransitionService
 
     public function confirmSermonSegment(MediaProcessingLog $processingLog, int $segmentId, ?int $userId): bool
     {
-        $metadata = $processingLog->processingMetadataData()->toArray();
-        $manualReview = $processingLog->manualReviewData()
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+        $manualReview = $processingLog->processing_metadata->manualReview
             ?? ProcessingManualReviewMetadata::fromArray($processingLog->manualReviewMetadata());
         $speechSegments = $manualReview instanceof ProcessingManualReviewMetadata
             ? $manualReview->speechSegments

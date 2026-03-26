@@ -16,6 +16,9 @@ class CalendarEventFactory extends Factory
      */
     public function definition(): array
     {
+        $start = $this->faker->dateTimeBetween('+1 day', '+30 days');
+        $end = (clone $start)->modify('+'.rand(0, 180).' minutes');
+
         return [
             'google_event_id' => $this->faker->uuid(),
             'meeting_slug' => null,
@@ -23,8 +26,8 @@ class CalendarEventFactory extends Factory
             'description' => $this->faker->paragraph(),
             'speaker' => $this->faker->name(),
             'location' => $this->faker->city(),
-            'start_datetime' => $this->faker->dateTimeBetween('+1 day', '+30 days'),
-            'end_datetime' => $this->faker->dateTimeBetween('+1 day', '+30 days'),
+            'start_datetime' => $start,
+            'end_datetime' => $end,
             'status' => 'confirmed',
             'is_categorized_automatically' => false,
         ];

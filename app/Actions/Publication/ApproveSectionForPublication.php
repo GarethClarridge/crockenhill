@@ -37,7 +37,7 @@ class ApproveSectionForPublication
             return 'This section cannot be approved in its current state.';
         }
 
-        $metadata = $section->metadataData()->toArray();
+        $metadata = $section->metadata?->toArray() ?? [];
         $publicationMetadata = is_array($metadata['publication'] ?? null) ? $metadata['publication'] : [];
         $publicationMetadata['approved_signature'] = $section->classificationSignature();
         $publicationMetadata['approved_at'] = now()->toIso8601String();

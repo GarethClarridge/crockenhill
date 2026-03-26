@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\CalendarEvents;
 
+use App\Enums\CalendarEventStatus;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -30,8 +32,10 @@ class EditCalendarEvent extends Component
 
     public ?string $meetingSlug = null;
 
+    public string $status = '';
+
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     protected function rules(): array
     {
@@ -41,8 +45,9 @@ class EditCalendarEvent extends Component
             'speaker' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
             'startDatetime' => 'required|date',
-            'endDatetime' => 'required|date|after:startDatetime',
+            'endDatetime' => 'required|date|after_or_equal:startDatetime',
             'meetingSlug' => 'nullable|exists:meetings,slug',
+            'status' => ['required', Rule::enum(CalendarEventStatus::class)],
         ];
     }
 
@@ -56,6 +61,7 @@ class EditCalendarEvent extends Component
         $this->startDatetime = $calendarEvent->start_datetime->format('Y-m-d\TH:i');
         $this->endDatetime = $calendarEvent->end_datetime->format('Y-m-d\TH:i');
         $this->meetingSlug = $calendarEvent->meeting_slug;
+        $this->status = $calendarEvent->status->value;
     }
 
     public function save(): void
@@ -70,6 +76,7 @@ class EditCalendarEvent extends Component
             'start_datetime' => $validated['startDatetime'],
             'end_datetime' => $validated['endDatetime'],
             'meeting_slug' => $validated['meetingSlug'],
+            'status' => $validated['status'],
             'is_categorized_automatically' => false,
         ]);
 

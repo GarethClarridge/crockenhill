@@ -35,7 +35,7 @@ class ExpireSectionPublicationAssets
             );
         }
 
-        $metadata = $section->metadataData()->toArray();
+        $metadata = $section->metadata?->toArray() ?? [];
         $metadata['cleanup'] = array_merge($auditContext, [
             'previous_status' => $previousStatus,
             'cleaned_at' => now()->toIso8601String(),

@@ -32,7 +32,7 @@ class SermonPageContextService
             return null;
         }
 
-        $metadata = $readingSection->metadataData()->toArray();
+        $metadata = $readingSection->metadata?->toArray() ?? [];
         $metadataReference = $metadata['reading_reference'] ?? null;
         if (is_string($metadataReference) && trim($metadataReference) !== '') {
             return trim($metadataReference);

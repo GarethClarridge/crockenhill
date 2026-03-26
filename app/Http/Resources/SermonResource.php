@@ -92,7 +92,7 @@ class SermonResource extends JsonResource
      */
     private function publicThumbnailMetadata(): ?array
     {
-        $thumbnailMetadata = $this->thumbnailMetadataData()?->toArray();
+        $thumbnailMetadata = $this->thumbnail_metadata?->toArray();
 
         if ($thumbnailMetadata === null) {
             return null;

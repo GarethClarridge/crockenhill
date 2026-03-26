@@ -86,7 +86,7 @@ class SaveServiceSection
         $section->section_type = ServiceSectionType::from($validated['section_type']);
         $section->title = trim($validated['title']);
 
-        $metadata = $section->metadataData()->toArray();
+        $metadata = $section->metadata?->toArray() ?? [];
 
         if ($section->section_type === ServiceSectionType::CHILDRENS_TALK) {
             $this->speakerService->storeManualReview(
@@ -101,7 +101,7 @@ class SaveServiceSection
             $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         }
 
-        $metadata = $section->metadataData()->toArray();
+        $metadata = $section->metadata?->toArray() ?? [];
         unset($metadata['review_reason'], $metadata['review_flags']);
         $metadata['manual_review'] = [
             'updated_at' => now()->toIso8601String(),
