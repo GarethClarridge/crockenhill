@@ -182,12 +182,9 @@ return [
     */
     'section_publishing' => [
         'enabled' => env('SERVICE_SECTION_PUBLISHING_ENABLED', true),
-        'manual_approval_required' => true,
-        'extract_types' => [
-            'childrens_talk',
-        ],
-        'publishable_types' => [
-            'childrens_talk',
+        'handlers' => [
+            'childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class,
+            // 'sermon' => \App\Services\SectionPublication\SermonPublicationHandler::class, // future
         ],
         'require_high_confidence' => env('SERVICE_SECTION_PUBLISH_REQUIRE_HIGH_CONFIDENCE', true),
         'retain_unpublished_hours' => (int) env('SERVICE_SECTION_RETAIN_UNPUBLISHED_HOURS', 48),

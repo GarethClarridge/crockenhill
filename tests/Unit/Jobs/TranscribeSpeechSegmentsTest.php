@@ -387,7 +387,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         ]);
 
         $classifyJob = new ClassifyServiceSections($processingLog);
-        $classifyJob->handle(new ServiceSectionClassifier, new ServiceSectionSyncService);
+        $classifyJob->handle(new ServiceSectionClassifier, app(ServiceSectionSyncService::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)

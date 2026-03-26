@@ -27,7 +27,7 @@ class ServiceSectionSyncServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new ServiceSectionSyncService;
+        $this->service = app(ServiceSectionSyncService::class);
     }
 
     #[Test]

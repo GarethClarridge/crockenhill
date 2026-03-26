@@ -14,9 +14,8 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\SectionPublication\SermonPublicationHandler;
 use App\Services\SermonCreationService;
-use App\Services\ServiceSectionPublicationTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -35,6 +34,9 @@ class PublishApprovedServiceSectionTest extends TestCase
         config([
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'welcome' => SermonPublicationHandler::class,
+            ],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
@@ -70,12 +72,11 @@ class PublishApprovedServiceSectionTest extends TestCase
         $sermonCreationService->expects($this->once())
             ->method('createSermon')
             ->willReturn($createdSermon);
+        $this->instance(SermonCreationService::class, $sermonCreationService);
 
         $job = new PublishApprovedServiceSection($section->id);
         $job->handle(
-            $sermonCreationService,
-            app(MediaProcessingIdentityResolver::class),
-            app(ServiceSectionPublicationTransitionService::class)
+            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
         );
 
         $section->refresh();
@@ -100,6 +101,9 @@ class PublishApprovedServiceSectionTest extends TestCase
         config([
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'welcome' => SermonPublicationHandler::class,
+            ],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
@@ -120,12 +124,11 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $sermonCreationService = $this->createMock(SermonCreationService::class);
         $sermonCreationService->expects($this->never())->method('createSermon');
+        $this->instance(SermonCreationService::class, $sermonCreationService);
 
         $job = new PublishApprovedServiceSection($section->id);
         $job->handle(
-            $sermonCreationService,
-            app(MediaProcessingIdentityResolver::class),
-            app(ServiceSectionPublicationTransitionService::class)
+            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
         );
 
         $section->refresh();
@@ -141,6 +144,9 @@ class PublishApprovedServiceSectionTest extends TestCase
         config([
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'welcome' => SermonPublicationHandler::class,
+            ],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
@@ -169,6 +175,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $sermonCreationService = $this->createMock(SermonCreationService::class);
         $sermonCreationService->expects($this->never())->method('createSermon');
+        $this->instance(SermonCreationService::class, $sermonCreationService);
 
         $job = new PublishApprovedServiceSection($section->id);
 
@@ -176,9 +183,7 @@ class PublishApprovedServiceSectionTest extends TestCase
         $this->expectExceptionMessage('Section classification changed since approval');
 
         $job->handle(
-            $sermonCreationService,
-            app(MediaProcessingIdentityResolver::class),
-            app(ServiceSectionPublicationTransitionService::class)
+            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
         );
     }
 
@@ -187,6 +192,9 @@ class PublishApprovedServiceSectionTest extends TestCase
     {
         config([
             'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'childrens_talk' => SermonPublicationHandler::class,
+            ],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create();
@@ -200,12 +208,11 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $sermonCreationService = $this->createMock(SermonCreationService::class);
         $sermonCreationService->expects($this->never())->method('createSermon');
+        $this->instance(SermonCreationService::class, $sermonCreationService);
 
         $job = new PublishApprovedServiceSection($section->id);
         $job->handle(
-            $sermonCreationService,
-            app(MediaProcessingIdentityResolver::class),
-            app(ServiceSectionPublicationTransitionService::class)
+            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
         );
 
         $section->refresh();
@@ -221,6 +228,9 @@ class PublishApprovedServiceSectionTest extends TestCase
         config([
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'childrens_talk' => SermonPublicationHandler::class,
+            ],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
@@ -264,9 +274,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $job = new PublishApprovedServiceSection($section->id);
         $job->handle(
-            app(SermonCreationService::class),
-            app(MediaProcessingIdentityResolver::class),
-            app(ServiceSectionPublicationTransitionService::class)
+            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
         );
 
         $section->refresh();
@@ -286,6 +294,9 @@ class PublishApprovedServiceSectionTest extends TestCase
         config([
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'childrens_talk' => SermonPublicationHandler::class,
+            ],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
@@ -327,9 +338,7 @@ class PublishApprovedServiceSectionTest extends TestCase
         $this->expectExceptionMessage("Children's talk speaker must be reviewed before publication");
 
         $job->handle(
-            app(SermonCreationService::class),
-            app(MediaProcessingIdentityResolver::class),
-            app(ServiceSectionPublicationTransitionService::class)
+            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
         );
     }
 }

@@ -14,7 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
-use App\Services\ChildrensTalkSpeakerService;
+use App\Services\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ServiceSectionPublicationTransitionService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
@@ -39,7 +39,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.extract_types' => ['childrens_talk'],
+            'media-processing.section_publishing.handlers' => ['childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class],
             'media-processing.section_publishing.retain_unpublished_hours' => 48,
             'media-processing.speaker_identification.enabled' => true,
         ]);
@@ -98,7 +98,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class),
+            app(SectionPublicationHandlerFactory::class),
             app(ServiceSectionPublicationTransitionService::class)
         );
 
@@ -126,7 +126,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     {
         config([
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.extract_types' => ['childrens_talk'],
+            'media-processing.section_publishing.handlers' => ['childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
@@ -144,7 +144,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class),
+            app(SectionPublicationHandlerFactory::class),
             app(ServiceSectionPublicationTransitionService::class)
         );
 
@@ -158,7 +158,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     {
         config([
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.extract_types' => ['childrens_talk'],
+            'media-processing.section_publishing.handlers' => ['childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class],
             'media-processing.section_publishing.require_high_confidence' => true,
         ]);
 
@@ -180,7 +180,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class),
+            app(SectionPublicationHandlerFactory::class),
             app(ServiceSectionPublicationTransitionService::class)
         );
 
@@ -198,7 +198,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.extract_types' => ['childrens_talk'],
+            'media-processing.section_publishing.handlers' => ['childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class],
             'media-processing.speaker_identification.enabled' => true,
         ]);
 
@@ -256,7 +256,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class),
+            app(SectionPublicationHandlerFactory::class),
             app(ServiceSectionPublicationTransitionService::class)
         );
 
@@ -287,7 +287,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $mockExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class),
+            app(SectionPublicationHandlerFactory::class),
             app(ServiceSectionPublicationTransitionService::class)
         );
     }
@@ -302,7 +302,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.extract_types' => ['childrens_talk'],
+            'media-processing.section_publishing.handlers' => ['childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class],
             'media-processing.section_publishing.retain_unpublished_hours' => 48,
             'media-processing.speaker_identification.enabled' => false,
         ]);
@@ -358,7 +358,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class),
+            app(SectionPublicationHandlerFactory::class),
             app(ServiceSectionPublicationTransitionService::class)
         );
 

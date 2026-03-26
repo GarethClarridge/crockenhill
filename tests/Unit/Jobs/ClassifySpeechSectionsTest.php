@@ -81,7 +81,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService);
+        $job->handle($service, app(ServiceSectionSyncService::class));
 
         $section->refresh();
 
@@ -154,7 +154,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService);
+        $job->handle($service, app(ServiceSectionSyncService::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -209,7 +209,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService);
+        $job->handle($service, app(ServiceSectionSyncService::class));
 
         $section = ServiceSection::query()->firstOrFail();
 
@@ -289,7 +289,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService);
+        $job->handle($service, app(ServiceSectionSyncService::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -394,7 +394,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService);
+        $job->handle($service, app(ServiceSectionSyncService::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -470,7 +470,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService);
+        $job->handle($service, app(ServiceSectionSyncService::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)

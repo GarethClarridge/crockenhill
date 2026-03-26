@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\SectionPublication\SectionPublicationHandlerFactory;
 use App\Support\ServiceSectionConfidence;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,10 @@ use Illuminate\Support\Facades\Storage;
 
 class ServiceSectionSyncService
 {
+    public function __construct(
+        private readonly SectionPublicationHandlerFactory $handlerFactory,
+    ) {}
+
     /**
      * @param  array<int, array{
      *     church_service_item_id: int|null,
@@ -68,6 +73,7 @@ class ServiceSectionSyncService
 
                     if ($signatureChanged) {
                         $this->cleanupExtractedAssets($existing);
+                        $this->notifyHandlerOfRemoval($existing);
 
                         $payload = array_merge(
                             $payload,
@@ -109,7 +115,7 @@ class ServiceSectionSyncService
 
             foreach ($staleSections as $staleSection) {
                 $this->cleanupExtractedAssets($staleSection);
-                $this->detachPublishedLinkBeforeStaleDelete($staleSection);
+                $this->notifyHandlerOfRemoval($staleSection);
                 $staleSection->delete();
             }
         });
@@ -183,13 +189,21 @@ class ServiceSectionSyncService
         ];
     }
 
-    private function detachPublishedLinkBeforeStaleDelete(ServiceSection $section): void
+    private function notifyHandlerOfRemoval(ServiceSection $section): void
     {
+        $handler = $this->handlerFactory->forSection($section);
+
+        if ($handler !== null) {
+            $handler->onSectionRemoved($section);
+
+            return;
+        }
+
         if ($section->published_sermon_id === null) {
             return;
         }
 
-        Log::warning('Published service section removed as stale after classification refresh', [
+        Log::warning('Published service section removed but no handler registered', [
             'service_section_id' => $section->id,
             'processing_log_id' => $section->media_processing_log_id,
             'published_sermon_id' => $section->published_sermon_id,
@@ -264,9 +278,10 @@ class ServiceSectionSyncService
 
     private function isPublishableType(string $sectionType): bool
     {
-        $publishableTypes = config('media-processing.section_publishing.publishable_types', ['childrens_talk']);
+        /** @var array<string, class-string> $handlers */
+        $handlers = config('media-processing.section_publishing.handlers', []);
 
-        return is_array($publishableTypes) && in_array($sectionType, $publishableTypes, true);
+        return isset($handlers[$sectionType]);
     }
 
     /**

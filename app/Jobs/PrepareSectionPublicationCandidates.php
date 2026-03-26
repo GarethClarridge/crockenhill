@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Contracts\SectionPublicationHandler;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
-use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\ChildrensTalkSpeakerService;
+use App\Services\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ServiceSectionPublicationTransitionService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
@@ -56,7 +56,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
     public function handle(
         VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper,
-        ChildrensTalkSpeakerService $childrensTalkSpeakerService,
+        SectionPublicationHandlerFactory $handlerFactory,
         ServiceSectionPublicationTransitionService $publicationTransitions
     ): void {
         if (! (bool) config('media-processing.section_publishing.enabled', true)) {
@@ -93,13 +93,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         $this->logStepStart(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES);
         $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::PreparingSectionPublicationCandidates->value);
 
-        $extractTypes = config('media-processing.section_publishing.extract_types', ['childrens_talk']);
-        $requireHighConfidence = (bool) config('media-processing.section_publishing.require_high_confidence', true);
         $retainHours = (int) config('media-processing.section_publishing.retain_unpublished_hours', 48);
-
-        if (! is_array($extractTypes)) {
-            $extractTypes = [];
-        }
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $this->processingLog->id)
@@ -116,12 +110,9 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         $pendingApprovalCount = 0;
 
         foreach ($sections as $section) {
-            $sectionType = $section->section_type->value;
-            $confidence = (string) ($section->metadata['confidence_level'] ?? 'none');
-            $eligibleByType = in_array($sectionType, $extractTypes, true);
-            $eligibleByConfidence = ! $requireHighConfidence || $confidence === 'high';
+            $handler = $handlerFactory->forSection($section);
 
-            if (! $eligibleByType || ! $eligibleByConfidence) {
+            if (! $handler instanceof SectionPublicationHandler || ! $handler->isEligible($section)) {
                 if (
                     $section->publication_status === ServiceSectionPublicationStatus::PUBLISHED
                     || $section->publication_status === ServiceSectionPublicationStatus::APPROVED
@@ -135,10 +126,11 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 continue;
             }
 
-            if ($section->section_type === ServiceSectionType::CHILDRENS_TALK) {
-                $this->extractCandidateMediaIfNeeded($section, $videoExtractor, $storageHelper);
-                $childrensTalkSpeakerService->detectAndStore($section);
-            }
+            // Extract early and run post-extraction hooks (e.g. speaker detection).
+            // This must happen before status checks because afterExtraction may
+            // enrich the section with data needed for approval review.
+            $this->extractCandidateMediaIfNeeded($section, $handler, $videoExtractor, $storageHelper);
+            $handler->afterExtraction($section);
 
             $eligibleByStatus = $section->status === ServiceSectionStatus::IDENTIFIED && ! $section->needs_manual_review;
 
@@ -171,10 +163,6 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 continue;
             }
 
-            if ($section->section_type !== ServiceSectionType::CHILDRENS_TALK) {
-                $this->extractCandidateMediaIfNeeded($section, $videoExtractor, $storageHelper);
-            }
-
             $section->unpublished_expires_at = now()->addHours($retainHours);
             $section->save();
             $pendingApprovalCount++;
@@ -204,10 +192,11 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
     private function extractCandidateMediaIfNeeded(
         ServiceSection $section,
+        SectionPublicationHandler $handler,
         VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper
     ): void {
-        if ($this->shouldReuseExtractedMedia($section)) {
+        if ($this->shouldReuseExtractedMedia($section, $handler)) {
             return;
         }
 
@@ -249,14 +238,6 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 $this->processingLog->processing_id.'_section_'.$section->id.'.mp4'
             );
 
-            $audioResult = $videoExtractor->extractOptimizedAudio(
-                $localSourcePath,
-                $segment,
-                $this->processingLog->processing_id.'_section_'.$section->id.'.mp3',
-                'local',
-                $this->candidateAudioDirectory($section)
-            );
-
             $videoStoragePath = $this->candidateVideoPath($section);
             $videoReadStream = Storage::disk($tempDisk)->readStream($tempVideoPath);
             if (! is_resource($videoReadStream)) {
@@ -268,7 +249,19 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             Storage::disk($tempDisk)->delete($tempVideoPath);
 
             $section->extracted_video_path = $videoStoragePath;
-            $section->extracted_audio_path = $audioResult['audio_path'];
+
+            if ($handler->requiresAudioExtraction()) {
+                $audioResult = $videoExtractor->extractOptimizedAudio(
+                    $localSourcePath,
+                    $segment,
+                    $this->processingLog->processing_id.'_section_'.$section->id.'.mp3',
+                    'local',
+                    $this->candidateAudioDirectory($section)
+                );
+
+                $section->extracted_audio_path = $audioResult['audio_path'];
+            }
+
             $section->extracted_at = now();
             $section->metadata = ServiceSectionMetadata::fromArray(array_replace(
                 $section->metadataData()->toArray(),
@@ -302,9 +295,9 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         return $this->candidateAudioDirectory($section).'/video.mp4';
     }
 
-    private function shouldReuseExtractedMedia(ServiceSection $section): bool
+    private function shouldReuseExtractedMedia(ServiceSection $section, SectionPublicationHandler $handler): bool
     {
-        if (! $section->hasExtractedMedia()) {
+        if (! $handler->hasReusableExtractedMedia($section)) {
             return false;
         }
 
