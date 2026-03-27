@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Services\AudioTranscriptionService;
+use App\Services\LocalWhisperTranscriptionService;
 use App\Services\MockTranscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -38,6 +39,17 @@ class TranscriptionServiceIntegrationTest extends TestCase
         $service = app(TranscriptionServiceInterface::class);
 
         $this->assertInstanceOf(AudioTranscriptionService::class, $service);
+    }
+
+    public function test_service_provider_binds_local_whisper_service_when_configured()
+    {
+        Config::set('media-processing.transcription.service', 'local');
+
+        app()->forgetInstance(TranscriptionServiceInterface::class);
+
+        $service = app(TranscriptionServiceInterface::class);
+
+        $this->assertInstanceOf(LocalWhisperTranscriptionService::class, $service);
     }
 
     public function test_mock_service_works_in_job_context()

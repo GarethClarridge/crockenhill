@@ -95,6 +95,9 @@ return [
         'timeout' => 300,
         'max_retries' => env('TRANSCRIPTION_MAX_RETRIES', 3),
         'retry_delay_base' => env('TRANSCRIPTION_RETRY_DELAY_BASE', 2),
+        'local_whisper_url' => env('LOCAL_WHISPER_URL', 'http://whisper:8000'),
+        'local_whisper_model' => env('LOCAL_WHISPER_MODEL', 'small'),
+        'local_whisper_timeout' => (int) env('LOCAL_WHISPER_TIMEOUT', 600),
     ],
 
     'analysis' => [

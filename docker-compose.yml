@@ -109,6 +109,17 @@ services:
             - '/dev/shm:/dev/shm'
         networks:
             - sail
+    whisper:
+        image: fedirz/faster-whisper-server:latest-cpu
+        environment:
+            WHISPER__MODEL: '${LOCAL_WHISPER_MODEL:-small}'
+            WHISPER__INFERENCE_DEVICE: cpu
+        ports:
+            - '${FORWARD_WHISPER_PORT:-8200}:8000'
+        networks:
+            - sail
+        profiles:
+            - whisper
     mailpit:
         image: axllent/mailpit:latest
         ports:

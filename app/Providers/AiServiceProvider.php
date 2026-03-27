@@ -8,6 +8,7 @@ use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Services\AudioTranscriptionService;
+use App\Services\LocalWhisperTranscriptionService;
 use App\Services\MockSermonAnalysisService;
 use App\Services\MockTranscriptionService;
 use App\Services\OpenAiOosEmailItemExtractor;
@@ -33,6 +34,7 @@ class AiServiceProvider extends ServiceProvider
 
             return match ($serviceType) {
                 'mock' => $app->make(MockTranscriptionService::class),
+                'local' => $app->make(LocalWhisperTranscriptionService::class),
                 default => $app->make(AudioTranscriptionService::class),
             };
         });
