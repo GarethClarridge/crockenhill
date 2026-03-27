@@ -1,16 +1,16 @@
 # Test Coverage Improvement Plan
 
-## Current State (March 2026)
+## Current State (March 2026 — updated March 2026)
 
-| Category     | Total | Tested | Coverage |
-|--------------|-------|--------|----------|
-| Models       | 21    | 21     | 100%     |
-| Policies     | 2     | 2      | 100%     |
-| Jobs         | 27    | 23     | 85%      |
-| Services     | 101   | 81     | 80%      |
-| Controllers  | 19    | 11     | 58%      |
-| Livewire     | 39    | 14     | 36%      |
-| Data / DTOs  | 42    | 2      | 5%       |
+| Category     | Total | Tested | Coverage | Notes                          |
+|--------------|-------|--------|----------|--------------------------------|
+| Models       | 21    | 21     | 100%     |                                |
+| Policies     | 2     | 2      | 100%     |                                |
+| Jobs         | 27    | 23     | 85%      |                                |
+| Services     | 101   | 81     | 80%      |                                |
+| Controllers  | 19    | 11     | 58%      |                                |
+| Livewire     | 39    | 39     | 100%     | Phase 4 complete ✅            |
+| Data / DTOs  | 42    | 2      | 5%       |                                |
 
 ---
 
@@ -91,32 +91,32 @@ Job coverage is already strong at 85%. Four jobs remain untested.
 
 ---
 
-## Phase 4 — Livewire Admin Components (25 missing)
+## Phase 4 — Livewire Admin Components ✅ COMPLETE
 
-Coverage at 36%. Admin components have complex state mutations that are
-invisible to HTTP tests. Priority is on components with write operations.
+All 39 admin Livewire components are now covered. Coverage reached 100% as of
+March 2026 — the plan's initial 36% figure predates the bulk of the test work.
 
-### High-priority (mutate data)
-
-| Component group                              | Tests needed                                   |
-|----------------------------------------------|------------------------------------------------|
-| `Admin/ChurchServices/ManageChurchService`   | Status transitions, section lifecycle          |
-| `Admin/ChurchServices/ServiceReviewDashboard`| Review actions, state changes                  |
-| `Admin/ChurchServices/ProcessingReview`      | Approval/rejection mutations                   |
-| `Admin/Sermons/` (already tested partially)  | Verify EditSermon covers all field updates     |
-| `Admin/Pages/CreatePage`, `EditPage`         | Image upload, slug generation                  |
-| `Admin/Meetings/CreateMeeting`, `EditMeeting`| Recurring rule handling                        |
-
-### Medium-priority (read-heavy but user-facing)
-
-- `Admin/ChurchServices/ListChurchServices`, `ShowChurchService`, `ListSectionPublications`
-- `Admin/Preachers/*`, `Admin/Users/*`
-- `MediaUpload/Form`
-
-### Approach
-- Use Livewire testing helpers: `Livewire::test(Component::class)`
-- Assert on `$component->assertSet()`, `assertDispatched()`, database state
-- Group related admin CRUD into one test file per resource (e.g. `PagesAdminTest`)
+| Test file                                          | Components covered                                                        |
+|----------------------------------------------------|---------------------------------------------------------------------------|
+| `AdminChurchServiceTest.php`                       | `ListChurchServices`, `ManageChurchService`, `ShowChurchService`, `UploadChurchService` |
+| `AdminServiceReviewDashboardTest.php`              | `ServiceReviewDashboard`                                                  |
+| `ProcessingReviewTest.php`                         | `ProcessingReview`, `ProcessingReviewList`                                |
+| `Admin/ChurchServices/ProcessingReviewListTest.php`| `ProcessingReviewList` (blob column regression)                           |
+| `Admin/ChurchServices/ShowChurchServiceTest.php`   | `ShowChurchService` (failure path / reclassification)                     |
+| `AdminSectionPublicationQueueTest.php`             | `ListSectionPublications`                                                 |
+| `AdminSongCatalogTest.php`                         | `ListSongs`, `ShowSong`                                                   |
+| `AdminInboundEmailReviewTest.php`                  | `ReviewInboundEmails`, `SubmitEmailText`                                  |
+| `AdminPageTest.php`                                | `CreatePage`, `EditPage`, `ListPages`                                     |
+| `AdminMeetingTest.php`                             | `CreateMeeting`, `EditMeeting`, `ListMeetings`                            |
+| `Admin/Preachers/AdminPreacherTest.php`            | `CreatePreacher`, `EditPreacher`, `ListPreachers`                         |
+| `AdminUserTest.php`                                | `CreateUser`, `EditUser`, `ListUsers`                                     |
+| `AdminSermonTest.php`                              | `EditSermon`, `ListSermons`                                               |
+| `AdminCalendarEventTest.php`                       | `EditCalendarEvent`, `ListCalendarEvents`                                 |
+| `Admin/MediaUploadFieldTest.php`                   | `MediaUploadField`                                                        |
+| `Admin/AdminUrlStateTest.php`                      | URL state persistence across all listing components                       |
+| `Admin/ClearFiltersTest.php`                       | Filter clearing across listing components                                 |
+| `Admin/SearchSecurityAndGroupingTest.php`          | SQL injection prevention, LIKE escaping                                   |
+| `Admin/ChurchServiceAdminAuthTest.php`             | Authorization guards across church service components                     |
 
 ---
 
@@ -153,7 +153,7 @@ data. These are pure PHP — tests are fast and cheap.
 2. **Phase 2** — Jobs: 4 remaining, straightforward isolation with mocks
 3. **Phase 3** — Services (high-priority 6): stateful, data-integrity risk
 4. **Phase 5** — Priority DTOs (7): cheap unit tests, high correctness value
-5. **Phase 4** — Livewire admin: largest batch, group by resource to manage scope
+5. ~~**Phase 4** — Livewire admin~~ ✅ Complete
 6. **Phase 3** — Services (remainder): cache layer and lower-risk services
 
 ---
