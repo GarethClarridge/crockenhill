@@ -84,6 +84,29 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_imports_legacy_day_month_year_filenames_in_bulk(): void
+    {
+        $directory = $this->makeTemporaryDirectory();
+
+        $this->writeArchiveToDirectory(
+            $directory,
+            OpenLpArchiveFactory::makeUpload(
+                archiveName: '01-Jan-23 AM.osz',
+                osjName: '01-Jan-23 AM.osj',
+            ),
+        );
+
+        $this->artisan('service-tracking:import-openlp-services', ['--path' => $directory])
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('church_services', [
+            'date' => '2023-01-01',
+            'service' => SermonService::MORNING->value,
+            'original_filename' => '01-Jan-23 AM.osz',
+        ]);
+    }
+
+    #[Test]
     public function it_updates_existing_services_when_the_command_is_re_run(): void
     {
         $directory = $this->makeTemporaryDirectory();

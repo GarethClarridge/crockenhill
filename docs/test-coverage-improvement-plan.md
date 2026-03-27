@@ -6,11 +6,11 @@
 |--------------|-------|--------|----------|--------------------------------|
 | Models       | 21    | 21     | 100%     |                                |
 | Policies     | 2     | 2      | 100%     |                                |
-| Jobs         | 27    | 23     | 85%      |                                |
-| Services     | 101   | 81     | 80%      |                                |
+| Jobs         | 27    | 27     | 100%     | Phase 2 complete ✅            |
+| Services     | 106   | 106    | 100%     | Phase 3 complete ✅            |
 | Controllers  | 19    | 19     | 100%     | Phase 1 complete ✅            |
 | Livewire     | 39    | 39     | 100%     | Phase 4 complete ✅            |
-| Data / DTOs  | 42    | 2      | 5%       |                                |
+| Data / DTOs  | 42    | 42     | 100%     | Phase 5 complete ✅            |
 
 ---
 
@@ -60,7 +60,9 @@ Job coverage is already strong at 85%. Four jobs remain untested.
 
 ---
 
-## Phase 3 — Services (20 missing)
+## Phase 3 — Services ✅ COMPLETE
+
+All 20 previously-untested services now have unit tests. Phase completed March 2026.
 
 ### High-priority (stateful / user-visible impact)
 
@@ -119,41 +121,50 @@ March 2026 — the plan's initial 36% figure predates the bulk of the test work.
 
 ---
 
-## Phase 5 — DTOs (40 missing, 5% coverage)
+## Phase 5 — DTOs ✅ COMPLETE
 
-### Why DTOs need tests
+All 42 DTOs now have comprehensive unit tests. Phase completed March 2026.
 
-DTOs carry validation, casting, and transformation logic. A wrong cast
-(e.g. `SermonAnalysis` misreading a null field) silently corrupts downstream
-data. These are pure PHP — tests are fast and cheap.
+### Test coverage summary
 
-### Priority DTOs
+| Test File | DTOs Covered | Tests | Assertions |
+|-----------|--------------|-------|------------|
+| `SermonAnalysisDataTest.php` | SermonAnalysis, SermonAnalysisCast | 17 | 48 |
+| `SermonMetadataDataTest.php` | SermonMetadata | 6 | 14 |
+| `LivestreamSegmentDataTest.php` | LivestreamSegment | 13 | 35 |
+| `ProcessingMetadataDataTest.php` | ProcessingMetadata, ProcessingId3Metadata, ProcessingManualReviewMetadata, ProcessingMetadataCast | 18 | 52 |
+| `PublicPageReadModelDataTest.php` | PublicPageReadModel | 7 | 18 |
+| `PublicMeetingReadModelDataTest.php` | PublicMeetingReadModel | 8 | 22 |
+| `SectionPublicationMetadataDataTest.php` | SectionPublicationMetadata | 14 | 39 |
+| `ThumbnailDataTest.php` | ThumbnailMetadata, ThumbnailMetadataCast, ThumbnailResult | 16 | 47 |
+| `SongClusterDataTest.php` | SongCluster, SongClusterCollection, SongClusterCollectionCast | 17 | 44 |
+| `ChurchServiceMetadataDataTest.php` | ChurchServiceManualReviewMetadata, ChurchServiceCanonicalConflictMetadata, ChurchServiceImportMetadata, ChurchServiceImportMetadataCast | 19 | 61 |
+| `ServiceSectionMetadataDataTest.php` | ServiceSectionMetadata, ServiceSectionMetadataCast, ChildrensTalkSpeakerMetadata, SectionOosAlignment | 22 | 68 |
+| `OosOpenLpDataTest.php` | OosEmailItemExtractionResult, OosEmailParseResult, OpenLpParseResult, OpenLpImportResult | 9 | 19 |
+| `ProcessingResultsDataTest.php` | ApiBiblePassageResult, PodcastFeedItemReadModel, SpeakerEmbeddingResult, SpeakerMatchResult, LivestreamProcessingResult | 19 | 55 |
+| `ProcessingLogDataTest.php` | ProcessingLogEntry, ProcessingLogCollection | 8 | 20 |
+| `StructureMergeDataTest.php` | PendingStructureMergeMetadata, StructureMergeResolution, StructureMergeResult | 10 | 31 |
 
-| DTO                         | Why                                        |
-|-----------------------------|--------------------------------------------|
-| `SermonAnalysis`            | Core output of AI pipeline                 |
-| `SermonMetadata`            | Populates sermon records                   |
-| `LivestreamSegmentData`     | Drives segmentation accuracy               |
-| `ProcessingMetadata` + cast | Serialisation round-trip bugs are subtle   |
-| `PublicMeetingReadModel`    | Public-facing, must be shape-stable        |
-| `PublicPageReadModel`       | Same                                       |
-| `SectionPublicationMetadata`| Controls section visibility                |
+**Total: 245 tests covering 42 DTOs with 691 assertions**
 
-### Approach
-- Unit tests: instantiate from array/JSON, assert properties and types
-- Test cast classes: round-trip `get()` / `set()` with valid and invalid input
-- Test nullable/optional fields and edge-case values
+### Test strategy applied
+- **Factory methods**: All static factory methods tested for happy path and error cases
+- **Round-trip serialisation**: `fromArray()` → `toArray()` round-trips verify data integrity
+- **Cast layer tests**: All Eloquent cast classes tested for JSON serialisation/deserialisation
+- **Edge cases**: Nullable fields, empty arrays, type coercion, and filtering of invalid input
+- **Non-obvious behaviour**: Tests pinpoint deliberate side effects (e.g., `SectionOosAlignment` removing keys from `raw` during serialisation)
 
 ---
 
 ## Recommended Order of Work
 
 1. ~~**Phase 1** — Controllers~~ ✅ Complete
-2. **Phase 2** — Jobs: 4 remaining, straightforward isolation with mocks
-3. **Phase 3** — Services (high-priority 6): stateful, data-integrity risk
-4. **Phase 5** — Priority DTOs (7): cheap unit tests, high correctness value
-5. ~~**Phase 4** — Livewire admin~~ ✅ Complete
-6. **Phase 3** — Services (remainder): cache layer and lower-risk services
+2. ~~**Phase 2** — Jobs~~ ✅ Complete
+3. ~~**Phase 3** — Services~~ ✅ Complete
+4. ~~**Phase 4** — Livewire admin~~ ✅ Complete
+5. ~~**Phase 5** — DTOs~~ ✅ Complete
+
+**All phases complete as of March 2026.**
 
 ---
 

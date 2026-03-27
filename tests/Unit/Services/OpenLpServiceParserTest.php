@@ -79,6 +79,36 @@ class OpenLpServiceParserTest extends TestCase
     }
 
     #[Test]
+    public function test_extracts_date_from_legacy_day_month_year_filename(): void
+    {
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '01-Jan-23 AM.osz',
+            osjName: '01-Jan-23 AM.osj',
+            payload: OpenLpArchiveFactory::payload()
+        );
+
+        $result = $this->parser->parse($upload);
+
+        $this->assertSame('2023-01-01', $result->date);
+        $this->assertSame(SermonService::MORNING, $result->service);
+    }
+
+    #[Test]
+    public function test_extracts_date_from_textual_day_month_year_filename(): void
+    {
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: 'Family Talk 26 May 2024.osz',
+            osjName: 'Family Talk 26 May 2024.osj',
+            payload: OpenLpArchiveFactory::payload()
+        );
+
+        $result = $this->parser->parse($upload);
+
+        $this->assertSame('2024-05-26', $result->date);
+        $this->assertSame(SermonService::OTHER, $result->service);
+    }
+
+    #[Test]
     public function test_unknown_slot_defaults_to_other(): void
     {
         $upload = OpenLpArchiveFactory::makeUpload(

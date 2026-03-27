@@ -255,14 +255,7 @@ class OpenLpServiceParser
             return null;
         }
 
-        preg_match('/(\d{4}-\d{2}-\d{2})/', $stem, $matches);
-        $rawDate = $matches[1] ?? null;
-
-        if (! is_string($rawDate)) {
-            return null;
-        }
-
-        $date = $this->normaliseDate($rawDate);
+        $date = $this->inferDateFromStem($stem);
         if ($date === null) {
             return null;
         }
@@ -274,6 +267,32 @@ class OpenLpServiceParser
             'service' => $service,
             'slot_known' => $slotKnown,
         ];
+    }
+
+    private function inferDateFromStem(string $stem): ?string
+    {
+        $patterns = [
+            '/(\d{4}-\d{2}-\d{2})/',
+            '/\b(\d{1,2}-[A-Za-z]{3,9}-\d{2,4})\b/',
+            '/\b(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})\b/',
+        ];
+
+        foreach ($patterns as $pattern) {
+            preg_match($pattern, $stem, $matches);
+            $rawDate = $matches[1] ?? null;
+
+            if (! is_string($rawDate)) {
+                continue;
+            }
+
+            $date = $this->normaliseDate($rawDate);
+
+            if ($date !== null) {
+                return $date;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -296,18 +315,34 @@ class OpenLpServiceParser
 
     private function normaliseDate(string $date): ?string
     {
-        $parsed = DateTimeImmutable::createFromFormat('Y-m-d', $date);
-        $errors = DateTimeImmutable::getLastErrors();
+        $formats = [
+            'Y-m-d',
+            'j-M-y',
+            'd-M-y',
+            'j-M-Y',
+            'd-M-Y',
+            'j F Y',
+            'd F Y',
+            'j M Y',
+            'd M Y',
+        ];
 
-        if ($parsed === false) {
-            return null;
+        foreach ($formats as $format) {
+            $parsed = DateTimeImmutable::createFromFormat('!'.$format, $date);
+            $errors = DateTimeImmutable::getLastErrors();
+
+            if ($parsed === false) {
+                continue;
+            }
+
+            if (is_array($errors) && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+                continue;
+            }
+
+            return $parsed->format('Y-m-d');
         }
 
-        if (is_array($errors) && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
-            return null;
-        }
-
-        return $parsed->format('Y-m-d');
+        return null;
     }
 
     private function normaliseType(string $type): string
