@@ -104,16 +104,16 @@ class SermonController extends Controller
     {
         abort_unless($sermon->content_type === SermonContentType::Sermon, 404);
 
-        $heading = $sermon->title;
-        $pageContext = $pageContextService->build($sermon);
-
         $sermon->loadMissing([
             'scripturePassage',
             'preacherProfile',
             'publishedServiceSection',
-            'livestreamProcessing',
             'latestProcessingLog',
+            'livestreamProcessing',
         ]);
+
+        $heading = $sermon->title;
+        $pageContext = $pageContextService->build($sermon);
 
         return view('sermons.sermon', [
             'slug' => $sermon->slug,

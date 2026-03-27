@@ -53,7 +53,6 @@ class SermonPageContextService
 
     private function resolveReadingSection(Sermon $sermon): ?ServiceSection
     {
-        // Use eager-loaded relationship to avoid N+1 queries on individual sermon pages
         $publishedSection = $sermon->publishedServiceSection;
 
         if ($publishedSection instanceof ServiceSection) {
