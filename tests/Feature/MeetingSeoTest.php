@@ -35,6 +35,7 @@ class MeetingSeoTest extends TestCase
             'slug' => 'buzz-club',
             'day' => 'Friday',
             'start_time' => '18:00:00',
+            'end_time' => '20:00:00',
             'is_recurring' => true,
             'frequency' => \App\Enums\MeetingFrequency::WEEKLY,
         ]);
