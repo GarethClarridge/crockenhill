@@ -7,9 +7,12 @@ namespace App\Models;
 use App\Data\ThumbnailMetadata;
 use App\Data\ThumbnailMetadataCast;
 use App\Enums\PreacherSource;
+use App\Enums\ProcessingStatus;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Presenters\SermonSitemapPresenter;
+use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -45,7 +48,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property bool $show_points
  * @property ?string $transcript_file_path
  * @property ?string $thumbnail_file_path
- * @property ?\Illuminate\Support\Carbon $thumbnail_generated_at
+ * @property ?Carbon $thumbnail_generated_at
  * @property ThumbnailMetadata|null $thumbnail_metadata
  * @property ?string $livestream_processing_id
  * @property ?string $video_file_path
@@ -59,12 +62,13 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?int $download_count
  * @property ?float $duration
  * @property ?float $audio_length
- * @property ?\Illuminate\Support\Carbon $created_at
- * @property ?\Illuminate\Support\Carbon $updated_at
+ * @property ?Carbon $created_at
+ * @property ?Carbon $updated_at
  * @property-read ?string $human_date
  * @property-read ?string $series_url
  * @property-read ?string $plain_thumbnail_file_path
  * @property-read ServiceSection|null $publishedServiceSection
+ * @property-read MediaProcessingLog|null $latestProcessingLog
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
  * @method static Builder|Sermon newModelQuery()
@@ -89,7 +93,7 @@ use Spatie\Sitemap\Tags\Url;
  */
 class Sermon extends Model implements Sitemapable
 {
-    /** @use HasFactory<\Database\Factories\SermonFactory> */
+    /** @use HasFactory<SermonFactory> */
     use HasFactory;
 
     /**
@@ -300,6 +304,16 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
+     * Get the latest processing log for this sermon.
+     *
+     * @return HasOne<MediaProcessingLog, $this>
+     */
+    public function latestProcessingLog(): HasOne
+    {
+        return $this->hasOne(MediaProcessingLog::class, 'sermon_id')->latestOfMany();
+    }
+
+    /**
      * Scope to get only automated sermons
      *
      * @param  Builder<Sermon>  $query
@@ -336,7 +350,7 @@ class Sermon extends Model implements Sitemapable
     public function scopeProcessingCompleted(Builder $query): Builder
     {
         return $query->whereHas('processingLogs', function (Builder $q): void {
-            $q->where('status', \App\Enums\ProcessingStatus::COMPLETED);
+            $q->where('status', ProcessingStatus::COMPLETED);
         });
     }
 
@@ -349,7 +363,7 @@ class Sermon extends Model implements Sitemapable
     public function scopeProcessingFailed(Builder $query): Builder
     {
         return $query->whereHas('processingLogs', function (Builder $q): void {
-            $q->where('status', \App\Enums\ProcessingStatus::FAILED);
+            $q->where('status', ProcessingStatus::FAILED);
         });
     }
 
@@ -362,7 +376,7 @@ class Sermon extends Model implements Sitemapable
     public function scopeProcessingInProgress(Builder $query): Builder
     {
         return $query->whereHas('processingLogs', function (Builder $q): void {
-            $q->where('status', \App\Enums\ProcessingStatus::PROCESSING);
+            $q->where('status', ProcessingStatus::PROCESSING);
         });
     }
 
@@ -461,6 +475,10 @@ class Sermon extends Model implements Sitemapable
         /**
          * Performance Optimization: Check if relationship is already loaded to prevent N+1 queries.
          */
+        if ($this->relationLoaded('latestProcessingLog')) {
+            return ! empty($this->transcript_file_path) || $this->latestProcessingLog !== null;
+        }
+
         if ($this->relationLoaded('processingLogs')) {
             return ! empty($this->transcript_file_path) || $this->processingLogs->isNotEmpty();
         }
@@ -481,24 +499,11 @@ class Sermon extends Model implements Sitemapable
     /**
      * Get the current processing status for this sermon
      *
-     * @return \App\Enums\ProcessingStatus|null The current processing status or null if not automated
+     * @return ProcessingStatus|null The current processing status or null if not automated
      */
-    public function getProcessingStatus(): ?\App\Enums\ProcessingStatus
+    public function getProcessingStatus(): ?ProcessingStatus
     {
-        /**
-         * Performance Optimization: Use loaded relationship if available to prevent N+1 queries.
-         */
-        if ($this->relationLoaded('processingLogs')) {
-            /** @var \App\Models\MediaProcessingLog|null $latestLog */
-            $latestLog = $this->processingLogs->sortByDesc('created_at')->first();
-
-            return $latestLog?->status;
-        }
-
-        /** @var \App\Models\MediaProcessingLog|null $latestLog */
-        $latestLog = $this->processingLogs()->latest()->first();
-
-        return $latestLog?->status;
+        return $this->latestProcessingLog?->status;
     }
 
     /**
@@ -544,8 +549,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function getLatestProcessingLog(): ?MediaProcessingLog
     {
-        /** @var \App\Models\MediaProcessingLog|null */
-        return $this->processingLogs()->latest()->first();
+        return $this->latestProcessingLog;
     }
 
     /**
@@ -670,7 +674,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function toSitemapTag(): Url|string|array
     {
-        return app(\App\Presenters\SermonSitemapPresenter::class)->toSitemapTag($this);
+        return app(SermonSitemapPresenter::class)->toSitemapTag($this);
     }
 
     /**

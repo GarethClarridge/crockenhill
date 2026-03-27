@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\SermonContentType;
+use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -27,7 +29,7 @@ class SermonSeoTest extends TestCase
         Sermon::factory()->count(3)->create([
             'preacher' => 'John Doe',
             'preacher_id' => $preacher->id,
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         $response = $this->get(route('sermons.index'));
@@ -48,7 +50,7 @@ class SermonSeoTest extends TestCase
         Sermon::factory()->count(3)->create([
             'preacher' => 'Jane Doe',
             'preacher_id' => $preacher->id,
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         $response = $this->get(route('sermons.all'));
@@ -69,7 +71,7 @@ class SermonSeoTest extends TestCase
         Sermon::factory()->create([
             'preacher' => 'Guest Preacher',
             'preacher_id' => null,
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
             'date' => now(),
         ]);
 
@@ -88,7 +90,7 @@ class SermonSeoTest extends TestCase
         Sermon::factory()->count(2)->create([
             'preacher' => 'Preacher Name',
             'preacher_id' => $preacher->id,
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
@@ -108,7 +110,7 @@ class SermonSeoTest extends TestCase
     {
         Sermon::factory()->count(2)->create([
             'series' => 'My Great Series',
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/series/my-great-series');
@@ -126,8 +128,8 @@ class SermonSeoTest extends TestCase
     public function service_sermons_page_has_item_list_structured_data_and_breadcrumbs()
     {
         Sermon::factory()->count(2)->create([
-            'service' => \App\Enums\SermonService::MORNING,
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'service' => SermonService::MORNING,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/morning');

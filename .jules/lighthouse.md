@@ -1,7 +1,3 @@
-## 2026-03-17 - ItemList for Sermon Collections
-**Learning:** Sermon listing pages (by preacher, series, or service) were missing structured data. Using `ItemList` with `CreativeWork` elements for each sermon improves how search engines understand and rank these collection pages.
-**Action:** Always provide `ItemList` JSON-LD for listing pages using a dedicated presenter (like `SermonItemListPresenter`) to ensure consistency and correct Schema.org properties.
-
-## 2026-03-17 - Centralized Breadcrumb JSON-LD
-**Learning:** Hardcoded JSON-LD breadcrumbs in individual views are brittle and prone to inconsistency (e.g., showing 'Church' instead of 'Community'). The shared `x-breadcrumbs` component is a better place for this logic.
-**Action:** Delegate breadcrumb generation (both UI and JSON-LD) to the shared component and ensure controllers pass the necessary `area` context.
+## 2026-03-26 - [Structured Data] Use Schema.org Article for Sermon Listings
+**Learning:** Sermon listings (ItemList) benefit from using the more specific `Article` type for individual items instead of the generic `CreativeWork`. This aligns with the schema used on individual sermon pages and provides better specificity for search engine rich results.
+**Action:** Always use `Article` with `headline`, `publisher`, and `mainEntityOfPage` properties when presenting sermon items in a list.
