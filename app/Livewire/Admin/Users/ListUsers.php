@@ -47,6 +47,7 @@ class ListUsers extends Component
 
     public function mount(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
     }
 
@@ -66,6 +67,7 @@ class ListUsers extends Component
 
     public function delete(User $user): void
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
 
         if ($user->id === auth()->id()) {
@@ -80,6 +82,7 @@ class ListUsers extends Component
 
     public function toggleAdmin(User $user): void
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
 
         if ($user->id === auth()->id()) {

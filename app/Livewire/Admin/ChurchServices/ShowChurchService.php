@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\ChurchServices;
 use App\Actions\ServiceReview\ResolvePendingStructureMerge;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
@@ -23,12 +24,14 @@ use Livewire\Component;
 
 class ShowChurchService extends Component
 {
-    use WithNotifications;
+    use WithAdminAuthorization, WithNotifications;
 
     public ChurchService $churchService;
 
     public function mount(ChurchService $churchService): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $this->churchService = $churchService->load([
@@ -64,6 +67,9 @@ class ShowChurchService extends Component
 
     public function reclassify(int $processingLogId): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $processingLog = MediaProcessingLog::query()->find($processingLogId);
         if (! $processingLog instanceof MediaProcessingLog) {
             $this->error('Processing run not found.');

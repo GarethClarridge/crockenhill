@@ -262,4 +262,25 @@ class AdminPreacherTest extends TestCase
             ->call('recomputeProfile', $profile->id)
             ->assertDispatched('notify', type: 'error', message: 'No approved samples to recompute from.');
     }
+
+    #[Test]
+    public function it_enforces_admin_authorization_internally(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $preacher = Preacher::factory()->create();
+
+        $this->actingAs($user);
+
+        // mount() should fail for ListPreachers
+        Livewire::test(ListPreachers::class)
+            ->assertForbidden();
+
+        // mount() should fail for CreatePreacher
+        Livewire::test(CreatePreacher::class)
+            ->assertForbidden();
+
+        // mount() should fail for EditPreacher
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher])
+            ->assertForbidden();
+    }
 }

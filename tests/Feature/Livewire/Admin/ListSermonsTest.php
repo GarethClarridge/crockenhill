@@ -177,6 +177,19 @@ class ListSermonsTest extends TestCase
     }
 
     #[Test]
+    public function it_enforces_admin_authorization_internally(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $sermon = Sermon::factory()->create();
+
+        $this->actingAs($user);
+
+        // mount() should fail
+        Livewire::test(ListSermons::class)
+            ->assertForbidden();
+    }
+
+    #[Test]
     public function it_shows_a_polished_empty_state_when_no_results_found(): void
     {
         $this->actingAs($this->admin);

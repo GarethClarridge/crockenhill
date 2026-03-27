@@ -8,6 +8,7 @@ use App\Actions\PrefillChurchServiceFromInboundEmail;
 use App\Actions\SaveChurchServiceFromAdmin;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -23,6 +24,7 @@ use Livewire\Component;
 class ManageChurchService extends Component
 {
     use EscapesLikeWildcards;
+    use WithAdminAuthorization;
     use WithNotifications;
 
     public ?ChurchService $churchService = null;
@@ -41,6 +43,8 @@ class ManageChurchService extends Component
 
     public function mount(PrefillChurchServiceFromInboundEmail $prefillAction): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         if ($this->churchService instanceof ChurchService && $this->churchService->exists) {
@@ -108,11 +112,17 @@ class ManageChurchService extends Component
 
     public function addItem(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $this->items[] = $this->blankItem();
     }
 
     public function removeItem(int $index): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         if (! array_key_exists($index, $this->items)) {
             return;
         }
@@ -127,6 +137,9 @@ class ManageChurchService extends Component
 
     public function moveItemUp(int $index): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         if ($index < 1 || ! array_key_exists($index, $this->items)) {
             return;
         }
@@ -136,6 +149,9 @@ class ManageChurchService extends Component
 
     public function moveItemDown(int $index): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         if (! array_key_exists($index, $this->items) || ! array_key_exists($index + 1, $this->items)) {
             return;
         }
@@ -180,6 +196,8 @@ class ManageChurchService extends Component
 
     public function save(SaveChurchServiceFromAdmin $saveAction): mixed
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $validated = $this->validate();

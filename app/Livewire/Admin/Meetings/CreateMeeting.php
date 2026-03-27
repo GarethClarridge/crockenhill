@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Meetings;
 
 use App\Livewire\Forms\MeetingFormData;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithPageOptions;
 use Illuminate\View\View;
@@ -12,13 +13,21 @@ use Livewire\Component;
 
 class CreateMeeting extends Component
 {
+    use WithAdminAuthorization;
     use WithNotifications;
     use WithPageOptions;
 
     public MeetingFormData $form;
 
+    public function mount(): void
+    {
+        $this->authorizeAdmin();
+    }
+
     public function save(): void
     {
+        $this->authorizeAdmin();
+
         $this->form->store();
 
         $this->success('Meeting created', redirectTo: route('admin.meetings.index'));
