@@ -77,7 +77,17 @@ class ResolvePendingStructureMerge
             $syncResult,
         );
 
-        $this->clearPendingMerge($churchService, 'accept_incoming', $userId);
+        // Update service source to reflect the accepted incoming source now that items
+        // have been applied — this was intentionally deferred during the initial import.
+        $churchService->forceFill(['source' => $incomingSource->value])->saveQuietly();
+
+        // Only preserve needs_review=true when finalize specifically reopened review
+        // (i.e. a previously-reviewed service was changed). finalize signals this by
+        // setting manual_review.reopened_at. For a normal accept, needs_review is cleared.
+        $importMetadata = $churchService->import_metadata?->toArray() ?? [];
+        $reviewReopened = isset($importMetadata['manual_review']['reopened_at']);
+
+        $this->clearPendingMerge($churchService, 'accept_incoming', $userId, preserveNeedsReview: $reviewReopened);
 
         Log::info('Pending structure merge resolved: accepted incoming', [
             'church_service_id' => $churchService->id,
@@ -100,7 +110,7 @@ class ResolvePendingStructureMerge
     ): StructureMergeResolution {
         $incomingSource = $churchService->import_metadata?->pendingStructureMerge->incomingSource ?? 'unknown';
 
-        $this->clearPendingMerge($churchService, 'keep_current', $userId);
+        $this->clearPendingMerge($churchService, 'keep_current', $userId, preserveNeedsReview: false);
 
         Log::info('Pending structure merge resolved: kept current', [
             'church_service_id' => $churchService->id,
@@ -116,8 +126,19 @@ class ResolvePendingStructureMerge
         );
     }
 
-    private function clearPendingMerge(ChurchService $churchService, string $resolution, int $userId): void
-    {
+    /**
+     * Clear the pending merge metadata and record the resolution decision.
+     *
+     * When $preserveNeedsReview is true, needs_review stays true — used when finalize
+     * detected that a previously-reviewed service was changed and reopened review.
+     * For keep_current (no items change) and normal accepts, needs_review is cleared.
+     */
+    private function clearPendingMerge(
+        ChurchService $churchService,
+        string $resolution,
+        int $userId,
+        bool $preserveNeedsReview,
+    ): void {
         $importMetadata = $churchService->import_metadata?->toArray() ?? [];
 
         $importMetadata['structure_merge_resolution'] = [
@@ -138,7 +159,7 @@ class ResolvePendingStructureMerge
         $normalizedColumns = $this->reviewStateService->normalizedColumns($importMetadata);
 
         $churchService->forceFill([
-            'needs_review' => false,
+            'needs_review' => $preserveNeedsReview,
             'import_metadata' => $importMetadata,
             ...$normalizedColumns,
         ])->save();

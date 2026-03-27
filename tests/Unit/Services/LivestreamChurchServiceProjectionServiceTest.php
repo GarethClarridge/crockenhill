@@ -354,6 +354,65 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertSame($churchService->id, $log->church_service_id);
     }
 
+    #[Test]
+    public function test_does_not_set_needs_review_for_filtered_out_low_confidence_section(): void
+    {
+        // Regression for fix #3: an OTHER-type section with low confidence that was
+        // excluded by the mapper must not trigger needs_review on the projected service.
+        $log = $this->createProcessingLog('2026-03-27', SermonService::MORNING);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG,
+            'section_order' => 1,
+            'title' => 'Song',
+            'confidence' => 0.9,
+            'needs_manual_review' => false,
+        ]);
+
+        // This section is excluded by the mapper (OTHER type) and should not influence needs_review
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER,
+            'section_order' => 2,
+            'title' => 'Unknown',
+            'confidence' => 0.2,
+            'needs_manual_review' => false,
+        ]);
+
+        $result = $this->service->project($log);
+
+        $this->assertTrue($result['projected']);
+        $this->assertSame(1, $result['items_projected'], 'Only the SONG section should be projected');
+
+        $churchService = ChurchService::query()->find($result['church_service_id']);
+        $this->assertFalse($churchService->needs_review, 'needs_review must not be set by the excluded OTHER section');
+    }
+
+    #[Test]
+    public function test_stores_confidence_summary_on_service_projection_metadata(): void
+    {
+        $log = $this->createProcessingLog('2026-03-27', SermonService::MORNING);
+
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::SONG, 'title' => 'Song A', 'confidence' => 0.95],
+            ['type' => ServiceSectionType::SERMON, 'title' => 'Sermon', 'confidence' => 0.6],
+            ['type' => ServiceSectionType::PRAYER, 'title' => 'Prayer', 'confidence' => 0.35],
+        ]);
+
+        $result = $this->service->project($log);
+
+        $churchService = ChurchService::query()->find($result['church_service_id']);
+        $projection = $churchService->import_metadata?->toArray()['livestream_projection'] ?? [];
+
+        $this->assertArrayHasKey('confidence_summary', $projection);
+        $this->assertSame(1, $projection['confidence_summary']['high'], 'Song A should be high');
+        $this->assertSame(1, $projection['confidence_summary']['medium'], 'Sermon should be medium');
+        $this->assertSame(1, $projection['confidence_summary']['low'], 'Prayer should be low');
+    }
+
     private function createProcessingLog(string $date, SermonService $service): MediaProcessingLog
     {
         return MediaProcessingLog::factory()->livestream()->create([

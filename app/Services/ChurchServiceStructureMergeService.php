@@ -31,6 +31,16 @@ class ChurchServiceStructureMergeService
      * When merge planning is not required (no high-confidence livestream items, or
      * incoming source is also livestream), this delegates directly to sync + finalize.
      *
+     * ## Unmatched incoming items
+     *
+     * Items from the incoming source that do not correspond to any existing livestream
+     * item (classified as `unmatched_incoming` by the policy) are always treated as
+     * safe additions and applied via direct sync, even when other items are staged for
+     * review. The rationale: an entirely new item cannot conflict with a livestream
+     * detection, so staging it would only delay information that is unambiguously additive.
+     * If this assumption changes (e.g. structural ordering matters), consider routing
+     * unmatched_incoming items through review when review_required is non-empty.
+     *
      * @param  array<int, array<string, mixed>>  $incomingItems
      */
     public function merge(

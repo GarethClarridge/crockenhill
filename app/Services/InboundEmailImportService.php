@@ -165,8 +165,10 @@ class InboundEmailImportService
     ): ChurchService {
         $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
 
+        // Update import provenance metadata, but defer the source field update until after
+        // the merge decision — if the merge is staged for review the service items are still
+        // livestream-derived and source should continue to reflect their actual provenance.
         $existingService->fill([
-            'source' => ChurchServiceItemSource::EMAIL->value,
             'needs_review' => $reviewedByUserId === null ? $parseResult->needsReview : false,
             'import_metadata' => array_replace_recursive($existingMetadata, $importMetadata),
         ]);
@@ -179,6 +181,11 @@ class InboundEmailImportService
         );
 
         if ($mergeResult->wasMerged) {
+            // Only update source to email once items have actually been applied.
+            $mergeResult->churchService->forceFill([
+                'source' => ChurchServiceItemSource::EMAIL->value,
+            ])->saveQuietly();
+
             $this->songLinker->linkForService($mergeResult->churchService);
         }
 

@@ -89,7 +89,7 @@ class LivestreamSectionToServiceItemMapper
     }
 
     /**
-     * @return array{livestream_projection: array{processing_id: string, service_section_id: int, source_segment_ids: array<int, int>, confidence_level: string}}
+     * @return array{livestream_projection: array{processing_id: string, service_section_id: int, source_segment_ids: array<int, int>, confidence_level: string, needs_manual_review: bool}}
      */
     private function buildMetadata(ServiceSection $section, string $processingId): array
     {
@@ -99,6 +99,7 @@ class LivestreamSectionToServiceItemMapper
                 'service_section_id' => $section->id,
                 'source_segment_ids' => $section->source_segment_ids ?? [],
                 'confidence_level' => $this->confidenceLevel($section->confidence),
+                'needs_manual_review' => (bool) $section->needs_manual_review,
             ],
         ];
     }

@@ -310,6 +310,7 @@ Once later OoS/manual/email changes are accepted, the existing reconciliation fl
 | 2 | Livestream projection pipeline | New job + projection service + linking logic |
 | 3 | Merge/review engine for later sources | Conflict staging, review metadata, safer import/update path |
 | 4 | Review UI and operational hardening | Admin review actions, regression coverage, observability |
+| 5 | Merge policy: identity-first matching ✅ | Fix false conflicts on song reordering and duplicate section types |
 
 ## PR 1: Livestream Source Groundwork
 
@@ -397,6 +398,111 @@ Make staged merge conflicts resolvable by admins and observable in production.
 - dashboard displays pending merge conflicts
 - accepting incoming structure updates canonical items and requeues reconciliation
 - keeping current structure clears pending merge and preserves existing items
+
+## PR 5: Merge Policy — Identity-First Matching
+
+### Goal
+
+Eliminate false conflicts when incoming items are reordered relative to the livestream
+projection. The current `StructureMergePolicy` matches incoming items to existing items
+by position first, with a type+section_type fallback. This generates spurious review
+triggers whenever a worship leader moves a song between the planning stage and the
+OpenLP file — a routine occurrence.
+
+### Problem: misaligned match vocabulary
+
+`StructureMergePolicy::classifyIncomingItems` and `ChurchServiceItemSyncService` share
+the same array snapshots but use different matching strategies:
+
+- `ChurchServiceItemSyncService` runs a **three-tier match**: stable identity
+  (`openlp_search_title` / `source_title`) → normalised song title → position fallback.
+- `StructureMergePolicy` runs a **two-tier match**: position → type+section_type.
+
+The policy therefore cannot recognise a song it would have matched in the sync step,
+causing it to classify a reordering as a conflict.
+
+#### Concrete failure case
+
+Livestream projects: `[Amazing Grace (pos 1, high), Sermon (pos 2, high), How Great
+Thou Art (pos 3, high)]`. OpenLP arrives with the same songs reordered: `[How Great
+Thou Art (pos 1), Sermon (pos 2), Amazing Grace (pos 3)]`.
+
+Current behaviour: positions 1 and 3 each find a different song at their slot → both
+flagged `review_required` → merge staged, admin interrupted.
+
+Correct behaviour: `How Great Thou Art` found anywhere in the existing list by title →
+`isSongIdentificationMatch` passes → `auto_merge`. Same for `Amazing Grace`. Sermon
+matches by position. All three items are `auto_merge`. No review required.
+
+The same problem occurs with any service that has two items of the same type and
+section_type (two songs, two readings). The type fallback matches the first one it
+finds regardless of identity, so the second incoming item of that type has no match
+and is classified as `unmatched_incoming` even when an equivalent existing item exists.
+
+### Proposed fix: three-tier matching in `classifyIncomingItems`
+
+Add a **stable identity match** step before the existing position lookup, and track
+matched existing item indices to prevent double-matching. The new ordering is:
+
+1. **Stable identity match** — for songs, match by `openlp_search_title`, then
+   `source_title`, then normalised title. For non-song items, match by section_type +
+   normalised title.
+2. **Position match** — same type at the same position (existing fallback).
+3. **Type+section_type match** — same type and section_type anywhere in the list
+   (existing last resort), but only when no stable identity match was found.
+
+The existing `isSongIdentificationMatch` and `titlesSemanticallyMatch` helpers in
+`StructureMergePolicy` already implement song identity comparison. They are currently
+used only in the *safety check* phase (`isAutoMergeSafe`). This PR promotes them to
+the *matching* phase as well.
+
+Matched existing item indices must be tracked across iterations so one existing item
+cannot be used to satisfy two incoming items (mirrors `$matchedExistingItemIds` in
+`ChurchServiceItemSyncService`).
+
+### Changes
+
+#### `StructureMergePolicy`
+
+- Replace the current position → type fallback loop in `classifyIncomingItems` with
+  a three-pass match: stable identity → position → type+section_type.
+- Add a `$matchedExistingIndices` accumulator so each existing snapshot can only be
+  matched once.
+- Extract `findStableIdentityMatch(array $existingSnapshots, array $incomingItem,
+  array $alreadyMatchedIndices): ?array` — returns the first unmatched snapshot that
+  satisfies song identity or non-song title+section_type identity.
+- The existing `findTypeMatch` becomes a true last resort, constrained to only
+  snapshots not already claimed by a stable or position match.
+
+#### No changes needed elsewhere
+
+`ChurchServiceItemSyncService`, `ChurchServiceStructureMergeService`, and the
+projection services are not affected. The fix is entirely within `StructureMergePolicy`.
+
+### Tests
+
+- high-confidence songs reordered between livestream and OpenLP → auto-merge, no staged
+  review
+- two songs in service, both present in OpenLP but swapped → both auto-merge
+- song present in livestream with no title, identified by `openlp_search_title` →
+  auto-merge
+- genuinely different song at the same position (not a reorder) → still review-required
+- non-song section with same section_type appearing twice, incoming changes one of them
+  → only the changed one is review-required, the unchanged one is auto-merge
+- existing tests continue to pass (regression coverage for all current
+  `StructureMergePolicy` and `ChurchServiceStructureMergeService` tests)
+
+### What this does not change
+
+- The safety rules in `isAutoMergeSafe` are unchanged. Matching and safety are separate
+  concerns: better matching means fewer items reach `isAutoMergeSafe` with the wrong
+  counterpart, but the rules for what constitutes a safe change remain the same.
+- The `unmatched_incoming` classification remains valid for genuinely new items — items
+  that have no identity match, no position match, and no type match in the existing list.
+- Structural position conflicts (same song, moved to a materially different slot) remain
+  detectable because the safety check still compares positions when neither side has
+  `source_title` or `openlp_search_title`. This PR only fixes the case where identity
+  should have been the primary match signal.
 
 ## Risks And Mitigations
 

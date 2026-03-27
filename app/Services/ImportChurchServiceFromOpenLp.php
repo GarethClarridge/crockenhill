@@ -45,8 +45,10 @@ class ImportChurchServiceFromOpenLp
         try {
             $existingMetadata = $existingService->import_metadata?->toArray() ?? [];
 
+            // Update import provenance metadata and filename, but defer the source field
+            // update until after the merge decision — if the merge is staged for review the
+            // service items are still livestream-derived and source should reflect that.
             $existingService->fill([
-                'source' => ChurchServiceItemSource::OPENLP->value,
                 'original_filename' => $uploadedFile->getClientOriginalName(),
                 'import_metadata' => array_replace_recursive($existingMetadata, $parsed->importMetadata),
             ]);
@@ -75,6 +77,11 @@ class ImportChurchServiceFromOpenLp
         ];
 
         if ($mergeResult->wasMerged) {
+            // Only update source to openlp once items have actually been applied.
+            $mergeResult->churchService->forceFill([
+                'source' => ChurchServiceItemSource::OPENLP->value,
+            ])->saveQuietly();
+
             $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
         }
 

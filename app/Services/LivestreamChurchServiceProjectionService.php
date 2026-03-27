@@ -78,9 +78,15 @@ class LivestreamChurchServiceProjectionService
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
 
         /**
-         * @var array{church_service: ChurchService, sync_result: array{conflicts: array<int, array<string, mixed>>}} $result
+         * @var array{church_service: ChurchService, sync_result: array{conflicts: array<int, array<string, mixed>>}, needs_review: bool} $result
          */
-        $result = DB::transaction(function () use ($processingLog, $itemPayloads, $churchService, $identity, $isNewService): array {
+        $result = DB::transaction(function () use ($processingLog, $sections, $itemPayloads, $churchService, $identity, $isNewService): array {
+            $projectionMetadata = [
+                'projected_at' => now()->toIso8601String(),
+                'processing_id' => $processingLog->processing_id,
+                'confidence_summary' => $this->buildConfidenceSummary($itemPayloads),
+            ];
+
             if ($isNewService) {
                 $churchService = ChurchService::query()->create([
                     'date' => $identity['date'],
@@ -88,10 +94,7 @@ class LivestreamChurchServiceProjectionService
                     'source' => ChurchServiceItemSource::LIVESTREAM->value,
                     'needs_review' => false,
                     'import_metadata' => [
-                        'livestream_projection' => [
-                            'projected_at' => now()->toIso8601String(),
-                            'processing_id' => $processingLog->processing_id,
-                        ],
+                        'livestream_projection' => $projectionMetadata,
                     ],
                 ]);
             } else {
@@ -100,10 +103,7 @@ class LivestreamChurchServiceProjectionService
                     'import_metadata' => array_replace_recursive(
                         $churchService->import_metadata?->toArray() ?? [],
                         [
-                            'livestream_projection' => [
-                                'projected_at' => now()->toIso8601String(),
-                                'processing_id' => $processingLog->processing_id,
-                            ],
+                            'livestream_projection' => $projectionMetadata,
                         ]
                     ),
                 ])->saveQuietly();
@@ -117,21 +117,31 @@ class LivestreamChurchServiceProjectionService
                 ChurchServiceItemSource::LIVESTREAM,
             );
 
+            $freshService = $churchService->fresh() ?? $churchService;
+
+            // Link sections to their projected items inside the transaction so that a
+            // process crash between commit and linking can never leave items without
+            // section links — a retry will re-project and re-link atomically.
+            $this->linkSectionsToItems($sections, $freshService);
+
+            // Compute review state only from the payloads that were actually projected.
+            // Sections filtered out by the mapper (e.g. OTHER type, sub-threshold confidence)
+            // should not influence needs_review on the service.
+            $needsReview = $this->computeNeedsReviewFromPayloads($itemPayloads);
+
+            if ($needsReview) {
+                $freshService->forceFill(['needs_review' => true])->saveQuietly();
+            }
+
             return [
-                'church_service' => $churchService->fresh() ?? $churchService,
+                'church_service' => $freshService,
                 'sync_result' => $syncResult,
+                'needs_review' => $needsReview,
             ];
         });
 
         $churchService = $result['church_service'];
-
-        $this->linkSectionsToItems($sections, $churchService);
-
-        $needsReview = $this->computeNeedsReview($sections);
-
-        if ($needsReview) {
-            $churchService->forceFill(['needs_review' => true])->saveQuietly();
-        }
+        $needsReview = $result['needs_review'];
 
         $churchService = $this->canonicalUpdateService->finalize(
             $churchService,
@@ -222,16 +232,58 @@ class LivestreamChurchServiceProjectionService
     }
 
     /**
-     * @param  Collection<int, ServiceSection>  $sections
+     * Build a confidence summary for the service-level projection metadata.
+     *
+     * Counts items by confidence bucket so operators can quickly assess projection
+     * quality without querying individual items.
+     *
+     * @param  list<array<string, mixed>>  $itemPayloads
+     * @return array{high: int, medium: int, low: int, unknown: int, manual_review: int}
      */
-    private function computeNeedsReview(Collection $sections): bool
+    private function buildConfidenceSummary(array $itemPayloads): array
     {
-        foreach ($sections as $section) {
-            if ($section->needs_manual_review) {
+        $summary = ['high' => 0, 'medium' => 0, 'low' => 0, 'unknown' => 0, 'manual_review' => 0];
+
+        foreach ($itemPayloads as $payload) {
+            $projection = is_array($payload['metadata']['livestream_projection'] ?? null)
+                ? $payload['metadata']['livestream_projection']
+                : [];
+
+            $level = $projection['confidence_level'] ?? 'unknown';
+
+            if (array_key_exists($level, $summary)) {
+                $summary[$level]++;
+            } else {
+                $summary['unknown']++;
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Compute whether the projected service needs review based only on the item
+     * payloads that were actually projected — not all classified sections.
+     *
+     * Sections excluded by the mapper (e.g. OTHER type, below confidence threshold)
+     * were never materialised as items and should not influence this flag.
+     *
+     * @param  list<array<string, mixed>>  $itemPayloads
+     */
+    private function computeNeedsReviewFromPayloads(array $itemPayloads): bool
+    {
+        foreach ($itemPayloads as $payload) {
+            $projection = is_array($payload['metadata']['livestream_projection'] ?? null)
+                ? $payload['metadata']['livestream_projection']
+                : [];
+
+            if ($projection['needs_manual_review'] ?? false) {
                 return true;
             }
 
-            if (is_numeric($section->confidence) && (float) $section->confidence < 0.5) {
+            $confidenceLevel = $projection['confidence_level'] ?? 'unknown';
+
+            if (in_array($confidenceLevel, ['low', 'unknown'], true)) {
                 return true;
             }
         }

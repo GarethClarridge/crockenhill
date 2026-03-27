@@ -32,6 +32,10 @@ class StructureMergePolicy
      * Classify whether a specific item-level difference is safe to auto-merge
      * or requires human review.
      *
+     * When $identityConfirmed is true the caller has already established that the
+     * incoming item is the same logical item as the existing one (via stable identity
+     * matching). In that case a reorder alone is never a material conflict.
+     *
      * @param  array<string, mixed>  $existingSnapshot
      * @param  array<string, mixed>  $incomingItem
      */
@@ -39,10 +43,15 @@ class StructureMergePolicy
         array $existingSnapshot,
         array $incomingItem,
         ChurchServiceItemSource $incomingSource,
+        bool $identityConfirmed = false,
     ): bool {
         $existingConfidence = $this->itemConfidenceLevel($existingSnapshot);
 
         if ($existingConfidence !== 'high') {
+            return true;
+        }
+
+        if ($identityConfirmed) {
             return true;
         }
 
@@ -60,6 +69,14 @@ class StructureMergePolicy
     /**
      * Compare two full item lists and return the indices of items that require review.
      *
+     * Matching uses a three-tier strategy to avoid false conflicts on item reordering:
+     *  1. Stable identity — song title / openlp_search_title / source_title match, or
+     *     non-song section_type + normalised title match.
+     *  2. Position — same type at the same ordinal position.
+     *  3. Type+section_type — last-resort fallback, only for unclaimed snapshots.
+     *
+     * Each existing snapshot can only be claimed once (tracked via $matchedIndices).
+     *
      * @param  array<int, array<string, mixed>>  $existingSnapshots
      * @param  array<int, array<string, mixed>>  $incomingItems
      * @return array{auto_merge: list<int>, review_required: list<int>, unmatched_incoming: list<int>}
@@ -73,20 +90,46 @@ class StructureMergePolicy
         $reviewRequired = [];
         $unmatchedIncoming = [];
 
+        /** @var array<int, true> $matchedIndices Existing snapshot indices already claimed */
+        $matchedIndices = [];
+
         $existingByPosition = [];
-        foreach ($existingSnapshots as $snapshot) {
+        foreach ($existingSnapshots as $existingIndex => $snapshot) {
             $position = $snapshot['position'] ?? null;
             if (is_int($position)) {
-                $existingByPosition[$position] = $snapshot;
+                $existingByPosition[$position] = ['index' => $existingIndex, 'snapshot' => $snapshot];
             }
         }
 
         foreach ($incomingItems as $index => $incomingItem) {
-            $position = $incomingItem['position'] ?? ($index + 1);
-            $matchingExisting = $existingByPosition[$position] ?? null;
+            $identityConfirmed = false;
 
+            // Tier 1: stable identity match
+            $matchingExisting = $this->findStableIdentityMatch($existingSnapshots, $incomingItem, $matchedIndices);
+
+            if ($matchingExisting !== null) {
+                $matchedIndices[$matchingExisting['_existing_index']] = true;
+                $identityConfirmed = true;
+            }
+
+            // Tier 2: position match (only unclaimed snapshots)
             if ($matchingExisting === null) {
-                $matchingExisting = $this->findTypeMatch($existingSnapshots, $incomingItem, $incomingSource);
+                $position = $incomingItem['position'] ?? ($index + 1);
+                $candidate = $existingByPosition[$position] ?? null;
+
+                if ($candidate !== null && ! isset($matchedIndices[$candidate['index']])) {
+                    $matchingExisting = $candidate['snapshot'];
+                    $matchedIndices[$candidate['index']] = true;
+                }
+            }
+
+            // Tier 3: type+section_type fallback (only unclaimed snapshots)
+            if ($matchingExisting === null) {
+                $matchingExisting = $this->findTypeMatch($existingSnapshots, $incomingItem, $matchedIndices);
+
+                if ($matchingExisting !== null) {
+                    $matchedIndices[$matchingExisting['_existing_index']] = true;
+                }
             }
 
             if ($matchingExisting === null) {
@@ -95,7 +138,10 @@ class StructureMergePolicy
                 continue;
             }
 
-            if ($this->isAutoMergeSafe($matchingExisting, $incomingItem, $incomingSource)) {
+            // Strip the internal tracking key before passing to safety check helpers.
+            unset($matchingExisting['_existing_index']);
+
+            if ($this->isAutoMergeSafe($matchingExisting, $incomingItem, $incomingSource, $identityConfirmed)) {
                 $autoMerge[] = $index;
             } else {
                 $reviewRequired[] = $index;
@@ -204,21 +250,102 @@ class StructureMergePolicy
     }
 
     /**
+     * Tier 1: find an existing snapshot that matches the incoming item by stable identity.
+     *
+     * For songs: matches by openlp_search_title, source_title, or normalised title.
+     * For non-songs: matches by section_type + normalised title.
+     *
+     * Returns the snapshot with a temporary '_existing_index' key so the caller can
+     * mark it as claimed. Returns null when no unclaimed identity match exists.
+     *
      * @param  array<int, array<string, mixed>>  $existingSnapshots
      * @param  array<string, mixed>  $incomingItem
+     * @param  array<int, true>  $alreadyMatchedIndices
+     * @return array<string, mixed>|null
+     */
+    private function findStableIdentityMatch(
+        array $existingSnapshots,
+        array $incomingItem,
+        array $alreadyMatchedIndices,
+    ): ?array {
+        $incomingType = $incomingItem['type'] ?? null;
+
+        foreach ($existingSnapshots as $existingIndex => $snapshot) {
+            if (isset($alreadyMatchedIndices[$existingIndex])) {
+                continue;
+            }
+
+            if (($snapshot['type'] ?? null) !== $incomingType) {
+                continue;
+            }
+
+            $matched = false;
+
+            if ($incomingType === 'songs') {
+                $incomingSearchTitle = $incomingItem['openlp_search_title'] ?? null;
+                $existingSearchTitle = $snapshot['openlp_search_title'] ?? null;
+
+                if (is_string($incomingSearchTitle) && $incomingSearchTitle !== '' && $incomingSearchTitle === $existingSearchTitle) {
+                    $matched = true;
+                }
+
+                if (! $matched) {
+                    $incomingSourceTitle = $incomingItem['source_title'] ?? null;
+                    $existingSourceTitle = $snapshot['source_title'] ?? null;
+
+                    if (is_string($incomingSourceTitle) && $incomingSourceTitle !== '' && $incomingSourceTitle === $existingSourceTitle) {
+                        $matched = true;
+                    }
+                }
+
+                if (! $matched) {
+                    $matched = $this->isSongIdentificationMatch($snapshot, $incomingItem);
+                }
+            } else {
+                $incomingSectionType = $incomingItem['section_type'] ?? null;
+                $existingSectionType = $snapshot['section_type'] ?? null;
+
+                if ($incomingSectionType !== null && $incomingSectionType === $existingSectionType) {
+                    $incomingTitle = (string) ($incomingItem['title'] ?? '');
+                    $existingTitle = (string) ($snapshot['title'] ?? '');
+
+                    if ($incomingTitle !== '' && $this->titlesSemanticallyMatch($existingTitle, $incomingTitle)) {
+                        $matched = true;
+                    }
+                }
+            }
+
+            if ($matched) {
+                return array_merge($snapshot, ['_existing_index' => $existingIndex]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Tier 3: find an existing snapshot matching by type + section_type, skipping already-claimed indices.
+     *
+     * @param  array<int, array<string, mixed>>  $existingSnapshots
+     * @param  array<string, mixed>  $incomingItem
+     * @param  array<int, true>  $alreadyMatchedIndices
      * @return array<string, mixed>|null
      */
     private function findTypeMatch(
         array $existingSnapshots,
         array $incomingItem,
-        ChurchServiceItemSource $incomingSource,
+        array $alreadyMatchedIndices,
     ): ?array {
         $incomingType = $incomingItem['type'] ?? null;
         $incomingSectionType = $incomingItem['section_type'] ?? null;
 
-        foreach ($existingSnapshots as $snapshot) {
+        foreach ($existingSnapshots as $existingIndex => $snapshot) {
+            if (isset($alreadyMatchedIndices[$existingIndex])) {
+                continue;
+            }
+
             if (($snapshot['type'] ?? null) === $incomingType && ($snapshot['section_type'] ?? null) === $incomingSectionType) {
-                return $snapshot;
+                return array_merge($snapshot, ['_existing_index' => $existingIndex]);
             }
         }
 
