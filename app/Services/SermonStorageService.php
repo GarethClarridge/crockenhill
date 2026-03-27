@@ -49,7 +49,9 @@ class SermonStorageService
                 'path' => "legacy/sermons/{$filename}",
                 'original_path' => "media/sermons/{$filename}",
             ];
-        } elseif (str_contains($sermon->audio_file_path, '/')) {
+        }
+
+        if (str_contains($sermon->audio_file_path, '/')) {
             // Newer Laravel storage pattern
             return [
                 'type' => 'storage',
@@ -57,15 +59,15 @@ class SermonStorageService
                 'path' => $sermon->audio_file_path,
                 'original_path' => $sermon->audio_file_path,
             ];
-        } else {
-            // Current media processing pattern
-            return [
-                'type' => 'processing',
-                'disk' => config('media-processing.storage.sermon_disk', 'public'),
-                'path' => $sermon->audio_file_path,
-                'original_path' => $sermon->audio_file_path,
-            ];
         }
+
+        // Current media processing pattern
+        return [
+            'type' => 'processing',
+            'disk' => config('media-processing.storage.sermon_disk', 'public'),
+            'path' => $sermon->audio_file_path,
+            'original_path' => $sermon->audio_file_path,
+        ];
     }
 
     /**
