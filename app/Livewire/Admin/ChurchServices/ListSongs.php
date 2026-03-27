@@ -26,7 +26,6 @@ class ListSongs extends Component
     protected const ALLOWED_SORT_COLUMNS = [
         'title',
         'usage_count',
-        'services_count',
         'last_used_date',
         'ccli_number',
     ];
@@ -80,7 +79,7 @@ class ListSongs extends Component
         $escapedSearch = $this->escapeLike($search);
 
         $usageSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(*)');
-        $servicesSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(DISTINCT church_service_items.church_service_id)');
+        $servicesCountSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(DISTINCT church_service_items.church_service_id)');
         $lastUsedDateSubQuery = $this->usageBaseQuery()->selectRaw('MAX(church_services.date)');
 
         $songs = Song::query()
@@ -89,7 +88,7 @@ class ListSongs extends Component
                 'authors' => fn ($query) => $query->orderBy('display_name'),
             ])
             ->selectSub($usageSubQuery, 'usage_count')
-            ->selectSub($servicesSubQuery, 'services_count')
+            ->selectSub($servicesCountSubQuery, 'services_count')
             ->selectSub($lastUsedDateSubQuery, 'last_used_date')
             ->when($search !== '', function (Builder $query) use ($escapedSearch): void {
                 $query->where(function (Builder $searchQuery) use ($escapedSearch): void {

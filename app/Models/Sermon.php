@@ -629,12 +629,10 @@ class Sermon extends Model implements Sitemapable
      */
     public function getMetaDescriptionAttribute(): string
     {
-        // Return explicitly set meta description if it exists
         if (! empty($this->attributes['meta_description'])) {
             return $this->attributes['meta_description'];
         }
 
-        // Auto-generate from available content
         $preacherName = $this->displayPreacherName() ?? 'Unknown preacher';
         $description = "Listen to '{$this->title}' by {$preacherName}";
         $description .= " preached on {$this->human_date}";
@@ -643,18 +641,31 @@ class Sermon extends Model implements Sitemapable
             $description .= ' - '.$this->displayReference();
         }
 
-        if ($this->series) {
-            $description .= " (Part of the {$this->series} series)";
-        }
-
-        // Add excerpt from summary if available
+        $summary = null;
         if ($this->show_summary && $this->summary) {
-            $excerpt = Str::limit(strip_tags($this->summary), 80);
-            $description .= ". {$excerpt}";
+            $summary = trim(strip_tags($this->summary));
         }
 
-        // Truncate to 155 characters (SEO best practice)
-        return Str::limit($description, 155);
+        $seriesSuffix = $this->series ? " (Part of the {$this->series} series)" : '';
+
+        if ($summary === null || $summary === '') {
+            return Str::limit($description.$seriesSuffix, 155);
+        }
+
+        $descriptionWithSeries = $description.$seriesSuffix;
+        $separator = '. ';
+
+        if (Str::length($descriptionWithSeries.$separator.$summary) <= 155) {
+            return $descriptionWithSeries.$separator.$summary;
+        }
+
+        $remainingSummaryLength = 155 - Str::length($description) - Str::length($separator);
+
+        if ($remainingSummaryLength > 0) {
+            return $description.$separator.Str::limit($summary, $remainingSummaryLength);
+        }
+
+        return Str::limit($descriptionWithSeries, 155);
     }
 
     /**

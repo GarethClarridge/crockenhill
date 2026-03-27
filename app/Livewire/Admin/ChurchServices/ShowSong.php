@@ -31,34 +31,31 @@ class ShowSong extends Component
         /** @var array<string, mixed> $stats */
         $stats = (array) ($this->usageBaseQuery()
             ->selectRaw('COUNT(*) AS usage_count')
-            ->selectRaw('COUNT(DISTINCT church_service_items.church_service_id) AS services_count')
             ->selectRaw('MAX(church_services.date) AS last_used_date')
             ->toBase()
             ->first() ?? []);
 
         $usageCount = is_numeric($stats['usage_count'] ?? null) ? (int) $stats['usage_count'] : 0;
-        $serviceCount = is_numeric($stats['services_count'] ?? null) ? (int) $stats['services_count'] : 0;
         $lastUsedDate = is_string($stats['last_used_date'] ?? null) ? $stats['last_used_date'] : null;
-        $usageHistory = $this->usageBaseQuery()
-            ->select('church_service_items.*')
-            ->with([
-                'churchService' => fn ($query) => $query->select(['id', 'date', 'service']),
-            ])
-            ->orderByDesc('church_services.date')
-            ->orderByDesc('church_service_items.position')
-            ->limit(40)
-            ->get();
+        $usageByYear = $this->usageBaseQuery()
+            ->selectRaw('YEAR(church_services.date) AS year, COUNT(*) AS count')
+            ->groupByRaw('YEAR(church_services.date)')
+            ->orderByRaw('YEAR(church_services.date)')
+            ->toBase()
+            ->get()
+            ->map(fn (object $row): array => ['year' => (int) $row->year, 'count' => (int) $row->count])
+            ->values()
+            ->all();
 
         return view('livewire.admin.church-services.show-song', [
             'importMetadata' => $importMetadata,
             'parseWarnings' => $parseWarnings,
             'usageCount' => $usageCount,
-            'serviceCount' => $serviceCount,
             'lastUsedDate' => $lastUsedDate,
-            'usageHistory' => $usageHistory,
+            'usageByYear' => $usageByYear,
         ])->layout('layouts.admin', [
-            'title' => 'Song: '.$this->song->title,
-            'heading' => 'Song: '.$this->song->title,
+            'title' => $this->song->title,
+            'heading' => $this->song->title,
         ]);
     }
 

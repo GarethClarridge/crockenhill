@@ -37,7 +37,13 @@ class BreadcrumbPresenter
                 };
 
                 if (count($this->request->segments()) >= 3) {
-                    $items[] = ['name' => $sectionName, 'item' => url('admin/'.$section)];
+                    $segment3 = $this->request->segment(3);
+
+                    if ($segment3 === 'songs') {
+                        $items[] = ['name' => 'Songs', 'item' => url('admin/services/songs')];
+                    } else {
+                        $items[] = ['name' => $sectionName, 'item' => url('admin/'.$section)];
+                    }
                 }
             }
         } elseif (count($this->request->segments()) >= 2 || $area !== '') {

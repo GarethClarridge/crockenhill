@@ -1,17 +1,13 @@
 <div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="space-y-2">
+        <a href="{{ route('admin.services.songs.index') }}" wire:navigate class="inline-flex items-center text-sm font-medium text-cbc-teal hover:text-cbc-teal-dark">
+            Back to Songs
+        </a>
         <div>
             <h1 class="font-display text-3xl">{{ $song->title }}</h1>
-            <p class="text-gray-600">{{ $song->canonical_key }}</p>
-        </div>
-
-        <div class="flex gap-2">
-            <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" inline>
-                Back to Songs
-            </x-button>
-            <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-                Services
-            </x-button>
+            @if($song->alternate_title)
+                <p class="text-sm text-gray-600">{{ $song->alternate_title }}</p>
+            @endif
         </div>
     </div>
 
@@ -36,95 +32,39 @@
             </x-card>
 
             <x-card heading="Recent Usage">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Date</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Service</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Item Title</th>
-                                <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 bg-white">
-                            @forelse($usageHistory as $usageItem)
-                                <tr>
-                                    <td class="px-4 py-3 text-sm">
-                                        {{ $usageItem->churchService?->date?->format('j M Y') ?? '-' }}
-                                    </td>
-                                    <td class="px-4 py-3 text-sm">
-                                        {{ $usageItem->churchService?->service?->label() ?? '-' }}
-                                    </td>
-                                    <td class="px-4 py-3 text-sm">
-                                        {{ $usageItem->title }}
-                                    </td>
-                                    <td class="px-4 py-3 text-right">
-                                        @if($usageItem->churchService)
-                                            <x-button
-                                                link="{{ route('admin.services.show', $usageItem->churchService) }}"
-                                                variant="ghost"
-                                                size="xs"
-                                                icon="eye"
-                                                inline
-                                                aria-label="View service for song usage" />
-                                        @else
-                                            <span class="text-xs text-gray-400">-</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="px-4 py-8 text-center text-gray-500">
-                                        No usage history found for this song.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                @if($usageByYear !== [])
+                    <p class="text-sm text-gray-500">Usage by Year</p>
+                    <div
+                        x-data="{ bars: @json($usageByYear) }"
+                        class="mt-6 w-full"
+                        aria-label="Bar chart of song usage by year">
+                        @php $maxCount = max(array_column($usageByYear, 'count')); @endphp
+                        <div class="relative flex items-end gap-2" style="height: 120px;">
+                            @foreach($usageByYear as $entry)
+                                @php $heightPx = $maxCount > 0 ? round(($entry['count'] / $maxCount) * 120) : 0; @endphp
+                                <div class="group relative flex flex-1 flex-col items-center justify-end" style="height: 120px;">
+                                    <span class="absolute -top-5 text-xs font-medium text-gray-600 opacity-0 transition-opacity group-hover:opacity-100">{{ $entry['count'] }}</span>
+                                    <div
+                                        class="w-full rounded-t bg-cbc-teal transition-colors group-hover:bg-cbc-teal-dark"
+                                        style="height: {{ $heightPx }}px;"
+                                        title="{{ $entry['year'] }}: {{ $entry['count'] }} uses"></div>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="mt-1 flex gap-2">
+                            @foreach($usageByYear as $entry)
+                                <div class="flex-1 text-center text-xs text-gray-500">{{ $entry['year'] }}</div>
+                            @endforeach
+                        </div>
+                    </div>
+                @else
+                    <p class="text-sm text-gray-500">No usage history found for this song.</p>
+                @endif
             </x-card>
+
         </div>
 
         <div class="space-y-6">
-            <x-card heading="Song Metadata">
-                <div class="space-y-3 text-sm">
-                    <div>
-                        <p class="text-gray-500">Title</p>
-                        <p class="font-medium">{{ $song->title }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Alternate title</p>
-                        <p class="font-medium">{{ $song->alternate_title ?: '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">CCLI</p>
-                        <p class="font-medium">{{ $song->ccli_number ?: '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Verse order</p>
-                        <p class="font-medium">{{ $song->verse_order ?: '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Usage count</p>
-                        <p class="font-medium">{{ $usageCount }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Distinct services</p>
-                        <p class="font-medium">{{ $serviceCount }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Last used</p>
-                        <p class="font-medium">
-                            @if(is_string($lastUsedDate))
-                                {{ \Illuminate\Support\Carbon::parse($lastUsedDate)->format('j M Y') }}
-                            @else
-                                -
-                            @endif
-                        </p>
-                    </div>
-                </div>
-            </x-card>
-
             <x-card heading="Authors">
                 <div class="space-y-2 text-sm">
                     @forelse($song->authors as $author)
@@ -150,6 +90,37 @@
                     @empty
                         <p class="text-gray-500">No songbook entries linked.</p>
                     @endforelse
+                </div>
+            </x-card>
+
+            <x-card heading="Song Metadata">
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <p class="text-gray-500">Alternate title</p>
+                        <p class="font-medium">{{ $song->alternate_title ?: '-' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">CCLI</p>
+                        <p class="font-medium">{{ $song->ccli_number ?: '-' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Verse order</p>
+                        <p class="font-medium">{{ $song->verse_order ?: '-' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Usage count</p>
+                        <p class="font-medium">{{ $usageCount }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Last used</p>
+                        <p class="font-medium">
+                            @if(is_string($lastUsedDate))
+                                {{ \Illuminate\Support\Carbon::parse($lastUsedDate)->format('j M Y') }}
+                            @else
+                                -
+                            @endif
+                        </p>
+                    </div>
                 </div>
             </x-card>
         </div>

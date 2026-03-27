@@ -6,9 +6,6 @@
         </div>
 
         <div class="flex gap-2">
-            <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-                Back to Services
-            </x-button>
             <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
                 Upload Service
             </x-button>
@@ -54,7 +51,6 @@
                 ['label' => 'Song', 'column' => 'title'],
                 ['label' => 'Authors', 'column' => null],
                 ['label' => 'Usage', 'column' => 'usage_count'],
-                ['label' => 'Distinct Services', 'column' => 'services_count'],
                 ['label' => 'Last Used', 'column' => 'last_used_date'],
             ];
         @endphp
@@ -72,14 +68,13 @@
                                 :sortDirection="$sortDirection"
                             />
                         @endforeach
-                        <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
                     @forelse($songs as $song)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3">
-                                <p class="font-medium">{{ $song->title }}</p>
+                                <a href="{{ route('admin.services.songs.show', $song) }}" wire:navigate class="font-medium hover:text-cbc-teal">{{ $song->title }}</a>
                                 @if($song->alternate_title)
                                     <p class="text-xs text-gray-500">Alt: {{ $song->alternate_title }}</p>
                                 @endif
@@ -94,28 +89,16 @@
                                 {{ (int) ($song->usage_count ?? 0) }}
                             </td>
                             <td class="px-4 py-3 text-sm">
-                                {{ (int) ($song->services_count ?? 0) }}
-                            </td>
-                            <td class="px-4 py-3 text-sm">
                                 @if($song->last_used_date)
                                     {{ \Illuminate\Support\Carbon::parse($song->last_used_date)->format('j M Y') }}
                                 @else
                                     -
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-right">
-                                <x-button
-                                    link="{{ route('admin.services.songs.show', $song) }}"
-                                    variant="ghost"
-                                    size="xs"
-                                    icon="eye"
-                                    inline
-                                    aria-label="View song: {{ $song->title }}" />
-                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                            <td colspan="4" class="px-4 py-8 text-center text-gray-500">
                                 No songs available yet. Run song sync and link commands first.
                             </td>
                         </tr>
