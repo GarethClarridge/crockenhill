@@ -157,6 +157,15 @@ class SermonAnalysisService implements SermonAnalysisInterface
                         'max_tokens' => 1500,
                         // Removed response_format to avoid compatibility issues
                     ]);
+                } catch (\TypeError $e) {
+                    // Handle malformed API response (e.g., non-JSON response body)
+                    Log::error('OpenAI API response parsing failed (malformed response)', [
+                        'processing_id' => $processingId,
+                        'attempt' => $attempt,
+                        'error' => $e->getMessage(),
+                        'model' => $model,
+                    ]);
+                    throw new \Exception('OpenAI API response malformed: '.$e->getMessage());
                 } catch (\Exception $e) {
                     Log::error('OpenAI API call failed', [
                         'processing_id' => $processingId,
@@ -250,6 +259,16 @@ class SermonAnalysisService implements SermonAnalysisInterface
                     $e->getMessage(),
                     ['attempt' => $attempt, 'error_type' => 'network']
                 );
+            } catch (\TypeError $e) {
+                $lastException = $e;
+
+                $this->logger->logError(
+                    $processingId,
+                    'ai_analysis_attempt',
+                    $e,
+                    ['attempt' => $attempt, 'error_type' => 'response_parsing']
+                );
+                // Retry on malformed responses
             } catch (Exception $e) {
                 $lastException = $e;
 
