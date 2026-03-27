@@ -20,7 +20,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -347,7 +346,7 @@ class MediaProcessingLog extends Model
      */
     public function manualReviewMetadata(): array
     {
-        $manualReview = $this->manualReviewData();
+        $manualReview = $this->processing_metadata?->manualReview;
 
         if ($manualReview instanceof ProcessingManualReviewMetadata) {
             return $manualReview->toArray();
@@ -358,12 +357,12 @@ class MediaProcessingLog extends Model
 
     public function manuallyConfirmedSegmentId(): ?int
     {
-        return $this->manualReviewData()?->confirmedSegmentId;
+        return $this->processing_metadata?->manualReview?->confirmedSegmentId;
     }
 
     public function requiresManualSermonReview(): bool
     {
-        $manualReviewStatus = $this->manualReviewData()?->status;
+        $manualReviewStatus = $this->processing_metadata?->manualReview?->status;
 
         if ($manualReviewStatus === 'required') {
             return true;
@@ -377,20 +376,6 @@ class MediaProcessingLog extends Model
             && $this->status === ProcessingStatus::FAILED
             && $this->current_step === 'manual_review_required'
             && $this->processing_type === MediaType::Livestream;
-    }
-
-    public function sourceVideoExists(): bool
-    {
-        $sourceFilePath = $this->source_file_path;
-
-        if (! is_string($sourceFilePath) || $sourceFilePath === '') {
-            return false;
-        }
-
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
-
-        return Storage::disk($tempDisk)->exists($sourceFilePath)
-            || file_exists($sourceFilePath);
     }
 
     // Accessors for backward compatibility
@@ -469,35 +454,5 @@ class MediaProcessingLog extends Model
             'The longest speech block was not at least 1.5x longer than the next-longest speech block.',
             'Sermon auto-selection confidence was insufficient.',
         ];
-    }
-
-    public function aiAnalysisData(): ?SermonAnalysis
-    {
-        $analysis = $this->ai_analysis;
-
-        return $analysis instanceof SermonAnalysis ? $analysis : null;
-    }
-
-    public function processingMetadataData(): ProcessingMetadata
-    {
-        $metadata = $this->processing_metadata;
-
-        return $metadata instanceof ProcessingMetadata
-            ? $metadata
-            : ProcessingMetadata::fromArray($metadata);
-    }
-
-    public function manualReviewData(): ?ProcessingManualReviewMetadata
-    {
-        return $this->processingMetadataData()->manualReview;
-    }
-
-    public function songClustersData(): SongClusterCollection
-    {
-        $clusters = $this->song_clusters;
-
-        return $clusters instanceof SongClusterCollection
-            ? $clusters
-            : new SongClusterCollection([]);
     }
 }

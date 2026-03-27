@@ -52,7 +52,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
         ]);
 
         $classifyJob = new ClassifyServiceSections($processingLog);
-        $classifyJob->handle(new ServiceSectionClassifier, new ServiceSectionSyncService);
+        $classifyJob->handle(new ServiceSectionClassifier, app(ServiceSectionSyncService::class));
 
         $alignJob = new AlignWithOos($processingLog);
         $alignJob->handle(app(OosAlignmentService::class));
@@ -98,7 +98,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
         ]);
 
         $classifyJob = new ClassifyServiceSections($processingLog);
-        $classifyJob->handle(new ServiceSectionClassifier, new ServiceSectionSyncService);
+        $classifyJob->handle(new ServiceSectionClassifier, app(ServiceSectionSyncService::class));
 
         $alignJob = new AlignWithOos($processingLog);
         $alignJob->handle(app(OosAlignmentService::class));

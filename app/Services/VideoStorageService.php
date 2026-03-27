@@ -416,6 +416,18 @@ class VideoStorageService
         return Storage::disk($this->permanentDisk)->exists($videoPath);
     }
 
+    /**
+     * Check whether the source video for a processing run is still accessible,
+     * either on the configured temp disk or as an absolute filesystem path.
+     */
+    public function sourceVideoExistsForPath(string $sourceFilePath): bool
+    {
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        return Storage::disk($tempDisk)->exists($sourceFilePath)
+            || file_exists($sourceFilePath);
+    }
+
     public function audioExists(string $audioPath): bool
     {
         return Storage::disk($this->permanentDisk)->exists($audioPath);

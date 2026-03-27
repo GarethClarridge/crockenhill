@@ -183,6 +183,20 @@ class VideoStorageServiceTest extends TestCase
         $this->service->cleanup('some-id');
     }
 
+    #[Test]
+    public function source_video_exists_for_path_returns_true_when_file_is_on_temp_disk(): void
+    {
+        Storage::disk('local_temp')->put('livestreams/2026/service.mp4', 'fake-video');
+
+        $this->assertTrue($this->service->sourceVideoExistsForPath('livestreams/2026/service.mp4'));
+    }
+
+    #[Test]
+    public function source_video_exists_for_path_returns_false_when_file_is_absent(): void
+    {
+        $this->assertFalse($this->service->sourceVideoExistsForPath('livestreams/2026/missing.mp4'));
+    }
+
     private function makeService(): VideoStorageService
     {
         return new VideoStorageService(

@@ -12,7 +12,6 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Presenters\SermonSitemapPresenter;
-use App\Services\SermonExposurePolicy;
 use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -165,18 +164,7 @@ class Sermon extends Model implements Sitemapable
 
     public function getPlainThumbnailFilePathAttribute(): ?string
     {
-        return $this->thumbnailMetadataData()?->plainThumbnailPath;
-    }
-
-    public function thumbnailMetadataData(): ?ThumbnailMetadata
-    {
-        $metadata = $this->thumbnail_metadata;
-
-        if ($metadata instanceof ThumbnailMetadata) {
-            return $metadata;
-        }
-
-        return ThumbnailMetadata::fromArray($metadata);
+        return $this->thumbnail_metadata?->plainThumbnailPath;
     }
 
     public function getSeriesUrlAttribute(): ?string
@@ -258,9 +246,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function scopeWhereVisibleInSitemap(Builder $query): Builder
     {
-        $exposurePolicy = app(SermonExposurePolicy::class);
-
-        if ($exposurePolicy->childrensTalksArePublic()) {
+        if ((bool) config('sermons.childrens_talks.public', false)) {
             return $query;
         }
 
@@ -414,6 +400,16 @@ class Sermon extends Model implements Sitemapable
     public function livestreamProcessing(): BelongsTo
     {
         return $this->belongsTo(MediaProcessingLog::class, 'livestream_processing_id', 'processing_id');
+    }
+
+    /**
+     * Get the latest processing log for this sermon.
+     *
+     * @return HasOne<MediaProcessingLog, $this>
+     */
+    public function latestProcessingLog(): HasOne
+    {
+        return $this->hasOne(MediaProcessingLog::class)->latestOfMany();
     }
 
     /**

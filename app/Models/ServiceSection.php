@@ -200,7 +200,7 @@ class ServiceSection extends Model
             return $this->song_match_type;
         }
 
-        $matchType = $this->metadataData()->oosAlignment?->songMatchType;
+        $matchType = $this->metadata?->oosAlignment?->songMatchType;
 
         return is_string($matchType)
             ? ServiceSectionSongMatchType::tryFrom($matchType)
@@ -211,14 +211,14 @@ class ServiceSection extends Model
     {
         return is_int($this->matched_item_id)
             ? $this->matched_item_id
-            : $this->metadataData()->oosAlignment?->matchedItemId;
+            : $this->metadata?->oosAlignment?->matchedItemId;
     }
 
     public function expectedItemId(): ?int
     {
         return is_int($this->expected_item_id)
             ? $this->expected_item_id
-            : $this->metadataData()->oosAlignment?->expectedItemId;
+            : $this->metadata?->oosAlignment?->expectedItemId;
     }
 
     public function hasConfirmedSongMatch(): bool
@@ -241,7 +241,7 @@ class ServiceSection extends Model
      */
     public function childrensTalkSpeakerMetadata(): array
     {
-        $speaker = $this->metadataData()->childrensTalkSpeaker;
+        $speaker = $this->metadata?->childrensTalkSpeaker;
 
         return $speaker instanceof ChildrensTalkSpeakerMetadata ? $speaker->toArray() : [];
     }
@@ -251,7 +251,7 @@ class ServiceSection extends Model
      */
     public function predictedChildrensTalkSpeaker(): ?array
     {
-        return $this->metadataData()->childrensTalkSpeaker?->predicted;
+        return $this->metadata?->childrensTalkSpeaker?->predicted;
     }
 
     /**
@@ -259,7 +259,7 @@ class ServiceSection extends Model
      */
     public function reviewedChildrensTalkSpeaker(): ?array
     {
-        return $this->metadataData()->childrensTalkSpeaker?->reviewed;
+        return $this->metadata?->childrensTalkSpeaker?->reviewed;
     }
 
     /**
@@ -267,7 +267,7 @@ class ServiceSection extends Model
      */
     public function publicationChildrensTalkSpeaker(): ?array
     {
-        return $this->metadataData()->childrensTalkSpeaker?->publicationSpeaker();
+        return $this->metadata?->childrensTalkSpeaker?->publicationSpeaker();
     }
 
     public function hasResolvedChildrensTalkSpeaker(): bool
@@ -291,14 +291,5 @@ class ServiceSection extends Model
             'preacher_name' => $speaker['preacher_name'],
             'source' => $speaker['source'],
         ];
-    }
-
-    public function metadataData(): ServiceSectionMetadata
-    {
-        $metadata = $this->metadata;
-
-        return $metadata instanceof ServiceSectionMetadata
-            ? $metadata
-            : ServiceSectionMetadata::fromArray($metadata);
     }
 }

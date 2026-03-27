@@ -27,9 +27,11 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_identifies_publishable_section_types_from_configuration(): void
+    public function it_identifies_publishable_section_types_from_handler_registry(): void
     {
-        config(['media-processing.section_publishing.publishable_types' => ['childrens_talk', 'sermon']]);
+        config(['media-processing.section_publishing.handlers' => [
+            'childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class,
+        ]]);
 
         $publishable = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
@@ -97,5 +99,22 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
         $this->assertFalse(
             $this->service->canTransition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL)
         );
+    }
+
+    #[Test]
+    public function not_applicable_sections_can_transition_directly_to_published(): void
+    {
+        $section = ServiceSection::factory()->create([
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $this->assertTrue(
+            $this->service->canTransition($section, ServiceSectionPublicationStatus::PUBLISHED)
+        );
+
+        $result = $this->service->transition($section, ServiceSectionPublicationStatus::PUBLISHED);
+
+        $this->assertTrue($result);
+        $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
     }
 }

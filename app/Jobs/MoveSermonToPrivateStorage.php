@@ -118,7 +118,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
 
     private function movePlainThumbnailIfNeeded(Sermon $sermon): void
     {
-        $metadata = $sermon->thumbnailMetadataData();
+        $metadata = $sermon->thumbnail_metadata;
         $path = $metadata?->plainThumbnailPath;
 
         if (! is_string($path) || $path === '' || str_starts_with($path, 'private/')) {

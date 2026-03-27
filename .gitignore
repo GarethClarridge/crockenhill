@@ -65,3 +65,4 @@ artisan_serve.log
 # Example files
 *.osz
 *.sqlite
+*.sql

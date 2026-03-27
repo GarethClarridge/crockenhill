@@ -63,7 +63,8 @@ class ExpireSectionPublicationAssetsTest extends TestCase
         $this->action->execute($section, ['reason' => 'asset_expiry', 'cleaned_by' => 'scheduler']);
 
         $section->refresh();
-        $cleanup = $section->metadataData()->toArray()['cleanup'] ?? null;
+        $metadata = $section->metadata?->toArray() ?? [];
+        $cleanup = $metadata['cleanup'] ?? null;
         $this->assertIsArray($cleanup);
         $this->assertSame('asset_expiry', $cleanup['reason']);
         $this->assertSame('scheduler', $cleanup['cleaned_by']);

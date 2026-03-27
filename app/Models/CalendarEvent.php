@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $location
  * @property \Illuminate\Support\Carbon $start_datetime
  * @property \Illuminate\Support\Carbon $end_datetime
- * @property string $status
+ * @property \App\Enums\CalendarEventStatus $status
  * @property bool $is_categorized_automatically
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -50,6 +50,7 @@ class CalendarEvent extends Model
         return [
             'start_datetime' => 'datetime',
             'end_datetime' => 'datetime',
+            'status' => \App\Enums\CalendarEventStatus::class,
             'is_categorized_automatically' => 'boolean',
         ];
     }

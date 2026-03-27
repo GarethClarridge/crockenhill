@@ -1,6 +1,6 @@
 # Tech Debt Backlog (2026-03-17)
 
-_Last updated: 2026-03-22_
+_Last updated: 2026-03-25_
 
 ## Purpose
 
@@ -124,6 +124,9 @@ The backlog is ordered for safety:
 60. `TD-038`
 61. `TD-040`
 62. `TD-041`
+63. `TD-042`
+64. `TD-043`
+65. `TD-044`
 
 ## Quick Wins
 
@@ -1863,6 +1866,80 @@ The backlog is ordered for safety:
   - `architectural-review-2026-03-17.md`
   - `eloquent-model-boundary-audit-2026-03-17.md`
   - `database-model-integrity-review-2026-03-18.md`
+
+### TD-042 - Differentiate transient infrastructure failures from no-match in speaker identification
+- Status: `Completed`
+- Priority: P2
+- Impact: Medium
+- Risk: Low
+- Effort: S
+- Dependencies: `TD-005B`
+- Scope:
+  - `app/Jobs/IdentifySpeaker.php` — catch-all at line 197 swallows every `\Throwable` without differentiating transient provider failures (connection reset, timeout, storage unavailable) from deterministic no-match outcomes
+  - `tries = 1` applies equally to both cases; transient failures never get a retry opportunity
+  - `failed()` method is dead code in practice because exceptions are caught internally before the job can fail
+- Tests needed first:
+  - Speaker identification test for transient infrastructure failure (connection timeout, storage exception) — assert the failure is recorded distinctly from a no-match and the job can be retried
+  - Confirm existing `SpeakerIdentificationTest` test at line 576 (exception swallowing) is updated to reflect the new policy
+- Safest implementation order:
+  1. Classify exception types: `\OpenAI\Exceptions\ErrorException` with retryable status codes and network-level throwables (`\Illuminate\Http\Client\ConnectionException`, `\GuzzleHttp\Exception\ConnectException`) are transient; the SDK's no-match signal and deterministic errors are not.
+  2. Let transient exceptions propagate so the job queue retries them (raise `$tries` accordingly, e.g. `3`).
+  3. Keep the catch-all only for deterministic no-match and unknown errors.
+  4. Remove or repurpose `failed()` — it should log the permanent failure once retries are exhausted.
+- Acceptance criteria:
+  1. A transient infrastructure failure triggers at least one job retry rather than being silently discarded.
+  2. Deterministic no-match outcomes remain best-effort and do not retry.
+  3. `failed()` is reachable code and records the permanent failure signal.
+- Reference reviews:
+  - `external-integration-boundary-review-2026-03-18.md`
+
+### TD-043 - Move storage and container I/O out of the remaining model methods
+- Status: `Completed`
+- Priority: P3
+- Impact: Low-Medium
+- Risk: Low
+- Effort: M
+- Dependencies: `TD-013`
+- Scope:
+  - `app/Models/Page.php` — `hasImage()` (line 259) and `getHeadingImageSrcsetAttribute()` call `Storage::disk('public')->exists()` inside a model method; hidden I/O on every attribute read
+  - `app/Models/MediaProcessingLog.php` — `sourceVideoExists()` (line 382) calls `Storage::disk()` and `file_exists()`; filesystem I/O inside a model
+  - `app/Models/Sermon.php` — `scopeWhereVisibleInSitemap()` (line 254) resolves `SermonExposurePolicy` from the container via `app()` inside a query scope; couples the model to application-layer policy resolution on every sitemap query
+- Tests needed first:
+  - Characterization tests confirming current return values for `hasImage()`, `sourceVideoExists()`, and `scopeWhereVisibleInSitemap()` before moving the I/O
+- Safest implementation order:
+  1. Move `Page::hasImage()` and heading srcset logic into a `PagePresenter` or the existing read-model layer from `TD-013A`.
+  2. Move `MediaProcessingLog::sourceVideoExists()` into an operator service or the `ProcessingRunOrchestrator`.
+  3. Replace the `app()` call in `Sermon::scopeWhereVisibleInSitemap()` with an injected or statically configured policy flag — the scope should not resolve services at query time.
+- Acceptance criteria:
+  1. `Page`, `Sermon`, and `MediaProcessingLog` models no longer call `Storage`, `file_exists`, or `app()` internally.
+  2. Equivalent behavior is covered by tests in the presenter or service that now owns the I/O.
+- Reference reviews:
+  - `eloquent-model-boundary-audit-2026-03-17.md`
+  - `public-read-side-architecture-review-2026-03-18.md`
+
+### TD-044 - Fix calendar manual categorization to report Google sync failure distinctly
+- Status: `Completed`
+- Priority: P3
+- Impact: Low
+- Risk: Low
+- Effort: S
+- Dependencies: None
+- Scope:
+  - `app/Services/CalendarService::manuallyCategorizeEvent()` (line 80) — updates the local row first, then attempts a Google Calendar extended-property write; Google failure is swallowed and only logged as a warning
+  - `app/Http/Controllers/Admin/CalendarAdminController::categorizeEvent()` (line 46) — always flashes a success message regardless of whether the Google write succeeded, so the operator has no visibility into sync drift
+- Tests needed first:
+  - `CalendarServiceTest` already has a test at line 246 for Google failure — extend it to assert that the return value or a flag distinguishes a clean sync from a local-only update
+  - Add a controller test asserting the flash message differs (or includes a note) when Google sync fails
+- Safest implementation order:
+  1. Have `manuallyCategorizeEvent()` return a result object or add a boolean `$googleSynced` indicator alongside the `CalendarEvent`.
+  2. Update `categorizeEvent()` in the controller to flash a distinct "categorized (Google sync failed — will retry on next sync)" message when the Google write did not succeed.
+  3. Keep local update as the source of truth; Google sync remains best-effort and non-blocking.
+- Acceptance criteria:
+  1. The operator can distinguish "categorized and synced to Google" from "categorized locally, Google sync pending" from the admin UI flash message.
+  2. The local categorization is never rolled back due to a Google failure.
+  3. No new exception propagation — Google failure remains non-fatal.
+- Reference reviews:
+  - `external-integration-boundary-review-2026-03-18.md`
 
 ## Deferred For Later Reassessment
 

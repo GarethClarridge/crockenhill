@@ -227,15 +227,14 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         Storage::disk('public')->delete($testFilePath);
     }
 
-    public function test_is_non_retryable_error_always_returns_false_due_to_zero_code(): void
+    public function test_is_non_retryable_error_correctly_detects_non_retryable_status_codes(): void
     {
         $reflection = new \ReflectionClass($this->service);
         $method = $reflection->getMethod('isNonRetryableError');
 
-        // Note: OpenAI's ErrorException extends Exception but parent::__construct
-        // is called without a code, so getCode() always returns 0.
-        // This means isNonRetryableError() will always return false with the current
-        // implementation. We test the actual behaviour here to capture the baseline.
+        // OpenAI's ErrorException stores the HTTP status code in $statusCode, accessible
+        // via getStatusCode(). getCode() always returns 0 (no code passed to parent::__construct),
+        // so isNonRetryableError() must use getStatusCode() — not getCode().
         $nonRetryableCodes = [400, 401, 413];
         foreach ($nonRetryableCodes as $code) {
             $exception = new \OpenAI\Exceptions\ErrorException([
@@ -244,10 +243,26 @@ class AudioTranscriptionServiceValidationTest extends TestCase
                 'code' => (string) $code,
             ], $code);
 
-            // getCode() returns 0 because ErrorException doesn't pass code to parent
             $this->assertEquals(0, $exception->getCode());
-            // So isNonRetryableError always returns false
-            $this->assertFalse($method->invoke($this->service, $exception));
+            $this->assertEquals($code, $exception->getStatusCode());
+            $this->assertTrue($method->invoke($this->service, $exception), "Expected status {$code} to be non-retryable");
+        }
+    }
+
+    public function test_is_non_retryable_error_treats_retryable_status_codes_as_retryable(): void
+    {
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('isNonRetryableError');
+
+        $retryableCodes = [429, 500, 503];
+        foreach ($retryableCodes as $code) {
+            $exception = new \OpenAI\Exceptions\ErrorException([
+                'message' => 'Transient error',
+                'type' => 'server_error',
+                'code' => null,
+            ], $code);
+
+            $this->assertFalse($method->invoke($this->service, $exception), "Expected status {$code} to be retryable");
         }
     }
 

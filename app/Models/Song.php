@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -31,6 +32,8 @@ use Illuminate\Support\Str;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, SongAuthor> $authors
  * @property-read \Illuminate\Database\Eloquent\Collection<int, SongBook> $books
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ChurchServiceItem> $churchServiceItems
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, SongVideo> $videos
+ * @property-read SongVideo|null $featuredVideo
  *
  * @method static \Database\Factories\SongFactory factory(...$parameters)
  * @method static Builder<Song> newModelQuery()
@@ -111,5 +114,34 @@ class Song extends Model
     public function churchServiceItems(): HasMany
     {
         return $this->hasMany(ChurchServiceItem::class);
+    }
+
+    /**
+     * @return HasMany<SongVideo, $this>
+     */
+    public function videos(): HasMany
+    {
+        return $this->hasMany(SongVideo::class)->orderBy('recorded_date', 'desc');
+    }
+
+    /**
+     * @return HasOne<SongVideo, $this>
+     */
+    public function featuredVideo(): HasOne
+    {
+        return $this->hasOne(SongVideo::class)->where('is_featured', true);
+    }
+
+    public function displayVideo(): ?SongVideo
+    {
+        $featured = $this->featuredVideo()->first();
+        if ($featured !== null) {
+            return $featured;
+        }
+
+        return $this->hasOne(SongVideo::class)
+            ->orderByRaw('recorded_date IS NULL, recorded_date DESC')
+            ->where('recorded_date', '!=', null)
+            ->first();
     }
 }

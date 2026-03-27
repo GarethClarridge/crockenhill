@@ -78,7 +78,13 @@
                     colspan="{{ count($headers) + 1 }}"
                     title="No preachers found"
                     :hasFilters="$hasFilters"
-                />
+                >
+                    @if(!$hasFilters)
+                        <x-button link="{{ route('admin.preachers.create') }}" variant="primary" icon="plus" inline>
+                            Add Preacher
+                        </x-button>
+                    @endif
+                </x-admin.empty-state>
             @endforelse
         </tbody>
     </table>

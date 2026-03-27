@@ -431,7 +431,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             413, // Payload Too Large - file too big
         ];
 
-        return in_array($exception->getCode(), $nonRetryableCodes);
+        return in_array($exception->getStatusCode(), $nonRetryableCodes);
     }
 
     /**

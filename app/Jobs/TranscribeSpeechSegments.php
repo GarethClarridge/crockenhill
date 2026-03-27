@@ -229,7 +229,7 @@ class TranscribeSpeechSegments extends ProcessingJob implements ShouldQueue
                 $this->sermonDisk()
             );
 
-            $metadata = array_merge($section->metadataData()->toArray(), [
+            $metadata = array_merge($section->metadata?->toArray() ?? [], [
                 'transcript' => $transcript,
             ]);
 

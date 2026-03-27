@@ -64,7 +64,7 @@ class ClassifyServiceSectionsTest extends TestCase
         ]);
 
         $job = new ClassifyServiceSections($processingLog);
-        $job->handle(new ServiceSectionClassifier, new ServiceSectionSyncService);
+        $job->handle(new ServiceSectionClassifier, app(ServiceSectionSyncService::class));
 
         $processingLog->refresh();
 
@@ -101,7 +101,7 @@ class ClassifyServiceSectionsTest extends TestCase
         ]);
 
         $job = new ClassifyServiceSections($processingLog);
-        $job->handle(new ServiceSectionClassifier, new ServiceSectionSyncService);
+        $job->handle(new ServiceSectionClassifier, app(ServiceSectionSyncService::class));
 
         $processingLog->refresh();
 
@@ -136,7 +136,7 @@ class ClassifyServiceSectionsTest extends TestCase
         $this->expectExceptionMessage('Classifier exploded');
 
         try {
-            $job->handle($classifier, new ServiceSectionSyncService);
+            $job->handle($classifier, app(ServiceSectionSyncService::class));
         } finally {
             $processingLog->refresh();
 
@@ -178,7 +178,7 @@ class ClassifyServiceSectionsTest extends TestCase
         ]);
 
         $job = new ClassifyServiceSections($processingLog, preserveRunStatus: true);
-        $job->handle(new ServiceSectionClassifier, new ServiceSectionSyncService);
+        $job->handle(new ServiceSectionClassifier, app(ServiceSectionSyncService::class));
 
         $processingLog->refresh();
 

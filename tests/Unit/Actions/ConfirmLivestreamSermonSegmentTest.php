@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\ProcessingPipelineBuilder;
+use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -222,7 +223,10 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $builder->shouldReceive('buildLivestreamPostReviewChainJobs')->andReturn([new AlwaysFailingJob]);
         $this->app->forgetInstance(\App\Services\ProcessingRunOrchestrator::class);
 
-        $action = new ConfirmLivestreamSermonSegment(app(MediaProcessingRunTransitionService::class));
+        $action = new ConfirmLivestreamSermonSegment(
+            app(MediaProcessingRunTransitionService::class),
+            app(VideoStorageService::class),
+        );
 
         try {
             $action->execute($log->processing_id, $segment->id, $this->admin);

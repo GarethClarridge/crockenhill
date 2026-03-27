@@ -32,7 +32,7 @@ class SermonPageContextService
             return null;
         }
 
-        $metadata = $readingSection->metadataData()->toArray();
+        $metadata = $readingSection->metadata?->toArray() ?? [];
         $metadataReference = $metadata['reading_reference'] ?? null;
         if (is_string($metadataReference) && trim($metadataReference) !== '') {
             return trim($metadataReference);
@@ -83,6 +83,7 @@ class SermonPageContextService
 
     private function resolveProcessingLog(Sermon $sermon): ?MediaProcessingLog
     {
+        // Use eager-loaded relationship to avoid N+1 queries on individual sermon pages
         if (is_string($sermon->livestream_processing_id) && $sermon->livestream_processing_id !== '') {
             $processingLog = $sermon->livestreamProcessing;
 

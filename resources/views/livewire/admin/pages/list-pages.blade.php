@@ -145,7 +145,13 @@
                     colspan="{{ count($headers) + 2 }}"
                     title="No pages found"
                     :hasFilters="$hasFilters"
-                />
+                >
+                    @if(!$hasFilters)
+                        <x-button link="{{ route('admin.pages.create') }}" variant="primary" icon="plus" inline>
+                            Create Page
+                        </x-button>
+                    @endif
+                </x-admin.empty-state>
             @endforelse
         </tbody>
     </table>

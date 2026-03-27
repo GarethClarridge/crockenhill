@@ -1,0 +1,178 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\SectionPublication;
+
+use App\Contracts\SectionPublicationHandler;
+use App\Data\SermonCreationOptions;
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
+use App\Models\ServiceSection;
+use App\Services\ChildrensTalkSpeakerService;
+use App\Services\MediaProcessingIdentityResolver;
+use App\Services\SermonCreationService;
+use App\Services\ServiceSectionPublicationTransitionService;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
+class SermonPublicationHandler implements SectionPublicationHandler
+{
+    public function __construct(
+        private readonly ChildrensTalkSpeakerService $childrensTalkSpeakerService,
+        private readonly SermonCreationService $sermonCreationService,
+        private readonly MediaProcessingIdentityResolver $identityResolver,
+        private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
+    ) {}
+
+    public function requiresAudioExtraction(): bool
+    {
+        return true;
+    }
+
+    public function hasReusableExtractedMedia(ServiceSection $section): bool
+    {
+        return $section->hasExtractedMedia();
+    }
+
+    public function isEligible(ServiceSection $section): bool
+    {
+        $requireHighConfidence = (bool) config('media-processing.section_publishing.require_high_confidence', true);
+        $confidence = (string) ($section->metadata['confidence_level'] ?? 'none');
+
+        return ! $requireHighConfidence || $confidence === 'high';
+    }
+
+    public function afterExtraction(ServiceSection $section): void
+    {
+        if ($section->section_type === ServiceSectionType::CHILDRENS_TALK) {
+            $this->childrensTalkSpeakerService->detectAndStore($section);
+        }
+    }
+
+    public function requiresApproval(): bool
+    {
+        return true;
+    }
+
+    public function publish(ServiceSection $section): void
+    {
+        $processingLog = $section->processingLog;
+
+        $videoPath = $section->extracted_video_path;
+        $audioPath = $section->extracted_audio_path;
+
+        if (! is_string($videoPath) || $videoPath === '') {
+            throw new \RuntimeException('Section video path missing for approved publication');
+        }
+        if (! is_string($audioPath) || $audioPath === '') {
+            throw new \RuntimeException('Section audio path missing for approved publication');
+        }
+
+        if (! Storage::disk($section->extractedAssetDisk($videoPath))->exists($videoPath)) {
+            throw new \RuntimeException('Section video file is missing for approved publication');
+        }
+        if (! Storage::disk($section->extractedAssetDisk($audioPath))->exists($audioPath)) {
+            throw new \RuntimeException('Section audio file is missing for approved publication');
+        }
+
+        $identity = $this->identityResolver->resolve($processingLog);
+        if ($identity === null) {
+            throw new \RuntimeException('Unable to resolve processing identity for section publication');
+        }
+
+        $sectionMetadata = $section->metadata?->toArray() ?? [];
+        $publicationMetadata = is_array($sectionMetadata['publication'] ?? null)
+            ? $sectionMetadata['publication']
+            : [];
+        $approvedSignature = $publicationMetadata['approved_signature'] ?? null;
+        if (! is_string($approvedSignature) || $approvedSignature === '') {
+            throw new \RuntimeException('Section approval signature is missing; re-approve before publishing');
+        }
+
+        $currentSignature = $section->classificationSignature();
+        if (! hash_equals($approvedSignature, $currentSignature)) {
+            throw new \RuntimeException('Section classification changed since approval; re-approve before publishing');
+        }
+
+        if (! $section->hasResolvedChildrensTalkSpeaker()) {
+            throw new \RuntimeException("Children's talk speaker must be reviewed before publication");
+        }
+
+        $section->extracted_video_path = $this->promoteExtractedAsset(
+            $section,
+            $videoPath,
+            'sermons/sections/'.$section->id.'/video.'.pathinfo($videoPath, PATHINFO_EXTENSION),
+        );
+        $section->extracted_audio_path = $this->promoteExtractedAsset(
+            $section,
+            $audioPath,
+            'sermons/audio/'.basename($audioPath),
+        );
+
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PUBLISHED)) {
+            throw new \RuntimeException('Invalid state transition when publishing approved section');
+        }
+
+        $options = SermonCreationOptions::fromServiceSection(
+            $section,
+            $processingLog,
+            $identity['date'],
+            $identity['service']
+        );
+
+        $sermon = $this->sermonCreationService->createSermon($processingLog, $options);
+
+        $section->published_sermon_id = $sermon->id;
+        $section->published_at = now();
+        $section->unpublished_expires_at = null;
+        $section->save();
+    }
+
+    public function onSectionRemoved(ServiceSection $section): void
+    {
+        if ($section->published_sermon_id === null) {
+            return;
+        }
+
+        Log::warning('Published service section removed during sync', [
+            'service_section_id' => $section->id,
+            'processing_log_id' => $section->media_processing_log_id,
+            'published_sermon_id' => $section->published_sermon_id,
+        ]);
+    }
+
+    private function promoteExtractedAsset(
+        ServiceSection $section,
+        string $sourcePath,
+        string $targetPath,
+    ): string {
+        $sourceDisk = $section->extractedAssetDisk($sourcePath);
+        $targetDisk = (string) config('media-processing.storage.sermon_disk', config('filesystems.default', 'local'));
+
+        if ($sourceDisk === $targetDisk && $sourcePath === $targetPath) {
+            return $sourcePath;
+        }
+
+        $sourceStream = Storage::disk($sourceDisk)->readStream($sourcePath);
+        if (! is_resource($sourceStream)) {
+            throw new \RuntimeException('Unable to read approved section asset for publication');
+        }
+
+        try {
+            $written = Storage::disk($targetDisk)->put($targetPath, $sourceStream);
+        } finally {
+            fclose($sourceStream);
+        }
+
+        if ($written !== true || ! Storage::disk($targetDisk)->exists($targetPath)) {
+            throw new \RuntimeException('Unable to publish approved section asset to the public sermon disk');
+        }
+
+        if ($sourceDisk !== $targetDisk || $sourcePath !== $targetPath) {
+            Storage::disk($sourceDisk)->delete($sourcePath);
+        }
+
+        return $targetPath;
+    }
+}
