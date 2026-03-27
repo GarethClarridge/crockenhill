@@ -8,6 +8,7 @@ use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\SongBook;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use PDO;
 use PDOException;
@@ -43,6 +44,8 @@ class SongCatalogSyncService
         $resolvedPath = $this->resolvePath($path);
         $sourceData = $this->loadSourceData($resolvedPath);
         $songGroups = $this->groupSongsByCanonicalKey($sourceData['songs']);
+        $existingSongs = $this->existingSongsByCanonicalKey(array_keys($songGroups));
+        $legacyReconciliationMap = $this->buildLegacyReconciliationMap($songGroups, $existingSongs);
 
         $metrics = [
             'path' => $resolvedPath,
@@ -70,10 +73,16 @@ class SongCatalogSyncService
         }
 
         if ($dryRun) {
-            return $this->buildDryRunMetrics($metrics, $sourceData, $songGroups);
+            return $this->buildDryRunMetrics(
+                $metrics,
+                $sourceData,
+                $songGroups,
+                $existingSongs,
+                $legacyReconciliationMap
+            );
         }
 
-        DB::transaction(function () use (&$metrics, $sourceData, $songGroups): void {
+        DB::transaction(function () use (&$metrics, $sourceData, $songGroups, $legacyReconciliationMap): void {
             [$authorIdMap, $authorUpsertedCount] = $this->upsertSongAuthors($sourceData['authors']);
             $metrics['song_authors_upserted'] = $authorUpsertedCount;
 
@@ -81,7 +90,11 @@ class SongCatalogSyncService
             $metrics['song_books_upserted'] = $bookUpsertedCount;
 
             foreach ($songGroups as $canonicalKey => $groupRows) {
-                [$song, $created, $restored, $parseWarnings] = $this->upsertSongFromGroup($canonicalKey, $groupRows);
+                [$song, $created, $restored, $parseWarnings] = $this->upsertSongFromGroup(
+                    $canonicalKey,
+                    $groupRows,
+                    $legacyReconciliationMap[$canonicalKey]['song_id'] ?? null
+                );
 
                 $metrics['songs_upserted']++;
 
@@ -144,6 +157,8 @@ class SongCatalogSyncService
      *     book_links:list<array<string,mixed>>
      * }  $sourceData
      * @param  array<string, list<array<string,mixed>>>  $songGroups
+     * @param  array<string, array{song_id:int, deleted:bool}>  $existingSongs
+     * @param  array<string, array{song_id:int, deleted:bool}>  $legacyReconciliationMap
      * @return array{
      *     path:string,
      *     dry_run:bool,
@@ -162,20 +177,18 @@ class SongCatalogSyncService
      *     groups_with_parse_warnings:int
      * }
      */
-    private function buildDryRunMetrics(array $metrics, array $sourceData, array $songGroups): array
-    {
+    private function buildDryRunMetrics(
+        array $metrics,
+        array $sourceData,
+        array $songGroups,
+        array $existingSongs,
+        array $legacyReconciliationMap
+    ): array {
         [$validAuthorIds, $authorUpsertedCount] = $this->previewSongAuthorUpserts($sourceData['authors']);
         $metrics['song_authors_upserted'] = $authorUpsertedCount;
 
         [$validBookIds, $bookUpsertedCount] = $this->previewSongBookUpserts($sourceData['books']);
         $metrics['song_books_upserted'] = $bookUpsertedCount;
-
-        /** @var array<string, bool> $existingCanonicalKeys */
-        $existingCanonicalKeys = Song::withTrashed()
-            ->whereIn('canonical_key', array_keys($songGroups))
-            ->get(['canonical_key', 'deleted_at'])
-            ->mapWithKeys(static fn (Song $song): array => [$song->canonical_key => $song->deleted_at !== null])
-            ->all();
 
         $authorLinksBySourceSongId = $this->groupLinksBySourceSongId($sourceData['author_links']);
         $bookLinksBySourceSongId = $this->groupLinksBySourceSongId($sourceData['book_links']);
@@ -183,10 +196,12 @@ class SongCatalogSyncService
         foreach ($songGroups as $canonicalKey => $groupRows) {
             $metrics['songs_upserted']++;
 
-            if (array_key_exists($canonicalKey, $existingCanonicalKeys)) {
+            $existingSong = $existingSongs[$canonicalKey] ?? $legacyReconciliationMap[$canonicalKey] ?? null;
+
+            if ($existingSong !== null) {
                 $metrics['songs_updated']++;
 
-                if ($existingCanonicalKeys[$canonicalKey] === true) {
+                if ($existingSong['deleted'] === true) {
                     $metrics['songs_restored']++;
                 }
             } else {
@@ -216,6 +231,31 @@ class SongCatalogSyncService
         }
 
         return $metrics;
+    }
+
+    /**
+     * @param  list<string>  $canonicalKeys
+     * @return array<string, array{song_id:int, deleted:bool}>
+     */
+    private function existingSongsByCanonicalKey(array $canonicalKeys): array
+    {
+        if ($canonicalKeys === []) {
+            return [];
+        }
+
+        /** @var array<string, array{song_id:int, deleted:bool}> $songs */
+        $songs = Song::withTrashed()
+            ->whereIn('canonical_key', $canonicalKeys)
+            ->get(['id', 'canonical_key', 'deleted_at'])
+            ->mapWithKeys(static fn (Song $song): array => [
+                $song->canonical_key => [
+                    'song_id' => $song->id,
+                    'deleted' => $song->deleted_at !== null,
+                ],
+            ])
+            ->all();
+
+        return $songs;
     }
 
     private function resolvePath(?string $path): string
@@ -409,7 +449,7 @@ class SongCatalogSyncService
      * @param  list<array<string,mixed>>  $groupRows
      * @return array{0: Song, 1: bool, 2: bool, 3: int}
      */
-    private function upsertSongFromGroup(string $canonicalKey, array $groupRows): array
+    private function upsertSongFromGroup(string $canonicalKey, array $groupRows, ?int $reconciledSongId = null): array
     {
         $representative = $this->selectRepresentativeSong($groupRows);
 
@@ -451,9 +491,17 @@ class SongCatalogSyncService
             'import_metadata' => $importMetadata,
         ];
 
-        $song = Song::withTrashed()
-            ->where('canonical_key', $canonicalKey)
-            ->first();
+        $song = null;
+
+        if ($reconciledSongId !== null) {
+            $song = Song::withTrashed()->find($reconciledSongId);
+        }
+
+        if (! $song instanceof Song) {
+            $song = Song::withTrashed()
+                ->where('canonical_key', $canonicalKey)
+                ->first();
+        }
 
         $created = false;
         $restored = false;
@@ -478,6 +526,322 @@ class SongCatalogSyncService
         }
 
         return [$song, $created, $restored, count($warnings)];
+    }
+
+    /**
+     * @param  array<string, list<array<string,mixed>>>  $songGroups
+     * @param  array<string, array{song_id:int, deleted:bool}>  $existingSongs
+     * @return array<string, array{song_id:int, deleted:bool}>
+     */
+    private function buildLegacyReconciliationMap(array $songGroups, array $existingSongs): array
+    {
+        $legacySongs = $this->fetchLegacySongsForReconciliation();
+        if ($legacySongs === []) {
+            return [];
+        }
+
+        $legacyByPraiseAndTitle = [];
+        $legacyByTitle = [];
+        $legacyStateById = [];
+
+        foreach ($legacySongs as $legacySong) {
+            $legacyStateById[$legacySong->id] = [
+                'song_id' => $legacySong->id,
+                'deleted' => $legacySong->deleted_at !== null,
+            ];
+
+            $titleVariants = $this->legacyTitleVariants($legacySong);
+            $praiseNumber = $this->normalizedPraiseNumber($legacySong->getAttribute('praise_number'));
+
+            foreach ($titleVariants as $titleVariant) {
+                $legacyByTitle[$titleVariant][] = $legacySong->id;
+
+                if ($praiseNumber !== null) {
+                    $legacyByPraiseAndTitle[$praiseNumber.'|'.$titleVariant][] = $legacySong->id;
+                }
+            }
+        }
+
+        $acceptedMatches = [];
+        $reservedLegacyIds = [];
+
+        $praiseCandidates = [];
+
+        foreach ($songGroups as $canonicalKey => $groupRows) {
+            if (array_key_exists($canonicalKey, $existingSongs)) {
+                continue;
+            }
+
+            $candidateIds = $this->candidateLegacySongIdsByPraiseAndTitle($groupRows, $legacyByPraiseAndTitle);
+
+            if (count($candidateIds) === 1) {
+                $praiseCandidates[$canonicalKey] = $candidateIds[0];
+            }
+        }
+
+        foreach ($this->acceptUniqueCandidateMatches($praiseCandidates) as $canonicalKey => $legacySongId) {
+            $acceptedMatches[$canonicalKey] = $legacyStateById[$legacySongId];
+            $reservedLegacyIds[$legacySongId] = true;
+        }
+
+        $titleCandidates = [];
+
+        foreach ($songGroups as $canonicalKey => $groupRows) {
+            if (array_key_exists($canonicalKey, $existingSongs) || array_key_exists($canonicalKey, $acceptedMatches)) {
+                continue;
+            }
+
+            $candidateIds = $this->candidateLegacySongIdsByTitle($groupRows, $legacyByTitle, $reservedLegacyIds);
+
+            if (count($candidateIds) === 1) {
+                $titleCandidates[$canonicalKey] = $candidateIds[0];
+            }
+        }
+
+        foreach ($this->acceptUniqueCandidateMatches($titleCandidates) as $canonicalKey => $legacySongId) {
+            $acceptedMatches[$canonicalKey] = $legacyStateById[$legacySongId];
+        }
+
+        return $acceptedMatches;
+    }
+
+    /**
+     * @return list<Song>
+     */
+    private function fetchLegacySongsForReconciliation(): array
+    {
+        $selectColumns = ['id', 'canonical_key', 'title', 'deleted_at'];
+
+        if (Schema::hasColumn('songs', 'praise_number')) {
+            $selectColumns[] = 'praise_number';
+        }
+
+        if (Schema::hasColumn('songs', 'alternative_title')) {
+            $selectColumns[] = 'alternative_title';
+        }
+
+        if (Schema::hasColumn('songs', 'alternate_title')) {
+            $selectColumns[] = 'alternate_title';
+        }
+
+        /** @var list<Song> $legacySongs */
+        $legacySongs = Song::withTrashed()
+            ->where(function ($query): void {
+                $query->whereNull('canonical_key')
+                    ->orWhere('canonical_key', '')
+                    ->orWhere('canonical_key', 'like', 'legacy-song-%');
+            })
+            ->get($selectColumns)
+            ->all();
+
+        return $legacySongs;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function legacyTitleVariants(Song $song): array
+    {
+        $variants = [];
+
+        foreach (['title', 'alternative_title', 'alternate_title'] as $attribute) {
+            $normalizedTitle = $this->normalizedSongTitle($song->getAttribute($attribute));
+
+            if ($normalizedTitle === null || in_array($normalizedTitle, $variants, true)) {
+                continue;
+            }
+
+            $variants[] = $normalizedTitle;
+        }
+
+        return $variants;
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $groupRows
+     * @param  array<string, list<int>>  $legacyByPraiseAndTitle
+     * @return list<int>
+     */
+    private function candidateLegacySongIdsByPraiseAndTitle(array $groupRows, array $legacyByPraiseAndTitle): array
+    {
+        $candidateIds = [];
+
+        foreach ($this->sourcePraiseNumbers($groupRows) as $praiseNumber) {
+            foreach ($this->sourceTitleVariants($groupRows) as $titleVariant) {
+                foreach ($legacyByPraiseAndTitle[$praiseNumber.'|'.$titleVariant] ?? [] as $legacySongId) {
+                    $candidateIds[$legacySongId] = true;
+                }
+            }
+        }
+
+        return array_map('intval', array_keys($candidateIds));
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $groupRows
+     * @param  array<string, list<int>>  $legacyByTitle
+     * @param  array<int, bool>  $reservedLegacyIds
+     * @return list<int>
+     */
+    private function candidateLegacySongIdsByTitle(array $groupRows, array $legacyByTitle, array $reservedLegacyIds): array
+    {
+        $candidateIds = [];
+
+        foreach ($this->sourceTitleVariants($groupRows) as $titleVariant) {
+            foreach ($legacyByTitle[$titleVariant] ?? [] as $legacySongId) {
+                if (array_key_exists($legacySongId, $reservedLegacyIds)) {
+                    continue;
+                }
+
+                $candidateIds[$legacySongId] = true;
+            }
+        }
+
+        return array_map('intval', array_keys($candidateIds));
+    }
+
+    /**
+     * @param  array<string, int>  $candidates
+     * @return array<string, int>
+     */
+    private function acceptUniqueCandidateMatches(array $candidates): array
+    {
+        $countsByLegacySongId = [];
+
+        foreach ($candidates as $legacySongId) {
+            $countsByLegacySongId[$legacySongId] = ($countsByLegacySongId[$legacySongId] ?? 0) + 1;
+        }
+
+        $accepted = [];
+
+        foreach ($candidates as $canonicalKey => $legacySongId) {
+            if (($countsByLegacySongId[$legacySongId] ?? 0) !== 1) {
+                continue;
+            }
+
+            $accepted[$canonicalKey] = $legacySongId;
+        }
+
+        return $accepted;
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $groupRows
+     * @return list<string>
+     */
+    private function sourceTitleVariants(array $groupRows): array
+    {
+        $variants = [];
+
+        foreach ($groupRows as $groupRow) {
+            foreach (['title', 'alternate_title'] as $field) {
+                $normalizedTitle = $this->normalizedSongTitle($groupRow[$field] ?? null);
+
+                if ($normalizedTitle === null || in_array($normalizedTitle, $variants, true)) {
+                    continue;
+                }
+
+                $variants[] = $normalizedTitle;
+            }
+        }
+
+        return $variants;
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $groupRows
+     * @return list<string>
+     */
+    private function sourcePraiseNumbers(array $groupRows): array
+    {
+        $praiseNumbers = [];
+
+        foreach ($groupRows as $groupRow) {
+            $praiseNumber = $this->sourcePraiseNumber($groupRow);
+
+            if ($praiseNumber === null || in_array($praiseNumber, $praiseNumbers, true)) {
+                continue;
+            }
+
+            $praiseNumbers[] = $praiseNumber;
+        }
+
+        return $praiseNumbers;
+    }
+
+    /**
+     * @param  array<string,mixed>  $sourceRow
+     */
+    private function sourcePraiseNumber(array $sourceRow): ?string
+    {
+        $title = $this->stringOrNull($sourceRow['title'] ?? null);
+
+        if ($title !== null && preg_match('/#\s*([A-Za-z0-9]+)\s*$/u', $title, $matches) === 1) {
+            return $this->normalizedPraiseNumber($matches[1]);
+        }
+
+        $searchTitle = $this->stringOrNull($sourceRow['search_title'] ?? null);
+
+        if ($searchTitle === null) {
+            return null;
+        }
+
+        $primarySearchTitle = trim((string) strtok($searchTitle, '@'));
+
+        if (preg_match('/\b([0-9]+[A-Za-z]?)$/u', $primarySearchTitle, $matches) === 1) {
+            return $this->normalizedPraiseNumber($matches[1]);
+        }
+
+        if (preg_match('/^([0-9]+[A-Za-z]?)\b/u', $primarySearchTitle, $matches) === 1) {
+            return $this->normalizedPraiseNumber($matches[1]);
+        }
+
+        return null;
+    }
+
+    private function normalizedSongTitle(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $normalized = trim(Str::lower($value));
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        $normalized = (string) preg_replace('/\s*#\s*[a-z0-9]+$/u', '', $normalized);
+        $normalized = (string) preg_replace('/[^a-z0-9]+/u', ' ', $normalized);
+        $normalized = (string) preg_replace('/\s+/u', ' ', $normalized);
+        $normalized = trim($normalized);
+
+        return $normalized === '' ? null : $normalized;
+    }
+
+    private function normalizedPraiseNumber(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $normalized = strtoupper(trim($value));
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d+)([A-Z]?)$/', $normalized, $matches) !== 1) {
+            return $normalized;
+        }
+
+        $number = ltrim($matches[1], '0');
+
+        if ($number === '') {
+            $number = '0';
+        }
+
+        return $number.$matches[2];
     }
 
     /**

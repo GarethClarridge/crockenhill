@@ -8,7 +8,10 @@ use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\SongBook;
 use App\Services\SongCatalogSyncService;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PDO;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -77,6 +80,79 @@ class SyncSongsCommandTest extends TestCase
             'song_book_id' => $modernBook->id,
             'entry' => '15',
         ]);
+    }
+
+    #[Test]
+    public function it_reconciles_an_existing_legacy_song_row_by_title_before_creating_a_duplicate(): void
+    {
+        $path = $this->createSqliteWithOneSong('A New Commandment', 'a new commandment@');
+
+        $legacySong = Song::query()->create([
+            'canonical_key' => 'legacy-song-1001',
+            'slug' => 'a-new-commandment',
+            'title' => 'A New Commandment',
+            'lyrics_xml' => '',
+        ]);
+
+        $this->artisan('service-tracking:sync-songs', ['--path' => $path])
+            ->assertExitCode(0);
+
+        $this->assertDatabaseCount('songs', 1);
+
+        $reconciledSong = $legacySong->fresh();
+
+        self::assertNotNull($reconciledSong);
+        $this->assertSame($legacySong->id, $reconciledSong->id);
+        $this->assertSame('a new commandment', $reconciledSong->canonical_key);
+        $this->assertSame('a-new-commandment', $reconciledSong->slug);
+        $this->assertSame([1], $reconciledSong->import_metadata['source_song_ids'] ?? []);
+    }
+
+    #[Test]
+    public function it_reconciles_an_existing_legacy_song_row_by_praise_number_and_title(): void
+    {
+        Schema::table('songs', function (Blueprint $table): void {
+            $table->string('praise_number')->nullable();
+        });
+
+        $path = $this->createSqliteWithOneSong(
+            'Where High The Heavenly Temple Stands #501',
+            'where high the heavenly temple stands 501@ 501 where high the heavenly temple stands'
+        );
+
+        $timestamp = now();
+
+        DB::table('songs')->insert([
+            'canonical_key' => 'legacy-song-524',
+            'slug' => 'where-high-the-heavenly-temple-stands',
+            'title' => 'Where High The Heavenly Temple Stands',
+            'lyrics_xml' => '',
+            'lyrics_plain' => null,
+            'verse_order' => null,
+            'copyright' => null,
+            'comments' => null,
+            'ccli_number' => null,
+            'import_metadata' => null,
+            'praise_number' => '501',
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+            'deleted_at' => null,
+        ]);
+
+        $legacySong = Song::query()->firstOrFail();
+
+        $this->artisan('service-tracking:sync-songs', ['--path' => $path])
+            ->assertExitCode(0);
+
+        $this->assertDatabaseCount('songs', 1);
+
+        $reconciledSong = $legacySong->fresh();
+
+        self::assertNotNull($reconciledSong);
+        $this->assertSame($legacySong->id, $reconciledSong->id);
+        $this->assertSame('where high the heavenly temple stands 501', $reconciledSong->canonical_key);
+        $this->assertSame('where-high-the-heavenly-temple-stands', $reconciledSong->slug);
+        $this->assertSame('Where High The Heavenly Temple Stands #501', $reconciledSong->title);
     }
 
     #[Test]
@@ -277,6 +353,65 @@ class SyncSongsCommandTest extends TestCase
             (1, 1, '10'),
             (2, 2, '15'),
             (1, 3, '45')");
+
+        return $path;
+    }
+
+    private function createSqliteWithOneSong(string $title, string $searchTitle): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'song-sync-one-');
+        if ($path === false) {
+            self::fail('Failed to allocate temporary sqlite file.');
+        }
+
+        $this->temporaryFiles[] = $path;
+
+        $pdo = new PDO('sqlite:'.$path);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $pdo->exec('CREATE TABLE songs (
+            id INTEGER PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            alternate_title VARCHAR(255) NULL,
+            lyrics TEXT NOT NULL,
+            verse_order VARCHAR(128) NULL,
+            copyright VARCHAR(255) NULL,
+            comments TEXT NULL,
+            ccli_number VARCHAR(64) NULL,
+            theme_name VARCHAR(128) NULL,
+            search_title VARCHAR(255) NOT NULL,
+            search_lyrics TEXT NOT NULL,
+            create_date DATETIME NULL,
+            last_modified DATETIME NULL,
+            temporary BOOLEAN NULL
+        )');
+        $pdo->exec('CREATE TABLE authors (
+            id INTEGER PRIMARY KEY,
+            first_name VARCHAR(128) NULL,
+            last_name VARCHAR(128) NULL,
+            display_name VARCHAR(255) NOT NULL
+        )');
+        $pdo->exec('CREATE TABLE authors_songs (
+            author_id INTEGER NOT NULL,
+            song_id INTEGER NOT NULL,
+            author_type VARCHAR(255) NOT NULL DEFAULT ""
+        )');
+        $pdo->exec('CREATE TABLE song_books (
+            id INTEGER PRIMARY KEY,
+            name VARCHAR(128) NOT NULL,
+            publisher VARCHAR(128) NULL
+        )');
+        $pdo->exec('CREATE TABLE songs_songbooks (
+            songbook_id INTEGER NOT NULL,
+            song_id INTEGER NOT NULL,
+            entry VARCHAR(255) NOT NULL
+        )');
+
+        $quotedTitle = str_replace("'", "''", $title);
+        $quotedSearchTitle = str_replace("'", "''", $searchTitle);
+
+        $pdo->exec("INSERT INTO songs (id, title, alternate_title, lyrics, verse_order, copyright, comments, ccli_number, theme_name, search_title, search_lyrics, create_date, last_modified, temporary) VALUES
+            (1, '{$quotedTitle}', NULL, '<song><lyrics><verse type=\"v\" label=\"1\">Verse line</verse></lyrics></song>', 'v1', NULL, NULL, NULL, NULL, '{$quotedSearchTitle}', '', NULL, '2025-01-01 10:00:00', 0)");
 
         return $path;
     }
