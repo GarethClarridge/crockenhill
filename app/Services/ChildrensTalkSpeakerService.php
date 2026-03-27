@@ -30,8 +30,8 @@ class ChildrensTalkSpeakerService
             return;
         }
 
-        $metadata = $section->metadataData()->toArray();
-        $speakerMetadata = $section->metadataData()->childrensTalkSpeaker?->toArray() ?? [];
+        $metadata = $section->metadata?->toArray() ?? [];
+        $speakerMetadata = $section->metadata?->childrensTalkSpeaker?->toArray() ?? [];
         $prediction = $this->predictionPayload($section);
 
         $speakerMetadata['predicted'] = $prediction;
@@ -71,8 +71,8 @@ class ChildrensTalkSpeakerService
             return;
         }
 
-        $metadata = $section->metadataData()->toArray();
-        $speakerMetadata = $section->metadataData()->childrensTalkSpeaker?->toArray() ?? [];
+        $metadata = $section->metadata?->toArray() ?? [];
+        $speakerMetadata = $section->metadata?->childrensTalkSpeaker?->toArray() ?? [];
         $normalizedName = is_string($speakerName) ? trim($speakerName) : '';
 
         $reviewed = null;

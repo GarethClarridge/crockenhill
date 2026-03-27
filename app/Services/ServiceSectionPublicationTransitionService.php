@@ -12,13 +12,10 @@ class ServiceSectionPublicationTransitionService
 {
     public function isPublishableType(ServiceSection $section): bool
     {
-        $publishableTypes = config('media-processing.section_publishing.publishable_types', ['childrens_talk']);
+        /** @var array<string, class-string> $handlers */
+        $handlers = config('media-processing.section_publishing.handlers', []);
 
-        if (! is_array($publishableTypes)) {
-            return false;
-        }
-
-        return in_array($section->section_type->value, $publishableTypes, true);
+        return isset($handlers[$section->section_type->value]);
     }
 
     public function canTransition(ServiceSection $section, ServiceSectionPublicationStatus $target): bool
@@ -27,6 +24,7 @@ class ServiceSectionPublicationTransitionService
         $allowed = match ($current) {
             ServiceSectionPublicationStatus::NOT_APPLICABLE => [
                 ServiceSectionPublicationStatus::PENDING_APPROVAL,
+                ServiceSectionPublicationStatus::PUBLISHED,
             ],
             ServiceSectionPublicationStatus::PENDING_APPROVAL => [
                 ServiceSectionPublicationStatus::APPROVED,

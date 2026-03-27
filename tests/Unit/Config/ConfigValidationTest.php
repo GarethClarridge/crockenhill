@@ -22,6 +22,15 @@ class ConfigValidationTest extends TestCase
     }
 
     #[Test]
+    public function testing_environment_uses_safe_openai_defaults(): void
+    {
+        $this->assertSame('testy-test-key', config('openai.api_key'));
+        $this->assertSame('http://127.0.0.1:1/v1', config('openai.base_uri'));
+        $this->assertSame('testy-test-key', config('media-processing.transcription.openai_api_key'));
+        $this->assertSame('testy-test-key', config('media-processing.analysis.openai_api_key'));
+    }
+
+    #[Test]
     public function it_has_required_storage_disks(): void
     {
         $disks = config('filesystems.disks');

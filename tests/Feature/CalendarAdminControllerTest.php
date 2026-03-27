@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\User;
+use App\Services\CalendarCategorizationResult;
 use App\Services\CalendarService;
 use App\Services\GoogleCalendarSyncService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -128,17 +129,16 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_categorizes_event_and_redirects_back(): void
     {
-        $meeting = Meeting::factory()->create(['slug' => 'sunday-morning']);
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
         $event = CalendarEvent::factory()->create([
             'meeting_slug' => null,
         ]);
 
-        // Mock the CalendarService to avoid Google Calendar API call
         $mockService = $this->createMock(CalendarService::class);
         $mockService->expects($this->once())
             ->method('manuallyCategorizeEvent')
             ->with($event->id, 'sunday-morning')
-            ->willReturn($event->fresh());
+            ->willReturn(new CalendarCategorizationResult($event->fresh(), true));
 
         $this->app->instance(CalendarService::class, $mockService);
 
@@ -150,6 +150,51 @@ class CalendarAdminControllerTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
+    }
+
+    #[Test]
+    public function it_flashes_synced_message_when_google_sync_succeeds(): void
+    {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+        $event = CalendarEvent::factory()->create(['meeting_slug' => null, 'title' => 'Sunday Service']);
+
+        $mockService = $this->createMock(CalendarService::class);
+        $mockService->method('manuallyCategorizeEvent')
+            ->willReturn(new CalendarCategorizationResult($event->fresh(), true));
+
+        $this->app->instance(CalendarService::class, $mockService);
+
+        $this->actingAs($this->adminUser);
+        $response = $this->post('/admin/calendar/categorize', [
+            'event_id' => $event->id,
+            'meeting_slug' => 'sunday-morning',
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->assertStringContainsString('synced to Google Calendar', session('success'));
+    }
+
+    #[Test]
+    public function it_flashes_pending_sync_message_when_google_sync_fails(): void
+    {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+        $event = CalendarEvent::factory()->create(['meeting_slug' => null, 'title' => 'Sunday Service']);
+
+        $mockService = $this->createMock(CalendarService::class);
+        $mockService->method('manuallyCategorizeEvent')
+            ->willReturn(new CalendarCategorizationResult($event->fresh(), false));
+
+        $this->app->instance(CalendarService::class, $mockService);
+
+        $this->actingAs($this->adminUser);
+        $response = $this->post('/admin/calendar/categorize', [
+            'event_id' => $event->id,
+            'meeting_slug' => 'sunday-morning',
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->assertStringContainsString('Google sync failed', session('success'));
+        $this->assertStringContainsString('will retry on next sync', session('success'));
     }
 
     #[Test]

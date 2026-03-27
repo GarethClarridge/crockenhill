@@ -26,3 +26,7 @@
 ## 2026-02-28 - Semantic Utility Separation and Theme Alignment
 **Learning:** Adding utility actions (like 'Copy Link') to navigation containers (like breadcrumbs) can confuse screen readers if not semantically separated. Using a wrapper `div` with `flex-wrap` and `justify-between` allows utilities to sit alongside navigation while remaining outside the `<nav>` element. Furthermore, aligning utility buttons with the project's specific color palette (`cbc-teal`) and using standard icon components ensures a cohesive look and feel that respects the existing design system.
 **Action:** Always place non-navigation interactive elements outside the `<nav>` tag. Use project-specific color tokens (`cbc-teal`) and established icon patterns for all micro-UX utilities.
+
+## 2026-03-25 - Context-aware Empty States
+**Learning:** Empty states in admin interfaces are often dead ends. By providing a clear call-to-action (CTA) when no items exist, we guide users on their next step and improve onboarding. Distinguishing between "no results for filters" and "no items in database" prevents confusion.
+**Action:** Enhance the `x-admin.empty-state` component to support an action slot and provide different default icons/descriptions based on whether filters are active.

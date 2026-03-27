@@ -47,12 +47,16 @@ class CalendarAdminController extends Controller
     {
         $validated = $request->validated();
 
-        $event = $this->calendarService->manuallyCategorizeEvent(
+        $result = $this->calendarService->manuallyCategorizeEvent(
             $validated['event_id'],
             $validated['meeting_slug']
         );
 
-        return redirect()->back()->with('success', "Event '{$event->title}' categorized successfully");
+        $message = $result->googleSynced
+            ? "Event '{$result->event->title}' categorized and synced to Google Calendar"
+            : "Event '{$result->event->title}' categorized (Google sync failed — will retry on next sync)";
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**

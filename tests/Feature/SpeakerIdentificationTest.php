@@ -17,8 +17,11 @@ use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
 use App\Services\NullSpeakerIdentificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Collection;
+use OpenAI\Exceptions\TransporterException;
 use PHPUnit\Framework\Attributes\Test;
+use Psr\Http\Client\ClientExceptionInterface;
 use Tests\TestCase;
 
 class SpeakerIdentificationTest extends TestCase
@@ -546,11 +549,11 @@ class SpeakerIdentificationTest extends TestCase
     }
 
     // =========================================================================
-    // Non-blocking test (critical)
+    // Non-blocking tests (critical)
     // =========================================================================
 
     #[Test]
-    public function test_identify_speaker_non_blocking_on_exception(): void
+    public function test_identify_speaker_non_blocking_on_deterministic_exception(): void
     {
         config([
             'media-processing.speaker_identification.enabled' => true,
@@ -571,15 +574,95 @@ class SpeakerIdentificationTest extends TestCase
         ]);
 
         $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        // RuntimeException is a deterministic/unknown error — must not be re-thrown
         $mockService->method('identify')->willThrowException(new \RuntimeException('Service unavailable'));
 
-        // Should NOT throw — exception must be caught internally
+        // Should NOT throw — deterministic exceptions are caught so the pipeline chain continues
         (new IdentifySpeaker($log))->handle($mockService);
 
         $log->refresh();
 
         $this->assertEquals('error', $log->processing_metadata['speaker_identification']['outcome'] ?? null);
         // Processing log must NOT be marked as failed
+        $this->assertNotEquals('failed', $log->status->value ?? $log->status);
+    }
+
+    #[Test]
+    public function test_identify_speaker_rethrows_transient_connection_exception(): void
+    {
+        config([
+            'media-processing.speaker_identification.enabled' => true,
+            'media-processing.speaker_identification.mode' => 'enforce',
+        ]);
+
+        $preacher = Preacher::factory()->create();
+        SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
+
+        $sermon = Sermon::factory()->create([
+            'preacher_source' => PreacherSource::DEFAULT->value,
+            'duration' => 300.0,
+        ]);
+
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'source_file_path' => 'sermons/audio/test.mp3',
+        ]);
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->method('identify')->willThrowException(new ConnectionException('Connection timed out'));
+
+        // Should re-throw — transient failures must propagate so the queue can retry
+        $this->expectException(ConnectionException::class);
+        (new IdentifySpeaker($log))->handle($mockService);
+    }
+
+    #[Test]
+    public function test_identify_speaker_rethrows_transient_openai_transporter_exception(): void
+    {
+        config([
+            'media-processing.speaker_identification.enabled' => true,
+            'media-processing.speaker_identification.mode' => 'enforce',
+        ]);
+
+        $preacher = Preacher::factory()->create();
+        SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
+
+        $sermon = Sermon::factory()->create([
+            'preacher_source' => PreacherSource::DEFAULT->value,
+            'duration' => 300.0,
+        ]);
+
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'source_file_path' => 'sermons/audio/test.mp3',
+        ]);
+
+        $clientException = new class('Connection reset by peer') extends \Exception implements ClientExceptionInterface {};
+        $transporterException = new TransporterException($clientException);
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->method('identify')->willThrowException($transporterException);
+
+        // Should re-throw — TransporterException wraps network-level failures and must be retried
+        $this->expectException(TransporterException::class);
+        (new IdentifySpeaker($log))->handle($mockService);
+    }
+
+    #[Test]
+    public function test_identify_speaker_failed_callback_records_permanent_failure(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
+            'source_file_path' => 'sermons/audio/test.mp3',
+        ]);
+
+        $job = new IdentifySpeaker($log);
+        $job->failed(new ConnectionException('All retries exhausted'));
+
+        $log->refresh();
+
+        $this->assertEquals('failed', $log->processing_metadata['speaker_identification']['outcome'] ?? null);
+        $this->assertStringContainsString('All retries exhausted', $log->processing_metadata['speaker_identification']['reason'] ?? '');
+        // Processing log must NOT be marked as failed — speaker identification is non-blocking
         $this->assertNotEquals('failed', $log->status->value ?? $log->status);
     }
 }

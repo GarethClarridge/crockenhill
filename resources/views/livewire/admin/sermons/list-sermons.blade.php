@@ -131,7 +131,13 @@
                     colspan="{{ count($headers) + 1 }}"
                     title="No sermons found"
                     :hasFilters="$hasFilters"
-                />
+                >
+                    @if(!$hasFilters)
+                        <x-button link="{{ route('admin.sermon-upload.create') }}" variant="primary" icon="cloud-arrow-up" inline>
+                            Upload Sermon
+                        </x-button>
+                    @endif
+                </x-admin.empty-state>
             @endforelse
         </tbody>
     </table>

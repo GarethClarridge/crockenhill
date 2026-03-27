@@ -175,7 +175,7 @@ class LivestreamSegmentationService
 
     private function buildProcessingResult(MediaProcessingLog $processingLog): LivestreamProcessingResult
     {
-        $processingMetadata = $processingLog->processingMetadataData()->toArray();
+        $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
 
         $segments = $processingLog->segments->map(function (\App\Models\LivestreamSegment $segment) {
             return new \App\Data\LivestreamSegment(

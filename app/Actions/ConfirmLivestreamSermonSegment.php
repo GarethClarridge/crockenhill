@@ -9,12 +9,14 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\MediaProcessingRunTransitionService;
+use App\Services\VideoStorageService;
 use Illuminate\Support\Facades\DB;
 
 class ConfirmLivestreamSermonSegment
 {
     public function __construct(
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
+        private readonly VideoStorageService $videoStorageService,
     ) {}
 
     /**
@@ -79,7 +81,7 @@ class ConfirmLivestreamSermonSegment
             throw new \InvalidArgumentException('No source video path recorded for this run. The file may have been removed.');
         }
 
-        if (! $log->sourceVideoExists()) {
+        if (! $this->videoStorageService->sourceVideoExistsForPath($log->source_file_path)) {
             throw new \InvalidArgumentException('The source video file is no longer available. This run cannot be resumed.');
         }
     }

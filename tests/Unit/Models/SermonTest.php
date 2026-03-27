@@ -10,6 +10,7 @@ use App\Presenters\SermonViewPresenter;
 use App\Services\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
@@ -243,4 +244,31 @@ class SermonTest extends TestCase
     //     // $sermonWithoutPlayDates = Sermon::factory()->create();
     //     // $this->assertFalse($sermonWithoutPlayDates->hasPlayDate($playDate));
     // }
+
+    #[Test]
+    public function scope_where_visible_in_sitemap_excludes_childrens_talks_when_not_public(): void
+    {
+        Config::set('sermons.childrens_talks.public', false);
+
+        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
+        $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
+
+        $ids = [$sermon->id, $childrensTalk->id];
+        $results = Sermon::whereVisibleInSitemap()->whereIn('id', $ids)->get();
+
+        $this->assertTrue($results->every(fn (Sermon $s) => $s->content_type === SermonContentType::Sermon));
+        $this->assertCount(1, $results);
+    }
+
+    #[Test]
+    public function scope_where_visible_in_sitemap_includes_all_content_when_childrens_talks_are_public(): void
+    {
+        Config::set('sermons.childrens_talks.public', true);
+
+        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
+        $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
+
+        $ids = [$sermon->id, $childrensTalk->id];
+        $this->assertCount(2, Sermon::whereVisibleInSitemap()->whereIn('id', $ids)->get());
+    }
 }

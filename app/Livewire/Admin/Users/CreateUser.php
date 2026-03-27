@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -13,7 +14,7 @@ use Livewire\Component;
 
 class CreateUser extends Component
 {
-    use WithNotifications;
+    use WithAdminAuthorization, WithNotifications;
 
     public string $name = '';
 
@@ -26,6 +27,11 @@ class CreateUser extends Component
     public bool $isAdmin = false;
 
     public bool $sendVerification = true;
+
+    public function mount(): void
+    {
+        $this->authorizeAdmin();
+    }
 
     /**
      * @return array<string, mixed>
@@ -49,6 +55,8 @@ class CreateUser extends Component
 
     public function save(): void
     {
+        $this->authorizeAdmin();
+
         $validated = $this->validate();
 
         $user = new User([

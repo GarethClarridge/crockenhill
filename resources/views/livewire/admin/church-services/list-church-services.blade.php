@@ -128,7 +128,18 @@
                             colspan="{{ count($headers) + 1 }}"
                             title="No services found"
                             :hasFilters="$hasFilters"
-                        />
+                        >
+                            @if(!$hasFilters)
+                                <div class="flex gap-2 justify-center">
+                                    <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
+                                        Create Service
+                                    </x-button>
+                                    <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
+                                        Upload Service
+                                    </x-button>
+                                </div>
+                            @endif
+                        </x-admin.empty-state>
                     @endforelse
                 </tbody>
             </table>

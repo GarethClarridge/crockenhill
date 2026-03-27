@@ -143,6 +143,12 @@ class SongCatalogSchemaTest extends TestCase
             });
         }
 
+        if (Schema::hasColumn('song_videos', 'song_id')) {
+            Schema::table('song_videos', function (Blueprint $table): void {
+                $table->dropConstrainedForeignId('song_id');
+            });
+        }
+
         DB::statement('ALTER TABLE songs MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT');
 
         $songAuthorSongMigration = require database_path('migrations/2026_02_28_190200_create_song_author_song_table.php');

@@ -41,12 +41,15 @@
                     :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])->values()->toArray()"
                     placeholder="Select a meeting"
                     hint="Associate this event with a meeting type" />
+
+                <x-select label="Status" wire:model="status"
+                    :options="collect(\App\Enums\CalendarEventStatus::cases())->map(fn($s) => ['id' => $s->value, 'name' => $s->label()])->toArray()"
+                    required />
             </div>
         </x-card>
 
         <x-card heading="Info">
             <div class="space-y-2">
-                <p class="text-sm"><span class="font-semibold">Status:</span> {{ ucfirst($calendarEvent->status) }}</p>
                 @if($calendarEvent->google_event_id)
                     <p class="text-sm"><span class="font-semibold">Google ID:</span> {{ Str::limit($calendarEvent->google_event_id, 20) }}</p>
                 @endif

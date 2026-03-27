@@ -15,6 +15,7 @@ class LivestreamCreateSermonService
     public function __construct(
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
         private readonly ProcessingRunOrchestrator $processingRunOrchestrator,
+        private readonly VideoStorageService $videoStorageService,
     ) {}
 
     /**
@@ -81,7 +82,7 @@ class LivestreamCreateSermonService
             throw new \InvalidArgumentException('No source video path recorded for this run. The file may have been removed.');
         }
 
-        if (! $processingLog->sourceVideoExists()) {
+        if (! $this->videoStorageService->sourceVideoExistsForPath($processingLog->source_file_path)) {
             throw new \InvalidArgumentException('The source video file is no longer available. This run cannot be resumed.');
         }
     }

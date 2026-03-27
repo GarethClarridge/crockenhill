@@ -148,7 +148,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
 
         $section->refresh();
 
-        $this->assertArrayNotHasKey('transcript', $section->metadataData()->toArray());
+        $this->assertArrayNotHasKey('transcript', $section->metadata?->toArray() ?? []);
         $this->assertDatabaseHas('sermon_processing_steps', [
             'processing_id' => $processingLog->processing_id,
             'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
@@ -387,7 +387,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         ]);
 
         $classifyJob = new ClassifyServiceSections($processingLog);
-        $classifyJob->handle(new ServiceSectionClassifier, new ServiceSectionSyncService);
+        $classifyJob->handle(new ServiceSectionClassifier, app(ServiceSectionSyncService::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)

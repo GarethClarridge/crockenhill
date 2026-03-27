@@ -352,11 +352,13 @@ class AdminCalendarEventTest extends TestCase
             ->set('startDatetime', '2026-07-20T19:00')
             ->set('endDatetime', '2026-07-20T18:00')
             ->set('meetingSlug', 'missing-meeting')
+            ->set('status', '')
             ->call('save')
             ->assertHasErrors([
                 'title' => ['required'],
-                'endDatetime' => ['after'],
+                'endDatetime' => ['after_or_equal'],
                 'meetingSlug' => ['exists'],
+                'status' => ['required'],
             ]);
     }
 }
