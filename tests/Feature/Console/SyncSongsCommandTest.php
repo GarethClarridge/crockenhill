@@ -156,6 +156,32 @@ class SyncSongsCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_imports_songs_with_long_copyright_notices(): void
+    {
+        $longCopyright = 'vv.1-3 in this version Praise Trust. v4 alt. words by Bob Kauflin '.
+            'Copyright Sovereign Grace Music, a division of Sovereign Grace Churches, '.
+            'with additional licensing information that exceeds the old varchar limit.';
+
+        $path = $this->createSqliteWithOneSong(
+            'Come O Fount Of Every Blessing (plus extra verse)',
+            'come o fount of every blessing plus extra verse@'
+        );
+
+        $pdo = new PDO('sqlite:'.$path);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $quotedCopyright = str_replace("'", "''", $longCopyright);
+        $pdo->exec("UPDATE songs SET copyright = '{$quotedCopyright}' WHERE id = 1");
+
+        $this->artisan('service-tracking:sync-songs', ['--path' => $path])
+            ->assertExitCode(0);
+
+        $this->assertDatabaseHas('songs', [
+            'canonical_key' => 'come o fount of every blessing plus extra verse',
+            'copyright' => $longCopyright,
+        ]);
+    }
+
+    #[Test]
     public function it_respects_verse_order_when_generating_plain_lyrics_during_sync(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'song-sync-verse-order-');
