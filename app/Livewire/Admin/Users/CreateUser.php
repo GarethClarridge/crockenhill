@@ -30,6 +30,7 @@ class CreateUser extends Component
 
     public function mount(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
     }
 
@@ -55,6 +56,7 @@ class CreateUser extends Component
 
     public function save(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
 
         $validated = $this->validate();

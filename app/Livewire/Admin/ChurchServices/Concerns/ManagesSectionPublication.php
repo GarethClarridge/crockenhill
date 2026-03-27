@@ -13,6 +13,12 @@ trait ManagesSectionPublication
 {
     public function approve(int $sectionId): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        // @phpstan-ignore function.alreadyNarrowedType
+        if (method_exists($this, 'authorizeAdmin')) {
+            $this->authorizeAdmin();
+        }
+
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
             $this->error('Section not found.');
@@ -32,6 +38,12 @@ trait ManagesSectionPublication
 
     public function reject(int $sectionId): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        // @phpstan-ignore function.alreadyNarrowedType
+        if (method_exists($this, 'authorizeAdmin')) {
+            $this->authorizeAdmin();
+        }
+
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
             $this->error('Section not found.');
@@ -50,6 +62,12 @@ trait ManagesSectionPublication
 
     public function requeue(int $sectionId): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        // @phpstan-ignore function.alreadyNarrowedType
+        if (method_exists($this, 'authorizeAdmin')) {
+            $this->authorizeAdmin();
+        }
+
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
             $this->error('Section not found.');

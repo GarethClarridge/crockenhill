@@ -209,4 +209,17 @@ class EditSermonTest extends TestCase
             ->assertDontSee('AI-Generated Content')
             ->assertDontSee('Display Options');
     }
+
+    #[Test]
+    public function it_enforces_admin_authorization_internally(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $sermon = Sermon::factory()->create();
+
+        $this->actingAs($user);
+
+        // mount() should fail
+        Livewire::test(EditSermon::class, ['sermon' => $sermon])
+            ->assertForbidden();
+    }
 }

@@ -35,6 +35,7 @@ class ReviewInboundEmails extends Component
 
     public function mount(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
@@ -51,6 +52,7 @@ class ReviewInboundEmails extends Component
 
     public function approve(int $inboundEmailId, ApproveInboundEmailImport $action): mixed
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
 
         $inboundEmail = $this->findReviewableEmail($inboundEmailId);
@@ -104,6 +106,7 @@ class ReviewInboundEmails extends Component
 
     public function reparse(int $inboundEmailId, ReparseInboundEmail $action): void
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
 
         $inboundEmail = $this->findReviewableEmail($inboundEmailId);
@@ -126,6 +129,7 @@ class ReviewInboundEmails extends Component
 
     public function reject(int $inboundEmailId, RejectInboundEmail $action): void
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
 
         $inboundEmail = $this->findReviewableEmail($inboundEmailId);

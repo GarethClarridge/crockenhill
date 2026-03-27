@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ServiceSection;
 use App\Traits\EscapesLikeWildcards;
@@ -18,6 +19,7 @@ class ListSectionPublications extends Component
 {
     use EscapesLikeWildcards;
     use ManagesSectionPublication;
+    use WithAdminAuthorization;
     use WithNotifications;
     use WithPagination;
 
@@ -29,6 +31,8 @@ class ListSectionPublications extends Component
 
     public function mount(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
 

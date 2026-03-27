@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\MediaType;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoStorageService;
@@ -15,7 +16,7 @@ use Livewire\Component;
 
 class ProcessingReview extends Component
 {
-    use WithNotifications;
+    use WithAdminAuthorization, WithNotifications;
 
     public int $processingLogId;
 
@@ -30,6 +31,9 @@ class ProcessingReview extends Component
 
     public function mount(MediaProcessingLog $processingLog): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         if ($processingLog->processing_type !== MediaType::Livestream) {
             abort(404);
         }
@@ -39,6 +43,9 @@ class ProcessingReview extends Component
 
     public function confirmSegment(int $segmentId): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $this->confirming = true;
 
         $log = MediaProcessingLog::findOrFail($this->processingLogId);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\CalendarEvents;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
@@ -16,7 +17,7 @@ use Livewire\WithPagination;
 
 class ListCalendarEvents extends Component
 {
-    use EscapesLikeWildcards, WithFilterableListing, WithNotifications, WithPagination;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination;
 
     #[Url(except: '')]
     public string $search = '';
@@ -29,6 +30,12 @@ class ListCalendarEvents extends Component
 
     #[Url(except: true)]
     public bool $upcomingOnly = true;
+
+    public function mount(): void
+    {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+    }
 
     /**
      * @return array<string, mixed>
@@ -45,6 +52,9 @@ class ListCalendarEvents extends Component
 
     public function categorize(int $eventId, ?string $meetingSlug): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         CalendarEvent::find($eventId)?->update([
             'meeting_slug' => $meetingSlug,
             'is_categorized_automatically' => false,
