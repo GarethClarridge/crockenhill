@@ -30,3 +30,7 @@
 ## 2026-03-25 - Context-aware Empty States
 **Learning:** Empty states in admin interfaces are often dead ends. By providing a clear call-to-action (CTA) when no items exist, we guide users on their next step and improve onboarding. Distinguishing between "no results for filters" and "no items in database" prevents confusion.
 **Action:** Enhance the `x-admin.empty-state` component to support an action slot and provide different default icons/descriptions based on whether filters are active.
+
+## 2026-03-27 - Centralized Loading Feedback for Data-Intensive Listings
+**Learning:** In data-heavy admin listings (TALL stack), users often feel a 'stutter' during sorting, filtering, or pagination on average connections. Adding a global loading state (`opacity-50`) to the base `list-shell` component via `wire:loading.class.delay.200ms` provides consistent, non-flickering feedback across all listing modules. This requires the base `x-card` component to correctly merge the `$attributes` bag into its root element to support Livewire directives.
+**Action:** Always ensure base layout/container components like `x-card` support attribute merging. Use `.delay.200ms` for loading states to avoid unnecessary UI flashing on fast connections.
