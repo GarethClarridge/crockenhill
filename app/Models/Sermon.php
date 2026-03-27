@@ -65,6 +65,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $series_url
  * @property-read ?string $plain_thumbnail_file_path
  * @property-read ServiceSection|null $publishedServiceSection
+ * @property-read MediaProcessingLog|null $latestProcessingLog
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
  * @method static Builder|Sermon newModelQuery()
@@ -522,13 +523,8 @@ class Sermon extends Model implements Sitemapable
      */
     public function getLatestProcessingLog(): ?MediaProcessingLog
     {
-        if ($this->relationLoaded('latestProcessingLog')) {
-            return $this->latestProcessingLog;
-        }
-
-        if ($this->relationLoaded('processingLogs')) {
-            /** @var \App\Models\MediaProcessingLog|null */
-            return $this->processingLogs->sortByDesc('created_at')->first();
+        if (! $this->relationLoaded('latestProcessingLog') && $this->relationLoaded('processingLogs')) {
+            $this->setRelation('latestProcessingLog', $this->processingLogs->sortByDesc('id')->first());
         }
 
         return $this->latestProcessingLog;
