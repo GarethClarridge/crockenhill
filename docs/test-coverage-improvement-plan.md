@@ -8,16 +8,15 @@
 | Policies     | 2     | 2      | 100%     |                                |
 | Jobs         | 27    | 23     | 85%      |                                |
 | Services     | 101   | 81     | 80%      |                                |
-| Controllers  | 19    | 11     | 58%      |                                |
+| Controllers  | 19    | 19     | 100%     | Phase 1 complete ✅            |
 | Livewire     | 39    | 39     | 100%     | Phase 4 complete ✅            |
 | Data / DTOs  | 42    | 2      | 5%       |                                |
 
 ---
 
-## Phase 1 — Controllers (highest risk, quickest wins)
+## Phase 1 — Controllers ✅ COMPLETE
 
-Public-facing routes with no HTTP integration tests. Failures here break
-user-visible features silently and are difficult to catch in CI.
+All 19 controllers now have HTTP integration tests. Phase completed March 2026.
 
 ### Missing controller tests (8)
 
@@ -149,7 +148,7 @@ data. These are pure PHP — tests are fast and cheap.
 
 ## Recommended Order of Work
 
-1. **Phase 1** — Controllers: highest user-visible risk, 8 tests, fast to write
+1. ~~**Phase 1** — Controllers~~ ✅ Complete
 2. **Phase 2** — Jobs: 4 remaining, straightforward isolation with mocks
 3. **Phase 3** — Services (high-priority 6): stateful, data-integrity risk
 4. **Phase 5** — Priority DTOs (7): cheap unit tests, high correctness value
