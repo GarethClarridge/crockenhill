@@ -46,7 +46,7 @@ return new class extends Migration
     private function songsIdColumnType(): string
     {
         $songsIdColumn = DB::selectOne(
-            'SELECT column_type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?',
+            'SELECT COLUMN_TYPE AS column_type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?',
             ['songs', 'id'],
         );
 

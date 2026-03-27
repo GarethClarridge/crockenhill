@@ -37,7 +37,7 @@
         </include>
     </source>
     <php>
-        <env name="APP_ENV" value="testing"/>
+        <env name="APP_ENV" value="testing" force="true"/>
         <env name="CACHE_DRIVER" value="array"/>
         <env name="CACHE_PREFIX" value="test_process"/>
         <env name="SESSION_DRIVER" value="array"/>
