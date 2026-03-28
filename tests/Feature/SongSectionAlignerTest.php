@@ -273,4 +273,54 @@ class SongSectionAlignerTest extends TestCase
         // song_id is re-written from item.song_id after a confirmed match
         $this->assertSame($song->id, $section->metadata['song_id'] ?? null);
     }
+
+    /**
+     * A song_title_hint in section metadata (written by SongTitleHintExtractor) must
+     * contribute to the candidate score in songCandidatesFromSection() and produce a
+     * confirmed match when it matches an OoS item's title — even when section.title is null.
+     */
+    #[Test]
+    public function it_matches_song_section_via_song_title_hint_when_title_is_null(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-10-26',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        $song = Song::factory()->create(['title' => 'Though the Nations Rage']);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Though the Nations Rage',
+            'song_id' => $song->id,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        // Section has no title but carries a song_title_hint from SongTitleHintExtractor.
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.5,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Though the Nations Rage',
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertSame($item->id, $section->church_service_item_id);
+        $this->assertSame($song->id, $section->metadata['song_id'] ?? null);
+        $this->assertGreaterThanOrEqual(ServiceSectionConfidence::HIGH_THRESHOLD, $section->confidence);
+    }
 }

@@ -231,6 +231,92 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
     }
 
     #[Test]
+    public function test_uses_song_title_hint_as_title_when_section_title_is_null(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.9,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Though the Nations Rage',
+            ],
+        ]);
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $result = $this->mapper->map($sections, $log->processing_id);
+
+        $this->assertCount(1, $result);
+        $this->assertSame('Though the Nations Rage', $result[0]['title']);
+    }
+
+    #[Test]
+    public function test_song_title_hint_does_not_override_an_explicit_section_title(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG,
+            'section_order' => 1,
+            'title' => 'Amazing Grace',
+            'confidence' => 0.9,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Though the Nations Rage',
+            ],
+        ]);
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $result = $this->mapper->map($sections, $log->processing_id);
+
+        $this->assertCount(1, $result);
+        $this->assertSame('Amazing Grace', $result[0]['title']);
+    }
+
+    #[Test]
+    public function test_song_title_hint_is_not_used_for_non_song_section_types(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::PRAYER,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.9,
+            'metadata' => [
+                'song_title_hint' => 'Though the Nations Rage',
+            ],
+        ]);
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $result = $this->mapper->map($sections, $log->processing_id);
+
+        $this->assertCount(1, $result);
+        $this->assertSame('Prayer', $result[0]['title']);
+    }
+
+    #[Test]
     public function test_renumbers_positions_after_filtering(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create();
