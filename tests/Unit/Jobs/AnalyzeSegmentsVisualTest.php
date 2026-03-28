@@ -361,6 +361,92 @@ class AnalyzeSegmentsVisualTest extends TestCase
     }
 
     #[Test]
+    public function it_assigns_segment_order_in_chronological_order(): void
+    {
+        Storage::fake('local');
+
+        // Two songs with speech before, between, and after them
+        $songClusters = [
+            [
+                'start_estimate' => 100.0,
+                'end_estimate' => 200.0,
+                'samples' => [100.0, 120.0, 140.0, 160.0, 180.0],
+                'confidence' => 0.85,
+            ],
+            [
+                'start_estimate' => 400.0,
+                'end_estimate' => 500.0,
+                'samples' => [400.0, 420.0, 440.0, 460.0, 480.0],
+                'confidence' => 0.88,
+            ],
+        ];
+
+        $processingLog = MediaProcessingLog::factory()->create([
+            'rms_log_path' => 'temp/rms.log',
+            'song_clusters' => $songClusters,
+            'status' => 'processing',
+        ]);
+
+        $this->createMockRmsLog('temp/rms.log', 600.0);
+
+        $mockService = Mockery::mock(VideoSegmentationService::class);
+
+        $mockService->shouldReceive('calibratePerSongThreshold')->twice()->andReturn([
+            'threshold' => -40.0,
+            'song_avg_rms' => -35.0,
+            'speech_avg_rms' => -50.0,
+        ]);
+
+        $mockService->shouldReceive('detectBoundariesForCluster')
+            ->twice()
+            ->andReturn(
+                new LivestreamSegmentData(
+                    startTime: 95.0,
+                    endTime: 205.0,
+                    duration: 110.0,
+                    classification: 'song',
+                    avgRms: -35.0,
+                    peakRms: -33.0,
+                    segmentOrder: 0,
+                    metadata: ['calibration_method' => 'per_song_visual']
+                ),
+                new LivestreamSegmentData(
+                    startTime: 395.0,
+                    endTime: 505.0,
+                    duration: 110.0,
+                    classification: 'song',
+                    avgRms: -35.0,
+                    peakRms: -33.0,
+                    segmentOrder: 1,
+                    metadata: ['calibration_method' => 'per_song_visual']
+                )
+            );
+
+        $job = new AnalyzeSegments($processingLog);
+        $job->handle($mockService);
+
+        // Segments ordered by segment_order should also be in chronological start_time order
+        $segments = LivestreamSegment::where('media_processing_log_id', $processingLog->id)
+            ->orderBy('segment_order')
+            ->get();
+
+        // Verify segment_order matches chronological start_time order
+        $startTimes = $segments->pluck('start_time')->map(fn ($t) => (float) $t)->all();
+        $sortedStartTimes = $startTimes;
+        sort($sortedStartTimes);
+
+        $this->assertEquals($sortedStartTimes, $startTimes, 'segment_order should reflect chronological start_time order');
+
+        // Confirm the interleaved structure: speech, song, speech, song, speech
+        $classifications = $segments->pluck('classification')->all();
+        $this->assertEquals(['speech', 'song', 'speech', 'song', 'speech'], $classifications);
+
+        // Confirm segment_order values are 0-indexed sequential
+        $segmentOrders = $segments->pluck('segment_order')->map(fn ($o) => (int) $o)->all();
+        $this->assertEquals([0, 1, 2, 3, 4], $segmentOrders);
+    }
+
+    #[Test]
     public function it_skips_all_work_when_processing_is_cancelled(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();

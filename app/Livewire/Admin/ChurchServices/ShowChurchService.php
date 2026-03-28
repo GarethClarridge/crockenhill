@@ -18,7 +18,6 @@ use App\Support\ServiceRecordTimeline;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -83,12 +82,6 @@ class ShowChurchService extends Component
 
         if (! $this->processingLogMatchesService($processingLog)) {
             $this->error('Selected run does not belong to this service.');
-
-            return;
-        }
-
-        if (! $this->sourceVideoIsAvailable($processingLog)) {
-            $this->error('Selected run cannot be reclassified because the original livestream file is no longer available.');
 
             return;
         }
@@ -389,18 +382,6 @@ class ShowChurchService extends Component
     private function identityResolver(): MediaProcessingIdentityResolver
     {
         return app(MediaProcessingIdentityResolver::class);
-    }
-
-    private function sourceVideoIsAvailable(MediaProcessingLog $processingLog): bool
-    {
-        $sourceFilePath = $processingLog->source_file_path;
-
-        if (! is_string($sourceFilePath) || $sourceFilePath === '') {
-            return false;
-        }
-
-        return Storage::disk((string) config('media-processing.storage.temp_disk', 'local'))
-            ->exists($sourceFilePath);
     }
 
     private function abortIfDisabled(): void

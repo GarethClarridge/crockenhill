@@ -391,6 +391,15 @@ class AnalyzeSegments implements ShouldQueue
         // Generate speech segments from gaps between songs
         $segments = $this->fillGapsWithSpeechSegments($segments, $totalDuration, $segmentOrder);
 
+        // Renumber segmentOrder sequentially based on chronological array position.
+        // Song segments were assigned orders 0–N during the first loop, while speech
+        // segments inserted between them received orders N+1 onwards. The array is
+        // already in chronological order after fillGapsWithSpeechSegments, so we
+        // just need to reassign the values to match the array positions.
+        foreach ($segments as $index => $segment) {
+            $segment->segmentOrder = $index;
+        }
+
         return $segments;
     }
 

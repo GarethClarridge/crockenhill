@@ -702,9 +702,7 @@ class AdminChurchServiceTest extends TestCase
         $processingRun = MediaProcessingLog::factory()->livestream()->pending()->create([
             'extracted_date' => '2026-04-05',
             'extracted_service' => SermonService::MORNING,
-            'source_file_path' => 'temp/reclassify-source.mp4',
         ]);
-        Storage::disk('local')->put('temp/reclassify-source.mp4', 'video');
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->call('reclassify', $processingRun->id)
@@ -765,10 +763,9 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function reclassify_action_rejects_runs_when_the_original_source_file_is_missing(): void
+    public function reclassify_action_succeeds_even_when_original_source_file_is_no_longer_available(): void
     {
         Bus::fake();
-        Storage::fake('local');
         $this->actingAs($this->admin);
 
         $service = ChurchService::factory()->create([
@@ -779,14 +776,14 @@ class AdminChurchServiceTest extends TestCase
         $processingRun = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-04-26',
             'extracted_service' => SermonService::MORNING,
-            'source_file_path' => 'temp/missing-source.mp4',
+            'source_file_path' => null,
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->call('reclassify', $processingRun->id)
-            ->assertDispatched('notify', type: 'error', message: 'Selected run cannot be reclassified because the original livestream file is no longer available.');
+            ->assertDispatched('notify', type: 'success', message: 'Section reclassification queued');
 
-        Bus::assertNothingChained();
+        Bus::assertDispatched(ClassifyServiceSections::class);
     }
 
     #[Test]
