@@ -99,4 +99,52 @@ class MeetingIntegrityTest extends TestCase
             ->call('save')
             ->assertHasNoErrors(['form.pageId']);
     }
+
+    #[Test]
+    public function it_enforces_end_time_after_start_time_at_database_level()
+    {
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('meetings_time_check');
+
+        Meeting::factory()->create([
+            'start_time' => '11:00:00',
+            'end_time' => '10:00:00',
+        ]);
+    }
+
+    #[Test]
+    public function it_allows_equal_start_and_end_time_at_database_level()
+    {
+        $meeting = Meeting::factory()->create([
+            'start_time' => '10:00:00',
+            'end_time' => '10:00:00',
+        ]);
+
+        $this->assertDatabaseHas('meetings', ['id' => $meeting->id]);
+    }
+
+    #[Test]
+    public function it_validates_end_time_after_or_equal_to_start_time_in_livewire()
+    {
+        Livewire::actingAs($this->admin)
+            ->test(CreateMeeting::class)
+            ->set('form.startTime', '11:00')
+            ->set('form.endTime', '10:00')
+            ->call('save')
+            ->assertHasErrors(['form.endTime' => 'after_or_equal']);
+
+        Livewire::actingAs($this->admin)
+            ->test(CreateMeeting::class)
+            ->set('form.startTime', '10:00')
+            ->set('form.endTime', '10:00')
+            ->call('save')
+            ->assertHasNoErrors(['form.endTime']);
+
+        Livewire::actingAs($this->admin)
+            ->test(CreateMeeting::class)
+            ->set('form.startTime', '10:00')
+            ->set('form.endTime', '11:00')
+            ->call('save')
+            ->assertHasNoErrors(['form.endTime']);
+    }
 }

@@ -22,8 +22,8 @@ class MeetingFactory extends Factory
                 'Adults',
                 'Occasional',
             ]),
-            'start_time' => $this->faker->optional()->time('H:i:s'),
-            'end_time' => $this->faker->optional()->time('H:i:s'),
+            'start_time' => $start = $this->faker->optional()->time('H:i'),
+            'end_time' => $start ? Carbon::parse($start)->addMinutes($this->faker->numberBetween(30, 180))->format('H:i') : null,
             'location' => $this->faker->randomElement([
                 'Main Hall',
                 'Church Building',
@@ -55,7 +55,7 @@ class MeetingFactory extends Factory
             return [
                 'meeting_date' => $date,
                 'day' => $date->format('l'),
-                'start_time' => $date->format('H:i:s'),
+                'start_time' => $date->format('H:i'),
             ];
         });
     }
@@ -88,7 +88,7 @@ class MeetingFactory extends Factory
             return [
                 'meeting_date' => $date,
                 'day' => $date->format('l'),
-                'start_time' => $date->format('H:i:s'),
+                'start_time' => $date->format('H:i'),
             ];
         });
     }
@@ -101,7 +101,7 @@ class MeetingFactory extends Factory
             return [
                 'meeting_date' => $date,
                 'day' => $date->format('l'),
-                'start_time' => $date->format('H:i:s'),
+                'start_time' => $date->format('H:i'),
             ];
         });
     }

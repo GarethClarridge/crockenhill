@@ -9,3 +9,8 @@
 **Learning:** `calendar_events` table lacked a database-level `CHECK` constraint for timing invariants (`end_datetime >= start_datetime`), and its status was a simple string rather than a formalized ENUM. Introducing these constraints uncovered multiple existing tests that were generating invalid data (end time before start time) or using non-existent status values like `tentative` and `cancelled`.
 
 **Action:** When adding database-level constraints to existing tables, proactively check and update model factories and existing test suites, as they are likely to be the first point of failure. Formalize magic strings into string-backed enums and update model `$casts` to ensure type safety throughout the application.
+
+## 2026-03-28 - Meeting Time Invariant Integrity
+**Learning:** The `meetings` table lacked a database-level `CHECK` constraint for temporal invariants (`end_time >= start_time` when both are set). Introducing this constraint revealed that `MeetingFactory` was generating random times that frequently violated this new rule, which would have caused flaky tests in any test suite using the factory.
+
+**Action:** Before adding a temporal `CHECK` constraint, always update the corresponding model factory to guarantee it produces valid data ranges by default. This prevents "broken window" syndrome where new constraints cause unrelated existing tests to fail. Synchronize database constraints with application-level validation (e.g., `after_or_equal`) to provide better UX and earlier error detection.

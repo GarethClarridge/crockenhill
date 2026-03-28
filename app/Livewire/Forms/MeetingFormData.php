@@ -79,7 +79,7 @@ class MeetingFormData extends Form
             ],
             'type' => ['required', 'string', 'in:'.implode(',', MeetingType::values())],
             'startTime' => 'nullable|date_format:H:i',
-            'endTime' => 'nullable|date_format:H:i',
+            'endTime' => 'nullable|date_format:H:i|after_or_equal:startTime',
             'day' => 'required|string|max:255',
             'location' => 'nullable|string|max:255',
             'who' => 'required|string|max:255',
