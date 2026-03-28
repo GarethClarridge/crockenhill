@@ -7,6 +7,7 @@ namespace Tests\Feature\Livewire;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Livewire\Admin\ChurchServices\ServiceReviewDashboard;
 use App\Models\ChurchService;
@@ -594,6 +595,568 @@ class AdminServiceReviewDashboardTest extends TestCase
             ->assertSee('28 Jun 2026')
             ->assertSee('Evening')
             ->assertSee('This service only has a service-level review flag.');
+    }
+
+    #[Test]
+    public function it_shows_a_merge_button_between_adjacent_same_type_sections(): void
+    {
+        $this->actingAs($this->admin);
+
+        config(['media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-06',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->assertSee('Merge these Song sections');
+    }
+
+    #[Test]
+    public function it_does_not_show_merge_button_for_adjacent_different_type_sections(): void
+    {
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-07',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 0.0,
+            'end_time' => 15.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 15.0,
+            'end_time' => 195.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->assertDontSee('Merge these');
+    }
+
+    #[Test]
+    public function it_shows_confirmation_panel_when_merge_is_initiated(): void
+    {
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-08',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->assertSee('Merge these two Song sections into one?')
+            ->assertSee('Confirm merge');
+    }
+
+    #[Test]
+    public function it_cancels_merge_on_cancel(): void
+    {
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-09',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->assertSee('Confirm merge')
+            ->call('cancelMerge')
+            ->assertDontSee('Confirm merge');
+    }
+
+    #[Test]
+    public function it_merges_two_adjacent_sections_on_confirm(): void
+    {
+        Queue::fake();
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-10',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+            'duration' => 7.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+            'duration' => 124.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->call('confirmMerge')
+            ->assertDispatched('notify', type: 'success', message: 'Sections merged successfully.');
+
+        // The shorter section (first) should be deleted, the longer (second) should survive
+        $this->assertDatabaseMissing('service_sections', ['id' => $first->id]);
+        $second->refresh();
+        $this->assertSame(100.0, $second->start_time);
+        $this->assertSame(231.0, $second->end_time);
+    }
+
+    #[Test]
+    public function it_ors_review_flags_when_merging(): void
+    {
+        Queue::fake();
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-11',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_order' => 1,
+            'needs_manual_review' => false,
+            'start_time' => 0.0,
+            'end_time' => 324.0,
+            'duration' => 324.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 324.0,
+            'end_time' => 506.0,
+            'duration' => 182.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->call('confirmMerge');
+
+        $first->refresh();
+        $this->assertTrue($first->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_clears_extracted_media_and_dispatches_re_extraction_when_source_is_available(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-12',
+            'extracted_service' => SermonService::MORNING->value,
+            'source_file_path' => 'temp/media-processing/source.mp4',
+        ]);
+
+        Storage::disk('local')->put('temp/media-processing/source.mp4', 'fake-video');
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+            'duration' => 7.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+            'duration' => 124.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'extracted_video_path' => 'sermons/sections/merge-test/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/merge-test.mp3',
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/merge-test/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/merge-test.mp3', 'audio');
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->call('confirmMerge');
+
+        $second->refresh();
+        $this->assertNull($second->extracted_video_path);
+        $this->assertNull($second->extracted_audio_path);
+        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $second->publication_status);
+        Queue::assertPushed(PrepareSectionPublicationCandidates::class);
+    }
+
+    #[Test]
+    public function it_clears_extracted_media_without_dispatching_when_source_is_unavailable(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-13',
+            'extracted_service' => SermonService::MORNING->value,
+            'source_file_path' => 'temp/media-processing/missing-source.mp4',
+        ]);
+
+        // Source file is NOT created on disk
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+            'duration' => 7.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+            'duration' => 124.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'extracted_video_path' => 'sermons/sections/merge-missing/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/merge-missing.mp3',
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/merge-missing/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/merge-missing.mp3', 'audio');
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->call('confirmMerge');
+
+        $second->refresh();
+        $this->assertNull($second->extracted_video_path);
+        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $second->publication_status);
+        Queue::assertNotPushed(PrepareSectionPublicationCandidates::class);
+    }
+
+    #[Test]
+    public function it_runs_cleanup_on_secondary_before_deleting_it(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-14',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+            'duration' => 7.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'extracted_video_path' => 'sermons/sections/secondary-cleanup/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/secondary-cleanup.mp3',
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/secondary-cleanup/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/secondary-cleanup.mp3', 'audio');
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+            'duration' => 124.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->call('confirmMerge');
+
+        // Shorter section (first) is deleted; its media files should be cleaned up
+        $this->assertDatabaseMissing('service_sections', ['id' => $first->id]);
+        Storage::disk('public')->assertMissing('sermons/sections/secondary-cleanup/video.mp4');
+        Storage::disk('public')->assertMissing('sermons/audio/secondary-cleanup.mp3');
+    }
+
+    #[Test]
+    public function it_rejects_merge_when_sections_are_from_different_processing_runs(): void
+    {
+        Queue::fake();
+        $this->actingAs($this->admin);
+
+        $runA = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-15',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $runB = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-15',
+            'extracted_service' => SermonService::EVENING->value,
+        ]);
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $runA->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $runB->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->call('confirmMerge')
+            ->assertDispatched('notify', type: 'error', message: 'Both sections must belong to the same processing run.');
+
+        $this->assertDatabaseHas('service_sections', ['id' => $first->id]);
+        $this->assertDatabaseHas('service_sections', ['id' => $second->id]);
+    }
+
+    #[Test]
+    public function it_rejects_merge_when_sections_are_of_different_types(): void
+    {
+        Queue::fake();
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-16',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->call('confirmMerge')
+            ->assertDispatched('notify', type: 'error', message: 'Both sections must have the same section type.');
+    }
+
+    #[Test]
+    public function it_rejects_merge_when_a_section_is_published(): void
+    {
+        Queue::fake();
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-17',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $second->id)
+            ->call('confirmMerge')
+            ->assertDispatched('notify', type: 'error', message: 'Published sections cannot be merged.');
+    }
+
+    #[Test]
+    public function it_rejects_merge_when_a_non_flagged_section_exists_between_the_two_candidates(): void
+    {
+        Queue::fake();
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-18',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 5,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+        ]);
+
+        // Un-flagged section at order 6 (between the merge candidates by section_order)
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_order' => 6,
+            'needs_manual_review' => false,
+            'start_time' => 300.0,
+            'end_time' => 400.0,
+        ]);
+
+        // $third starts close to $first (gap 1.5s ≤ max 2s) so the gap check passes
+        // and the between-sections check (section_order 6 exists between 5 and 7) triggers
+        $third = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 7,
+            'needs_manual_review' => true,
+            'start_time' => 108.5,
+            'end_time' => 244.0,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('initiateMerge', $first->id, $third->id)
+            ->call('confirmMerge')
+            ->assertDispatched('notify', type: 'error', message: 'There are other sections between these two — they cannot be merged.');
+
+        $this->assertDatabaseHas('service_sections', ['id' => $first->id]);
+        $this->assertDatabaseHas('service_sections', ['id' => $third->id]);
     }
 
     #[Test]

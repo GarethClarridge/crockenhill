@@ -124,6 +124,7 @@ Returns `null` on success, or a human-readable error string on failure.
 - Both must have the same `section_type`
 - Neither must be `PUBLISHED`
 - Time gap between them must be ≤ `adjacent_merge_max_gap_seconds` (same config key as the automatic pass)
+- No other sections may exist with a `section_order` between the two candidates' orders in the same processing run — query `ServiceSection::where('media_processing_log_id', ...)->whereBetween('section_order', [min+1, max-1])->exists()` and reject if true. This is the definitive adjacency check; the view-level time-gap check is only an approximation for display purposes.
 
 **Merge logic** (primary = the longer section by duration):
 - Extend primary's `start_time` / `end_time` to span both; recalculate `duration`
@@ -132,8 +133,8 @@ Returns `null` on success, or a human-readable error string on failure.
 - If secondary has a `review_reason` in metadata, copy it to primary as `merged_review_reason`
 - Add `manually_merged: true` and `manually_merged_at` to primary's metadata
 - If primary has extracted media (video/audio paths set): clear paths and `extracted_at`; reset `publication_status` to `NOT_APPLICABLE`
-- Delete secondary section
 - Save primary
+- Remove secondary via a new public `removeSection(ServiceSection): void` method on `ServiceSectionSyncService` that calls the existing private `cleanupExtractedAssets()` (deletes video/audio files from disk) and `notifyHandlerOfRemoval()` (lets e.g. `SongPublicationHandler` delete any associated `SongVideo` record) before calling `$section->delete()`. Do not call `delete()` on the secondary directly.
 
 **Auto re-extraction after merge:**
 
@@ -141,10 +142,10 @@ Returns `null` on success, or a human-readable error string on failure.
 
 After saving, the action should:
 1. Load `$primary->processingLog` and check whether the source video still exists using `VideoStorageService::sourceVideoExistsForPath()`
-2. **Source available** → dispatch `PrepareSectionPublicationCandidates::dispatch($processingLog)`; the job re-extracts the merged section at the new boundaries and transitions it to `PENDING_APPROVAL` automatically
-3. **Source unavailable** → leave status as `NOT_APPLICABLE`; the component flashes a notice that the source has been cleaned up and re-extraction must be triggered manually if the recording is re-uploaded
+2. **Source available** → dispatch `PrepareSectionPublicationCandidates::dispatch($processingLog)`; the job re-extracts the merged section at the new boundaries. Because `needs_manual_review` will usually be `true` on the merged section (OR semantics), the job will extract the media and write the paths to the section, but will then call `moveToNotApplicable()` — the section remains `NOT_APPLICABLE`, not auto-promoted to `PENDING_APPROVAL`. The admin must resolve the review flag in the dashboard (via the existing Save flow) to progress the section to approval.
+3. **Source unavailable** → leave status as `NOT_APPLICABLE` with no media; the component flashes a notice that the source has been cleaned up
 
-This means the common case (source still on disk) requires zero further admin action after confirming the merge.
+The common case (source on disk) means re-extraction runs automatically, but admin review is still required before the merged section reaches `PENDING_APPROVAL`.
 
 ### Livewire Component — `ServiceReviewDashboard`
 
@@ -167,7 +168,7 @@ Boot `MergeAdjacentServiceSections` via `boot()` (following the existing pattern
 
 ### View — `service-review-dashboard.blade.php`
 
-In each group's section loop, compute adjacency from `$loop->index`:
+In each group's section loop, compute a **display-only** adjacency hint from `$loop->index`. The dashboard only shows flagged sections, so two list-adjacent entries may have un-flagged sections between them. The time-gap check catches most false positives (a hidden middle section occupies its own time range), but it is not exhaustive. The action's `section_order` gap query is the authoritative guard — if the button is shown spuriously, the action will return an error.
 
 ```blade
 @php
@@ -194,7 +195,7 @@ After each section card, render the appropriate merge state:
             <p class="mt-1 text-amber-700">
                 Spans {{ gmdate('G:i:s', (int) $section->start_time) }}
                 – {{ gmdate('G:i:s', (int) $nextSection->end_time) }}.
-                Any extracted media will be cleared and will need re-extraction.
+                Any extracted media will be cleared and re-extracted automatically if the source recording is still available.
             </p>
             <div class="mt-3 flex gap-2">
                 <x-form-button variant="primary" size="sm" wire:click="confirmMerge"
@@ -233,11 +234,13 @@ After each section card, render the appropriate merge state:
 | `it_cancels_merge_on_cancel` | Initiate then `cancelMerge` | State cleared, normal UI restored |
 | `it_merges_two_adjacent_sections_on_confirm` | Call `confirmMerge` | Primary section spans both; secondary deleted |
 | `it_ors_review_flags_when_merging` | Primary has no review flag; secondary does | Merged section has `needs_manual_review = true` |
-| `it_clears_extracted_media_and_dispatches_re_extraction_when_source_is_available` | Primary has extracted media; source file exists | Paths cleared; `PrepareSectionPublicationCandidates` dispatched for processing log |
-| `it_clears_extracted_media_without_dispatching_when_source_is_unavailable` | Primary has extracted media; source file missing | Paths cleared, `publication_status` reset to `not_applicable`; no job dispatched |
+| `it_clears_extracted_media_and_dispatches_re_extraction_when_source_is_available` | Primary has extracted media; source file exists | Paths cleared; `PrepareSectionPublicationCandidates` dispatched; section remains `NOT_APPLICABLE` (not auto-promoted) |
+| `it_clears_extracted_media_without_dispatching_when_source_is_unavailable` | Primary has extracted media; source file missing | Paths cleared, `publication_status` stays `not_applicable`; no job dispatched |
+| `it_runs_cleanup_on_secondary_before_deleting_it` | Secondary has extracted video/audio paths | Files deleted from disk via `ServiceSectionSyncService::removeSection()`; secondary row gone |
 | `it_rejects_merge_when_sections_are_from_different_processing_runs` | Two sections from different runs | Error flashed, no deletion |
 | `it_rejects_merge_when_sections_are_of_different_types` | Song + Bible Reading | Error flashed, no deletion |
 | `it_rejects_merge_when_a_section_is_published` | One section is `PUBLISHED` | Error flashed, no deletion |
+| `it_rejects_merge_when_a_non_flagged_section_exists_between_the_two_candidates` | Sections at order 5 and 7 with an un-flagged section at order 6 | Error flashed; action detects gap in `section_order` |
 
 ---
 

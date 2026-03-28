@@ -135,6 +135,13 @@
                                 $predictedSpeaker = $section->predictedChildrensTalkSpeaker();
                                 $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
                                 $speakerOutcome = is_array($predictedSpeaker) ? ($predictedSpeaker['outcome'] ?? null) : null;
+                                $nextEntry = $group['sections'][$loop->index + 1] ?? null;
+                                $nextSection = $nextEntry ? $nextEntry['section'] : null;
+                                $isMergeCandidate = $nextSection !== null
+                                    && $nextSection->section_type === $section->section_type
+                                    && abs($nextSection->start_time - $section->end_time) <= 2
+                                    && $section->publication_status !== \App\Enums\ServiceSectionPublicationStatus::PUBLISHED
+                                    && $nextSection->publication_status !== \App\Enums\ServiceSectionPublicationStatus::PUBLISHED;
                             @endphp
                             <div wire:key="service-review-section-{{ $section->id }}" class="rounded-lg border border-gray-200 bg-gray-50 p-4">
                                 <div class="flex flex-wrap items-start justify-between gap-4">
@@ -333,6 +340,40 @@
                                     </div>
                                 </div>
                             </div>
+
+                            @if($isMergeCandidate)
+                                @if($pendingMerge
+                                    && $pendingMerge['primary_id'] === $section->id
+                                    && $pendingMerge['secondary_id'] === $nextSection->id)
+                                    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                                        <p class="font-medium text-amber-900">Merge these two {{ $section->section_type->label() }} sections into one?</p>
+                                        <p class="mt-1 text-amber-700">
+                                            Spans {{ gmdate('G:i:s', (int) $section->start_time) }}
+                                            – {{ gmdate('G:i:s', (int) $nextSection->end_time) }}.
+                                            Any extracted media will be cleared and re-extracted automatically if the source recording is still available.
+                                        </p>
+                                        <div class="mt-3 flex gap-2">
+                                            <x-form-button variant="primary" size="sm" wire:click="confirmMerge"
+                                                wire:target="confirmMerge" wire:loading.attr="disabled">
+                                                Confirm merge
+                                            </x-form-button>
+                                            <x-form-button variant="outline" size="sm" wire:click="cancelMerge">
+                                                Cancel
+                                            </x-form-button>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="flex justify-center py-1">
+                                        <x-form-button
+                                            variant="ghost"
+                                            size="xs"
+                                            wire:click="initiateMerge({{ $section->id }}, {{ $nextSection->id }})"
+                                        >
+                                            ⇕ Merge these {{ $section->section_type->label() }} sections
+                                        </x-form-button>
+                                    </div>
+                                @endif
+                            @endif
                         @endforeach
                     </div>
                 @endif

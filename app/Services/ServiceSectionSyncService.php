@@ -21,6 +21,17 @@ class ServiceSectionSyncService
     ) {}
 
     /**
+     * Clean up extracted assets and notify the publication handler before deleting a section.
+     * Always use this instead of calling $section->delete() directly.
+     */
+    public function removeSection(ServiceSection $section): void
+    {
+        $this->cleanupExtractedAssets($section);
+        $this->notifyHandlerOfRemoval($section);
+        $section->delete();
+    }
+
+    /**
      * @param  array<int, array{
      *     church_service_item_id: int|null,
      *     section_type: string,

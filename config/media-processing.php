@@ -185,6 +185,8 @@ return [
         'intro_max_start_seconds' => (int) env('SERVICE_SECTION_INTRO_MAX_START_SECONDS', 120),
         'outro_min_remaining_seconds' => (int) env('SERVICE_SECTION_OUTRO_MIN_REMAINING_SECONDS', 30),
         'outro_max_duration_seconds' => (int) env('SERVICE_SECTION_OUTRO_MAX_DURATION_SECONDS', 60),
+        'adjacent_merge_min_duration_seconds' => (int) env('SERVICE_SECTION_ADJACENT_MERGE_MIN_DURATION_SECONDS', 30),
+        'adjacent_merge_max_gap_seconds' => (int) env('SERVICE_SECTION_ADJACENT_MERGE_MAX_GAP_SECONDS', 2),
     ],
 
     /*

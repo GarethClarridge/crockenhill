@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Actions\ServiceReview\BatchApproveServicePublications;
 use App\Actions\ServiceReview\MarkServiceReviewed;
+use App\Actions\ServiceReview\MergeAdjacentServiceSections;
 use App\Actions\ServiceReview\SaveServiceSection;
 use App\Enums\ServiceSectionType;
 use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
@@ -36,6 +37,11 @@ class ServiceReviewDashboard extends Component
      */
     public array $speakerEdits = [];
 
+    /**
+     * @var array{primary_id: int, secondary_id: int}|null
+     */
+    public ?array $pendingMerge = null;
+
     private ServiceReviewDashboardQuery $dashboardQuery;
 
     private SaveServiceSection $saveSectionAction;
@@ -44,16 +50,20 @@ class ServiceReviewDashboard extends Component
 
     private BatchApproveServicePublications $batchApproveAction;
 
+    private MergeAdjacentServiceSections $mergeAction;
+
     public function boot(
         ServiceReviewDashboardQuery $dashboardQuery,
         SaveServiceSection $saveSectionAction,
         MarkServiceReviewed $markReviewedAction,
         BatchApproveServicePublications $batchApproveAction,
+        MergeAdjacentServiceSections $mergeAction,
     ): void {
         $this->dashboardQuery = $dashboardQuery;
         $this->saveSectionAction = $saveSectionAction;
         $this->markReviewedAction = $markReviewedAction;
         $this->batchApproveAction = $batchApproveAction;
+        $this->mergeAction = $mergeAction;
     }
 
     public function mount(): void
@@ -157,6 +167,47 @@ class ServiceReviewDashboard extends Component
             Str::plural('publication', $approvedCount),
             $this->formatBatchApprovalSkipSummary($skippedReasons)
         ));
+    }
+
+    public function initiateMerge(int $sectionIdA, int $sectionIdB): void
+    {
+        $this->pendingMerge = ['primary_id' => $sectionIdA, 'secondary_id' => $sectionIdB];
+    }
+
+    public function confirmMerge(): void
+    {
+        if ($this->pendingMerge === null) {
+            return;
+        }
+
+        $primary = ServiceSection::query()->find($this->pendingMerge['primary_id']);
+        $secondary = ServiceSection::query()->find($this->pendingMerge['secondary_id']);
+
+        if (! $primary instanceof ServiceSection || ! $secondary instanceof ServiceSection) {
+            $this->pendingMerge = null;
+            $this->error('One or both sections could not be found.');
+
+            return;
+        }
+
+        $userId = is_numeric(Auth::id()) ? (int) Auth::id() : 0;
+
+        $error = $this->mergeAction->execute($primary, $secondary, $userId);
+
+        $this->pendingMerge = null;
+
+        if ($error !== null) {
+            $this->error($error);
+
+            return;
+        }
+
+        $this->success('Sections merged successfully.');
+    }
+
+    public function cancelMerge(): void
+    {
+        $this->pendingMerge = null;
     }
 
     public function render(): View

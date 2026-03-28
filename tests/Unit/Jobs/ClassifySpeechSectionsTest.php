@@ -791,6 +791,786 @@ class ClassifySpeechSectionsTest extends TestCase
     }
 
     #[Test]
+    public function it_merges_a_short_song_section_into_the_following_song_section(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        $shortSong = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+            'duration' => 7.0,
+            'metadata' => ['classification_mode' => 'audio_only'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+            'duration' => 124.0,
+            'metadata' => ['classification_mode' => 'audio_only'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $this->assertCount(1, $sections);
+        $this->assertSame(ServiceSectionType::SONG, $sections[0]->section_type);
+        $this->assertSame(100.0, $sections[0]->start_time);
+        $this->assertSame(231.0, $sections[0]->end_time);
+    }
+
+    #[Test]
+    public function it_merges_a_short_speech_section_into_the_following_same_type_section(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        // 15s Bible Reading (announcement classified as reading)
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 200.0,
+            'end_time' => 215.0,
+            'duration' => 15.0,
+            'metadata' => ['transcript' => 'I will ask Nemi to come and do the Bible reading.'],
+        ]);
+
+        // 2m 58s Bible Reading (actual reading)
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 215.0,
+            'end_time' => 393.0,
+            'duration' => 178.0,
+            'metadata' => ['transcript' => 'In the beginning God created the heavens and the earth.'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            private int $callCount = 0;
+
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                $this->callCount++;
+
+                return [[
+                    'section_type' => ServiceSectionType::BIBLE_READING->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'excerpt',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $this->assertCount(1, $sections);
+        $this->assertSame(ServiceSectionType::BIBLE_READING, $sections[0]->section_type);
+        $this->assertSame(200.0, $sections[0]->start_time);
+        $this->assertSame(393.0, $sections[0]->end_time);
+    }
+
+    #[Test]
+    public function it_always_merges_adjacent_childrens_talk_sections_regardless_of_duration(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        // 5m 24s Children's Talk
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 300.0,
+            'end_time' => 624.0,
+            'duration' => 324.0,
+            'metadata' => ['transcript' => 'Good morning everyone, who can tell me what this picture is of?'],
+        ]);
+
+        // 3m 2s Children's Talk
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 624.0,
+            'end_time' => 806.0,
+            'duration' => 182.0,
+            'metadata' => ['transcript' => 'So what does that teach us? Let us pray together.'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.88,
+                        'transcript' => 'excerpt',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $this->assertCount(1, $sections);
+        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $sections[0]->section_type);
+        $this->assertSame(300.0, $sections[0]->start_time);
+        $this->assertSame(806.0, $sections[0]->end_time);
+    }
+
+    #[Test]
+    public function it_chains_merges_across_three_adjacent_same_type_sections(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        foreach ([
+            [1, 0.0, 10.0, 10.0],
+            [2, 10.0, 30.0, 20.0],
+            [3, 30.0, 210.0, 180.0],
+        ] as [$order, $start, $end, $dur]) {
+            ServiceSection::factory()->create([
+                'media_processing_log_id' => $processingLog->id,
+                'section_type' => ServiceSectionType::OTHER->value,
+                'section_order' => $order,
+                'start_time' => $start,
+                'end_time' => $end,
+                'duration' => $dur,
+                'metadata' => ['transcript' => 'Good morning children.'],
+            ]);
+        }
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'Good morning children.',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->get();
+
+        $this->assertCount(1, $sections);
+        $this->assertSame(0.0, $sections[0]->start_time);
+        $this->assertSame(210.0, $sections[0]->end_time);
+    }
+
+    #[Test]
+    public function it_does_not_merge_two_substantial_adjacent_songs(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 150.0,
+            'duration' => 150.0,
+            'metadata' => ['classification_mode' => 'audio_only'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'start_time' => 150.0,
+            'end_time' => 360.0,
+            'duration' => 210.0,
+            'metadata' => ['classification_mode' => 'audio_only'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->get();
+
+        $this->assertCount(2, $sections);
+    }
+
+    #[Test]
+    public function it_does_not_merge_adjacent_sections_of_different_types(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 15.0,
+            'duration' => 15.0,
+            'metadata' => ['transcript' => 'Let us pray.'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 15.0,
+            'end_time' => 15.0 + 15.0,
+            'duration' => 15.0,
+            'metadata' => ['transcript' => 'Hear O Israel.'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            private int $call = 0;
+
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                $this->call++;
+                $type = $this->call === 1
+                    ? ServiceSectionType::PRAYER->value
+                    : ServiceSectionType::BIBLE_READING->value;
+
+                return [[
+                    'section_type' => $type,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'excerpt',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $this->assertCount(2, $sections);
+        $this->assertSame(ServiceSectionType::PRAYER, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::BIBLE_READING, $sections[1]->section_type);
+    }
+
+    #[Test]
+    public function it_keeps_the_longer_sections_metadata_and_confidence_as_primary(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        // 10s short section — will be secondary after merge
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 10.0,
+            'duration' => 10.0,
+            'metadata' => ['transcript' => 'Short intro.'],
+        ]);
+
+        // 180s long section — will be primary after merge
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 10.0,
+            'end_time' => 190.0,
+            'duration' => 180.0,
+            'metadata' => ['transcript' => 'Longer content.'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            private int $call = 0;
+
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                $this->call++;
+                $score = $this->call === 1 ? 0.95 : 0.55;
+
+                return [[
+                    'section_type' => ServiceSectionType::PRAYER->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => $score,
+                        'transcript' => 'excerpt',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->get();
+
+        $this->assertCount(1, $sections);
+        // Primary is the 180s section (lower confidence score 0.55)
+        $this->assertEqualsWithDelta(0.55, $sections[0]->confidence, 0.01);
+        $this->assertSame(0.0, $sections[0]->start_time);
+        $this->assertSame(190.0, $sections[0]->end_time);
+    }
+
+    #[Test]
+    public function it_ors_needs_manual_review_from_both_sides(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 180.0,
+            'duration' => 180.0,
+            'metadata' => ['transcript' => 'Good morning children.'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 180.0,
+            'end_time' => 240.0,
+            'duration' => 60.0,
+            'metadata' => [
+                'transcript' => 'Short continuation.',
+                'review_reason' => 'low_confidence',
+            ],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            private int $call = 0;
+
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                $this->call++;
+                $review = $this->call === 2;
+
+                return [[
+                    'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => $review,
+                    'metadata' => [
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'excerpt',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->get();
+
+        $this->assertCount(1, $sections);
+        $this->assertTrue($sections[0]->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_preserves_review_reason_from_secondary_in_merged_metadata(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 180.0,
+            'duration' => 180.0,
+            'metadata' => ['transcript' => 'Main content.'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 180.0,
+            'end_time' => 240.0,
+            'duration' => 60.0,
+            'metadata' => [
+                'transcript' => 'Short part.',
+                'review_reason' => 'oos_mismatch',
+            ],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            private int $call = 0;
+
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                $this->call++;
+                $hasReview = $this->call === 2;
+
+                return [[
+                    'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => $hasReview,
+                    'metadata' => array_filter([
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'excerpt',
+                        'review_reason' => $hasReview ? 'oos_mismatch' : null,
+                    ]),
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->get();
+
+        $this->assertCount(1, $sections);
+        $this->assertSame('oos_mismatch', $sections[0]->metadata['merged_review_reason'] ?? null);
+    }
+
+    #[Test]
+    public function it_does_not_merge_sections_with_a_gap_above_the_threshold(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 15.0,
+            'duration' => 15.0,
+            'metadata' => ['transcript' => 'Short reading intro.'],
+        ]);
+
+        // 5-second gap between sections
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 20.0,
+            'end_time' => 198.0,
+            'duration' => 178.0,
+            'metadata' => ['transcript' => 'In the beginning God created the heavens.'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::BIBLE_READING->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'excerpt',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $this->assertCount(2, $sections);
+    }
+
+    #[Test]
+    public function it_merges_sections_within_the_allowed_gap_tolerance(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 15.0,
+            'duration' => 15.0,
+            'metadata' => ['transcript' => 'Short intro.'],
+        ]);
+
+        // 1-second gap — within tolerance
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 16.0,
+            'end_time' => 196.0,
+            'duration' => 180.0,
+            'metadata' => ['transcript' => 'Main reading.'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::BIBLE_READING->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'excerpt',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->get();
+
+        $this->assertCount(1, $sections);
+        $this->assertSame(0.0, $sections[0]->start_time);
+        $this->assertSame(196.0, $sections[0]->end_time);
+    }
+
+    #[Test]
+    public function it_preserves_song_title_hint_when_short_song_announcement_is_merged(): void
+    {
+        config([
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds' => 30,
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds' => 2,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        // Short ai_transcript Song (announcement) — song title hint will be written into the audio-only section
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 20.0,
+            'duration' => 20.0,
+            'metadata' => ['transcript' => 'We are going to sing Amazing Grace.'],
+        ]);
+
+        // Longer audio-only Song — song_title_hint gets written here by SongTitleHintExtractor before merging
+        $audioSong = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'start_time' => 20.0,
+            'end_time' => 200.0,
+            'duration' => 180.0,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'confidence_level' => 'high',
+            ],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::SONG->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'We are going to sing Amazing Grace.',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->get();
+
+        $this->assertCount(1, $sections);
+        $this->assertSame(ServiceSectionType::SONG, $sections[0]->section_type);
+        $this->assertSame(0.0, $sections[0]->start_time);
+        $this->assertSame(200.0, $sections[0]->end_time);
+        // The hint was written into the audio_only section before merging, and the
+        // audio_only section (180s) is primary — its metadata carries the hint
+        $this->assertSame('Amazing Grace', $sections[0]->metadata['song_title_hint'] ?? null);
+    }
+
+    #[Test]
     public function it_does_not_write_song_title_hint_when_announcement_has_no_extractable_title(): void
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();

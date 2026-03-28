@@ -116,6 +116,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         $rewrittenSections = $this->foldShortSongsIntoSermon($rewrittenSections);
         $rewrittenSections = $this->demoteSecondarySermons($rewrittenSections);
         $rewrittenSections = $songTitleHintExtractor->extract($rewrittenSections);
+        $rewrittenSections = $this->mergeAdjacentSameTypeSections($rewrittenSections);
 
         foreach ($rewrittenSections as $index => &$rewrittenSection) {
             $rewrittenSection['section_order'] = $index + 1;
@@ -511,6 +512,170 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         }
 
         return $folded;
+    }
+
+    /**
+     * Merge adjacent sections of the same type when they are temporally contiguous and
+     * at least one side is short (below the configured threshold). Children's talk sections
+     * are always merged regardless of duration.
+     *
+     * @param  array<int, array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     confidence: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }>  $sections
+     * @return array<int, array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     confidence: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }>
+     */
+    private function mergeAdjacentSameTypeSections(array $sections): array
+    {
+        $minDuration = (float) config(
+            'media-processing.section_classification.adjacent_merge_min_duration_seconds',
+            30
+        );
+        $maxGap = (float) config(
+            'media-processing.section_classification.adjacent_merge_max_gap_seconds',
+            2
+        );
+
+        $merged = [];
+        $index = 0;
+        $count = count($sections);
+
+        while ($index < $count) {
+            $current = $sections[$index];
+
+            if ($index + 1 < $count) {
+                $next = $sections[$index + 1];
+                $sameType = $current['section_type'] === $next['section_type'];
+                $gap = (float) $next['start_time'] - (float) $current['end_time'];
+                $contiguous = $gap <= $maxGap;
+
+                if ($sameType && $contiguous) {
+                    $isChildrensTalk = $current['section_type'] === ServiceSectionType::CHILDRENS_TALK->value;
+                    $shortEnough = min((float) $current['duration'], (float) $next['duration']) < $minDuration;
+
+                    if ($isChildrensTalk || $shortEnough) {
+                        $sections[$index] = $this->mergeTwoSections($current, $next);
+                        array_splice($sections, $index + 1, 1);
+                        $count--;
+
+                        continue;
+                    }
+                }
+            }
+
+            $merged[] = $current;
+            $index++;
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Merge two same-type sections into one. The longer section is the primary and
+     * carries its church_service_item_id, title, confidence, and metadata.
+     *
+     * @param  array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     confidence: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }  $a
+     * @param  array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     confidence: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }  $b
+     * @return array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     confidence: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }
+     */
+    private function mergeTwoSections(array $a, array $b): array
+    {
+        [$primary, $secondary] = (float) $a['duration'] >= (float) $b['duration'] ? [$a, $b] : [$b, $a];
+
+        $startTime = min((float) $a['start_time'], (float) $b['start_time']);
+        $endTime = max((float) $a['end_time'], (float) $b['end_time']);
+        $duration = max(0.0, $endTime - $startTime);
+
+        $mergedSourceSegmentIds = array_values(array_unique(array_merge(
+            $this->normaliseSourceSegmentIds($a['source_segment_ids']),
+            $this->normaliseSourceSegmentIds($b['source_segment_ids'])
+        )));
+
+        $metadata = array_merge($primary['metadata'], [
+            'merged_adjacent_section' => true,
+            'merged_duration_seconds' => (float) $secondary['duration'],
+        ]);
+
+        if (isset($secondary['metadata']['review_reason'])) {
+            $metadata['merged_review_reason'] = $secondary['metadata']['review_reason'];
+        }
+
+        return [
+            'church_service_item_id' => $primary['church_service_item_id'],
+            'section_type' => $primary['section_type'],
+            'section_order' => $primary['section_order'],
+            'title' => $primary['title'],
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'duration' => $duration,
+            'confidence' => (float) $primary['confidence'],
+            'status' => $primary['status'],
+            'needs_manual_review' => $primary['needs_manual_review'] || $secondary['needs_manual_review'],
+            'source_segment_ids' => $mergedSourceSegmentIds,
+            'metadata' => $metadata,
+        ];
     }
 
     /**
