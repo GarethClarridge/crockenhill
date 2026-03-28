@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -73,7 +74,7 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
             }
         }
 
-        if ($model instanceof \App\Models\Meeting) {
+        if ($model instanceof Meeting) {
             $this->publicMeetingReadModelCache->forget($model);
         }
 
