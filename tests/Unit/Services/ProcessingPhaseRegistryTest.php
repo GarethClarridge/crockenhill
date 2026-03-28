@@ -39,7 +39,7 @@ class ProcessingPhaseRegistryTest extends TestCase
     {
         $registry = app(ProcessingPhaseRegistry::class);
 
-        $this->assertSame(54, $registry->progressForStep('manual_review_confirmed'));
+        $this->assertSame(56, $registry->progressForStep('manual_review_confirmed'));
         $this->assertSame(10, $registry->progressForStep('initiated_from_livestream:abc123'));
         $this->assertSame(10, $registry->progressForStep('restarting_from_beginning'));
         $this->assertSame(87, $registry->progressForStep('updating_sermon_record'));
@@ -71,7 +71,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 10,
+            'job_offset' => 11,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -91,7 +91,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 13,
+            'job_offset' => 14,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));

@@ -16,6 +16,7 @@ use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
+use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
@@ -106,6 +107,7 @@ class ProcessingPipelineBuilder
             new ClassifySpeechSections($log),
             new ProjectLivestreamServiceStructure($log),
             new AlignWithOos($log),
+            new MatchSongsFromTranscript($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),
@@ -155,6 +157,7 @@ class ProcessingPipelineBuilder
             new ClassifySpeechSections($log),
             new ProjectLivestreamServiceStructure($log),
             new AlignWithOos($log),
+            new MatchSongsFromTranscript($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),

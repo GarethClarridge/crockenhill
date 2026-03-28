@@ -16,6 +16,7 @@ use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
+use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
@@ -719,6 +720,7 @@ class AdminChurchServiceTest extends TestCase
             ClassifySpeechSections::class,
             ProjectLivestreamServiceStructure::class,
             AlignWithOos::class,
+            MatchSongsFromTranscript::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             EnhanceAudio::class,

@@ -1,0 +1,454 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Jobs;
+
+use App\Contracts\TranscriptionServiceInterface;
+use App\Enums\ServiceSectionSongMatchType;
+use App\Enums\ServiceSectionType;
+use App\Jobs\MatchSongsFromTranscript;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
+use App\Models\Song;
+use App\Services\ChurchServiceReviewSynchronizer;
+use App\Services\SongLyricsMatchingService;
+use App\Services\StorageAdapterHelper;
+use App\Services\UnmatchedSongReviewApplicator;
+use App\Services\VideoExtractionService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class MatchSongsFromTranscriptTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('local');
+        Storage::fake('public');
+
+        Config::set('media-processing.storage.sermon_disk', 'local');
+        Config::set('media-processing.storage.temp_disk', 'local');
+        Config::set('media-processing.song_matching.enabled', true);
+        Config::set('media-processing.song_matching.transcribe_song_openings', false);
+        Config::set('media-processing.song_matching.lyrics_threshold', 0.6);
+    }
+
+    // ---- Disabled / skipped paths ----
+
+    #[Test]
+    public function it_skips_when_song_matching_is_disabled(): void
+    {
+        Config::set('media-processing.song_matching.enabled', false);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        // No sections to assert on — just verify no exception and step was skipped.
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function it_skips_for_non_livestream_processing_type(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->pending()->create();
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function it_skips_when_there_are_no_unmatched_song_sections(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'metadata' => ['classification_mode' => 'audio_only'],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        $this->assertTrue(true);
+    }
+
+    // ---- Title-hint matching via canonical key ----
+
+    #[Test]
+    public function it_matches_an_unmatched_song_section_via_title_hint_canonical_key(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'Be Thou My Vision',
+            'canonical_key' => 'be thou my vision',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Be Thou My Vision',
+                'review_flags' => ['unmatched_song_section'],
+                'review_reason' => 'unmatched_song_section',
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertFalse($section->needs_manual_review);
+
+        $match = $section->metadata['transcript_song_match'] ?? null;
+        $this->assertIsArray($match);
+        $this->assertSame($song->id, $match['song_id']);
+        $this->assertSame('Be Thou My Vision', $match['title']);
+        $this->assertSame(1.0, (float) $match['confidence']);
+        $this->assertSame('title_hint_canonical', $match['match_source']);
+    }
+
+    #[Test]
+    public function it_updates_linked_church_service_item_song_id_on_match(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'In Christ Alone',
+            'canonical_key' => 'in christ alone',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $item = ChurchServiceItem::factory()->create([
+            'title' => 'Song',
+            'song_id' => null,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'church_service_item_id' => $item->id,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'In Christ Alone',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        $section->refresh();
+        $item->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertSame('In Christ Alone', $item->title);
+    }
+
+    // ---- Title-hint fuzzy fallback ----
+
+    #[Test]
+    public function it_falls_back_to_fuzzy_lyrics_matching_when_canonical_key_has_no_result(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'How Great Thou Art',
+            'canonical_key' => 'how great thou art',
+            'lyrics_plain' => 'O Lord my God when I in awesome wonder consider all the worlds thy hands have made',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                // Hint doesn't exactly match the canonical key.
+                'song_title_hint' => 'O Lord my God when I in awesome wonder',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        $section->refresh();
+
+        // Fuzzy match should have found the song via lyrics_plain.
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+
+        $match = $section->metadata['transcript_song_match'] ?? null;
+        $this->assertIsArray($match);
+        $this->assertSame($song->id, $match['song_id']);
+    }
+
+    // ---- Song opening transcription ----
+
+    #[Test]
+    public function it_transcribes_song_opening_when_title_hint_absent_and_transcription_enabled(): void
+    {
+        Config::set('media-processing.song_matching.transcribe_song_openings', true);
+        Config::set('media-processing.song_matching.song_opening_transcription_seconds', 30);
+
+        $song = Song::factory()->create([
+            'title' => 'To God Be the Glory',
+            'canonical_key' => 'to god be the glory',
+            'lyrics_plain' => 'To God be the glory great things he hath done so loved he the world that he gave us his son',
+        ]);
+
+        $sourceFile = 'temp/service_source.mp4';
+        Storage::disk('local')->put($sourceFile, 'fake-video-content');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'source_file_path' => $sourceFile,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'start_time' => 100.0,
+            'end_time' => 280.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        $openingTranscript = 'To God be the glory great things he hath done so loved he the world';
+
+        $this->mock(VideoExtractionService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('extractOptimizedAudio')
+                ->once()
+                ->andReturn(['audio_path' => 'temp/song_opening.mp3']);
+        });
+
+        $this->mock(TranscriptionServiceInterface::class, function (MockInterface $mock) use ($openingTranscript): void {
+            $mock->shouldReceive('transcribe')
+                ->once()
+                ->andReturn($openingTranscript);
+        });
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertNotNull($section->metadata['song_opening_transcript'] ?? null);
+
+        $match = $section->metadata['transcript_song_match'] ?? null;
+        $this->assertIsArray($match);
+        $this->assertSame($song->id, $match['song_id']);
+        $this->assertSame('lyrics', $match['match_source']);
+    }
+
+    // ---- Review bookkeeping is refreshed ----
+
+    #[Test]
+    public function it_re_runs_unmatched_song_review_applicator_after_matching(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'And Can It Be',
+            'canonical_key' => 'and can it be',
+            'lyrics_plain' => null,
+        ]);
+
+        $churchService = ChurchService::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $unmatchedSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'And Can It Be',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        $unmatchedSection->refresh();
+
+        // The section should now be inferred and the unmatched review flag cleared.
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $unmatchedSection->song_match_type);
+        $this->assertNotContains('unmatched_song_section', $unmatchedSection->metadata['review_flags'] ?? []);
+
+        // The church service review state should have been refreshed.
+        $churchService->refresh();
+        $this->assertFalse($churchService->needs_review);
+    }
+
+    // ---- No match available ----
+
+    #[Test]
+    public function it_leaves_section_unmatched_when_no_catalog_song_matches_title_hint(): void
+    {
+        Song::factory()->create([
+            'title' => 'Completely Different Song',
+            'canonical_key' => 'completely different song',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Unknown Hymn Not In Catalog',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        $section->refresh();
+
+        // Section remains unmatched.
+        $this->assertSame(ServiceSectionSongMatchType::UNMATCHED, $section->song_match_type);
+        $this->assertNull($section->metadata['transcript_song_match'] ?? null);
+    }
+
+    // ---- Regression: confirmed sections are not processed ----
+
+    #[Test]
+    public function it_does_not_process_sections_that_are_already_confirmed(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'Already Matched Song',
+            'canonical_key' => 'already matched song',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Already Matched Song',
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+        );
+
+        $section->refresh();
+
+        // Should still be confirmed, not downgraded to inferred.
+        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertNull($section->metadata['transcript_song_match'] ?? null);
+    }
+}

@@ -185,6 +185,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Song Matching (Phase 4)
+    |--------------------------------------------------------------------------
+    */
+    'song_matching' => [
+        'enabled' => env('SONG_MATCHING_ENABLED', true),
+        'transcribe_song_openings' => env('SONG_MATCHING_TRANSCRIBE_OPENINGS', true),
+        'song_opening_transcription_seconds' => (int) env('SONG_MATCHING_OPENING_SECONDS', 30),
+        'lyrics_threshold' => (float) env('SONG_MATCHING_LYRICS_THRESHOLD', 0.6),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Section Extraction (Phase 3)
     |--------------------------------------------------------------------------
     */

@@ -16,6 +16,8 @@ final class ChurchServiceProcessingTimeline
 
     public const ALIGN_WITH_OOS = 'align_with_oos';
 
+    public const MATCH_SONGS_FROM_TRANSCRIPT = 'match_songs_from_transcript';
+
     public const EXTRACT_SERMON = 'extract_sermon';
 
     public const PREPARE_SECTION_PUBLICATION_CANDIDATES = 'prepare_section_publication_candidates';
@@ -45,6 +47,10 @@ final class ChurchServiceProcessingTimeline
             [
                 'key' => self::ALIGN_WITH_OOS,
                 'label' => 'Align with OoS',
+            ],
+            [
+                'key' => self::MATCH_SONGS_FROM_TRANSCRIPT,
+                'label' => 'Match songs from transcript',
             ],
             [
                 'key' => self::EXTRACT_SERMON,
