@@ -9,6 +9,7 @@ use App\Jobs\ClassifySpeechSections;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ServiceSectionSyncService;
+use App\Services\SongTitleHintExtractor;
 use App\Services\SpeechSectionClassificationService;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,7 +82,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, app(ServiceSectionSyncService::class));
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $section->refresh();
 
@@ -154,7 +155,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, app(ServiceSectionSyncService::class));
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -209,7 +210,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, app(ServiceSectionSyncService::class));
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $section = ServiceSection::query()->firstOrFail();
 
@@ -289,7 +290,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, app(ServiceSectionSyncService::class));
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -394,7 +395,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, app(ServiceSectionSyncService::class));
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -470,7 +471,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, app(ServiceSectionSyncService::class));
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -536,7 +537,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, app(ServiceSectionSyncService::class));
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -611,7 +612,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, app(ServiceSectionSyncService::class));
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -701,7 +702,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, app(ServiceSectionSyncService::class));
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -723,5 +724,130 @@ class ClassifySpeechSectionsTest extends TestCase
         $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $demoted->section_type);
         $this->assertTrue($demoted->needs_manual_review);
         $this->assertSame('demoted_secondary_sermon_to_childrens_talk', $demoted->metadata['review_reason'] ?? null);
+    }
+
+    #[Test]
+    public function it_writes_song_title_hint_into_following_audio_only_song_section(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        // Speech section that will be classified as a song announcement.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'duration' => 60.0,
+            'metadata' => [
+                'transcript' => 'We are going to sing Your Word.',
+                'confidence_level' => 'low',
+            ],
+        ]);
+
+        // RMS-detected audio-only song that follows the announcement.
+        $audioSong = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'start_time' => 60.0,
+            'end_time' => 270.0,
+            'duration' => 210.0,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'confidence_level' => 'high',
+            ],
+        ]);
+
+        // Mock classifier: turns the speech section into an ai_transcript SONG section.
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::SONG->value,
+                    'title' => null,
+                    'start_time' => 0.0,
+                    'end_time' => 60.0,
+                    'duration' => 60.0,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'confidence_level' => 'high',
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'We are going to sing Your Word.',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $audioSong->refresh();
+
+        $this->assertSame('Your Word', $audioSong->metadata['song_title_hint'] ?? null);
+    }
+
+    #[Test]
+    public function it_does_not_write_song_title_hint_when_announcement_has_no_extractable_title(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'duration' => 60.0,
+            'metadata' => [
+                'transcript' => 'Please stand.',
+                'confidence_level' => 'low',
+            ],
+        ]);
+
+        $audioSong = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'start_time' => 60.0,
+            'end_time' => 270.0,
+            'duration' => 210.0,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'confidence_level' => 'high',
+            ],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::SONG->value,
+                    'title' => null,
+                    'start_time' => 0.0,
+                    'end_time' => 60.0,
+                    'duration' => 60.0,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'confidence_level' => 'high',
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'Please stand.',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $audioSong->refresh();
+
+        $this->assertArrayNotHasKey('song_title_hint', $audioSong->metadata->toArray());
     }
 }

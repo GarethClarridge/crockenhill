@@ -85,6 +85,11 @@ class LivestreamSectionToServiceItemMapper
             return trim($section->title);
         }
 
+        $hint = $section->metadata['song_title_hint'] ?? null;
+        if ($section->section_type === ServiceSectionType::SONG && is_string($hint) && trim($hint) !== '') {
+            return trim($hint);
+        }
+
         return $section->section_type->label();
     }
 

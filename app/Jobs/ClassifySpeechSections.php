@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ServiceSectionSyncService;
+use App\Services\SongTitleHintExtractor;
 use App\Services\SpeechSectionClassificationService;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ServiceSectionConfidence;
@@ -35,7 +36,8 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 
     public function handle(
         SpeechSectionClassificationService $classificationService,
-        ServiceSectionSyncService $syncService
+        ServiceSectionSyncService $syncService,
+        SongTitleHintExtractor $songTitleHintExtractor
     ): void {
         $processingLog = $this->processingLog->fresh();
         if (! $processingLog instanceof MediaProcessingLog) {
@@ -104,6 +106,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 
         $rewrittenSections = $this->foldShortSongsIntoSermon($rewrittenSections);
         $rewrittenSections = $this->demoteSecondarySermons($rewrittenSections);
+        $rewrittenSections = $songTitleHintExtractor->extract($rewrittenSections);
 
         foreach ($rewrittenSections as $index => &$rewrittenSection) {
             $rewrittenSection['section_order'] = $index + 1;

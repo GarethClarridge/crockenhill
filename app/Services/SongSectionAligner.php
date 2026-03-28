@@ -277,6 +277,7 @@ class SongSectionAligner
 
         foreach ([
             $section->title,
+            $metadata['song_title_hint'] ?? null,
             $metadata['oos_alignment']['song_title_matched'] ?? null,
             $metadata['oos_alignment']['matched_item_title'] ?? null,
             // Section-level canonical key: no current production writer, but retained
