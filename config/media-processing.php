@@ -197,6 +197,8 @@ return [
         'transcribe_song_openings' => env('SONG_MATCHING_TRANSCRIBE_OPENINGS', true),
         'song_opening_transcription_seconds' => (int) env('SONG_MATCHING_OPENING_SECONDS', 30),
         'lyrics_threshold' => (float) env('SONG_MATCHING_LYRICS_THRESHOLD', 0.6),
+        'ocr_enabled' => env('SONG_MATCHING_OCR_ENABLED', true),
+        'ocr_model' => env('SONG_MATCHING_OCR_MODEL', 'gpt-4o-mini'),
     ],
 
     /*

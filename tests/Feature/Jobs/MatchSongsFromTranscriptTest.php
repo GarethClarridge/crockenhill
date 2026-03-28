@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Services\ChurchServiceReviewSynchronizer;
+use App\Services\SongLyricOcrService;
 use App\Services\SongLyricsMatchingService;
 use App\Services\StorageAdapterHelper;
 use App\Services\UnmatchedSongReviewApplicator;
@@ -40,6 +41,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         Config::set('media-processing.storage.temp_disk', 'local');
         Config::set('media-processing.song_matching.enabled', true);
         Config::set('media-processing.song_matching.transcribe_song_openings', false);
+        Config::set('media-processing.song_matching.ocr_enabled', false);
         Config::set('media-processing.song_matching.lyrics_threshold', 0.6);
     }
 
@@ -60,6 +62,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         // No sections to assert on — just verify no exception and step was skipped.
@@ -79,6 +82,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         $this->assertTrue(true);
@@ -104,6 +108,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         $this->assertTrue(true);
@@ -143,6 +148,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         $section->refresh();
@@ -195,6 +201,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         $section->refresh();
@@ -239,6 +246,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         $section->refresh();
@@ -307,6 +315,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         $section->refresh();
@@ -356,6 +365,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         $unmatchedSection->refresh();
@@ -402,6 +412,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         $section->refresh();
@@ -409,6 +420,173 @@ class MatchSongsFromTranscriptTest extends TestCase
         // Section remains unmatched.
         $this->assertSame(ServiceSectionSongMatchType::UNMATCHED, $section->song_match_type);
         $this->assertNull($section->metadata['transcript_song_match'] ?? null);
+    }
+
+    // ---- OCR matching strategy ----
+
+    #[Test]
+    public function it_matches_via_ocr_when_title_hint_absent_and_ocr_enabled(): void
+    {
+        Config::set('media-processing.song_matching.ocr_enabled', true);
+
+        $song = Song::factory()->create([
+            'title' => 'Come People of the Risen King',
+            'canonical_key' => 'come people of the risen king',
+            'lyrics_plain' => 'Come people of the risen King who delight in songs of praising',
+        ]);
+
+        $sourceFile = 'temp/service_source.mp4';
+        Storage::disk('local')->put($sourceFile, 'fake-video-content');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'source_file_path' => $sourceFile,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'start_time' => 200.0,
+            'end_time' => 400.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        $ocrText = 'Come people of the risen King who delight in songs of praising';
+
+        $this->mock(SongLyricOcrService::class, function (MockInterface $mock) use ($ocrText): void {
+            $mock->shouldReceive('extractLyrics')
+                ->once()
+                ->andReturn($ocrText);
+        });
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame($ocrText, $section->metadata['song_ocr_text'] ?? null);
+
+        $match = $section->metadata['transcript_song_match'] ?? null;
+        $this->assertIsArray($match);
+        $this->assertSame($song->id, $match['song_id']);
+        $this->assertSame('ocr', $match['match_source']);
+    }
+
+    #[Test]
+    public function it_falls_through_to_whisper_when_ocr_returns_null(): void
+    {
+        Config::set('media-processing.song_matching.ocr_enabled', true);
+        Config::set('media-processing.song_matching.transcribe_song_openings', true);
+        Config::set('media-processing.song_matching.song_opening_transcription_seconds', 30);
+
+        $song = Song::factory()->create([
+            'title' => 'Great Is Thy Faithfulness',
+            'canonical_key' => 'great is thy faithfulness',
+            'lyrics_plain' => 'Great is thy faithfulness O God my Father morning by morning new mercies I see',
+        ]);
+
+        $sourceFile = 'temp/service_source.mp4';
+        Storage::disk('local')->put($sourceFile, 'fake-video-content');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'source_file_path' => $sourceFile,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'start_time' => 300.0,
+            'end_time' => 500.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        $openingTranscript = 'Great is thy faithfulness O God my Father morning by morning new mercies I see';
+
+        // OCR returns null — no lyrics visible on screen.
+        $this->mock(SongLyricOcrService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('extractLyrics')->once()->andReturn(null);
+        });
+
+        $this->mock(VideoExtractionService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('extractOptimizedAudio')
+                ->once()
+                ->andReturn(['audio_path' => 'temp/song_opening.mp3']);
+        });
+
+        $this->mock(TranscriptionServiceInterface::class, function (MockInterface $mock) use ($openingTranscript): void {
+            $mock->shouldReceive('transcribe')->once()->andReturn($openingTranscript);
+        });
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+
+        $match = $section->metadata['transcript_song_match'] ?? null;
+        $this->assertIsArray($match);
+        $this->assertSame($song->id, $match['song_id']);
+        $this->assertSame('lyrics', $match['match_source']);
+    }
+
+    #[Test]
+    public function it_skips_ocr_when_ocr_is_disabled(): void
+    {
+        Config::set('media-processing.song_matching.ocr_enabled', false);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'metadata' => ['classification_mode' => 'audio_only'],
+        ]);
+
+        $mockOcr = $this->mock(SongLyricOcrService::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('extractLyrics');
+        });
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(\App\Services\MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            $mockOcr,
+        );
+
+        // Mockery will assert shouldNotReceive was satisfied.
+        $this->assertTrue(true);
     }
 
     // ---- Regression: confirmed sections are not processed ----
@@ -443,6 +621,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
         );
 
         $section->refresh();

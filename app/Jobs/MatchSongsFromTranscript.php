@@ -16,6 +16,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Services\ChurchServiceReviewSynchronizer;
 use App\Services\MediaProcessingIdentityResolver;
+use App\Services\SongLyricOcrService;
 use App\Services\SongLyricsMatchingService;
 use App\Services\StorageAdapterHelper;
 use App\Services\UnmatchedSongReviewApplicator;
@@ -68,7 +69,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         MediaProcessingIdentityResolver $identityResolver,
         VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper,
-        TranscriptionServiceInterface $transcriptionService
+        TranscriptionServiceInterface $transcriptionService,
+        SongLyricOcrService $ocrService
     ): void {
         if (! (bool) config('media-processing.song_matching.enabled', true)) {
             $this->initializeStepLogging($this->processingLog->processing_id);
@@ -117,17 +119,19 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         $matchedCount = 0;
         $localSourcePath = null;
         $cleanupSourcePath = false;
+        $ocrEnabled = (bool) config('media-processing.song_matching.ocr_enabled', true);
         $transcribeEnabled = (bool) config('media-processing.song_matching.transcribe_song_openings', true);
 
-        if ($transcribeEnabled) {
+        if ($ocrEnabled || $transcribeEnabled) {
             try {
                 [$localSourcePath, $cleanupSourcePath] = $this->resolveLocalSourceVideoPath($storageHelper);
             } catch (\Throwable $throwable) {
-                Log::warning('MatchSongsFromTranscript: source video unavailable, skipping song opening transcription', [
+                Log::warning('MatchSongsFromTranscript: source video unavailable, skipping OCR and song opening transcription', [
                     'processing_id' => $this->processingLog->processing_id,
                     'error' => $throwable->getMessage(),
                 ]);
-                // Proceed without transcription — title-hint matching still works.
+                // Proceed without video-based strategies — title-hint matching still works.
+                $ocrEnabled = false;
                 $transcribeEnabled = false;
             }
         }
@@ -138,6 +142,14 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                     $matchedCount++;
 
                     continue;
+                }
+
+                if ($ocrEnabled && $localSourcePath !== null) {
+                    if ($this->matchSectionFromVideoOcr($section, $localSourcePath, $lyricsMatchingService, $ocrService)) {
+                        $matchedCount++;
+
+                        continue;
+                    }
                 }
 
                 if ($transcribeEnabled && $localSourcePath !== null) {
@@ -218,6 +230,50 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             $this->applyMatch($section, $result['song_id'], (string) $result['matched_title'], $result['confidence'], 'title_hint_fuzzy');
 
             return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Extract a video frame near the start of the song section, OCR the projected lyrics,
+     * and attempt lyrics matching. Returns true if a match was found and persisted.
+     */
+    private function matchSectionFromVideoOcr(
+        ServiceSection $section,
+        string $localSourcePath,
+        SongLyricsMatchingService $lyricsMatchingService,
+        SongLyricOcrService $ocrService
+    ): bool {
+        try {
+            $ocrText = $ocrService->extractLyrics(
+                (float) $section->start_time,
+                (float) $section->end_time,
+                $localSourcePath
+            );
+
+            if ($ocrText === null || trim($ocrText) === '') {
+                return false;
+            }
+
+            // Store OCR text in metadata for traceability.
+            $metadataArray = $section->metadata?->toArray() ?? [];
+            $metadataArray['song_ocr_text'] = $ocrText;
+            $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
+            $section->saveQuietly();
+
+            $result = $lyricsMatchingService->matchFromLyrics($ocrText);
+            if ($result['song_id'] !== null) {
+                $this->applyMatch($section, $result['song_id'], (string) $result['matched_title'], $result['confidence'], 'ocr');
+
+                return true;
+            }
+        } catch (\Throwable $throwable) {
+            Log::warning('MatchSongsFromTranscript: OCR song matching failed', [
+                'processing_id' => $this->processingLog->processing_id,
+                'service_section_id' => $section->id,
+                'error' => $throwable->getMessage(),
+            ]);
         }
 
         return false;
