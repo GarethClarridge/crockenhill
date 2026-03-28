@@ -103,8 +103,10 @@ return [
     'analysis' => [
         'service' => env('ANALYSIS_SERVICE', 'mock'),
         'openai_api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
         'max_retries' => env('ANALYSIS_MAX_RETRIES', 3),
         'retry_delay_base' => env('ANALYSIS_RETRY_DELAY_BASE', 2),
+        'debug_http_responses' => env('OPENAI_DEBUG_HTTP_RESPONSES', false),
     ],
 
     /*
@@ -129,6 +131,21 @@ return [
     'ffmpeg' => [
         'ffmpeg_path' => env('FFMPEG_PATH', '/usr/bin/ffmpeg'),
         'ffprobe_path' => env('FFPROBE_PATH', '/usr/bin/ffprobe'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Audio Enhancement
+    |--------------------------------------------------------------------------
+    */
+    'audio_enhancement' => [
+        'enabled' => env('AUDIO_ENHANCEMENT_ENABLED', true),
+        'noise_reduction' => env('AUDIO_ENHANCEMENT_NOISE_REDUCTION', true),
+        'dynamic_norm' => env('AUDIO_ENHANCEMENT_DYNAMIC_NORM', true),
+        'loudness_norm' => env('AUDIO_ENHANCEMENT_LOUDNESS_NORM', true),
+        'target_lufs' => (float) env('AUDIO_ENHANCEMENT_TARGET_LUFS', -16.0),
+        'true_peak' => (float) env('AUDIO_ENHANCEMENT_TRUE_PEAK', -1.5),
+        'lra' => (float) env('AUDIO_ENHANCEMENT_LRA', 11.0),
     ],
 
     /*
@@ -162,7 +179,7 @@ return [
         'classify_speech_sections' => env('SERVICE_SECTION_CLASSIFY_SPEECH_SECTIONS', true),
         'speech_transcription_min_duration_seconds' => (int) env('SERVICE_SECTION_SPEECH_TRANSCRIPTION_MIN_DURATION_SECONDS', 10),
         'short_song_max_duration_seconds' => (int) env('SERVICE_SECTION_SHORT_SONG_MAX_DURATION_SECONDS', 90),
-        'model' => env('SERVICE_SECTION_CLASSIFICATION_MODEL', env('ANALYSIS_MODEL', 'gpt-4o-mini')),
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
     ],
 
     /*

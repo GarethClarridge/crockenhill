@@ -8,6 +8,9 @@ use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Services\SpeechSectionClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -181,5 +184,91 @@ class SpeechSectionClassificationServiceTest extends TestCase
 
         $this->assertStringContainsString('Segment duration: 60.00 seconds', $prompt);
         $this->assertStringNotContainsString('Segment duration: 5.00 seconds', $prompt);
+    }
+
+    #[Test]
+    public function it_classifies_sections_using_openai_without_structured_response_format(): void
+    {
+        Config::set('media-processing.analysis.service', 'openai');
+        Config::set('openai.api_key', 'test-key');
+
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode([
+                            'sections' => [[
+                                'section_type' => ServiceSectionType::WELCOME->value,
+                                'start_offset_seconds' => 0,
+                                'end_offset_seconds' => 60,
+                                'confidence' => 0.91,
+                                'notes' => ['Confident welcome boundary.'],
+                                'anomalies' => [],
+                            ]],
+                        ]),
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $service = new SpeechSectionClassificationService;
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'duration' => 60.0,
+            'metadata' => [
+                'transcript' => 'Good morning everyone and welcome to our service.',
+            ],
+        ]);
+
+        $classified = $service->classify($section);
+
+        $this->assertCount(1, $classified);
+        $this->assertSame(ServiceSectionType::WELCOME->value, $classified[0]['section_type']);
+        $this->assertFalse($classified[0]['needs_manual_review']);
+    }
+
+    #[Test]
+    public function it_can_decode_json_wrapped_in_markdown_code_fences_from_openai(): void
+    {
+        Config::set('media-processing.analysis.service', 'openai');
+        Config::set('openai.api_key', 'test-key');
+
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [[
+                    'message' => [
+                        'content' => <<<'TEXT'
+```json
+{"sections":[{"section_type":"prayer","start_offset_seconds":0,"end_offset_seconds":90,"confidence":0.89,"notes":["Opening prayer"],"anomalies":[]}]}
+```
+TEXT,
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $service = new SpeechSectionClassificationService;
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'start_time' => 30.0,
+            'end_time' => 120.0,
+            'duration' => 90.0,
+            'metadata' => [
+                'transcript' => 'Let us pray together as we begin our worship.',
+            ],
+        ]);
+
+        $classified = $service->classify($section);
+
+        $this->assertCount(1, $classified);
+        $this->assertSame(ServiceSectionType::PRAYER->value, $classified[0]['section_type']);
+        $this->assertSame(30.0, $classified[0]['start_time']);
+        $this->assertSame(120.0, $classified[0]['end_time']);
     }
 }

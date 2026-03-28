@@ -237,4 +237,33 @@ class LocalWhisperTranscriptionServiceTest extends TestCase
         $this->assertIsString($result);
         $this->assertStringContainsString('sovereignty of God', $result);
     }
+
+    #[Test]
+    public function it_transcribes_audio_from_an_absolute_path(): void
+    {
+        $transcript = 'This sermon explains the hope Christians have because Christ reigns over all things.';
+
+        Http::fake([
+            'http://whisper:8000/v1/audio/transcriptions' => Http::response($transcript, 200),
+        ]);
+
+        $tempDirectory = storage_path('app/temp/tests');
+        if (! is_dir($tempDirectory)) {
+            mkdir($tempDirectory, 0755, true);
+        }
+
+        $absolutePath = $tempDirectory.'/absolute-path-test.mp3';
+        file_put_contents($absolutePath, str_repeat('x', 100));
+
+        try {
+            $result = $this->service->transcribe($absolutePath, 'test-id');
+        } finally {
+            if (file_exists($absolutePath)) {
+                unlink($absolutePath);
+            }
+        }
+
+        $this->assertIsString($result);
+        $this->assertStringContainsString('Christ reigns over all things', $result);
+    }
 }

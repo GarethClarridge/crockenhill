@@ -10,6 +10,7 @@ use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
+use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
@@ -41,6 +42,7 @@ class ProcessingPipelineBuilder
     {
         return [
             new ValidateAudioFile($log),
+            new EnhanceAudio($log),
             new CreateSermonRecord($log),
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
@@ -60,6 +62,7 @@ class ProcessingPipelineBuilder
         return [
             new ValidateVideoFile($log),
             new ExtractAudioFromVideo($log),
+            new EnhanceAudio($log),
             new CreateSermonRecord($log),
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
@@ -105,6 +108,7 @@ class ProcessingPipelineBuilder
             new AlignWithOos($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
+            new EnhanceAudio($log),
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
@@ -126,6 +130,7 @@ class ProcessingPipelineBuilder
         return [
             new ExtractSermon($log),
             new SubmitToProcessing($log),
+            new EnhanceAudio($log),
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
@@ -152,6 +157,7 @@ class ProcessingPipelineBuilder
             new AlignWithOos($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
+            new EnhanceAudio($log),
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),

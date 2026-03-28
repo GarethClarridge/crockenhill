@@ -184,10 +184,17 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Resolve the audio file path based on processing type
+     * Resolve the audio file path based on processing type.
+     *
+     * When an enhanced audio file was produced by EnhanceAudio, prefer it so
+     * that Whisper receives the quality-improved version.
      */
     private function resolveAudioPath(): string
     {
+        if (! empty($this->processingLog->enhanced_audio_file_path)) {
+            return $this->processingLog->enhanced_audio_file_path;
+        }
+
         $path = match ($this->processingLog->processing_type) {
             MediaType::Audio => $this->processingLog->source_file_path,
             MediaType::Video, MediaType::Livestream => $this->processingLog->audio_file_path,

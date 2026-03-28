@@ -10,6 +10,7 @@ use App\Support\ServiceSectionConfidence;
 use Illuminate\Support\Str;
 use OpenAI\Laravel\Facades\OpenAI;
 use RuntimeException;
+use TypeError;
 
 class SpeechSectionClassificationService
 {
@@ -126,12 +127,13 @@ class SpeechSectionClassificationService
 
         $sectionDuration = $this->sectionDurationSeconds($section);
 
-        $response = OpenAI::chat()->create([
-            'model' => (string) config('media-processing.section_classification.model', 'gpt-4o-mini'),
-            'messages' => [
-                [
-                    'role' => 'system',
-                    'content' => <<<'TEXT'
+        try {
+            $response = OpenAI::chat()->create([
+                'model' => (string) config('media-processing.section_classification.model', 'gpt-4o-mini'),
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => <<<'TEXT'
 You classify a church service speech transcript into section boundaries.
 Return valid JSON only with this shape:
 {"sections":[{"section_type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","start_offset_seconds":0.0,"end_offset_seconds":0.0,"confidence":0.0,"notes":["string"],"anomalies":["string"]}]}
@@ -142,67 +144,28 @@ Rules:
 - Keep confidence conservative when boundaries or labels are uncertain.
 - Use British English.
 TEXT,
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $this->buildUserPrompt($section, $sectionDuration, $transcript),
-                ],
-            ],
-            'response_format' => [
-                'type' => 'json_schema',
-                'json_schema' => [
-                    'name' => 'speech_section_classification',
-                    'schema' => [
-                        'type' => 'object',
-                        'additionalProperties' => false,
-                        'required' => ['sections'],
-                        'properties' => [
-                            'sections' => [
-                                'type' => 'array',
-                                'items' => [
-                                    'type' => 'object',
-                                    'additionalProperties' => false,
-                                    'required' => [
-                                        'section_type',
-                                        'start_offset_seconds',
-                                        'end_offset_seconds',
-                                        'confidence',
-                                        'notes',
-                                        'anomalies',
-                                    ],
-                                    'properties' => [
-                                        'section_type' => ['type' => 'string'],
-                                        'start_offset_seconds' => ['type' => 'number'],
-                                        'end_offset_seconds' => ['type' => 'number'],
-                                        'confidence' => ['type' => 'number'],
-                                        'notes' => [
-                                            'type' => 'array',
-                                            'items' => ['type' => 'string'],
-                                        ],
-                                        'anomalies' => [
-                                            'type' => 'array',
-                                            'items' => ['type' => 'string'],
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => $this->buildUserPrompt($section, $sectionDuration, $transcript),
                     ],
                 ],
-            ],
-            'temperature' => 0.1,
-            'max_tokens' => 1400,
-        ]);
+                'temperature' => 0.1,
+                'max_completion_tokens' => 1400,
+            ]);
+        } catch (TypeError $exception) {
+            throw new RuntimeException(
+                'OpenAI speech section classification response malformed: '.$exception->getMessage(),
+                previous: $exception
+            );
+        }
 
         $content = $response->choices[0]->message->content ?? null;
         if (! is_string($content) || trim($content) === '') {
             throw new RuntimeException('Received empty response from OpenAI when classifying speech sections.');
         }
 
-        $decoded = json_decode($content, true);
-        if (! is_array($decoded)) {
-            throw new RuntimeException('Failed to decode speech section classification response.');
-        }
+        $decoded = $this->decodeJsonPayload($content);
 
         $sections = $decoded['sections'] ?? null;
         if (! is_array($sections)) {
@@ -213,6 +176,37 @@ TEXT,
         $normalisedSections = array_values(array_filter($sections, static fn (mixed $section): bool => is_array($section)));
 
         return ['sections' => $normalisedSections];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeJsonPayload(string $content): array
+    {
+        $decoded = json_decode($content, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        if (preg_match('/```(?:json)?\s*(\{.*\})\s*```/is', $content, $matches) === 1) {
+            $decoded = json_decode($matches[1], true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        $jsonStart = strpos($content, '{');
+        $jsonEnd = strrpos($content, '}');
+
+        if ($jsonStart !== false && $jsonEnd !== false && $jsonEnd > $jsonStart) {
+            $decoded = json_decode(substr($content, $jsonStart, $jsonEnd - $jsonStart + 1), true);
+
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        throw new RuntimeException('Failed to decode speech section classification response.');
     }
 
     /**

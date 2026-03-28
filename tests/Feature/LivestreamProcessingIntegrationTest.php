@@ -8,6 +8,7 @@ use App\Jobs\AnalyzeSegments;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
@@ -182,6 +183,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
             AlignWithOos::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
+            EnhanceAudio::class,
             IdentifySpeaker::class,
             TranscribeAudio::class,
             ProcessTranscriptWithAI::class,

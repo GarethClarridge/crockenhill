@@ -20,7 +20,7 @@ return [
     ],
 
     'email_parsing' => [
-        'model' => 'gpt-4o-mini',
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
         'review_threshold' => 0.75,
         'auto_import_threshold' => 0.90,
     ],

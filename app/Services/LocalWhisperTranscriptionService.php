@@ -34,36 +34,46 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
     public function transcribe(string $audioFilePath, string $processingId = 'unknown', ?string $disk = null): string
     {
         $diskName = $disk ?? config('media-processing.storage.sermon_disk', 'public');
+        $isAbsolutePath = $this->isAbsolutePath($audioFilePath);
 
         $this->logger->logProcessingStep(
             $processingId,
             'local_whisper_transcription',
             'started',
-            ['file_path' => $audioFilePath, 'disk' => $diskName]
+            ['file_path' => $audioFilePath, 'disk' => $isAbsolutePath ? 'absolute_path' : $diskName]
         );
 
-        $fileExists = Storage::disk($diskName)->exists($audioFilePath);
-
-        if (! $fileExists && $diskName !== 'public') {
-            $fileExists = Storage::disk('public')->exists($audioFilePath);
-            if ($fileExists) {
-                $diskName = 'public';
+        if ($isAbsolutePath) {
+            if (! file_exists($audioFilePath)) {
+                throw new TranscriptionException("Audio file not found: {$audioFilePath} on disk: absolute_path");
             }
-        }
 
-        if (! $fileExists) {
-            throw new TranscriptionException("Audio file not found: {$audioFilePath} on disk: {$diskName}");
-        }
-
-        $isS3Disk = $this->isS3Disk($diskName);
-
-        if ($isS3Disk) {
-            $fullPath = storage_path('app/temp/'.basename($audioFilePath).'_'.time().'.mp3');
-            $this->ensureDirectoryExists(dirname($fullPath));
-            $audioStream = Storage::disk($diskName)->readStream($audioFilePath);
-            file_put_contents($fullPath, $audioStream);
+            $fullPath = $audioFilePath;
+            $isS3Disk = false;
         } else {
-            $fullPath = Storage::disk($diskName)->path($audioFilePath);
+            $fileExists = Storage::disk($diskName)->exists($audioFilePath);
+
+            if (! $fileExists && $diskName !== 'public') {
+                $fileExists = Storage::disk('public')->exists($audioFilePath);
+                if ($fileExists) {
+                    $diskName = 'public';
+                }
+            }
+
+            if (! $fileExists) {
+                throw new TranscriptionException("Audio file not found: {$audioFilePath} on disk: {$diskName}");
+            }
+
+            $isS3Disk = $this->isS3Disk($diskName);
+
+            if ($isS3Disk) {
+                $fullPath = storage_path('app/temp/'.basename($audioFilePath).'_'.time().'.mp3');
+                $this->ensureDirectoryExists(dirname($fullPath));
+                $audioStream = Storage::disk($diskName)->readStream($audioFilePath);
+                file_put_contents($fullPath, $audioStream);
+            } else {
+                $fullPath = Storage::disk($diskName)->path($audioFilePath);
+            }
         }
 
         $processedFilePath = $this->validateAndCompressIfNeeded($fullPath, $processingId);
@@ -85,6 +95,12 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
                 unlink($processedFilePath);
             }
         }
+    }
+
+    private function isAbsolutePath(string $path): bool
+    {
+        return str_starts_with($path, DIRECTORY_SEPARATOR)
+            || (bool) preg_match('/^[A-Za-z]:\\\\/', $path);
     }
 
     /**

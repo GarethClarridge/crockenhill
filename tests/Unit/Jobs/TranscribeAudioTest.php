@@ -113,6 +113,34 @@ class TranscribeAudioTest extends TestCase
     }
 
     #[Test]
+    public function it_prefers_enhanced_audio_file_path_when_present(): void
+    {
+        $sermon = Sermon::factory()->create();
+        $absoluteEnhancedPath = storage_path('app/temp/test-proc-absolute_enhanced.mp3');
+        $log = MediaProcessingLog::factory()->video()->processing()->create([
+            'processing_type' => 'video',
+            'audio_file_path' => 'sermons/audio/extracted.mp3',
+            'enhanced_audio_file_path' => $absoluteEnhancedPath,
+            'sermon_id' => $sermon->id,
+            'processing_id' => 'test-proc-absolute',
+        ]);
+
+        $mockService = $this->createMock(TranscriptionServiceInterface::class);
+        $mockService->expects($this->once())
+            ->method('transcribe')
+            ->with($absoluteEnhancedPath, 'test-proc-absolute')
+            ->willReturn('Transcript content.');
+        $mockService->expects($this->once())
+            ->method('storeTranscript')
+            ->willReturn('transcripts/1/transcript.txt');
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new TranscribeAudio($log);
+        $job->handle($mockService);
+    }
+
+    #[Test]
     public function it_throws_when_audio_path_is_empty(): void
     {
         $log = MediaProcessingLog::factory()->audio()->processing()->create([

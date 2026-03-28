@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $source_file_path
  * @property string|null $stored_file_path
  * @property string|null $audio_file_path
+ * @property string|null $enhanced_audio_file_path
  * @property string|null $video_file_path
  * @property string|null $transcript_file_path
  * @property string|null $rms_log_path
@@ -89,6 +90,7 @@ class MediaProcessingLog extends Model
         'source_file_path',
         'stored_file_path', // Alias for source_file_path (backward compatibility)
         'audio_file_path',
+        'enhanced_audio_file_path',
         'video_file_path',
         'transcript_file_path',
 

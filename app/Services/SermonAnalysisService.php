@@ -19,8 +19,6 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
     private const DEFAULT_RETRY_DELAY_BASE = 2; // seconds
 
-    private const ANALYSIS_MODEL = 'gpt-3.5-turbo';
-
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly SermonRepository $sermonRepository,
@@ -130,15 +128,16 @@ class SermonAnalysisService implements SermonAnalysisInterface
             $apiStartTime = microtime(true);
             try {
 
+                $model = (string) config('media-processing.analysis.model', 'gpt-4o-mini');
+
                 $this->logger->logProcessingStep(
                     $processingId,
                     'ai_analysis_attempt',
                     'started',
-                    ['attempt' => $attempt, 'model' => self::ANALYSIS_MODEL]
+                    ['attempt' => $attempt, 'model' => $model]
                 );
 
                 $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
-                $model = self::ANALYSIS_MODEL;
 
                 try {
                     $response = OpenAI::chat()->create([
@@ -153,9 +152,8 @@ class SermonAnalysisService implements SermonAnalysisInterface
                                 'content' => $prompt,
                             ],
                         ],
-                        'temperature' => 0.3, // Lower temperature for more consistent results
-                        'max_tokens' => 1500,
-                        // Removed response_format to avoid compatibility issues
+                        'temperature' => 0.3,
+                        'max_completion_tokens' => 1500,
                     ]);
                 } catch (\TypeError $e) {
                     // Handle malformed API response (e.g., non-JSON response body)
@@ -164,7 +162,21 @@ class SermonAnalysisService implements SermonAnalysisInterface
                         'attempt' => $attempt,
                         'error' => $e->getMessage(),
                         'model' => $model,
+                        'exception_file' => $e->getFile(),
+                        'exception_line' => $e->getLine(),
                     ]);
+
+                    // Log details about response body (from stack context)
+                    $trace = $e->getTrace();
+                    foreach ($trace as $frame) {
+                        if (str_contains($frame['file'] ?? '', 'Chat.php') && ($frame['line'] ?? 0) === 35) {
+                            // This is where CreateResponse::from() is called
+                            // The first argument would have been $response->data()
+                            Log::warning('OpenAI SDK response type mismatch detected at Chat.php:35 - response body is string not array');
+                            break;
+                        }
+                    }
+
                     throw new \Exception('OpenAI API response malformed: '.$e->getMessage());
                 } catch (\Exception $e) {
                     Log::error('OpenAI API call failed', [
@@ -185,7 +197,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
                     $apiTime,
                     200,
                     null,
-                    ['attempt' => $attempt, 'model' => $model, 'max_tokens' => 1500]
+                    ['attempt' => $attempt, 'model' => $model, 'max_completion_tokens' => 1500]
                 );
 
                 // Validate response structure
@@ -232,12 +244,26 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 $lastException = $e;
                 $apiTime = microtime(true) - $apiStartTime;
 
+                // Extract detailed error info from OpenAI error response
+                $errorCode = $e->getCode();
+                $errorMessage = $e->getMessage();
+
+                Log::error('OpenAI API ErrorException details', [
+                    'processing_id' => $processingId,
+                    'attempt' => $attempt,
+                    'error_code' => $errorCode,
+                    'error_message' => $errorMessage,
+                    'api_time_ms' => round($apiTime * 1000, 2),
+                    'exception_class' => get_class($e),
+                    'status_code' => $e->getStatusCode(),
+                ]);
+
                 $this->logger->logApiCall(
                     $processingId,
                     'OpenAI',
                     'chat/completions',
                     $apiTime,
-                    $e->getCode(),
+                    $e->getStatusCode(),
                     $e->getMessage(),
                     ['attempt' => $attempt]
                 );
@@ -261,12 +287,27 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 );
             } catch (\TypeError $e) {
                 $lastException = $e;
+                $apiTime = microtime(true) - $apiStartTime;
+
+                // Log comprehensive response parsing failure details
+                OpenAIResponseLogger::logResponse($processingId, $attempt, null, 'TypeError');
+                OpenAIResponseLogger::logTransportError(
+                    $processingId,
+                    $attempt,
+                    $e->getMessage(),
+                    null,
+                    null
+                );
 
                 $this->logger->logError(
                     $processingId,
                     'ai_analysis_attempt',
                     $e,
-                    ['attempt' => $attempt, 'error_type' => 'response_parsing']
+                    [
+                        'attempt' => $attempt,
+                        'error_type' => 'response_parsing',
+                        'api_time_ms' => round($apiTime * 1000, 2),
+                    ]
                 );
                 // Retry on malformed responses
             } catch (Exception $e) {

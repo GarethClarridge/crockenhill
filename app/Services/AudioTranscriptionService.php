@@ -68,6 +68,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
         // Use provided disk or default to sermon disk
         $diskName = $disk ?? config('media-processing.storage.sermon_disk', 'public');
+        $isAbsolutePath = $this->isAbsolutePath($audioFilePath);
 
         $startTime = microtime(true);
 
@@ -75,38 +76,47 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             $processingId,
             'audio_transcription',
             'started',
-            ['file_path' => $audioFilePath, 'disk' => $diskName]
+            ['file_path' => $audioFilePath, 'disk' => $isAbsolutePath ? 'absolute_path' : $diskName]
         );
 
-        // Validate file exists - check both the specified disk and 'public' disk for test compatibility
-        $fileExists = Storage::disk($diskName)->exists($audioFilePath);
-
-        // For backward compatibility with tests, also check 'public' disk if primary disk fails
-        if (! $fileExists && $diskName !== 'public') {
-            $fileExists = Storage::disk('public')->exists($audioFilePath);
-            if ($fileExists) {
-                $diskName = 'public'; // Use public disk if file found there
+        if ($isAbsolutePath) {
+            if (! file_exists($audioFilePath)) {
+                throw new Exception("Audio file not found: {$audioFilePath} on disk: absolute_path");
             }
-        }
 
-        if (! $fileExists) {
-            throw new Exception("Audio file not found: {$audioFilePath} on disk: {$diskName}");
-        }
-
-        // Check if this is an S3 disk and handle accordingly
-        $isS3Disk = $this->isS3Disk($diskName);
-
-        if ($isS3Disk) {
-            // For S3 disks, download file to local temp for processing
-            $tempPath = storage_path('app/temp/'.basename($audioFilePath).'_'.time().'.mp3');
-            $this->ensureDirectoryExists(dirname($tempPath));
-
-            $audioStream = Storage::disk($diskName)->readStream($audioFilePath);
-            file_put_contents($tempPath, $audioStream);
-            $fullPath = $tempPath;
+            $fullPath = $audioFilePath;
+            $isS3Disk = false;
         } else {
-            // For local disks, use direct path
-            $fullPath = Storage::disk($diskName)->path($audioFilePath);
+            // Validate file exists - check both the specified disk and 'public' disk for test compatibility
+            $fileExists = Storage::disk($diskName)->exists($audioFilePath);
+
+            // For backward compatibility with tests, also check 'public' disk if primary disk fails
+            if (! $fileExists && $diskName !== 'public') {
+                $fileExists = Storage::disk('public')->exists($audioFilePath);
+                if ($fileExists) {
+                    $diskName = 'public'; // Use public disk if file found there
+                }
+            }
+
+            if (! $fileExists) {
+                throw new Exception("Audio file not found: {$audioFilePath} on disk: {$diskName}");
+            }
+
+            // Check if this is an S3 disk and handle accordingly
+            $isS3Disk = $this->isS3Disk($diskName);
+
+            if ($isS3Disk) {
+                // For S3 disks, download file to local temp for processing
+                $tempPath = storage_path('app/temp/'.basename($audioFilePath).'_'.time().'.mp3');
+                $this->ensureDirectoryExists(dirname($tempPath));
+
+                $audioStream = Storage::disk($diskName)->readStream($audioFilePath);
+                file_put_contents($tempPath, $audioStream);
+                $fullPath = $tempPath;
+            } else {
+                // For local disks, use direct path
+                $fullPath = Storage::disk($diskName)->path($audioFilePath);
+            }
         }
 
         // Validate file size and compress if needed
@@ -146,6 +156,12 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 unlink($processedFilePath);
             }
         }
+    }
+
+    private function isAbsolutePath(string $path): bool
+    {
+        return str_starts_with($path, DIRECTORY_SEPARATOR)
+            || (bool) preg_match('/^[A-Za-z]:\\\\/', $path);
     }
 
     /**

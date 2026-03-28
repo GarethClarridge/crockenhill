@@ -48,6 +48,7 @@ class CleanupTemporaryFiles implements ShouldQueue
             ]);
 
             // Collect all temporary file paths from the processing log
+            /** @var array<int, string> $tempFiles */
             $tempFiles = [];
 
             // Add source file (always a temporary upload path during processing)
@@ -65,6 +66,11 @@ class CleanupTemporaryFiles implements ShouldQueue
             }
             if (isset($metadata['temp_video_path'])) {
                 $tempFiles[] = $metadata['temp_video_path'];
+            }
+
+            // Enhanced audio temp file (produced by EnhanceAudio job, absolute local path)
+            if ($this->processingLog->enhanced_audio_file_path) {
+                $tempFiles[] = $this->processingLog->enhanced_audio_file_path;
             }
 
             // Audio processing: cleanup temp files from validation and extraction
