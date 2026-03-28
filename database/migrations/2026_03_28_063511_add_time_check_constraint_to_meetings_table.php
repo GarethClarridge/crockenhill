@@ -18,6 +18,16 @@ return new class extends Migration
             return;
         }
 
+        // Backfill existing invalid rows by setting end_time to start_time
+        // where end_time is earlier than start_time.
+        DB::table('meetings')
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time')
+            ->whereRaw('end_time < start_time')
+            ->update([
+                'end_time' => DB::raw('start_time'),
+            ]);
+
         // MySQL 8.0.16+ supports CHECK constraints.
         // end_time must be after or equal to start_time when both are present.
         DB::statement(sprintf(

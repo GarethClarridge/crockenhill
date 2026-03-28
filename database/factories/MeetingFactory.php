@@ -22,8 +22,22 @@ class MeetingFactory extends Factory
                 'Adults',
                 'Occasional',
             ]),
-            'start_time' => $start = $this->faker->optional()->time('H:i'),
-            'end_time' => $start ? Carbon::parse($start)->addMinutes($this->faker->numberBetween(30, 180))->format('H:i') : null,
+            'start_time' => $this->faker->optional()->time('H:i'),
+            'end_time' => function (array $attributes) {
+                if (! isset($attributes['start_time']) || $attributes['start_time'] === null) {
+                    return null;
+                }
+
+                $start = Carbon::parse((string) $attributes['start_time']);
+                $minutesToEndOfDay = (int) $start->diffInMinutes($start->copy()->endOfDay());
+
+                // Add between 30 and 180 minutes, but don't wrap past midnight.
+                // If there are fewer than 30 minutes left in the day, just use the end of the day.
+                $maxMinutes = min(180, $minutesToEndOfDay);
+                $addedMinutes = $maxMinutes >= 30 ? $this->faker->numberBetween(30, $maxMinutes) : $minutesToEndOfDay;
+
+                return $start->addMinutes($addedMinutes)->format('H:i');
+            },
             'location' => $this->faker->randomElement([
                 'Main Hall',
                 'Church Building',

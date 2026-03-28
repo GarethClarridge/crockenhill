@@ -103,6 +103,10 @@ class MeetingIntegrityTest extends TestCase
     #[Test]
     public function it_enforces_end_time_after_start_time_at_database_level()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Database level temporal check is only enforced in MySQL.');
+        }
+
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('meetings_time_check');
 
@@ -115,6 +119,10 @@ class MeetingIntegrityTest extends TestCase
     #[Test]
     public function it_allows_equal_start_and_end_time_at_database_level()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Database level temporal check is only enforced in MySQL.');
+        }
+
         $meeting = Meeting::factory()->create([
             'start_time' => '10:00:00',
             'end_time' => '10:00:00',
