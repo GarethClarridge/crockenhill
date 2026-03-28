@@ -60,8 +60,8 @@ class ShowChurchService extends Component
             'serviceFlows' => $this->buildServiceFlows($serviceTimelines, $processingRuns),
             'pendingMerge' => $hasPendingMerge ? $pendingMerge : null,
         ])->layout('layouts.admin', [
-            'title' => 'Service: '.$this->churchService->date->format('j M Y'),
-            'heading' => 'Service: '.$this->churchService->date->format('j M Y').' '.$this->churchService->service->label(),
+            'title' => $this->churchService->date->format('j M Y'),
+            'heading' => $this->churchService->date->format('j M Y').' '.$this->churchService->service->label(),
         ]);
     }
 
