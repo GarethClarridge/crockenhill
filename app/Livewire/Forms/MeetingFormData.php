@@ -79,7 +79,7 @@ class MeetingFormData extends Form
             ],
             'type' => ['required', 'string', 'in:'.implode(',', MeetingType::values())],
             'startTime' => 'nullable|date_format:H:i',
-            'endTime' => 'nullable|required_with:startTime|date_format:H:i|after_or_equal:startTime',
+            'endTime' => 'nullable|date_format:H:i|after_or_equal:startTime',
             'day' => 'required|string|max:255',
             'location' => 'nullable|string|max:255',
             'who' => 'required|string|max:255',
@@ -106,20 +106,16 @@ class MeetingFormData extends Form
 
     public function store(): Meeting
     {
-        $validated = $this->validate();
-
         $this->normalizeForSave();
 
-        return Meeting::create($this->meetingPayload($validated));
+        return Meeting::create($this->meetingPayload($this->validate()));
     }
 
     public function update(): void
     {
-        $validated = $this->validate();
-
         $this->normalizeForSave();
 
-        $this->meeting?->update($this->meetingPayload($validated));
+        $this->meeting?->update($this->meetingPayload($this->validate()));
     }
 
     /**
