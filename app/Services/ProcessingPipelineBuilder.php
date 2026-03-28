@@ -21,6 +21,7 @@ use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\ReclassifyIntroOutroSections;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -108,6 +109,7 @@ class ProcessingPipelineBuilder
             new ProjectLivestreamServiceStructure($log),
             new AlignWithOos($log),
             new MatchSongsFromTranscript($log),
+            new ReclassifyIntroOutroSections($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),
@@ -158,6 +160,7 @@ class ProcessingPipelineBuilder
             new ProjectLivestreamServiceStructure($log),
             new AlignWithOos($log),
             new MatchSongsFromTranscript($log),
+            new ReclassifyIntroOutroSections($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),

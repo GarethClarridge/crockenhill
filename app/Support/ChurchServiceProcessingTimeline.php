@@ -18,6 +18,8 @@ final class ChurchServiceProcessingTimeline
 
     public const MATCH_SONGS_FROM_TRANSCRIPT = 'match_songs_from_transcript';
 
+    public const RECLASSIFY_INTRO_OUTRO = 'reclassify_intro_outro';
+
     public const EXTRACT_SERMON = 'extract_sermon';
 
     public const PREPARE_SECTION_PUBLICATION_CANDIDATES = 'prepare_section_publication_candidates';
@@ -51,6 +53,10 @@ final class ChurchServiceProcessingTimeline
             [
                 'key' => self::MATCH_SONGS_FROM_TRANSCRIPT,
                 'label' => 'Match songs from transcript',
+            ],
+            [
+                'key' => self::RECLASSIFY_INTRO_OUTRO,
+                'label' => 'Reclassify intro/outro sections',
             ],
             [
                 'key' => self::EXTRACT_SERMON,
