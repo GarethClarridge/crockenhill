@@ -34,3 +34,7 @@
 ## 2026-03-27 - Centralized Loading Feedback for Data-Intensive Listings
 **Learning:** In data-heavy admin listings (TALL stack), users often feel a 'stutter' during sorting, filtering, or pagination on average connections. Adding a global loading state (`opacity-50`) to the base `list-shell` component via `wire:loading.class.delay.200ms` provides consistent, non-flickering feedback across all listing modules. This requires the base `x-card` component to correctly merge the `$attributes` bag into its root element to support Livewire directives.
 **Action:** Always ensure base layout/container components like `x-card` support attribute merging. Use `.delay.200ms` for loading states to avoid unnecessary UI flashing on fast connections.
+
+## 2026-03-28 - Accessible Icon-Only Utility Buttons
+**Learning:** When refactoring utility buttons (like "Copy Link") to support icon-only modes for dense UIs, removing the text label entirely from the DOM also removes important screen reader feedback (like `aria-live` announcements). Using a `sr-only` class instead of conditional Blade `@if` logic ensures that assistive technology users still receive success confirmations (e.g., "Copied!"). Furthermore, using `Js::from()` for injecting dynamic data into Alpine.js handlers prevents XSS and JS syntax errors.
+**Action:** Use `sr-only` to hide labels while preserving accessibility feedback. Always use `{{ \Illuminate\Support\Js::from($data) }}` when passing PHP variables into JavaScript expressions in Blade templates.

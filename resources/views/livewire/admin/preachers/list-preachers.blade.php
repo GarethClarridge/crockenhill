@@ -65,6 +65,7 @@
                     {{-- Actions --}}
                     <td class="px-4 py-3 text-right">
                         <div class="flex gap-1 justify-end" role="group" aria-label="Actions for {{ $preacher->name }}">
+                            <x-clipboard-button :url="route('sermons.preacher', $preacher)" hideLabel aria-label="Copy profile link for {{ $preacher->name }}" title="Copy profile link" />
                             <x-button link="{{ route('admin.preachers.edit', $preacher) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit preacher: {{ $preacher->name }}" />
                             <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                 wire:click="delete({{ $preacher->id }})"
