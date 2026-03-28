@@ -92,27 +92,37 @@
         </details>
     @endif
 
-    {{-- Service timeline table --}}
+    {{-- Service section display --}}
     @if($isInProgress && ! $hasSections)
         <p class="text-sm text-gray-500">Sections not yet available — processing is still in progress.</p>
     @elseif($serviceTimeline === [])
         <p class="text-sm text-gray-500">No classified sections available for this run yet.</p>
     @else
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Planned</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Source</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Detected</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Timing</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Publication</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 bg-white">
+        {{-- Primary: human-readable service flow --}}
+        @include('livewire.admin.church-services.partials.service-flow', [
+            'serviceFlow' => $serviceFlow,
+        ])
+
+        {{-- Secondary: detailed alignment table (collapsed by default) --}}
+        <details class="mt-4">
+            <summary class="cursor-pointer text-sm text-gray-500 select-none hover:text-gray-700">
+                Show detailed alignment table
+            </summary>
+            <div class="mt-2 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">#</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Planned</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Source</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Detected</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Timing</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Publication</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 bg-white">
                     @foreach($serviceTimeline as $row)
                         @php
                             $rowBg = match($row['row_type']) {
@@ -122,7 +132,7 @@
                                 default => '',
                             };
                         @endphp
-                        <tr class="{{ $rowBg }}" wire:key="timeline-row-{{ $loop->index }}">
+                        <tr class="{{ $rowBg }}" wire:key="table-row-{{ $loop->index }}">
 
                             {{-- # — prefer section_order (livestream position) when available, fall back to planned position --}}
                             <td class="px-3 py-2 text-sm font-medium text-gray-700">
@@ -284,9 +294,10 @@
                             </td>
                         </tr>
                     @endforeach
-                </tbody>
-            </table>
-        </div>
+                    </tbody>
+                </table>
+            </div>
+        </details>
 
         {{-- Action links --}}
         @php

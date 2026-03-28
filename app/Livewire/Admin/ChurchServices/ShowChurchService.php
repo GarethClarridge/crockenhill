@@ -13,6 +13,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\ServiceFlowBuilder;
 use App\Support\ServiceRecordTimeline;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -48,13 +49,16 @@ class ShowChurchService extends Component
         $pendingMerge = $this->churchService->import_metadata?->pendingStructureMerge;
         $hasPendingMerge = $pendingMerge !== null && $pendingMerge->incomingSource !== null;
 
+        $serviceTimelines = $this->buildServiceTimelines($processingRuns);
+
         return view('livewire.admin.church-services.show-church-service', [
             'importMetadata' => $importMetadata,
             'warnings' => $warnings,
             'confidenceScore' => is_numeric($confidenceScore) ? (float) $confidenceScore : null,
             'processingRuns' => $processingRuns,
             'processingTimelines' => $this->buildProcessingTimelines($processingRuns),
-            'serviceTimelines' => $this->buildServiceTimelines($processingRuns),
+            'serviceTimelines' => $serviceTimelines,
+            'serviceFlows' => $this->buildServiceFlows($serviceTimelines, $processingRuns),
             'pendingMerge' => $hasPendingMerge ? $pendingMerge : null,
         ])->layout('layouts.admin', [
             'title' => 'Service: '.$this->churchService->date->format('j M Y'),
@@ -174,6 +178,25 @@ class ShowChurchService extends Component
             ->mapWithKeys(fn (MediaProcessingLog $run): array => [
                 $run->id => ServiceRecordTimeline::build($items, $run),
             ])
+            ->all();
+    }
+
+    /**
+     * @param  array<int, list<array<string, mixed>>>  $serviceTimelines
+     * @param  EloquentCollection<int, MediaProcessingLog>  $processingRuns
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function buildServiceFlows(array $serviceTimelines, EloquentCollection $processingRuns): array
+    {
+        return collect($serviceTimelines)
+            ->mapWithKeys(function (array $rows, int $runId) use ($processingRuns): array {
+                $run = $processingRuns->find($runId);
+                if (! $run instanceof MediaProcessingLog) {
+                    return [$runId => []];
+                }
+
+                return [$runId => ServiceFlowBuilder::build($rows, $run)];
+            })
             ->all();
     }
 

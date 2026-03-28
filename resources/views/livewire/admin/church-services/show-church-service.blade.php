@@ -81,6 +81,7 @@
                             @include('livewire.admin.church-services.partials.unified-timeline', [
                                 'run'                => $processingRun,
                                 'serviceTimeline'    => $serviceTimelines[$processingRun->id] ?? [],
+                                'serviceFlow'        => $serviceFlows[$processingRun->id] ?? [],
                                 'processingTimeline' => $processingTimelines[$processingRun->id] ?? [],
                             ])
                         @empty
