@@ -103,6 +103,12 @@ class SermonSeoTest extends TestCase
         $response->assertSee('"@type": "BreadcrumbList"', false);
         $response->assertSee('"name": "Christ"', false);
         $response->assertSee('"name": "Sermons"', false);
+
+        // Person schema check
+        $response->assertSee('"@type": "Person"', false);
+        $response->assertSee('"name": "Preacher Name"', false);
+        $response->assertSee('"@type": "Organization"', false);
+        $response->assertSee('Crockenhill Baptist Church');
     }
 
     #[Test]
