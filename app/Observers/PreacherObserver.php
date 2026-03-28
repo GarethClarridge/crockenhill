@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Models\Preacher;
+use App\Models\Sermon;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
-use Illuminate\Support\Facades\DB;
 
 class PreacherObserver implements ShouldHandleEventsAfterCommit
 {
@@ -16,7 +16,7 @@ class PreacherObserver implements ShouldHandleEventsAfterCommit
             return;
         }
 
-        DB::table('sermons')
+        Sermon::query()
             ->where('preacher_id', $preacher->id)
             ->update(['preacher' => $preacher->name]);
     }
