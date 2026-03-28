@@ -128,6 +128,7 @@ class EditSermon extends Component
 
     public function save(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
         $this->authorizeAdmin();
 
         $validated = $this->validate();

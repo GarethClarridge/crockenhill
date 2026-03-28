@@ -161,6 +161,9 @@ class ManageChurchService extends Component
 
     public function selectSong(int $index, int $songId): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         if (! array_key_exists($index, $this->items)) {
             return;
         }

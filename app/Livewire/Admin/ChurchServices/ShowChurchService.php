@@ -103,11 +103,17 @@ class ShowChurchService extends Component
 
     public function acceptIncomingMerge(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $this->resolvePendingMerge('accept_incoming');
     }
 
     public function keepCurrentStructure(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $this->resolvePendingMerge('keep_current');
     }
 
