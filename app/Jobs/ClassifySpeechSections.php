@@ -74,6 +74,8 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
             return;
         }
 
+        $serviceContext = $this->buildServiceContext($existingSections->all());
+
         $rewrittenSections = [];
 
         foreach ($existingSections as $section) {
@@ -84,7 +86,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
             }
 
             try {
-                $classifiedSections = $classificationService->classify($section);
+                $classifiedSections = $classificationService->classify($section, $serviceContext);
 
                 foreach ($classifiedSections as $classifiedSection) {
                     $rewrittenSections[] = $this->payloadFromClassifiedSection($section, $classifiedSection);
@@ -101,6 +103,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         }
 
         $rewrittenSections = $this->foldShortSongsIntoSermon($rewrittenSections);
+        $rewrittenSections = $this->demoteSecondarySermons($rewrittenSections);
 
         foreach ($rewrittenSections as $index => &$rewrittenSection) {
             $rewrittenSection['section_order'] = $index + 1;
@@ -267,6 +270,112 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         ]);
 
         return $payload;
+    }
+
+    /**
+     * Scan pre-classified sections for an existing RMS-detected sermon and build a context
+     * array so the AI knows a sermon is already present when classifying speech segments.
+     *
+     * @param  array<int, ServiceSection>  $sections
+     * @return array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float}
+     */
+    private function buildServiceContext(array $sections): array
+    {
+        foreach ($sections as $section) {
+            if ($section->section_type === ServiceSectionType::SERMON) {
+                return [
+                    'sermon_count' => 1,
+                    'sermon_duration_seconds' => max(0.0, (float) $section->end_time - (float) $section->start_time),
+                    'sermon_start_time' => (float) $section->start_time,
+                    'sermon_end_time' => (float) $section->end_time,
+                ];
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * After folding, if more than one sermon section remains, keep the longest as the primary
+     * and demote any shorter ones (below the configured threshold) to childrens_talk.
+     *
+     * @param  array<int, array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }>  $sections
+     * @return array<int, array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }>
+     */
+    private function demoteSecondarySermons(array $sections): array
+    {
+        $maxChildrensTalkSeconds = (float) config(
+            'media-processing.section_classification.childrens_talk_max_duration_seconds',
+            900
+        );
+
+        $sermonIndices = [];
+
+        foreach ($sections as $index => $section) {
+            if ($section['section_type'] === ServiceSectionType::SERMON->value) {
+                $sermonIndices[] = $index;
+            }
+        }
+
+        if (count($sermonIndices) <= 1) {
+            return $sections;
+        }
+
+        $longestIndex = $sermonIndices[0];
+
+        foreach ($sermonIndices as $index) {
+            if ((float) $sections[$index]['duration'] > (float) $sections[$longestIndex]['duration']) {
+                $longestIndex = $index;
+            }
+        }
+
+        foreach ($sermonIndices as $index) {
+            if ($index === $longestIndex) {
+                continue;
+            }
+
+            $duration = (float) $sections[$index]['duration'];
+
+            if ($duration < $maxChildrensTalkSeconds) {
+                $sections[$index]['section_type'] = ServiceSectionType::CHILDRENS_TALK->value;
+                $sections[$index]['needs_manual_review'] = true;
+                $sections[$index]['metadata'] = array_merge($sections[$index]['metadata'], [
+                    'review_reason' => 'demoted_secondary_sermon_to_childrens_talk',
+                    'original_ai_classification' => ServiceSectionType::SERMON->value,
+                ]);
+            } else {
+                $sections[$index]['needs_manual_review'] = true;
+                $sections[$index]['metadata'] = array_merge($sections[$index]['metadata'], [
+                    'review_reason' => 'multiple_sermons_detected',
+                ]);
+            }
+        }
+
+        return $sections;
     }
 
     /**

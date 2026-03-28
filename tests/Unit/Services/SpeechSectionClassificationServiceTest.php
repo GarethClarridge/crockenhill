@@ -23,7 +23,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
     {
         $service = new class extends SpeechSectionClassificationService
         {
-            protected function requestClassificationResponse(ServiceSection $section, string $transcript): array
+            protected function requestClassificationResponse(ServiceSection $section, string $transcript, array $serviceContext = []): array
             {
                 return [
                     'sections' => [[
@@ -63,7 +63,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
     {
         $service = new class extends SpeechSectionClassificationService
         {
-            protected function requestClassificationResponse(ServiceSection $section, string $transcript): array
+            protected function requestClassificationResponse(ServiceSection $section, string $transcript, array $serviceContext = []): array
             {
                 return [
                     'sections' => [
@@ -119,7 +119,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
     {
         $service = new class extends SpeechSectionClassificationService
         {
-            protected function requestClassificationResponse(ServiceSection $section, string $transcript): array
+            protected function requestClassificationResponse(ServiceSection $section, string $transcript, array $serviceContext = []): array
             {
                 return [
                     'sections' => [[
@@ -184,6 +184,76 @@ class SpeechSectionClassificationServiceTest extends TestCase
 
         $this->assertStringContainsString('Segment duration: 60.00 seconds', $prompt);
         $this->assertStringNotContainsString('Segment duration: 5.00 seconds', $prompt);
+    }
+
+    #[Test]
+    public function it_includes_sermon_context_in_the_user_prompt_when_a_sermon_already_exists(): void
+    {
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function promptFor(ServiceSection $section, array $serviceContext): string
+            {
+                return $this->buildUserPrompt(
+                    $section,
+                    max(0.0, (float) $section->end_time - (float) $section->start_time),
+                    'Transcript body',
+                    $serviceContext
+                );
+            }
+        };
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'start_time' => 100.0,
+            'end_time' => 700.0,
+            'duration' => 600.0,
+            'metadata' => ['transcript' => 'Transcript body'],
+        ]);
+
+        $context = [
+            'sermon_count' => 1,
+            'sermon_duration_seconds' => 1800.0,
+            'sermon_start_time' => 2500.0,
+            'sermon_end_time' => 4300.0,
+        ];
+
+        $prompt = $service->promptFor($section, $context);
+
+        $this->assertStringContainsString('sermon section of 1800s', $prompt);
+        $this->assertStringContainsString('2500', $prompt);
+        $this->assertStringContainsString('4300', $prompt);
+    }
+
+    #[Test]
+    public function it_omits_sermon_context_from_the_user_prompt_when_no_sermon_exists(): void
+    {
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function promptFor(ServiceSection $section, array $serviceContext): string
+            {
+                return $this->buildUserPrompt(
+                    $section,
+                    max(0.0, (float) $section->end_time - (float) $section->start_time),
+                    'Transcript body',
+                    $serviceContext
+                );
+            }
+        };
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'start_time' => 0.0,
+            'end_time' => 120.0,
+            'duration' => 120.0,
+            'metadata' => ['transcript' => 'Transcript body'],
+        ]);
+
+        $prompt = $service->promptFor($section, []);
+
+        $this->assertStringNotContainsString('sermon section', $prompt);
+        $this->assertStringNotContainsString('Service context', $prompt);
     }
 
     #[Test]

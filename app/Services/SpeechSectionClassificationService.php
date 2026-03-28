@@ -15,6 +15,7 @@ use TypeError;
 class SpeechSectionClassificationService
 {
     /**
+     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float}  $serviceContext
      * @return array<int, array{
      *     section_type: string,
      *     title: null,
@@ -26,7 +27,7 @@ class SpeechSectionClassificationService
      *     metadata: array<string, mixed>
      * }>
      */
-    public function classify(ServiceSection $section): array
+    public function classify(ServiceSection $section, array $serviceContext = []): array
     {
         $transcript = $this->requireTranscript($section);
         $sectionDuration = $this->sectionDurationSeconds($section);
@@ -35,7 +36,7 @@ class SpeechSectionClassificationService
             throw new RuntimeException('Speech section has invalid time boundaries.');
         }
 
-        $response = $this->requestClassificationResponse($section, $transcript);
+        $response = $this->requestClassificationResponse($section, $transcript, $serviceContext);
         $sections = $response['sections'];
 
         if ($sections === []) {
@@ -106,20 +107,22 @@ class SpeechSectionClassificationService
     }
 
     /**
+     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float}  $serviceContext
      * @return array{sections: array<int, array<string, mixed>>}
      */
-    protected function requestClassificationResponse(ServiceSection $section, string $transcript): array
+    protected function requestClassificationResponse(ServiceSection $section, string $transcript, array $serviceContext = []): array
     {
         return match ((string) config('media-processing.analysis.service', 'mock')) {
             'mock' => $this->mockResponse($section, $transcript),
-            default => $this->openAiResponse($section, $transcript),
+            default => $this->openAiResponse($section, $transcript, $serviceContext),
         };
     }
 
     /**
+     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float}  $serviceContext
      * @return array{sections: array<int, array<string, mixed>>}
      */
-    private function openAiResponse(ServiceSection $section, string $transcript): array
+    private function openAiResponse(ServiceSection $section, string $transcript, array $serviceContext = []): array
     {
         if (empty(config('media-processing.analysis.openai_api_key') ?? config('openai.api_key'))) {
             throw new RuntimeException('OpenAI API key not configured for speech section classification.');
@@ -143,11 +146,18 @@ Rules:
 - Split only when there is a clear boundary phrase or topic shift.
 - Keep confidence conservative when boundaries or labels are uncertain.
 - Use British English.
+- A church service almost never has two sermons. If you detect what looks like a sermon, consider whether it might be a childrens_talk instead. Children's talks are characterised by:
+  • Shorter duration (typically 5–15 minutes vs 25–45 minutes for sermons)
+  • Interactive language: "can anybody tell me?", "what do you think?", "hands up"
+  • References to visual aids: "let's have the next slide", "can you see in the picture"
+  • Simpler vocabulary and narrative-driven Bible teaching (often retelling a story)
+  • Often ends with a brief prayer then transitions to a song
+  If in doubt between sermon and childrens_talk for a shorter expository section, prefer childrens_talk and flag an anomaly explaining why.
 TEXT,
                     ],
                     [
                         'role' => 'user',
-                        'content' => $this->buildUserPrompt($section, $sectionDuration, $transcript),
+                        'content' => $this->buildUserPrompt($section, $sectionDuration, $transcript, $serviceContext),
                     ],
                 ],
                 'temperature' => 0.1,
@@ -220,7 +230,14 @@ TEXT,
         $patterns = [
             ServiceSectionType::WELCOME->value => ['welcome', 'good morning everyone'],
             ServiceSectionType::PRAYER->value => ['let us pray', 'let\'s pray'],
-            ServiceSectionType::CHILDRENS_TALK->value => ['good morning children', 'children'],
+            ServiceSectionType::CHILDRENS_TALK->value => [
+                'good morning children',
+                'children',
+                'can anybody tell me',
+                'hands up',
+                'let\'s have the next slide',
+                'boys and girls',
+            ],
             ServiceSectionType::BIBLE_READING->value => ['our reading today is from', 'bible reading', 'reading from'],
             ServiceSectionType::NOTICES->value => ['notices', 'announcements'],
             ServiceSectionType::SERMON->value => ['turn in your bibles', 'our passage', 'if you have your bibles'],
@@ -336,14 +353,30 @@ TEXT,
         ];
     }
 
-    protected function buildUserPrompt(ServiceSection $section, float $sectionDuration, string $transcript): string
+    /**
+     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float}  $serviceContext
+     */
+    protected function buildUserPrompt(ServiceSection $section, float $sectionDuration, string $transcript, array $serviceContext = []): string
     {
-        return sprintf(
-            "Segment duration: %.2f seconds\nCurrent coarse type: %s\nTranscript:\n%s",
-            $sectionDuration,
-            $section->section_type->value,
-            $transcript
-        );
+        $lines = [
+            sprintf('Segment duration: %.2f seconds', $sectionDuration),
+            sprintf('Current coarse type: %s', $section->section_type->value),
+        ];
+
+        if (! empty($serviceContext['sermon_count'])) {
+            $contextLine = sprintf(
+                'Service context: a sermon section of %.0fs has already been identified at %.0f–%.0fs.',
+                (float) ($serviceContext['sermon_duration_seconds'] ?? 0),
+                (float) ($serviceContext['sermon_start_time'] ?? 0),
+                (float) ($serviceContext['sermon_end_time'] ?? 0)
+            );
+            $lines[] = $contextLine;
+        }
+
+        $lines[] = 'Transcript:';
+        $lines[] = $transcript;
+
+        return implode("\n", $lines);
     }
 
     private function requireTranscript(ServiceSection $section): string

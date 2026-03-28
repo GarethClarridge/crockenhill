@@ -60,7 +60,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $service = new class extends SpeechSectionClassificationService
         {
-            public function classify(ServiceSection $section): array
+            public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
                     'section_type' => ServiceSectionType::PRAYER->value,
@@ -116,7 +116,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $service = new class extends SpeechSectionClassificationService
         {
-            public function classify(ServiceSection $section): array
+            public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [
                     [
@@ -188,7 +188,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $service = new class extends SpeechSectionClassificationService
         {
-            public function classify(ServiceSection $section): array
+            public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
                     'section_type' => ServiceSectionType::SERMON->value,
@@ -268,7 +268,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $service = new class extends SpeechSectionClassificationService
         {
-            public function classify(ServiceSection $section): array
+            public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
                     'section_type' => ServiceSectionType::SERMON->value,
@@ -372,7 +372,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $service = new class extends SpeechSectionClassificationService
         {
-            public function classify(ServiceSection $section): array
+            public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
                     'section_type' => ServiceSectionType::SERMON->value,
@@ -445,7 +445,7 @@ class ClassifySpeechSectionsTest extends TestCase
                 private readonly int $failingSectionId
             ) {}
 
-            public function classify(ServiceSection $section): array
+            public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 if ($section->id === $this->failingSectionId) {
                     throw new \RuntimeException('Classifier failure');
@@ -483,5 +483,245 @@ class ClassifySpeechSectionsTest extends TestCase
         $this->assertSame('speech_section_classification_failed', $sections[0]->metadata['review_reason'] ?? null);
         $this->assertSame(ServiceSectionType::PRAYER, $sections[1]->section_type);
         $this->assertFalse($sections[1]->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_demotes_a_short_secondary_sermon_to_childrens_talk_after_classification(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        // RMS-detected main sermon (30 min) — skipped by shouldClassify()
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SERMON->value,
+            'section_order' => 1,
+            'start_time' => 2500.0,
+            'end_time' => 4300.0,
+            'duration' => 1800.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
+        ]);
+
+        // Speech section classified by AI as sermon (8 min — short enough to be children's talk)
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 860.0,
+            'end_time' => 1340.0,
+            'duration' => 480.0,
+            'metadata' => ['transcript' => 'The story of Esther. Can anybody tell me who Esther was?'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::SERMON->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'confidence_level' => 'high',
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.88,
+                        'transcript' => 'The story of Esther.',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $this->assertCount(2, $sections);
+
+        $mainSermon = $sections->first(fn ($s) => $s->start_time == 2500.0);
+        $demoted = $sections->first(fn ($s) => $s->start_time == 860.0);
+
+        $this->assertNotNull($mainSermon);
+        $this->assertSame(ServiceSectionType::SERMON, $mainSermon->section_type);
+
+        $this->assertNotNull($demoted);
+        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $demoted->section_type);
+        $this->assertTrue($demoted->needs_manual_review);
+        $this->assertSame('demoted_secondary_sermon_to_childrens_talk', $demoted->metadata['review_reason'] ?? null);
+        $this->assertSame(ServiceSectionType::SERMON->value, $demoted->metadata['original_ai_classification'] ?? null);
+    }
+
+    #[Test]
+    public function it_flags_but_does_not_demote_a_long_secondary_sermon(): void
+    {
+        config(['media-processing.section_classification.childrens_talk_max_duration_seconds' => 900]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        // RMS-detected main sermon (45 min)
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SERMON->value,
+            'section_order' => 1,
+            'start_time' => 3000.0,
+            'end_time' => 5700.0,
+            'duration' => 2700.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
+        ]);
+
+        // Speech section classified by AI as sermon (20 min — above the 15-min threshold)
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 600.0,
+            'end_time' => 1800.0,
+            'duration' => 1200.0,
+            'metadata' => ['transcript' => 'Turn in your Bibles to Genesis.'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::SERMON->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'confidence_level' => 'high',
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'Turn in your Bibles to Genesis.',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $longSecondary = $sections->first(fn ($s) => $s->start_time == 600.0);
+
+        $this->assertNotNull($longSecondary);
+        $this->assertSame(ServiceSectionType::SERMON, $longSecondary->section_type);
+        $this->assertTrue($longSecondary->needs_manual_review);
+        $this->assertSame('multiple_sermons_detected', $longSecondary->metadata['review_reason'] ?? null);
+    }
+
+    #[Test]
+    public function it_folds_before_demoting_so_sermon_song_sermon_clusters_are_not_incorrectly_demoted(): void
+    {
+        config(['media-processing.section_classification.childrens_talk_max_duration_seconds' => 900]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        // RMS-detected first sermon segment (20 min)
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SERMON->value,
+            'section_order' => 1,
+            'start_time' => 600.0,
+            'end_time' => 1800.0,
+            'duration' => 1200.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
+        ]);
+
+        // Short song mid-sermon (1 min) — should be folded into the sermon above
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'start_time' => 1800.0,
+            'end_time' => 1860.0,
+            'duration' => 60.0,
+            'metadata' => ['confidence_level' => 'low', 'classification_mode' => 'audio_only'],
+        ]);
+
+        // Continuation of sermon after song — classified as SERMON by AI (7 min)
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 3,
+            'start_time' => 1860.0,
+            'end_time' => 2280.0,
+            'duration' => 420.0,
+            'metadata' => ['transcript' => 'Continuing the sermon after the illustration.'],
+        ]);
+
+        // Short separate children's talk — AI classifies as SERMON (8 min)
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 4,
+            'start_time' => 200.0,
+            'end_time' => 680.0,
+            'duration' => 480.0,
+            'metadata' => ['transcript' => 'Good morning boys and girls! Can anybody tell me what this is?'],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::SERMON->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'confidence_level' => 'high',
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'Excerpt.',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class));
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('start_time')
+            ->get();
+
+        // After fold: sermon(600–2280) merged. After demote: short 480s section → childrens_talk.
+        $this->assertCount(2, $sections);
+
+        $mainSermon = $sections->first(fn ($s) => $s->start_time == 600.0);
+        $demoted = $sections->first(fn ($s) => $s->start_time == 200.0);
+
+        $this->assertNotNull($mainSermon);
+        $this->assertSame(ServiceSectionType::SERMON, $mainSermon->section_type);
+        $this->assertSame(2280.0, $mainSermon->end_time);
+        $this->assertFalse($mainSermon->needs_manual_review);
+
+        $this->assertNotNull($demoted);
+        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $demoted->section_type);
+        $this->assertTrue($demoted->needs_manual_review);
+        $this->assertSame('demoted_secondary_sermon_to_childrens_talk', $demoted->metadata['review_reason'] ?? null);
     }
 }
