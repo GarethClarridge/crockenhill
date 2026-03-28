@@ -12,7 +12,7 @@
     {{-- Page Header --}}
     <x-page-header :heading="$heading ?? 'Admin'" />
 
-    <x-content-wrapper>
+    <x-content-wrapper class="mx-auto max-w-7xl px-6 md:px-8">
 
       {{-- Session Messages --}}
       @if (session('message'))
