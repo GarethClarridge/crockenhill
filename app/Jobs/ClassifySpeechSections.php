@@ -78,6 +78,10 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 
         $serviceContext = $this->buildServiceContext($existingSections->all());
 
+        $classifiableSections = $existingSections->filter(fn (ServiceSection $s): bool => $this->shouldClassify($s))->values();
+        $classifiableTotal = $classifiableSections->count();
+        $classifiablePosition = 0;
+
         $rewrittenSections = [];
 
         foreach ($existingSections as $section) {
@@ -88,7 +92,12 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
             }
 
             try {
-                $classifiedSections = $classificationService->classify($section, $serviceContext);
+                $classifiablePosition++;
+                $sectionContext = array_merge($serviceContext, [
+                    'section_position' => $classifiablePosition,
+                    'section_total' => $classifiableTotal,
+                ]);
+                $classifiedSections = $classificationService->classify($section, $sectionContext);
 
                 foreach ($classifiedSections as $classifiedSection) {
                     $rewrittenSections[] = $this->payloadFromClassifiedSection($section, $classifiedSection);

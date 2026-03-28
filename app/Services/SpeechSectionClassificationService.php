@@ -15,7 +15,7 @@ use TypeError;
 class SpeechSectionClassificationService
 {
     /**
-     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float}  $serviceContext
+     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float, section_position?: int, section_total?: int}  $serviceContext
      * @return array<int, array{
      *     section_type: string,
      *     title: null,
@@ -107,7 +107,7 @@ class SpeechSectionClassificationService
     }
 
     /**
-     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float}  $serviceContext
+     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float, section_position?: int, section_total?: int}  $serviceContext
      * @return array{sections: array<int, array<string, mixed>>}
      */
     protected function requestClassificationResponse(ServiceSection $section, string $transcript, array $serviceContext = []): array
@@ -119,7 +119,7 @@ class SpeechSectionClassificationService
     }
 
     /**
-     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float}  $serviceContext
+     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float, section_position?: int, section_total?: int}  $serviceContext
      * @return array{sections: array<int, array<string, mixed>>}
      */
     private function openAiResponse(ServiceSection $section, string $transcript, array $serviceContext = []): array
@@ -354,12 +354,14 @@ TEXT,
     }
 
     /**
-     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float}  $serviceContext
+     * @param  array{sermon_count?: int, sermon_duration_seconds?: float, sermon_start_time?: float, sermon_end_time?: float, section_position?: int, section_total?: int}  $serviceContext
      */
     protected function buildUserPrompt(ServiceSection $section, float $sectionDuration, string $transcript, array $serviceContext = []): string
     {
         $lines = [
-            sprintf('Segment duration: %.2f seconds', $sectionDuration),
+            sprintf('Segment duration: %.2f seconds (%.1f minutes)', $sectionDuration, $sectionDuration / 60.0),
+            sprintf('Segment start time in recording: %.0f seconds', (float) $section->start_time),
+            sprintf('Segment end time in recording: %.0f seconds', (float) $section->end_time),
             sprintf('Current coarse type: %s', $section->section_type->value),
         ];
 
@@ -371,6 +373,21 @@ TEXT,
                 (float) ($serviceContext['sermon_end_time'] ?? 0)
             );
             $lines[] = $contextLine;
+        }
+
+        if (isset($serviceContext['section_position'], $serviceContext['section_total'])) {
+            $lines[] = sprintf(
+                'Position in service: speech section %d of %d.',
+                (int) $serviceContext['section_position'],
+                (int) $serviceContext['section_total']
+            );
+        }
+
+        if ($sectionDuration > 300.0) {
+            $lines[] = sprintf(
+                'Note: this segment is %.1f minutes long. Consider whether it may contain a children\'s talk sub-section followed by other content.',
+                $sectionDuration / 60.0
+            );
         }
 
         $lines[] = 'Transcript:';

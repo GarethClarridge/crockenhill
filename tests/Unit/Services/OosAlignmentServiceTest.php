@@ -1267,4 +1267,206 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertSame('ambiguous_childrens_talk', $firstSection->metadata['review_reason'] ?? null);
         $this->assertSame('ambiguous_childrens_talk', $secondSection->metadata['review_reason'] ?? null);
     }
+
+    // ---- Dismissal-marker children's talk inference ----
+
+    #[Test]
+    public function it_flags_long_preceding_bible_reading_as_inferred_childrens_talk_when_dismissal_phrase_found(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-12-07',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'presentations',
+            'title' => 'Bible Reading',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'presentations',
+            'title' => 'Notices',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        // Long bible_reading section that actually contains a children's talk
+        $longBibleReading = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 1,
+            'start_time' => 606.0,
+            'end_time' => 1469.0,
+            'confidence' => 0.6,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'ai_transcript',
+                'transcript' => 'Good morning children. Can anyone tell me what this picture shows? Let us look at what God has done.',
+            ],
+        ]);
+
+        // Following section whose transcript contains a dismissal marker
+        $followingSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 1469.0,
+            'end_time' => 1550.0,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'ai_transcript',
+                'transcript' => 'The young people go out to their classes now. Let us open our hymnals.',
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $longBibleReading->refresh();
+
+        $this->assertTrue($longBibleReading->needs_manual_review);
+        $this->assertContains('inferred_childrens_talk', $longBibleReading->metadata['review_flags'] ?? []);
+        $this->assertSame('inferred_childrens_talk', $longBibleReading->metadata['review_reason']);
+    }
+
+    #[Test]
+    public function it_does_not_flag_short_preceding_section_for_inferred_childrens_talk(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-12-08',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'presentations',
+            'title' => 'Welcome',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'presentations',
+            'title' => 'Notices',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        // Short section (< 5 min) — should not be flagged
+        $shortSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 1,
+            'start_time' => 100.0,
+            'end_time' => 220.0, // 2 minutes
+            'confidence' => 0.6,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'ai_transcript',
+                'transcript' => 'A short reading from the Bible.',
+            ],
+        ]);
+
+        $followingSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 220.0,
+            'end_time' => 300.0,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'ai_transcript',
+                'transcript' => 'The young people go out to their classes now.',
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $shortSection->refresh();
+
+        $this->assertNotContains('inferred_childrens_talk', $shortSection->metadata['review_flags'] ?? []);
+    }
+
+    #[Test]
+    public function it_clears_dismissal_inferred_childrens_talk_flag_on_rerun_when_no_longer_applicable(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-12-09',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'presentations',
+            'title' => 'Bible Reading',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'presentations',
+            'title' => 'Notices',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $longSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 1,
+            'start_time' => 600.0,
+            'end_time' => 1500.0,
+            'confidence' => 0.6,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'ai_transcript',
+                'transcript' => 'Let us read from the Bible today.',
+            ],
+        ]);
+
+        $dismissalSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'start_time' => 1500.0,
+            'end_time' => 1560.0,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'ai_transcript',
+                'transcript' => 'The young people go out to their classes now.',
+            ],
+        ]);
+
+        // First alignment — flag should be set
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $longSection->refresh();
+        $this->assertContains('inferred_childrens_talk', $longSection->metadata['review_flags'] ?? []);
+
+        // Update the dismissal section so it no longer contains the marker
+        $updatedMetadata = $dismissalSection->metadata->toArray();
+        $updatedMetadata['transcript'] = 'We continue our service with a time of prayer.';
+        $dismissalSection->metadata = \App\Data\ServiceSectionMetadata::fromArray($updatedMetadata);
+        $dismissalSection->save();
+
+        // Second alignment — flag should be cleared (baseline restorer removes OOS flags, and dismissal no longer triggers)
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog->fresh(), $churchService->fresh());
+
+        $longSection->refresh();
+        $this->assertNotContains('inferred_childrens_talk', $longSection->metadata['review_flags'] ?? []);
+    }
 }

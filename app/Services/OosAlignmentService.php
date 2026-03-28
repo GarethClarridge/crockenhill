@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\ServiceSectionMetadata;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
@@ -92,6 +94,8 @@ class OosAlignmentService
                 $lateArrival
             );
 
+            $this->inferChildrensTalkFromDismissalMarkers($sections);
+
             foreach ($sections as $section) {
                 $this->baselineRestorer->persistConfidenceLevel($section);
                 $section->save();
@@ -108,6 +112,90 @@ class OosAlignmentService
                 'low_confidence_sections' => $this->triggerCalculator->lowConfidenceSectionCount($sections),
             ];
         });
+    }
+
+    /**
+     * Scan sections for dismissal phrases that signal a children's talk just ended.
+     * When a dismissal marker is found in a section transcript, check whether the
+     * preceding section is long and typed as bible_reading or other — if so, flag it
+     * as an inferred children's talk for manual review.
+     *
+     * This integrates with SectionAlignmentBaselineRestorer: the inferred_childrens_talk
+     * flag is in OOS_REVIEW_FLAGS and is cleared and rebuilt on every alignment pass,
+     * making this inference fully idempotent.
+     *
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     */
+    private function inferChildrensTalkFromDismissalMarkers(EloquentCollection $sections): void
+    {
+        $minDurationSeconds = (float) config('media-processing.section_classification.childrens_talk_min_preceding_duration_seconds', 300);
+
+        $dismissalPatterns = [
+            'young people go out',
+            'children can go',
+            'children go to',
+            'young people can go',
+            'children are going to go',
+            'go out to their',
+            'go to their class',
+            'go to their group',
+            'go out for their',
+        ];
+
+        $eligiblePrecedingTypes = [
+            ServiceSectionType::BIBLE_READING->value,
+            ServiceSectionType::OTHER->value,
+        ];
+
+        foreach ($sections as $index => $section) {
+            if ($index === 0) {
+                continue;
+            }
+
+            $transcript = $section->metadata['transcript'] ?? null;
+            if (! is_string($transcript) || trim($transcript) === '') {
+                continue;
+            }
+
+            $lowerTranscript = strtolower($transcript);
+            $hasDismissalMarker = false;
+
+            foreach ($dismissalPatterns as $pattern) {
+                if (str_contains($lowerTranscript, $pattern)) {
+                    $hasDismissalMarker = true;
+                    break;
+                }
+            }
+
+            if (! $hasDismissalMarker) {
+                continue;
+            }
+
+            /** @var ServiceSection|null $preceding */
+            $preceding = $sections->get($index - 1);
+            if (! $preceding instanceof ServiceSection) {
+                continue;
+            }
+
+            if (! in_array($preceding->section_type->value, $eligiblePrecedingTypes, true)) {
+                continue;
+            }
+
+            if ((float) $preceding->duration < $minDurationSeconds) {
+                continue;
+            }
+
+            $precedingMetadata = $preceding->metadata?->toArray() ?? [];
+            $reviewFlags = array_values(array_unique(array_merge(
+                $precedingMetadata['review_flags'] ?? [],
+                ['inferred_childrens_talk']
+            )));
+            $precedingMetadata['review_flags'] = $reviewFlags;
+            $precedingMetadata['review_reason'] = 'inferred_childrens_talk';
+
+            $preceding->needs_manual_review = true;
+            $preceding->metadata = ServiceSectionMetadata::fromArray($precedingMetadata);
+        }
     }
 
     private function resolveChurchService(MediaProcessingLog $processingLog, ?ChurchService $churchService): ?ChurchService

@@ -341,4 +341,74 @@ TEXT,
         $this->assertSame(30.0, $classified[0]['start_time']);
         $this->assertSame(120.0, $classified[0]['end_time']);
     }
+
+    #[Test]
+    public function it_includes_positional_context_in_the_user_prompt_when_provided(): void
+    {
+        // buildUserPrompt is protected — expose it via an anonymous subclass for direct testing.
+        $exposed = new class extends SpeechSectionClassificationService
+        {
+            /** @param array<string, mixed> $serviceContext */
+            public function exposePrompt(ServiceSection $section, string $transcript, array $serviceContext = []): string
+            {
+                $duration = max(0.0, (float) $section->end_time - (float) $section->start_time);
+
+                return $this->buildUserPrompt($section, $duration, $transcript, $serviceContext);
+            }
+        };
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'start_time' => 606.0,
+            'end_time' => 1469.0,
+            'metadata' => [
+                'transcript' => 'Good morning children.',
+            ],
+        ]);
+
+        $prompt = $exposed->exposePrompt($section, 'Good morning children.', [
+            'section_position' => 3,
+            'section_total' => 5,
+        ]);
+
+        $this->assertStringContainsString('speech section 3 of 5', $prompt);
+        $this->assertStringContainsString('606', $prompt);
+        $this->assertStringContainsString('minutes long', $prompt);
+    }
+
+    #[Test]
+    public function it_includes_long_segment_hint_for_sections_over_five_minutes(): void
+    {
+        $exposed = new class extends SpeechSectionClassificationService
+        {
+            /** @param array<string, mixed> $serviceContext */
+            public function exposePrompt(ServiceSection $section, string $transcript, array $serviceContext = []): string
+            {
+                $duration = max(0.0, (float) $section->end_time - (float) $section->start_time);
+
+                return $this->buildUserPrompt($section, $duration, $transcript, $serviceContext);
+            }
+        };
+
+        $longSection = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::OTHER->value,
+            'start_time' => 600.0,
+            'end_time' => 1500.0, // 15 minutes
+            'metadata' => ['transcript' => 'A long section.'],
+        ]);
+
+        $shortSection = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::OTHER->value,
+            'start_time' => 100.0,
+            'end_time' => 220.0, // 2 minutes
+            'metadata' => ['transcript' => 'A short section.'],
+        ]);
+
+        $longPrompt = $exposed->exposePrompt($longSection, 'A long section.');
+        $shortPrompt = $exposed->exposePrompt($shortSection, 'A short section.');
+
+        $this->assertStringContainsString('minutes long', $longPrompt);
+        $this->assertStringNotContainsString('minutes long', $shortPrompt);
+    }
 }
