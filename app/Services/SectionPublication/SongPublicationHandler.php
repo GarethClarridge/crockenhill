@@ -38,7 +38,7 @@ class SongPublicationHandler implements SectionPublicationHandler
 
     public function isEligible(ServiceSection $section): bool
     {
-        if (! $section->hasConfirmedSongMatch()) {
+        if (! $section->hasConfirmedSongMatch() && ! $section->hasInferredSongMatch()) {
             return false;
         }
 

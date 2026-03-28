@@ -31,6 +31,58 @@
                 @endif
             </x-card>
 
+            <x-card heading="Song Videos">
+                @if($videos !== [])
+                    <div class="space-y-6">
+                        @foreach($videos as $video)
+                            <div wire:key="song-video-{{ $video['id'] }}" class="rounded-lg border border-gray-200 overflow-hidden">
+                                <video
+                                    src="{{ $video['url'] }}"
+                                    class="w-full rounded-t-lg bg-black"
+                                    controls
+                                    preload="none"
+                                >
+                                    Your browser does not support the video element.
+                                </video>
+                                <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
+                                    <div class="flex items-center gap-3 text-sm">
+                                        <span class="font-medium text-gray-900">{{ $video['recorded_date'] ?? '—' }}</span>
+                                        @if($video['duration'] !== null)
+                                            <span class="text-gray-500">{{ gmdate('i:s', (int) $video['duration']) }}</span>
+                                        @endif
+                                        @if($video['is_featured'])
+                                            <span class="inline-flex items-center rounded-full bg-cbc-teal-light/15 px-2 py-0.5 text-xs font-medium text-cbc-teal-dark">
+                                                Featured
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        @if($video['is_featured'])
+                                            <x-form-button type="button" variant="outline" size="xs" wire:click="unfeatureVideo({{ $video['id'] }})">
+                                                Unfeature
+                                            </x-form-button>
+                                        @else
+                                            <x-form-button type="button" variant="outline" size="xs" wire:click="featureVideo({{ $video['id'] }})">
+                                                Feature
+                                            </x-form-button>
+                                        @endif
+                                        <x-form-button type="button" variant="danger" size="xs"
+                                            wire:click="deleteVideo({{ $video['id'] }})"
+                                            wire:confirm="Delete this video recording?"
+                                            aria-label="Delete video recording from {{ $video['recorded_date'] ?? 'unknown date' }}"
+                                        >
+                                            Delete
+                                        </x-form-button>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-sm text-gray-500">No video recordings saved for this song yet.</p>
+                @endif
+            </x-card>
+
             <x-card heading="Recent Usage">
                 @if($usageByYear !== [])
                     <p class="text-sm text-gray-500">Usage by Year</p>
@@ -39,22 +91,26 @@
                         class="mt-6 w-full"
                         aria-label="Bar chart of song usage by year">
                         @php $maxCount = max(array_column($usageByYear, 'count')); @endphp
-                        <div class="relative flex items-end gap-2" style="height: 120px;">
-                            @foreach($usageByYear as $entry)
-                                @php $heightPx = $maxCount > 0 ? round(($entry['count'] / $maxCount) * 120) : 0; @endphp
-                                <div class="group relative flex flex-1 flex-col items-center justify-end" style="height: 120px;">
-                                    <span class="absolute -top-5 text-xs font-medium text-gray-600 opacity-0 transition-opacity group-hover:opacity-100">{{ $entry['count'] }}</span>
-                                    <div
-                                        class="w-full rounded-t bg-cbc-teal transition-colors group-hover:bg-cbc-teal-dark"
-                                        style="height: {{ $heightPx }}px;"
-                                        title="{{ $entry['year'] }}: {{ $entry['count'] }} uses"></div>
-                                </div>
-                            @endforeach
-                        </div>
-                        <div class="mt-1 flex gap-2">
-                            @foreach($usageByYear as $entry)
-                                <div class="flex-1 text-center text-xs text-gray-500">{{ $entry['year'] }}</div>
-                            @endforeach
+                        <div
+                            class="overflow-x-auto"
+                            x-init="$el.scrollLeft = $el.scrollWidth">
+                            <div class="relative flex items-end gap-2" style="height: 120px; min-width: max-content;">
+                                @foreach($usageByYear as $entry)
+                                    @php $heightPx = $maxCount > 0 ? round(($entry['count'] / $maxCount) * 120) : 0; @endphp
+                                    <div class="group relative flex flex-col items-center justify-end" style="height: 120px; width: 36px;">
+                                        <span class="absolute -top-5 text-xs font-medium text-gray-600 opacity-0 transition-opacity group-hover:opacity-100">{{ $entry['count'] }}</span>
+                                        <div
+                                            class="w-full rounded-t bg-cbc-teal transition-colors group-hover:bg-cbc-teal-dark"
+                                            style="height: {{ $heightPx }}px;"
+                                            title="{{ $entry['year'] }}: {{ $entry['count'] }} uses"></div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <div class="mt-1 flex gap-2" style="min-width: max-content;">
+                                @foreach($usageByYear as $entry)
+                                    <div class="text-center text-xs text-gray-500" style="width: 36px;">{{ $entry['year'] }}</div>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
                 @else

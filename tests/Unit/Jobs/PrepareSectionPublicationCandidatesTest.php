@@ -456,7 +456,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
-    public function it_skips_inferred_song_sections_as_ineligible(): void
+    public function it_skips_unmatched_song_sections_as_ineligible(): void
     {
         Bus::fake([AutoPublishServiceSection::class]);
 
@@ -479,7 +479,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'status' => ServiceSectionStatus::IDENTIFIED->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
-            'song_match_type' => ServiceSectionSongMatchType::INFERRED->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
         ]);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);

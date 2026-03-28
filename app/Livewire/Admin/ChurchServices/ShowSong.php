@@ -6,6 +6,8 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Models\SongVideo;
+use App\Services\SongVideoService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -24,7 +26,7 @@ class ShowSong extends Component
         ]);
     }
 
-    public function render(): View
+    public function render(SongVideoService $songVideoService): View
     {
         $importMetadata = is_array($this->song->import_metadata ?? null) ? $this->song->import_metadata : [];
         $parseWarnings = is_array($importMetadata['lyrics_parse_warnings'] ?? null) ? $importMetadata['lyrics_parse_warnings'] : [];
@@ -47,16 +49,45 @@ class ShowSong extends Component
             ->values()
             ->all();
 
+        $videos = $this->song->videos()->with('churchService')->get()
+            ->map(fn (SongVideo $video): array => [
+                'id' => $video->id,
+                'url' => $songVideoService->getVideoUrl($video),
+                'recorded_date' => $video->recorded_date?->format('j M Y'),
+                'duration' => $video->duration,
+                'is_featured' => $video->is_featured,
+            ])
+            ->all();
+
         return view('livewire.admin.church-services.show-song', [
             'importMetadata' => $importMetadata,
             'parseWarnings' => $parseWarnings,
             'usageCount' => $usageCount,
             'lastUsedDate' => $lastUsedDate,
             'usageByYear' => $usageByYear,
+            'videos' => $videos,
         ])->layout('layouts.admin', [
             'title' => $this->song->title,
             'heading' => $this->song->title,
         ]);
+    }
+
+    public function featureVideo(int $videoId): void
+    {
+        $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
+        app(SongVideoService::class)->featureVideo($video);
+    }
+
+    public function unfeatureVideo(int $videoId): void
+    {
+        $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
+        app(SongVideoService::class)->unfeatureVideo($video);
+    }
+
+    public function deleteVideo(int $videoId): void
+    {
+        $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
+        app(SongVideoService::class)->deleteVideo($video);
     }
 
     /**

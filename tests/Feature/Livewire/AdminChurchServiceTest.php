@@ -20,6 +20,7 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\ReclassifyIntroOutroSections;
 use App\Jobs\ReconcileServiceSections;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -719,6 +720,7 @@ class AdminChurchServiceTest extends TestCase
             ProjectLivestreamServiceStructure::class,
             AlignWithOos::class,
             MatchSongsFromTranscript::class,
+            ReclassifyIntroOutroSections::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             EnhanceAudio::class,
@@ -783,7 +785,23 @@ class AdminChurchServiceTest extends TestCase
             ->call('reclassify', $processingRun->id)
             ->assertDispatched('notify', type: 'success', message: 'Section reclassification queued');
 
-        Bus::assertDispatched(ClassifyServiceSections::class);
+        Bus::assertChained([
+            ClassifyServiceSections::class,
+            TranscribeSpeechSegments::class,
+            ClassifySpeechSections::class,
+            ProjectLivestreamServiceStructure::class,
+            AlignWithOos::class,
+            MatchSongsFromTranscript::class,
+            ReclassifyIntroOutroSections::class,
+            ExtractSermon::class,
+            SubmitToProcessing::class,
+            EnhanceAudio::class,
+            IdentifySpeaker::class,
+            TranscribeAudio::class,
+            ProcessTranscriptWithAI::class,
+            GenerateThumbnail::class,
+            PrepareSectionPublicationCandidates::class,
+        ]);
     }
 
     #[Test]

@@ -64,6 +64,10 @@ class SermonExposurePolicy
 
     public function publicUrl(Sermon $sermon): string
     {
+        if (! filled($sermon->slug)) {
+            return '';
+        }
+
         return route($this->publicRouteName($sermon), $this->publicRouteParameters($sermon));
     }
 

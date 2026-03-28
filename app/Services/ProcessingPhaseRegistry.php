@@ -504,7 +504,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'manual_review',
                 'progress' => 55,
-                'job_offset' => 7,
+                'job_offset' => 8,
                 'steps' => [
                     'manual_review_required',
                 ],
@@ -512,7 +512,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'manual_review_confirmed',
                 'progress' => 56,
-                'job_offset' => 7,
+                'job_offset' => 8,
                 'steps' => [
                     'manual_review_confirmed',
                 ],
@@ -520,7 +520,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'extract_sermon',
                 'progress' => 57,
-                'job_offset' => 7,
+                'job_offset' => 8,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -532,7 +532,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'extraction_complete',
                 'progress' => 59,
-                'job_offset' => 7,
+                'job_offset' => 8,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -543,7 +543,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'submit_to_processing',
                 'progress' => 60,
-                'job_offset' => 8,
+                'job_offset' => 9,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'targeted_reset',
                 'reset_scope' => 'submit_to_processing',
@@ -555,7 +555,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'transcription',
                 'progress' => 70,
-                'job_offset' => 11,
+                'job_offset' => 12,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -569,7 +569,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'analysis',
                 'progress' => 85,
-                'job_offset' => 12,
+                'job_offset' => 13,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -583,7 +583,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'thumbnail',
                 'progress' => 90,
-                'job_offset' => 13,
+                'job_offset' => 14,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -594,7 +594,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'prepare_section_publication_candidates',
                 'progress' => 91,
-                'job_offset' => 14,
+                'job_offset' => 15,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 // The job owns its own provenance-aware rerun rules, so no
@@ -607,7 +607,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'send_notification',
                 'progress' => 92,
-                'job_offset' => 15,
+                'job_offset' => 16,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -618,7 +618,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'notification_complete',
                 'progress' => 93,
-                'job_offset' => 15,
+                'job_offset' => 16,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -632,7 +632,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'cleanup',
                 'progress' => 95,
-                'job_offset' => 16,
+                'job_offset' => 17,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',

@@ -16,6 +16,7 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\ReclassifyIntroOutroSections;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -183,6 +184,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
             ProjectLivestreamServiceStructure::class,
             AlignWithOos::class,
             MatchSongsFromTranscript::class,
+            ReclassifyIntroOutroSections::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             EnhanceAudio::class,

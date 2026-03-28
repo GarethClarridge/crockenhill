@@ -12,8 +12,10 @@ use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\SongBook;
+use App\Models\SongVideo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -175,6 +177,112 @@ class AdminSongCatalogTest extends TestCase
             ->assertSee('Blue Book')
             ->assertSee('Recent Usage')
             ->assertSee('10 Mar 2026');
+    }
+
+    #[Test]
+    public function admin_can_see_song_videos_on_detail_page(): void
+    {
+        $this->actingAs($this->admin);
+
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $song = Song::factory()->create(['title' => 'Amazing Grace']);
+
+        SongVideo::factory()->create([
+            'song_id' => $song->id,
+            'recorded_date' => '2026-01-12',
+            'duration' => 185.0,
+            'is_featured' => true,
+        ]);
+        SongVideo::factory()->create([
+            'song_id' => $song->id,
+            'recorded_date' => '2025-11-03',
+            'duration' => 210.5,
+            'is_featured' => false,
+        ]);
+
+        Livewire::test(ShowSong::class, ['song' => $song])
+            ->assertSee('Song Videos')
+            ->assertSee('12 Jan 2026')
+            ->assertSee('3 Nov 2025')
+            ->assertSee('Featured')
+            ->assertSee('Unfeature')
+            ->assertSee('Feature');
+    }
+
+    #[Test]
+    public function admin_sees_empty_state_when_song_has_no_videos(): void
+    {
+        $this->actingAs($this->admin);
+
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $song = Song::factory()->create();
+
+        Livewire::test(ShowSong::class, ['song' => $song])
+            ->assertSee('Song Videos')
+            ->assertSee('No video recordings saved for this song yet.');
+    }
+
+    #[Test]
+    public function admin_can_feature_a_song_video(): void
+    {
+        $this->actingAs($this->admin);
+
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $song = Song::factory()->create();
+        $video = SongVideo::factory()->create([
+            'song_id' => $song->id,
+            'is_featured' => false,
+        ]);
+
+        Livewire::test(ShowSong::class, ['song' => $song])
+            ->call('featureVideo', $video->id);
+
+        $this->assertTrue($video->fresh()->is_featured);
+    }
+
+    #[Test]
+    public function admin_can_unfeature_a_song_video(): void
+    {
+        $this->actingAs($this->admin);
+
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $song = Song::factory()->create();
+        $video = SongVideo::factory()->featured()->create([
+            'song_id' => $song->id,
+        ]);
+
+        Livewire::test(ShowSong::class, ['song' => $song])
+            ->call('unfeatureVideo', $video->id);
+
+        $this->assertFalse($video->fresh()->is_featured);
+    }
+
+    #[Test]
+    public function admin_can_delete_a_song_video(): void
+    {
+        $this->actingAs($this->admin);
+
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $song = Song::factory()->create();
+        $video = SongVideo::factory()->create([
+            'song_id' => $song->id,
+            'video_file_path' => 'sermons/songs/'.$song->id.'/test.mp4',
+        ]);
+
+        Livewire::test(ShowSong::class, ['song' => $song])
+            ->call('deleteVideo', $video->id);
+
+        $this->assertDatabaseMissing('song_videos', ['id' => $video->id]);
     }
 
     #[Test]

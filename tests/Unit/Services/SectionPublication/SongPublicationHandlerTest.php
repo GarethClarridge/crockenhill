@@ -102,7 +102,7 @@ class SongPublicationHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_is_not_eligible_when_song_match_is_inferred(): void
+    public function it_is_eligible_when_song_match_is_inferred_and_song_id_present(): void
     {
         $song = Song::factory()->create();
 
@@ -114,6 +114,25 @@ class SongPublicationHandlerTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::INFERRED->value,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $this->assertTrue($this->handler->isEligible($section));
+    }
+
+    #[Test]
+    public function it_is_not_eligible_when_song_match_is_unmatched(): void
+    {
+        $song = Song::factory()->create();
+
+        $item = ChurchServiceItem::factory()->create([
+            'song_id' => $song->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
             'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
         ]);
 
