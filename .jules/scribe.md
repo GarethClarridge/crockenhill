@@ -21,3 +21,7 @@
 ## 2026-03-14 - [Config Mocking in Unit Tests]
 **Learning:** To test services that depend on configuration values (`config('...')`), use `Config::set()` within the test method to dynamically change the environment state. This allows verifying different logic branches (e.g., public vs. private features) within the same test file.
 **Action:** Always wrap such tests with `Config::set()` and consider resetting to defaults if necessary, though Laravel's test state usually handles this per-test.
+
+## 2026-03-28 - [Integration Tests for Legacy Migration Services]
+**Learning:** Testing services that perform legacy data migration (e.g., `LegacyPlayDateSongUsageImporter`) requires careful setup of temporary filesystem artifacts (SQL dumps) and database state (songs). Using `DatabaseTransactions` is mandatory for these tests to ensure that every execution starts with a clean database while avoiding the overhead of `RefreshDatabase` in parallel runs.
+**Action:** Place integration-style service tests in `tests/Feature/Services/` and use `tempnam()` for generating temporary input files, ensuring they are deleted in `tearDown()`.

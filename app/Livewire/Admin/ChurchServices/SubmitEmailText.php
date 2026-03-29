@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\InboundEmailStatus;
 use App\Jobs\ProcessInboundOosEmail;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Models\InboundEmail;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -13,6 +14,8 @@ use Livewire\Component;
 
 class SubmitEmailText extends Component
 {
+    use WithAdminAuthorization;
+
     public string $from = '';
 
     public string $subject = '';
@@ -23,6 +26,8 @@ class SubmitEmailText extends Component
 
     public function mount(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
 
@@ -52,6 +57,9 @@ class SubmitEmailText extends Component
 
     public function submit(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $this->validate();
 
         $syntheticId = 'manual-'.Str::uuid().'@admin.crockenhill.org';

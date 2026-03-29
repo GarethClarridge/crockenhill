@@ -27,7 +27,6 @@ class SermonRepository
             ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary'])
             ->with([
                 'preacherProfile:id,name,slug',
-                'scripturePassage:id,display_reference,normalized_reference',
             ]);
     }
 

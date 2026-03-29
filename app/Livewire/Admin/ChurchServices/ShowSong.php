@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Models\SongVideo;
@@ -14,10 +15,14 @@ use Livewire\Component;
 
 class ShowSong extends Component
 {
+    use WithAdminAuthorization;
+
     public Song $song;
 
     public function mount(Song $song): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $this->song = $song->load([

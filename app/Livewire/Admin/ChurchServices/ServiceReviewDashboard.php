@@ -10,6 +10,7 @@ use App\Actions\ServiceReview\MergeAdjacentServiceSections;
 use App\Actions\ServiceReview\SaveServiceSection;
 use App\Enums\ServiceSectionType;
 use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\Preacher;
@@ -25,6 +26,7 @@ use Livewire\Component;
 class ServiceReviewDashboard extends Component
 {
     use ManagesSectionPublication;
+    use WithAdminAuthorization;
     use WithNotifications;
 
     /**
@@ -68,11 +70,16 @@ class ServiceReviewDashboard extends Component
 
     public function mount(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
 
     public function saveSection(int $sectionId): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
             $this->error('Section not found.');
@@ -112,6 +119,9 @@ class ServiceReviewDashboard extends Component
 
     public function markServiceReviewed(int $serviceId): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $service = ChurchService::query()->find($serviceId);
         if (! $service instanceof ChurchService) {
             $this->error('Service not found.');
@@ -128,6 +138,9 @@ class ServiceReviewDashboard extends Component
 
     public function approvePendingPublications(int $serviceId): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $service = ChurchService::query()->find($serviceId);
         if (! $service instanceof ChurchService) {
             $this->error('Service not found.');

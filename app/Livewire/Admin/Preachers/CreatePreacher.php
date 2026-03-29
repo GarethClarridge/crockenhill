@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Preachers;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use Illuminate\Support\Str;
@@ -12,7 +13,7 @@ use Livewire\Component;
 
 class CreatePreacher extends Component
 {
-    use WithNotifications;
+    use WithAdminAuthorization, WithNotifications;
 
     public string $name = '';
 
@@ -35,6 +36,12 @@ class CreatePreacher extends Component
         ];
     }
 
+    public function mount(): void
+    {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+    }
+
     public function updatedName(): void
     {
         $this->slug = Str::slug($this->name);
@@ -42,6 +49,9 @@ class CreatePreacher extends Component
 
     public function save(): void
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $validated = $this->validate();
 
         Preacher::create([
