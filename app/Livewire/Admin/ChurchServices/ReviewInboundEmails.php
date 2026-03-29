@@ -91,6 +91,9 @@ class ReviewInboundEmails extends Component
      */
     public function editAndApprove(int $inboundEmailId): mixed
     {
+        // Defense-in-depth: enforce admin authorization internally
+        $this->authorizeAdmin();
+
         $inboundEmail = $this->findReviewableEmail($inboundEmailId);
         if (! $inboundEmail instanceof InboundEmail) {
             $this->error('Inbound email not found.');
