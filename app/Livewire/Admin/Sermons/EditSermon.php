@@ -38,6 +38,14 @@ class EditSermon extends Component
 
     public ?string $preacherSource = null;
 
+    public ?float $preacherConfidence = null;
+
+    public ?float $duration = null;
+
+    public ?float $segmentStartTime = null;
+
+    public ?float $segmentEndTime = null;
+
     public ?string $reference = null;
 
     public ?string $series = null;
@@ -71,6 +79,10 @@ class EditSermon extends Component
             'preacher' => 'required|string|max:255',
             'preacherId' => 'nullable|integer|exists:preachers,id',
             'preacherSource' => ['nullable', Rule::enum(PreacherSource::class)],
+            'preacherConfidence' => 'nullable|numeric|min:0|max:1',
+            'duration' => 'nullable|numeric|min:0',
+            'segmentStartTime' => 'nullable|numeric|min:0',
+            'segmentEndTime' => 'nullable|numeric|min:0|gte:segmentStartTime',
             'reference' => 'nullable|string|max:255',
             'series' => 'nullable|string|max:255',
             'summary' => 'nullable|string|max:1000',
@@ -102,6 +114,10 @@ class EditSermon extends Component
         $this->preacher = $sermon->displayPreacherName() ?? '';
         $this->preacherId = $sermon->preacher_id;
         $this->preacherSource = $sermon->preacher_source?->value;
+        $this->preacherConfidence = $sermon->preacher_confidence;
+        $this->duration = $sermon->duration;
+        $this->segmentStartTime = $sermon->segment_start_time;
+        $this->segmentEndTime = $sermon->segment_end_time;
         $this->reference = $sermon->displayReference();
         $this->series = $sermon->series;
         $this->summary = $sermon->summary;
@@ -157,6 +173,10 @@ class EditSermon extends Component
             'preacher' => $preacher ? $preacher->name : $validated['preacher'],
             'preacher_id' => $preacher?->id,
             'preacher_source' => $preacher ? PreacherSource::MANUAL->value : $validated['preacherSource'],
+            'preacher_confidence' => $validated['preacherConfidence'],
+            'duration' => $validated['duration'],
+            'segment_start_time' => $validated['segmentStartTime'],
+            'segment_end_time' => $validated['segmentEndTime'],
             'needs_preacher_review' => false,
             'reference' => $newReference,
             'scripture_passage_id' => $scripturePassageId,

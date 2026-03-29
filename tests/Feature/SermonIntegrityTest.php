@@ -1,15 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
+use App\Enums\SermonService;
+use App\Livewire\Admin\Sermons\EditSermon;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use PHPUnit\Framework\Attributes\Test;
+use App\Models\User;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Livewire\Livewire;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
+use Illuminate\Support\Facades\DB;
 
 class SermonIntegrityTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
+
+    private User $admin;
+    private Sermon $sermon;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->admin = User::factory()->admin()->create();
+        $this->sermon = Sermon::factory()->create();
+    }
 
     #[Test]
     public function it_populates_timestamps_automatically()
@@ -49,5 +67,99 @@ class SermonIntegrityTest extends TestCase
 
         $sermon->refresh();
         $this->assertNull($sermon->livestream_processing_id);
+    }
+
+    #[Test]
+    public function it_rejects_negative_duration_at_database_level(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Database-level CHECK constraints are only implemented for MySQL in this project.');
+        }
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('sermons_duration_check');
+
+        $data = Sermon::factory()->make()->toArray();
+        $data['points'] = json_encode($data['points']);
+        $data['duration'] = -1;
+        $data['slug'] = 'db-integrity-test-duration';
+        $data['date'] = now()->format('Y-m-d');
+
+        DB::table('sermons')->insert($data);
+    }
+
+    #[Test]
+    public function it_rejects_invalid_preacher_confidence_at_database_level(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Database-level CHECK constraints are only implemented for MySQL in this project.');
+        }
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('sermons_preacher_confidence_check');
+
+        $data = Sermon::factory()->make()->toArray();
+        $data['points'] = json_encode($data['points']);
+        $data['preacher_confidence'] = 1.1;
+        $data['slug'] = 'db-integrity-test-confidence';
+        $data['date'] = now()->format('Y-m-d');
+
+        DB::table('sermons')->insert($data);
+    }
+
+    #[Test]
+    public function it_rejects_invalid_timing_invariants_at_database_level(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Database-level CHECK constraints are only implemented for MySQL in this project.');
+        }
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('sermons_timing_invariants_check');
+
+        $data = Sermon::factory()->make()->toArray();
+        $data['points'] = json_encode($data['points']);
+        $data['segment_start_time'] = 100;
+        $data['segment_end_time'] = 50;
+        $data['slug'] = 'db-integrity-test-timing';
+        $data['date'] = now()->format('Y-m-d');
+
+        DB::table('sermons')->insert($data);
+    }
+
+    #[Test]
+    public function edit_sermon_component_validates_preacher_confidence(): void
+    {
+        Livewire::actingAs($this->admin)
+            ->test(EditSermon::class, ['sermon' => $this->sermon])
+            ->set('preacherConfidence', 1.5)
+            ->call('save')
+            ->assertHasErrors(['preacherConfidence' => 'max']);
+
+        Livewire::actingAs($this->admin)
+            ->test(EditSermon::class, ['sermon' => $this->sermon])
+            ->set('preacherConfidence', -0.1)
+            ->call('save')
+            ->assertHasErrors(['preacherConfidence' => 'min']);
+    }
+
+    #[Test]
+    public function sermon_editing_rejects_negative_duration_if_form_request_were_used(): void
+    {
+        $request = new \App\Http\Requests\UpdateSermonRequest();
+
+        $rules = $request->rules();
+
+        $validator = \Illuminate\Support\Facades\Validator::make([
+            'duration' => -1,
+            'preacher_confidence' => 1.2,
+            'segment_start_time' => -1,
+            'segment_end_time' => 10,
+        ], $rules);
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('duration', $validator->errors()->toArray());
+        $this->assertArrayHasKey('preacher_confidence', $validator->errors()->toArray());
+        $this->assertArrayHasKey('segment_start_time', $validator->errors()->toArray());
     }
 }

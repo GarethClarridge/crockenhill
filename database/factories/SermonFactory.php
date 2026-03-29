@@ -108,11 +108,17 @@ class SermonFactory extends Factory
      */
     public function fromLivestream(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'source_type' => SermonSourceType::Livestream,
-            'segment_start_time' => $this->faker->numberBetween(0, 3600),
-            'segment_end_time' => $this->faker->numberBetween(3601, 7200),
-        ]);
+        return $this->state(function (array $attributes) {
+            $start = $this->faker->numberBetween(0, 3600);
+
+            return [
+                'source_type' => SermonSourceType::Livestream,
+                'segment_start_time' => $start,
+                'segment_end_time' => $start + $this->faker->numberBetween(1800, 3600), // 30-60 mins later
+                'preacher_confidence' => $this->faker->randomFloat(2, 0.5, 1.0),
+                'duration' => $this->faker->randomFloat(2, 1800, 3600),
+            ];
+        });
     }
 
     /**
