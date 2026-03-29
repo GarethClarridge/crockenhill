@@ -23,14 +23,14 @@ $label = $attributes->get('aria-label', 'Copy link');
         });
     "
     {{ $attributes->merge(['class' => $classes]) }}
-    :aria-label="copied ? 'Copied to clipboard' : '{{ $label }}'"
-    :title="copied ? 'Copied!' : '{{ $attributes->get('title', 'Copy link to clipboard') }}'"
+    :aria-label="copied ? 'Copied to clipboard' : {{ \Illuminate\Support\Js::from($label) }}"
+    :title="copied ? 'Copied!' : {{ \Illuminate\Support\Js::from($attributes->get('title', 'Copy link to clipboard')) }}"
     x-cloak
 >
     <x-heroicon-o-link x-show="!copied" class="w-4 h-4" aria-hidden="true" />
     <x-heroicon-o-check x-show="copied" class="w-4 h-4 text-cbc-teal" aria-hidden="true" x-cloak />
 
-    <span :class="{ 'sr-only': {{ $hideLabel ? 'true' : 'false' }} }"
+    <span @if($hideLabel) x-bind:class="{ 'sr-only': !copied }" @endif
           x-text="copied ? 'Copied!' : 'Copy link'"
           aria-live="polite">
     </span>
