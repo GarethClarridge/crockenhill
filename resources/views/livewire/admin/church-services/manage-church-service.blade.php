@@ -8,15 +8,15 @@
         </div>
         <div class="flex gap-2">
             <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-                Back to Services
+                Back to services
             </x-button>
             @if($isEditing && $churchService)
                 <x-button link="{{ route('admin.services.show', $churchService) }}" variant="outline" icon="eye" inline>
-                    View Service
+                    View service
                 </x-button>
             @endif
             <x-form-button variant="primary" wire:click="save" icon="check">
-                {{ $isEditing ? 'Save Changes' : 'Create Service' }}
+                {{ $isEditing ? 'Save changes' : 'Create service' }}
             </x-form-button>
         </div>
     </div>
@@ -132,7 +132,7 @@
 
                     <div class="flex justify-start">
                         <x-form-button type="button" variant="outline" wire:click="addItem" icon="plus" size="sm">
-                            Add Item
+                            Add item
                         </x-form-button>
                     </div>
                 </div>

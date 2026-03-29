@@ -175,7 +175,7 @@ class AdminSongCatalogTest extends TestCase
             ->assertSee('Lyrics XML could not be parsed.')
             ->assertSee('Writer Three')
             ->assertSee('Blue Book')
-            ->assertSee('Recent Usage')
+            ->assertSee('Recent usage')
             ->assertSee('10 Mar 2026');
     }
 
@@ -203,7 +203,7 @@ class AdminSongCatalogTest extends TestCase
         ]);
 
         Livewire::test(ShowSong::class, ['song' => $song])
-            ->assertSee('Song Videos')
+            ->assertSee('Song videos')
             ->assertSee('12 Jan 2026')
             ->assertSee('3 Nov 2025')
             ->assertSee('Featured')
@@ -222,7 +222,7 @@ class AdminSongCatalogTest extends TestCase
         $song = Song::factory()->create();
 
         Livewire::test(ShowSong::class, ['song' => $song])
-            ->assertSee('Song Videos')
+            ->assertSee('Song videos')
             ->assertSee('No video recordings saved for this song yet.');
     }
 

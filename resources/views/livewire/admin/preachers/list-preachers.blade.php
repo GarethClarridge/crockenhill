@@ -4,7 +4,7 @@
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.preachers.create') }}" variant="primary" icon="plus" inline>
-            Add Preacher
+            Add preacher
         </x-button>
     </x-slot:actions>
 

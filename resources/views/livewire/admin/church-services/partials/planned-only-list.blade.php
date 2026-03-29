@@ -1,4 +1,4 @@
-<x-card heading="Order of Service">
+<x-card heading="Order of service">
     @if($items->isEmpty())
         <p class="text-sm text-gray-500">This service has no planned items.</p>
     @else

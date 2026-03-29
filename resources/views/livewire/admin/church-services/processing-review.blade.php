@@ -2,7 +2,7 @@
     {{-- Header --}}
     <div class="flex justify-between items-center">
         <div>
-            <h1 class="font-display text-3xl">Review Livestream Processing</h1>
+            <h1 class="font-display text-3xl">Review livestream processing</h1>
             <p class="text-gray-600">Select the correct sermon segment to resume processing</p>
         </div>
         <x-button link="{{ route('admin.services.processing.review.index') }}" variant="outline" inline wire:navigate>
@@ -11,7 +11,7 @@
     </div>
 
     {{-- Processing run details --}}
-    <x-card heading="Processing Run">
+    <x-card heading="Processing run">
         <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
             <div>
                 <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">File</dt>

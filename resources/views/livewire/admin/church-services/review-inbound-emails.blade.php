@@ -1,19 +1,19 @@
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="font-display text-3xl">Inbound Email Review</h1>
+            <h1 class="font-display text-3xl">Inbound email review</h1>
             <p class="text-gray-600">Review low-confidence or failed order-of-service emails before they become canonical.</p>
         </div>
 
         <div class="flex gap-2">
             <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-                Back to Services
+                Back to services
             </x-button>
             <x-button link="{{ route('admin.services.upload') }}" variant="outline" icon="arrow-up-tray" inline>
-                Upload Service
+                Upload service
             </x-button>
             <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
-                Submit Email Text
+                Submit email text
             </x-button>
         </div>
     </div>

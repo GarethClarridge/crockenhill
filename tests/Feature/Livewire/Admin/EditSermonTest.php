@@ -204,7 +204,7 @@ class EditSermonTest extends TestCase
         Livewire::test(EditSermon::class, ['sermon' => $talk])
             ->assertSee("Edit Children's Talk")
             ->assertSee('Speaker')
-            ->assertSee("Children's Talk Notes")
+            ->assertSee("Children's talk notes")
             ->assertDontSee('Bible Reference')
             ->assertDontSee('AI-Generated Content')
             ->assertDontSee('Display Options');

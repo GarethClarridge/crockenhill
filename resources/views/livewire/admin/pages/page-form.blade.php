@@ -36,7 +36,7 @@
             </x-form-button>
         </x-slot:actions>
 
-        <x-card heading="Page Details">
+        <x-card heading="Page details">
             <div class="space-y-4">
                 <x-input label="Heading" wire:model.live.debounce="form.heading" required />
 
@@ -73,14 +73,14 @@
             </x-card>
 
             @if(isset($page) && $page->exists)
-                <x-card heading="Heading Image">
+                <x-card heading="Heading image">
                     <livewire:admin.components.media-upload-field
                         :model="$page"
                         collection="headings"
                         accept="image/jpeg,image/png,image/webp" />
                 </x-card>
             @else
-                <x-card heading="Heading Image">
+                <x-card heading="Heading image">
                     <p class="text-sm text-gray-500">Save the page first to upload an image.</p>
                 </x-card>
             @endif

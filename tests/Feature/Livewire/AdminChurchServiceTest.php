@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire;
 
+use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
@@ -617,7 +618,7 @@ class AdminChurchServiceTest extends TestCase
             ->create();
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('Classified Livestream Runs')
+            ->assertSee('Classified livestream runs')
             ->assertSee($matchingRun->processing_id)
             ->assertDontSee($nonMatchingRun->processing_id)
             ->assertSeeInOrder(['Welcome', 'Closing Song'])
@@ -779,6 +780,7 @@ class AdminChurchServiceTest extends TestCase
             'extracted_date' => '2026-04-26',
             'extracted_service' => SermonService::MORNING,
             'source_file_path' => null,
+            'status' => ProcessingStatus::COMPLETED,
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
@@ -823,10 +825,10 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('Order of Service')
+            ->assertSee('Order of service')
             ->assertSee('Opening Prayer')
             ->assertSee('EMAIL')
-            ->assertDontSee('Classified Livestream Runs');
+            ->assertDontSee('Classified livestream runs');
     }
 
     #[Test]
@@ -864,7 +866,7 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('Classified Livestream Runs')
+            ->assertSee('Classified livestream runs')
             ->assertSee('Notices')
             ->assertSee('OPENLP')
             ->assertSee('Aligned')

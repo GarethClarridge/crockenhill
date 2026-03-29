@@ -10,7 +10,7 @@
         </x-form-button>
     </x-slot:actions>
 
-    <x-card heading="Event Details">
+    <x-card heading="Event details">
         <div class="space-y-4">
             <x-input label="Title" wire:model="title" required />
 

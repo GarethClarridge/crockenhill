@@ -1,12 +1,12 @@
 <div>
     <div class="flex justify-between items-center mb-6">
-        <h1 class="font-display text-3xl">Submit Email Text</h1>
+        <h1 class="font-display text-3xl">Submit email text</h1>
         <div class="flex gap-2">
             <x-button link="{{ route('admin.services.inbound-emails') }}" variant="outline" inline>
-                Review Emails
+                Review emails
             </x-button>
             <x-button link="{{ route('admin.services.upload') }}" variant="outline" icon="arrow-up-tray" inline>
-                Upload Service
+                Upload service
             </x-button>
         </div>
     </div>
@@ -24,10 +24,10 @@
                     </div>
                     <div class="flex justify-center gap-3">
                         <x-button link="{{ route('admin.services.inbound-emails') }}" variant="primary" inline>
-                            View in Review List
+                            View in review list
                         </x-button>
                         <x-form-button variant="outline" wire:click="$set('submitted', false)">
-                            Submit Another
+                            Submit another
                         </x-form-button>
                     </div>
                 </div>
@@ -36,7 +36,7 @@
     @else
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-6">
-                <x-card heading="Email Body">
+                <x-card heading="Email body">
                     <div class="space-y-4">
                         <p class="text-sm text-gray-600">Paste the plain-text content of an order-of-service email. The parser will extract the service date, slot, and items.</p>
 

@@ -14,7 +14,7 @@
     </x-slot:actions>
 
     {{-- Main content (default slot = lg:col-span-2) --}}
-            <x-card heading="{{ $contentTypeLabel }} Details">
+            <x-card heading="{{ $contentTypeLabel }} details">
                 <div class="space-y-4">
                     <x-input label="Title" wire:model.live.debounce="title" required />
 
@@ -70,14 +70,14 @@
                 <x-slot:footer>
                     <div class="flex justify-end gap-2">
                         <x-form-button variant="primary" wire:click="save" icon="check">
-                            Save Details
+                            Save details
                         </x-form-button>
                     </div>
                 </x-slot:footer>
             </x-card>
 
             @if($isChildrensTalk)
-                <x-card heading="Children's Talk Notes">
+                <x-card heading="Children's talk notes">
                     <p class="text-sm text-gray-600">
                         Passage references, AI summaries, and sermon outline points are hidden here because Children's Corner uses a simplified public presentation.
                     </p>
@@ -104,10 +104,10 @@
                     <x-slot:footer>
                         <div class="flex justify-between items-center">
                             <x-form-button variant="ghost" size="sm" icon="plus" wire:click="addPoint" aria-label="Add sermon point">
-                                Add Point
+                                Add point
                             </x-form-button>
                             <x-form-button variant="primary" wire:click="save" icon="check">
-                                Save All
+                                Save all
                             </x-form-button>
                         </div>
                     </x-slot:footer>
@@ -116,7 +116,7 @@
 
     <x-slot:sidebar>
         @unless($isChildrensTalk)
-            <x-card heading="Display Options">
+            <x-card heading="Display options">
                 <div class="space-y-4">
                     <x-toggle label="Show Summary" wire:model="showSummary"
                         hint="Display AI-generated summary on sermon page" />

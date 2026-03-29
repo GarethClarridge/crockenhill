@@ -8,7 +8,7 @@
         </x-form-button>
     </x-slot:actions>
 
-    <x-card heading="User Details">
+    <x-card heading="User details">
         <div class="space-y-4">
             <x-input label="Name" wire:model="name" required />
 
@@ -40,14 +40,14 @@
         </x-card>
 
         @if(!$isEditing)
-            <x-card heading="Email Verification">
+            <x-card heading="Email verification">
                 <div class="space-y-4">
                     <x-toggle label="Send Verification Email" wire:model="sendVerification"
                         hint="User must verify email before accessing the site" />
                 </div>
             </x-card>
         @else
-            <x-card heading="Account Info">
+            <x-card heading="Account info">
                 <div class="space-y-2">
                     <p class="text-sm"><span class="font-semibold">Created:</span> {{ $user->created_at->format('j M Y') }}</p>
                     @if($user->email_verified_at)

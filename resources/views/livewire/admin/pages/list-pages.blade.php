@@ -4,7 +4,7 @@
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.pages.create') }}" variant="primary" icon="plus" inline>
-            Create Page
+            Create page
         </x-button>
     </x-slot:actions>
 

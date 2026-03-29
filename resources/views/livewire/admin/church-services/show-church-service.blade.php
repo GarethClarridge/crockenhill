@@ -1,16 +1,16 @@
 <div>
     <div class="flex justify-end gap-2 mb-6">
         <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
-            Review Dashboard
+            Review dashboard
         </x-button>
         <x-button link="{{ route('admin.services.edit', $churchService) }}" variant="outline" icon="pencil-square" inline>
-            Edit Service
+            Edit service
         </x-button>
         <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-            Song Catalog
+            Song catalog
         </x-button>
         <x-button link="{{ route('admin.services.section-publications') }}" variant="outline" inline>
-            Section Queue
+            Section queue
         </x-button>
     </div>
 
@@ -27,7 +27,7 @@
                     'items' => $churchService->items,
                 ])
             @else
-                <x-card heading="Classified Livestream Runs">
+                <x-card heading="Classified livestream runs">
                     <div class="space-y-4">
                         @forelse($processingRuns as $processingRun)
                             @include('livewire.admin.church-services.partials.unified-timeline', [

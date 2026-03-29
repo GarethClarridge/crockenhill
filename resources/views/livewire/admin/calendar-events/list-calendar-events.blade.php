@@ -4,7 +4,7 @@
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.calendar.sync') }}" variant="secondary" icon="arrow-path" inline>
-            Sync Calendar
+            Sync calendar
         </x-button>
     </x-slot:actions>
 

@@ -1,7 +1,7 @@
 <div class="space-y-6">
     <div class="space-y-2">
         <a href="{{ route('admin.services.songs.index') }}" wire:navigate class="inline-flex items-center text-sm font-medium text-cbc-teal hover:text-cbc-teal-dark">
-            Back to Songs
+            Back to songs
         </a>
         <div>
             <h1 class="font-display text-3xl">{{ $song->title }}</h1>
@@ -31,7 +31,7 @@
                 @endif
             </x-card>
 
-            <x-card heading="Song Videos">
+            <x-card heading="Song videos">
                 @if($videos !== [])
                     <div class="space-y-6">
                         @foreach($videos as $video)
@@ -83,7 +83,7 @@
                 @endif
             </x-card>
 
-            <x-card heading="Recent Usage">
+            <x-card heading="Recent usage">
                 @if($usageByYear !== [])
                     <p class="text-sm text-gray-500">Usage by Year</p>
                     <div

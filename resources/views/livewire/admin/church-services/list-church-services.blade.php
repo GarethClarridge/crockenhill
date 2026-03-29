@@ -6,22 +6,22 @@
         </div>
         <div class="flex gap-2">
             <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
-                Review Dashboard
+                Review dashboard
             </x-button>
             <x-button link="{{ route('admin.services.processing.review.index') }}" variant="outline" icon="video-camera" inline>
-                Livestream Review
+                Livestream review
             </x-button>
             <x-button link="{{ route('admin.services.inbound-emails') }}" variant="outline" icon="envelope" inline>
-                Review Emails
+                Review emails
             </x-button>
             <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-                Song Catalog
+                Song catalog
             </x-button>
             <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
-                Create Service
+                Create service
             </x-button>
             <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
-                Upload Service
+                Upload service
             </x-button>
         </div>
     </div>
@@ -139,10 +139,10 @@
                             @if(!$hasFilters)
                                 <div class="flex gap-2 justify-center">
                                     <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
-                                        Create Service
+                                        Create service
                                     </x-button>
                                     <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
-                                        Upload Service
+                                        Upload service
                                     </x-button>
                                 </div>
                             @endif

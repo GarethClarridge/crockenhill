@@ -4,7 +4,7 @@
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.meetings.create') }}" variant="primary" icon="plus" inline>
-            Create Meeting
+            Create meeting
         </x-button>
     </x-slot:actions>
 

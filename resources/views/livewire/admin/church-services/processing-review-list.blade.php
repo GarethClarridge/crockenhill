@@ -1,7 +1,7 @@
 <div class="space-y-6">
     <div class="flex justify-between items-center">
         <div>
-            <h1 class="font-display text-3xl">Livestream Review Queue</h1>
+            <h1 class="font-display text-3xl">Livestream review queue</h1>
             <p class="text-gray-600">Livestream runs paused for manual sermon selection</p>
         </div>
     </div>

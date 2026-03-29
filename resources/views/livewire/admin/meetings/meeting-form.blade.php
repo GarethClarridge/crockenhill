@@ -21,7 +21,7 @@
             </x-form-button>
         </x-slot:actions>
 
-        <x-card heading="Meeting Details">
+        <x-card heading="Meeting details">
             <div class="space-y-4">
                 <x-select label="Page" wire:model="form.pageId" :options="$pages" placeholder="Select a page"
                     hint="Link this meeting to a page for content" />

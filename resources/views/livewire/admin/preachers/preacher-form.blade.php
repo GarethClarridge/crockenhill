@@ -8,7 +8,7 @@
         </x-form-button>
     </x-slot:actions>
 
-    <x-card heading="Preacher Details">
+    <x-card heading="Preacher details">
         <div class="space-y-4">
             <x-input label="Name" wire:model.live.debounce="name" required />
 
@@ -52,7 +52,7 @@
     @endif
 
     @if(isset($speakerProfiles))
-        <x-card heading="Speaker Profiles">
+        <x-card heading="Speaker profiles">
             <div class="space-y-4">
                 <p class="text-sm text-gray-600">Speaker profiles are used for automatic voice-based preacher identification. Deactivating a profile prevents this preacher from being auto-matched in future.</p>
 

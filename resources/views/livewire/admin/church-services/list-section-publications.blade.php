@@ -7,13 +7,13 @@
 
         <div class="flex gap-2">
             <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
-                Review Dashboard
+                Review dashboard
             </x-button>
             <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-                Song Catalog
+                Song catalog
             </x-button>
             <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-                Back to Services
+                Back to services
             </x-button>
         </div>
     </div>

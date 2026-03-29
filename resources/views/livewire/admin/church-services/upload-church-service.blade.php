@@ -3,16 +3,16 @@
         <h1 class="font-display text-3xl">Upload Service</h1>
         <div class="flex gap-2">
             <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-                Back to Services
+                Back to services
             </x-button>
             <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
-                Create Service
+                Create service
             </x-button>
             <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-                Song Catalog
+                Song catalog
             </x-button>
             <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
-                Submit Email Text
+                Submit email text
             </x-button>
             <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray">
                 Import
@@ -22,7 +22,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
-            <x-card heading="OpenLP Archive">
+            <x-card heading="OpenLP archive">
                 <div class="space-y-4">
                     <p class="text-sm text-gray-600">Upload a `.osz` archive exported from OpenLP. The service date and slot are inferred from the filename.</p>
 
@@ -63,7 +63,7 @@
         </div>
 
         <div class="space-y-6">
-            <x-card heading="Import Notes">
+            <x-card heading="Import notes">
                 <div class="space-y-3 text-sm text-gray-600">
                     <p>Accepted format: OpenLP `.osz` zip archive.</p>
                     <p>Date and service are inferred from the filename pattern, for example `2026-02-22 AM.osz`.</p>
@@ -71,7 +71,7 @@
                 </div>
             </x-card>
 
-            <x-card heading="Recent Imports">
+            <x-card heading="Recent imports">
                 <div class="space-y-3">
                     @forelse($recentServices as $service)
                         <a href="{{ route('admin.services.show', $service) }}" wire:navigate class="block rounded-md border border-gray-200 px-3 py-2 hover:bg-gray-50 no-underline">

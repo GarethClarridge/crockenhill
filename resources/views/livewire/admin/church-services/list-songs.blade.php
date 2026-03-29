@@ -7,7 +7,7 @@
 
         <div class="flex gap-2">
             <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
-                Upload Service
+                Upload service
             </x-button>
         </div>
     </div>
