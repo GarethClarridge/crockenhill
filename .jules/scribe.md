@@ -25,3 +25,7 @@
 ## 2026-03-28 - [Integration Tests for Legacy Migration Services]
 **Learning:** Testing services that perform legacy data migration (e.g., `LegacyPlayDateSongUsageImporter`) requires careful setup of temporary filesystem artifacts (SQL dumps) and database state (songs). Using `DatabaseTransactions` is mandatory for these tests to ensure that every execution starts with a clean database while avoiding the overhead of `RefreshDatabase` in parallel runs.
 **Action:** Place integration-style service tests in `tests/Feature/Services/` and use `tempnam()` for generating temporary input files, ensuring they are deleted in `tearDown()`.
+
+## 2026-03-09 - [Unit Testing FormRequest with custom withValidator logic]
+**Learning:** `FormRequest` classes containing complex logic in `withValidator` (e.g., conditional requirements based on multiple fields) should be unit tested by manually instantiating the request, merging data, and then calling `withValidator` on a manual `Validator` instance. This isolates the logic from the HTTP lifecycle and routing.
+**Action:** Use `Validator::make($data, $request->rules())` followed by `$request->withValidator($validator)` to unit test complex request validation.
