@@ -7,7 +7,7 @@
         '@context' => 'https://schema.org',
         '@type' => 'Person',
         'name' => $person->name,
-        'url' => url("/christ/sermons/preachers/{$person->slug}"),
+        'url' => route('sermons.preacher', $person->slug),
         'worksFor' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),
@@ -15,9 +15,7 @@
         ],
     ];
 
-    if ($person->bio) {
-        $schema['description'] = $person->meta_description;
-    }
+    $schema['description'] = $person->meta_description;
 
     if ($person->profile_image_url) {
         $schema['image'] = $person->profile_image_url;

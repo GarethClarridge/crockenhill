@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -62,7 +64,7 @@ class Preacher extends Model implements Sitemapable
             return "Browse all sermons preached by {$this->name} at Crockenhill Baptist Church.";
         }
 
-        return \Illuminate\Support\Str::limit($bio, 155);
+        return Str::limit($bio, 155);
     }
 
     public function getProfileImageUrlAttribute(): ?string
@@ -71,11 +73,11 @@ class Preacher extends Model implements Sitemapable
             return null;
         }
 
-        if (\Illuminate\Support\Str::startsWith($this->image_path, ['http://', 'https://', '/'])) {
+        if (Str::startsWith($this->image_path, ['http://', 'https://', '/'])) {
             return $this->image_path;
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path);
+        return Storage::disk('public')->url($this->image_path);
     }
 
     public function getRouteKeyName(): string
