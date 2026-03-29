@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class PreacherSeoTest extends TestCase
 {

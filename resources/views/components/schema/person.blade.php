@@ -1,22 +1,13 @@
 @props([
-    'preacher',
+    'person',
 ])
 
 @php
-    use Illuminate\Support\Str;
-
-    $bio = $preacher->bio ? trim(strip_tags($preacher->bio)) : null;
-    $imageUrl = $preacher->image_path
-        ? (Str::startsWith($preacher->image_path, ['http://', 'https://', '/'])
-            ? $preacher->image_path
-            : \Illuminate\Support\Facades\Storage::disk('public')->url($preacher->image_path))
-        : null;
-
     $schema = [
         '@context' => 'https://schema.org',
         '@type' => 'Person',
-        'name' => $preacher->name,
-        'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
+        'name' => $person->name,
+        'url' => url("/christ/sermons/preachers/{$person->slug}"),
         'worksFor' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),
@@ -24,12 +15,12 @@
         ],
     ];
 
-    if ($bio) {
-        $schema['description'] = Str::limit($bio, 155);
+    if ($person->bio) {
+        $schema['description'] = $person->meta_description;
     }
 
-    if ($imageUrl) {
-        $schema['image'] = $imageUrl;
+    if ($person->profile_image_url) {
+        $schema['image'] = $person->profile_image_url;
     }
 @endphp
 

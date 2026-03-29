@@ -2,28 +2,16 @@
 
 @section('title'){{ $heading }}@stop
 
-@php
-    $bio = $preacher->bio ? trim(strip_tags($preacher->bio)) : null;
-    $metaDescription = $bio ? \Illuminate\Support\Str::limit($bio, 155) : $description;
-@endphp
-
-@section('meta_description'){{ $metaDescription }}@stop
+@section('meta_description'){{ $preacher->meta_description }}@stop
 
 @section('meta_tags')
-@php
-    $imageUrl = $preacher->image_path
-        ? (\Illuminate\Support\Str::startsWith($preacher->image_path, ['http://', 'https://', '/'])
-            ? $preacher->image_path
-            : \Illuminate\Support\Facades\Storage::disk('public')->url($preacher->image_path))
-        : null;
-@endphp
 <x-meta-tags
     :title="$heading"
-    :description="$metaDescription"
-    :image="$imageUrl"
+    :description="$preacher->meta_description"
+    :image="$preacher->profile_image_url"
 />
 
-<x-schema.person :$preacher />
+<x-schema.person :person="$preacher" />
 
 {{-- JSON-LD Sermon List --}}
 <script type="application/ld+json">

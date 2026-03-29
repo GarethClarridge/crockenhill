@@ -54,6 +54,30 @@ class Preacher extends Model implements Sitemapable
         ];
     }
 
+    public function getMetaDescriptionAttribute(): string
+    {
+        $bio = trim(strip_tags($this->bio ?? ''));
+
+        if (empty($bio)) {
+            return "Browse all sermons preached by {$this->name} at Crockenhill Baptist Church.";
+        }
+
+        return \Illuminate\Support\Str::limit($bio, 155);
+    }
+
+    public function getProfileImageUrlAttribute(): ?string
+    {
+        if (! $this->image_path) {
+            return null;
+        }
+
+        if (\Illuminate\Support\Str::startsWith($this->image_path, ['http://', 'https://', '/'])) {
+            return $this->image_path;
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path);
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';
