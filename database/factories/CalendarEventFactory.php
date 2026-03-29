@@ -19,10 +19,6 @@ class CalendarEventFactory extends Factory
         $start = $this->faker->dateTimeBetween('+1 day', '+30 days');
         $end = (clone $start)->modify('+'.rand(0, 180).' minutes');
 
-        if ($end < $start) {
-            $end = (clone $start)->modify('+1 hour');
-        }
-
         return [
             'google_event_id' => $this->faker->uuid(),
             'meeting_slug' => null,
