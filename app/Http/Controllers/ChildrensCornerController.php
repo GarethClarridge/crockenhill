@@ -21,6 +21,10 @@ class ChildrensCornerController extends Controller
 
     public function index(): View
     {
+        /**
+         * Performance Optimization: Select required columns and eager load
+         * relationships to prevent N+1 queries during card rendering.
+         */
         $talks = Sermon::query()
             ->whereChildrensTalk()
             ->select([
@@ -34,8 +38,12 @@ class ChildrensCornerController extends Controller
                 'video_file_path',
                 'thumbnail_file_path',
                 'thumbnail_metadata',
+                'scripture_passage_id',
             ])
-            ->with('preacherProfile:id,name,slug')
+            ->with([
+                'preacherProfile:id,name,slug',
+                'scripturePassage:id,display_reference,normalized_reference',
+            ])
             ->orderBy('date', 'desc')
             ->paginate(12);
 
