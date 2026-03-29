@@ -69,7 +69,7 @@ class ListMeetings extends Component
 
     public function delete(Meeting $meeting): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $meeting->delete();

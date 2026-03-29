@@ -85,7 +85,7 @@ class ListSermons extends Component
 
     public function delete(Sermon $sermon): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $sermon->delete();

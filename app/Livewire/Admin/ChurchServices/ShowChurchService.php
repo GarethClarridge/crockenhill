@@ -30,7 +30,7 @@ class ShowChurchService extends Component
 
     public function mount(ChurchService $churchService): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
         $this->abortIfDisabled();
 
@@ -67,7 +67,7 @@ class ShowChurchService extends Component
 
     public function reclassify(int $processingLogId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $processingLog = MediaProcessingLog::query()->find($processingLogId);
@@ -103,7 +103,7 @@ class ShowChurchService extends Component
 
     public function acceptIncomingMerge(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $this->resolvePendingMerge('accept_incoming');
@@ -111,7 +111,7 @@ class ShowChurchService extends Component
 
     public function keepCurrentStructure(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $this->resolvePendingMerge('keep_current');

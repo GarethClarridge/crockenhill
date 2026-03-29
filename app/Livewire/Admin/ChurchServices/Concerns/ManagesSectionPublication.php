@@ -13,7 +13,7 @@ trait ManagesSectionPublication
 {
     public function approve(int $sectionId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         // @phpstan-ignore function.alreadyNarrowedType
         if (method_exists($this, 'authorizeAdmin')) {
             $this->authorizeAdmin();
@@ -38,7 +38,7 @@ trait ManagesSectionPublication
 
     public function reject(int $sectionId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         // @phpstan-ignore function.alreadyNarrowedType
         if (method_exists($this, 'authorizeAdmin')) {
             $this->authorizeAdmin();
@@ -62,7 +62,7 @@ trait ManagesSectionPublication
 
     public function requeue(int $sectionId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         // @phpstan-ignore function.alreadyNarrowedType
         if (method_exists($this, 'authorizeAdmin')) {
             $this->authorizeAdmin();

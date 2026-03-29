@@ -43,7 +43,7 @@ class ManageChurchService extends Component
 
     public function mount(PrefillChurchServiceFromInboundEmail $prefillAction): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
         $this->abortIfDisabled();
 
@@ -112,7 +112,7 @@ class ManageChurchService extends Component
 
     public function addItem(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $this->items[] = $this->blankItem();
@@ -120,7 +120,7 @@ class ManageChurchService extends Component
 
     public function removeItem(int $index): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         if (! array_key_exists($index, $this->items)) {
@@ -137,7 +137,7 @@ class ManageChurchService extends Component
 
     public function moveItemUp(int $index): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         if ($index < 1 || ! array_key_exists($index, $this->items)) {
@@ -149,7 +149,7 @@ class ManageChurchService extends Component
 
     public function moveItemDown(int $index): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         if (! array_key_exists($index, $this->items) || ! array_key_exists($index + 1, $this->items)) {
@@ -161,7 +161,7 @@ class ManageChurchService extends Component
 
     public function selectSong(int $index, int $songId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         if (! array_key_exists($index, $this->items)) {
@@ -199,7 +199,7 @@ class ManageChurchService extends Component
 
     public function save(SaveChurchServiceFromAdmin $saveAction): mixed
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
         $this->abortIfDisabled();
 

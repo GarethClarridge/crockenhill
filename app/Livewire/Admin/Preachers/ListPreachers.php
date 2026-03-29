@@ -60,7 +60,7 @@ class ListPreachers extends Component
 
     public function delete(Preacher $preacher): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $preacher->delete();

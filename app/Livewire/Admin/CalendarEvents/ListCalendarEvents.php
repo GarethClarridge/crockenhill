@@ -33,7 +33,7 @@ class ListCalendarEvents extends Component
 
     public function mount(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
     }
 
@@ -52,7 +52,7 @@ class ListCalendarEvents extends Component
 
     public function categorize(int $eventId, ?string $meetingSlug): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         CalendarEvent::find($eventId)?->update([

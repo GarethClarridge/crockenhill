@@ -60,14 +60,14 @@ class ServiceReviewDashboard extends Component
 
     public function mount(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
 
     public function saveSection(int $sectionId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $section = ServiceSection::query()->find($sectionId);
@@ -109,7 +109,7 @@ class ServiceReviewDashboard extends Component
 
     public function markServiceReviewed(int $serviceId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $service = ChurchService::query()->find($serviceId);
@@ -128,7 +128,7 @@ class ServiceReviewDashboard extends Component
 
     public function approvePendingPublications(int $serviceId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $service = ChurchService::query()->find($serviceId);

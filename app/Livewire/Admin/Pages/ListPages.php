@@ -67,7 +67,7 @@ class ListPages extends Component
 
     public function delete(Page $page): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $page->delete();
@@ -76,7 +76,7 @@ class ListPages extends Component
 
     public function deleteSelected(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         Page::whereIn('id', $this->selected)->delete();
