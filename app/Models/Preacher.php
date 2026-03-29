@@ -54,6 +54,22 @@ class Preacher extends Model implements Sitemapable
         ];
     }
 
+    /**
+     * Get the absolute URL to the preacher's profile image.
+     */
+    public function getProfileImageUrlAttribute(): ?string
+    {
+        if (! $this->image_path) {
+            return null;
+        }
+
+        if (\Illuminate\Support\Str::startsWith($this->image_path, ['http://', 'https://', '/'])) {
+            return $this->image_path;
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path);
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';

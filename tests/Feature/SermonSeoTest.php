@@ -106,6 +106,25 @@ class SermonSeoTest extends TestCase
     }
 
     #[Test]
+    public function preacher_profile_page_has_person_schema()
+    {
+        $preacher = Preacher::factory()->create([
+            'name' => 'Charles Spurgeon',
+            'bio' => 'The Prince of Preachers.',
+            'image_path' => 'preachers/spurgeon.jpg',
+        ]);
+
+        $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('"@type": "Person"', false);
+        $response->assertSee('"name": "Charles Spurgeon"', false);
+        $response->assertSee('"description": "The Prince of Preachers."', false);
+        $response->assertSee('preachers/spurgeon.jpg', false);
+        $response->assertSee('"name": "Crockenhill Baptist Church"', false);
+    }
+
+    #[Test]
     public function series_sermons_page_has_item_list_structured_data_and_breadcrumbs()
     {
         Sermon::factory()->count(2)->create([

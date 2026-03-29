@@ -7,8 +7,11 @@
 @section('meta_tags')
 <x-meta-tags
     :title="$heading"
-    :description="$description"
+    :description="$preacher->bio ?: $description"
+    :image="$preacher->profile_image_url"
 />
+
+<x-schema.person :$preacher />
 
 {{-- JSON-LD Sermon List --}}
 <script type="application/ld+json">
