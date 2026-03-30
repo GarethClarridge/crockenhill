@@ -119,6 +119,7 @@ class ListSermons extends Component
             ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path', 'content_type'])
             ->with([
                 'preacherProfile:id,name,slug',
+                'scripturePassage:id,display_reference,normalized_reference',
             ])
             ->when($this->search !== '', function ($query) use ($escapedSearch): void {
                 $searchPattern = "%{$escapedSearch}%";
