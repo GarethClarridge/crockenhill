@@ -139,54 +139,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
                 $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
 
-                try {
-                    $response = OpenAI::chat()->create([
-                        'model' => $model,
-                        'messages' => [
-                            [
-                                'role' => 'system',
-                                'content' => 'You are a theological assistant specialised in analysing Christian sermon transcripts. You provide accurate, structured analysis in JSON format using British English spelling and sentence case formatting (capitalise only the first word and proper nouns, not every word). Always respond with valid JSON.',
-                            ],
-                            [
-                                'role' => 'user',
-                                'content' => $prompt,
-                            ],
-                        ],
-                        'temperature' => 0.3,
-                        'max_completion_tokens' => 1500,
-                    ]);
-                } catch (\TypeError $e) {
-                    // Handle malformed API response (e.g., non-JSON response body)
-                    Log::error('OpenAI API response parsing failed (malformed response)', [
-                        'processing_id' => $processingId,
-                        'attempt' => $attempt,
-                        'error' => $e->getMessage(),
-                        'model' => $model,
-                        'exception_file' => $e->getFile(),
-                        'exception_line' => $e->getLine(),
-                    ]);
-
-                    // Log details about response body (from stack context)
-                    $trace = $e->getTrace();
-                    foreach ($trace as $frame) {
-                        if (str_contains($frame['file'] ?? '', 'Chat.php') && ($frame['line'] ?? 0) === 35) {
-                            // This is where CreateResponse::from() is called
-                            // The first argument would have been $response->data()
-                            Log::warning('OpenAI SDK response type mismatch detected at Chat.php:35 - response body is string not array');
-                            break;
-                        }
-                    }
-
-                    throw new \Exception('OpenAI API response malformed: '.$e->getMessage());
-                } catch (\Exception $e) {
-                    Log::error('OpenAI API call failed', [
-                        'processing_id' => $processingId,
-                        'attempt' => $attempt,
-                        'error' => $e->getMessage(),
-                        'model' => $model,
-                    ]);
-                    throw new \Exception('OpenAI API call failed: '.$e->getMessage());
-                }
+                $response = $this->executeAiRequest($prompt, $model, $processingId, $attempt);
 
                 $apiTime = microtime(true) - $apiStartTime;
 
@@ -200,27 +153,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
                     ['attempt' => $attempt, 'model' => $model, 'max_completion_tokens' => 1500]
                 );
 
-                // Validate response structure
-                if (empty($response->choices)) {
-                    Log::error('Invalid OpenAI response structure', [
-                        'processing_id' => $processingId,
-                        'response_type' => gettype($response),
-                    ]);
-                    throw new \Exception('Invalid response structure from OpenAI API');
-                }
-
-                $content = $response->choices[0]->message->content ?? '';
-
-                if (empty($content)) {
-                    throw new \Exception('Received empty response from OpenAI API');
-                }
-
-                // Parse JSON response
-                $analysisData = json_decode($content, true);
-
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new Exception('Failed to parse JSON response: '.json_last_error_msg());
-                }
+                $analysisData = $this->parseAiResponse($response, $processingId);
 
                 // Validate required fields
                 $validatedData = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
@@ -350,6 +283,98 @@ class SermonAnalysisService implements SermonAnalysisInterface
         );
 
         return $this->getFallbackAnalysisData($transcript);
+    }
+
+    /**
+     * Parse and validate OpenAI API response.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws Exception
+     */
+    private function parseAiResponse(\OpenAI\Responses\Chat\CreateResponse $response, string $processingId): array
+    {
+        // Validate response structure
+        if (empty($response->choices)) {
+            Log::error('Invalid OpenAI response structure', [
+                'processing_id' => $processingId,
+                'response_type' => gettype($response),
+            ]);
+
+            throw new \Exception('Invalid response structure from OpenAI API');
+        }
+
+        $content = $response->choices[0]->message->content ?? '';
+
+        if (empty($content)) {
+            throw new \Exception('Received empty response from OpenAI API');
+        }
+
+        // Parse JSON response
+        $analysisData = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Failed to parse JSON response: '.json_last_error_msg());
+        }
+
+        return $analysisData;
+    }
+
+    /**
+     * Execute AI analysis request via OpenAI SDK.
+     *
+     * @throws Exception
+     */
+    private function executeAiRequest(string $prompt, string $model, string $processingId, int $attempt): \OpenAI\Responses\Chat\CreateResponse
+    {
+        try {
+            return OpenAI::chat()->create([
+                'model' => $model,
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => 'You are a theological assistant specialised in analysing Christian sermon transcripts. You provide accurate, structured analysis in JSON format using British English spelling and sentence case formatting (capitalise only the first word and proper nouns, not every word). Always respond with valid JSON.',
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => $prompt,
+                    ],
+                ],
+                'temperature' => 0.3,
+                'max_completion_tokens' => 1500,
+            ]);
+        } catch (\TypeError $e) {
+            // Handle malformed API response (e.g., non-JSON response body)
+            Log::error('OpenAI API response parsing failed (malformed response)', [
+                'processing_id' => $processingId,
+                'attempt' => $attempt,
+                'error' => $e->getMessage(),
+                'model' => $model,
+                'exception_file' => $e->getFile(),
+                'exception_line' => $e->getLine(),
+            ]);
+
+            // Log details about response body (from stack context)
+            $trace = $e->getTrace();
+            foreach ($trace as $frame) {
+                if (str_contains($frame['file'] ?? '', 'Chat.php') && ($frame['line'] ?? 0) === 35) {
+                    // This is where CreateResponse::from() is called
+                    // The first argument would have been $response->data()
+                    Log::warning('OpenAI SDK response type mismatch detected at Chat.php:35 - response body is string not array');
+                    break;
+                }
+            }
+
+            throw new \Exception('OpenAI API response malformed: '.$e->getMessage());
+        } catch (\Exception $e) {
+            Log::error('OpenAI API call failed', [
+                'processing_id' => $processingId,
+                'attempt' => $attempt,
+                'error' => $e->getMessage(),
+                'model' => $model,
+            ]);
+            throw new \Exception('OpenAI API call failed: '.$e->getMessage());
+        }
     }
 
     /**
