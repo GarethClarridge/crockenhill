@@ -34,8 +34,12 @@ class ChildrensCornerController extends Controller
                 'video_file_path',
                 'thumbnail_file_path',
                 'thumbnail_metadata',
+                'scripture_passage_id',
             ])
-            ->with('preacherProfile:id,name,slug')
+            ->with([
+                'preacherProfile:id,name,slug',
+                'scripturePassage:id,display_reference,normalized_reference',
+            ])
             ->orderBy('date', 'desc')
             ->paginate(12);
 

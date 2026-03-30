@@ -59,8 +59,11 @@ class PodcastFeedService
         return Sermon::query()
             ->whereSermon()
             ->forPodcast()
-            ->select(['id', 'title', 'audio_file_path', 'filetype', 'date', 'service', 'series', 'reference', 'preacher', 'preacher_id', 'duration', 'summary', 'slug', 'thumbnail_file_path', 'thumbnail_generated_at', 'transcript_file_path', 'updated_at'])
-            ->with('preacherProfile:id,name,slug')
+            ->select(['id', 'title', 'audio_file_path', 'filetype', 'date', 'service', 'series', 'reference', 'preacher', 'preacher_id', 'duration', 'summary', 'slug', 'thumbnail_file_path', 'thumbnail_generated_at', 'transcript_file_path', 'updated_at', 'scripture_passage_id'])
+            ->with([
+                'preacherProfile:id,name,slug',
+                'scripturePassage:id,display_reference,normalized_reference',
+            ])
             ->forService($serviceType)
             ->limit($limit)
             ->get()
