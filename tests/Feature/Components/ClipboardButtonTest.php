@@ -18,6 +18,8 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString('navigator.clipboard.writeText(\'https:\/\/example.com\/test\')', $rendered);
         $this->assertStringContainsString('Copy link', $rendered);
         $this->assertStringNotContainsString('sr-only', $rendered);
+        // Accessibility: ensure it has type="button" to prevent form submission
+        $this->assertStringContainsString('type="button"', $rendered);
     }
 
     /** @test */
@@ -48,7 +50,6 @@ class ClipboardButtonTest extends TestCase
 
         $this->assertStringContainsString('Custom Label', $rendered);
         $this->assertStringContainsString('Done!', $rendered);
-        // The dynamic component might render as an <svg> with specific classes or just the icon name depending on the environment
         $this->assertStringContainsString('svg', $rendered);
     }
 
@@ -70,5 +71,35 @@ class ClipboardButtonTest extends TestCase
 
         $this->assertStringContainsString(':aria-label="copied ? \'Success!\' : \'Copy it\'"', $rendered);
         $this->assertStringContainsString(':title="copied ? \'Success!\' : \'Copy it to clipboard\'"', $rendered);
+    }
+
+    /** @test */
+    public function it_handles_unsupported_browser_state_via_alpine(): void
+    {
+        $rendered = Blade::render('<x-clipboard-button content="test" />');
+
+        // It should hide itself if navigator.clipboard is not available
+        $this->assertStringContainsString('x-show="navigator.clipboard"', $rendered);
+        // It should guard the click handler
+        $this->assertStringContainsString('if (!navigator.clipboard) return;', $rendered);
+    }
+
+    /** @test */
+    public function it_has_accessible_announcements_for_state_changes(): void
+    {
+        $rendered = Blade::render('<x-clipboard-button content="test" />');
+
+        // It should have aria-live for announcing "Copied!"
+        $this->assertStringContainsString('aria-live="polite"', $rendered);
+    }
+
+    /** @test */
+    public function it_has_visible_focus_indicator_classes(): void
+    {
+        $rendered = Blade::render('<x-clipboard-button content="test" />');
+
+        $this->assertStringContainsString('focus-visible:ring-2', $rendered);
+        $this->assertStringContainsString('focus-visible:ring-cbc-teal', $rendered);
+        $this->assertStringContainsString('focus-visible:ring-offset-2', $rendered);
     }
 }
