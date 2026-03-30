@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\Sermon;
 use App\Models\ScripturePassage;
-use App\Models\Preacher;
+use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
@@ -25,7 +24,7 @@ class SermonEagerLoadingTest extends TestCase
             'content_type' => \App\Enums\SermonContentType::Sermon,
         ]);
 
-        $repository = new SermonRepository();
+        $repository = new SermonRepository;
         $sermons = $repository->publicSermonQuery()->get();
 
         foreach ($sermons as $sermon) {

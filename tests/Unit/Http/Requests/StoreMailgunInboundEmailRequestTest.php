@@ -13,7 +13,7 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
     /** @test */
     public function it_validates_max_lengths()
     {
-        $request = new StoreMailgunInboundEmailRequest();
+        $request = new StoreMailgunInboundEmailRequest;
         $request->merge([
             'Message-Id' => str_repeat('a', 513),
             'body-plain' => 'body',
@@ -41,7 +41,7 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
     /** @test */
     public function it_passes_valid_lengths()
     {
-        $request = new StoreMailgunInboundEmailRequest();
+        $request = new StoreMailgunInboundEmailRequest;
         $request->merge([
             'Message-Id' => str_repeat('a', 512),
             'body-plain' => 'body',

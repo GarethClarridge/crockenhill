@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
-use App\Models\Sermon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class SermonIntegrityTest extends TestCase
 {
+    use RefreshDatabase;
+
     /** @test */
     public function it_has_date_index()
     {

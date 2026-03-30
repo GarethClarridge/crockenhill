@@ -88,7 +88,19 @@ class ReportingStatePromotionSchemaTest extends TestCase
             ],
         ]);
 
-        Schema::table('service_sections', function (Blueprint $table): void {
+        $foreignKeys = collect(Schema::getForeignKeys('service_sections'))->keyBy(
+            fn (array $foreignKey): string => implode(',', $foreignKey['columns'] ?? [])
+        );
+
+        Schema::table('service_sections', function (Blueprint $table) use ($foreignKeys): void {
+            if ($foreignKeys->has('matched_item_id')) {
+                $table->dropForeign(['matched_item_id']);
+            }
+
+            if ($foreignKeys->has('expected_item_id')) {
+                $table->dropForeign(['expected_item_id']);
+            }
+
             $table->dropIndex('service_sections_reporting_song_match_index');
             $table->dropIndex('service_sections_song_match_type_index');
             $table->dropIndex('service_sections_matched_item_id_index');

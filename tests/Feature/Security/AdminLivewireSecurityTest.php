@@ -12,6 +12,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -20,11 +21,18 @@ class AdminLivewireSecurityTest extends TestCase
 {
     use RefreshDatabase;
 
+    private User $admin;
+
     private User $user;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        /** @var User $admin */
+        $admin = User::factory()->crockenhillAdmin()->create();
+        $this->admin = $admin;
+
         // A regular non-admin user
         /** @var User $user */
         $user = User::factory()->create(['is_admin' => false]);
@@ -37,8 +45,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
 
-        Livewire::actingAs($this->user)
-            ->test(\App\Livewire\Admin\Sermons\ListSermons::class)
+        $this->mountAsAdmin(\App\Livewire\Admin\Sermons\ListSermons::class)
             ->call('delete', $sermon)
             ->assertForbidden();
 
@@ -51,8 +58,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create(['title' => 'Original Title']);
 
-        Livewire::actingAs($this->user)
-            ->test(\App\Livewire\Admin\Sermons\EditSermon::class, ['sermon' => $sermon])
+        $this->mountAsAdmin(\App\Livewire\Admin\Sermons\EditSermon::class, ['sermon' => $sermon])
             ->set('title', 'Hacked Title')
             ->call('save')
             ->assertForbidden();
@@ -68,8 +74,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Meeting $meeting */
         $meeting = Meeting::factory()->create();
 
-        Livewire::actingAs($this->user)
-            ->test(\App\Livewire\Admin\Meetings\ListMeetings::class)
+        $this->mountAsAdmin(\App\Livewire\Admin\Meetings\ListMeetings::class)
             ->call('delete', $meeting)
             ->assertForbidden();
 
@@ -82,8 +87,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Preacher $preacher */
         $preacher = Preacher::factory()->create();
 
-        Livewire::actingAs($this->user)
-            ->test(\App\Livewire\Admin\Preachers\ListPreachers::class)
+        $this->mountAsAdmin(\App\Livewire\Admin\Preachers\ListPreachers::class)
             ->call('delete', $preacher)
             ->assertForbidden();
 
@@ -96,8 +100,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Page $page */
         $page = Page::factory()->create();
 
-        Livewire::actingAs($this->user)
-            ->test(\App\Livewire\Admin\Pages\ListPages::class)
+        $this->mountAsAdmin(\App\Livewire\Admin\Pages\ListPages::class)
             ->call('delete', $page)
             ->assertForbidden();
 
@@ -110,8 +113,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var InboundEmail $email */
         $email = InboundEmail::factory()->create();
 
-        Livewire::actingAs($this->user)
-            ->test(\App\Livewire\Admin\ChurchServices\ReviewInboundEmails::class)
+        $this->mountAsAdmin(\App\Livewire\Admin\ChurchServices\ReviewInboundEmails::class)
             ->call('approve', $email->id)
             ->assertForbidden();
     }
@@ -122,9 +124,20 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var ChurchService $service */
         $service = ChurchService::factory()->create();
 
-        Livewire::actingAs($this->user)
-            ->test(\App\Livewire\Admin\ChurchServices\ShowChurchService::class, ['churchService' => $service])
+        $this->mountAsAdmin(\App\Livewire\Admin\ChurchServices\ShowChurchService::class, ['churchService' => $service])
             ->call('acceptIncomingMerge')
             ->assertForbidden();
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    private function mountAsAdmin(string $component, array $params = []): Testable
+    {
+        $testable = Livewire::actingAs($this->admin)->test($component, $params);
+
+        $this->actingAs($this->user);
+
+        return $testable;
     }
 }

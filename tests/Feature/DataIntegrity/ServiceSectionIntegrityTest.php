@@ -7,16 +7,19 @@ namespace Tests\Feature\DataIntegrity;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ServiceSectionIntegrityTest extends TestCase
 {
+    use RefreshDatabase;
+
     /** @test */
     public function it_has_foreign_key_constraints(): void
     {
         if (DB::getDriverName() === 'sqlite') {
-             $this->markTestSkipped('Foreign key introspection not supported on SQLite in this test.');
+            $this->markTestSkipped('Foreign key introspection not supported on SQLite in this test.');
         }
 
         $database = DB::getDatabaseName();

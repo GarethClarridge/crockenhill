@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonService;
 use App\Livewire\Admin\Sermons\EditSermon;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Livewire\Livewire;
-use Tests\TestCase;
-use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class SermonIntegrityTest extends TestCase
 {
     use DatabaseTransactions;
 
     private User $admin;
+
     private Sermon $sermon;
 
     protected function setUp(): void
@@ -146,7 +146,7 @@ class SermonIntegrityTest extends TestCase
     #[Test]
     public function sermon_editing_rejects_negative_duration_if_form_request_were_used(): void
     {
-        $request = new \App\Http\Requests\UpdateSermonRequest();
+        $request = new \App\Http\Requests\UpdateSermonRequest;
 
         $rules = $request->rules();
 
