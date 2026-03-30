@@ -117,6 +117,7 @@
                     {{-- Actions --}}
                     <td class="px-4 py-3 text-right">
                         <div class="flex gap-1 justify-end" role="group" aria-label="Actions for {{ $sermon->title }}">
+                            <x-clipboard-button :content="$publicUrl" hideLabel label="Copy public link" title="Copy public link to clipboard" />
                             <x-button link="{{ $publicUrl }}" variant="ghost" size="xs" icon="eye" inline aria-label="View {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
                             <x-button link="{{ route('admin.sermons.edit', $sermon) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
                             <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"

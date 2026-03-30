@@ -37,6 +37,10 @@ class UpdateSermonRequest extends FormRequest
             'reference' => 'nullable|string|max:255',
             'preacher' => 'required|string|max:255',
             'preacher_source' => ['nullable', Rule::enum(PreacherSource::class)],
+            'preacher_confidence' => 'nullable|numeric|min:0|max:1',
+            'duration' => 'nullable|numeric|min:0',
+            'segment_start_time' => 'nullable|numeric|min:0',
+            'segment_end_time' => 'nullable|numeric|min:0|gte:segment_start_time',
             'points' => 'nullable|json', // Expects a JSON string or null
             'summary' => 'nullable|string|max:1000',
             'show_summary' => 'nullable|boolean',

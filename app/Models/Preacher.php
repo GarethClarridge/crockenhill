@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -52,6 +54,29 @@ class Preacher extends Model implements Sitemapable
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Get the preacher's profile image URL.
+     * Handles absolute URLs and local storage paths automatically.
+     *
+     * @return Attribute<string|null, never>
+     */
+    protected function profileImageUrl(): Attribute
+    {
+        return Attribute::make(
+            get: function (): ?string {
+                if (! $this->image_path) {
+                    return null;
+                }
+
+                if (str_starts_with($this->image_path, 'http') || str_starts_with($this->image_path, '//')) {
+                    return $this->image_path;
+                }
+
+                return Storage::disk('public')->url($this->image_path);
+            }
+        );
     }
 
     public function getRouteKeyName(): string

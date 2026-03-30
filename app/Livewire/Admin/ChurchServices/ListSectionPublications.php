@@ -31,7 +31,7 @@ class ListSectionPublications extends Component
 
     public function mount(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
         $this->abortIfDisabled();
     }

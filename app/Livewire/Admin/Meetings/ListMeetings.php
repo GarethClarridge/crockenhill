@@ -69,6 +69,7 @@ class ListMeetings extends Component
 
     public function delete(Meeting $meeting): void
     {
+
         $this->authorizeAdmin();
 
         $meeting->delete();

@@ -31,7 +31,7 @@ class ProcessingReview extends Component
 
     public function mount(MediaProcessingLog $processingLog): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         if ($processingLog->processing_type !== MediaType::Livestream) {
@@ -43,7 +43,7 @@ class ProcessingReview extends Component
 
     public function confirmSegment(int $segmentId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $this->confirming = true;

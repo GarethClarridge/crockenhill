@@ -67,6 +67,7 @@ class ListPages extends Component
 
     public function delete(Page $page): void
     {
+
         $this->authorizeAdmin();
 
         $page->delete();
@@ -75,6 +76,7 @@ class ListPages extends Component
 
     public function deleteSelected(): void
     {
+
         $this->authorizeAdmin();
 
         Page::whereIn('id', $this->selected)->delete();

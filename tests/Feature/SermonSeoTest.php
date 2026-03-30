@@ -142,4 +142,25 @@ class SermonSeoTest extends TestCase
         $response->assertSee('"@type": "BreadcrumbList"', false);
         $response->assertSee('"name": "Christ"', false);
     }
+
+    #[Test]
+    public function preacher_profile_has_person_structured_data()
+    {
+        $preacher = Preacher::factory()->create([
+            'name' => 'Dr. Martin Lloyd-Jones',
+            'bio' => 'A famous preacher with a long bio.',
+            'image_path' => 'preachers/mlj.jpg',
+        ]);
+
+        $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('"@type": "Person"', false);
+        $response->assertSee('"name": "Dr. Martin Lloyd-Jones"', false);
+        $response->assertSee('"description": "A famous preacher with a long bio."', false);
+        $response->assertSee('"image": "http://localhost/storage/preachers/mlj.jpg"', false);
+        $response->assertSee('"worksFor": {', false);
+        $response->assertSee('"@type": "Organization"', false);
+        $response->assertSee('"name": "Crockenhill Baptist Church"', false);
+    }
 }

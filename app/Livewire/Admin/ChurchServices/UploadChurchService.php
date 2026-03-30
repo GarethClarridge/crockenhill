@@ -24,7 +24,7 @@ class UploadChurchService extends Component
 
     public function mount(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
@@ -56,7 +56,7 @@ class UploadChurchService extends Component
 
     public function save(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
         $this->abortIfDisabled();
 

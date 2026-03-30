@@ -143,19 +143,7 @@ $displayReference = $sermon->displayReference();
       {{-- ── Transcript ───────────────────────────────────────── --}}
       @if (is_string($sermonView['transcript']) && trim($sermonView['transcript']) !== '')
       <div
-        x-data="{
-          expanded: false,
-          copied: false,
-          async copyTranscript() {
-            if (!('clipboard' in navigator)) {
-              return;
-            }
-
-            await navigator.clipboard.writeText(@js($sermonView['transcript']));
-            this.copied = true;
-            setTimeout(() => this.copied = false, 2000);
-          }
-        }"
+        x-data="{ expanded: false }"
         class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-2">
@@ -164,18 +152,12 @@ $displayReference = $sermon->displayReference();
             <span class="text-xs text-gray-400 font-sans">(may contain errors)</span>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              type="button"
-              x-show="'clipboard' in navigator"
-              @click="copyTranscript()"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-cbc-teal-dark hover:text-cbc-teal bg-white border border-gray-200 hover:border-cbc-teal-light/30 rounded-md shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-1"
-              aria-label="Copy transcript"
-              title="Copy transcript to clipboard"
-              x-cloak>
-              <x-heroicon-o-clipboard-document x-show="!copied" class="w-4 h-4" />
-              <x-heroicon-o-check x-show="copied" class="w-4 h-4 text-cbc-teal" x-cloak />
-              <span x-text="copied ? 'Copied!' : 'Copy Transcript'">Copy Transcript</span>
-            </button>
+            <x-clipboard-button
+                :content="$sermonView['transcript']"
+                label="Copy Transcript"
+                title="Copy transcript to clipboard"
+                icon="clipboard-document"
+            />
 
             <button
               class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-md bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2"
@@ -271,11 +253,20 @@ $displayReference = $sermon->displayReference();
         <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-2">
             <x-heroicon-o-book-open class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
-            <div>
-              @if (! empty($readingReference))
-              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-cbc-teal-dark/75 mb-0.5">Passage</p>
-              @endif
-              <span class="font-display text-xl text-gray-900">{{ $displayReference }}</span>
+            <div class="flex items-center gap-2">
+              <div>
+                @if (! empty($readingReference))
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-cbc-teal-dark/75 mb-0.5">Passage</p>
+                @endif
+                <span class="font-display text-xl text-gray-900">{{ $displayReference }}</span>
+              </div>
+              <x-clipboard-button
+                  :content="$displayReference"
+                  hideLabel
+                  label="Copy reference"
+                  title="Copy Bible reference to clipboard"
+                  icon="clipboard-document"
+              />
             </div>
           </div>
           @if ($sermon->scripturePassage || ! empty($readingReference))

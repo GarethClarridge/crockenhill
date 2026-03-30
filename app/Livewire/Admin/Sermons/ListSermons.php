@@ -85,6 +85,7 @@ class ListSermons extends Component
 
     public function delete(Sermon $sermon): void
     {
+
         $this->authorizeAdmin();
 
         $sermon->delete();
