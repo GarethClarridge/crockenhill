@@ -41,7 +41,7 @@ class MediaUploadField extends Component
 
     public function upload(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         if (! $this->file) {
@@ -77,7 +77,7 @@ class MediaUploadField extends Component
 
     public function remove(int $mediaId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         try {

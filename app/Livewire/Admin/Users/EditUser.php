@@ -56,7 +56,7 @@ class EditUser extends Component
 
     public function mount(User $user): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $this->user = $user;
@@ -67,7 +67,7 @@ class EditUser extends Component
 
     public function save(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         if ($this->user->id === auth()->id() && ! $this->isAdmin) {

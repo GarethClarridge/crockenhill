@@ -33,7 +33,7 @@ class EditPreacher extends Component
 
     public function mount(Preacher $preacher): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $this->preacher = $preacher;
@@ -64,7 +64,7 @@ class EditPreacher extends Component
 
     public function save(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $validated = $this->validate();
@@ -81,7 +81,7 @@ class EditPreacher extends Component
 
     public function addAlias(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $this->validateOnly('newAlias');
@@ -103,7 +103,7 @@ class EditPreacher extends Component
 
     public function removeAlias(int $aliasId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         PreacherAlias::where('id', $aliasId)
@@ -115,7 +115,7 @@ class EditPreacher extends Component
 
     public function recomputeProfile(int $profileId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $profile = SpeakerProfile::where('id', $profileId)
@@ -153,7 +153,7 @@ class EditPreacher extends Component
 
     public function removeProfile(int $profileId): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         SpeakerProfile::where('id', $profileId)

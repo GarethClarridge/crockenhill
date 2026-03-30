@@ -54,7 +54,7 @@ class EditCalendarEvent extends Component
 
     public function mount(CalendarEvent $calendarEvent): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $this->calendarEvent = $calendarEvent;
@@ -70,7 +70,7 @@ class EditCalendarEvent extends Component
 
     public function save(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $validated = $this->validate();

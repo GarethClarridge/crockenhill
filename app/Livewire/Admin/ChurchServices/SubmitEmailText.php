@@ -26,7 +26,7 @@ class SubmitEmailText extends Component
 
     public function mount(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
@@ -57,7 +57,7 @@ class SubmitEmailText extends Component
 
     public function submit(): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
 
         $this->validate();

@@ -21,7 +21,7 @@ class ShowSong extends Component
 
     public function mount(Song $song): void
     {
-        // Defense-in-depth: enforce admin authorization internally
+
         $this->authorizeAdmin();
         $this->abortIfDisabled();
 

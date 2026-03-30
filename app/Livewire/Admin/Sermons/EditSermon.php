@@ -144,6 +144,7 @@ class EditSermon extends Component
 
     public function save(): void
     {
+
         $this->authorizeAdmin();
 
         $validated = $this->validate();
