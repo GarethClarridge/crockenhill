@@ -18,6 +18,8 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString('navigator.clipboard.writeText(\'https:\/\/example.com\/test\')', $rendered);
         $this->assertStringContainsString('Copy link', $rendered);
         $this->assertStringNotContainsString('sr-only', $rendered);
+        // Accessibility: ensure it has type="button" to prevent form submission
+        $this->assertStringContainsString('type="button"', $rendered);
     }
 
     /** @test */
@@ -31,13 +33,73 @@ class ClipboardButtonTest extends TestCase
     }
 
     /** @test */
-    public function it_safely_escapes_urls_with_quotes(): void
+    public function it_supports_generic_content_prop(): void
     {
-        $url = "https://example.com/test'quote";
-        $rendered = Blade::render('<x-clipboard-button :url="$url" />', ['url' => $url]);
+        $content = 'John 3:16';
+        $rendered = Blade::render('<x-clipboard-button :content="$content" label="Copy reference" />', ['content' => $content]);
 
-        // Js::from() will encode the quote as \u0027 or similar depending on environment, but tinker showed ' with escaping
-        // Let's check what it actually produces in the test environment
+        $this->assertStringContainsString('navigator.clipboard.writeText(\'John 3:16\')', $rendered);
+        $this->assertStringContainsString('Copy reference', $rendered);
+    }
+
+    /** @test */
+    public function it_supports_custom_labels_and_icons(): void
+    {
+        $content = 'Test content';
+        $rendered = Blade::render('<x-clipboard-button :content="$content" label="Custom Label" copiedLabel="Done!" icon="clipboard-document" />', ['content' => $content]);
+
+        $this->assertStringContainsString('Custom Label', $rendered);
+        $this->assertStringContainsString('Done!', $rendered);
+        $this->assertStringContainsString('svg', $rendered);
+    }
+
+    /** @test */
+    public function it_safely_escapes_content_with_quotes(): void
+    {
+        $content = "Reference 'quoted'";
+        $rendered = Blade::render('<x-clipboard-button :content="$content" />', ['content' => $content]);
+
         $this->assertStringContainsString('navigator.clipboard.writeText(', $rendered);
+        $this->assertStringContainsString('quoted', $rendered);
+    }
+
+    /** @test */
+    public function it_updates_aria_label_and_title_on_copy_state(): void
+    {
+        $content = 'Test content';
+        $rendered = Blade::render('<x-clipboard-button :content="$content" label="Copy it" copiedLabel="Success!" />', ['content' => $content]);
+
+        $this->assertStringContainsString(':aria-label="copied ? \'Success!\' : \'Copy it\'"', $rendered);
+        $this->assertStringContainsString(':title="copied ? \'Success!\' : \'Copy it to clipboard\'"', $rendered);
+    }
+
+    /** @test */
+    public function it_handles_unsupported_browser_state_via_alpine(): void
+    {
+        $rendered = Blade::render('<x-clipboard-button content="test" />');
+
+        // It should hide itself if navigator.clipboard is not available
+        $this->assertStringContainsString('x-show="navigator.clipboard"', $rendered);
+        // It should guard the click handler
+        $this->assertStringContainsString('if (!navigator.clipboard) return;', $rendered);
+    }
+
+    /** @test */
+    public function it_has_accessible_announcements_for_state_changes(): void
+    {
+        $rendered = Blade::render('<x-clipboard-button content="test" />');
+
+        // It should have aria-live for announcing "Copied!"
+        $this->assertStringContainsString('aria-live="polite"', $rendered);
+    }
+
+    /** @test */
+    public function it_has_visible_focus_indicator_classes(): void
+    {
+        $rendered = Blade::render('<x-clipboard-button content="test" />');
+
+        $this->assertStringContainsString('focus-visible:ring-2', $rendered);
+        $this->assertStringContainsString('focus-visible:ring-cbc-teal', $rendered);
+        $this->assertStringContainsString('focus-visible:ring-offset-2', $rendered);
     }
 }
