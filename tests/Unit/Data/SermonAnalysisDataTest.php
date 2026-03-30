@@ -115,6 +115,18 @@ class SermonAnalysisDataTest extends TestCase
         $this->assertTrue($analysis->isTitleValid());
     }
 
+    #[Test]
+    public function it_truncates_ai_titles_exceeding_fifty_characters(): void
+    {
+        $analysis = SermonAnalysis::fromAiAnalysis([
+            'title' => 'This is a sermon title that is definitely longer than fifty characters',
+            'points' => [],
+            'transcript' => str_repeat('t', 200),
+        ]);
+
+        $this->assertLessThanOrEqual(50, strlen($analysis->title));
+    }
+
     // ── Transcript validation ─────────────────────────────────────────────────
 
     #[Test]

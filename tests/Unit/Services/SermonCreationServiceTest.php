@@ -592,7 +592,7 @@ class SermonCreationServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_limits_ai_title_to_100_characters(): void
+    public function it_limits_ai_title_to_50_characters(): void
     {
         $longTitle = str_repeat('Very Long Title ', 20); // Creates a very long title
 
@@ -604,6 +604,6 @@ class SermonCreationServiceTest extends TestCase
             ]
         );
 
-        $this->assertLessThanOrEqual(100, strlen($title));
+        $this->assertLessThanOrEqual(50, strlen($title));
     }
 }

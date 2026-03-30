@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Data\SermonAnalysis;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\BritishEnglishConverter;
@@ -123,6 +124,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $result = $this->validator->validateAndCleanTitle($longTitle);
         $words = explode(' ', $result);
         $this->assertLessThanOrEqual(12, count($words));
+        $this->assertLessThanOrEqual(50, strlen($result));
 
         // Test empty title
         $result = $this->validator->validateAndCleanTitle('');
@@ -257,6 +259,18 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->assertNull($result['reference']);
         $this->assertEquals(['Main Message'], $result['points']);
         $this->assertEquals($transcript, $result['transcript']);
+    }
+
+    #[Test]
+    public function it_limits_ai_analysis_titles_to_50_characters(): void
+    {
+        $analysis = SermonAnalysis::fromAiAnalysis([
+            'title' => 'This is a sermon title that is definitely longer than fifty characters',
+            'points' => [],
+            'transcript' => str_repeat('t', 200),
+        ]);
+
+        $this->assertLessThanOrEqual(50, strlen($analysis->title));
     }
 
     #[Test]

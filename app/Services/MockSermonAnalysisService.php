@@ -149,6 +149,8 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
             $title = implode(' ', $words);
         }
 
+        $title = mb_substr($title, 0, SermonAnalysisValidator::MAX_TITLE_CHARACTERS);
+
         return trim($title);
     }
 

@@ -30,7 +30,7 @@ TRANSCRIPT:
 
 Please provide a JSON response with this exact structure:
 {
-    "title": "A descriptive sermon title in sentence case (maximum 12 words)",
+    "title": "A descriptive sermon title in sentence case (maximum 12 words and 50 characters)",
     "series": "Name of matching existing series or null if no match",
     "reference": "Primary Bible passage being preached (e.g., 'John 3:16-21')",
     "points": ["Main point 1 in sentence case", "Main point 2 in sentence case", "Main point 3 in sentence case"],
@@ -41,6 +41,7 @@ ANALYSIS GUIDELINES:
 
 1. TITLE: Create a clear, engaging title that captures the sermon's main theme. Rules:
    - Maximum 12 words
+   - Maximum 50 characters
    - Focus on the central message or key Bible passage
    - Use language from the transcript where possible
    - Use sentence case (capitalise only the first word and proper nouns, not every word)

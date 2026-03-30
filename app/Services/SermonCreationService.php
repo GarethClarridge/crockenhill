@@ -319,7 +319,7 @@ class SermonCreationService
         // Priority 2: AI-generated title (if available)
         $aiAnalysis = $context['ai_analysis'] ?? null;
         if ($aiAnalysis && ! empty($aiAnalysis['title'])) {
-            return Str::limit($aiAnalysis['title'], 100, '');
+            return Str::limit($aiAnalysis['title'], SermonAnalysisValidator::MAX_TITLE_CHARACTERS, '');
         }
 
         // Priority 3: Fall back to filename processing

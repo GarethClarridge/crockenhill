@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Services\SermonAnalysisValidator;
 use ArrayAccess;
+use Illuminate\Support\Str;
 use LogicException;
 use Spatie\LaravelData\Attributes\Validation\Max;
 use Spatie\LaravelData\Attributes\Validation\Required;
@@ -110,6 +112,9 @@ class SermonAnalysis extends Data implements ArrayAccess
     public static function fromAiAnalysis(array $analysisData): self
     {
         $title = $analysisData['title'] ?? 'Untitled Sermon';
+        if (is_string($title)) {
+            $title = Str::limit($title, SermonAnalysisValidator::MAX_TITLE_CHARACTERS, '');
+        }
         $series = ! empty($analysisData['series']) ? $analysisData['series'] : null;
         $reference = ! empty($analysisData['reference']) ? $analysisData['reference'] : null;
         $points = $analysisData['points'] ?? [];
