@@ -141,6 +141,20 @@ class SermonControllerTest extends TestCase
         $response->assertRedirect('/christ/sermons/2024/06/redirect-me');
     }
 
+    #[Test]
+    public function slug_only_route_returns_404_for_non_public_childrens_talk(): void
+    {
+        config(['sermons.childrens_talks.public' => false]);
+
+        Sermon::factory()->create([
+            'slug' => 'hidden-childrens-talk',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $response = $this->get('/christ/sermons/hidden-childrens-talk');
+        $response->assertStatus(404);
+    }
+
     // ── preachers ──────────────────────────────────────────────────────────
 
     #[Test]
