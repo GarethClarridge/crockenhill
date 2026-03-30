@@ -10,9 +10,9 @@
 
 @php
 $copyContent = $content ?? $url;
-$baseClasses = 'inline-flex items-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-1';
+$baseClasses = 'inline-flex items-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2';
 $defaultClasses = $hideLabel
-    ? 'p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded'
+    ? 'p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded'
     : 'gap-1.5 px-3 py-1.5 text-xs font-medium text-cbc-teal-dark hover:text-cbc-teal bg-white border border-gray-200 hover:border-cbc-teal-light/30 rounded-md shadow-sm';
 
 $classes = $baseClasses . ' ' . $defaultClasses;
