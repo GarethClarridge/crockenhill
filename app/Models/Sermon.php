@@ -14,6 +14,7 @@ use App\Enums\SermonSourceType;
 use App\Presenters\SermonSitemapPresenter;
 use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -157,19 +158,34 @@ class Sermon extends Model implements Sitemapable
         ];
     }
 
-    public function getHumanDateAttribute(): ?string
+    /**
+     * @return Attribute<string, never>
+     */
+    protected function humanDate(): Attribute
     {
-        return $this->date->format('F j, Y');
+        return Attribute::make(
+            get: fn (): string => $this->date->format('F j, Y')
+        );
     }
 
-    public function getPlainThumbnailFilePathAttribute(): ?string
+    /**
+     * @return Attribute<?string, never>
+     */
+    protected function plainThumbnailFilePath(): Attribute
     {
-        return $this->thumbnail_metadata?->plainThumbnailPath;
+        return Attribute::make(
+            get: fn (): ?string => $this->thumbnail_metadata?->plainThumbnailPath
+        );
     }
 
-    public function getSeriesUrlAttribute(): ?string
+    /**
+     * @return Attribute<?string, never>
+     */
+    protected function seriesUrl(): Attribute
     {
-        return $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null;
+        return Attribute::make(
+            get: fn (): ?string => $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null
+        );
     }
 
     /**
@@ -626,46 +642,52 @@ class Sermon extends Model implements Sitemapable
     /**
      * Get the SEO meta description for the sermon.
      * Auto-generates from summary or title if not explicitly set.
+     *
+     * @return Attribute<string, never>
      */
-    public function getMetaDescriptionAttribute(): string
+    protected function metaDescription(): Attribute
     {
-        if (! empty($this->attributes['meta_description'])) {
-            return $this->attributes['meta_description'];
-        }
+        return Attribute::make(
+            get: function (): string {
+                if (! empty($this->attributes['meta_description'])) {
+                    return $this->attributes['meta_description'];
+                }
 
-        $preacherName = $this->displayPreacherName() ?? 'Unknown preacher';
-        $description = "Listen to '{$this->title}' by {$preacherName}";
-        $description .= " preached on {$this->human_date}";
+                $preacherName = $this->displayPreacherName() ?? 'Unknown preacher';
+                $description = "Listen to '{$this->title}' by {$preacherName}";
+                $description .= " preached on {$this->human_date}";
 
-        if ($this->displayReference()) {
-            $description .= ' - '.$this->displayReference();
-        }
+                if ($this->displayReference()) {
+                    $description .= ' - '.$this->displayReference();
+                }
 
-        $summary = null;
-        if ($this->show_summary && $this->summary) {
-            $summary = trim(strip_tags($this->summary));
-        }
+                $summary = null;
+                if ($this->show_summary && $this->summary) {
+                    $summary = trim(strip_tags($this->summary));
+                }
 
-        $seriesSuffix = $this->series ? " (Part of the {$this->series} series)" : '';
+                $seriesSuffix = $this->series ? " (Part of the {$this->series} series)" : '';
 
-        if ($summary === null || $summary === '') {
-            return Str::limit($description.$seriesSuffix, 155);
-        }
+                if ($summary === null || $summary === '') {
+                    return Str::limit($description.$seriesSuffix, 155);
+                }
 
-        $descriptionWithSeries = $description.$seriesSuffix;
-        $separator = '. ';
+                $descriptionWithSeries = $description.$seriesSuffix;
+                $separator = '. ';
 
-        if (Str::length($descriptionWithSeries.$separator.$summary) <= 155) {
-            return $descriptionWithSeries.$separator.$summary;
-        }
+                if (Str::length($descriptionWithSeries.$separator.$summary) <= 155) {
+                    return $descriptionWithSeries.$separator.$summary;
+                }
 
-        $remainingSummaryLength = 155 - Str::length($description) - Str::length($separator);
+                $remainingSummaryLength = 155 - Str::length($description) - Str::length($separator);
 
-        if ($remainingSummaryLength > 0) {
-            return $description.$separator.Str::limit($summary, $remainingSummaryLength);
-        }
+                if ($remainingSummaryLength > 0) {
+                    return $description.$separator.Str::limit($summary, $remainingSummaryLength);
+                }
 
-        return Str::limit($descriptionWithSeries, 155);
+                return Str::limit($descriptionWithSeries, 155);
+            }
+        );
     }
 
     /**
