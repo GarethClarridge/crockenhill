@@ -49,7 +49,9 @@
 <meta name="twitter:image" content="{{ $metaImage }}">
 
 @if($canonical)
+@section('canonical')
 <link rel="canonical" href="{{ $canonical }}">
+@endsection
 @endif
 
 {{ $slot }}
