@@ -103,14 +103,49 @@ class SermonStorageService
             return null;
         }
 
-        $disk = str_starts_with($cardThumbnailPath, 'private/')
-            ? 'local'
-            : config('thumbnail-generation.storage.disk', 'public');
+        $disk = $this->resolveThumbnailDisk($cardThumbnailPath);
 
         return $this->appendVersion(
             Storage::disk($disk)->url($cardThumbnailPath),
             $this->thumbnailVersion($sermon, $cardThumbnailPath),
         );
+    }
+
+    public function getThumbnailCandidatePath(Sermon $sermon, string $candidateId, string $variant): ?string
+    {
+        $candidate = $sermon->findThumbnailCandidate($candidateId);
+
+        if ($candidate === null) {
+            return null;
+        }
+
+        return match ($variant) {
+            'overlay' => $candidate['overlay_path'],
+            'plain' => $candidate['plain_path'],
+            default => null,
+        };
+    }
+
+    public function getAdminThumbnailCandidatePreviewUrl(Sermon $sermon, string $candidateId, string $variant): ?string
+    {
+        $path = $this->getThumbnailCandidatePath($sermon, $candidateId, $variant);
+
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        return route('admin.sermons.thumbnails.preview', [
+            'sermon' => $sermon->slug,
+            'candidateId' => $candidateId,
+            'variant' => $variant,
+        ]);
+    }
+
+    public function resolveThumbnailDisk(string $thumbnailPath): string
+    {
+        return str_starts_with($thumbnailPath, 'private/')
+            ? 'local'
+            : config('thumbnail-generation.storage.disk', 'public');
     }
 
     /**

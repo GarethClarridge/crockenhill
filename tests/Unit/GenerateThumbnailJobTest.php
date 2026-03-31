@@ -74,7 +74,20 @@ class GenerateThumbnailJobTest extends TestCase
             ->with($this->callback(fn (Sermon $model): bool => $model->is($sermon)), 'sermons/1/video.mp4', 'public')
             ->willReturn(ThumbnailResult::success(
                 'sermons/thumbnails/test.jpg',
-                ['width' => 1280, 'height' => 720]
+                [
+                    'width' => 1280,
+                    'height' => 720,
+                    'selected_thumbnail_candidate_id' => 'candidate-3',
+                    'thumbnail_candidates' => [
+                        [
+                            'id' => 'candidate-3',
+                            'timestamp' => 420.0,
+                            'score' => 0.92,
+                            'overlay_path' => 'sermons/thumbnails/test.jpg',
+                            'plain_path' => 'sermons/thumbnails/test-plain.jpg',
+                        ],
+                    ],
+                ]
             ));
 
         Log::shouldReceive('info')->atLeast()->once();
@@ -86,7 +99,8 @@ class GenerateThumbnailJobTest extends TestCase
         $sermon->refresh();
         $this->assertSame('sermons/thumbnails/test.jpg', $sermon->thumbnail_file_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
-        $this->assertSame(['width' => 1280, 'height' => 720], $sermon->thumbnail_metadata?->toArray());
+        $this->assertSame('candidate-3', $sermon->thumbnail_metadata?->selectedThumbnailCandidateId);
+        $this->assertSame('sermons/thumbnails/test-plain.jpg', $sermon->thumbnail_metadata?->thumbnailCandidates[0]['plain_path']);
     }
 
     #[Test]

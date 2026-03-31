@@ -116,6 +116,34 @@ class FrameExtractionServiceTest extends TestCase
         $this->assertEquals(300.0, $result);
     }
 
+    #[Test]
+    public function it_calculates_five_evenly_spaced_candidate_timestamps_for_long_videos(): void
+    {
+        $result = $this->service->calculateCandidateTimestamps(1800.0, 5);
+
+        $this->assertCount(5, $result);
+        $this->assertEquals([300.0, 660.0, 1020.0, 1380.0, 1740.0], $result);
+    }
+
+    #[Test]
+    public function it_falls_back_to_proportional_candidate_timestamps_for_short_videos(): void
+    {
+        $result = $this->service->calculateCandidateTimestamps(200.0, 5);
+
+        $this->assertCount(5, $result);
+        $this->assertEquals([40.0, 70.0, 100.0, 130.0, 160.0], $result);
+    }
+
+    #[Test]
+    public function it_deduplicates_candidate_timestamps_when_the_window_is_tiny(): void
+    {
+        $result = $this->service->calculateCandidateTimestamps(0.4, 5);
+
+        $this->assertGreaterThanOrEqual(1, count($result));
+        $this->assertLessThanOrEqual(5, count($result));
+        $this->assertEquals(array_values(array_unique($result)), $result);
+    }
+
     // ---- getVideoMetadata ----
 
     #[Test]

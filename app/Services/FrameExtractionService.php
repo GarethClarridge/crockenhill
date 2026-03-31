@@ -112,6 +112,55 @@ class FrameExtractionService
     }
 
     /**
+     * Calculate evenly spaced candidate timestamps for multi-thumbnail extraction.
+     *
+     * @return list<float>
+     */
+    public function calculateCandidateTimestamps(float $duration, int $count = 5): array
+    {
+        if ($count <= 0) {
+            return [];
+        }
+
+        if ($duration <= 0) {
+            return [0.0];
+        }
+
+        $startOffset = (float) $this->extractionConfig['start_offset'];
+        $endBuffer = (float) $this->extractionConfig['end_buffer'];
+        $fallbackPosition = (float) $this->extractionConfig['fallback_position'];
+
+        $windowStart = $startOffset;
+        $windowEnd = max(0.0, $duration - $endBuffer);
+
+        if ($windowEnd <= $windowStart) {
+            $windowStart = max(0.0, $duration * max(0.05, $fallbackPosition - 0.3));
+            $windowEnd = min($duration, $duration * min(0.95, $fallbackPosition + 0.3));
+        }
+
+        $windowStart = max(0.0, min($windowStart, $duration));
+        $windowEnd = max($windowStart, min($windowEnd, $duration));
+
+        if (abs($windowEnd - $windowStart) < 0.001) {
+            return [(float) number_format($windowStart, 3, '.', '')];
+        }
+
+        $timestamps = [];
+        $interval = ($windowEnd - $windowStart) / max(1, $count - 1);
+
+        for ($index = 0; $index < $count; $index++) {
+            $timestamp = max(0.0, min($windowStart + ($interval * $index), $duration));
+            $key = number_format($timestamp, 3, '.', '');
+
+            if (! array_key_exists($key, $timestamps)) {
+                $timestamps[$key] = (float) $key;
+            }
+        }
+
+        return array_values($timestamps);
+    }
+
+    /**
      * Get video metadata using VideoSegmentationService
      *
      * @return array<string, float|int|string>

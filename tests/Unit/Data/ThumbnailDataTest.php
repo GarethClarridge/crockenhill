@@ -26,6 +26,16 @@ class ThumbnailDataTest extends TestCase
             'generated_at' => '2024-01-01T10:00:00Z',
             'plain_thumbnail_path' => 'thumbs/plain.webp',
             'overlay_thumbnail_path' => 'thumbs/overlay.webp',
+            'selected_thumbnail_candidate_id' => 'candidate-3',
+            'thumbnail_candidates' => [
+                [
+                    'id' => 'candidate-1',
+                    'timestamp' => 100.0,
+                    'score' => 0.4567,
+                    'overlay_path' => 'thumbs/candidate-1-overlay.webp',
+                    'plain_path' => 'thumbs/candidate-1-plain.webp',
+                ],
+            ],
             'composition_mode' => 'layered_subject',
             'foreground_extraction_method' => 'blue_key',
             'foreground_bounds' => ['x' => 10, 'y' => 20, 'width' => 30, 'height' => 40],
@@ -39,6 +49,8 @@ class ThumbnailDataTest extends TestCase
         $this->assertSame('2024-01-01T10:00:00Z', $metadata->generatedAt);
         $this->assertSame('thumbs/plain.webp', $metadata->plainThumbnailPath);
         $this->assertSame('thumbs/overlay.webp', $metadata->overlayThumbnailPath);
+        $this->assertSame('candidate-3', $metadata->selectedThumbnailCandidateId);
+        $this->assertSame('candidate-1', $metadata->thumbnailCandidates[0]['id']);
         $this->assertSame('layered_subject', $metadata->compositionMode);
         $this->assertSame('blue_key', $metadata->foregroundExtractionMethod);
         $this->assertSame(['x' => 10, 'y' => 20, 'width' => 30, 'height' => 40], $metadata->foregroundBounds);
@@ -70,6 +82,16 @@ class ThumbnailDataTest extends TestCase
             'timestamp' => 30.0,
             'video_duration' => 1800.0,
             'plain_thumbnail_path' => 'thumbs/plain.webp',
+            'selected_thumbnail_candidate_id' => 'candidate-2',
+            'thumbnail_candidates' => [
+                [
+                    'id' => 'candidate-2',
+                    'timestamp' => 240.0,
+                    'score' => 0.8123,
+                    'overlay_path' => 'thumbs/candidate-2-overlay.webp',
+                    'plain_path' => 'thumbs/candidate-2-plain.webp',
+                ],
+            ],
             'composition_mode' => 'flat_fallback',
         ];
 
@@ -78,6 +100,8 @@ class ThumbnailDataTest extends TestCase
         $this->assertSame(30.0, $output['timestamp']);
         $this->assertSame(1800.0, $output['video_duration']);
         $this->assertSame('thumbs/plain.webp', $output['plain_thumbnail_path']);
+        $this->assertSame('candidate-2', $output['selected_thumbnail_candidate_id']);
+        $this->assertSame('thumbs/candidate-2-overlay.webp', $output['thumbnail_candidates'][0]['overlay_path']);
         $this->assertSame('flat_fallback', $output['composition_mode']);
     }
 
@@ -148,6 +172,16 @@ class ThumbnailDataTest extends TestCase
             'timestamp' => 45.0,
             'video_duration' => 3600.0,
             'plain_thumbnail_path' => 'thumbs/plain.webp',
+            'selected_thumbnail_candidate_id' => 'candidate-4',
+            'thumbnail_candidates' => [
+                [
+                    'id' => 'candidate-4',
+                    'timestamp' => 420.0,
+                    'score' => 0.9123,
+                    'overlay_path' => 'thumbs/candidate-4-overlay.webp',
+                    'plain_path' => 'thumbs/candidate-4-plain.webp',
+                ],
+            ],
         ]);
 
         $json = $cast->set($model, 'thumbnail_metadata', $original, []);
@@ -155,6 +189,8 @@ class ThumbnailDataTest extends TestCase
 
         $this->assertSame(45.0, $restored->timestamp);
         $this->assertSame('thumbs/plain.webp', $restored->plainThumbnailPath);
+        $this->assertSame('candidate-4', $restored->selectedThumbnailCandidateId);
+        $this->assertSame('thumbs/candidate-4-plain.webp', $restored->selectedCandidate()['plain_path']);
     }
 
     // ── ThumbnailResult ───────────────────────────────────────────────────────

@@ -14,6 +14,8 @@ use Intervention\Image\Laravel\Facades\Image;
 
 class ThumbnailGenerationService
 {
+    public const int CANDIDATE_COUNT = 5;
+
     // Thumbnail dimensions
     public const int WEB_WIDTH = 1280;
 
@@ -93,91 +95,71 @@ class ThumbnailGenerationService
         $tempVideoPath = null;
 
         try {
-            // Check if thumbnail generation is enabled
             if (! config('thumbnail-generation.enabled')) {
                 return ThumbnailResult::skipped('Thumbnail generation is disabled');
             }
 
-            // Validate video file exists using storage-aware method
             if (! $this->frameExtractionService->videoFileExists($videoPath, $disk)) {
                 return ThumbnailResult::skipped('Video file not found: '.$videoPath);
             }
 
-            // For S3 storage, we need to download the file temporarily for FFmpeg processing
             $localVideoPath = $this->frameExtractionService->ensureLocalVideoPath($videoPath, $disk);
 
-            // Track if we downloaded a temp video for S3 processing
             if ($disk && $this->storageHelper->isS3CompatibleDisk(Storage::disk($disk))) {
                 $tempVideoPath = $localVideoPath;
             }
 
-            // Get video metadata
             $metadata = $this->frameExtractionService->getVideoMetadata($localVideoPath);
 
-            // Check minimum duration requirement
             if ($metadata['duration'] < config('thumbnail-generation.extraction.min_video_duration')) {
                 $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
                 return ThumbnailResult::skipped('Video too short for thumbnail generation');
             }
 
-            // Calculate optimal timestamp for frame extraction
-            $timestamp = $this->frameExtractionService->calculateOptimalTimestamp((float) $metadata['duration']);
+            $candidateTimestamps = $this->frameExtractionService->calculateCandidateTimestamps(
+                (float) $metadata['duration'],
+                self::CANDIDATE_COUNT
+            );
 
-            // Extract base frame from video
-            $baseFramePath = $this->frameExtractionService->extractBaseFrame($localVideoPath, $timestamp);
+            $successfulCandidates = [];
 
-            if (! $baseFramePath) {
-                $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
+            foreach ($candidateTimestamps as $index => $timestamp) {
+                $candidateId = 'candidate-'.($index + 1);
+                $baseFramePath = $this->frameExtractionService->extractBaseFrame($localVideoPath, $timestamp);
 
-                return ThumbnailResult::failed('Failed to extract frame from video');
+                if (! $baseFramePath) {
+                    Log::warning('Skipping thumbnail candidate after frame extraction failure', [
+                        'sermon_id' => $sermon->id,
+                        'candidate_id' => $candidateId,
+                        'timestamp' => $timestamp,
+                    ]);
+
+                    continue;
+                }
+
+                try {
+                    $candidate = $this->buildThumbnailCandidate($sermon, $candidateId, $timestamp, $baseFramePath);
+
+                    if ($candidate !== null) {
+                        $successfulCandidates[] = $candidate;
+                    }
+                } finally {
+                    $this->cleanupTempFile($baseFramePath);
+                }
             }
 
-            // Create branded overlay and plain image variants
-            $brandedThumbnail = $this->createBrandedThumbnail($sermon, $baseFramePath);
-            $thumbnailPath = $brandedThumbnail['path'] ?? null;
-            $plainThumbnailPath = $this->createPlainThumbnail($baseFramePath);
-
-            if (! $thumbnailPath) {
-                $this->cleanupTempFile($baseFramePath);
-                $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
-
-                return ThumbnailResult::failed('Failed to create branded thumbnail');
-            }
-
-            // Store thumbnails in final location
-            $finalPath = $this->storeThumbnail($thumbnailPath, $sermon);
-            $finalPlainPath = null;
-
-            if ($plainThumbnailPath) {
-                $finalPlainPath = $this->storeThumbnail($plainThumbnailPath, $sermon, 'plain');
-            } else {
-                Log::warning('Plain thumbnail generation failed, continuing with branded variant', [
-                    'sermon_id' => $sermon->id,
-                ]);
-            }
-
-            // Cleanup temporary files
-            $this->cleanupTempFile($baseFramePath);
-            $this->cleanupTempFile($thumbnailPath);
-            if ($plainThumbnailPath) {
-                $this->cleanupTempFile($plainThumbnailPath);
-            }
             $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
-            if (! $finalPath) {
-                return ThumbnailResult::failed('Failed to store thumbnail');
+            if ($successfulCandidates === []) {
+                return ThumbnailResult::failed('Failed to create any thumbnail candidates');
             }
 
-            if ($plainThumbnailPath && ! $finalPlainPath) {
-                Log::warning('Plain thumbnail storage failed, continuing with branded variant', [
-                    'sermon_id' => $sermon->id,
-                ]);
-            }
+            usort($successfulCandidates, static fn (array $left, array $right): int => $right['score'] <=> $left['score']);
+            $selectedCandidate = $successfulCandidates[0];
 
-            // Prepare metadata
             $resultMetadata = [
-                'timestamp' => $timestamp,
+                'timestamp' => $selectedCandidate['timestamp'],
                 'video_duration' => $metadata['duration'],
                 'video_resolution' => [
                     'width' => $metadata['width'],
@@ -187,18 +169,26 @@ class ThumbnailGenerationService
                     'web' => ['width' => self::WEB_WIDTH, 'height' => self::WEB_HEIGHT, 'quality' => self::WEB_QUALITY],
                 ],
                 'generated_at' => now()->toISOString(),
-                'plain_thumbnail_path' => $finalPlainPath,
-                'overlay_thumbnail_path' => $finalPath,
+                'plain_thumbnail_path' => $selectedCandidate['plain_path'],
+                'overlay_thumbnail_path' => $selectedCandidate['overlay_path'],
+                'selected_thumbnail_candidate_id' => $selectedCandidate['id'],
+                'thumbnail_candidates' => array_map(
+                    static fn (array $candidate): array => [
+                        'id' => $candidate['id'],
+                        'timestamp' => $candidate['timestamp'],
+                        'score' => $candidate['score'],
+                        'overlay_path' => $candidate['overlay_path'],
+                        'plain_path' => $candidate['plain_path'],
+                    ],
+                    $successfulCandidates
+                ),
             ];
 
-            if ($brandedThumbnail !== null) {
-                $resultMetadata = array_merge($resultMetadata, $brandedThumbnail['composition_metadata']);
-            }
+            $resultMetadata = array_merge($resultMetadata, $selectedCandidate['composition_metadata']);
 
-            return ThumbnailResult::success($finalPath, $resultMetadata);
+            return ThumbnailResult::success($selectedCandidate['overlay_path'], $resultMetadata);
 
         } catch (\Exception $e) {
-            // Cleanup temp video on exception
             $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
             Log::warning('Thumbnail generation failed, skipping', [
@@ -246,6 +236,86 @@ class ThumbnailGenerationService
             ]);
 
             return null;
+        }
+    }
+
+    /**
+     * @return array{
+     *     id: string,
+     *     timestamp: float,
+     *     score: float,
+     *     overlay_path: string,
+     *     plain_path: string,
+     *     composition_metadata: array<string, mixed>
+     * }|null
+     */
+    private function buildThumbnailCandidate(Sermon $sermon, string $candidateId, float $timestamp, string $baseFramePath): ?array
+    {
+        $temporaryPaths = [];
+        $storedPaths = [];
+
+        try {
+            $brandedThumbnail = $this->createBrandedThumbnail($sermon, $baseFramePath);
+            if ($brandedThumbnail === null) {
+                return null;
+            }
+
+            $temporaryPaths[] = $brandedThumbnail['path'];
+
+            $plainThumbnailPath = $this->createPlainThumbnail($baseFramePath);
+            if (! is_string($plainThumbnailPath) || $plainThumbnailPath === '') {
+                Log::warning('Skipping thumbnail candidate after plain thumbnail generation failure', [
+                    'sermon_id' => $sermon->id,
+                    'candidate_id' => $candidateId,
+                    'timestamp' => $timestamp,
+                ]);
+
+                return null;
+            }
+
+            $temporaryPaths[] = $plainThumbnailPath;
+
+            $overlayPath = $this->storeThumbnail($brandedThumbnail['path'], $sermon, "{$candidateId}_overlay");
+            if (! is_string($overlayPath) || $overlayPath === '') {
+                return null;
+            }
+
+            $storedPaths[] = $overlayPath;
+
+            $plainPath = $this->storeThumbnail($plainThumbnailPath, $sermon, "{$candidateId}_plain");
+            if (! is_string($plainPath) || $plainPath === '') {
+                $this->deleteStoredThumbnailPath($overlayPath);
+
+                return null;
+            }
+
+            $storedPaths[] = $plainPath;
+
+            return [
+                'id' => $candidateId,
+                'timestamp' => round($timestamp, 3),
+                'score' => $this->scoreFrameQuality($baseFramePath),
+                'overlay_path' => $overlayPath,
+                'plain_path' => $plainPath,
+                'composition_metadata' => $brandedThumbnail['composition_metadata'],
+            ];
+        } catch (\Exception $e) {
+            Log::warning('Thumbnail candidate generation failed', [
+                'sermon_id' => $sermon->id,
+                'candidate_id' => $candidateId,
+                'timestamp' => $timestamp,
+                'error' => $e->getMessage(),
+            ]);
+
+            foreach ($storedPaths as $storedPath) {
+                $this->deleteStoredThumbnailPath($storedPath);
+            }
+
+            return null;
+        } finally {
+            foreach ($temporaryPaths as $temporaryPath) {
+                $this->cleanupTempFile($temporaryPath);
+            }
         }
     }
 
@@ -599,12 +669,10 @@ class ThumbnailGenerationService
      */
     public function regenerateThumbnail(Sermon $sermon): ThumbnailResult
     {
-        // Check if sermon has video file
         if (! $sermon->hasVideo()) {
             return ThumbnailResult::skipped('Sermon has no video file for thumbnail generation');
         }
 
-        // Get video path and disk information
         $sermonDisk = config('media-processing.storage.sermon_disk');
         $videoPath = $sermon->video_file_path;
 
@@ -612,31 +680,7 @@ class ThumbnailGenerationService
             throw new \InvalidArgumentException('Sermon does not have a valid video path');
         }
 
-        // Delete existing thumbnail if it exists
-        if ($sermon->thumbnail_file_path) {
-            try {
-                Storage::disk($this->storageDisk)->delete($sermon->thumbnail_file_path);
-            } catch (\Exception $e) {
-                Log::warning('Failed to delete existing thumbnail', [
-                    'sermon_id' => $sermon->id,
-                    'thumbnail_file_path' => $sermon->thumbnail_file_path,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        $existingPlainThumbnailPath = $sermon->plain_thumbnail_file_path;
-        if ($existingPlainThumbnailPath) {
-            try {
-                Storage::disk($this->storageDisk)->delete($existingPlainThumbnailPath);
-            } catch (\Exception $e) {
-                Log::warning('Failed to delete existing plain thumbnail', [
-                    'sermon_id' => $sermon->id,
-                    'plain_thumbnail_file_path' => $existingPlainThumbnailPath,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+        $this->deleteExistingGeneratedThumbnails($sermon);
 
         return $this->generateThumbnail($sermon, $videoPath, $sermonDisk);
     }
@@ -685,11 +729,124 @@ class ThumbnailGenerationService
     private function buildStorageFilename(Sermon $sermon, string $variant): string
     {
         $baseFilename = 'sermon_'.$sermon->id.'_'.date('Y-m-d');
-        if ($variant === 'plain') {
-            $baseFilename .= '_plain';
+        $suffix = trim((string) preg_replace('/[^A-Za-z0-9_-]+/', '_', $variant), '_');
+
+        if ($suffix !== '' && $suffix !== 'overlay') {
+            $baseFilename .= '_'.$suffix;
         }
 
         return $baseFilename.'.webp';
+    }
+
+    private function scoreFrameQuality(string $baseFramePath): float
+    {
+        $fullBaseFramePath = Storage::disk($this->tempDisk)->path($baseFramePath);
+        $contents = @file_get_contents($fullBaseFramePath);
+
+        if (! is_string($contents) || $contents === '') {
+            return 0.0;
+        }
+
+        $image = @imagecreatefromstring($contents);
+
+        if ($image === false) {
+            return 0.0;
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+
+        $stepX = max(1, (int) floor($width / 48));
+        $stepY = max(1, (int) floor($height / 48));
+
+        $luminanceValues = [];
+        $detailAccumulator = 0.0;
+
+        for ($y = 0; $y < $height; $y += $stepY) {
+            $previousRowLuminance = null;
+
+            for ($x = 0; $x < $width; $x += $stepX) {
+                $rgb = imagecolorat($image, $x, $y);
+                $red = ($rgb >> 16) & 0xFF;
+                $green = ($rgb >> 8) & 0xFF;
+                $blue = $rgb & 0xFF;
+
+                $luminance = (0.2126 * $red) + (0.7152 * $green) + (0.0722 * $blue);
+                $luminanceValues[] = $luminance;
+
+                if ($x >= $stepX) {
+                    $previousRgb = imagecolorat($image, $x - $stepX, $y);
+                    $previousRed = ($previousRgb >> 16) & 0xFF;
+                    $previousGreen = ($previousRgb >> 8) & 0xFF;
+                    $previousBlue = $previousRgb & 0xFF;
+                    $previousLuminance = (0.2126 * $previousRed) + (0.7152 * $previousGreen) + (0.0722 * $previousBlue);
+                    $detailAccumulator += abs($luminance - $previousLuminance);
+                }
+
+                if ($previousRowLuminance !== null) {
+                    $detailAccumulator += abs($luminance - $previousRowLuminance);
+                }
+
+                $previousRowLuminance = $luminance;
+            }
+        }
+
+        imagedestroy($image);
+
+        $sampleCount = count($luminanceValues);
+        $averageBrightness = array_sum($luminanceValues) / $sampleCount;
+        $variance = array_sum(array_map(
+            static fn (float $value): float => ($value - $averageBrightness) ** 2,
+            $luminanceValues
+        )) / $sampleCount;
+        $contrast = sqrt($variance);
+        $detail = $detailAccumulator / $sampleCount;
+
+        $brightnessScore = max(0.0, 1 - (abs($averageBrightness - 128.0) / 128.0));
+        $contrastScore = min(1.0, $contrast / 64.0);
+        $detailScore = min(1.0, $detail / 80.0);
+
+        return round(($brightnessScore * 0.25) + ($contrastScore * 0.35) + ($detailScore * 0.40), 4);
+    }
+
+    private function deleteExistingGeneratedThumbnails(Sermon $sermon): void
+    {
+        $candidatePaths = [];
+
+        foreach ($sermon->thumbnail_candidates as $candidate) {
+            $candidatePaths[] = $candidate['overlay_path'];
+            $candidatePaths[] = $candidate['plain_path'];
+        }
+
+        $paths = array_unique(array_filter([
+            $sermon->thumbnail_file_path,
+            $sermon->plain_thumbnail_file_path,
+            ...$candidatePaths,
+        ]));
+
+        foreach ($paths as $path) {
+            $this->deleteStoredThumbnailPath($path);
+        }
+    }
+
+    private function deleteStoredThumbnailPath(?string $path): void
+    {
+        if (! is_string($path) || trim($path) === '') {
+            return;
+        }
+
+        try {
+            $disk = str_starts_with($path, 'private/')
+                ? 'local'
+                : $this->storageDisk;
+
+            Storage::disk($disk)->delete($path);
+        } catch (\Exception $e) {
+            Log::warning('Failed to delete stored thumbnail', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

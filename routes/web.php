@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\CalendarAdminController;
 use App\Http\Controllers\Admin\SermonAdminController;
+use App\Http\Controllers\Admin\SermonThumbnailCandidateController;
 use App\Http\Controllers\Admin\ServiceSectionCandidateMediaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CalendarController;
@@ -145,6 +146,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     // Sermons
     Route::get('/sermons', App\Livewire\Admin\Sermons\ListSermons::class)->name('sermons.index');
     Route::get('/sermons/{sermon:slug}/edit', App\Livewire\Admin\Sermons\EditSermon::class)->name('sermons.edit');
+    Route::get('/sermons/{sermon:slug}/thumbnails/{candidateId}/{variant}', [SermonThumbnailCandidateController::class, 'show'])
+        ->where('variant', 'overlay|plain')
+        ->name('sermons.thumbnails.preview');
 
     // Church Services
     Route::get('/services', App\Livewire\Admin\ChurchServices\ListChurchServices::class)->name('services.index');

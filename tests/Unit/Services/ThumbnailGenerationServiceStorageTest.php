@@ -113,6 +113,65 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         $this->assertStringContainsString('no video', $result->errorMessage);
     }
 
+    #[Test]
+    public function it_deletes_existing_candidate_thumbnails_before_regeneration(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'title' => 'Existing Thumbnail Sermon',
+            'date' => now(),
+            'video_file_path' => 'videos/existing.mp4',
+            'thumbnail_file_path' => 'sermons/thumbnails/current-overlay.webp',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'sermons/thumbnails/current-plain.webp',
+                'selected_thumbnail_candidate_id' => 'candidate-2',
+                'thumbnail_candidates' => [
+                    [
+                        'id' => 'candidate-1',
+                        'timestamp' => 120.0,
+                        'score' => 0.81,
+                        'overlay_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+                        'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                    ],
+                    [
+                        'id' => 'candidate-2',
+                        'timestamp' => 240.0,
+                        'score' => 0.92,
+                        'overlay_path' => 'sermons/thumbnails/current-overlay.webp',
+                        'plain_path' => 'sermons/thumbnails/current-plain.webp',
+                    ],
+                ],
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/thumbnails/current-overlay.webp', 'overlay');
+        Storage::disk('public')->put('sermons/thumbnails/current-plain.webp', 'plain');
+        Storage::disk('public')->put('sermons/thumbnails/candidate-1-overlay.webp', 'candidate overlay');
+        Storage::disk('public')->put('sermons/thumbnails/candidate-1-plain.webp', 'candidate plain');
+
+        $service = $this->getMockBuilder(ThumbnailGenerationService::class)
+            ->setConstructorArgs([
+                $this->frameExtractionService,
+                app(StorageAdapterHelper::class),
+                new ThumbnailTextHelper,
+                app(ThumbnailForegroundExtractionService::class),
+            ])
+            ->onlyMethods(['generateThumbnail'])
+            ->getMock();
+
+        $service->expects($this->once())
+            ->method('generateThumbnail')
+            ->with($this->callback(fn (Sermon $model): bool => $model->is($sermon)), 'videos/existing.mp4', 'public')
+            ->willReturn(ThumbnailResult::success('sermons/thumbnails/new-overlay.webp'));
+
+        $result = $service->regenerateThumbnail($sermon);
+
+        $this->assertTrue($result->isSuccess());
+        Storage::disk('public')->assertMissing('sermons/thumbnails/current-overlay.webp');
+        Storage::disk('public')->assertMissing('sermons/thumbnails/current-plain.webp');
+        Storage::disk('public')->assertMissing('sermons/thumbnails/candidate-1-overlay.webp');
+        Storage::disk('public')->assertMissing('sermons/thumbnails/candidate-1-plain.webp');
+    }
+
     // ---- videoFileExists tests (now on FrameExtractionService) ----
 
     #[Test]

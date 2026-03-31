@@ -67,6 +67,8 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $human_date
  * @property-read ?string $series_url
  * @property-read ?string $plain_thumbnail_file_path
+ * @property-read list<array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}> $thumbnail_candidates
+ * @property-read array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}|null $selected_thumbnail_candidate
  * @property-read ServiceSection|null $publishedServiceSection
  * @property-read MediaProcessingLog|null $latestProcessingLog
  *
@@ -165,6 +167,22 @@ class Sermon extends Model implements Sitemapable
     public function getPlainThumbnailFilePathAttribute(): ?string
     {
         return $this->thumbnail_metadata?->plainThumbnailPath;
+    }
+
+    /**
+     * @return list<array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}>
+     */
+    public function getThumbnailCandidatesAttribute(): array
+    {
+        return $this->thumbnail_metadata?->thumbnailCandidates ?: [];
+    }
+
+    /**
+     * @return array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}|null
+     */
+    public function getSelectedThumbnailCandidateAttribute(): ?array
+    {
+        return $this->thumbnail_metadata?->selectedCandidate();
     }
 
     public function getSeriesUrlAttribute(): ?string
@@ -433,6 +451,19 @@ class Sermon extends Model implements Sitemapable
     public function hasPlainThumbnail(): bool
     {
         return $this->plain_thumbnail_file_path !== null;
+    }
+
+    public function hasThumbnailCandidates(): bool
+    {
+        return $this->thumbnail_candidates !== [];
+    }
+
+    /**
+     * @return array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}|null
+     */
+    public function findThumbnailCandidate(string $candidateId): ?array
+    {
+        return $this->thumbnail_metadata?->findCandidate($candidateId);
     }
 
     /**

@@ -9,6 +9,7 @@ final class ThumbnailMetadata extends JsonData
     /**
      * @param  array<string, mixed>  $videoResolution
      * @param  array<string, mixed>  $thumbnailSizes
+     * @param  list<array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}>  $thumbnailCandidates
      * @param  array<string, int>  $foregroundBounds
      * @param  array<string, mixed>  $raw
      */
@@ -20,6 +21,8 @@ final class ThumbnailMetadata extends JsonData
         public readonly ?string $generatedAt = null,
         public readonly ?string $plainThumbnailPath = null,
         public readonly ?string $overlayThumbnailPath = null,
+        public readonly ?string $selectedThumbnailCandidateId = null,
+        public readonly array $thumbnailCandidates = [],
         public readonly ?string $compositionMode = null,
         public readonly ?string $foregroundExtractionMethod = null,
         public readonly array $foregroundBounds = [],
@@ -41,6 +44,8 @@ final class ThumbnailMetadata extends JsonData
             generatedAt: self::stringOrNull($value['generated_at'] ?? null),
             plainThumbnailPath: self::stringOrNull($value['plain_thumbnail_path'] ?? null),
             overlayThumbnailPath: self::stringOrNull($value['overlay_thumbnail_path'] ?? null),
+            selectedThumbnailCandidateId: self::stringOrNull($value['selected_thumbnail_candidate_id'] ?? null),
+            thumbnailCandidates: self::candidateList($value['thumbnail_candidates'] ?? null),
             compositionMode: self::stringOrNull($value['composition_mode'] ?? null),
             foregroundExtractionMethod: self::stringOrNull($value['foreground_extraction_method'] ?? null),
             foregroundBounds: self::arrayValue($value['foreground_bounds'] ?? null),
@@ -84,6 +89,14 @@ final class ThumbnailMetadata extends JsonData
             $data['overlay_thumbnail_path'] = $this->overlayThumbnailPath;
         }
 
+        if ($this->selectedThumbnailCandidateId !== null) {
+            $data['selected_thumbnail_candidate_id'] = $this->selectedThumbnailCandidateId;
+        }
+
+        if ($this->thumbnailCandidates !== []) {
+            $data['thumbnail_candidates'] = $this->thumbnailCandidates;
+        }
+
         if ($this->compositionMode !== null) {
             $data['composition_mode'] = $this->compositionMode;
         }
@@ -101,5 +114,69 @@ final class ThumbnailMetadata extends JsonData
         }
 
         return $data;
+    }
+
+    /**
+     * @return array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}|null
+     */
+    public function findCandidate(string $candidateId): ?array
+    {
+        foreach ($this->thumbnailCandidates as $candidate) {
+            if ($candidate['id'] === $candidateId) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}|null
+     */
+    public function selectedCandidate(): ?array
+    {
+        if ($this->selectedThumbnailCandidateId === null) {
+            return null;
+        }
+
+        return $this->findCandidate($this->selectedThumbnailCandidateId);
+    }
+
+    /**
+     * @return list<array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}>
+     */
+    private static function candidateList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $candidates = [];
+
+        foreach ($value as $candidate) {
+            if (! is_array($candidate)) {
+                continue;
+            }
+
+            $id = self::stringOrNull($candidate['id'] ?? null);
+            $overlayPath = self::stringOrNull($candidate['overlay_path'] ?? null);
+            $plainPath = self::stringOrNull($candidate['plain_path'] ?? null);
+            $timestamp = self::floatOrNull($candidate['timestamp'] ?? null);
+            $score = self::floatOrNull($candidate['score'] ?? null);
+
+            if ($id === null || $overlayPath === null || $plainPath === null || $timestamp === null || $score === null) {
+                continue;
+            }
+
+            $candidates[] = [
+                'id' => $id,
+                'timestamp' => $timestamp,
+                'score' => $score,
+                'overlay_path' => $overlayPath,
+                'plain_path' => $plainPath,
+            ];
+        }
+
+        return $candidates;
     }
 }

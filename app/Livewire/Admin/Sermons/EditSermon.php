@@ -13,6 +13,8 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
+use App\Services\SermonStorageService;
+use App\Services\ThumbnailGenerationService;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -65,6 +67,11 @@ class EditSermon extends Component
 
     /** @var \Illuminate\Support\Collection<int, string> */
     public \Illuminate\Support\Collection $preacherOptions;
+
+    /** @var array<int, array{id: string, timestamp: float, timestamp_label: string, score: float, overlay_url: ?string, plain_url: ?string, is_selected: bool}> */
+    public array $thumbnailCandidates = [];
+
+    public ?string $selectedThumbnailCandidateId = null;
 
     /**
      * @return array<string, mixed>
@@ -124,6 +131,7 @@ class EditSermon extends Component
         $this->points = $sermon->points ?? [];
         $this->showSummary = $sermon->show_summary;
         $this->showPoints = $sermon->show_points;
+        $this->loadThumbnailCandidates();
     }
 
     public function updatedTitle(): void
@@ -144,7 +152,6 @@ class EditSermon extends Component
 
     public function save(): void
     {
-
         $this->authorizeAdmin();
 
         $validated = $this->validate();
@@ -198,11 +205,100 @@ class EditSermon extends Component
         $this->success('Sermon updated');
     }
 
+    public function selectThumbnailCandidate(string $candidateId): void
+    {
+        $this->authorizeAdmin();
+        $this->sermon->refresh();
+
+        $candidate = $this->sermon->findThumbnailCandidate($candidateId);
+
+        if ($candidate === null) {
+            $this->error('Thumbnail option not found.');
+
+            return;
+        }
+
+        $metadata = $this->sermon->thumbnail_metadata?->toArray() ?? [];
+        $metadata['selected_thumbnail_candidate_id'] = $candidate['id'];
+        $metadata['overlay_thumbnail_path'] = $candidate['overlay_path'];
+        $metadata['plain_thumbnail_path'] = $candidate['plain_path'];
+        $metadata['timestamp'] = $candidate['timestamp'];
+
+        $this->sermon->update([
+            'thumbnail_file_path' => $candidate['overlay_path'],
+            'thumbnail_metadata' => $metadata,
+        ]);
+
+        $this->sermon->refresh();
+        $this->loadThumbnailCandidates();
+
+        $this->success('Thumbnail updated');
+    }
+
+    public function regenerateThumbnails(): void
+    {
+        $this->authorizeAdmin();
+        $this->sermon->refresh();
+
+        if (! $this->sermon->hasVideo()) {
+            $this->error('No video file is available for thumbnail generation.');
+
+            return;
+        }
+
+        $result = app(ThumbnailGenerationService::class)->regenerateThumbnail($this->sermon);
+
+        if (! $result->isSuccess()) {
+            $this->error('Thumbnail regeneration failed: '.($result->getErrorMessage() ?? 'Unknown error.'));
+
+            return;
+        }
+
+        $this->sermon->update([
+            'thumbnail_file_path' => $result->thumbnailPath,
+            'thumbnail_generated_at' => now(),
+            'thumbnail_metadata' => $result->metadata,
+        ]);
+
+        $this->sermon->refresh();
+        $this->loadThumbnailCandidates();
+
+        $this->success('Thumbnails regenerated');
+    }
+
     public function render(): View
     {
         return view('livewire.admin.sermons.edit-sermon', [
             'services' => SermonService::cases(),
             'preachers' => $this->preacherOptions,
         ])->layout('layouts.admin', ['title' => 'Edit: '.$this->sermon->title, 'heading' => 'Edit '.$this->contentTypeLabel]);
+    }
+
+    private function loadThumbnailCandidates(): void
+    {
+        $storageService = app(SermonStorageService::class);
+        $selectedCandidateId = $this->sermon->thumbnail_metadata?->selectedThumbnailCandidateId;
+
+        $this->selectedThumbnailCandidateId = $selectedCandidateId;
+        $this->thumbnailCandidates = array_map(
+            fn (array $candidate): array => [
+                'id' => $candidate['id'],
+                'timestamp' => $candidate['timestamp'],
+                'timestamp_label' => $this->formatThumbnailTimestamp($candidate['timestamp']),
+                'score' => $candidate['score'],
+                'overlay_url' => $storageService->getAdminThumbnailCandidatePreviewUrl($this->sermon, $candidate['id'], 'overlay'),
+                'plain_url' => $storageService->getAdminThumbnailCandidatePreviewUrl($this->sermon, $candidate['id'], 'plain'),
+                'is_selected' => $selectedCandidateId === $candidate['id'],
+            ],
+            $this->sermon->thumbnail_candidates,
+        );
+    }
+
+    private function formatThumbnailTimestamp(float $timestamp): string
+    {
+        $minutes = (int) floor($timestamp / 60);
+        $seconds = (int) round(fmod($timestamp, 60.0));
+
+        return sprintf('%d:%02d', $minutes, $seconds);
     }
 }

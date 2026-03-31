@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Livewire\Admin;
 
+use App\Data\ThumbnailResult;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Livewire\Admin\Sermons\EditSermon;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Services\ThumbnailGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -59,6 +61,42 @@ class EditSermonTest extends TestCase
             ->assertStatus(200);
     }
 
+    #[Test]
+    public function it_renders_saved_thumbnail_candidates(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->sermon->update([
+            'video_file_path' => 'sermons/1/video.mp4',
+            'thumbnail_file_path' => 'sermons/thumbnails/candidate-2-overlay.webp',
+            'thumbnail_metadata' => [
+                'selected_thumbnail_candidate_id' => 'candidate-2',
+                'thumbnail_candidates' => [
+                    [
+                        'id' => 'candidate-1',
+                        'timestamp' => 120.0,
+                        'score' => 0.81,
+                        'overlay_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+                        'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                    ],
+                    [
+                        'id' => 'candidate-2',
+                        'timestamp' => 240.0,
+                        'score' => 0.93,
+                        'overlay_path' => 'sermons/thumbnails/candidate-2-overlay.webp',
+                        'plain_path' => 'sermons/thumbnails/candidate-2-plain.webp',
+                    ],
+                ],
+            ],
+        ]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->assertSee('Thumbnail options')
+            ->assertSee('Frame 1')
+            ->assertSee('Frame 2')
+            ->assertSee('Selected');
+    }
+
     // -------------------------------------------------------------------------
     // Save — happy path
     // -------------------------------------------------------------------------
@@ -102,6 +140,88 @@ class EditSermonTest extends TestCase
         $this->assertEquals($preacher->id, $this->sermon->preacher_id);
         $this->assertEquals(\App\Enums\PreacherSource::MANUAL, $this->sermon->preacher_source);
         $this->assertFalse($this->sermon->needs_preacher_review);
+    }
+
+    #[Test]
+    public function it_updates_the_selected_thumbnail_candidate_immediately(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->sermon->update([
+            'thumbnail_file_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+            'thumbnail_metadata' => [
+                'selected_thumbnail_candidate_id' => 'candidate-1',
+                'plain_thumbnail_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                'overlay_thumbnail_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+                'thumbnail_candidates' => [
+                    [
+                        'id' => 'candidate-1',
+                        'timestamp' => 120.0,
+                        'score' => 0.81,
+                        'overlay_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+                        'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                    ],
+                    [
+                        'id' => 'candidate-2',
+                        'timestamp' => 240.0,
+                        'score' => 0.93,
+                        'overlay_path' => 'sermons/thumbnails/candidate-2-overlay.webp',
+                        'plain_path' => 'sermons/thumbnails/candidate-2-plain.webp',
+                    ],
+                ],
+            ],
+        ]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->call('selectThumbnailCandidate', 'candidate-2')
+            ->assertDispatched('notify', type: 'success', message: 'Thumbnail updated');
+
+        $this->sermon->refresh();
+        $this->assertSame('sermons/thumbnails/candidate-2-overlay.webp', $this->sermon->thumbnail_file_path);
+        $this->assertSame('candidate-2', $this->sermon->thumbnail_metadata?->selectedThumbnailCandidateId);
+        $this->assertSame('sermons/thumbnails/candidate-2-plain.webp', $this->sermon->thumbnail_metadata?->plainThumbnailPath);
+    }
+
+    #[Test]
+    public function it_regenerates_thumbnails_from_the_edit_screen(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->sermon->update([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+
+        $mockService = $this->createMock(ThumbnailGenerationService::class);
+        $mockService->expects($this->once())
+            ->method('regenerateThumbnail')
+            ->with($this->callback(fn (Sermon $model): bool => $model->is($this->sermon)))
+            ->willReturn(ThumbnailResult::success(
+                'sermons/thumbnails/candidate-3-overlay.webp',
+                [
+                    'plain_thumbnail_path' => 'sermons/thumbnails/candidate-3-plain.webp',
+                    'overlay_thumbnail_path' => 'sermons/thumbnails/candidate-3-overlay.webp',
+                    'selected_thumbnail_candidate_id' => 'candidate-3',
+                    'thumbnail_candidates' => [
+                        [
+                            'id' => 'candidate-3',
+                            'timestamp' => 360.0,
+                            'score' => 0.95,
+                            'overlay_path' => 'sermons/thumbnails/candidate-3-overlay.webp',
+                            'plain_path' => 'sermons/thumbnails/candidate-3-plain.webp',
+                        ],
+                    ],
+                ],
+            ));
+
+        app()->instance(ThumbnailGenerationService::class, $mockService);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->call('regenerateThumbnails')
+            ->assertDispatched('notify', type: 'success', message: 'Thumbnails regenerated');
+
+        $this->sermon->refresh();
+        $this->assertSame('sermons/thumbnails/candidate-3-overlay.webp', $this->sermon->thumbnail_file_path);
+        $this->assertSame('candidate-3', $this->sermon->thumbnail_metadata?->selectedThumbnailCandidateId);
     }
 
     // -------------------------------------------------------------------------
@@ -208,6 +328,20 @@ class EditSermonTest extends TestCase
             ->assertDontSee('Bible Reference')
             ->assertDontSee('AI-Generated Content')
             ->assertDontSee('Display Options');
+    }
+
+    #[Test]
+    public function it_hides_thumbnail_regeneration_when_no_video_is_available(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->sermon->update([
+            'video_file_path' => null,
+        ]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->assertDontSee('Regenerate 5 options')
+            ->assertSee('A video file is required before thumbnail options can be generated.');
     }
 
     #[Test]
