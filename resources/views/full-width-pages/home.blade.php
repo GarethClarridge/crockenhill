@@ -64,6 +64,70 @@
     </div>
   </div>
 
+  <section aria-labelledby="easter-services-promo" class="relative isolate -mt-16 overflow-hidden bg-cbc-pattern bg-cover py-12 text-white sm:py-16">
+    <div class="absolute inset-0 bg-[linear-gradient(135deg,rgba(192,124,132,0.96)_0%,rgba(100,116,139,0.94)_52%,rgba(51,65,85,0.92)_100%)]"></div>
+
+    <div class="relative mx-auto max-w-6xl px-6">
+      <p class="text-center text-xs font-semibold uppercase tracking-[0.35em] text-white/75 sm:text-sm">
+        Easter 2026
+      </p>
+
+      <h2 id="easter-services-promo" class="mx-auto mt-4 max-w-5xl text-center font-display text-4xl text-white sm:text-5xl">
+        He is risen!
+      </h2>
+
+      <x-content-wrapper class="mx-auto mt-5 max-w-2xl px-6 text-center">
+        <p class="text-lg leading-8 text-white/90">
+          Join us over Easter as we remember the death of Jesus Christ and celebrate his resurrection.
+        </p>
+      </x-content-wrapper>
+
+      <div class="mx-auto mt-10 grid max-w-5xl gap-6 md:grid-cols-2">
+        <x-card class="h-full rounded-2xl border-white/10 bg-white/95 text-left shadow-[0_22px_50px_rgba(0,0,0,0.18)]">
+          <p class="text-xs font-semibold uppercase tracking-[0.28em] text-cbc-crimson">
+            Friday 3 April 2026
+          </p>
+          <h3 class="mt-3 font-display text-3xl text-cbc-teal-dark sm:text-4xl">
+            Good Friday
+          </h3>
+          <p class="mt-3 text-base font-semibold text-slate-700">
+            10:30AM
+          </p>
+          <p class="mt-4 text-base leading-7 text-slate-700">
+            At <a
+              class="font-medium text-cbc-teal-dark underline decoration-cbc-teal/50 underline-offset-2 hover:text-cbc-teal-deeper"
+              href="https://elmsteadbaptistchurch.org.uk/"
+              target="_blank"
+              rel="noopener noreferrer">
+              Elmstead Baptist Church
+            </a> with other local churches.
+          </p>
+        </x-card>
+
+        <x-card class="h-full rounded-2xl border-white/10 bg-white/95 text-left shadow-[0_22px_50px_rgba(0,0,0,0.18)]">
+          <p class="text-xs font-semibold uppercase tracking-[0.28em] text-cbc-crimson">
+            Sunday 5 April 2026
+          </p>
+          <h3 class="mt-3 font-display text-3xl text-cbc-teal-dark sm:text-4xl">
+            Easter Sunday
+          </h3>
+          <p class="mt-3 text-base font-semibold text-slate-700">
+            10:30AM & 6:00PM
+          </p>
+          <p class="mt-4 text-base leading-7 text-slate-700">
+            Come and celebrate the resurrection of Jesus Christ.
+          </p>
+        </x-card>
+      </div>
+
+      <x-public-cta
+        class="mt-10 sm:px-0"
+        :link="route('easter')"
+        label="See the Easter service details"
+        ariaLabel="See the Easter service details" />
+    </div>
+  </section>
+
   <x-h2>
     Welcome
   </x-h2>
@@ -98,8 +162,7 @@
     class="mb-8 mt-8 sm:px-0"
     link="/community/sunday-mornings"
     label="What to expect on Sunday mornings"
-    ariaLabel="What to expect on Sunday mornings"
-  />
+    ariaLabel="What to expect on Sunday mornings" />
 
   <!-- <x-youtube 
       link="https://www.youtube.com/embed?listType=playlist&list=UUtSUTtkZlALToswWQpWS2kA" 
@@ -181,8 +244,7 @@
     class="mb-8 mt-6 sm:px-0"
     link="/christ"
     label="Explore the good news about Jesus"
-    ariaLabel="Explore the good news about Jesus"
-  />
+    ariaLabel="Explore the good news about Jesus" />
 
   <x-text>
     <p class="mb-4 mt-2">

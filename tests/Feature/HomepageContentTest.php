@@ -27,6 +27,13 @@ class HomepageContentTest extends TestCase
         $response->assertSee('Welcome');
         $response->assertSee('is a friendly, Bible-teaching church in the village of Crockenhill');
         $response->assertDontSee('is friendly, Bible teaching church in');
+        $response->assertSee('He is risen!');
+        $response->assertSee('Easter 2026');
+        $response->assertSee('Good Friday');
+        $response->assertSee('Easter Sunday');
+        $response->assertSee('10:30AM');
+        $response->assertSee('See the Easter service details');
+        $response->assertSee('href="'.route('easter').'"', false);
         $response->assertSee('Learn about Sunday evenings');
         $response->assertSee('Learn about Bible study');
         $response->assertSee('Explore the good news about Jesus');
