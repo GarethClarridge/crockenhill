@@ -81,4 +81,15 @@ class SpeakerSample extends Model
     {
         return $this->belongsTo(MediaProcessingLog::class, 'media_processing_log_id');
     }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'quality_score' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'duration_seconds' => ['required', 'numeric', 'min:0'],
+        ];
+    }
 }
