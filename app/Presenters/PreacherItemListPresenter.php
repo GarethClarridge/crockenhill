@@ -17,11 +17,13 @@ class PreacherItemListPresenter
      */
     public function toItemList(Collection $preachers): array
     {
+        $orgName = (string) config('organization.name');
+
         return [
             '@context' => 'https://schema.org',
             '@type' => 'ItemList',
             'numberOfItems' => $preachers->count(),
-            'itemListElement' => $preachers->map(function ($preacher, $index) {
+            'itemListElement' => $preachers->map(function ($preacher, $index) use ($orgName) {
                 return [
                     '@type' => 'ListItem',
                     'position' => $index + 1,
@@ -32,7 +34,7 @@ class PreacherItemListPresenter
                         'jobTitle' => 'Preacher',
                         'worksFor' => [
                             '@type' => 'Organization',
-                            'name' => config('organization.name'),
+                            'name' => $orgName,
                         ],
                     ],
                 ];
