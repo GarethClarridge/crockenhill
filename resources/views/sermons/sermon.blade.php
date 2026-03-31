@@ -203,7 +203,11 @@ $displayReference = $sermon->displayReference();
             <x-heroicon-s-calendar class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
             <div>
               <dt class="sr-only">Date</dt>
-              <dd class="text-gray-900 font-medium">{{ $sermon->date->format('j F Y') }}</dd>
+              <dd class="text-gray-900 font-medium">
+                <time datetime="{{ $sermon->date->toDateString() }}">
+                  {{ $sermon->date->format('j F Y') }}
+                </time>
+              </dd>
             </div>
           </div>
           @endif

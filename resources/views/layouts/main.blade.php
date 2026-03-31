@@ -25,16 +25,16 @@
     <meta name="description" content="{{ $metaDescription ?? 'Crockenhill Baptist Church - An independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ.' }}">
   @endif
 
+  {{-- Additional meta tags for social media sharing --}}
+  @hasSection('meta_tags')
+    @yield('meta_tags')
+  @endif
+
   {{-- Canonical URL --}}
   @hasSection('canonical')
     @yield('canonical')
   @else
     <link rel="canonical" href="{{ url()->current() }}">
-  @endif
-
-  {{-- Additional meta tags for social media sharing --}}
-  @hasSection('meta_tags')
-    @yield('meta_tags')
   @endif
 
   {{-- Preload hints for critical resources --}}
