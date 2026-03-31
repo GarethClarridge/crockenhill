@@ -181,4 +181,56 @@ class SpeakerIntegrityTest extends TestCase
             ->call('recomputeProfile', $profile->id)
             ->assertHasNoErrors();
     }
+
+    #[Test]
+    public function migration_successfully_cleans_up_invalid_data_and_adds_constraints(): void
+    {
+        // 1. Rollback
+        $this->artisan('migrate:rollback', ['--step' => 1]);
+
+        // 2. Insert invalid data while constraints are gone
+        $preacherId = Preacher::factory()->create()->id;
+        $profileId = DB::table('speaker_profiles')->insertGetId([
+            'preacher_id' => $preacherId,
+            'provider' => 'resemblyzer',
+            'model_version' => 'v1.0',
+            'centroid_embedding' => json_encode(array_fill(0, 256, 0.5)),
+            'quality_score' => 1.5, // Invalid (>1)
+            'accept_threshold' => -0.5, // Invalid (<0)
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $sampleId = DB::table('speaker_samples')->insertGetId([
+            'speaker_profile_id' => $profileId,
+            'embedding' => json_encode(array_fill(0, 256, 0.5)),
+            'duration_seconds' => -10.0, // Invalid (<0)
+            'quality_score' => 0.9,
+            'source' => 'upload_auto',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // 3. Re-run migration
+        $this->artisan('migrate');
+
+        // 4. Verify data is cleaned
+        $profile = DB::table('speaker_profiles')->where('id', $profileId)->first();
+        $this->assertEquals(1.0, $profile->quality_score);
+        $this->assertEquals(0.0, $profile->accept_threshold);
+
+        $sample = DB::table('speaker_samples')->where('id', $sampleId)->first();
+        $this->assertEquals(0.0, $sample->duration_seconds);
+
+        // 5. Verify constraints are active by trying to insert invalid data again
+        $this->expectException(QueryException::class);
+        DB::table('speaker_samples')->insert([
+            'speaker_profile_id' => $profileId,
+            'embedding' => json_encode(array_fill(0, 256, 0.5)),
+            'duration_seconds' => -1.0,
+            'source' => 'upload_auto',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
 }

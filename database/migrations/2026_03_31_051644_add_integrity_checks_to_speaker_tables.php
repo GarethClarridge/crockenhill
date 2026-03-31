@@ -22,7 +22,41 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add CHECK constraints (MySQL only as they are enforced at DB level)
+        // 1. Deterministic cleanup for speaker_profiles
+        DB::table('speaker_profiles')
+            ->where('quality_score', '<', 0)
+            ->update(['quality_score' => 0]);
+        DB::table('speaker_profiles')
+            ->where('quality_score', '>', 1)
+            ->update(['quality_score' => 1]);
+
+        DB::table('speaker_profiles')
+            ->where('accept_threshold', '<', 0)
+            ->update(['accept_threshold' => 0]);
+        DB::table('speaker_profiles')
+            ->where('accept_threshold', '>', 1)
+            ->update(['accept_threshold' => 1]);
+
+        DB::table('speaker_profiles')
+            ->where('margin_threshold', '<', 0)
+            ->update(['margin_threshold' => 0]);
+        DB::table('speaker_profiles')
+            ->where('margin_threshold', '>', 1)
+            ->update(['margin_threshold' => 1]);
+
+        // 2. Deterministic cleanup for speaker_samples
+        DB::table('speaker_samples')
+            ->where('quality_score', '<', 0)
+            ->update(['quality_score' => 0]);
+        DB::table('speaker_samples')
+            ->where('quality_score', '>', 1)
+            ->update(['quality_score' => 1]);
+
+        DB::table('speaker_samples')
+            ->where('duration_seconds', '<', 0)
+            ->update(['duration_seconds' => 0]);
+
+        // 3. Add CHECK constraints (MySQL only)
         if (DB::getDriverName() === 'mysql') {
             DB::statement(sprintf(
                 'ALTER TABLE speaker_profiles ADD CONSTRAINT %s CHECK (quality_score >= 0 AND quality_score <= 1)',
