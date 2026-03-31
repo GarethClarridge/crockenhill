@@ -32,7 +32,7 @@ Route::prefix('services')
     ])
     ->group(function () {
         Route::post('openlp', [ChurchServiceController::class, 'store'])
-            ->middleware('throttle:api')
+            ->middleware('throttle:media-upload')
             ->name('openlp.store');
 
         Route::get('{churchService}', [ChurchServiceController::class, 'show'])
