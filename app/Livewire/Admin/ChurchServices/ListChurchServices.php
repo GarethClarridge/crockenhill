@@ -120,11 +120,11 @@ class ListChurchServices extends Component
             ->paginate(20);
 
         $headers = [
-            ['key' => 'date', 'label' => 'Service'],
-            ['key' => 'items', 'label' => 'Items'],
-            ['key' => 'source', 'label' => 'Source'],
-            ['key' => 'needs_review', 'label' => 'Review'],
-            ['key' => 'updated_at', 'label' => 'Uploaded'],
+            ['key' => 'date', 'label' => 'Service', 'sortable' => true],
+            ['key' => 'items', 'label' => 'Items', 'sortable' => false],
+            ['key' => 'source', 'label' => 'Source', 'sortable' => true],
+            ['key' => 'needs_review', 'label' => 'Review', 'sortable' => true],
+            ['key' => 'updated_at', 'label' => 'Uploaded', 'sortable' => true],
         ];
 
         return view('livewire.admin.church-services.list-church-services', [
