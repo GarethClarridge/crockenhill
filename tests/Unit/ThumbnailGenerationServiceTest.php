@@ -304,7 +304,7 @@ class ThumbnailGenerationServiceTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertSame('layered_subject', $result['composition_metadata']['composition_mode']);
-        $this->assertSame('blue_key', $result['composition_metadata']['foreground_extraction_method']);
+        $this->assertSame('poof_api', $result['composition_metadata']['foreground_extraction_method']);
         $this->assertSame(['x' => 340, 'y' => 110, 'width' => 600, 'height' => 520], $result['composition_metadata']['foreground_bounds']);
         $this->assertSame(0.16, $result['composition_metadata']['foreground_coverage']);
     }
@@ -368,6 +368,37 @@ class ThumbnailGenerationServiceTest extends TestCase
         $this->assertGreaterThan(200, $dateLayeredPixel['blue']);
     }
 
+    #[Test]
+    public function it_renders_an_overlay_for_a_plain_only_selected_candidate(): void
+    {
+        $service = $this->makeThumbnailServiceWithExtractorResult($this->makeForegroundExtractionResult());
+        $sermon = Sermon::factory()->create([
+            'title' => 'Render Candidate Test',
+            'date' => now(),
+            'thumbnail_metadata' => [
+                'selected_thumbnail_candidate_id' => 'candidate-1',
+                'thumbnail_candidates' => [
+                    [
+                        'id' => 'candidate-1',
+                        'timestamp' => 180.0,
+                        'score' => 0.91,
+                        'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                    ],
+                ],
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/thumbnails/candidate-1-plain.webp', Storage::disk('local')->get($this->storeBaseFrame()));
+
+        $result = $service->renderSelectedThumbnailCandidate($sermon, 'candidate-1');
+
+        $this->assertTrue($result->isSuccess());
+        $this->assertSame('candidate-1', $result->metadata['selected_thumbnail_candidate_id']);
+        $this->assertSame('layered_subject', $result->metadata['composition_mode']);
+        $this->assertSame('poof_api', $result->metadata['foreground_extraction_method']);
+        $this->assertArrayHasKey('overlay_path', $result->metadata['thumbnail_candidates'][0]);
+    }
+
     private function makeThumbnailServiceWithExtractorResult(?array $extractorResult): ThumbnailGenerationService
     {
         $extractor = $this->createMock(ThumbnailForegroundExtractionService::class);
@@ -405,7 +436,7 @@ class ThumbnailGenerationServiceTest extends TestCase
             'image' => Image::read($overlay),
             'coverage' => 0.16,
             'bounds' => ['x' => 340, 'y' => 110, 'width' => 600, 'height' => 520],
-            'method' => 'blue_key',
+            'method' => 'poof_api',
         ];
     }
 

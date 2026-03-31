@@ -129,7 +129,6 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
                         'id' => 'candidate-1',
                         'timestamp' => 120.0,
                         'score' => 0.81,
-                        'overlay_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
                         'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
                     ],
                     [
@@ -145,7 +144,6 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
 
         Storage::disk('public')->put('sermons/thumbnails/current-overlay.webp', 'overlay');
         Storage::disk('public')->put('sermons/thumbnails/current-plain.webp', 'plain');
-        Storage::disk('public')->put('sermons/thumbnails/candidate-1-overlay.webp', 'candidate overlay');
         Storage::disk('public')->put('sermons/thumbnails/candidate-1-plain.webp', 'candidate plain');
 
         $service = $this->getMockBuilder(ThumbnailGenerationService::class)
@@ -168,7 +166,6 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         $this->assertTrue($result->isSuccess());
         Storage::disk('public')->assertMissing('sermons/thumbnails/current-overlay.webp');
         Storage::disk('public')->assertMissing('sermons/thumbnails/current-plain.webp');
-        Storage::disk('public')->assertMissing('sermons/thumbnails/candidate-1-overlay.webp');
         Storage::disk('public')->assertMissing('sermons/thumbnails/candidate-1-plain.webp');
     }
 

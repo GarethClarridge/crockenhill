@@ -240,6 +240,30 @@ class SermonStorageServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_null_for_missing_candidate_overlay_preview(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'candidate-plain-only-sermon',
+            'thumbnail_metadata' => [
+                'thumbnail_candidates' => [
+                    [
+                        'id' => 'candidate-1',
+                        'timestamp' => 180.0,
+                        'score' => 0.91,
+                        'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertNull($this->service->getAdminThumbnailCandidatePreviewUrl($sermon, 'candidate-1', 'overlay'));
+        $this->assertStringContainsString(
+            '/admin/sermons/candidate-plain-only-sermon/thumbnails/candidate-1/plain',
+            (string) $this->service->getAdminThumbnailCandidatePreviewUrl($sermon, 'candidate-1', 'plain'),
+        );
+    }
+
+    #[Test]
     public function it_calculates_storage_stats_correctly(): void
     {
         // Clear any existing sermons

@@ -12,6 +12,32 @@ use Illuminate\Support\Str;
 use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;
 
+/**
+ * @phpstan-type ThumbnailCandidate array{
+ *     id: string,
+ *     timestamp: float,
+ *     score: float,
+ *     plain_path: string,
+ *     overlay_path?: string|null,
+ *     composition_mode?: string|null,
+ *     foreground_extraction_method?: string|null,
+ *     foreground_bounds?: array<string, int>,
+ *     foreground_coverage?: float|null
+ * }
+ * @phpstan-type RenderedThumbnailCandidate ThumbnailCandidate&array{
+ *     overlay_path: non-empty-string,
+ *     composition_mode: string,
+ *     foreground_extraction_method?: string|null,
+ *     foreground_bounds?: array<string, int>,
+ *     foreground_coverage?: float|null
+ * }
+ * @phpstan-type CompositionMetadata array{
+ *     composition_mode: string,
+ *     foreground_extraction_method?: string|null,
+ *     foreground_bounds?: array{x:int,y:int,width:int,height:int},
+ *     foreground_coverage?: float
+ * }
+ */
 class ThumbnailGenerationService
 {
     public const int CANDIDATE_COUNT = 5;
@@ -122,6 +148,7 @@ class ThumbnailGenerationService
                 self::CANDIDATE_COUNT
             );
 
+            /** @var list<ThumbnailCandidate> $successfulCandidates */
             $successfulCandidates = [];
 
             foreach ($candidateTimestamps as $index => $timestamp) {
@@ -156,7 +183,12 @@ class ThumbnailGenerationService
             }
 
             usort($successfulCandidates, static fn (array $left, array $right): int => $right['score'] <=> $left['score']);
-            $selectedCandidate = $successfulCandidates[0];
+            $selectedCandidate = $this->renderOverlayForCandidate($sermon, $successfulCandidates[0]);
+            if ($selectedCandidate === null) {
+                return ThumbnailResult::failed('Failed to render the selected thumbnail candidate');
+            }
+
+            $successfulCandidates = $this->replaceCandidate($successfulCandidates, $selectedCandidate);
 
             $resultMetadata = [
                 'timestamp' => $selectedCandidate['timestamp'],
@@ -172,19 +204,10 @@ class ThumbnailGenerationService
                 'plain_thumbnail_path' => $selectedCandidate['plain_path'],
                 'overlay_thumbnail_path' => $selectedCandidate['overlay_path'],
                 'selected_thumbnail_candidate_id' => $selectedCandidate['id'],
-                'thumbnail_candidates' => array_map(
-                    static fn (array $candidate): array => [
-                        'id' => $candidate['id'],
-                        'timestamp' => $candidate['timestamp'],
-                        'score' => $candidate['score'],
-                        'overlay_path' => $candidate['overlay_path'],
-                        'plain_path' => $candidate['plain_path'],
-                    ],
-                    $successfulCandidates
-                ),
+                'thumbnail_candidates' => $successfulCandidates,
             ];
 
-            $resultMetadata = array_merge($resultMetadata, $selectedCandidate['composition_metadata']);
+            $resultMetadata = array_merge($resultMetadata, $this->candidateCompositionMetadata($selectedCandidate));
 
             return ThumbnailResult::success($selectedCandidate['overlay_path'], $resultMetadata);
 
@@ -212,21 +235,8 @@ class ThumbnailGenerationService
     {
         try {
             $image = $this->createResizedBaseImage($baseFramePath);
-            $foreground = $this->foregroundExtractor->extract($image);
 
-            $this->addTitleOverlay($image, $sermon);
-
-            if ($foreground !== null) {
-                $image->place($foreground['image'], 'top-left', 0, 0);
-            }
-
-            $this->addBrandOverlay($image);
-            $this->addDateOverlay($image, $sermon);
-
-            return [
-                'path' => $this->saveTemporaryThumbnail($image),
-                'composition_metadata' => $this->buildCompositionMetadata($foreground),
-            ];
+            return $this->createBrandedThumbnailFromImage($sermon, $image);
 
         } catch (\Exception $e) {
             Log::error('Branded thumbnail creation failed', [
@@ -240,28 +250,11 @@ class ThumbnailGenerationService
     }
 
     /**
-     * @return array{
-     *     id: string,
-     *     timestamp: float,
-     *     score: float,
-     *     overlay_path: string,
-     *     plain_path: string,
-     *     composition_metadata: array<string, mixed>
-     * }|null
+     * @return ThumbnailCandidate|null
      */
     private function buildThumbnailCandidate(Sermon $sermon, string $candidateId, float $timestamp, string $baseFramePath): ?array
     {
-        $temporaryPaths = [];
-        $storedPaths = [];
-
         try {
-            $brandedThumbnail = $this->createBrandedThumbnail($sermon, $baseFramePath);
-            if ($brandedThumbnail === null) {
-                return null;
-            }
-
-            $temporaryPaths[] = $brandedThumbnail['path'];
-
             $plainThumbnailPath = $this->createPlainThumbnail($baseFramePath);
             if (! is_string($plainThumbnailPath) || $plainThumbnailPath === '') {
                 Log::warning('Skipping thumbnail candidate after plain thumbnail generation failure', [
@@ -273,32 +266,21 @@ class ThumbnailGenerationService
                 return null;
             }
 
-            $temporaryPaths[] = $plainThumbnailPath;
+            try {
+                $plainPath = $this->storeThumbnail($plainThumbnailPath, $sermon, "{$candidateId}_plain");
+                if (! is_string($plainPath) || $plainPath === '') {
+                    return null;
+                }
 
-            $overlayPath = $this->storeThumbnail($brandedThumbnail['path'], $sermon, "{$candidateId}_overlay");
-            if (! is_string($overlayPath) || $overlayPath === '') {
-                return null;
+                return [
+                    'id' => $candidateId,
+                    'timestamp' => round($timestamp, 3),
+                    'score' => $this->scoreFrameQuality($baseFramePath),
+                    'plain_path' => $plainPath,
+                ];
+            } finally {
+                $this->cleanupTempFile($plainThumbnailPath);
             }
-
-            $storedPaths[] = $overlayPath;
-
-            $plainPath = $this->storeThumbnail($plainThumbnailPath, $sermon, "{$candidateId}_plain");
-            if (! is_string($plainPath) || $plainPath === '') {
-                $this->deleteStoredThumbnailPath($overlayPath);
-
-                return null;
-            }
-
-            $storedPaths[] = $plainPath;
-
-            return [
-                'id' => $candidateId,
-                'timestamp' => round($timestamp, 3),
-                'score' => $this->scoreFrameQuality($baseFramePath),
-                'overlay_path' => $overlayPath,
-                'plain_path' => $plainPath,
-                'composition_metadata' => $brandedThumbnail['composition_metadata'],
-            ];
         } catch (\Exception $e) {
             Log::warning('Thumbnail candidate generation failed', [
                 'sermon_id' => $sermon->id,
@@ -307,15 +289,7 @@ class ThumbnailGenerationService
                 'error' => $e->getMessage(),
             ]);
 
-            foreach ($storedPaths as $storedPath) {
-                $this->deleteStoredThumbnailPath($storedPath);
-            }
-
             return null;
-        } finally {
-            foreach ($temporaryPaths as $temporaryPath) {
-                $this->cleanupTempFile($temporaryPath);
-            }
         }
     }
 
@@ -341,13 +315,40 @@ class ThumbnailGenerationService
         }
     }
 
+    public function renderSelectedThumbnailCandidate(Sermon $sermon, string $candidateId): ThumbnailResult
+    {
+        /** @var ThumbnailCandidate|null $candidate */
+        $candidate = $sermon->findThumbnailCandidate($candidateId);
+
+        if ($candidate === null) {
+            return ThumbnailResult::skipped('Thumbnail option not found');
+        }
+
+        $selectedCandidate = $this->renderOverlayForCandidate($sermon, $candidate);
+        if ($selectedCandidate === null) {
+            return ThumbnailResult::failed('Failed to render the selected thumbnail candidate');
+        }
+
+        /** @var list<ThumbnailCandidate> $existingCandidates */
+        $existingCandidates = $sermon->thumbnail_candidates;
+
+        $thumbnailCandidates = $this->replaceCandidate($existingCandidates, $selectedCandidate);
+        $metadata = $this->buildSelectedCandidateMetadata(
+            $sermon->thumbnail_metadata?->toArray() ?? [],
+            $selectedCandidate,
+            $thumbnailCandidates,
+        );
+
+        return ThumbnailResult::success($selectedCandidate['overlay_path'], $metadata);
+    }
+
     /**
      * @param  array{
      *     coverage: float,
      *     bounds: array{x:int,y:int,width:int,height:int},
      *     method: string
      * }|null  $foreground
-     * @return array<string, mixed>
+     * @return CompositionMetadata
      */
     private function buildCompositionMetadata(?array $foreground): array
     {
@@ -363,6 +364,209 @@ class ThumbnailGenerationService
             'foreground_bounds' => $foreground['bounds'],
             'foreground_coverage' => round($foreground['coverage'], 4),
         ];
+    }
+
+    /**
+     * @param  ThumbnailCandidate|RenderedThumbnailCandidate  $candidate
+     * @return CompositionMetadata
+     */
+    private function candidateCompositionMetadata(array $candidate): array
+    {
+        $metadata = [
+            'composition_mode' => $candidate['composition_mode'] ?? 'flat_fallback',
+        ];
+
+        if (isset($candidate['foreground_extraction_method'])) {
+            $metadata['foreground_extraction_method'] = $candidate['foreground_extraction_method'];
+        }
+
+        if (
+            isset($candidate['foreground_bounds']['x'], $candidate['foreground_bounds']['y'], $candidate['foreground_bounds']['width'], $candidate['foreground_bounds']['height'])
+        ) {
+            $metadata['foreground_bounds'] = [
+                'x' => $candidate['foreground_bounds']['x'],
+                'y' => $candidate['foreground_bounds']['y'],
+                'width' => $candidate['foreground_bounds']['width'],
+                'height' => $candidate['foreground_bounds']['height'],
+            ];
+        }
+
+        if (is_float($candidate['foreground_coverage'] ?? null)) {
+            $metadata['foreground_coverage'] = $candidate['foreground_coverage'];
+        }
+
+        return $metadata;
+    }
+
+    /**
+     * @param  ThumbnailCandidate  $candidate
+     * @return RenderedThumbnailCandidate|null
+     */
+    private function renderOverlayForCandidate(Sermon $sermon, array $candidate): ?array
+    {
+        if (
+            isset($candidate['overlay_path'])
+            && $candidate['overlay_path'] !== ''
+            && $this->storedThumbnailExists($candidate['overlay_path'])
+        ) {
+            return $this->buildRenderedCandidate(
+                $candidate,
+                $candidate['overlay_path'],
+                $this->candidateCompositionMetadata($candidate),
+            );
+        }
+
+        $brandedThumbnail = $this->createBrandedThumbnailFromStoredPlainPath($sermon, $candidate['plain_path']);
+        if ($brandedThumbnail === null) {
+            return null;
+        }
+
+        try {
+            $overlayPath = $this->storeThumbnail($brandedThumbnail['path'], $sermon, "{$candidate['id']}_overlay");
+            if (! is_string($overlayPath) || $overlayPath === '') {
+                return null;
+            }
+
+            return $this->buildRenderedCandidate(
+                $candidate,
+                $overlayPath,
+                $brandedThumbnail['composition_metadata'],
+            );
+        } finally {
+            $this->cleanupTempFile($brandedThumbnail['path']);
+        }
+    }
+
+    /**
+     * @param  list<ThumbnailCandidate>  $candidates
+     * @param  ThumbnailCandidate  $replacement
+     * @return list<ThumbnailCandidate>
+     */
+    private function replaceCandidate(array $candidates, array $replacement): array
+    {
+        return array_map(
+            static fn (array $candidate): array => $candidate['id'] === $replacement['id'] ? $replacement : $candidate,
+            $candidates,
+        );
+    }
+
+    /**
+     * @param  ThumbnailCandidate  $candidate
+     * @param  non-empty-string  $overlayPath
+     * @param  CompositionMetadata  $compositionMetadata
+     * @return RenderedThumbnailCandidate
+     */
+    private function buildRenderedCandidate(array $candidate, string $overlayPath, array $compositionMetadata): array
+    {
+        $renderedCandidate = [
+            'id' => $candidate['id'],
+            'timestamp' => $candidate['timestamp'],
+            'score' => $candidate['score'],
+            'plain_path' => $candidate['plain_path'],
+            'overlay_path' => $overlayPath,
+            'composition_mode' => $compositionMetadata['composition_mode'],
+        ];
+
+        if (array_key_exists('foreground_extraction_method', $compositionMetadata)) {
+            $renderedCandidate['foreground_extraction_method'] = $compositionMetadata['foreground_extraction_method'];
+        }
+
+        if (array_key_exists('foreground_bounds', $compositionMetadata)) {
+            $renderedCandidate['foreground_bounds'] = $compositionMetadata['foreground_bounds'];
+        }
+
+        if (array_key_exists('foreground_coverage', $compositionMetadata)) {
+            $renderedCandidate['foreground_coverage'] = $compositionMetadata['foreground_coverage'];
+        }
+
+        return $renderedCandidate;
+    }
+
+    /**
+     * @param  array<string, mixed>  $baseMetadata
+     * @param  RenderedThumbnailCandidate  $selectedCandidate
+     * @param  list<ThumbnailCandidate>  $thumbnailCandidates
+     * @return array<string, mixed>
+     */
+    private function buildSelectedCandidateMetadata(array $baseMetadata, array $selectedCandidate, array $thumbnailCandidates): array
+    {
+        $metadata = $baseMetadata;
+        $metadata['timestamp'] = $selectedCandidate['timestamp'];
+        $metadata['plain_thumbnail_path'] = $selectedCandidate['plain_path'];
+        $metadata['overlay_thumbnail_path'] = $selectedCandidate['overlay_path'];
+        $metadata['selected_thumbnail_candidate_id'] = $selectedCandidate['id'];
+        $metadata['thumbnail_candidates'] = $thumbnailCandidates;
+
+        unset(
+            $metadata['composition_mode'],
+            $metadata['foreground_extraction_method'],
+            $metadata['foreground_bounds'],
+            $metadata['foreground_coverage'],
+        );
+
+        return array_merge($metadata, $this->candidateCompositionMetadata($selectedCandidate));
+    }
+
+    /**
+     * @return array{path:string,composition_metadata:CompositionMetadata}|null
+     */
+    private function createBrandedThumbnailFromStoredPlainPath(Sermon $sermon, string $plainPath): ?array
+    {
+        $disk = $this->resolveStoredThumbnailDisk($plainPath);
+        if (! Storage::disk($disk)->exists($plainPath)) {
+            Log::warning('Plain thumbnail not found for overlay rendering', [
+                'sermon_id' => $sermon->id,
+                'plain_path' => $plainPath,
+                'disk' => $disk,
+            ]);
+
+            return null;
+        }
+
+        try {
+            $image = Image::read(Storage::disk($disk)->path($plainPath));
+
+            return $this->createBrandedThumbnailFromImage($sermon, $image);
+        } catch (\Throwable $e) {
+            Log::error('Branded thumbnail creation from stored plain image failed', [
+                'sermon_id' => $sermon->id,
+                'plain_path' => $plainPath,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * @return array{path:string,composition_metadata:CompositionMetadata}|null
+     */
+    private function createBrandedThumbnailFromImage(Sermon $sermon, ImageInterface $image): ?array
+    {
+        try {
+            $foreground = $this->foregroundExtractor->extract($image);
+
+            $this->addTitleOverlay($image, $sermon);
+
+            if ($foreground !== null) {
+                $image->place($foreground['image'], 'top-left', 0, 0);
+            }
+
+            $this->addBrandOverlay($image);
+            $this->addDateOverlay($image, $sermon);
+
+            return [
+                'path' => $this->saveTemporaryThumbnail($image),
+                'composition_metadata' => $this->buildCompositionMetadata($foreground),
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Branded thumbnail composition failed', [
+                'sermon_id' => $sermon->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**
@@ -814,7 +1018,9 @@ class ThumbnailGenerationService
         $candidatePaths = [];
 
         foreach ($sermon->thumbnail_candidates as $candidate) {
-            $candidatePaths[] = $candidate['overlay_path'];
+            if (isset($candidate['overlay_path'])) {
+                $candidatePaths[] = $candidate['overlay_path'];
+            }
             $candidatePaths[] = $candidate['plain_path'];
         }
 
@@ -847,6 +1053,18 @@ class ThumbnailGenerationService
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function resolveStoredThumbnailDisk(string $path): string
+    {
+        return str_starts_with($path, 'private/')
+            ? 'local'
+            : $this->storageDisk;
+    }
+
+    private function storedThumbnailExists(string $path): bool
+    {
+        return Storage::disk($this->resolveStoredThumbnailDisk($path))->exists($path);
     }
 
     /**

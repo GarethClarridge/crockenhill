@@ -93,7 +93,12 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
             ->method('cleanupDownloadedVideo')
             ->with(null);
 
-        $service = $this->buildPartialThumbnailService($frameExtractionService);
+        $service = new ThumbnailGenerationService(
+            $frameExtractionService,
+            app(StorageAdapterHelper::class),
+            new ThumbnailTextHelper,
+            app(ThumbnailForegroundExtractionService::class),
+        );
 
         $result = $service->generateThumbnail($sermon, 'videos/test.mp4', 'public');
 
@@ -103,9 +108,13 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
         $this->assertSame('sermons/thumbnails/sermon_'.$sermon->id.'_'.date('Y-m-d').'_candidate-3_overlay.webp', $result->thumbnailPath);
         $this->assertCount(3, $result->metadata['thumbnail_candidates']);
         $this->assertSame('sermons/thumbnails/sermon_'.$sermon->id.'_'.date('Y-m-d').'_candidate-3_plain.webp', $result->metadata['plain_thumbnail_path']);
+        $candidatesById = collect($result->metadata['thumbnail_candidates'])->keyBy('id');
+        $this->assertArrayHasKey('overlay_path', $candidatesById['candidate-3']);
+        $this->assertArrayNotHasKey('overlay_path', $candidatesById['candidate-1']);
+        $this->assertArrayNotHasKey('overlay_path', $candidatesById['candidate-2']);
     }
 
-    public function test_it_keeps_successful_candidates_when_one_candidate_fails(): void
+    public function test_it_keeps_successful_candidates_when_one_plain_candidate_fails(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Partial Sermon',
@@ -145,17 +154,6 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
             ->method('cleanupDownloadedVideo')
             ->with(null);
 
-        $service = $this->buildPartialThumbnailService($frameExtractionService, failOnBrandedCall: 2);
-
-        $result = $service->generateThumbnail($sermon, 'videos/test.mp4', 'public');
-
-        $this->assertTrue($result->isSuccess());
-        $this->assertCount(2, $result->metadata['thumbnail_candidates']);
-        $this->assertSame(['candidate-1', 'candidate-3'], array_column($result->metadata['thumbnail_candidates'], 'id'));
-    }
-
-    private function buildPartialThumbnailService(FrameExtractionService $frameExtractionService, ?int $failOnBrandedCall = null): ThumbnailGenerationService
-    {
         $service = $this->getMockBuilder(ThumbnailGenerationService::class)
             ->setConstructorArgs([
                 $frameExtractionService,
@@ -163,31 +161,17 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
                 new ThumbnailTextHelper,
                 app(ThumbnailForegroundExtractionService::class),
             ])
-            ->onlyMethods(['createBrandedThumbnail', 'createPlainThumbnail'])
+            ->onlyMethods(['createPlainThumbnail'])
             ->getMock();
-
-        $brandedCall = 0;
-        $service->method('createBrandedThumbnail')
-            ->willReturnCallback(function () use (&$brandedCall, $failOnBrandedCall): ?array {
-                $brandedCall++;
-
-                if ($failOnBrandedCall !== null && $brandedCall === $failOnBrandedCall) {
-                    return null;
-                }
-
-                $path = "temp/thumbnails/branded-{$brandedCall}.webp";
-                $this->writeFlatImage($path, 200, 200, 200);
-
-                return [
-                    'path' => $path,
-                    'composition_metadata' => ['composition_mode' => 'flat_fallback'],
-                ];
-            });
 
         $plainCall = 0;
         $service->method('createPlainThumbnail')
-            ->willReturnCallback(function () use (&$plainCall): string {
+            ->willReturnCallback(function () use (&$plainCall): ?string {
                 $plainCall++;
+
+                if ($plainCall === 2) {
+                    return null;
+                }
 
                 $path = "temp/thumbnails/plain-{$plainCall}.webp";
                 $this->writeFlatImage($path, 180, 180, 180);
@@ -195,7 +179,18 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
                 return $path;
             });
 
-        return $service;
+        $result = $service->generateThumbnail($sermon, 'videos/test.mp4', 'public');
+
+        $this->assertTrue($result->isSuccess());
+        $this->assertCount(2, $result->metadata['thumbnail_candidates']);
+        $this->assertSame(['candidate-1', 'candidate-3'], array_column($result->metadata['thumbnail_candidates'], 'id'));
+        $candidatesById = collect($result->metadata['thumbnail_candidates'])->keyBy('id');
+        $selectedCandidateId = $result->metadata['selected_thumbnail_candidate_id'];
+        $this->assertContains($selectedCandidateId, ['candidate-1', 'candidate-3']);
+        $this->assertArrayHasKey('overlay_path', $candidatesById[$selectedCandidateId]);
+
+        $nonSelectedCandidateId = $selectedCandidateId === 'candidate-1' ? 'candidate-3' : 'candidate-1';
+        $this->assertArrayNotHasKey('overlay_path', $candidatesById[$nonSelectedCandidateId]);
     }
 
     private function writeFlatImage(string $path, int $red, int $green, int $blue): void

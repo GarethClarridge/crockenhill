@@ -62,4 +62,12 @@ return [
         'daily_budget' => (int) env('API_BIBLE_DAILY_BUDGET', 5000),
     ],
 
+    'poof' => [
+        'enabled' => env('POOF_ENABLED', false),
+        'api_key' => env('POOF_API_KEY'),
+        'base_url' => env('POOF_BASE_URL', 'https://api.poof.bg/v1'),
+        'timeout_seconds' => (int) env('POOF_TIMEOUT_SECONDS', 15),
+        'max_retries' => (int) env('POOF_MAX_RETRIES', 2),
+    ],
+
 ];

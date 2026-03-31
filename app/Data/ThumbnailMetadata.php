@@ -9,7 +9,17 @@ final class ThumbnailMetadata extends JsonData
     /**
      * @param  array<string, mixed>  $videoResolution
      * @param  array<string, mixed>  $thumbnailSizes
-     * @param  list<array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}>  $thumbnailCandidates
+     * @param  list<array{
+     *     id: string,
+     *     timestamp: float,
+     *     score: float,
+     *     plain_path: string,
+     *     overlay_path?: string|null,
+     *     composition_mode?: string|null,
+     *     foreground_extraction_method?: string|null,
+     *     foreground_bounds?: array<string, int>,
+     *     foreground_coverage?: float|null
+     * }>  $thumbnailCandidates
      * @param  array<string, int>  $foregroundBounds
      * @param  array<string, mixed>  $raw
      */
@@ -117,7 +127,17 @@ final class ThumbnailMetadata extends JsonData
     }
 
     /**
-     * @return array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}|null
+     * @return array{
+     *     id: string,
+     *     timestamp: float,
+     *     score: float,
+     *     plain_path: string,
+     *     overlay_path?: string|null,
+     *     composition_mode?: string|null,
+     *     foreground_extraction_method?: string|null,
+     *     foreground_bounds?: array<string, int>,
+     *     foreground_coverage?: float|null
+     * }|null
      */
     public function findCandidate(string $candidateId): ?array
     {
@@ -131,7 +151,17 @@ final class ThumbnailMetadata extends JsonData
     }
 
     /**
-     * @return array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}|null
+     * @return array{
+     *     id: string,
+     *     timestamp: float,
+     *     score: float,
+     *     plain_path: string,
+     *     overlay_path?: string|null,
+     *     composition_mode?: string|null,
+     *     foreground_extraction_method?: string|null,
+     *     foreground_bounds?: array<string, int>,
+     *     foreground_coverage?: float|null
+     * }|null
      */
     public function selectedCandidate(): ?array
     {
@@ -143,7 +173,17 @@ final class ThumbnailMetadata extends JsonData
     }
 
     /**
-     * @return list<array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}>
+     * @return list<array{
+     *     id: string,
+     *     timestamp: float,
+     *     score: float,
+     *     plain_path: string,
+     *     overlay_path?: string|null,
+     *     composition_mode?: string|null,
+     *     foreground_extraction_method?: string|null,
+     *     foreground_bounds?: array<string, int>,
+     *     foreground_coverage?: float|null
+     * }>
      */
     private static function candidateList(mixed $value): array
     {
@@ -163,18 +203,43 @@ final class ThumbnailMetadata extends JsonData
             $plainPath = self::stringOrNull($candidate['plain_path'] ?? null);
             $timestamp = self::floatOrNull($candidate['timestamp'] ?? null);
             $score = self::floatOrNull($candidate['score'] ?? null);
+            $compositionMode = self::stringOrNull($candidate['composition_mode'] ?? null);
+            $foregroundExtractionMethod = self::stringOrNull($candidate['foreground_extraction_method'] ?? null);
+            $foregroundBounds = self::arrayValue($candidate['foreground_bounds'] ?? null);
+            $foregroundCoverage = self::floatOrNull($candidate['foreground_coverage'] ?? null);
 
-            if ($id === null || $overlayPath === null || $plainPath === null || $timestamp === null || $score === null) {
+            if ($id === null || $plainPath === null || $timestamp === null || $score === null) {
                 continue;
             }
 
-            $candidates[] = [
+            $normalizedCandidate = [
                 'id' => $id,
                 'timestamp' => $timestamp,
                 'score' => $score,
-                'overlay_path' => $overlayPath,
                 'plain_path' => $plainPath,
             ];
+
+            if ($overlayPath !== null) {
+                $normalizedCandidate['overlay_path'] = $overlayPath;
+            }
+
+            if ($compositionMode !== null) {
+                $normalizedCandidate['composition_mode'] = $compositionMode;
+            }
+
+            if ($foregroundExtractionMethod !== null) {
+                $normalizedCandidate['foreground_extraction_method'] = $foregroundExtractionMethod;
+            }
+
+            if ($foregroundBounds !== []) {
+                $normalizedCandidate['foreground_bounds'] = $foregroundBounds;
+            }
+
+            if ($foregroundCoverage !== null) {
+                $normalizedCandidate['foreground_coverage'] = $foregroundCoverage;
+            }
+
+            $candidates[] = $normalizedCandidate;
         }
 
         return $candidates;

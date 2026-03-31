@@ -37,7 +37,7 @@ class ThumbnailDataTest extends TestCase
                 ],
             ],
             'composition_mode' => 'layered_subject',
-            'foreground_extraction_method' => 'blue_key',
+            'foreground_extraction_method' => 'poof_api',
             'foreground_bounds' => ['x' => 10, 'y' => 20, 'width' => 30, 'height' => 40],
             'foreground_coverage' => 0.1234,
         ]);
@@ -52,7 +52,7 @@ class ThumbnailDataTest extends TestCase
         $this->assertSame('candidate-3', $metadata->selectedThumbnailCandidateId);
         $this->assertSame('candidate-1', $metadata->thumbnailCandidates[0]['id']);
         $this->assertSame('layered_subject', $metadata->compositionMode);
-        $this->assertSame('blue_key', $metadata->foregroundExtractionMethod);
+        $this->assertSame('poof_api', $metadata->foregroundExtractionMethod);
         $this->assertSame(['x' => 10, 'y' => 20, 'width' => 30, 'height' => 40], $metadata->foregroundBounds);
         $this->assertSame(0.1234, $metadata->foregroundCoverage);
     }
@@ -103,6 +103,25 @@ class ThumbnailDataTest extends TestCase
         $this->assertSame('candidate-2', $output['selected_thumbnail_candidate_id']);
         $this->assertSame('thumbs/candidate-2-overlay.webp', $output['thumbnail_candidates'][0]['overlay_path']);
         $this->assertSame('flat_fallback', $output['composition_mode']);
+    }
+
+    #[Test]
+    public function thumbnail_metadata_accepts_plain_only_candidates(): void
+    {
+        $metadata = ThumbnailMetadata::fromArray([
+            'thumbnail_candidates' => [
+                [
+                    'id' => 'candidate-2',
+                    'timestamp' => 240.0,
+                    'score' => 0.8123,
+                    'plain_path' => 'thumbs/candidate-2-plain.webp',
+                ],
+            ],
+        ]);
+
+        $this->assertCount(1, $metadata->thumbnailCandidates);
+        $this->assertArrayNotHasKey('overlay_path', $metadata->thumbnailCandidates[0]);
+        $this->assertSame('thumbs/candidate-2-plain.webp', $metadata->thumbnailCandidates[0]['plain_path']);
     }
 
     #[Test]

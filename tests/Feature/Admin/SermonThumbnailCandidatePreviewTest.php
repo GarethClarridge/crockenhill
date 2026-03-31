@@ -82,6 +82,38 @@ class SermonThumbnailCandidatePreviewTest extends TestCase
     }
 
     #[Test]
+    public function admin_can_preview_a_plain_only_thumbnail_candidate(): void
+    {
+        Storage::fake('public');
+
+        $admin = User::factory()->admin()->create();
+        $sermon = Sermon::factory()->create([
+            'slug' => 'plain-only-preview-sermon',
+            'thumbnail_metadata' => [
+                'thumbnail_candidates' => [
+                    [
+                        'id' => 'candidate-3',
+                        'timestamp' => 300.0,
+                        'score' => 0.88,
+                        'plain_path' => 'sermons/thumbnails/candidate-3-plain.webp',
+                    ],
+                ],
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/thumbnails/candidate-3-plain.webp', 'plain content');
+
+        $response = $this->actingAs($admin)->get(route('admin.sermons.thumbnails.preview', [
+            'sermon' => $sermon->slug,
+            'candidateId' => 'candidate-3',
+            'variant' => 'plain',
+        ]));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'image/webp');
+    }
+
+    #[Test]
     public function guests_cannot_preview_thumbnail_candidates(): void
     {
         $sermon = Sermon::factory()->create([

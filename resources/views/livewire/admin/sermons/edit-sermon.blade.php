@@ -120,7 +120,7 @@
                 <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <p class="text-sm text-gray-700">
                         Choose the saved sermon thumbnail pair used for the main sermon image and the card image.
-                        Changes here save immediately.
+                        The layered preacher cutout is generated only for the selected option. Changes here save immediately.
                     </p>
                 </div>
 
@@ -132,9 +132,9 @@
                                 class="rounded-lg border p-3 {{ $candidate['is_selected'] ? 'border-cbc-teal bg-cbc-teal/5' : 'border-gray-200 bg-white' }}"
                             >
                                 <div class="space-y-3">
-                                    @if($candidate['overlay_url'])
+                                    @if($candidate['preview_url'])
                                         <img
-                                            src="{{ $candidate['overlay_url'] }}"
+                                            src="{{ $candidate['preview_url'] }}"
                                             alt="Thumbnail candidate {{ $loop->iteration }}"
                                             class="h-32 w-full rounded-lg border border-gray-200 object-cover"
                                         >
@@ -160,7 +160,7 @@
                                         @if($candidate['is_selected'])
                                             <span class="rounded-full bg-cbc-teal px-3 py-1 text-xs font-medium text-white">Selected</span>
                                         @else
-                                            <span class="text-xs text-gray-500">Also updates the card thumbnail</span>
+                                            <span class="text-xs text-gray-500">Also updates the card thumbnail and generates the layered version if needed</span>
                                         @endif
 
                                         @unless($candidate['is_selected'])

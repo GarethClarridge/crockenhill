@@ -147,7 +147,9 @@ class SermonStorageService
         }
 
         return match ($variant) {
-            'overlay' => $candidate['overlay_path'],
+            'overlay' => isset($candidate['overlay_path'])
+                ? $candidate['overlay_path']
+                : null,
             'plain' => $candidate['plain_path'],
             default => null,
         };

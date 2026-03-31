@@ -94,6 +94,7 @@ class EditSermonTest extends TestCase
             ->assertSee('Thumbnail options')
             ->assertSee('Frame 1')
             ->assertSee('Frame 2')
+            ->assertSee('The layered preacher cutout is generated only for the selected option.')
             ->assertSee('Selected');
     }
 
@@ -172,6 +173,41 @@ class EditSermonTest extends TestCase
             ],
         ]);
 
+        $mockService = $this->createMock(ThumbnailGenerationService::class);
+        $mockService->expects($this->once())
+            ->method('renderSelectedThumbnailCandidate')
+            ->with($this->callback(fn (Sermon $model): bool => $model->is($this->sermon)), 'candidate-2')
+            ->willReturn(ThumbnailResult::success(
+                'sermons/thumbnails/candidate-2-overlay.webp',
+                [
+                    'selected_thumbnail_candidate_id' => 'candidate-2',
+                    'plain_thumbnail_path' => 'sermons/thumbnails/candidate-2-plain.webp',
+                    'overlay_thumbnail_path' => 'sermons/thumbnails/candidate-2-overlay.webp',
+                    'thumbnail_candidates' => [
+                        [
+                            'id' => 'candidate-1',
+                            'timestamp' => 120.0,
+                            'score' => 0.81,
+                            'overlay_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+                            'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                        ],
+                        [
+                            'id' => 'candidate-2',
+                            'timestamp' => 240.0,
+                            'score' => 0.93,
+                            'overlay_path' => 'sermons/thumbnails/candidate-2-overlay.webp',
+                            'plain_path' => 'sermons/thumbnails/candidate-2-plain.webp',
+                            'composition_mode' => 'layered_subject',
+                            'foreground_extraction_method' => 'poof_api',
+                        ],
+                    ],
+                    'composition_mode' => 'layered_subject',
+                    'foreground_extraction_method' => 'poof_api',
+                ],
+            ));
+
+        app()->instance(ThumbnailGenerationService::class, $mockService);
+
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
             ->call('selectThumbnailCandidate', 'candidate-2')
             ->assertDispatched('notify', type: 'success', message: 'Thumbnail updated');
@@ -180,6 +216,80 @@ class EditSermonTest extends TestCase
         $this->assertSame('sermons/thumbnails/candidate-2-overlay.webp', $this->sermon->thumbnail_file_path);
         $this->assertSame('candidate-2', $this->sermon->thumbnail_metadata?->selectedThumbnailCandidateId);
         $this->assertSame('sermons/thumbnails/candidate-2-plain.webp', $this->sermon->thumbnail_metadata?->plainThumbnailPath);
+    }
+
+    #[Test]
+    public function it_renders_plain_only_candidates_and_generates_overlay_when_selected(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->sermon->update([
+            'thumbnail_file_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+            'thumbnail_metadata' => [
+                'selected_thumbnail_candidate_id' => 'candidate-1',
+                'plain_thumbnail_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                'overlay_thumbnail_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+                'thumbnail_candidates' => [
+                    [
+                        'id' => 'candidate-1',
+                        'timestamp' => 120.0,
+                        'score' => 0.81,
+                        'overlay_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+                        'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                    ],
+                    [
+                        'id' => 'candidate-2',
+                        'timestamp' => 240.0,
+                        'score' => 0.93,
+                        'plain_path' => 'sermons/thumbnails/candidate-2-plain.webp',
+                    ],
+                ],
+            ],
+        ]);
+
+        $mockService = $this->createMock(ThumbnailGenerationService::class);
+        $mockService->expects($this->once())
+            ->method('renderSelectedThumbnailCandidate')
+            ->with($this->callback(fn (Sermon $model): bool => $model->is($this->sermon)), 'candidate-2')
+            ->willReturn(ThumbnailResult::success(
+                'sermons/thumbnails/candidate-2-overlay.webp',
+                [
+                    'selected_thumbnail_candidate_id' => 'candidate-2',
+                    'plain_thumbnail_path' => 'sermons/thumbnails/candidate-2-plain.webp',
+                    'overlay_thumbnail_path' => 'sermons/thumbnails/candidate-2-overlay.webp',
+                    'thumbnail_candidates' => [
+                        [
+                            'id' => 'candidate-1',
+                            'timestamp' => 120.0,
+                            'score' => 0.81,
+                            'overlay_path' => 'sermons/thumbnails/candidate-1-overlay.webp',
+                            'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
+                        ],
+                        [
+                            'id' => 'candidate-2',
+                            'timestamp' => 240.0,
+                            'score' => 0.93,
+                            'overlay_path' => 'sermons/thumbnails/candidate-2-overlay.webp',
+                            'plain_path' => 'sermons/thumbnails/candidate-2-plain.webp',
+                            'composition_mode' => 'layered_subject',
+                            'foreground_extraction_method' => 'poof_api',
+                        ],
+                    ],
+                    'composition_mode' => 'layered_subject',
+                    'foreground_extraction_method' => 'poof_api',
+                ],
+            ));
+
+        app()->instance(ThumbnailGenerationService::class, $mockService);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->assertSee('Frame 2')
+            ->call('selectThumbnailCandidate', 'candidate-2')
+            ->assertDispatched('notify', type: 'success', message: 'Thumbnail updated');
+
+        $this->sermon->refresh();
+        $this->assertSame('sermons/thumbnails/candidate-2-overlay.webp', $this->sermon->thumbnail_file_path);
+        $this->assertSame('candidate-2', $this->sermon->thumbnail_metadata?->selectedThumbnailCandidateId);
     }
 
     #[Test]
