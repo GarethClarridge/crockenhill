@@ -6,10 +6,14 @@ use App\Data\ThumbnailResult;
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
 use App\Services\StorageAdapterHelper;
+use App\Services\ThumbnailForegroundExtractionService;
 use App\Services\ThumbnailGenerationService;
 use App\Services\ThumbnailTextHelper;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Interfaces\ImageInterface;
+use Intervention\Image\Laravel\Facades\Image;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -21,9 +25,15 @@ class ThumbnailGenerationServiceTest extends TestCase
 
     private FrameExtractionService $frameExtractionService;
 
+    private string $brandOverlayPath;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        Storage::fake('local');
+        Storage::fake('public');
+        $this->brandOverlayPath = public_path('images/BrandOverlay.png');
 
         // Mock the VideoSegmentationService dependency
         $videoService = $this->createMock(VideoSegmentationService::class);
@@ -38,7 +48,21 @@ class ThumbnailGenerationServiceTest extends TestCase
         ]);
 
         $this->frameExtractionService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
-        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class), new ThumbnailTextHelper);
+        $this->service = new ThumbnailGenerationService(
+            $this->frameExtractionService,
+            app(StorageAdapterHelper::class),
+            new ThumbnailTextHelper,
+            app(ThumbnailForegroundExtractionService::class)
+        );
+    }
+
+    protected function tearDown(): void
+    {
+        if (file_exists($this->brandOverlayPath)) {
+            unlink($this->brandOverlayPath);
+        }
+
+        parent::tearDown();
     }
 
     #[Test]
@@ -58,7 +82,12 @@ class ThumbnailGenerationServiceTest extends TestCase
         config(['thumbnail-generation.enabled' => false]);
 
         // Recreate service with new config
-        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class), new ThumbnailTextHelper);
+        $this->service = new ThumbnailGenerationService(
+            $this->frameExtractionService,
+            app(StorageAdapterHelper::class),
+            new ThumbnailTextHelper,
+            app(ThumbnailForegroundExtractionService::class)
+        );
 
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon',
@@ -180,7 +209,12 @@ class ThumbnailGenerationServiceTest extends TestCase
         ]);
 
         $frameService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
-        $service = new ThumbnailGenerationService($frameService, app(StorageAdapterHelper::class), new ThumbnailTextHelper);
+        $service = new ThumbnailGenerationService(
+            $frameService,
+            app(StorageAdapterHelper::class),
+            new ThumbnailTextHelper,
+            app(ThumbnailForegroundExtractionService::class)
+        );
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'test_video');
@@ -255,5 +289,198 @@ class ThumbnailGenerationServiceTest extends TestCase
         // Larger font should have larger bounds
         $this->assertGreaterThan($bounds24['width'], $bounds48['width']);
         $this->assertGreaterThan($bounds24['height'], $bounds48['height']);
+    }
+
+    #[Test]
+    public function it_marks_layered_subject_composition_when_foreground_extraction_succeeds(): void
+    {
+        $service = $this->makeThumbnailServiceWithExtractorResult($this->makeForegroundExtractionResult());
+        $sermon = Sermon::factory()->create([
+            'title' => 'Layered Composition Test',
+            'date' => now(),
+        ]);
+
+        $result = $service->createBrandedThumbnail($sermon, $this->storeBaseFrame());
+
+        $this->assertIsArray($result);
+        $this->assertSame('layered_subject', $result['composition_metadata']['composition_mode']);
+        $this->assertSame('blue_key', $result['composition_metadata']['foreground_extraction_method']);
+        $this->assertSame(['x' => 340, 'y' => 110, 'width' => 600, 'height' => 520], $result['composition_metadata']['foreground_bounds']);
+        $this->assertSame(0.16, $result['composition_metadata']['foreground_coverage']);
+    }
+
+    #[Test]
+    public function it_marks_flat_fallback_composition_when_foreground_extraction_fails(): void
+    {
+        $service = $this->makeThumbnailServiceWithExtractorResult(null);
+        $sermon = Sermon::factory()->create([
+            'title' => 'Fallback Composition Test',
+            'date' => now(),
+        ]);
+
+        $result = $service->createBrandedThumbnail($sermon, $this->storeBaseFrame());
+
+        $this->assertIsArray($result);
+        $this->assertSame('flat_fallback', $result['composition_metadata']['composition_mode']);
+        $this->assertArrayNotHasKey('foreground_bounds', $result['composition_metadata']);
+    }
+
+    #[Test]
+    public function it_places_preacher_over_title_and_brand_and_date_over_preacher(): void
+    {
+        $this->createBrandOverlayAsset();
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'MMMMMMMMMMMMMMMM',
+            'date' => now(),
+        ]);
+
+        $fallbackService = $this->makeThumbnailServiceWithExtractorResult(null);
+        $fallbackThumbnail = $fallbackService->createBrandedThumbnail($sermon, $this->storeBaseFrame());
+        $fallbackImage = Image::read(Storage::disk('local')->path($fallbackThumbnail['path']));
+
+        $titlePixel = $this->findBrightPixelInRegion($fallbackImage, 420, 110, 860, 360);
+        $datePixel = $this->findBrightPixelInRegion($fallbackImage, 350, 560, 930, 680);
+
+        $this->assertNotNull($titlePixel);
+        $this->assertNotNull($datePixel);
+
+        $layeredService = $this->makeThumbnailServiceWithExtractorResult($this->makeForegroundExtractionResult());
+        $layeredThumbnail = $layeredService->createBrandedThumbnail($sermon, $this->storeBaseFrame());
+        $layeredImage = Image::read(Storage::disk('local')->path($layeredThumbnail['path']));
+
+        $titleLayeredPixel = $this->getImagePixel($layeredImage, $titlePixel['x'], $titlePixel['y']);
+        $brandPixel = $this->getImagePixel($layeredImage, 40, 40);
+        $dateLayeredPixel = $this->findBrightPixelInRegion($layeredImage, 350, 560, 930, 680);
+
+        $this->assertGreaterThan(200, $titlePixel['red']);
+        $this->assertLessThan(80, $titleLayeredPixel['red']);
+        $this->assertGreaterThan(150, $titleLayeredPixel['green']);
+        $this->assertLessThan(80, $titleLayeredPixel['blue']);
+
+        $this->assertGreaterThan(200, $brandPixel['red']);
+        $this->assertLessThan(80, $brandPixel['green']);
+        $this->assertLessThan(80, $brandPixel['blue']);
+
+        $this->assertNotNull($dateLayeredPixel);
+        $this->assertGreaterThan(200, $dateLayeredPixel['red']);
+        $this->assertGreaterThan(200, $dateLayeredPixel['green']);
+        $this->assertGreaterThan(200, $dateLayeredPixel['blue']);
+    }
+
+    private function makeThumbnailServiceWithExtractorResult(?array $extractorResult): ThumbnailGenerationService
+    {
+        $extractor = $this->createMock(ThumbnailForegroundExtractionService::class);
+        $extractor->method('extract')->willReturn($extractorResult);
+
+        return new ThumbnailGenerationService(
+            $this->createMock(FrameExtractionService::class),
+            app(StorageAdapterHelper::class),
+            new ThumbnailTextHelper,
+            $extractor
+        );
+    }
+
+    /**
+     * @return array{
+     *     image: ImageInterface,
+     *     coverage: float,
+     *     bounds: array{x:int,y:int,width:int,height:int},
+     *     method: string
+     * }
+     */
+    private function makeForegroundExtractionResult(): array
+    {
+        $overlay = imagecreatetruecolor(1280, 720);
+        imagealphablending($overlay, false);
+        imagesavealpha($overlay, true);
+
+        $transparent = imagecolorallocatealpha($overlay, 0, 0, 0, 127);
+        imagefill($overlay, 0, 0, $transparent);
+
+        $green = imagecolorallocatealpha($overlay, 20, 220, 40, 0);
+        imagefilledrectangle($overlay, 340, 110, 940, 630, $green);
+
+        return [
+            'image' => Image::read($overlay),
+            'coverage' => 0.16,
+            'bounds' => ['x' => 340, 'y' => 110, 'width' => 600, 'height' => 520],
+            'method' => 'blue_key',
+        ];
+    }
+
+    private function storeBaseFrame(): string
+    {
+        $path = 'temp/thumbnails/base-frame.png';
+        $fullPath = Storage::disk('local')->path($path);
+
+        Storage::disk('local')->makeDirectory('temp/thumbnails');
+
+        $image = imagecreatetruecolor(1280, 720);
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+
+        $background = imagecolorallocate($image, 44, 61, 118);
+        imagefill($image, 0, 0, $background);
+
+        imagepng($image, $fullPath);
+
+        return $path;
+    }
+
+    private function createBrandOverlayAsset(): void
+    {
+        $directory = dirname($this->brandOverlayPath);
+        if (! is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        $overlay = imagecreatetruecolor(1280, 720);
+        imagealphablending($overlay, false);
+        imagesavealpha($overlay, true);
+
+        $transparent = imagecolorallocatealpha($overlay, 0, 0, 0, 127);
+        imagefill($overlay, 0, 0, $transparent);
+
+        $red = imagecolorallocatealpha($overlay, 255, 0, 0, 0);
+        imagefilledrectangle($overlay, 0, 0, 119, 119, $red);
+
+        imagepng($overlay, $this->brandOverlayPath);
+    }
+
+    /**
+     * @return array{x:int,y:int,red:int,green:int,blue:int}|null
+     */
+    private function findBrightPixelInRegion(ImageInterface $image, int $startX, int $startY, int $endX, int $endY): ?array
+    {
+        for ($y = $startY; $y <= $endY; $y++) {
+            for ($x = $startX; $x <= $endX; $x++) {
+                $pixel = $this->getImagePixel($image, $x, $y);
+
+                if ($pixel['red'] > 200 && $pixel['green'] > 200 && $pixel['blue'] > 200) {
+                    return ['x' => $x, 'y' => $y] + $pixel;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{red:int,green:int,blue:int,alpha:int}
+     */
+    private function getImagePixel(ImageInterface $image, int $x, int $y): array
+    {
+        /** @var \GdImage $native */
+        $native = $image->core()->native();
+        $index = imagecolorat($native, $x, $y);
+        $pixel = imagecolorsforindex($native, $index);
+
+        return [
+            'red' => (int) $pixel['red'],
+            'green' => (int) $pixel['green'],
+            'blue' => (int) $pixel['blue'],
+            'alpha' => (int) $pixel['alpha'],
+        ];
     }
 }

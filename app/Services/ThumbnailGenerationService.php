@@ -67,8 +67,12 @@ class ThumbnailGenerationService
 
     private readonly FrameExtractionService $frameExtractionService;
 
-    public function __construct(FrameExtractionService $frameExtractionService, private readonly StorageAdapterHelper $storageHelper, private readonly ThumbnailTextHelper $textHelper)
-    {
+    public function __construct(
+        FrameExtractionService $frameExtractionService,
+        private readonly StorageAdapterHelper $storageHelper,
+        private readonly ThumbnailTextHelper $textHelper,
+        private readonly ThumbnailForegroundExtractionService $foregroundExtractor
+    ) {
         $this->storageDisk = config('thumbnail-generation.storage.disk');
         $this->storagePath = config('thumbnail-generation.storage.path');
         $this->tempDisk = config('thumbnail-generation.processing.temp_disk');
@@ -130,7 +134,8 @@ class ThumbnailGenerationService
             }
 
             // Create branded overlay and plain image variants
-            $thumbnailPath = $this->createBrandedThumbnail($sermon, $baseFramePath);
+            $brandedThumbnail = $this->createBrandedThumbnail($sermon, $baseFramePath);
+            $thumbnailPath = $brandedThumbnail['path'] ?? null;
             $plainThumbnailPath = $this->createPlainThumbnail($baseFramePath);
 
             if (! $thumbnailPath) {
@@ -186,6 +191,10 @@ class ThumbnailGenerationService
                 'overlay_thumbnail_path' => $finalPath,
             ];
 
+            if ($brandedThumbnail !== null) {
+                $resultMetadata = array_merge($resultMetadata, $brandedThumbnail['composition_metadata']);
+            }
+
             return ThumbnailResult::success($finalPath, $resultMetadata);
 
         } catch (\Exception $e) {
@@ -207,20 +216,27 @@ class ThumbnailGenerationService
      *
      * @param  Sermon  $sermon  The sermon model
      * @param  string  $baseFramePath  Path to base frame image
-     * @return string|null Path to branded thumbnail or null on failure
+     * @return array{path:string,composition_metadata:array<string, mixed>}|null
      */
-    public function createBrandedThumbnail(Sermon $sermon, string $baseFramePath): ?string
+    public function createBrandedThumbnail(Sermon $sermon, string $baseFramePath): ?array
     {
         try {
             $image = $this->createResizedBaseImage($baseFramePath);
+            $foreground = $this->foregroundExtractor->extract($image);
 
-            // Add brand overlay first (as background)
+            $this->addTitleOverlay($image, $sermon);
+
+            if ($foreground !== null) {
+                $image->place($foreground['image'], 'top-left', 0, 0);
+            }
+
             $this->addBrandOverlay($image);
+            $this->addDateOverlay($image, $sermon);
 
-            // Add text overlays on top of brand overlay
-            $this->addTextOverlays($image, $sermon);
-
-            return $this->saveTemporaryThumbnail($image);
+            return [
+                'path' => $this->saveTemporaryThumbnail($image),
+                'composition_metadata' => $this->buildCompositionMetadata($foreground),
+            ];
 
         } catch (\Exception $e) {
             Log::error('Branded thumbnail creation failed', [
@@ -253,6 +269,30 @@ class ThumbnailGenerationService
 
             return null;
         }
+    }
+
+    /**
+     * @param  array{
+     *     coverage: float,
+     *     bounds: array{x:int,y:int,width:int,height:int},
+     *     method: string
+     * }|null  $foreground
+     * @return array<string, mixed>
+     */
+    private function buildCompositionMetadata(?array $foreground): array
+    {
+        if ($foreground === null) {
+            return [
+                'composition_mode' => 'flat_fallback',
+            ];
+        }
+
+        return [
+            'composition_mode' => 'layered_subject',
+            'foreground_extraction_method' => $foreground['method'],
+            'foreground_bounds' => $foreground['bounds'],
+            'foreground_coverage' => round($foreground['coverage'], 4),
+        ];
     }
 
     /**
@@ -301,36 +341,42 @@ class ThumbnailGenerationService
     }
 
     /**
-     * Add text overlays to thumbnail image
-     *
-     * @param  ImageInterface  $image  The image to modify
-     * @param  Sermon  $sermon  The sermon model
+     * Add the main sermon title to the thumbnail.
      */
-    private function addTextOverlays(ImageInterface $image, Sermon $sermon): void
+    private function addTitleOverlay(ImageInterface $image, Sermon $sermon): void
     {
         $imageWidth = $image->width();
-        $imageHeight = $image->height();
 
         // Prepare sermon title (with word wrapping for full width)
         $titleMaxWidth = $imageWidth * self::TITLE_WIDTH_PERCENT;
         $title = $this->wrapText($sermon->title, (int) $titleMaxWidth, self::TITLE_FONT_SIZE);
 
-        // Prepare service date in the format "Sunday 14th September 2025"
+        // Calculate responsive font sizes
+        $titleFontSize = $this->textHelper->calculateResponsiveFontSize(self::TITLE_FONT_SIZE, $imageWidth, 1280);
+
+        $titleX = (int) ($imageWidth * self::TITLE_X_PERCENT);
+        $titleCenterY = (int) ($image->height() * self::TITLE_Y_CENTER_PERCENT);
+
+        $this->addTextWithoutBackgroundCentered($image, $title, $titleX, $titleCenterY, $titleFontSize, self::TITLE_COLOR);
+    }
+
+    /**
+     * Add the service date pill after all other layers.
+     */
+    private function addDateOverlay(ImageInterface $image, Sermon $sermon): void
+    {
+        $imageWidth = $image->width();
+        $imageHeight = $image->height();
+
         $serviceDate = $sermon->date->format('l jS F Y');
         if ($sermon->service) {
             $serviceDate .= ' - '.ucfirst($sermon->service->value).' Service';
         }
 
-        // Calculate responsive font sizes
-        $titleFontSize = $this->textHelper->calculateResponsiveFontSize(self::TITLE_FONT_SIZE, $imageWidth, 1280);
         $dateFontSize = $this->textHelper->calculateResponsiveFontSize(self::DATE_FONT_SIZE, $imageWidth, 1280);
-
-        $titleX = (int) ($imageWidth * self::TITLE_X_PERCENT);
-        $titleCenterY = (int) ($imageHeight * self::TITLE_Y_CENTER_PERCENT);
         $dateX = (int) ($imageWidth * self::DATE_X_PERCENT);
         $dateY = (int) ($imageHeight * self::DATE_Y_PERCENT);
 
-        $this->addTextWithoutBackgroundCentered($image, $title, $titleX, $titleCenterY, $titleFontSize, self::TITLE_COLOR);
         $this->addTextWithBackground($image, $serviceDate, $dateX, $dateY, $dateFontSize, self::DATE_COLOR);
     }
 

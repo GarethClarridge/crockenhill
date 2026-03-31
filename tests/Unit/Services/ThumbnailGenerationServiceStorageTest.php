@@ -6,6 +6,7 @@ use App\Data\ThumbnailResult;
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
 use App\Services\StorageAdapterHelper;
+use App\Services\ThumbnailForegroundExtractionService;
 use App\Services\ThumbnailGenerationService;
 use App\Services\ThumbnailTextHelper;
 use App\Services\VideoSegmentationService;
@@ -41,7 +42,12 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         ]);
 
         $this->frameExtractionService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
-        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class), new ThumbnailTextHelper);
+        $this->service = new ThumbnailGenerationService(
+            $this->frameExtractionService,
+            app(StorageAdapterHelper::class),
+            new ThumbnailTextHelper,
+            app(ThumbnailForegroundExtractionService::class)
+        );
     }
 
     // ---- storeThumbnail tests ----
