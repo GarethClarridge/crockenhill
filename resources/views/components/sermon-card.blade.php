@@ -38,7 +38,9 @@
       @if (($sermon->date != null))
       <li class="flex items-center">
         <x-heroicon-s-calendar class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
-        {{ $sermon->date->format('j F Y') }}
+        <time datetime="{{ $sermon->date->toDateString() }}">
+          {{ $sermon->date->format('j F Y') }}
+        </time>
       </li>
       @endif
       @if ($sermon->service != null)

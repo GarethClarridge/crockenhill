@@ -1168,6 +1168,15 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_uses_the_admin_list_shell_with_loading_states(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSeeHtml('wire:loading.class.delay.200ms="opacity-50"');
+    }
+
+    #[Test]
     public function list_component_shows_pending_merge_badge(): void
     {
         $this->actingAs($this->admin);

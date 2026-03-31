@@ -12,6 +12,33 @@ class SermonStorageService
 {
     private const STATS_CHUNK_SIZE = 100;
 
+    private readonly string $legacyDisk;
+
+    private readonly string $sermonDisk;
+
+    private readonly string $thumbnailDisk;
+
+    private readonly ?string $cdnEndpoint;
+
+    public function __construct()
+    {
+        /** @var string $legacyDisk */
+        $legacyDisk = config('media-processing.storage.legacy_disk', 'public');
+        $this->legacyDisk = $legacyDisk;
+
+        /** @var string $sermonDisk */
+        $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
+        $this->sermonDisk = $sermonDisk;
+
+        /** @var string $thumbnailDisk */
+        $thumbnailDisk = config('thumbnail-generation.storage.disk', 'public');
+        $this->thumbnailDisk = $thumbnailDisk;
+
+        /** @var ?string $cdnEndpoint */
+        $cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint');
+        $this->cdnEndpoint = $cdnEndpoint;
+    }
+
     /**
      * Get file information for a sermon based on its storage pattern
      *
@@ -45,7 +72,7 @@ class SermonStorageService
 
             return [
                 'type' => 'legacy',
-                'disk' => config('media-processing.storage.legacy_disk', 'public'),
+                'disk' => $this->legacyDisk,
                 'path' => "legacy/sermons/{$filename}",
                 'original_path' => "media/sermons/{$filename}",
             ];
@@ -53,7 +80,7 @@ class SermonStorageService
             // Newer Laravel storage pattern
             return [
                 'type' => 'storage',
-                'disk' => config('media-processing.storage.sermon_disk', 'public'),
+                'disk' => $this->sermonDisk,
                 'path' => $sermon->audio_file_path,
                 'original_path' => $sermon->audio_file_path,
             ];
@@ -61,7 +88,7 @@ class SermonStorageService
             // Current media processing pattern
             return [
                 'type' => 'processing',
-                'disk' => config('media-processing.storage.sermon_disk', 'public'),
+                'disk' => $this->sermonDisk,
                 'path' => $sermon->audio_file_path,
                 'original_path' => $sermon->audio_file_path,
             ];
@@ -77,7 +104,7 @@ class SermonStorageService
             return null;
         }
 
-        return Storage::disk(config('media-processing.storage.sermon_disk'))->url($sermon->video_file_path);
+        return Storage::disk($this->sermonDisk)->url($sermon->video_file_path);
     }
 
     /**
@@ -89,8 +116,7 @@ class SermonStorageService
             return null;
         }
 
-        $disk = config('thumbnail-generation.storage.disk', 'public');
-        $url = Storage::disk($disk)->url($sermon->thumbnail_file_path);
+        $url = Storage::disk($this->thumbnailDisk)->url($sermon->thumbnail_file_path);
 
         return $this->appendVersion($url, $this->thumbnailVersion($sermon, $sermon->thumbnail_file_path));
     }
@@ -103,7 +129,13 @@ class SermonStorageService
             return null;
         }
 
+<<<<<<< HEAD
         $disk = $this->resolveThumbnailDisk($cardThumbnailPath);
+=======
+        $disk = str_starts_with($cardThumbnailPath, 'private/')
+            ? 'local'
+            : $this->thumbnailDisk;
+>>>>>>> origin
 
         return $this->appendVersion(
             Storage::disk($disk)->url($cardThumbnailPath),
@@ -156,9 +188,8 @@ class SermonStorageService
         $info = $this->getSermonFileInfo($sermon);
 
         // Use CDN for public files if available
-        $cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint');
-        if ($info['disk'] === 'do_spaces' && $cdnEndpoint) {
-            return $this->appendVersion($cdnEndpoint.'/'.$info['path'], $this->audioVersion($sermon));
+        if ($info['disk'] === 'do_spaces' && $this->cdnEndpoint) {
+            return $this->appendVersion($this->cdnEndpoint.'/'.$info['path'], $this->audioVersion($sermon));
         }
 
         return $this->appendVersion(Storage::disk($info['disk'])->url($info['path']), $this->audioVersion($sermon));

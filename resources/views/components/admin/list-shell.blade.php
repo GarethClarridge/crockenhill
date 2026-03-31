@@ -14,7 +14,7 @@
         </x-admin.filter-bar>
     @endisset
 
-    <x-card>
+    <x-card wire:loading.class.delay.200ms="opacity-50">
         <div class="overflow-x-auto">
             {{ $slot }}
         </div>

@@ -102,4 +102,16 @@ class SpeakerProfile extends Model
         return $this->margin_threshold
             ?? (float) config('media-processing.speaker_identification.margin_threshold', 0.10);
     }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'quality_score' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'accept_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'margin_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],
+        ];
+    }
 }

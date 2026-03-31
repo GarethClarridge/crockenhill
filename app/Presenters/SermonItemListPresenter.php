@@ -24,11 +24,14 @@ class SermonItemListPresenter
         /** @var Collection<int, Sermon> $flatSermons */
         $flatSermons = $sermons->flatten(1);
 
+        $orgName = (string) config('organization.name');
+        $logoUrl = asset('images/Primary.png');
+
         return [
             '@context' => 'https://schema.org',
             '@type' => 'ItemList',
             'numberOfItems' => $flatSermons->count(),
-            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) {
+            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
                 $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
                 $publicUrl = $this->sermonViewPresenter->publicUrl($sermon);
 
@@ -42,7 +45,7 @@ class SermonItemListPresenter
                     'inLanguage' => 'en-GB',
                     'contentLocation' => [
                         '@type' => 'Place',
-                        'name' => config('organization.name'),
+                        'name' => $orgName,
                     ],
                     'author' => [
                         '@type' => 'Person',
@@ -50,17 +53,17 @@ class SermonItemListPresenter
                     ],
                     'publisher' => [
                         '@type' => 'Organization',
-                        'name' => config('organization.name'),
+                        'name' => $orgName,
                         'logo' => [
                             '@type' => 'ImageObject',
-                            'url' => asset('images/Primary.png'),
+                            'url' => $logoUrl,
                         ],
                     ],
                     'mainEntityOfPage' => [
                         '@type' => 'WebPage',
                         '@id' => $publicUrl,
                     ],
-                    'image' => $thumbnailUrl ?: asset('images/Primary.png'),
+                    'image' => $thumbnailUrl ?: $logoUrl,
                 ];
 
                 return [

@@ -24,6 +24,7 @@
         'author' => [
             '@type' => 'Person',
             'name' => $preacherName,
+            'url' => $sermonView['preacher_url'],
         ],
         'publisher' => [
             '@type' => 'Organization',
