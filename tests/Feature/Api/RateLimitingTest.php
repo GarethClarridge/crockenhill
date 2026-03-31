@@ -106,6 +106,26 @@ class RateLimitingTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // media-upload limiter — church service (OpenLP)
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function church_service_upload_is_rate_limited(): void
+    {
+        $this->forceThrottle('media-upload');
+
+        $file = UploadedFile::fake()->create('service.osz', 10, 'application/zip');
+
+        $token = $this->admin
+            ->createToken('test-service', [ApiTokenAbility::SERVICE_UPLOAD->value])
+            ->plainTextToken;
+
+        $this->withToken($token)
+            ->postJson('/api/services/openlp', ['file' => $file])
+            ->assertStatus(429);
+    }
+
+    // -------------------------------------------------------------------------
     // media-retry limiter
     // -------------------------------------------------------------------------
 
