@@ -181,7 +181,6 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-<<<<<<< HEAD
      * @return list<array{id: string, timestamp: float, score: float, overlay_path: string, plain_path: string}>
      */
     public function getThumbnailCandidatesAttribute(): array
@@ -197,12 +196,10 @@ class Sermon extends Model implements Sitemapable
         return $this->thumbnail_metadata?->selectedCandidate();
     }
 
-    public function getSeriesUrlAttribute(): ?string
-=======
+    /**
      * @return Attribute<?string, never>
      */
     protected function seriesUrl(): Attribute
->>>>>>> origin
     {
         return Attribute::make(
             get: fn (): ?string => $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null

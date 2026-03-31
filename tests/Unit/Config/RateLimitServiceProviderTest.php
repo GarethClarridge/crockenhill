@@ -29,6 +29,9 @@ class RateLimitServiceProviderTest extends TestCase
         $webVideoRequest = Request::create('/admin/sermon-upload', 'POST', ['type' => 'video'], server: ['REMOTE_ADDR' => '127.0.0.1']);
         $webVideoRequest->setUserResolver(fn (): User => $user);
 
+        $openLpRequest = Request::create('/api/services/openlp', 'POST', server: ['REMOTE_ADDR' => '127.0.0.1']);
+        $openLpRequest->setUserResolver(fn (): User => $user);
+
         $audioRequest = Request::create('/api/media/audio', 'POST', server: ['REMOTE_ADDR' => '127.0.0.1']);
         $audioRequest->setUserResolver(fn (): User => $user);
 
@@ -40,10 +43,12 @@ class RateLimitServiceProviderTest extends TestCase
 
         $videoLimits = $limiter($videoRequest);
         $webVideoLimits = $limiter($webVideoRequest);
+        $openLpLimits = $limiter($openLpRequest);
         $audioLimits = $limiter($audioRequest);
 
         $this->assertSame([1, 5], array_map(fn ($limit): int => $limit->maxAttempts, $videoLimits));
         $this->assertSame([1, 5], array_map(fn ($limit): int => $limit->maxAttempts, $webVideoLimits));
+        $this->assertSame([5, 20], array_map(fn ($limit): int => $limit->maxAttempts, $openLpLimits));
         $this->assertSame([5, 20], array_map(fn ($limit): int => $limit->maxAttempts, $audioLimits));
         $this->assertCount(2, array_unique(array_map(fn ($limit): string => (string) $limit->key, $videoLimits)));
         $this->assertTrue(

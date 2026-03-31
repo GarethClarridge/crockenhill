@@ -25,7 +25,6 @@ class RateLimitServiceProvider extends ServiceProvider
             // Support both path-based detection (API) and input-based detection (Web)
             $isLargeMedia = $request->is('api/media/video')
                 || $request->is('api/media/livestream')
-                || $request->is('api/services/openlp')
                 || in_array($request->input('type'), ['video', 'livestream'], true);
 
             if ($isLargeMedia) {
