@@ -123,13 +123,6 @@ class EditPreacher extends Component
             ->where('preacher_id', $this->preacher->id)
             ->firstOrFail();
 
-        // Validate the profile's current numerical fields before recomputing
-        // (Ensures any manual overrides or existing data match our new integrity rules)
-        \Illuminate\Support\Facades\Validator::make(
-            $profile->toArray(),
-            SpeakerProfile::validationRules()
-        )->validate();
-
         $approvedEmbeddings = SpeakerSample::query()
             ->where('speaker_profile_id', $profile->id)
             ->where('approved', true)

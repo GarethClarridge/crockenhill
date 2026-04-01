@@ -12,33 +12,6 @@ class SermonStorageService
 {
     private const STATS_CHUNK_SIZE = 100;
 
-    private readonly string $legacyDisk;
-
-    private readonly string $sermonDisk;
-
-    private readonly string $thumbnailDisk;
-
-    private readonly ?string $cdnEndpoint;
-
-    public function __construct()
-    {
-        /** @var string $legacyDisk */
-        $legacyDisk = config('media-processing.storage.legacy_disk', 'public');
-        $this->legacyDisk = $legacyDisk;
-
-        /** @var string $sermonDisk */
-        $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
-        $this->sermonDisk = $sermonDisk;
-
-        /** @var string $thumbnailDisk */
-        $thumbnailDisk = config('thumbnail-generation.storage.disk', 'public');
-        $this->thumbnailDisk = $thumbnailDisk;
-
-        /** @var ?string $cdnEndpoint */
-        $cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint');
-        $this->cdnEndpoint = $cdnEndpoint;
-    }
-
     /**
      * Get file information for a sermon based on its storage pattern
      *
@@ -343,23 +316,23 @@ class SermonStorageService
 
     private function legacyDisk(): string
     {
-        return (string) config('media-processing.storage.legacy_disk', $this->legacyDisk);
+        return (string) config('media-processing.storage.legacy_disk', 'public');
     }
 
     private function sermonDisk(): string
     {
-        return (string) config('media-processing.storage.sermon_disk', $this->sermonDisk);
+        return (string) config('media-processing.storage.sermon_disk', 'public');
     }
 
     private function thumbnailDisk(): string
     {
-        return (string) config('thumbnail-generation.storage.disk', $this->thumbnailDisk);
+        return (string) config('thumbnail-generation.storage.disk', 'public');
     }
 
     private function cdnEndpoint(): ?string
     {
         /** @var ?string $cdnEndpoint */
-        $cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint', $this->cdnEndpoint);
+        $cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint');
 
         return $cdnEndpoint;
     }

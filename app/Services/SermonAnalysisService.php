@@ -158,6 +158,23 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 // Validate required fields
                 $validatedData = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
 
+                // If the AI returned a title that's too long, retry to get a shorter one
+                if ($this->validator->isTitleTooLong($validatedData['title'])) {
+                    Log::info('AI-generated title exceeds character limit, retrying', [
+                        'title' => $validatedData['title'],
+                        'length' => strlen($validatedData['title']),
+                        'max' => SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
+                        'attempt' => $attempt,
+                    ]);
+
+                    throw new Exception(sprintf(
+                        'AI title exceeds %d characters (%d chars): "%s"',
+                        SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
+                        strlen($validatedData['title']),
+                        $validatedData['title']
+                    ));
+                }
+
                 $this->logger->logProcessingStep(
                     $processingId,
                     'ai_analysis_attempt',

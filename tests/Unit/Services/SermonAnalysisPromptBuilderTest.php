@@ -41,7 +41,7 @@ class SermonAnalysisPromptBuilderTest extends TestCase
 
         $this->assertStringContainsString('JSON', $prompt);
         $this->assertStringContainsString('title', $prompt);
-        $this->assertStringContainsString('maximum 12 words and 50 characters', $prompt);
+        $this->assertStringContainsString('maximum 12 words and 60 characters', $prompt);
         $this->assertStringContainsString('series', $prompt);
         $this->assertStringContainsString('reference', $prompt);
         $this->assertStringContainsString('points', $prompt);

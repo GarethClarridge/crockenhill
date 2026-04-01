@@ -63,13 +63,21 @@ class SermonAnalysisValidatorTest extends TestCase
     }
 
     #[Test]
-    public function it_truncates_ai_title_to_50_characters(): void
+    public function it_does_not_truncate_long_titles(): void
     {
-        $long = 'This is a sermon title that is definitely longer than fifty characters';
+        $long = 'This is a title exceeding the character limit for sermons';
 
         $result = $this->validator->validateAndCleanTitle($long);
 
-        $this->assertLessThanOrEqual(50, strlen($result));
+        $this->assertEquals($long, $result);
+    }
+
+    #[Test]
+    public function it_detects_titles_exceeding_character_limit(): void
+    {
+        $this->assertTrue($this->validator->isTitleTooLong(str_repeat('a', 61)));
+        $this->assertFalse($this->validator->isTitleTooLong(str_repeat('a', 60)));
+        $this->assertFalse($this->validator->isTitleTooLong('Short title'));
     }
 
     #[Test]

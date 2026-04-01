@@ -592,18 +592,16 @@ class SermonCreationServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_limits_ai_title_to_50_characters(): void
+    public function it_passes_ai_title_through_without_truncating(): void
     {
-        $longTitle = str_repeat('Very Long Title ', 20); // Creates a very long title
-
         $title = $this->service->generateTitle(
             TitleGenerationStrategy::AI_WITH_FALLBACK,
             [
-                'ai_analysis' => ['title' => $longTitle],
+                'ai_analysis' => ['title' => 'A perfectly valid sermon title from AI'],
                 'filename' => '2024-03-15-sermon.mp3',
             ]
         );
 
-        $this->assertLessThanOrEqual(50, strlen($title));
+        $this->assertEquals('A perfectly valid sermon title from AI', $title);
     }
 }

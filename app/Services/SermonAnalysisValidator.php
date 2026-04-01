@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class SermonAnalysisValidator
 {
     public const MAX_TITLE_WORDS = 12;
 
-    public const MAX_TITLE_CHARACTERS = 50;
+    public const MAX_TITLE_CHARACTERS = 60;
 
     private const MIN_TRANSCRIPT_LENGTH = 100;
 
@@ -140,16 +139,20 @@ class SermonAnalysisValidator
             $title = implode(' ', $words);
         }
 
-        if (strlen($title) > self::MAX_TITLE_CHARACTERS) {
-            $title = Str::limit($title, self::MAX_TITLE_CHARACTERS, '');
-        }
-
         // Ensure title is not too short
         if (strlen($title) < 3) {
             return 'Untitled sermon';
         }
 
         return $title;
+    }
+
+    /**
+     * Check whether a title exceeds the character limit.
+     */
+    public function isTitleTooLong(string $title): bool
+    {
+        return strlen($title) > self::MAX_TITLE_CHARACTERS;
     }
 
     /**

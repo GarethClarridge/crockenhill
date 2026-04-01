@@ -45,7 +45,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
 
-        $this->mountAsAdmin(\App\Livewire\Admin\Sermons\ListSermons::class)
+        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Sermons\ListSermons::class)
             ->call('delete', $sermon)
             ->assertForbidden();
 
@@ -58,7 +58,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create(['title' => 'Original Title']);
 
-        $this->mountAsAdmin(\App\Livewire\Admin\Sermons\EditSermon::class, ['sermon' => $sermon])
+        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Sermons\EditSermon::class, ['sermon' => $sermon])
             ->set('title', 'Hacked Title')
             ->call('save')
             ->assertForbidden();
@@ -74,7 +74,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Meeting $meeting */
         $meeting = Meeting::factory()->create();
 
-        $this->mountAsAdmin(\App\Livewire\Admin\Meetings\ListMeetings::class)
+        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Meetings\ListMeetings::class)
             ->call('delete', $meeting)
             ->assertForbidden();
 
@@ -87,7 +87,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Preacher $preacher */
         $preacher = Preacher::factory()->create();
 
-        $this->mountAsAdmin(\App\Livewire\Admin\Preachers\ListPreachers::class)
+        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Preachers\ListPreachers::class)
             ->call('delete', $preacher)
             ->assertForbidden();
 
@@ -100,7 +100,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Page $page */
         $page = Page::factory()->create();
 
-        $this->mountAsAdmin(\App\Livewire\Admin\Pages\ListPages::class)
+        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Pages\ListPages::class)
             ->call('delete', $page)
             ->assertForbidden();
 
@@ -113,7 +113,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var InboundEmail $email */
         $email = InboundEmail::factory()->create();
 
-        $this->mountAsAdmin(\App\Livewire\Admin\ChurchServices\ReviewInboundEmails::class)
+        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\ChurchServices\ReviewInboundEmails::class)
             ->call('approve', $email->id)
             ->assertForbidden();
     }
@@ -124,15 +124,18 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var ChurchService $service */
         $service = ChurchService::factory()->create();
 
-        $this->mountAsAdmin(\App\Livewire\Admin\ChurchServices\ShowChurchService::class, ['churchService' => $service])
+        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\ChurchServices\ShowChurchService::class, ['churchService' => $service])
             ->call('acceptIncomingMerge')
             ->assertForbidden();
     }
 
     /**
+     * Mount the component as admin (so it passes mount() auth), then switch
+     * to a non-admin user so subsequent action calls test defense-in-depth.
+     *
      * @param  array<string, mixed>  $params
      */
-    private function mountAsAdmin(string $component, array $params = []): Testable
+    private function mountAsAdminThenActAsUser(string $component, array $params = []): Testable
     {
         $testable = Livewire::actingAs($this->admin)->test($component, $params);
 

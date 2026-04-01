@@ -116,15 +116,19 @@ class SermonAnalysisDataTest extends TestCase
     }
 
     #[Test]
-    public function it_truncates_ai_titles_exceeding_fifty_characters(): void
+    public function it_preserves_long_ai_titles_without_truncating(): void
     {
+        $longTitle = 'This is a sermon title that is definitely longer than sixty characters in total';
+
         $analysis = SermonAnalysis::fromAiAnalysis([
-            'title' => 'This is a sermon title that is definitely longer than fifty characters',
+            'title' => $longTitle,
             'points' => [],
             'transcript' => str_repeat('t', 200),
         ]);
 
-        $this->assertLessThanOrEqual(50, strlen($analysis->title));
+        // Word-limited to 12 words, but not character-truncated
+        $this->assertLessThanOrEqual(12, count(explode(' ', $analysis->title)));
+        $this->assertStringNotContainsString('...', $analysis->title);
     }
 
     // ── Transcript validation ─────────────────────────────────────────────────

@@ -139,13 +139,13 @@
       <x-heroicon-o-clock class="h-10 w-10 mr-2 shrink-0" aria-hidden="true" />
       <dt class="sr-only">Time</dt>
       <dd>
-        <time datetime="{{ is_string($meeting->start_time) ? date('H:i', strtotime($meeting->start_time)) : $meeting->start_time->format('H:i') }}">
-          {{ is_string($meeting->start_time) ? date('g:ia', strtotime($meeting->start_time)) : $meeting->start_time->format('g:ia') }}
+        <time datetime="{{ $meeting->start_time->format('H:i') }}">
+          {{ $meeting->start_time->format('g:ia') }}
         </time>
-        @if ($meeting->end_time != '')
+        @if ($meeting->end_time)
         &ndash;
-        <time datetime="{{ is_string($meeting->end_time) ? date('H:i', strtotime($meeting->end_time)) : $meeting->end_time->format('H:i') }}">
-          {{ is_string($meeting->end_time) ? date('g:ia', strtotime($meeting->end_time)) : $meeting->end_time->format('g:ia') }}
+        <time datetime="{{ $meeting->end_time->format('H:i') }}">
+          {{ $meeting->end_time->format('g:ia') }}
         </time>
         @endif
       </dd>
