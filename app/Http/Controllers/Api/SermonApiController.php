@@ -39,7 +39,7 @@ class SermonApiController extends Controller
             'series' => 'nullable|string|max:255',
             'sort' => 'nullable|string|in:date,title,preacher,series,service',
             'order' => 'nullable|string|in:asc,desc,ASC,DESC',
-            'per_page' => 'nullable|integer|min:1|max:100',
+            'per_page' => 'nullable|integer',
             'with_thumbnail' => 'nullable|boolean',
         ]);
 
