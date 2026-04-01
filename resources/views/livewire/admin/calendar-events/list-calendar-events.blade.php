@@ -9,21 +9,25 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-input placeholder="Search events..." wire:model.live.debounce="search"
-            icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
+        <x-admin.filter-bar>
+            <x-input placeholder="Search events..." wire:model.live.debounce="search"
+                icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
-        <x-select placeholder="All Meetings" wire:model.live="meetingFilter"
-            :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])->values()->toArray()"
-            class="w-48" />
+            <x-select placeholder="All Meetings" wire:model.live="meetingFilter"
+                :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])->values()->toArray()"
+                class="w-48" />
 
-        <x-toggle label="Uncategorized Only" wire:model.live="uncategorizedOnly" />
-        <x-toggle label="Upcoming Only" wire:model.live="upcomingOnly" />
+            <x-toggle label="Uncategorized Only" wire:model.live="uncategorizedOnly" />
+            <x-toggle label="Upcoming Only" wire:model.live="upcomingOnly" />
 
-        <div x-show="$wire.hasFilters" x-transition x-cloak>
-            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                Clear Filters
-            </x-form-button>
-        </div>
+            <x-slot:actions>
+                <div x-show="$wire.hasFilters" x-transition x-cloak>
+                    <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                        Clear Filters
+                    </x-form-button>
+                </div>
+            </x-slot:actions>
+        </x-admin.filter-bar>
     </x-slot:filters>
 
     <x-slot:pagination>

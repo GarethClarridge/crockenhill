@@ -340,17 +340,18 @@
 
             {{-- x-admin.filter-bar --}}
             <div>
-                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-admin.filter-bar — flex filter row wrapper</p>
+                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-admin.filter-bar — flex filter row wrapper (slot: actions)</p>
                 <x-admin.filter-bar>
                     <x-input placeholder="Search..." icon="magnifying-glass" clearable class="w-64" />
                     <x-select placeholder="All Areas"
                         :options="[['id' => 'christ', 'name' => 'Christ'], ['id' => 'church', 'name' => 'Church']]"
                         class="w-40" />
-                    <div x-data="{ show: false }">
-                        <x-form-button variant="ghost" size="sm" icon="x-mark" @click="show = false">
+
+                    <x-slot:actions>
+                        <x-form-button variant="ghost" size="sm" icon="x-mark">
                             Clear Filters
                         </x-form-button>
-                    </div>
+                    </x-slot:actions>
                 </x-admin.filter-bar>
             </div>
 
