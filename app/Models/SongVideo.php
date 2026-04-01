@@ -109,4 +109,14 @@ class SongVideo extends Model
     {
         return $this->belongsTo(ChurchService::class);
     }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'duration' => ['nullable', 'numeric', 'min:0'],
+        ];
+    }
 }

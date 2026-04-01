@@ -446,6 +446,18 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * @return array<string, list<string>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'duration' => ['nullable', 'numeric', 'min:0'],
+            'sermon_start_time' => ['nullable', 'numeric', 'min:0'],
+            'sermon_end_time' => ['nullable', 'numeric', 'min:0', 'gte:sermon_start_time'],
+        ];
+    }
+
+    /**
      * @return list<string>
      */
     private static function legacyManualReviewReasonPatterns(): array
