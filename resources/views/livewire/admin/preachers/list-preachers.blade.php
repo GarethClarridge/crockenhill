@@ -9,18 +9,14 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-input placeholder="Search preachers..." wire:model.live.debounce="search"
-            icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
+        <x-admin.filter-bar>
+            <x-input placeholder="Search preachers..." wire:model.live.debounce="search"
+                icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
-        <x-select placeholder="Active status" wire:model.live="activeFilter"
-            :options="[['id' => '1', 'name' => 'Active'], ['id' => '0', 'name' => 'Inactive']]"
-            class="w-40" />
-
-        <div x-show="$wire.hasFilters" x-transition x-cloak>
-            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                Clear Filters
-            </x-form-button>
-        </div>
+            <x-select placeholder="Active status" wire:model.live="activeFilter"
+                :options="[['id' => '1', 'name' => 'Active'], ['id' => '0', 'name' => 'Inactive']]"
+                class="w-40" />
+        </x-admin.filter-bar>
     </x-slot:filters>
 
     <x-slot:pagination>
