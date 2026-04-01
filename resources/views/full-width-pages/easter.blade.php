@@ -8,6 +8,7 @@
 <x-meta-tags
   title="Easter services"
   description="Join us for our Easter services on Good Friday and Easter Sunday in April 2026." />
+<x-breadcrumbs area="community" heading="Easter services" :jsonOnly="true" />
 @stop
 
 @section('content')
