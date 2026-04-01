@@ -25,3 +25,7 @@
 ## 2026-03-28 - [Integration Tests for Legacy Migration Services]
 **Learning:** Testing services that perform legacy data migration (e.g., `LegacyPlayDateSongUsageImporter`) requires careful setup of temporary filesystem artifacts (SQL dumps) and database state (songs). Using `DatabaseTransactions` is mandatory for these tests to ensure that every execution starts with a clean database while avoiding the overhead of `RefreshDatabase` in parallel runs.
 **Action:** Place integration-style service tests in `tests/Feature/Services/` and use `tempnam()` for generating temporary input files, ensuring they are deleted in `tearDown()`.
+
+## 2026-04-01 - [Sermon Asset Authorization Testing]
+**Learning:** Testing authorization logic for `BinaryFileResponse` endpoints requires simulating guest and authenticated user states while toggling configuration values (`Config::set()`). Guests should be redirected to login (`assertRedirect(route('login'))`) for private content, while authenticated users or public content should resolve to the asset's public URL or serve the file directly.
+**Action:** Use `Config::set()` to toggle content visibility and `actingAs()` to simulate different user levels in feature tests targeting asset controllers.

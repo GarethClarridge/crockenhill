@@ -24,34 +24,38 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-input
-            placeholder="Search by filename, date, or service..."
-            wire:model.live.debounce="search"
-            icon="magnifying-glass"
-            clearable
-            class="w-72"
-            shortcut="slash" />
+        <x-admin.filter-bar>
+            <x-input
+                placeholder="Search by filename, date, or service..."
+                wire:model.live.debounce="search"
+                icon="magnifying-glass"
+                clearable
+                class="w-72"
+                shortcut="slash" />
 
-        <x-select
-            placeholder="Service"
-            wire:model.live="serviceFilter"
-            :options="collect($services)->map(fn($service) => ['id' => $service->value, 'name' => $service->label()])->toArray()"
-            class="w-40" />
+            <x-select
+                placeholder="Service"
+                wire:model.live="serviceFilter"
+                :options="collect($services)->map(fn($service) => ['id' => $service->value, 'name' => $service->label()])->toArray()"
+                class="w-40" />
 
-        <x-select
-            placeholder="Review"
-            wire:model.live="needsReviewFilter"
-            :options="[
-                ['id' => '1', 'name' => 'Needs review'],
-                ['id' => '0', 'name' => 'Ready'],
-            ]"
-            class="w-44" />
+            <x-select
+                placeholder="Review"
+                wire:model.live="needsReviewFilter"
+                :options="[
+                    ['id' => '1', 'name' => 'Needs review'],
+                    ['id' => '0', 'name' => 'Ready'],
+                ]"
+                class="w-44" />
 
-        <div x-show="$wire.hasFilters" x-transition x-cloak>
-            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                Clear Filters
-            </x-form-button>
-        </div>
+            <x-slot:actions>
+                <div x-show="$wire.hasFilters" x-transition x-cloak>
+                    <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                        Clear Filters
+                    </x-form-button>
+                </div>
+            </x-slot:actions>
+        </x-admin.filter-bar>
     </x-slot:filters>
 
     <x-slot:pagination>

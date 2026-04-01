@@ -9,27 +9,31 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-input placeholder="Search meetings..." wire:model.live.debounce="search" icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
+        <x-admin.filter-bar>
+            <x-input placeholder="Search meetings..." wire:model.live.debounce="search" icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
-        <x-select
-            placeholder="All Types"
-            wire:model.live="typeFilter"
-            :options="collect($types)->map(fn($t) => ['id' => $t->value, 'name' => $t->label()])->toArray()"
-            class="w-48"
-        />
+            <x-select
+                placeholder="All Types"
+                wire:model.live="typeFilter"
+                :options="collect($types)->map(fn($t) => ['id' => $t->value, 'name' => $t->label()])->toArray()"
+                class="w-48"
+            />
 
-        <x-select
-            placeholder="Recurring"
-            wire:model.live="recurringFilter"
-            :options="[['id' => '1', 'name' => 'Recurring'], ['id' => '0', 'name' => 'One-time']]"
-            class="w-40"
-        />
+            <x-select
+                placeholder="Recurring"
+                wire:model.live="recurringFilter"
+                :options="[['id' => '1', 'name' => 'Recurring'], ['id' => '0', 'name' => 'One-time']]"
+                class="w-40"
+            />
 
-        <div x-show="$wire.hasFilters" x-transition x-cloak>
-            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                Clear Filters
-            </x-form-button>
-        </div>
+            <x-slot:actions>
+                <div x-show="$wire.hasFilters" x-transition x-cloak>
+                    <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                        Clear Filters
+                    </x-form-button>
+                </div>
+            </x-slot:actions>
+        </x-admin.filter-bar>
     </x-slot:filters>
 
     <x-slot:pagination>

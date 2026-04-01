@@ -9,9 +9,9 @@
     </x-slot:actions>
 
     @isset($filters)
-        <x-admin.filter-bar>
+        <div class="mb-4">
             {{ $filters }}
-        </x-admin.filter-bar>
+        </div>
     @endisset
 
     <x-card wire:loading.class.delay.200ms="opacity-50">
