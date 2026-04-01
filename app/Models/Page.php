@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\PageArea;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -92,14 +93,20 @@ class Page extends Model implements HasMedia, Sitemapable
 
     /**
      * Get the page's full route path.
+     *
+     * @return Attribute<?string, never>
      */
-    public function getRouteAttribute(): ?string
+    protected function route(): Attribute
     {
-        if ($this->slug) {
-            return '/'.trim($this->area->value, '/').'/'.trim($this->slug, '/');
-        }
+        return Attribute::make(
+            get: function (): ?string {
+                if ($this->slug) {
+                    return '/'.trim($this->area->value, '/').'/'.trim($this->slug, '/');
+                }
 
-        return null; // Or some default/error handling if slug is missing
+                return null; // Or some default/error handling if slug is missing
+            }
+        );
     }
 
     /**
@@ -163,16 +170,22 @@ class Page extends Model implements HasMedia, Sitemapable
     /**
      * Get the SEO meta description for the page.
      * Truncates the description field to 155 characters (plus ellipsis if truncated).
+     *
+     * @return Attribute<string, never>
      */
-    public function getMetaDescriptionAttribute(): string
+    protected function metaDescription(): Attribute
     {
-        $description = trim(strip_tags($this->description ?? ''));
+        return Attribute::make(
+            get: function (): string {
+                $description = trim(strip_tags($this->description ?? ''));
 
-        if (empty($description)) {
-            $description = $this->heading;
-        }
+                if (empty($description)) {
+                    $description = $this->heading;
+                }
 
-        return Str::limit($description, 155);
+                return Str::limit($description, 155);
+            }
+        );
     }
 
     /**

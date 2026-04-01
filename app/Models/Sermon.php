@@ -181,19 +181,23 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return list<array{id: string, timestamp: float, score: float, plain_path: string, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}>
+     * @return Attribute<list<array{id: string, timestamp: float, score: float, plain_path: string, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}>, never>
      */
-    public function getThumbnailCandidatesAttribute(): array
+    protected function thumbnailCandidates(): Attribute
     {
-        return $this->thumbnail_metadata?->thumbnailCandidates ?: [];
+        return Attribute::make(
+            get: fn (): array => $this->thumbnail_metadata?->thumbnailCandidates ?: []
+        );
     }
 
     /**
-     * @return array{id: string, timestamp: float, score: float, plain_path: string, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null
+     * @return Attribute<array{id: string, timestamp: float, score: float, plain_path: string, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null, never>
      */
-    public function getSelectedThumbnailCandidateAttribute(): ?array
+    protected function selectedThumbnailCandidate(): Attribute
     {
-        return $this->thumbnail_metadata?->selectedCandidate();
+        return Attribute::make(
+            get: fn (): ?array => $this->thumbnail_metadata?->selectedCandidate()
+        );
     }
 
     /**
