@@ -298,6 +298,7 @@ class SermonApiTest extends TestCase
                 'width' => 1280,
                 'height' => 720,
                 'plain_thumbnail_path' => 'sermons/thumbnails/test-plain.jpg',
+                'card_thumbnail_path' => 'sermons/thumbnails/test-card.jpg',
                 'overlay_thumbnail_path' => 'sermons/thumbnails/test-overlay.jpg',
             ],
         ]);
@@ -314,6 +315,7 @@ class SermonApiTest extends TestCase
 
         $this->assertIsArray($thumbnailMetadata);
         $this->assertArrayNotHasKey('plain_thumbnail_path', $thumbnailMetadata);
+        $this->assertArrayNotHasKey('card_thumbnail_path', $thumbnailMetadata);
         $this->assertArrayNotHasKey('overlay_thumbnail_path', $thumbnailMetadata);
     }
 

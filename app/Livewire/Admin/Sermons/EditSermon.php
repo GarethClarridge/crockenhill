@@ -68,7 +68,7 @@ class EditSermon extends Component
     /** @var \Illuminate\Support\Collection<int, string> */
     public \Illuminate\Support\Collection $preacherOptions;
 
-    /** @var array<int, array{id: string, timestamp: float, timestamp_label: string, score: float, overlay_url: ?string, plain_url: ?string, preview_url: ?string, is_selected: bool}> */
+    /** @var array<int, array{id: string, timestamp: float, timestamp_label: string, score: float, overlay_url: ?string, card_url: ?string, preview_url: ?string, is_selected: bool}> */
     public array $thumbnailCandidates = [];
 
     public ?string $selectedThumbnailCandidateId = null;
@@ -281,7 +281,7 @@ class EditSermon extends Component
                 'timestamp_label' => $this->formatThumbnailTimestamp($candidate['timestamp']),
                 'score' => $candidate['score'],
                 'overlay_url' => $storageService->getAdminThumbnailCandidatePreviewUrl($this->sermon, $candidate['id'], 'overlay'),
-                'plain_url' => $storageService->getAdminThumbnailCandidatePreviewUrl($this->sermon, $candidate['id'], 'plain'),
+                'card_url' => $storageService->getAdminThumbnailCandidatePreviewUrl($this->sermon, $candidate['id'], 'card'),
                 'preview_url' => $storageService->getAdminThumbnailCandidatePreviewUrl($this->sermon, $candidate['id'], 'overlay')
                     ?? $storageService->getAdminThumbnailCandidatePreviewUrl($this->sermon, $candidate['id'], 'plain'),
                 'is_selected' => $selectedCandidateId === $candidate['id'],

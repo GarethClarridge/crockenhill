@@ -25,7 +25,7 @@ class ThumbnailGenerationServiceTest extends TestCase
 
     private FrameExtractionService $frameExtractionService;
 
-    private string $brandOverlayPath;
+    private string $logoPath;
 
     protected function setUp(): void
     {
@@ -33,7 +33,13 @@ class ThumbnailGenerationServiceTest extends TestCase
 
         Storage::fake('local');
         Storage::fake('public');
-        $this->brandOverlayPath = public_path('images/BrandOverlay.png');
+        $this->logoPath = public_path('images/test-thumbnail-logo.png');
+        config([
+            'thumbnail-generation.theme.logo_path' => 'images/test-thumbnail-logo.png',
+            'thumbnail-generation.theme.palette.background_color' => '#D7EAE6',
+            'thumbnail-generation.theme.palette.foreground_color' => '#145557',
+        ]);
+        $this->createLogoAsset();
 
         // Mock the VideoSegmentationService dependency
         $videoService = $this->createMock(VideoSegmentationService::class);
@@ -58,8 +64,8 @@ class ThumbnailGenerationServiceTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (file_exists($this->brandOverlayPath)) {
-            unlink($this->brandOverlayPath);
+        if (file_exists($this->logoPath)) {
+            unlink($this->logoPath);
         }
 
         parent::tearDown();
@@ -326,12 +332,12 @@ class ThumbnailGenerationServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_places_preacher_over_title_and_brand_and_date_over_preacher(): void
+    public function it_renders_dark_branding_on_a_light_canvas_and_places_the_cutout_on_the_right(): void
     {
-        $this->createBrandOverlayAsset();
-
         $sermon = Sermon::factory()->create([
             'title' => 'MMMMMMMMMMMMMMMM',
+            'reference' => '2 Peter 3:1-20',
+            'preacher' => 'Pastor Mark Drury',
             'date' => now(),
         ]);
 
@@ -339,33 +345,35 @@ class ThumbnailGenerationServiceTest extends TestCase
         $fallbackThumbnail = $fallbackService->createBrandedThumbnail($sermon, $this->storeBaseFrame());
         $fallbackImage = Image::read(Storage::disk('local')->path($fallbackThumbnail['path']));
 
-        $titlePixel = $this->findBrightPixelInRegion($fallbackImage, 420, 110, 860, 360);
-        $datePixel = $this->findBrightPixelInRegion($fallbackImage, 350, 560, 930, 680);
+        $backgroundPixel = $this->getImagePixel($fallbackImage, 1180, 660);
+        $logoPixel = $this->findDarkPixelInRegion($fallbackImage, 40, 40, 260, 240);
+        $titlePixel = $this->findDarkPixelInRegion($fallbackImage, 60, 180, 700, 420);
+        $metadataPixel = $this->findDarkPixelInRegion($fallbackImage, 40, 430, 520, 700);
 
+        $this->assertGreaterThan(200, $backgroundPixel['red']);
+        $this->assertGreaterThan(220, $backgroundPixel['green']);
+        $this->assertGreaterThan(220, $backgroundPixel['blue']);
+        $this->assertNotNull($logoPixel);
         $this->assertNotNull($titlePixel);
-        $this->assertNotNull($datePixel);
+        $this->assertNotNull($metadataPixel);
 
         $layeredService = $this->makeThumbnailServiceWithExtractorResult($this->makeForegroundExtractionResult());
         $layeredThumbnail = $layeredService->createBrandedThumbnail($sermon, $this->storeBaseFrame());
         $layeredImage = Image::read(Storage::disk('local')->path($layeredThumbnail['path']));
 
-        $titleLayeredPixel = $this->getImagePixel($layeredImage, $titlePixel['x'], $titlePixel['y']);
-        $brandPixel = $this->getImagePixel($layeredImage, 40, 40);
-        $dateLayeredPixel = $this->findBrightPixelInRegion($layeredImage, 350, 560, 930, 680);
+        $subjectPixel = $this->findGreenPixelInRegion($layeredImage, 820, 160, 1210, 680);
 
-        $this->assertGreaterThan(200, $titlePixel['red']);
-        $this->assertLessThan(80, $titleLayeredPixel['red']);
-        $this->assertGreaterThan(150, $titleLayeredPixel['green']);
-        $this->assertLessThan(80, $titleLayeredPixel['blue']);
-
-        $this->assertGreaterThan(200, $brandPixel['red']);
-        $this->assertLessThan(80, $brandPixel['green']);
-        $this->assertLessThan(80, $brandPixel['blue']);
-
-        $this->assertNotNull($dateLayeredPixel);
-        $this->assertGreaterThan(200, $dateLayeredPixel['red']);
-        $this->assertGreaterThan(200, $dateLayeredPixel['green']);
-        $this->assertGreaterThan(200, $dateLayeredPixel['blue']);
+        $this->assertLessThan(80, $logoPixel['red']);
+        $this->assertLessThan(120, $logoPixel['green']);
+        $this->assertLessThan(120, $logoPixel['blue']);
+        $this->assertLessThan(80, $titlePixel['red']);
+        $this->assertLessThan(120, $titlePixel['green']);
+        $this->assertLessThan(120, $titlePixel['blue']);
+        $this->assertLessThan(80, $metadataPixel['red']);
+        $this->assertLessThan(120, $metadataPixel['green']);
+        $this->assertLessThan(120, $metadataPixel['blue']);
+        $this->assertNotNull($subjectPixel);
+        $this->assertGreaterThan(150, $subjectPixel['green']);
     }
 
     #[Test]
@@ -394,8 +402,10 @@ class ThumbnailGenerationServiceTest extends TestCase
 
         $this->assertTrue($result->isSuccess());
         $this->assertSame('candidate-1', $result->metadata['selected_thumbnail_candidate_id']);
+        $this->assertArrayHasKey('card_thumbnail_path', $result->metadata);
         $this->assertSame('layered_subject', $result->metadata['composition_mode']);
         $this->assertSame('poof_api', $result->metadata['foreground_extraction_method']);
+        $this->assertArrayHasKey('card_path', $result->metadata['thumbnail_candidates'][0]);
         $this->assertArrayHasKey('overlay_path', $result->metadata['thumbnail_candidates'][0]);
     }
 
@@ -459,14 +469,14 @@ class ThumbnailGenerationServiceTest extends TestCase
         return $path;
     }
 
-    private function createBrandOverlayAsset(): void
+    private function createLogoAsset(): void
     {
-        $directory = dirname($this->brandOverlayPath);
+        $directory = dirname($this->logoPath);
         if (! is_dir($directory)) {
             mkdir($directory, 0777, true);
         }
 
-        $overlay = imagecreatetruecolor(1280, 720);
+        $overlay = imagecreatetruecolor(180, 120);
         imagealphablending($overlay, false);
         imagesavealpha($overlay, true);
 
@@ -474,9 +484,9 @@ class ThumbnailGenerationServiceTest extends TestCase
         imagefill($overlay, 0, 0, $transparent);
 
         $red = imagecolorallocatealpha($overlay, 255, 0, 0, 0);
-        imagefilledrectangle($overlay, 0, 0, 119, 119, $red);
+        imagefilledrectangle($overlay, 20, 20, 160, 100, $red);
 
-        imagepng($overlay, $this->brandOverlayPath);
+        imagepng($overlay, $this->logoPath);
     }
 
     /**
@@ -489,6 +499,42 @@ class ThumbnailGenerationServiceTest extends TestCase
                 $pixel = $this->getImagePixel($image, $x, $y);
 
                 if ($pixel['red'] > 200 && $pixel['green'] > 200 && $pixel['blue'] > 200) {
+                    return ['x' => $x, 'y' => $y] + $pixel;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{x:int,y:int,red:int,green:int,blue:int}|null
+     */
+    private function findDarkPixelInRegion(ImageInterface $image, int $startX, int $startY, int $endX, int $endY): ?array
+    {
+        for ($y = $startY; $y <= $endY; $y++) {
+            for ($x = $startX; $x <= $endX; $x++) {
+                $pixel = $this->getImagePixel($image, $x, $y);
+
+                if ($pixel['alpha'] < 127 && $pixel['red'] < 80 && $pixel['green'] < 120 && $pixel['blue'] < 120) {
+                    return ['x' => $x, 'y' => $y] + $pixel;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{x:int,y:int,red:int,green:int,blue:int}|null
+     */
+    private function findGreenPixelInRegion(ImageInterface $image, int $startX, int $startY, int $endX, int $endY): ?array
+    {
+        for ($y = $startY; $y <= $endY; $y++) {
+            for ($x = $startX; $x <= $endX; $x++) {
+                $pixel = $this->getImagePixel($image, $x, $y);
+
+                if ($pixel['alpha'] < 127 && $pixel['green'] > 150 && $pixel['green'] > $pixel['red'] && $pixel['green'] > $pixel['blue']) {
                     return ['x' => $x, 'y' => $y] + $pixel;
                 }
             }

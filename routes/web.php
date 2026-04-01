@@ -147,7 +147,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/sermons', App\Livewire\Admin\Sermons\ListSermons::class)->name('sermons.index');
     Route::get('/sermons/{sermon:slug}/edit', App\Livewire\Admin\Sermons\EditSermon::class)->name('sermons.edit');
     Route::get('/sermons/{sermon:slug}/thumbnails/{candidateId}/{variant}', [SermonThumbnailCandidateController::class, 'show'])
-        ->where('variant', 'overlay|plain')
+        ->where('variant', 'overlay|card|plain')
         ->name('sermons.thumbnails.preview');
 
     // Church Services

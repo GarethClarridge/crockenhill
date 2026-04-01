@@ -77,7 +77,7 @@ class SermonPrivateAssetTest extends TestCase
         $sermon = Sermon::factory()->create([
             'slug' => 'private-card-sermon',
             'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'private/thumbnails/card.png',
+                'card_thumbnail_path' => 'private/thumbnails/card.png',
             ],
         ]);
 

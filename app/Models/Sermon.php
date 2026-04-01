@@ -68,8 +68,9 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $human_date
  * @property-read ?string $series_url
  * @property-read ?string $plain_thumbnail_file_path
- * @property-read list<array{id: string, timestamp: float, score: float, plain_path: string, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}> $thumbnail_candidates
- * @property-read array{id: string, timestamp: float, score: float, plain_path: string, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null $selected_thumbnail_candidate
+ * @property-read ?string $card_thumbnail_file_path
+ * @property-read list<array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}> $thumbnail_candidates
+ * @property-read array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null $selected_thumbnail_candidate
  * @property-read ServiceSection|null $publishedServiceSection
  * @property-read MediaProcessingLog|null $latestProcessingLog
  *
@@ -181,7 +182,25 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return list<array{id: string, timestamp: float, score: float, plain_path: string, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}>
+     * @return Attribute<?string, never>
+     */
+    protected function cardThumbnailFilePath(): Attribute
+    {
+        return Attribute::make(
+            get: function (): ?string {
+                $metadata = $this->thumbnail_metadata;
+
+                if ($metadata === null) {
+                    return null;
+                }
+
+                return $metadata->cardThumbnailPath ?? $metadata->plainThumbnailPath;
+            }
+        );
+    }
+
+    /**
+     * @return list<array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}>
      */
     public function getThumbnailCandidatesAttribute(): array
     {
@@ -189,7 +208,7 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return array{id: string, timestamp: float, score: float, plain_path: string, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null
+     * @return array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null
      */
     public function getSelectedThumbnailCandidateAttribute(): ?array
     {
@@ -469,13 +488,18 @@ class Sermon extends Model implements Sitemapable
         return $this->plain_thumbnail_file_path !== null;
     }
 
+    public function hasCardThumbnail(): bool
+    {
+        return $this->card_thumbnail_file_path !== null;
+    }
+
     public function hasThumbnailCandidates(): bool
     {
         return $this->thumbnail_candidates !== [];
     }
 
     /**
-     * @return array{id: string, timestamp: float, score: float, plain_path: string, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null
+     * @return array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null
      */
     public function findThumbnailCandidate(string $candidateId): ?array
     {

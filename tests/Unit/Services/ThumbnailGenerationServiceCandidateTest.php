@@ -108,7 +108,9 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
         $this->assertSame('sermons/thumbnails/sermon_'.$sermon->id.'_'.date('Y-m-d').'_candidate-3_overlay.webp', $result->thumbnailPath);
         $this->assertCount(3, $result->metadata['thumbnail_candidates']);
         $this->assertSame('sermons/thumbnails/sermon_'.$sermon->id.'_'.date('Y-m-d').'_candidate-3_plain.webp', $result->metadata['plain_thumbnail_path']);
+        $this->assertSame('sermons/thumbnails/sermon_'.$sermon->id.'_'.date('Y-m-d').'_candidate-3_card.webp', $result->metadata['card_thumbnail_path']);
         $candidatesById = collect($result->metadata['thumbnail_candidates'])->keyBy('id');
+        $this->assertArrayHasKey('card_path', $candidatesById['candidate-3']);
         $this->assertArrayHasKey('overlay_path', $candidatesById['candidate-3']);
         $this->assertArrayNotHasKey('overlay_path', $candidatesById['candidate-1']);
         $this->assertArrayNotHasKey('overlay_path', $candidatesById['candidate-2']);
@@ -187,6 +189,7 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
         $candidatesById = collect($result->metadata['thumbnail_candidates'])->keyBy('id');
         $selectedCandidateId = $result->metadata['selected_thumbnail_candidate_id'];
         $this->assertContains($selectedCandidateId, ['candidate-1', 'candidate-3']);
+        $this->assertArrayHasKey('card_path', $candidatesById[$selectedCandidateId]);
         $this->assertArrayHasKey('overlay_path', $candidatesById[$selectedCandidateId]);
 
         $nonSelectedCandidateId = $selectedCandidateId === 'candidate-1' ? 'candidate-3' : 'candidate-1';

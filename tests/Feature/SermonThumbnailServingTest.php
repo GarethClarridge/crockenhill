@@ -107,7 +107,27 @@ class SermonThumbnailServingTest extends TestCase
         $this->assertNotNull($response->headers->get('Last-Modified'));
     }
 
-    public function test_card_thumbnail_prefers_plain_variant_when_available(): void
+    public function test_card_thumbnail_prefers_card_variant_when_available(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'test-sermon',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-overlay.webp',
+            'thumbnail_metadata' => [
+                'card_thumbnail_path' => 'sermons/thumbnails/test-card.webp',
+                'plain_thumbnail_path' => 'sermons/thumbnails/test-plain.webp',
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/thumbnails/test-overlay.webp', 'overlay image content');
+        Storage::disk('public')->put('sermons/thumbnails/test-card.webp', 'card image content');
+        Storage::disk('public')->put('sermons/thumbnails/test-plain.webp', 'plain image content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getCardThumbnailUrl($sermon));
+    }
+
+    public function test_card_thumbnail_falls_back_to_plain_variant_when_card_path_is_not_set(): void
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',

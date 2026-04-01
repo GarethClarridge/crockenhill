@@ -18,13 +18,19 @@ use Intervention\Image\Laravel\Facades\Image;
  *     timestamp: float,
  *     score: float,
  *     plain_path: string,
+ *     card_path?: string|null,
  *     overlay_path?: string|null,
  *     composition_mode?: string|null,
  *     foreground_extraction_method?: string|null,
  *     foreground_bounds?: array<string, int>,
  *     foreground_coverage?: float|null
  * }
- * @phpstan-type RenderedThumbnailCandidate ThumbnailCandidate&array{
+ * @phpstan-type RenderedThumbnailCandidate array{
+ *     id: string,
+ *     timestamp: float,
+ *     score: float,
+ *     plain_path: string,
+ *     card_path: non-empty-string,
  *     overlay_path: non-empty-string,
  *     composition_mode: string,
  *     foreground_extraction_method?: string|null,
@@ -37,53 +43,65 @@ use Intervention\Image\Laravel\Facades\Image;
  *     foreground_bounds?: array{x:int,y:int,width:int,height:int},
  *     foreground_coverage?: float
  * }
+ * @phpstan-type ForegroundLayer array{
+ *     image: ImageInterface,
+ *     coverage: float,
+ *     bounds: array{x:int,y:int,width:int,height:int},
+ *     method: string
+ * }
+ * @phpstan-type RenderedAssets array{
+ *     overlay_temp_path: string,
+ *     card_temp_path: string,
+ *     composition_metadata: CompositionMetadata
+ * }
  */
 class ThumbnailGenerationService
 {
     public const int CANDIDATE_COUNT = 5;
 
-    // Thumbnail dimensions
     public const int WEB_WIDTH = 1280;
 
     public const int WEB_HEIGHT = 720;
 
     public const int WEB_QUALITY = 85;
 
-    // Font
-    public const int TITLE_FONT_SIZE = 144;
+    private const int REFERENCE_WIDTH = 1920;
 
-    public const float TITLE_LINE_HEIGHT = 0.9;
+    private const int REF_EDGE_INSET = 75;
 
-    public const string TITLE_COLOR = '#FFFFFF';
+    private const int REF_LOGO_WIDTH = 250;
 
-    public const int DATE_FONT_SIZE = 32;
+    private const int REF_TITLE_FONT_SIZE = 96;
 
-    public const string DATE_COLOR = '#000000';
+    private const int REF_CARD_TITLE_FONT_SIZE = 84;
 
-    public const string STROKE_COLOR = '#FFFFFF';
+    private const int REF_METADATA_FONT_SIZE = 72;
 
-    public const int STROKE_WIDTH = 2;
+    private const int REF_TITLE_MIN_FONT_SIZE = 58;
 
-    // Background (date pill)
-    public const string BACKGROUND_COLOR = '#FFFFFF';
+    private const int REF_CARD_TITLE_MIN_FONT_SIZE = 48;
 
-    public const int BACKGROUND_HORIZONTAL_PADDING = 0;
+    private const int REF_METADATA_MIN_FONT_SIZE = 42;
 
-    public const int BACKGROUND_VERTICAL_PADDING = 15;
+    private const int REF_ACCENT_WIDTH = 12;
 
-    // Layout positioning (as fractions of image dimensions)
-    public const float TITLE_X_PERCENT = 0.5;
+    private const int REF_ACCENT_GAP = 24;
 
-    public const float TITLE_Y_CENTER_PERCENT = 0.35;
+    private const int REF_TITLE_TO_META_GAP = 64;
 
-    public const float TITLE_WIDTH_PERCENT = 1.0;
+    private const int REF_META_LINE_GAP = 14;
 
-    public const float DATE_X_PERCENT = 0.5;
+    private const int REF_TEXT_TO_SUBJECT_GAP = 42;
 
-    public const float DATE_Y_PERCENT = 0.85;
+    private const int REF_SUBJECT_MAX_WIDTH = 760;
 
-    // Brand overlay
-    public const string BRAND_IMAGE = 'images/BrandOverlay.png';
+    private const int MAIN_TITLE_MAX_LINES = 4;
+
+    private const int CARD_TITLE_MAX_LINES = 3;
+
+    private const float TITLE_LINE_HEIGHT = 0.92;
+
+    private const float METADATA_LINE_HEIGHT = 1.04;
 
     private string $storageDisk;
 
@@ -101,21 +119,13 @@ class ThumbnailGenerationService
         private readonly ThumbnailTextHelper $textHelper,
         private readonly ThumbnailForegroundExtractionService $foregroundExtractor
     ) {
-        $this->storageDisk = config('thumbnail-generation.storage.disk');
-        $this->storagePath = config('thumbnail-generation.storage.path');
-        $this->tempDisk = config('thumbnail-generation.processing.temp_disk');
-        $this->tempPath = config('thumbnail-generation.processing.temp_path');
+        $this->storageDisk = (string) config('thumbnail-generation.storage.disk', 'public');
+        $this->storagePath = (string) config('thumbnail-generation.storage.path', 'sermons/thumbnails');
+        $this->tempDisk = (string) config('thumbnail-generation.processing.temp_disk', 'local');
+        $this->tempPath = (string) config('thumbnail-generation.processing.temp_path', 'temp/thumbnails');
         $this->frameExtractionService = $frameExtractionService;
     }
 
-    /**
-     * Generate thumbnail for a sermon video
-     *
-     * @param  Sermon  $sermon  The sermon model
-     * @param  string  $videoPath  Full path to the video file (local) or relative path (S3)
-     * @param  string|null  $disk  Storage disk name for S3-compatible storage
-     * @return ThumbnailResult Result of thumbnail generation
-     */
     public function generateThumbnail(Sermon $sermon, string $videoPath, ?string $disk = null): ThumbnailResult
     {
         $tempVideoPath = null;
@@ -137,7 +147,7 @@ class ThumbnailGenerationService
 
             $metadata = $this->frameExtractionService->getVideoMetadata($localVideoPath);
 
-            if ($metadata['duration'] < config('thumbnail-generation.extraction.min_video_duration')) {
+            if ((float) $metadata['duration'] < (float) config('thumbnail-generation.extraction.min_video_duration', 420)) {
                 $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
                 return ThumbnailResult::skipped('Video too short for thumbnail generation');
@@ -145,7 +155,7 @@ class ThumbnailGenerationService
 
             $candidateTimestamps = $this->frameExtractionService->calculateCandidateTimestamps(
                 (float) $metadata['duration'],
-                self::CANDIDATE_COUNT
+                self::CANDIDATE_COUNT,
             );
 
             /** @var list<ThumbnailCandidate> $successfulCandidates */
@@ -183,7 +193,8 @@ class ThumbnailGenerationService
             }
 
             usort($successfulCandidates, static fn (array $left, array $right): int => $right['score'] <=> $left['score']);
-            $selectedCandidate = $this->renderOverlayForCandidate($sermon, $successfulCandidates[0]);
+
+            $selectedCandidate = $this->renderAssetsForCandidate($sermon, $successfulCandidates[0]);
             if ($selectedCandidate === null) {
                 return ThumbnailResult::failed('Failed to render the selected thumbnail candidate');
             }
@@ -202,6 +213,7 @@ class ThumbnailGenerationService
                 ],
                 'generated_at' => now()->toISOString(),
                 'plain_thumbnail_path' => $selectedCandidate['plain_path'],
+                'card_thumbnail_path' => $selectedCandidate['card_path'],
                 'overlay_thumbnail_path' => $selectedCandidate['overlay_path'],
                 'selected_thumbnail_candidate_id' => $selectedCandidate['id'],
                 'thumbnail_candidates' => $successfulCandidates,
@@ -210,8 +222,7 @@ class ThumbnailGenerationService
             $resultMetadata = array_merge($resultMetadata, $this->candidateCompositionMetadata($selectedCandidate));
 
             return ThumbnailResult::success($selectedCandidate['overlay_path'], $resultMetadata);
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
             Log::warning('Thumbnail generation failed, skipping', [
@@ -225,20 +236,20 @@ class ThumbnailGenerationService
     }
 
     /**
-     * Create branded thumbnail with sermon metadata overlay
-     *
-     * @param  Sermon  $sermon  The sermon model
-     * @param  string  $baseFramePath  Path to base frame image
      * @return array{path:string,composition_metadata:array<string, mixed>}|null
      */
     public function createBrandedThumbnail(Sermon $sermon, string $baseFramePath): ?array
     {
         try {
             $image = $this->createResizedBaseImage($baseFramePath);
+            $foreground = $this->extractForegroundLayer($image);
+            $mainImage = $this->buildMainThumbnailCanvas($sermon, $foreground);
 
-            return $this->createBrandedThumbnailFromImage($sermon, $image);
-
-        } catch (\Exception $e) {
+            return [
+                'path' => $this->saveTemporaryThumbnail($mainImage, 'thumbnail_overlay'),
+                'composition_metadata' => $this->buildCompositionMetadata($foreground),
+            ];
+        } catch (\Throwable $e) {
             Log::error('Branded thumbnail creation failed', [
                 'sermon_id' => $sermon->id,
                 'base_frame_path' => $baseFramePath,
@@ -281,7 +292,7 @@ class ThumbnailGenerationService
             } finally {
                 $this->cleanupTempFile($plainThumbnailPath);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::warning('Thumbnail candidate generation failed', [
                 'sermon_id' => $sermon->id,
                 'candidate_id' => $candidateId,
@@ -293,19 +304,13 @@ class ThumbnailGenerationService
         }
     }
 
-    /**
-     * Create plain thumbnail without text or brand overlays.
-     *
-     * @param  string  $baseFramePath  Path to base frame image
-     * @return string|null Path to plain thumbnail or null on failure
-     */
     public function createPlainThumbnail(string $baseFramePath): ?string
     {
         try {
             $image = $this->createResizedBaseImage($baseFramePath);
 
             return $this->saveTemporaryThumbnail($image, 'thumbnail_plain');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Plain thumbnail creation failed', [
                 'base_frame_path' => $baseFramePath,
                 'error' => $e->getMessage(),
@@ -324,7 +329,7 @@ class ThumbnailGenerationService
             return ThumbnailResult::skipped('Thumbnail option not found');
         }
 
-        $selectedCandidate = $this->renderOverlayForCandidate($sermon, $candidate);
+        $selectedCandidate = $this->renderAssetsForCandidate($sermon, $candidate);
         if ($selectedCandidate === null) {
             return ThumbnailResult::failed('Failed to render the selected thumbnail candidate');
         }
@@ -343,11 +348,7 @@ class ThumbnailGenerationService
     }
 
     /**
-     * @param  array{
-     *     coverage: float,
-     *     bounds: array{x:int,y:int,width:int,height:int},
-     *     method: string
-     * }|null  $foreground
+     * @param  ForegroundLayer|null  $foreground
      * @return CompositionMetadata
      */
     private function buildCompositionMetadata(?array $foreground): array
@@ -402,45 +403,63 @@ class ThumbnailGenerationService
      * @param  ThumbnailCandidate  $candidate
      * @return RenderedThumbnailCandidate|null
      */
-    private function renderOverlayForCandidate(Sermon $sermon, array $candidate): ?array
+    private function renderAssetsForCandidate(Sermon $sermon, array $candidate): ?array
     {
-        if (
-            isset($candidate['overlay_path'])
-            && $candidate['overlay_path'] !== ''
-            && $this->storedThumbnailExists($candidate['overlay_path'])
-        ) {
+        $hasOverlay = isset($candidate['overlay_path']) && $candidate['overlay_path'] !== '' && $this->storedThumbnailExists($candidate['overlay_path']);
+        $hasCard = isset($candidate['card_path']) && $candidate['card_path'] !== '' && $this->storedThumbnailExists($candidate['card_path']);
+
+        if ($hasOverlay && $hasCard) {
+            /** @var non-empty-string $overlayPath */
+            $overlayPath = $candidate['overlay_path'];
+            /** @var non-empty-string $cardPath */
+            $cardPath = $candidate['card_path'];
+
             return $this->buildRenderedCandidate(
                 $candidate,
-                $candidate['overlay_path'],
+                $overlayPath,
+                $cardPath,
                 $this->candidateCompositionMetadata($candidate),
             );
         }
 
-        $brandedThumbnail = $this->createBrandedThumbnailFromStoredPlainPath($sermon, $candidate['plain_path']);
-        if ($brandedThumbnail === null) {
+        $renderedAssets = $this->createRenderedAssetsFromStoredPlainPath($sermon, $candidate['plain_path']);
+        if ($renderedAssets === null) {
             return null;
         }
 
         try {
-            $overlayPath = $this->storeThumbnail($brandedThumbnail['path'], $sermon, "{$candidate['id']}_overlay");
-            if (! is_string($overlayPath) || $overlayPath === '') {
+            $overlayPath = $hasOverlay && isset($candidate['overlay_path']) ? $candidate['overlay_path'] : $this->storeThumbnail(
+                $renderedAssets['overlay_temp_path'],
+                $sermon,
+                "{$candidate['id']}_overlay",
+            );
+
+            $cardPath = $hasCard && isset($candidate['card_path']) ? $candidate['card_path'] : $this->storeThumbnail(
+                $renderedAssets['card_temp_path'],
+                $sermon,
+                "{$candidate['id']}_card",
+            );
+
+            if (! is_string($overlayPath) || $overlayPath === '' || ! is_string($cardPath) || $cardPath === '') {
                 return null;
             }
 
             return $this->buildRenderedCandidate(
                 $candidate,
                 $overlayPath,
-                $brandedThumbnail['composition_metadata'],
+                $cardPath,
+                $renderedAssets['composition_metadata'],
             );
         } finally {
-            $this->cleanupTempFile($brandedThumbnail['path']);
+            $this->cleanupTempFile($renderedAssets['overlay_temp_path']);
+            $this->cleanupTempFile($renderedAssets['card_temp_path']);
         }
     }
 
     /**
-     * @param  list<ThumbnailCandidate>  $candidates
-     * @param  ThumbnailCandidate  $replacement
-     * @return list<ThumbnailCandidate>
+     * @param  list<ThumbnailCandidate|RenderedThumbnailCandidate>  $candidates
+     * @param  RenderedThumbnailCandidate  $replacement
+     * @return list<ThumbnailCandidate|RenderedThumbnailCandidate>
      */
     private function replaceCandidate(array $candidates, array $replacement): array
     {
@@ -453,16 +472,18 @@ class ThumbnailGenerationService
     /**
      * @param  ThumbnailCandidate  $candidate
      * @param  non-empty-string  $overlayPath
+     * @param  non-empty-string  $cardPath
      * @param  CompositionMetadata  $compositionMetadata
      * @return RenderedThumbnailCandidate
      */
-    private function buildRenderedCandidate(array $candidate, string $overlayPath, array $compositionMetadata): array
+    private function buildRenderedCandidate(array $candidate, string $overlayPath, string $cardPath, array $compositionMetadata): array
     {
         $renderedCandidate = [
             'id' => $candidate['id'],
             'timestamp' => $candidate['timestamp'],
             'score' => $candidate['score'],
             'plain_path' => $candidate['plain_path'],
+            'card_path' => $cardPath,
             'overlay_path' => $overlayPath,
             'composition_mode' => $compositionMetadata['composition_mode'],
         ];
@@ -479,13 +500,14 @@ class ThumbnailGenerationService
             $renderedCandidate['foreground_coverage'] = $compositionMetadata['foreground_coverage'];
         }
 
+        /** @var RenderedThumbnailCandidate $renderedCandidate */
         return $renderedCandidate;
     }
 
     /**
      * @param  array<string, mixed>  $baseMetadata
      * @param  RenderedThumbnailCandidate  $selectedCandidate
-     * @param  list<ThumbnailCandidate>  $thumbnailCandidates
+     * @param  list<ThumbnailCandidate|RenderedThumbnailCandidate>  $thumbnailCandidates
      * @return array<string, mixed>
      */
     private function buildSelectedCandidateMetadata(array $baseMetadata, array $selectedCandidate, array $thumbnailCandidates): array
@@ -493,6 +515,7 @@ class ThumbnailGenerationService
         $metadata = $baseMetadata;
         $metadata['timestamp'] = $selectedCandidate['timestamp'];
         $metadata['plain_thumbnail_path'] = $selectedCandidate['plain_path'];
+        $metadata['card_thumbnail_path'] = $selectedCandidate['card_path'];
         $metadata['overlay_thumbnail_path'] = $selectedCandidate['overlay_path'];
         $metadata['selected_thumbnail_candidate_id'] = $selectedCandidate['id'];
         $metadata['thumbnail_candidates'] = $thumbnailCandidates;
@@ -508,9 +531,9 @@ class ThumbnailGenerationService
     }
 
     /**
-     * @return array{path:string,composition_metadata:CompositionMetadata}|null
+     * @return RenderedAssets|null
      */
-    private function createBrandedThumbnailFromStoredPlainPath(Sermon $sermon, string $plainPath): ?array
+    private function createRenderedAssetsFromStoredPlainPath(Sermon $sermon, string $plainPath): ?array
     {
         $disk = $this->resolveStoredThumbnailDisk($plainPath);
         if (! Storage::disk($disk)->exists($plainPath)) {
@@ -526,7 +549,7 @@ class ThumbnailGenerationService
         try {
             $image = Image::read(Storage::disk($disk)->path($plainPath));
 
-            return $this->createBrandedThumbnailFromImage($sermon, $image);
+            return $this->createRenderedAssetsFromImage($sermon, $image);
         } catch (\Throwable $e) {
             Log::error('Branded thumbnail creation from stored plain image failed', [
                 'sermon_id' => $sermon->id,
@@ -539,24 +562,18 @@ class ThumbnailGenerationService
     }
 
     /**
-     * @return array{path:string,composition_metadata:CompositionMetadata}|null
+     * @return RenderedAssets|null
      */
-    private function createBrandedThumbnailFromImage(Sermon $sermon, ImageInterface $image): ?array
+    private function createRenderedAssetsFromImage(Sermon $sermon, ImageInterface $image): ?array
     {
         try {
-            $foreground = $this->foregroundExtractor->extract($image);
-
-            $this->addTitleOverlay($image, $sermon);
-
-            if ($foreground !== null) {
-                $image->place($foreground['image'], 'top-left', 0, 0);
-            }
-
-            $this->addBrandOverlay($image);
-            $this->addDateOverlay($image, $sermon);
+            $foreground = $this->extractForegroundLayer($image);
+            $overlayImage = $this->buildMainThumbnailCanvas($sermon, $foreground);
+            $cardImage = $this->buildCardThumbnailCanvas($sermon, $foreground);
 
             return [
-                'path' => $this->saveTemporaryThumbnail($image),
+                'overlay_temp_path' => $this->saveTemporaryThumbnail($overlayImage, 'thumbnail_overlay'),
+                'card_temp_path' => $this->saveTemporaryThumbnail($cardImage, 'thumbnail_card'),
                 'composition_metadata' => $this->buildCompositionMetadata($foreground),
             ];
         } catch (\Throwable $e) {
@@ -570,27 +587,582 @@ class ThumbnailGenerationService
     }
 
     /**
-     * Store thumbnail in final storage location
-     *
-     * @param  string  $thumbnailPath  Path to temporary thumbnail
-     * @param  Sermon  $sermon  The sermon model
-     * @return string|null Final storage path or null on failure
+     * @param  ForegroundLayer|null  $foreground
+     */
+    private function buildMainThumbnailCanvas(Sermon $sermon, ?array $foreground): ImageInterface
+    {
+        $canvas = $this->createBaseCanvas();
+        $width = $canvas->width();
+        $height = $canvas->height();
+        $inset = $this->scaleFromReference(self::REF_EDGE_INSET, $width);
+        $accentWidth = $this->scaleFromReference(self::REF_ACCENT_WIDTH, $width);
+        $accentGap = $this->scaleFromReference(self::REF_ACCENT_GAP, $width);
+        $titleMetaGap = $this->scaleFromReference(self::REF_TITLE_TO_META_GAP, $width);
+        $subjectGap = $this->scaleFromReference(self::REF_TEXT_TO_SUBJECT_GAP, $width);
+        $subjectMaxWidth = min(
+            (int) round($width * 0.42),
+            $this->scaleFromReference(self::REF_SUBJECT_MAX_WIDTH, $width),
+        );
+        $textRightEdge = $width - $inset - $subjectMaxWidth - $subjectGap;
+        $titleStartX = $inset + $accentWidth + $accentGap;
+        $titleMaxWidth = max($this->scaleFromReference(380, $width), $textRightEdge - $titleStartX);
+
+        $titleLayout = $this->resolveTextLayout(
+            $sermon->title,
+            $titleMaxWidth,
+            $this->scaleFromReference(self::REF_TITLE_FONT_SIZE, $width),
+            $this->scaleFromReference(self::REF_TITLE_MIN_FONT_SIZE, $width),
+            self::MAIN_TITLE_MAX_LINES,
+            self::TITLE_LINE_HEIGHT,
+            (int) round($height * 0.38),
+        );
+
+        $titleTopY = max(
+            $inset + $this->scaleFromReference(self::REF_LOGO_WIDTH, $width) / 4,
+            (int) round(($height / 2) - ($titleLayout['height'] / 2)),
+        );
+
+        $this->drawAccentLine($canvas, $inset, $titleTopY, $accentWidth, $titleLayout['height']);
+        $this->drawTextLines(
+            $canvas,
+            $titleLayout['lines'],
+            $titleStartX,
+            $titleTopY,
+            $titleLayout['font_size'],
+            $this->foregroundColor(),
+            self::TITLE_LINE_HEIGHT,
+        );
+
+        $metadataLines = $this->mainMetadataLines($sermon);
+        if ($metadataLines !== []) {
+            $metadataFontSize = $this->scaleFromReference(self::REF_METADATA_FONT_SIZE, $width);
+            $metadataMinFontSize = $this->scaleFromReference(self::REF_METADATA_MIN_FONT_SIZE, $width);
+            $metadataTopY = $titleTopY + $titleLayout['height'] + $titleMetaGap;
+            $metadataY = $metadataTopY;
+            $metadataGap = $this->scaleFromReference(self::REF_META_LINE_GAP, $width);
+            $metadataMaxWidth = max($this->scaleFromReference(340, $width), $textRightEdge - $inset);
+
+            foreach ($metadataLines as $line) {
+                $renderedLine = $this->fitSingleLineText($line, $metadataMaxWidth, $metadataFontSize, $metadataMinFontSize);
+                $this->drawTextLines(
+                    $canvas,
+                    [$renderedLine['text']],
+                    $inset,
+                    $metadataY,
+                    $renderedLine['font_size'],
+                    $this->foregroundColor(),
+                    self::METADATA_LINE_HEIGHT,
+                );
+                $metadataY += $renderedLine['font_size'] + $metadataGap;
+            }
+        }
+
+        $this->placeForegroundSubject($canvas, $foreground, $subjectMaxWidth, $inset, $inset);
+
+        return $canvas;
+    }
+
+    /**
+     * @param  ForegroundLayer|null  $foreground
+     */
+    private function buildCardThumbnailCanvas(Sermon $sermon, ?array $foreground): ImageInterface
+    {
+        $canvas = $this->createBaseCanvas();
+        $width = $canvas->width();
+        $height = $canvas->height();
+        $inset = $this->scaleFromReference(self::REF_EDGE_INSET, $width);
+        $subjectGap = $this->scaleFromReference(self::REF_TEXT_TO_SUBJECT_GAP, $width);
+        $subjectMaxWidth = min(
+            (int) round($width * 0.42),
+            $this->scaleFromReference(self::REF_SUBJECT_MAX_WIDTH, $width),
+        );
+        $textRightEdge = $width - $inset - $subjectMaxWidth - $subjectGap;
+        $titleMaxWidth = max($this->scaleFromReference(360, $width), $textRightEdge - $inset);
+        $titleLayout = $this->resolveTextLayout(
+            $sermon->title,
+            $titleMaxWidth,
+            $this->scaleFromReference(self::REF_CARD_TITLE_FONT_SIZE, $width),
+            $this->scaleFromReference(self::REF_CARD_TITLE_MIN_FONT_SIZE, $width),
+            self::CARD_TITLE_MAX_LINES,
+            self::TITLE_LINE_HEIGHT,
+            (int) round($height * 0.34),
+        );
+
+        $titleTopY = max(
+            $inset + $this->scaleFromReference(180, $width),
+            (int) round(($height * 0.58) - ($titleLayout['height'] / 2)),
+        );
+
+        $this->drawTextLines(
+            $canvas,
+            $titleLayout['lines'],
+            $inset,
+            $titleTopY,
+            $titleLayout['font_size'],
+            $this->foregroundColor(),
+            self::TITLE_LINE_HEIGHT,
+        );
+
+        $this->placeForegroundSubject($canvas, $foreground, $subjectMaxWidth, $inset, $inset);
+
+        return $canvas;
+    }
+
+    private function createBaseCanvas(): ImageInterface
+    {
+        $canvas = Image::create(self::WEB_WIDTH, self::WEB_HEIGHT)->fill($this->backgroundColor());
+        $this->placeLogo($canvas);
+
+        return $canvas;
+    }
+
+    private function placeLogo(ImageInterface $image): void
+    {
+        $logoRelativePath = $this->logoPath();
+        $fullLogoPath = public_path($logoRelativePath);
+
+        if (! file_exists($fullLogoPath)) {
+            Log::warning('Thumbnail logo image not found', ['path' => $logoRelativePath]);
+
+            return;
+        }
+
+        try {
+            $logo = $this->tintImage(Image::read($fullLogoPath), $this->foregroundColor());
+            $targetWidth = $this->scaleFromReference(self::REF_LOGO_WIDTH, $image->width());
+            $targetHeight = max(1, (int) round($logo->height() * ($targetWidth / max(1, $logo->width()))));
+            $logo->resize($targetWidth, $targetHeight);
+
+            $offset = $this->scaleFromReference(self::REF_EDGE_INSET, $image->width());
+            $image->place($logo, 'top-left', $offset, $offset);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to place thumbnail logo', [
+                'logo_path' => $logoRelativePath,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function drawAccentLine(ImageInterface $image, int $x, int $y, int $width, int $height): void
+    {
+        $image->drawRectangle($x, $y, function ($draw) use ($width, $height): void {
+            $draw->size($width, $height);
+            $draw->background($this->foregroundColor());
+            $draw->border('transparent', 0);
+        });
+    }
+
+    /**
+     * @param  list<string>  $lines
+     */
+    private function drawTextLines(
+        ImageInterface $image,
+        array $lines,
+        int $x,
+        int $y,
+        int $fontSize,
+        string $fontColor,
+        float $lineHeightMultiplier
+    ): void {
+        $fontPath = $this->getOswaldFontPath();
+
+        foreach ($lines as $index => $line) {
+            $lineY = $y + (int) round($index * $fontSize * $lineHeightMultiplier);
+
+            $image->text($line, $x, $lineY, function ($font) use ($fontSize, $fontColor, $fontPath): void {
+                $font->size($fontSize);
+                $font->color($fontColor);
+                $font->align('left');
+                $font->valign('top');
+
+                if ($fontPath !== null && file_exists($fontPath)) {
+                    $font->filename($fontPath);
+                }
+            });
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function mainMetadataLines(Sermon $sermon): array
+    {
+        return array_values(array_filter([
+            $sermon->displayReference(),
+            $sermon->displayPreacherName(),
+            $sermon->date->format('l jS F Y'),
+        ], static fn (?string $value): bool => is_string($value) && trim($value) !== ''));
+    }
+
+    /**
+     * @param  ForegroundLayer|null  $foreground
+     */
+    private function placeForegroundSubject(
+        ImageInterface $canvas,
+        ?array $foreground,
+        int $maxWidth,
+        int $topInset,
+        int $rightInset
+    ): void {
+        if ($foreground === null) {
+            return;
+        }
+
+        $subjectImage = $this->cloneImage($foreground['image']);
+        $subjectWidth = max(1, $subjectImage->width());
+        $subjectHeight = max(1, $subjectImage->height());
+        $maxHeight = max(1, $canvas->height() - $topInset);
+        $scale = min($maxWidth / $subjectWidth, $maxHeight / $subjectHeight);
+
+        if ($scale <= 0) {
+            return;
+        }
+
+        $targetWidth = max(1, (int) round($subjectWidth * $scale));
+        $targetHeight = max(1, (int) round($subjectHeight * $scale));
+
+        $subjectImage->resize($targetWidth, $targetHeight);
+
+        $x = $canvas->width() - $rightInset - $targetWidth;
+        $y = $canvas->height() - $targetHeight;
+
+        $canvas->place($subjectImage, 'top-left', $x, $y);
+    }
+
+    /**
+     * @return array{lines:list<string>,font_size:int,height:int}
+     */
+    private function resolveTextLayout(
+        string $text,
+        int $maxWidth,
+        int $startingFontSize,
+        int $minimumFontSize,
+        int $maxLines,
+        float $lineHeightMultiplier,
+        int $maxHeight
+    ): array {
+        $normalizedText = trim($text);
+
+        if ($normalizedText === '') {
+            return [
+                'lines' => [],
+                'font_size' => $startingFontSize,
+                'height' => 0,
+            ];
+        }
+
+        for ($fontSize = $startingFontSize; $fontSize >= $minimumFontSize; $fontSize -= 2) {
+            $wrappedText = $this->wrapText($normalizedText, $maxWidth, $fontSize);
+            $lines = $this->normalizeWrappedLines($wrappedText);
+            $height = $this->textBlockHeight(count($lines), $fontSize, $lineHeightMultiplier);
+
+            if ($lines !== [] && count($lines) <= $maxLines && $height <= $maxHeight) {
+                return [
+                    'lines' => $lines,
+                    'font_size' => $fontSize,
+                    'height' => $height,
+                ];
+            }
+        }
+
+        $wrappedText = $this->wrapText($normalizedText, $maxWidth, $minimumFontSize);
+        $lines = $this->normalizeWrappedLines($wrappedText);
+
+        if (count($lines) > $maxLines) {
+            $overflow = array_slice($lines, $maxLines - 1);
+            $lines = array_slice($lines, 0, $maxLines - 1);
+            $lines[] = $this->ellipsizeText(implode(' ', $overflow), $maxWidth, $minimumFontSize);
+        }
+
+        while ($lines !== [] && $this->textBlockHeight(count($lines), $minimumFontSize, $lineHeightMultiplier) > $maxHeight) {
+            $overflow = array_pop($lines);
+
+            if ($lines === []) {
+                $lines[] = $this->ellipsizeText((string) $overflow, $maxWidth, $minimumFontSize);
+                break;
+            }
+
+            $lastIndex = count($lines) - 1;
+            $merged = trim($lines[$lastIndex].' '.(string) $overflow);
+            $lines[$lastIndex] = $this->ellipsizeText($merged, $maxWidth, $minimumFontSize);
+        }
+
+        return [
+            'lines' => $lines,
+            'font_size' => $minimumFontSize,
+            'height' => $this->textBlockHeight(count($lines), $minimumFontSize, $lineHeightMultiplier),
+        ];
+    }
+
+    /**
+     * @return array{text:string,font_size:int}
+     */
+    private function fitSingleLineText(string $text, int $maxWidth, int $startingFontSize, int $minimumFontSize): array
+    {
+        $normalizedText = trim($text);
+
+        for ($fontSize = $startingFontSize; $fontSize >= $minimumFontSize; $fontSize -= 2) {
+            $bounds = $this->textHelper->calculateTextBounds($normalizedText, $fontSize, $this->getOswaldFontPath());
+
+            if ((int) round($bounds['width']) <= $maxWidth) {
+                return [
+                    'text' => $normalizedText,
+                    'font_size' => $fontSize,
+                ];
+            }
+        }
+
+        return [
+            'text' => $this->ellipsizeText($normalizedText, $maxWidth, $minimumFontSize),
+            'font_size' => $minimumFontSize,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizeWrappedLines(string $wrappedText): array
+    {
+        return array_values(array_filter(
+            array_map(static fn (string $line): string => trim($line), explode("\n", $wrappedText)),
+            static fn (string $line): bool => $line !== '',
+        ));
+    }
+
+    private function textBlockHeight(int $lineCount, int $fontSize, float $lineHeightMultiplier): int
+    {
+        if ($lineCount <= 0) {
+            return 0;
+        }
+
+        return (int) round(($fontSize * $lineHeightMultiplier * max(0, $lineCount - 1)) + $fontSize);
+    }
+
+    private function ellipsizeText(string $text, int $maxWidth, int $fontSize): string
+    {
+        $normalizedText = trim($text);
+        $fontPath = $this->getOswaldFontPath();
+
+        if ($normalizedText === '') {
+            return '';
+        }
+
+        $ellipsis = '...';
+        $candidate = $normalizedText;
+
+        while (true) {
+            $bounds = $this->textHelper->calculateTextBounds($candidate.$ellipsis, $fontSize, $fontPath);
+
+            if ((int) round($bounds['width']) <= $maxWidth) {
+                return $candidate.$ellipsis;
+            }
+
+            $nextCandidate = rtrim((string) preg_replace('/\s+\S*$/', '', $candidate));
+
+            if ($nextCandidate === $candidate) {
+                if (mb_strlen($candidate) <= 1) {
+                    return $ellipsis;
+                }
+
+                $nextCandidate = mb_substr($candidate, 0, mb_strlen($candidate) - 1);
+            }
+
+            $candidate = $nextCandidate;
+        }
+    }
+
+    /**
+     * Wrap text to fit within the specified width.
+     */
+    private function wrapText(string $text, int $maxWidth, int $fontSize): string
+    {
+        try {
+            $normalizedText = trim($text);
+            if ($normalizedText === '') {
+                return '';
+            }
+
+            $fontPath = $this->getOswaldFontPath();
+            $words = preg_split('/\s+/', $normalizedText) ?: [];
+            $lines = [];
+            $currentLine = '';
+
+            foreach ($words as $word) {
+                $testLine = $currentLine === '' ? $word : $currentLine.' '.$word;
+                $bounds = $this->textHelper->calculateTextBounds($testLine, $fontSize, $fontPath);
+
+                if ((int) round($bounds['width']) <= $maxWidth || $currentLine === '') {
+                    $currentLine = $testLine;
+
+                    continue;
+                }
+
+                $lines[] = $currentLine;
+                $currentLine = $word;
+            }
+
+            if ($currentLine !== '') {
+                $lines[] = $currentLine;
+            }
+
+            return implode("\n", $lines);
+        } catch (\Throwable $e) {
+            Log::warning('Text wrapping failed, using fallback', [
+                'text' => $text,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->textHelper->fallbackTextWrap($text, $maxWidth, $fontSize);
+        }
+    }
+
+    /**
+     * @return ForegroundLayer|null
+     */
+    private function extractForegroundLayer(ImageInterface $image): ?array
+    {
+        $foreground = $this->foregroundExtractor->extract($image);
+
+        if ($foreground === null) {
+            return null;
+        }
+
+        try {
+            return [
+                'image' => $this->cropForegroundToBounds($foreground['image'], $foreground['bounds']),
+                'coverage' => $foreground['coverage'],
+                'bounds' => $foreground['bounds'],
+                'method' => $foreground['method'],
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Foreground cropping failed, falling back to flat composition', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * @param  array{x:int,y:int,width:int,height:int}  $bounds
+     */
+    private function cropForegroundToBounds(ImageInterface $image, array $bounds): ImageInterface
+    {
+        $native = $image->core()->native();
+
+        if (! ($native instanceof \GdImage)) {
+            throw new \RuntimeException('Foreground cropping requires the GD image driver.');
+        }
+
+        $cropped = imagecrop($native, [
+            'x' => $bounds['x'],
+            'y' => $bounds['y'],
+            'width' => $bounds['width'],
+            'height' => $bounds['height'],
+        ]);
+
+        if (! ($cropped instanceof \GdImage)) {
+            throw new \RuntimeException('Foreground crop failed.');
+        }
+
+        imagesavealpha($cropped, true);
+
+        $encoded = $this->encodeGdImage($cropped);
+        imagedestroy($cropped);
+
+        return Image::read($encoded);
+    }
+
+    private function cloneImage(ImageInterface $image): ImageInterface
+    {
+        $native = $image->core()->native();
+
+        if (! ($native instanceof \GdImage)) {
+            throw new \RuntimeException('Image cloning requires the GD image driver.');
+        }
+
+        return Image::read($this->encodeGdImage($native));
+    }
+
+    private function tintImage(ImageInterface $image, string $hexColor): ImageInterface
+    {
+        $clone = $this->cloneImage($image);
+        $native = $clone->core()->native();
+
+        if (! ($native instanceof \GdImage)) {
+            return $clone;
+        }
+
+        [$red, $green, $blue] = $this->hexToRgb($hexColor);
+        $width = imagesx($native);
+        $height = imagesy($native);
+
+        imagealphablending($native, false);
+        imagesavealpha($native, true);
+
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                $colorIndex = imagecolorat($native, $x, $y);
+                if ($colorIndex === false) {
+                    continue;
+                }
+
+                $color = imagecolorsforindex($native, $colorIndex);
+                $alpha = (int) $color['alpha'];
+
+                if ($alpha >= 127) {
+                    continue;
+                }
+
+                $tintedColor = imagecolorallocatealpha($native, $red, $green, $blue, $alpha);
+                if ($tintedColor === false) {
+                    continue;
+                }
+
+                imagesetpixel($native, $x, $y, $tintedColor);
+            }
+        }
+
+        return $clone;
+    }
+
+    /**
+     * @return array{0:int<0, 255>,1:int<0, 255>,2:int<0, 255>}
+     */
+    private function hexToRgb(string $hexColor): array
+    {
+        $normalized = ltrim($hexColor, '#');
+
+        if (strlen($normalized) === 3) {
+            $normalized = preg_replace('/(.)/', '$1$1', $normalized) ?? $normalized;
+        }
+
+        if (strlen($normalized) !== 6) {
+            return [20, 85, 87];
+        }
+
+        return [
+            max(0, min(255, (int) hexdec(substr($normalized, 0, 2)))),
+            max(0, min(255, (int) hexdec(substr($normalized, 2, 2)))),
+            max(0, min(255, (int) hexdec(substr($normalized, 4, 2)))),
+        ];
+    }
+
+    /**
+     * Store thumbnail in final storage location.
      */
     public function storeThumbnail(string $thumbnailPath, Sermon $sermon, string $variant = 'overlay'): ?string
     {
         try {
             $fullTempPath = Storage::disk($this->tempDisk)->path($thumbnailPath);
 
-            // Generate final filename
             $filename = $this->buildStorageFilename($sermon, $variant);
             $finalPath = $this->storagePath.'/'.$filename;
 
-            // Ensure storage directory exists
             Storage::disk($this->storageDisk)->makeDirectory($this->storagePath);
 
-            // Copy thumbnail to final storage location
             $thumbnailContent = file_get_contents($fullTempPath);
-            if (! $thumbnailContent) {
+            if (! is_string($thumbnailContent) || $thumbnailContent === '') {
                 return null;
             }
 
@@ -601,8 +1173,7 @@ class ThumbnailGenerationService
             }
 
             return $finalPath;
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Thumbnail storage failed', [
                 'sermon_id' => $sermon->id,
                 'thumbnail_path' => $thumbnailPath,
@@ -614,263 +1185,6 @@ class ThumbnailGenerationService
         }
     }
 
-    /**
-     * Add the main sermon title to the thumbnail.
-     */
-    private function addTitleOverlay(ImageInterface $image, Sermon $sermon): void
-    {
-        $imageWidth = $image->width();
-
-        // Prepare sermon title (with word wrapping for full width)
-        $titleMaxWidth = $imageWidth * self::TITLE_WIDTH_PERCENT;
-        $title = $this->wrapText($sermon->title, (int) $titleMaxWidth, self::TITLE_FONT_SIZE);
-
-        // Calculate responsive font sizes
-        $titleFontSize = $this->textHelper->calculateResponsiveFontSize(self::TITLE_FONT_SIZE, $imageWidth, 1280);
-
-        $titleX = (int) ($imageWidth * self::TITLE_X_PERCENT);
-        $titleCenterY = (int) ($image->height() * self::TITLE_Y_CENTER_PERCENT);
-
-        $this->addTextWithoutBackgroundCentered($image, $title, $titleX, $titleCenterY, $titleFontSize, self::TITLE_COLOR);
-    }
-
-    /**
-     * Add the service date pill after all other layers.
-     */
-    private function addDateOverlay(ImageInterface $image, Sermon $sermon): void
-    {
-        $imageWidth = $image->width();
-        $imageHeight = $image->height();
-
-        $serviceDate = $sermon->date->format('l jS F Y');
-        if ($sermon->service) {
-            $serviceDate .= ' - '.ucfirst($sermon->service->value).' Service';
-        }
-
-        $dateFontSize = $this->textHelper->calculateResponsiveFontSize(self::DATE_FONT_SIZE, $imageWidth, 1280);
-        $dateX = (int) ($imageWidth * self::DATE_X_PERCENT);
-        $dateY = (int) ($imageHeight * self::DATE_Y_PERCENT);
-
-        $this->addTextWithBackground($image, $serviceDate, $dateX, $dateY, $dateFontSize, self::DATE_COLOR);
-    }
-
-    /**
-     * Add brand overlay to thumbnail image, stretched to fit the whole thumbnail
-     *
-     * @param  ImageInterface  $image  The image to modify
-     */
-    private function addBrandOverlay(ImageInterface $image): void
-    {
-        $brandImagePath = self::BRAND_IMAGE;
-
-        // Check if brand image exists (in public/ directory for static assets)
-        $fullBrandPath = public_path($brandImagePath);
-        if (! file_exists($fullBrandPath)) {
-            Log::warning('Brand overlay image not found', ['path' => $brandImagePath]);
-
-            return;
-        }
-
-        try {
-            $brandImageFullPath = $fullBrandPath;
-            $brandOverlay = Image::read($brandImageFullPath);
-
-            // Get thumbnail dimensions
-            $thumbnailWidth = $image->width();
-            $thumbnailHeight = $image->height();
-
-            // Stretch brand overlay to fit the entire thumbnail
-            $brandOverlay->resize($thumbnailWidth, $thumbnailHeight);
-
-            // Insert the stretched brand overlay as the background at full size
-            $image->place($brandOverlay, 'top-left', 0, 0); // Insert at top-left position
-
-        } catch (\Exception $e) {
-            Log::warning('Failed to add brand overlay', [
-                'brand_image_path' => $brandImagePath,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Add text with background to image
-     *
-     * @param  ImageInterface  $image  The image to modify
-     * @param  string  $text  Text to add
-     * @param  int  $x  X position (center of text area)
-     * @param  int  $y  Y position (center of text area)
-     * @param  int  $fontSize  Font size
-     * @param  string  $fontColor  Font color
-     */
-    private function addTextWithBackground(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
-    {
-        try {
-            // Get font path for Oswald font (following accessibility requirements)
-            $fontPath = $this->getOswaldFontPath();
-
-            // Calculate text dimensions for background sizing
-            $textBounds = $this->textHelper->calculateTextBounds($text, $fontSize, $fontPath);
-
-            $bgWidth = $textBounds['width'] + (self::BACKGROUND_HORIZONTAL_PADDING * 2);
-            $bgHeight = $textBounds['height'] + (self::BACKGROUND_VERTICAL_PADDING * 2);
-
-            $bgX = $x - ($bgWidth / 2);
-            $bgY = $y - ($bgHeight / 2);
-
-            // Create white background rectangle for accessibility
-            $this->addTextBackground($image, (int) $bgX, (int) $bgY, $textBounds);
-
-            // Add main text with Oswald font, centered in the background
-            $image->text($text, $x, $y, function ($font) use ($fontSize, $fontColor, $fontPath) {
-                $font->size($fontSize);
-                $font->color($fontColor);
-                $font->align('center');    // Center horizontally
-                $font->valign('middle');   // Center vertically
-                if ($fontPath && file_exists($fontPath)) {
-                    $font->filename($fontPath);
-                }
-            });
-
-        } catch (\Exception $e) {
-            Log::warning('Failed to add text overlay', [
-                'text' => $text,
-                'error' => $e->getMessage(),
-            ]);
-
-            // Fallback to simple text without background if overlay fails
-            $this->addFallbackText($image, $text, $x, $y, $fontSize, $fontColor);
-        }
-    }
-
-    /**
-     * Add text without background to image with vertical centering
-     *
-     * @param  ImageInterface  $image  The image to modify
-     * @param  string  $text  Text to add
-     * @param  int  $x  X position (center of text)
-     * @param  int  $y  Y position (center of entire text block)
-     * @param  int  $fontSize  Font size
-     * @param  string  $fontColor  Font color
-     */
-    private function addTextWithoutBackgroundCentered(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
-    {
-        try {
-            // Get font path for Oswald font
-            $fontPath = $this->getOswaldFontPath();
-
-            // Split text into lines for manual centering
-            $lines = explode("\n", $text);
-
-            $lineHeight = $fontSize * self::TITLE_LINE_HEIGHT;
-
-            // Calculate total height of text block
-            $totalHeight = (count($lines) - 1) * $lineHeight + $fontSize;
-
-            // Calculate starting Y position to center the entire text block
-            $startY = $y - ($totalHeight / 2);
-
-            // Add each line separately, centered
-            foreach ($lines as $index => $line) {
-                $lineY = $startY + ($index * $lineHeight);
-
-                $image->text(trim($line), $x, (int) $lineY, function ($font) use ($fontSize, $fontColor, $fontPath) {
-                    $font->size($fontSize);
-                    $font->color($fontColor);
-                    $font->align('center');    // Center each line individually
-                    $font->valign('top');      // Top alignment for precise positioning
-                    if ($fontPath && file_exists($fontPath)) {
-                        $font->filename($fontPath);
-                    }
-                });
-            }
-
-        } catch (\Exception $e) {
-            Log::warning('Failed to add centered text overlay without background', [
-                'text' => $text,
-                'error' => $e->getMessage(),
-            ]);
-
-            // Fallback to simple text
-            $this->addFallbackText($image, $text, $x, $y, $fontSize, $fontColor);
-        }
-    }
-
-    /**
-     * Wrap text to fit within specified width using intelligent word wrapping
-     *
-     * @param  string  $text  Text to wrap
-     * @param  int  $maxWidth  Maximum width in pixels
-     * @param  int  $fontSize  Font size
-     * @return string Wrapped text
-     */
-    private function wrapText(string $text, int $maxWidth, int $fontSize): string
-    {
-        try {
-            $fontPath = $this->getOswaldFontPath();
-            $words = explode(' ', $text);
-            $lines = [];
-            $currentLine = '';
-
-            foreach ($words as $word) {
-                $testLine = $currentLine ? $currentLine.' '.$word : $word;
-                $testBounds = $this->textHelper->calculateTextBounds($testLine, $fontSize, $fontPath);
-
-                if ($testBounds['width'] <= $maxWidth) {
-                    $currentLine = $testLine;
-                } else {
-                    if ($currentLine) {
-                        $lines[] = $currentLine;
-                        $currentLine = $word;
-                    } else {
-                        // Single word is too long, add it anyway
-                        $lines[] = $word;
-                    }
-                }
-            }
-
-            if ($currentLine) {
-                $lines[] = $currentLine;
-            }
-
-            return implode("\n", $lines);
-
-        } catch (\Exception $e) {
-            Log::warning('Text wrapping failed, using fallback', [
-                'text' => $text,
-                'error' => $e->getMessage(),
-            ]);
-
-            // Fallback to simple character-based wrapping
-            return $this->textHelper->fallbackTextWrap($text, $maxWidth, $fontSize);
-        }
-    }
-
-    /**
-     * Clean up temporary file
-     *
-     * @param  string  $tempPath  Path to temporary file
-     */
-    private function cleanupTempFile(string $tempPath): void
-    {
-        try {
-            if (config('thumbnail-generation.processing.cleanup_temp_files')) {
-                Storage::disk($this->tempDisk)->delete($tempPath);
-            }
-        } catch (\Exception $e) {
-            Log::warning('Failed to cleanup temp file', [
-                'temp_path' => $tempPath,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Regenerate thumbnail for existing sermon
-     *
-     * @param  Sermon  $sermon  The sermon model
-     * @return ThumbnailResult Result of thumbnail regeneration
-     */
     public function regenerateThumbnail(Sermon $sermon): ThumbnailResult
     {
         if (! $sermon->hasVideo()) {
@@ -886,36 +1200,26 @@ class ThumbnailGenerationService
 
         $this->deleteExistingGeneratedThumbnails($sermon);
 
-        return $this->generateThumbnail($sermon, $videoPath, $sermonDisk);
+        return $this->generateThumbnail($sermon, $videoPath, is_string($sermonDisk) ? $sermonDisk : null);
     }
 
-    /**
-     * Build a fully sized thumbnail canvas from the extracted base frame.
-     *
-     * @param  string  $baseFramePath  Path to base frame image on temp disk
-     */
     private function createResizedBaseImage(string $baseFramePath): ImageInterface
     {
         $fullBaseFramePath = Storage::disk($this->tempDisk)->path($baseFramePath);
         $image = Image::read($fullBaseFramePath);
 
-        $targetWidth = self::WEB_WIDTH;
-        $targetHeight = self::WEB_HEIGHT;
+        $image->scaleDown(self::WEB_WIDTH, self::WEB_HEIGHT);
 
-        $image->scaleDown($targetWidth, $targetHeight);
-
-        if ($image->width() !== $targetWidth || $image->height() !== $targetHeight) {
-            $canvas = Image::create($targetWidth, $targetHeight)->fill('#000000');
+        if ($image->width() !== self::WEB_WIDTH || $image->height() !== self::WEB_HEIGHT) {
+            $canvas = Image::create(self::WEB_WIDTH, self::WEB_HEIGHT)->fill('#000000');
             $canvas->place($image, 'center');
-            $image = $canvas;
+
+            return $canvas;
         }
 
         return $image;
     }
 
-    /**
-     * Save a temporary webp thumbnail image on the configured temp disk.
-     */
     private function saveTemporaryThumbnail(ImageInterface $image, string $prefix = 'thumbnail'): string
     {
         $thumbnailFilename = $prefix.'_'.Str::uuid().'.webp';
@@ -927,9 +1231,6 @@ class ThumbnailGenerationService
         return $tempThumbnailPath;
     }
 
-    /**
-     * Build the final persisted thumbnail filename.
-     */
     private function buildStorageFilename(Sermon $sermon, string $variant): string
     {
         $baseFilename = 'sermon_'.$sermon->id.'_'.date('Y-m-d');
@@ -953,7 +1254,7 @@ class ThumbnailGenerationService
 
         $image = @imagecreatefromstring($contents);
 
-        if ($image === false) {
+        if (! ($image instanceof \GdImage)) {
             return 0.0;
         }
 
@@ -1021,12 +1322,18 @@ class ThumbnailGenerationService
             if (isset($candidate['overlay_path'])) {
                 $candidatePaths[] = $candidate['overlay_path'];
             }
+
+            if (isset($candidate['card_path'])) {
+                $candidatePaths[] = $candidate['card_path'];
+            }
+
             $candidatePaths[] = $candidate['plain_path'];
         }
 
         $paths = array_unique(array_filter([
             $sermon->thumbnail_file_path,
             $sermon->plain_thumbnail_file_path,
+            $sermon->card_thumbnail_file_path,
             ...$candidatePaths,
         ]));
 
@@ -1047,7 +1354,7 @@ class ThumbnailGenerationService
                 : $this->storageDisk;
 
             Storage::disk($disk)->delete($path);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::warning('Failed to delete stored thumbnail', [
                 'path' => $path,
                 'error' => $e->getMessage(),
@@ -1067,11 +1374,20 @@ class ThumbnailGenerationService
         return Storage::disk($this->resolveStoredThumbnailDisk($path))->exists($path);
     }
 
-    /**
-     * Get path to Oswald font file
-     *
-     * @return string|null Path to font file or null if not found
-     */
+    private function cleanupTempFile(string $tempPath): void
+    {
+        try {
+            if (config('thumbnail-generation.processing.cleanup_temp_files')) {
+                Storage::disk($this->tempDisk)->delete($tempPath);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to cleanup temp file', [
+                'temp_path' => $tempPath,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     private function getOswaldFontPath(): ?string
     {
         $fontPaths = [
@@ -1079,8 +1395,8 @@ class ThumbnailGenerationService
             public_path('fonts/Oswald-Regular.ttf'),
             public_path('fonts/oswald-regular.ttf'),
             storage_path('fonts/oswald-regular.ttf'),
-            '/System/Library/Fonts/Helvetica.ttc', // macOS fallback
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', // Linux fallback
+            '/System/Library/Fonts/Helvetica.ttc',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
         ];
 
         foreach ($fontPaths as $path) {
@@ -1094,72 +1410,33 @@ class ThumbnailGenerationService
         return null;
     }
 
-    /**
-     * Add white background rectangle for text accessibility
-     *
-     * @param  ImageInterface  $image  The image to modify
-     * @param  int  $x  X position
-     * @param  int  $y  Y position
-     * @param  array{width: float|int, height: float|int}  $textBounds  Text dimensions
-     */
-    private function addTextBackground(ImageInterface $image, int $x, int $y, array $textBounds): void
+    private function scaleFromReference(int $value, int $currentWidth): int
     {
-        try {
-            $bgWidth = $textBounds['width'] + (self::BACKGROUND_HORIZONTAL_PADDING * 2);
-            $bgHeight = $textBounds['height'] + (self::BACKGROUND_VERTICAL_PADDING * 2);
+        $scale = $currentWidth / self::REFERENCE_WIDTH;
 
-            $image->drawRectangle($x, $y, function ($draw) use ($bgWidth, $bgHeight) {
-                $draw->size($bgWidth, $bgHeight);
-                $draw->background(self::BACKGROUND_COLOR);
-                $draw->border('transparent', 0);
-            });
-
-        } catch (\Exception $e) {
-            Log::warning('Failed to add text background', [
-                'error' => $e->getMessage(),
-            ]);
-        }
+        return max(1, (int) round($value * $scale));
     }
 
-    /**
-     * Add fallback text without background styling
-     *
-     * @param  ImageInterface  $image  The image to modify
-     * @param  string  $text  Text to add
-     * @param  int  $x  X position
-     * @param  int  $y  Y position
-     * @param  int  $fontSize  Font size
-     * @param  string  $fontColor  Font color
-     */
-    private function addFallbackText(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
+    private function backgroundColor(): string
     {
-        try {
-            for ($sx = -self::STROKE_WIDTH; $sx <= self::STROKE_WIDTH; $sx++) {
-                for ($sy = -self::STROKE_WIDTH; $sy <= self::STROKE_WIDTH; $sy++) {
-                    if ($sx !== 0 || $sy !== 0) {
-                        $image->text($text, $x + $sx, $y + $sy, function ($font) use ($fontSize) {
-                            $font->size($fontSize);
-                            $font->color(self::STROKE_COLOR);
-                            $font->align('left');
-                            $font->valign('top');
-                        });
-                    }
-                }
-            }
+        return (string) config('thumbnail-generation.theme.palette.background_color', '#D7EAE6');
+    }
 
-            // Add main text
-            $image->text($text, $x, $y, function ($font) use ($fontSize, $fontColor) {
-                $font->size($fontSize);
-                $font->color($fontColor);
-                $font->align('left');
-                $font->valign('top');
-            });
+    private function foregroundColor(): string
+    {
+        return (string) config('thumbnail-generation.theme.palette.foreground_color', '#145557');
+    }
 
-        } catch (\Exception $e) {
-            Log::error('Fallback text rendering failed', [
-                'text' => $text,
-                'error' => $e->getMessage(),
-            ]);
-        }
+    private function logoPath(): string
+    {
+        return (string) config('thumbnail-generation.theme.logo_path', 'images/Primary.png');
+    }
+
+    private function encodeGdImage(\GdImage $image): string
+    {
+        ob_start();
+        imagepng($image);
+
+        return (string) ob_get_clean();
     }
 }

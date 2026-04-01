@@ -94,7 +94,7 @@ class EditSermonTest extends TestCase
             ->assertSee('Thumbnail options')
             ->assertSee('Frame 1')
             ->assertSee('Frame 2')
-            ->assertSee('The layered preacher cutout is generated only for the selected option.')
+            ->assertSee('The branded main thumbnail and card thumbnail are generated for the selected option.')
             ->assertSee('Selected');
     }
 

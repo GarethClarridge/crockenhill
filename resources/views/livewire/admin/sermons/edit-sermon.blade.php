@@ -120,7 +120,7 @@
                 <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <p class="text-sm text-gray-700">
                         Choose the saved sermon thumbnail pair used for the main sermon image and the card image.
-                        The layered preacher cutout is generated only for the selected option. Changes here save immediately.
+                        The branded main thumbnail and card thumbnail are generated for the selected option. Changes here save immediately.
                     </p>
                 </div>
 
@@ -147,9 +147,9 @@
                                             <p>Score: {{ number_format($candidate['score'], 2) }}</p>
                                         </div>
 
-                                        @if($candidate['plain_url'])
+                                        @if($candidate['card_url'])
                                             <img
-                                                src="{{ $candidate['plain_url'] }}"
+                                                src="{{ $candidate['card_url'] }}"
                                                 alt="Card thumbnail candidate {{ $loop->iteration }}"
                                                 class="h-16 w-24 rounded-md border border-gray-200 object-cover"
                                             >

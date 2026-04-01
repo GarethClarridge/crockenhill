@@ -14,6 +14,7 @@ final class ThumbnailMetadata extends JsonData
      *     timestamp: float,
      *     score: float,
      *     plain_path: string,
+     *     card_path?: string|null,
      *     overlay_path?: string|null,
      *     composition_mode?: string|null,
      *     foreground_extraction_method?: string|null,
@@ -30,6 +31,7 @@ final class ThumbnailMetadata extends JsonData
         public readonly array $thumbnailSizes = [],
         public readonly ?string $generatedAt = null,
         public readonly ?string $plainThumbnailPath = null,
+        public readonly ?string $cardThumbnailPath = null,
         public readonly ?string $overlayThumbnailPath = null,
         public readonly ?string $selectedThumbnailCandidateId = null,
         public readonly array $thumbnailCandidates = [],
@@ -53,6 +55,7 @@ final class ThumbnailMetadata extends JsonData
             thumbnailSizes: self::arrayValue($value['thumbnail_sizes'] ?? null),
             generatedAt: self::stringOrNull($value['generated_at'] ?? null),
             plainThumbnailPath: self::stringOrNull($value['plain_thumbnail_path'] ?? null),
+            cardThumbnailPath: self::stringOrNull($value['card_thumbnail_path'] ?? null),
             overlayThumbnailPath: self::stringOrNull($value['overlay_thumbnail_path'] ?? null),
             selectedThumbnailCandidateId: self::stringOrNull($value['selected_thumbnail_candidate_id'] ?? null),
             thumbnailCandidates: self::candidateList($value['thumbnail_candidates'] ?? null),
@@ -95,6 +98,10 @@ final class ThumbnailMetadata extends JsonData
             $data['plain_thumbnail_path'] = $this->plainThumbnailPath;
         }
 
+        if ($this->cardThumbnailPath !== null) {
+            $data['card_thumbnail_path'] = $this->cardThumbnailPath;
+        }
+
         if ($this->overlayThumbnailPath !== null) {
             $data['overlay_thumbnail_path'] = $this->overlayThumbnailPath;
         }
@@ -132,6 +139,7 @@ final class ThumbnailMetadata extends JsonData
      *     timestamp: float,
      *     score: float,
      *     plain_path: string,
+     *     card_path?: string|null,
      *     overlay_path?: string|null,
      *     composition_mode?: string|null,
      *     foreground_extraction_method?: string|null,
@@ -156,6 +164,7 @@ final class ThumbnailMetadata extends JsonData
      *     timestamp: float,
      *     score: float,
      *     plain_path: string,
+     *     card_path?: string|null,
      *     overlay_path?: string|null,
      *     composition_mode?: string|null,
      *     foreground_extraction_method?: string|null,
@@ -178,6 +187,7 @@ final class ThumbnailMetadata extends JsonData
      *     timestamp: float,
      *     score: float,
      *     plain_path: string,
+     *     card_path?: string|null,
      *     overlay_path?: string|null,
      *     composition_mode?: string|null,
      *     foreground_extraction_method?: string|null,
@@ -201,6 +211,7 @@ final class ThumbnailMetadata extends JsonData
             $id = self::stringOrNull($candidate['id'] ?? null);
             $overlayPath = self::stringOrNull($candidate['overlay_path'] ?? null);
             $plainPath = self::stringOrNull($candidate['plain_path'] ?? null);
+            $cardPath = self::stringOrNull($candidate['card_path'] ?? null);
             $timestamp = self::floatOrNull($candidate['timestamp'] ?? null);
             $score = self::floatOrNull($candidate['score'] ?? null);
             $compositionMode = self::stringOrNull($candidate['composition_mode'] ?? null);
@@ -218,6 +229,10 @@ final class ThumbnailMetadata extends JsonData
                 'score' => $score,
                 'plain_path' => $plainPath,
             ];
+
+            if ($cardPath !== null) {
+                $normalizedCandidate['card_path'] = $cardPath;
+            }
 
             if ($overlayPath !== null) {
                 $normalizedCandidate['overlay_path'] = $overlayPath;

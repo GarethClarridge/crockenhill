@@ -37,6 +37,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         $this->moveAudioIfNeeded($sermon);
         $this->moveThumbnailIfNeeded($sermon);
         $this->movePlainThumbnailIfNeeded($sermon);
+        $this->moveCardThumbnailIfNeeded($sermon);
     }
 
     private function moveAudioIfNeeded(Sermon $sermon): void
@@ -145,6 +146,41 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         $sermon->update(['thumbnail_metadata' => $updated]);
 
         Log::info('MoveSermonToPrivateStorage: plain thumbnail moved', [
+            'sermon_id' => $this->sermonId,
+            'from' => $path,
+            'to' => $targetPath,
+        ]);
+    }
+
+    private function moveCardThumbnailIfNeeded(Sermon $sermon): void
+    {
+        $metadata = $sermon->thumbnail_metadata;
+        $path = $metadata?->cardThumbnailPath;
+
+        if (! is_string($path) || $path === '' || str_starts_with($path, 'private/')) {
+            return;
+        }
+
+        $sourceDisk = config('thumbnail-generation.storage.disk', 'public');
+        $targetPath = 'private/'.$path;
+
+        if (! Storage::disk($sourceDisk)->exists($path)) {
+            return;
+        }
+
+        $stream = Storage::disk($sourceDisk)->readStream($path);
+
+        if (! is_resource($stream)) {
+            return;
+        }
+
+        Storage::disk('local')->writeStream($targetPath, $stream);
+        Storage::disk($sourceDisk)->delete($path);
+
+        $updated = array_merge($metadata?->toArray() ?? [], ['card_thumbnail_path' => $targetPath]);
+        $sermon->update(['thumbnail_metadata' => $updated]);
+
+        Log::info('MoveSermonToPrivateStorage: card thumbnail moved', [
             'sermon_id' => $this->sermonId,
             'from' => $path,
             'to' => $targetPath,

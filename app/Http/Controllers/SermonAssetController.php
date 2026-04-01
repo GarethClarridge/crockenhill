@@ -105,7 +105,7 @@ class SermonAssetController extends Controller
             return redirect()->guest(route('login'));
         }
 
-        $cardThumbnailPath = $sermon->plain_thumbnail_file_path;
+        $cardThumbnailPath = $sermon->card_thumbnail_file_path;
 
         if (! $cardThumbnailPath) {
             abort(404, 'Card thumbnail not found.');

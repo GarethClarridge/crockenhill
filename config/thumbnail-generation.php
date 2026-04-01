@@ -30,4 +30,12 @@ return [
         'cleanup_temp_files' => env('THUMBNAIL_CLEANUP_TEMP', true),
     ],
 
+    'theme' => [
+        'logo_path' => env('THUMBNAIL_LOGO_PATH', 'images/Primary.png'),
+        'palette' => [
+            'background_color' => env('THUMBNAIL_BACKGROUND_COLOR', '#D7EAE6'),
+            'foreground_color' => env('THUMBNAIL_FOREGROUND_COLOR', '#145557'),
+        ],
+    ],
+
 ];

@@ -62,19 +62,19 @@ class SermonThumbnailCandidatePreviewTest extends TestCase
                         'id' => 'candidate-2',
                         'timestamp' => 240.0,
                         'score' => 0.91,
-                        'overlay_path' => 'private/sermons/thumbnails/candidate-2-overlay.webp',
+                        'card_path' => 'private/sermons/thumbnails/candidate-2-card.webp',
                         'plain_path' => 'private/sermons/thumbnails/candidate-2-plain.webp',
                     ],
                 ],
             ],
         ]);
 
-        Storage::disk('local')->put('private/sermons/thumbnails/candidate-2-plain.webp', 'plain content');
+        Storage::disk('local')->put('private/sermons/thumbnails/candidate-2-card.webp', 'card content');
 
         $response = $this->actingAs($admin)->get(route('admin.sermons.thumbnails.preview', [
             'sermon' => $sermon->slug,
             'candidateId' => 'candidate-2',
-            'variant' => 'plain',
+            'variant' => 'card',
         ]));
 
         $response->assertOk();
@@ -82,7 +82,7 @@ class SermonThumbnailCandidatePreviewTest extends TestCase
     }
 
     #[Test]
-    public function admin_can_preview_a_plain_only_thumbnail_candidate(): void
+    public function admin_can_preview_a_plain_only_thumbnail_candidate_via_card_fallback(): void
     {
         Storage::fake('public');
 
@@ -106,7 +106,7 @@ class SermonThumbnailCandidatePreviewTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.sermons.thumbnails.preview', [
             'sermon' => $sermon->slug,
             'candidateId' => 'candidate-3',
-            'variant' => 'plain',
+            'variant' => 'card',
         ]));
 
         $response->assertOk();

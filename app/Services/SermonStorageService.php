@@ -124,7 +124,7 @@ class SermonStorageService
 
     public function getCardThumbnailUrl(Sermon $sermon): ?string
     {
-        $cardThumbnailPath = $sermon->plain_thumbnail_file_path;
+        $cardThumbnailPath = $sermon->card_thumbnail_file_path;
 
         if (! is_string($cardThumbnailPath) || $cardThumbnailPath === '') {
             return null;
@@ -150,6 +150,7 @@ class SermonStorageService
             'overlay' => isset($candidate['overlay_path'])
                 ? $candidate['overlay_path']
                 : null,
+            'card' => $candidate['card_path'] ?? $candidate['plain_path'],
             'plain' => $candidate['plain_path'],
             default => null,
         };

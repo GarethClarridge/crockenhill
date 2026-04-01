@@ -107,4 +107,30 @@ class SermonPrivateStorageMoveTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    #[Test]
+    public function it_moves_card_thumbnail_metadata_from_public_to_local_private_disk(): void
+    {
+        Storage::fake('public');
+        Storage::fake('local');
+
+        $cardPath = 'sermons/thumbnails/test-card.webp';
+        Storage::disk('public')->put($cardPath, 'fake card thumbnail');
+
+        $sermon = Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'thumbnail_metadata' => [
+                'card_thumbnail_path' => $cardPath,
+            ],
+        ]);
+
+        $job = new MoveSermonToPrivateStorage($sermon->id);
+        $job->handle();
+
+        Storage::disk('local')->assertExists('private/'.$cardPath);
+        Storage::disk('public')->assertMissing($cardPath);
+
+        $sermon->refresh();
+        $this->assertSame('private/'.$cardPath, $sermon->thumbnail_metadata?->cardThumbnailPath);
+    }
 }

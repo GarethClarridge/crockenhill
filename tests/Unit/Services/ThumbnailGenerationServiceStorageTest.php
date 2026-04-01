@@ -123,18 +123,21 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
             'thumbnail_file_path' => 'sermons/thumbnails/current-overlay.webp',
             'thumbnail_metadata' => [
                 'plain_thumbnail_path' => 'sermons/thumbnails/current-plain.webp',
+                'card_thumbnail_path' => 'sermons/thumbnails/current-card.webp',
                 'selected_thumbnail_candidate_id' => 'candidate-2',
                 'thumbnail_candidates' => [
                     [
                         'id' => 'candidate-1',
                         'timestamp' => 120.0,
                         'score' => 0.81,
+                        'card_path' => 'sermons/thumbnails/candidate-1-card.webp',
                         'plain_path' => 'sermons/thumbnails/candidate-1-plain.webp',
                     ],
                     [
                         'id' => 'candidate-2',
                         'timestamp' => 240.0,
                         'score' => 0.92,
+                        'card_path' => 'sermons/thumbnails/current-card.webp',
                         'overlay_path' => 'sermons/thumbnails/current-overlay.webp',
                         'plain_path' => 'sermons/thumbnails/current-plain.webp',
                     ],
@@ -144,6 +147,8 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
 
         Storage::disk('public')->put('sermons/thumbnails/current-overlay.webp', 'overlay');
         Storage::disk('public')->put('sermons/thumbnails/current-plain.webp', 'plain');
+        Storage::disk('public')->put('sermons/thumbnails/current-card.webp', 'card');
+        Storage::disk('public')->put('sermons/thumbnails/candidate-1-card.webp', 'candidate card');
         Storage::disk('public')->put('sermons/thumbnails/candidate-1-plain.webp', 'candidate plain');
 
         $service = $this->getMockBuilder(ThumbnailGenerationService::class)
@@ -166,6 +171,8 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         $this->assertTrue($result->isSuccess());
         Storage::disk('public')->assertMissing('sermons/thumbnails/current-overlay.webp');
         Storage::disk('public')->assertMissing('sermons/thumbnails/current-plain.webp');
+        Storage::disk('public')->assertMissing('sermons/thumbnails/current-card.webp');
+        Storage::disk('public')->assertMissing('sermons/thumbnails/candidate-1-card.webp');
         Storage::disk('public')->assertMissing('sermons/thumbnails/candidate-1-plain.webp');
     }
 

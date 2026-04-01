@@ -138,11 +138,11 @@ class SermonAssetControllerTest extends TestCase
         $sermon = Sermon::factory()->create([
             'slug' => 'card-test-sermon',
             'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'thumbnails/card-plain.jpg',
+                'card_thumbnail_path' => 'thumbnails/card.webp',
             ],
         ]);
 
-        Storage::disk('public')->put('thumbnails/card-plain.jpg', 'fake plain jpg content');
+        Storage::disk('public')->put('thumbnails/card.webp', 'fake webp content');
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
@@ -171,7 +171,7 @@ class SermonAssetControllerTest extends TestCase
         $sermon = Sermon::factory()->create([
             'slug' => 'missing-file-card-sermon',
             'thumbnail_metadata' => [
-                'plain_thumbnail_path' => 'thumbnails/missing-on-disk.jpg',
+                'card_thumbnail_path' => 'thumbnails/missing-on-disk.webp',
             ],
         ]);
 

@@ -25,6 +25,7 @@ class ThumbnailDataTest extends TestCase
             'thumbnail_sizes' => ['sm' => 150, 'lg' => 600],
             'generated_at' => '2024-01-01T10:00:00Z',
             'plain_thumbnail_path' => 'thumbs/plain.webp',
+            'card_thumbnail_path' => 'thumbs/card.webp',
             'overlay_thumbnail_path' => 'thumbs/overlay.webp',
             'selected_thumbnail_candidate_id' => 'candidate-3',
             'thumbnail_candidates' => [
@@ -32,6 +33,7 @@ class ThumbnailDataTest extends TestCase
                     'id' => 'candidate-1',
                     'timestamp' => 100.0,
                     'score' => 0.4567,
+                    'card_path' => 'thumbs/candidate-1-card.webp',
                     'overlay_path' => 'thumbs/candidate-1-overlay.webp',
                     'plain_path' => 'thumbs/candidate-1-plain.webp',
                 ],
@@ -48,9 +50,11 @@ class ThumbnailDataTest extends TestCase
         $this->assertSame(['sm' => 150, 'lg' => 600], $metadata->thumbnailSizes);
         $this->assertSame('2024-01-01T10:00:00Z', $metadata->generatedAt);
         $this->assertSame('thumbs/plain.webp', $metadata->plainThumbnailPath);
+        $this->assertSame('thumbs/card.webp', $metadata->cardThumbnailPath);
         $this->assertSame('thumbs/overlay.webp', $metadata->overlayThumbnailPath);
         $this->assertSame('candidate-3', $metadata->selectedThumbnailCandidateId);
         $this->assertSame('candidate-1', $metadata->thumbnailCandidates[0]['id']);
+        $this->assertSame('thumbs/candidate-1-card.webp', $metadata->thumbnailCandidates[0]['card_path']);
         $this->assertSame('layered_subject', $metadata->compositionMode);
         $this->assertSame('poof_api', $metadata->foregroundExtractionMethod);
         $this->assertSame(['x' => 10, 'y' => 20, 'width' => 30, 'height' => 40], $metadata->foregroundBounds);
@@ -82,12 +86,14 @@ class ThumbnailDataTest extends TestCase
             'timestamp' => 30.0,
             'video_duration' => 1800.0,
             'plain_thumbnail_path' => 'thumbs/plain.webp',
+            'card_thumbnail_path' => 'thumbs/card.webp',
             'selected_thumbnail_candidate_id' => 'candidate-2',
             'thumbnail_candidates' => [
                 [
                     'id' => 'candidate-2',
                     'timestamp' => 240.0,
                     'score' => 0.8123,
+                    'card_path' => 'thumbs/candidate-2-card.webp',
                     'overlay_path' => 'thumbs/candidate-2-overlay.webp',
                     'plain_path' => 'thumbs/candidate-2-plain.webp',
                 ],
@@ -100,7 +106,9 @@ class ThumbnailDataTest extends TestCase
         $this->assertSame(30.0, $output['timestamp']);
         $this->assertSame(1800.0, $output['video_duration']);
         $this->assertSame('thumbs/plain.webp', $output['plain_thumbnail_path']);
+        $this->assertSame('thumbs/card.webp', $output['card_thumbnail_path']);
         $this->assertSame('candidate-2', $output['selected_thumbnail_candidate_id']);
+        $this->assertSame('thumbs/candidate-2-card.webp', $output['thumbnail_candidates'][0]['card_path']);
         $this->assertSame('thumbs/candidate-2-overlay.webp', $output['thumbnail_candidates'][0]['overlay_path']);
         $this->assertSame('flat_fallback', $output['composition_mode']);
     }

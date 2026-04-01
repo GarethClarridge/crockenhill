@@ -110,6 +110,26 @@ class SermonThumbnailTest extends TestCase
         $this->assertTrue($sermon->hasPlainThumbnail());
     }
 
+    public function test_card_thumbnail_file_path_prefers_card_variant_and_falls_back_to_plain(): void
+    {
+        $sermonWithCard = Sermon::factory()->create([
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'sermons/thumbnails/test-plain.webp',
+                'card_thumbnail_path' => 'sermons/thumbnails/test-card.webp',
+            ],
+        ]);
+        $sermonPlainOnly = Sermon::factory()->create([
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'sermons/thumbnails/fallback-plain.webp',
+            ],
+        ]);
+
+        $this->assertSame('sermons/thumbnails/test-card.webp', $sermonWithCard->card_thumbnail_file_path);
+        $this->assertTrue($sermonWithCard->hasCardThumbnail());
+        $this->assertSame('sermons/thumbnails/fallback-plain.webp', $sermonPlainOnly->card_thumbnail_file_path);
+        $this->assertTrue($sermonPlainOnly->hasCardThumbnail());
+    }
+
     public function test_plain_thumbnail_file_path_attribute_returns_null_for_missing_or_empty_value(): void
     {
         $sermonWithoutKey = Sermon::factory()->create([
@@ -269,6 +289,7 @@ class SermonThumbnailTest extends TestCase
     {
         $metadata = [
             'plain_thumbnail_path' => 'sermons/thumbnails/test-plain.webp',
+            'card_thumbnail_path' => 'sermons/thumbnails/test-card.webp',
             'legacy_shape' => [
                 'foo' => 'bar',
             ],
@@ -282,6 +303,7 @@ class SermonThumbnailTest extends TestCase
 
         $this->assertEquals($metadata, $sermon->thumbnail_metadata?->toArray());
         $this->assertSame('sermons/thumbnails/test-plain.webp', $sermon->plain_thumbnail_file_path);
+        $this->assertSame('sermons/thumbnails/test-card.webp', $sermon->card_thumbnail_file_path);
     }
 
     public function test_thumbnail_generated_at_can_be_null(): void
