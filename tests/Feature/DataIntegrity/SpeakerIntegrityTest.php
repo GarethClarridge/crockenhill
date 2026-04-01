@@ -11,6 +11,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -185,15 +186,16 @@ class SpeakerIntegrityTest extends TestCase
     #[Test]
     public function migration_successfully_cleans_up_invalid_data_and_adds_constraints(): void
     {
-        // 1. Rollback
-        $this->artisan('migrate:rollback', ['--step' => 1]);
+        // 1. Rollback to before speaker profiles integrity migration.
+        // We need to roll back my new duration constraint migration AND the speaker tables integrity migration.
+        $this->artisan('migrate:rollback', ['--step' => 2]);
 
         // 2. Insert invalid data while constraints are gone
         $preacherId = Preacher::factory()->create()->id;
         $profileId = DB::table('speaker_profiles')->insertGetId([
             'preacher_id' => $preacherId,
             'provider' => 'resemblyzer',
-            'model_version' => 'v1.0',
+            'model_version' => 'v1.0-temporary-test-'.Str::random(8),
             'centroid_embedding' => json_encode(array_fill(0, 256, 0.5)),
             'quality_score' => 1.5, // Invalid (>1)
             'accept_threshold' => -0.5, // Invalid (<0)
@@ -212,7 +214,7 @@ class SpeakerIntegrityTest extends TestCase
         ]);
 
         // 3. Re-run migration
-        $this->artisan('migrate');
+        $this->artisan('migrate', ['--force' => true]);
 
         // 4. Verify data is cleaned
         $profile = DB::table('speaker_profiles')->where('id', $profileId)->first();
