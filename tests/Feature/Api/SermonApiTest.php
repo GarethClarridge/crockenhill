@@ -500,4 +500,32 @@ class SermonApiTest extends TestCase
                 ]);
         }
     }
+
+    public function test_index_validates_input_parameters(): void
+    {
+        // Test oversized search term
+        $this->getJson('/api/sermons?search='.str_repeat('a', 256))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['search']);
+
+        // Test invalid sort field
+        $this->getJson('/api/sermons?sort=invalid_field')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['sort']);
+
+        // Test invalid order
+        $this->getJson('/api/sermons?order=invalid_order')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['order']);
+
+        // Test invalid preacher_id
+        $this->getJson('/api/sermons?preacher_id=not_an_integer')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['preacher_id']);
+
+        // Test invalid with_thumbnail
+        $this->getJson('/api/sermons?with_thumbnail=not_a_boolean')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['with_thumbnail']);
+    }
 }
