@@ -9,6 +9,7 @@
     :title="$heading"
     :description="$description"
 />
+<x-breadcrumbs area="christ" heading="Sermon Series" :jsonOnly="true" />
 
 {{-- JSON-LD Series List --}}
 @if(isset($json_ld_data))

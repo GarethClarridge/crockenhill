@@ -1,10 +1,16 @@
 @extends('layouts.main')
 
-@section('title')
-Christmas
-@stop
+@section('title', 'Christmas')
 
 @section('meta_description', 'Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events.')
+
+@section('meta_tags')
+<x-meta-tags
+    title="Christmas"
+    description="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events."
+/>
+<x-breadcrumbs area="church" heading="Christmas" :jsonOnly="true" />
+@stop
 
 @section('content')
 <main id="main-content" class="-mb-10 bg-cover bg-center bg-[url('/public/images/homepage/christmas2023.webp')] bg-gray-700 bg-blend-multiply">
