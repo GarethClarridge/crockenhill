@@ -369,24 +369,24 @@ class SermonApiTest extends TestCase
         $this->assertEquals(8, $response->json('meta.total'));
     }
 
-    public function test_per_page_is_clamped_to_maximum_of_100(): void
+    public function test_per_page_is_validated_to_maximum_of_100(): void
     {
         Sermon::factory()->count(5)->create();
 
         $response = $this->getJson('/api/sermons?per_page=999');
 
-        $response->assertStatus(200);
-        $this->assertLessThanOrEqual(100, $response->json('meta.per_page'));
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
     }
 
-    public function test_per_page_is_clamped_to_minimum_of_1(): void
+    public function test_per_page_is_validated_to_minimum_of_1(): void
     {
         Sermon::factory()->count(3)->create();
 
         $response = $this->getJson('/api/sermons?per_page=0');
 
-        $response->assertStatus(200);
-        $this->assertGreaterThanOrEqual(1, $response->json('meta.per_page'));
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
     }
 
     public function test_api_search_functionality_with_thumbnails(): void
@@ -499,5 +499,42 @@ class SermonApiTest extends TestCase
                     ],
                 ]);
         }
+    }
+
+    public function test_index_validates_input_parameters(): void
+    {
+        // Test oversized search term
+        $this->getJson('/api/sermons?search='.str_repeat('a', 256))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['search']);
+
+        // Test invalid sort field
+        $this->getJson('/api/sermons?sort=invalid_field')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['sort']);
+
+        // Test invalid order
+        $this->getJson('/api/sermons?order=invalid_order')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['order']);
+
+        // Test invalid per_page
+        $this->getJson('/api/sermons?per_page=101')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
+
+        $this->getJson('/api/sermons?per_page=0')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
+
+        // Test invalid preacher_id
+        $this->getJson('/api/sermons?preacher_id=not_an_integer')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['preacher_id']);
+
+        // Test invalid with_thumbnail
+        $this->getJson('/api/sermons?with_thumbnail=not_a_boolean')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['with_thumbnail']);
     }
 }

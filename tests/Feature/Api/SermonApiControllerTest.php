@@ -115,14 +115,14 @@ class SermonApiControllerTest extends TestCase
     }
 
     #[Test]
-    public function api_index_per_page_is_capped_at_100(): void
+    public function api_index_per_page_is_validated_to_maximum_of_100(): void
     {
         Sermon::factory()->count(5)->create(['content_type' => SermonContentType::Sermon]);
 
         $response = $this->getJson('/api/sermons?per_page=999');
 
-        $response->assertStatus(200);
-        $this->assertLessThanOrEqual(100, $response->json('meta.per_page'));
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
     }
 
     // ── show ───────────────────────────────────────────────────────────────

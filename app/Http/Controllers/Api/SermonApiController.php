@@ -23,10 +23,26 @@ class SermonApiController extends Controller
     ) {}
 
     /**
-     * Display a listing of sermons
+     * Display a listing of sermons.
+     *
+     * Security: Strict input validation is enforced on query parameters to provide
+     * Defense in Depth against malformed input and potential Denial of Service (DoS)
+     * attacks by ensuring all inputs are bounded and correctly typed.
      */
     public function index(Request $request): AnonymousResourceCollection
     {
+        $request->validate([
+            'search' => 'nullable|string|max:255',
+            'service' => 'nullable|string|max:50',
+            'preacher' => 'nullable|string|max:255',
+            'preacher_id' => 'nullable|integer',
+            'series' => 'nullable|string|max:255',
+            'sort' => 'nullable|string|in:date,title,preacher,series,service',
+            'order' => 'nullable|string|in:asc,desc,ASC,DESC',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'with_thumbnail' => 'nullable|boolean',
+        ]);
+
         /**
          * Performance Optimization: Eager load preacherProfile and limit retrieved columns
          * for both Sermon and Preacher models to required fields for the API resource
