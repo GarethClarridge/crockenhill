@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
+use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\SongVideo;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -101,9 +103,41 @@ class DurationConstraintTest extends TestCase
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('livestream_segments_timing_check');
 
-        \App\Models\LivestreamSegment::factory()->create([
+        LivestreamSegment::factory()->create([
             'start_time' => 10.0,
             'end_time' => 5.0,
         ]);
+    }
+
+    #[Test]
+    public function it_validates_media_processing_log_rules_at_application_level(): void
+    {
+        $rules = MediaProcessingLog::validationRules();
+
+        $this->assertTrue(Validator::make(['duration' => 100], $rules)->passes());
+        $this->assertTrue(Validator::make(['sermon_start_time' => 10, 'sermon_end_time' => 20], $rules)->passes());
+        $this->assertFalse(Validator::make(['duration' => -1], $rules)->passes());
+        $this->assertFalse(Validator::make(['sermon_start_time' => -1], $rules)->passes());
+        $this->assertFalse(Validator::make(['sermon_start_time' => 20, 'sermon_end_time' => 10], $rules)->passes());
+    }
+
+    #[Test]
+    public function it_validates_song_video_rules_at_application_level(): void
+    {
+        $rules = SongVideo::validationRules();
+
+        $this->assertTrue(Validator::make(['duration' => 100], $rules)->passes());
+        $this->assertFalse(Validator::make(['duration' => -1], $rules)->passes());
+    }
+
+    #[Test]
+    public function it_validates_livestream_segment_rules_at_application_level(): void
+    {
+        $rules = LivestreamSegment::validationRules();
+
+        $this->assertTrue(Validator::make(['start_time' => 0, 'end_time' => 10, 'duration' => 10], $rules)->passes());
+        $this->assertFalse(Validator::make(['start_time' => -1, 'end_time' => 10, 'duration' => 11], $rules)->passes());
+        $this->assertFalse(Validator::make(['start_time' => 10, 'end_time' => 5, 'duration' => 0], $rules)->passes());
+        $this->assertFalse(Validator::make(['start_time' => 0, 'end_time' => 10, 'duration' => -1], $rules)->passes());
     }
 }

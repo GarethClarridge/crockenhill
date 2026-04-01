@@ -186,11 +186,21 @@ class SpeakerIntegrityTest extends TestCase
     #[Test]
     public function migration_successfully_cleans_up_invalid_data_and_adds_constraints(): void
     {
-        // 1. Rollback to before speaker profiles integrity migration.
-        // We need to roll back my new duration constraint migration AND the speaker tables integrity migration.
-        $this->artisan('migrate:rollback', ['--step' => 2]);
+        // 1. Determine how many steps to roll back to reach the target migration
+        $targetMigration = '2026_03_31_051644_add_integrity_checks_to_speaker_tables';
+        $allMigrations = DB::table('migrations')->orderByDesc('id')->pluck('migration')->toArray();
+        $targetIndex = array_search($targetMigration, $allMigrations);
 
-        // 2. Insert invalid data while constraints are gone
+        if ($targetIndex === false) {
+            $this->markTestSkipped("Target migration {$targetMigration} not found in migrations table.");
+        }
+
+        $steps = $targetIndex + 1;
+
+        // 2. Rollback
+        $this->artisan('migrate:rollback', ['--step' => $steps, '--force' => true]);
+
+        // 3. Insert invalid data while constraints are gone
         $preacherId = Preacher::factory()->create()->id;
         $profileId = DB::table('speaker_profiles')->insertGetId([
             'preacher_id' => $preacherId,
@@ -213,7 +223,7 @@ class SpeakerIntegrityTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        // 3. Re-run migration
+        // 4. Re-run migrations
         $this->artisan('migrate', ['--force' => true]);
 
         // 4. Verify data is cleaned
