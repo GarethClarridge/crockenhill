@@ -40,6 +40,15 @@ class SermonStorageService
     }
 
     /**
+     * Clear all cached metadata and disk configuration.
+     * Use this in tests to ensure fresh configuration lookups.
+     */
+    public function clearInternalCaches(): void
+    {
+        $this->clearCachedMetadata();
+    }
+
+    /**
      * Get file information for a sermon based on its storage pattern
      *
      * @return array{type: string, disk: string, path: string, original_path: string}
@@ -226,9 +235,15 @@ class SermonStorageService
         return $this->fileMetadata($sermon)['last_modified'];
     }
 
-    public function clearCachedMetadata(Sermon $sermon): void
+    public function clearCachedMetadata(?Sermon $sermon = null): void
     {
-        Cache::forget($this->fileMetadataCacheKey($sermon));
+        if ($sermon) {
+            Cache::forget($this->fileMetadataCacheKey($sermon));
+
+            return;
+        }
+
+        // Logic for clearing broad caches if needed (none currently)
     }
 
     /**

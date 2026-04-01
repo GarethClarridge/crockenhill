@@ -10,6 +10,7 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\PageSitemapPresenter;
+use App\Presenters\SermonSitemapPresenter;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
@@ -21,6 +22,7 @@ class SitemapService
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonRepository $sermonRepository,
         private readonly PageSitemapPresenter $pageSitemapPresenter,
+        private readonly SermonSitemapPresenter $sermonSitemapPresenter,
     ) {}
 
     /**
@@ -71,7 +73,7 @@ class SitemapService
         $sitemap
             // Dynamic content via Sitemapable models
             // Eager load relationships to prevent N+1 queries during sitemap generation
-            ->add($sermons)
+            ->add($sermons->map(fn (Sermon $sermon): Url => $this->sermonSitemapPresenter->toSitemapTag($sermon)))
             ->add(
                 Page::query()
                     ->public()
