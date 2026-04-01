@@ -9,30 +9,34 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-input placeholder="Search..." wire:model.live.debounce="search"
-            icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
+        <x-admin.filter-bar>
+            <x-input placeholder="Search..." wire:model.live.debounce="search"
+                icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
-        <x-select placeholder="Service" wire:model.live="serviceFilter"
-            :options="collect($services)->map(fn($s) => ['id' => $s->value, 'name' => $s->label()])->toArray()"
-            class="w-40" />
+            <x-select placeholder="Service" wire:model.live="serviceFilter"
+                :options="collect($services)->map(fn($s) => ['id' => $s->value, 'name' => $s->label()])->toArray()"
+                class="w-40" />
 
-        <x-select placeholder="Preacher" wire:model.live="preacherFilter"
-            :options="$preachers->map(fn($name, $id) => ['id' => $id, 'name' => $name])->values()->toArray()"
-            class="w-48" />
+            <x-select placeholder="Preacher" wire:model.live="preacherFilter"
+                :options="$preachers->map(fn($name, $id) => ['id' => $id, 'name' => $name])->values()->toArray()"
+                class="w-48" />
 
-        <x-select placeholder="Series" wire:model.live="seriesFilter"
-            :options="$seriesList->map(fn($s) => ['id' => $s, 'name' => $s])->toArray()"
-            class="w-48" />
+            <x-select placeholder="Series" wire:model.live="seriesFilter"
+                :options="$seriesList->map(fn($s) => ['id' => $s, 'name' => $s])->toArray()"
+                class="w-48" />
 
-        <x-toggle label="Has Video" wire:model.live="hasVideoFilter" />
-        <x-toggle label="Needs Review" wire:model.live="needsReviewFilter" />
-        <x-toggle label="Last 12 Months" wire:model.live="last12Months" />
+            <x-toggle label="Has Video" wire:model.live="hasVideoFilter" />
+            <x-toggle label="Needs Review" wire:model.live="needsReviewFilter" />
+            <x-toggle label="Last 12 Months" wire:model.live="last12Months" />
 
-        <div x-show="$wire.hasFilters" x-transition x-cloak>
-            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                Clear Filters
-            </x-form-button>
-        </div>
+            <x-slot:actions>
+                <div x-show="$wire.hasFilters" x-transition x-cloak>
+                    <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                        Clear Filters
+                    </x-form-button>
+                </div>
+            </x-slot:actions>
+        </x-admin.filter-bar>
     </x-slot:filters>
 
     <x-slot:pagination>
