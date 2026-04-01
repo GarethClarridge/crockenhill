@@ -192,7 +192,7 @@ class SpeakerIntegrityTest extends TestCase
         $targetIndex = array_search($targetMigration, $allMigrations);
 
         if ($targetIndex === false) {
-            $this->markTestSkipped("Target migration {$targetMigration} not found in migrations table.");
+            $this->fail("Target migration {$targetMigration} not found in migrations table. Migration history may be corrupted or migration was never run.");
         }
 
         $steps = $targetIndex + 1;
