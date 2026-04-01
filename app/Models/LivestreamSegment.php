@@ -256,6 +256,18 @@ class LivestreamSegment extends Model
     }
 
     /**
+     * @return array<string, list<string>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'start_time' => ['required', 'numeric', 'min:0'],
+            'end_time' => ['required', 'numeric', 'min:0', 'gte:start_time'],
+            'duration' => ['required', 'numeric', 'min:0'],
+        ];
+    }
+
+    /**
      * @return array<string, float|int>
      */
     public static function getSegmentsSummary(int $processingLogId): array
