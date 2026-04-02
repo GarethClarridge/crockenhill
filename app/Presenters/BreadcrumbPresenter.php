@@ -62,6 +62,8 @@ class BreadcrumbPresenter
                     }
                 } elseif ($this->request->segment(2) === 'members') {
                     $items[] = ['name' => 'Members', 'item' => url('church/members')];
+                } elseif ($this->request->segment(2) === 'childrens-corner') {
+                    $items[] = ['name' => "Children's Corner", 'item' => url('christ/childrens-corner')];
                 }
             }
         }
