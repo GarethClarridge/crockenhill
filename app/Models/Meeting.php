@@ -8,6 +8,7 @@ use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Enums\PageArea;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -122,10 +123,14 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
     /**
      * Get the heading from the related page, or generate from slug.
+     *
+     * @return Attribute<string, never>
      */
-    public function getHeadingAttribute(): string
+    protected function heading(): Attribute
     {
-        return $this->page->heading ?? Str::title(str_replace('-', ' ', $this->slug));
+        return Attribute::make(
+            get: fn (): string => $this->page->heading ?? Str::title(str_replace('-', ' ', $this->slug))
+        );
     }
 
     /**
@@ -139,20 +144,26 @@ class Meeting extends Model implements HasMedia, Sitemapable
     /**
      * Get the meeting's formatted date and time.
      * Example: January 15, 2023, 10:30 AM
+     *
+     * @return Attribute<?string, never>
      */
-    public function getFormattedDateTimeAttribute(): ?string
+    protected function formattedDateTime(): Attribute
     {
-        if ($this->meeting_date) {
-            $dateTime = $this->meeting_date;
-            // If start_time is a Carbon instance (due to cast) and represents a valid time
-            if ($this->start_time instanceof Carbon) {
-                $dateTime = $this->meeting_date->copy()->setTimeFrom($this->start_time);
+        return Attribute::make(
+            get: function (): ?string {
+                if ($this->meeting_date) {
+                    $dateTime = $this->meeting_date;
+                    // If start_time is a Carbon instance (due to cast) and represents a valid time
+                    if ($this->start_time instanceof Carbon) {
+                        $dateTime = $this->meeting_date->copy()->setTimeFrom($this->start_time);
+                    }
+
+                    return $dateTime->format('F j, Y, g:i A');
+                }
+
+                return null;
             }
-
-            return $dateTime->format('F j, Y, g:i A');
-        }
-
-        return null;
+        );
     }
 
     /**
@@ -321,41 +332,53 @@ class Meeting extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * @return Collection<int, CalendarEvent>
+     * @return Attribute<Collection<int, CalendarEvent>, never>
      */
-    public function getUpcomingEventsAttribute(): Collection
+    protected function upcomingEvents(): Attribute
     {
-        return $this->calendarEvents()
-            ->upcoming()
-            ->confirmed()
-            ->orderBy('start_datetime')
-            ->limit(config('calendar.performance.eager_load_limit', 100))
-            ->get();
+        return Attribute::make(
+            get: fn (): Collection => $this->calendarEvents()
+                ->upcoming()
+                ->confirmed()
+                ->orderBy('start_datetime')
+                ->limit(config('calendar.performance.eager_load_limit', 100))
+                ->get()
+        );
     }
 
     /**
-     * @return Collection<int, CalendarEvent>
+     * @return Attribute<Collection<int, CalendarEvent>, never>
      */
-    public function getPastEventsAttribute(): Collection
+    protected function pastEvents(): Attribute
     {
-        return $this->calendarEvents()
-            ->past()
-            ->confirmed()
-            ->orderBy('start_datetime', 'desc')
-            ->limit(config('calendar.performance.eager_load_limit', 100))
-            ->get();
+        return Attribute::make(
+            get: fn (): Collection => $this->calendarEvents()
+                ->past()
+                ->confirmed()
+                ->orderBy('start_datetime', 'desc')
+                ->limit(config('calendar.performance.eager_load_limit', 100))
+                ->get()
+        );
     }
 
-    public function getNextEventAttribute(): ?CalendarEvent
+    /**
+     * @return Attribute<?CalendarEvent, never>
+     */
+    protected function nextEvent(): Attribute
     {
-        /** @var \App\Models\CalendarEvent|null */
-        return $this->upcoming_events->first();
+        return Attribute::make(
+            get: fn (): ?CalendarEvent => $this->upcoming_events->first()
+        );
     }
 
-    public function getLastEventAttribute(): ?CalendarEvent
+    /**
+     * @return Attribute<?CalendarEvent, never>
+     */
+    protected function lastEvent(): Attribute
     {
-        /** @var \App\Models\CalendarEvent|null */
-        return $this->past_events->first();
+        return Attribute::make(
+            get: fn (): ?CalendarEvent => $this->past_events->first()
+        );
     }
 
     /**
@@ -409,15 +432,17 @@ class Meeting extends Model implements HasMedia, Sitemapable
     /**
      * Get all photos for this meeting from the Media Library.
      *
-     * @return \Illuminate\Support\Collection<int, array{url: string, thumbnail: string, name: string}>
+     * @return Attribute<\Illuminate\Support\Collection<int, array{url: string, thumbnail: string, name: string}>, never>
      */
-    public function getPhotosAttribute(): \Illuminate\Support\Collection
+    protected function photos(): Attribute
     {
-        return $this->getMedia('photos')->map(fn (Media $media) => [
-            'url' => $media->getUrl('gallery'),
-            'thumbnail' => $media->getUrl('thumbnail'),
-            'name' => $media->name,
-        ]);
+        return Attribute::make(
+            get: fn (): \Illuminate\Support\Collection => $this->getMedia('photos')->map(fn (Media $media) => [
+                'url' => $media->getUrl('gallery'),
+                'thumbnail' => $media->getUrl('thumbnail'),
+                'name' => $media->name,
+            ])
+        );
     }
 
     /**
