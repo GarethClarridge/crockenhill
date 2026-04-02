@@ -25,14 +25,6 @@
                 :options="[['id' => '1', 'name' => 'In Nav'], ['id' => '0', 'name' => 'Not in Nav']]"
                 class="w-40"
             />
-
-            <x-slot:actions>
-                <div x-show="$wire.hasFilters" x-transition x-cloak>
-                    <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                        Clear Filters
-                    </x-form-button>
-                </div>
-            </x-slot:actions>
         </x-admin.filter-bar>
 
         <div x-show="$wire.selected.length > 0" x-transition x-cloak class="mt-4">
