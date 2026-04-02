@@ -35,8 +35,11 @@ class SermonIdentitySyncServiceTest extends TestCase
         $preacher = Preacher::factory()->create(['name' => 'Charles Spurgeon']);
         $sermon = Sermon::factory()->make([
             'preacher_id' => $preacher->id,
-            'preacher' => 'C. Spurgeon',
+            'preacher' => 'Charles Spurgeon',
         ]);
+
+        // Mark it as not dirty for any fields
+        $sermon->syncOriginal();
 
         $this->service->syncForPersistence($sermon);
 
@@ -45,13 +48,53 @@ class SermonIdentitySyncServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_updates_preacher_id_when_name_string_is_changed_to_another_preacher(): void
+    {
+        $preacher1 = Preacher::factory()->create(['name' => 'Preacher One']);
+        $preacher2 = Preacher::factory()->create(['name' => 'Preacher Two']);
+
+        $sermon = Sermon::factory()->create([
+            'preacher_id' => $preacher1->id,
+            'preacher' => 'Preacher One',
+        ]);
+
+        // Manually change the string name to match preacher 2
+        $sermon->preacher = 'Preacher Two';
+
+        $this->service->syncForPersistence($sermon);
+
+        $this->assertSame($preacher2->id, $sermon->preacher_id);
+        $this->assertSame('Preacher Two', $sermon->preacher);
+    }
+
+    #[Test]
+    public function it_clears_preacher_id_when_name_string_is_changed_to_unknown(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Known Preacher']);
+
+        $sermon = Sermon::factory()->create([
+            'preacher_id' => $preacher->id,
+            'preacher' => 'Known Preacher',
+        ]);
+
+        $sermon->preacher = 'Unknown Guest';
+
+        $this->service->syncForPersistence($sermon);
+
+        $this->assertNull($sermon->preacher_id);
+        $this->assertSame('Unknown Guest', $sermon->preacher);
+    }
+
+    #[Test]
     public function it_matches_a_preacher_by_exact_name_when_no_preacher_id_is_set(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'John Owen']);
-        $sermon = Sermon::factory()->make([
-            'preacher_id' => null,
-            'preacher' => 'John Owen',
-        ]);
+
+        // Start with no ID but the name set
+        $sermon = new Sermon;
+        $sermon->preacher = 'John Owen';
+
+        $this->assertTrue($sermon->isDirty('preacher'));
 
         $this->service->syncForPersistence($sermon);
 
@@ -65,10 +108,10 @@ class SermonIdentitySyncServiceTest extends TestCase
         $preacher = Preacher::factory()->create(['name' => 'Jonathan Edwards']);
         PreacherAlias::create(['preacher_id' => $preacher->id, 'alias' => 'j. edwards']);
 
-        $sermon = Sermon::factory()->make([
-            'preacher_id' => null,
-            'preacher' => 'J. Edwards',
-        ]);
+        $sermon = new Sermon;
+        $sermon->preacher = 'J. Edwards';
+
+        $this->assertTrue($sermon->isDirty('preacher'));
 
         $this->service->syncForPersistence($sermon);
 

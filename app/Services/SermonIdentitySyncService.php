@@ -63,21 +63,42 @@ class SermonIdentitySyncService
 
     private function syncPreacherIdentity(Sermon $sermon): void
     {
-        if ($sermon->preacher_id !== null) {
-            $preacher = Preacher::query()->find($sermon->preacher_id);
-
-            if ($preacher instanceof Preacher) {
-                $sermon->preacher = $preacher->name;
+        // 1. If preacher_id was explicitly changed, it always wins.
+        // Sync the string cache to match the new ID.
+        if ($sermon->isDirty('preacher_id')) {
+            if ($sermon->preacher_id !== null) {
+                $preacher = Preacher::query()->find($sermon->preacher_id);
+                if ($preacher instanceof Preacher) {
+                    $sermon->preacher = $preacher->name;
+                }
             }
 
             return;
         }
 
-        $matchedPreacher = $this->matchExistingPreacher($sermon->preacher);
+        // 2. If the preacher name string was changed, try to resolve it.
+        if ($sermon->isDirty('preacher')) {
+            $matchedPreacher = $this->matchExistingPreacher($sermon->preacher);
 
-        if ($matchedPreacher instanceof Preacher) {
-            $sermon->preacher_id = $matchedPreacher->id;
-            $sermon->preacher = $matchedPreacher->name;
+            if ($matchedPreacher instanceof Preacher) {
+                $sermon->preacher_id = $matchedPreacher->id;
+                $sermon->preacher = $matchedPreacher->name;
+            } else {
+                // Name changed to something that doesn't match; decouple ID.
+                $sermon->preacher_id = null;
+            }
+
+            return;
+        }
+
+        // 3. Initial resolution case (no ID set yet, and name was not explicitly dirty)
+        if ($sermon->preacher_id === null && $sermon->preacher !== null) {
+            $matchedPreacher = $this->matchExistingPreacher($sermon->preacher);
+
+            if ($matchedPreacher instanceof Preacher) {
+                $sermon->preacher_id = $matchedPreacher->id;
+                $sermon->preacher = $matchedPreacher->name;
+            }
         }
     }
 
