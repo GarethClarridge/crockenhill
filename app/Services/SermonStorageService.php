@@ -12,13 +12,38 @@ class SermonStorageService
 {
     private const STATS_CHUNK_SIZE = 100;
 
+    private string $legacyDisk;
+
+    private string $sermonDisk;
+
+    private string $thumbnailDisk;
+
+    private ?string $cdnEndpoint;
+
+    public function __construct()
+    {
+        $this->refreshConfig();
+    }
+
     /**
      * Clear all cached metadata and disk configuration.
      * Use this in tests to ensure fresh configuration lookups.
      */
     public function clearInternalCaches(): void
     {
+        $this->refreshConfig();
         $this->clearCachedMetadata();
+    }
+
+    /**
+     * Refresh configuration values from the global config.
+     */
+    private function refreshConfig(): void
+    {
+        $this->legacyDisk = (string) config('media-processing.storage.legacy_disk', 'public');
+        $this->sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+        $this->thumbnailDisk = (string) config('thumbnail-generation.storage.disk', 'public');
+        $this->cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint');
     }
 
     /**
@@ -331,25 +356,22 @@ class SermonStorageService
 
     private function legacyDisk(): string
     {
-        return (string) config('media-processing.storage.legacy_disk', 'public');
+        return $this->legacyDisk;
     }
 
     private function sermonDisk(): string
     {
-        return (string) config('media-processing.storage.sermon_disk', 'public');
+        return $this->sermonDisk;
     }
 
     private function thumbnailDisk(): string
     {
-        return (string) config('thumbnail-generation.storage.disk', 'public');
+        return $this->thumbnailDisk;
     }
 
     private function cdnEndpoint(): ?string
     {
-        /** @var ?string $cdnEndpoint */
-        $cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint');
-
-        return $cdnEndpoint;
+        return $this->cdnEndpoint;
     }
 
     private function audioVersion(Sermon $sermon): string
