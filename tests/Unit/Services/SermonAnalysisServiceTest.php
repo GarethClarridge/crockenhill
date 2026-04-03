@@ -34,6 +34,7 @@ class SermonAnalysisServiceTest extends TestCase
         parent::setUp();
 
         config([
+            'media-processing.analysis.service' => 'openai',
             'media-processing.analysis.openai_api_key' => 'test-key',
             'media-processing.analysis.retry_delay_base' => 0,
             'media-processing.analysis.max_retries' => 3,
@@ -84,6 +85,7 @@ class SermonAnalysisServiceTest extends TestCase
         $this->assertEquals('Grace Series', $result->series);
         $this->assertEquals('Ephesians 2:8-9', $result->reference);
         $this->assertCount(2, $result->points);
+        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 1);
     }
 
     #[Test]
@@ -120,6 +122,7 @@ class SermonAnalysisServiceTest extends TestCase
         $result = $this->service->analyzeSermon($transcript);
 
         $this->assertEquals('Succeeds After Retry', $result->title);
+        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 2);
     }
 
     #[Test]
@@ -154,6 +157,7 @@ class SermonAnalysisServiceTest extends TestCase
         $result = $this->service->analyzeSermon($transcript);
 
         $this->assertEquals('Succeeds After 500', $result->title);
+        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 2);
     }
 
     #[Test]
@@ -164,6 +168,7 @@ class SermonAnalysisServiceTest extends TestCase
         // 401 is non-retryable
         $unauthorizedError = new ErrorException(['message' => 'Unauthorized', 'type' => 'authentication_error', 'code' => null], 401);
 
+        // Mock OpenAI to return 401
         OpenAI::fake([
             $unauthorizedError,
         ]);
@@ -173,6 +178,9 @@ class SermonAnalysisServiceTest extends TestCase
         // Should return fallback data
         $this->assertNotEmpty($result->title);
         $this->assertEquals(['Main Message'], $result->points);
+
+        // Assert that only one OpenAI call was made (non-retryable)
+        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 1);
     }
 
     #[Test]
@@ -222,6 +230,7 @@ class SermonAnalysisServiceTest extends TestCase
         $result = $this->service->analyzeSermon($transcript);
 
         $this->assertEquals('Short Title', $result->title);
+        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 2);
     }
 
     #[Test]
@@ -256,6 +265,7 @@ class SermonAnalysisServiceTest extends TestCase
         $result = $this->service->analyzeSermon($transcript);
 
         $this->assertEquals('Valid Title', $result->title);
+        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 2);
     }
 
     #[Test]
@@ -276,5 +286,6 @@ class SermonAnalysisServiceTest extends TestCase
         // Should return fallback data
         $this->assertNotEmpty($result->title);
         $this->assertEquals(['Main Message'], $result->points);
+        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 3);
     }
 }

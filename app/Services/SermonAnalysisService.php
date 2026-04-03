@@ -360,6 +360,8 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 'temperature' => 0.3,
                 'max_completion_tokens' => 1500,
             ]);
+        } catch (ErrorException $e) {
+            throw $e;
         } catch (\TypeError $e) {
             // Handle malformed API response (e.g., non-JSON response body)
             Log::error('OpenAI API response parsing failed (malformed response)', [
