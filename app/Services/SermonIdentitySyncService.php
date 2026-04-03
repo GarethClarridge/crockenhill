@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\PreacherSource;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\ScripturePassage;
@@ -20,6 +21,34 @@ class SermonIdentitySyncService
     {
         $this->syncPreacherIdentity($sermon);
         $this->syncScriptureIdentity($sermon);
+    }
+
+    /**
+     * Retroactively link sermons to a preacher when a new alias is registered.
+     */
+    public function backfillSermonsForAlias(PreacherAlias $alias): void
+    {
+        $preacher = $alias->preacher;
+
+        if (! $preacher instanceof Preacher) {
+            return;
+        }
+
+        $query = Sermon::query()->whereNull('preacher_id');
+
+        // Normalize internal whitespace during matching.
+        if (config('database.default') === 'mysql') {
+            $query->whereRaw("LOWER(REGEXP_REPLACE(TRIM(preacher), '[[:space:]]+', ' ')) = ?", [$alias->alias]);
+        } else {
+            $query->whereRaw('LOWER(TRIM(preacher)) = ?', [$alias->alias]);
+        }
+
+        $query->update([
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+            'preacher_source' => PreacherSource::MANUAL->value,
+            'needs_preacher_review' => false,
+        ]);
     }
 
     public function findExistingScripturePassage(?string $rawReference): ?ScripturePassage
