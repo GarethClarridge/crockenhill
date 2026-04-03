@@ -19,7 +19,11 @@ $displayReference = $sermon->displayReference();
   :image-alt="'Sermon: ' . $sermon->title"
   :audio="$sermonView['audio_url']"
   :video="$sermonView['video_url']"
-  :canonical="$sermonView['canonical_url']" />
+  :canonical="$sermonView['canonical_url']"
+  :author="$sermonView['preacher_url']"
+  :published-time="$sermon->date->toIso8601String()"
+  section="Sermons"
+  :tags="$sermon->series" />
 
 <x-schema.sermon :$sermon :$sermonView />
 @endsection
