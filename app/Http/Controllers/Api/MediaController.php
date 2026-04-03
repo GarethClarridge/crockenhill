@@ -91,9 +91,14 @@ class MediaController extends Controller
             ], 400);
         }
 
+        $validated = $request->validate([
+            'include_logs' => 'nullable|boolean',
+            'log_limit' => 'nullable|integer|min:1|max:100',
+        ]);
+
         try {
-            $includeLogs = $request->boolean('include_logs');
-            $logLimit = min(max($request->integer('log_limit', 20), 1), 100);
+            $includeLogs = (bool) ($validated['include_logs'] ?? false);
+            $logLimit = (int) ($validated['log_limit'] ?? 20);
 
             $response = $includeLogs
                 ? $this->mediaProcessor->getStatusWithLogs($processingId, true, $logLimit)

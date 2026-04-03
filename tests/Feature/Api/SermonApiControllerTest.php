@@ -121,8 +121,8 @@ class SermonApiControllerTest extends TestCase
 
         $response = $this->getJson('/api/sermons?per_page=999');
 
-        $response->assertStatus(200);
-        $this->assertLessThanOrEqual(100, $response->json('meta.per_page'));
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['per_page']);
     }
 
     // ── show ───────────────────────────────────────────────────────────────
