@@ -74,63 +74,48 @@ final class ThumbnailMetadata extends JsonData
     {
         $data = $this->raw;
 
-        if ($this->timestamp !== null) {
-            $data['timestamp'] = $this->timestamp;
-        }
-
-        if ($this->videoDuration !== null) {
-            $data['video_duration'] = $this->videoDuration;
-        }
-
-        if ($this->videoResolution !== []) {
-            $data['video_resolution'] = $this->videoResolution;
-        }
-
-        if ($this->thumbnailSizes !== []) {
-            $data['thumbnail_sizes'] = $this->thumbnailSizes;
-        }
-
-        if ($this->generatedAt !== null) {
-            $data['generated_at'] = $this->generatedAt;
-        }
-
-        if ($this->plainThumbnailPath !== null) {
-            $data['plain_thumbnail_path'] = $this->plainThumbnailPath;
-        }
-
-        if ($this->cardThumbnailPath !== null) {
-            $data['card_thumbnail_path'] = $this->cardThumbnailPath;
-        }
-
-        if ($this->overlayThumbnailPath !== null) {
-            $data['overlay_thumbnail_path'] = $this->overlayThumbnailPath;
-        }
-
-        if ($this->selectedThumbnailCandidateId !== null) {
-            $data['selected_thumbnail_candidate_id'] = $this->selectedThumbnailCandidateId;
-        }
-
-        if ($this->thumbnailCandidates !== []) {
-            $data['thumbnail_candidates'] = $this->thumbnailCandidates;
-        }
-
-        if ($this->compositionMode !== null) {
-            $data['composition_mode'] = $this->compositionMode;
-        }
-
-        if ($this->foregroundExtractionMethod !== null) {
-            $data['foreground_extraction_method'] = $this->foregroundExtractionMethod;
-        }
-
-        if ($this->foregroundBounds !== []) {
-            $data['foreground_bounds'] = $this->foregroundBounds;
-        }
-
-        if ($this->foregroundCoverage !== null) {
-            $data['foreground_coverage'] = $this->foregroundCoverage;
-        }
+        $this->overlayNullable($data, 'timestamp', $this->timestamp);
+        $this->overlayNullable($data, 'video_duration', $this->videoDuration);
+        $this->overlayArray($data, 'video_resolution', $this->videoResolution);
+        $this->overlayArray($data, 'thumbnail_sizes', $this->thumbnailSizes);
+        $this->overlayNullable($data, 'generated_at', $this->generatedAt);
+        $this->overlayNullable($data, 'plain_thumbnail_path', $this->plainThumbnailPath);
+        $this->overlayNullable($data, 'card_thumbnail_path', $this->cardThumbnailPath);
+        $this->overlayNullable($data, 'overlay_thumbnail_path', $this->overlayThumbnailPath);
+        $this->overlayNullable($data, 'selected_thumbnail_candidate_id', $this->selectedThumbnailCandidateId);
+        $this->overlayArray($data, 'thumbnail_candidates', $this->thumbnailCandidates);
+        $this->overlayNullable($data, 'composition_mode', $this->compositionMode);
+        $this->overlayNullable($data, 'foreground_extraction_method', $this->foregroundExtractionMethod);
+        $this->overlayArray($data, 'foreground_bounds', $this->foregroundBounds);
+        $this->overlayNullable($data, 'foreground_coverage', $this->foregroundCoverage);
 
         return $data;
+    }
+
+    /**
+     * Write the key when the value is non-null OR when the key already existed
+     * in $raw (meaning a previously-set value is being explicitly cleared).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function overlayNullable(array &$data, string $key, mixed $value): void
+    {
+        if ($value !== null || array_key_exists($key, $this->raw)) {
+            $data[$key] = $value;
+        }
+    }
+
+    /**
+     * Write the key when the array is non-empty OR when the key already existed in $raw.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<int|string, mixed>  $value
+     */
+    private function overlayArray(array &$data, string $key, array $value): void
+    {
+        if ($value !== [] || array_key_exists($key, $this->raw)) {
+            $data[$key] = $value;
+        }
     }
 
     /**

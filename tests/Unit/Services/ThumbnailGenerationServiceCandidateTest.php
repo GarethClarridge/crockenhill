@@ -10,7 +10,6 @@ use App\Services\FrameExtractionService;
 use App\Services\StorageAdapterHelper;
 use App\Services\ThumbnailForegroundExtractionService;
 use App\Services\ThumbnailGenerationService;
-use App\Services\ThumbnailTextHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -96,8 +95,8 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
         $service = new ThumbnailGenerationService(
             $frameExtractionService,
             app(StorageAdapterHelper::class),
-            new ThumbnailTextHelper,
             app(ThumbnailForegroundExtractionService::class),
+            app(\App\Services\ThumbnailCanvasComposer::class),
         );
 
         $result = $service->generateThumbnail($sermon, 'videos/test.mp4', 'public');
@@ -160,8 +159,8 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
             ->setConstructorArgs([
                 $frameExtractionService,
                 app(StorageAdapterHelper::class),
-                new ThumbnailTextHelper,
                 app(ThumbnailForegroundExtractionService::class),
+                app(\App\Services\ThumbnailCanvasComposer::class),
             ])
             ->onlyMethods(['createPlainThumbnail'])
             ->getMock();

@@ -23,7 +23,6 @@ return [
     ],
 
     'processing' => [
-        'max_concurrent_jobs' => env('THUMBNAIL_MAX_CONCURRENT', 3),
         'memory_limit' => env('THUMBNAIL_MEMORY_LIMIT', '512M'),
         'temp_disk' => env('THUMBNAIL_TEMP_DISK', 'local'),
         'temp_path' => env('THUMBNAIL_TEMP_PATH', 'temp/thumbnails'),

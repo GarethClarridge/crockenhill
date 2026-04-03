@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-use Spatie\LaravelData\Data;
-
-class ThumbnailResult extends Data
+final class ThumbnailResult
 {
     /**
      * @param  array<string, mixed>  $metadata

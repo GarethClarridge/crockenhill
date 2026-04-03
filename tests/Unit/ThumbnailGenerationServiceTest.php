@@ -57,8 +57,8 @@ class ThumbnailGenerationServiceTest extends TestCase
         $this->service = new ThumbnailGenerationService(
             $this->frameExtractionService,
             app(StorageAdapterHelper::class),
-            new ThumbnailTextHelper,
-            app(ThumbnailForegroundExtractionService::class)
+            app(ThumbnailForegroundExtractionService::class),
+            app(\App\Services\ThumbnailCanvasComposer::class)
         );
     }
 
@@ -91,8 +91,8 @@ class ThumbnailGenerationServiceTest extends TestCase
         $this->service = new ThumbnailGenerationService(
             $this->frameExtractionService,
             app(StorageAdapterHelper::class),
-            new ThumbnailTextHelper,
-            app(ThumbnailForegroundExtractionService::class)
+            app(ThumbnailForegroundExtractionService::class),
+            app(\App\Services\ThumbnailCanvasComposer::class)
         );
 
         $sermon = Sermon::factory()->create([
@@ -128,7 +128,8 @@ class ThumbnailGenerationServiceTest extends TestCase
     #[Test]
     public function it_can_wrap_text_properly()
     {
-        $reflection = new \ReflectionClass($this->service);
+        $composer = app(\App\Services\ThumbnailCanvasComposer::class);
+        $reflection = new \ReflectionClass($composer);
         $method = $reflection->getMethod('wrapText');
         $method->setAccessible(true);
 
@@ -136,7 +137,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         $maxWidth = 400;
         $fontSize = 48;
 
-        $wrappedText = $method->invoke($this->service, $longTitle, $maxWidth, $fontSize);
+        $wrappedText = $method->invoke($composer, $longTitle, $maxWidth, $fontSize);
 
         $this->assertStringContainsString("\n", $wrappedText);
         $lines = explode("\n", $wrappedText);
@@ -218,8 +219,8 @@ class ThumbnailGenerationServiceTest extends TestCase
         $service = new ThumbnailGenerationService(
             $frameService,
             app(StorageAdapterHelper::class),
-            new ThumbnailTextHelper,
-            app(ThumbnailForegroundExtractionService::class)
+            app(ThumbnailForegroundExtractionService::class),
+            app(\App\Services\ThumbnailCanvasComposer::class)
         );
 
         // Create a temporary file
@@ -245,7 +246,8 @@ class ThumbnailGenerationServiceTest extends TestCase
     #[Test]
     public function it_handles_long_sermon_titles_with_proper_wrapping()
     {
-        $reflection = new \ReflectionClass($this->service);
+        $composer = app(\App\Services\ThumbnailCanvasComposer::class);
+        $reflection = new \ReflectionClass($composer);
         $method = $reflection->getMethod('wrapText');
         $method->setAccessible(true);
 
@@ -253,7 +255,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         $maxWidth = 400;
         $fontSize = 48;
 
-        $wrappedText = $method->invoke($this->service, $veryLongTitle, $maxWidth, $fontSize);
+        $wrappedText = $method->invoke($composer, $veryLongTitle, $maxWidth, $fontSize);
 
         $lines = explode("\n", $wrappedText);
         $this->assertGreaterThan(3, count($lines)); // Should wrap to multiple lines
@@ -267,12 +269,13 @@ class ThumbnailGenerationServiceTest extends TestCase
     #[Test]
     public function it_handles_empty_titles_gracefully()
     {
-        $reflection = new \ReflectionClass($this->service);
+        $composer = app(\App\Services\ThumbnailCanvasComposer::class);
+        $reflection = new \ReflectionClass($composer);
         $method = $reflection->getMethod('wrapText');
         $method->setAccessible(true);
 
         // Test empty string
-        $wrappedText = $method->invoke($this->service, '', 400, 48);
+        $wrappedText = $method->invoke($composer, '', 400, 48);
         $this->assertEquals('', $wrappedText);
 
         // Note: null cannot be tested as the method has string type hint
@@ -417,8 +420,8 @@ class ThumbnailGenerationServiceTest extends TestCase
         return new ThumbnailGenerationService(
             $this->createMock(FrameExtractionService::class),
             app(StorageAdapterHelper::class),
-            new ThumbnailTextHelper,
-            $extractor
+            $extractor,
+            app(\App\Services\ThumbnailCanvasComposer::class)
         );
     }
 

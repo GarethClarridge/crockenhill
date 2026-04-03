@@ -89,7 +89,7 @@ class SermonThumbnailServingTest extends TestCase
         $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
-    public function test_private_thumbnail_response_includes_caching_headers(): void
+    public function test_private_thumbnail_response_includes_no_store_cache_control(): void
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
@@ -103,8 +103,8 @@ class SermonThumbnailServingTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
-        $this->assertNotNull($response->headers->get('ETag'));
-        $this->assertNotNull($response->headers->get('Last-Modified'));
+        // ETag is not sent — computing md5_file() for a no-store response is wasteful
+        $this->assertNull($response->headers->get('ETag'));
     }
 
     public function test_card_thumbnail_prefers_card_variant_when_available(): void

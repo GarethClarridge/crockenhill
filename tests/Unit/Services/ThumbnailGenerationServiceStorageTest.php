@@ -45,8 +45,8 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         $this->service = new ThumbnailGenerationService(
             $this->frameExtractionService,
             app(StorageAdapterHelper::class),
-            new ThumbnailTextHelper,
-            app(ThumbnailForegroundExtractionService::class)
+            app(ThumbnailForegroundExtractionService::class),
+            app(\App\Services\ThumbnailCanvasComposer::class)
         );
     }
 
@@ -155,8 +155,8 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
             ->setConstructorArgs([
                 $this->frameExtractionService,
                 app(StorageAdapterHelper::class),
-                new ThumbnailTextHelper,
                 app(ThumbnailForegroundExtractionService::class),
+                app(\App\Services\ThumbnailCanvasComposer::class),
             ])
             ->onlyMethods(['generateThumbnail'])
             ->getMock();

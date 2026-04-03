@@ -159,17 +159,10 @@ class SermonAssetController extends Controller
             default => 'image/jpeg',
         };
 
-        $lastModifiedTime = filemtime($path);
-        $lastModified = $lastModifiedTime === false
-            ? gmdate('D, d M Y H:i:s').' GMT'
-            : gmdate('D, d M Y H:i:s', $lastModifiedTime).' GMT';
-
         return response()->file($path, [
             'Content-Type' => $contentType,
             'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
-            'Cache-Control' => 'private, no-store',
-            'ETag' => md5_file($path),
-            'Last-Modified' => $lastModified,
+            'Cache-Control' => 'no-store',
         ]);
     }
 }

@@ -5,9 +5,9 @@ namespace Tests\Performance;
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
 use App\Services\StorageAdapterHelper;
+use App\Services\ThumbnailCanvasComposer;
 use App\Services\ThumbnailForegroundExtractionService;
 use App\Services\ThumbnailGenerationService;
-use App\Services\ThumbnailTextHelper;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -39,8 +39,8 @@ class ThumbnailGenerationPerformanceTest extends TestCase
         $this->service = new ThumbnailGenerationService(
             $frameExtractionService,
             app(StorageAdapterHelper::class),
-            new ThumbnailTextHelper,
-            app(ThumbnailForegroundExtractionService::class)
+            app(ThumbnailForegroundExtractionService::class),
+            app(ThumbnailCanvasComposer::class)
         );
     }
 

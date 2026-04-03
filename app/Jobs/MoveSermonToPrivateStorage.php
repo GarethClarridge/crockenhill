@@ -38,6 +38,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
         $this->moveThumbnailIfNeeded($sermon);
         $this->movePlainThumbnailIfNeeded($sermon);
         $this->moveCardThumbnailIfNeeded($sermon);
+        $this->moveCandidateFilesIfNeeded($sermon);
     }
 
     private function moveAudioIfNeeded(Sermon $sermon): void
@@ -185,5 +186,60 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             'from' => $path,
             'to' => $targetPath,
         ]);
+    }
+
+    private function moveCandidateFilesIfNeeded(Sermon $sermon): void
+    {
+        $metadata = $sermon->thumbnail_metadata;
+
+        if ($metadata === null || $metadata->thumbnailCandidates === []) {
+            return;
+        }
+
+        $candidates = $metadata->thumbnailCandidates;
+        $sourceDisk = config('thumbnail-generation.storage.disk', 'public');
+        $changed = false;
+        $pathKeys = ['plain_path', 'card_path', 'overlay_path'];
+
+        foreach ($candidates as $index => $candidate) {
+            foreach ($pathKeys as $key) {
+                $path = $candidate[$key] ?? null;
+
+                if (! is_string($path) || $path === '' || str_starts_with($path, 'private/')) {
+                    continue;
+                }
+
+                $targetPath = 'private/'.$path;
+
+                if (! Storage::disk($sourceDisk)->exists($path)) {
+                    continue;
+                }
+
+                $stream = Storage::disk($sourceDisk)->readStream($path);
+
+                if (! is_resource($stream)) {
+                    continue;
+                }
+
+                Storage::disk('local')->writeStream($targetPath, $stream);
+                Storage::disk($sourceDisk)->delete($path);
+
+                $candidates[$index][$key] = $targetPath;
+                $changed = true;
+
+                Log::info('MoveSermonToPrivateStorage: candidate file moved', [
+                    'sermon_id' => $this->sermonId,
+                    'candidate_id' => $candidate['id'],
+                    'key' => $key,
+                    'from' => $path,
+                    'to' => $targetPath,
+                ]);
+            }
+        }
+
+        if ($changed) {
+            $updated = array_merge($metadata->toArray(), ['thumbnail_candidates' => $candidates]);
+            $sermon->update(['thumbnail_metadata' => $updated]);
+        }
     }
 }

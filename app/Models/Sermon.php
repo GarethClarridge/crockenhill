@@ -28,6 +28,19 @@ use Spatie\Sitemap\Tags\Url;
 /**
  * App\Models\Sermon
  *
+ * @phpstan-type ThumbnailCandidate array{
+ *     id: string,
+ *     timestamp: float,
+ *     score: float,
+ *     plain_path: string,
+ *     card_path?: string|null,
+ *     overlay_path?: string|null,
+ *     composition_mode?: string|null,
+ *     foreground_extraction_method?: string|null,
+ *     foreground_bounds?: array<string, int>,
+ *     foreground_coverage?: float|null
+ * }
+ *
  * @property int $id
  * @property Carbon $date
  * @property ?SermonService $service
@@ -69,8 +82,8 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $series_url
  * @property-read ?string $plain_thumbnail_file_path
  * @property-read ?string $card_thumbnail_file_path
- * @property-read list<array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}> $thumbnail_candidates
- * @property-read array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null $selected_thumbnail_candidate
+ * @property-read list<ThumbnailCandidate> $thumbnail_candidates
+ * @property-read ThumbnailCandidate|null $selected_thumbnail_candidate
  * @property-read ServiceSection|null $publishedServiceSection
  * @property-read MediaProcessingLog|null $latestProcessingLog
  *
@@ -200,7 +213,7 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return list<array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}>
+     * @return list<ThumbnailCandidate>
      */
     public function getThumbnailCandidatesAttribute(): array
     {
@@ -208,7 +221,7 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null
+     * @return ThumbnailCandidate|null
      */
     public function getSelectedThumbnailCandidateAttribute(): ?array
     {
@@ -499,7 +512,7 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return array{id: string, timestamp: float, score: float, plain_path: string, card_path?: string|null, overlay_path?: string|null, composition_mode?: string|null, foreground_extraction_method?: string|null, foreground_bounds?: array<string, int>, foreground_coverage?: float|null}|null
+     * @return ThumbnailCandidate|null
      */
     public function findThumbnailCandidate(string $candidateId): ?array
     {

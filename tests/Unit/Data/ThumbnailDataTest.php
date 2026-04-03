@@ -141,6 +141,42 @@ class ThumbnailDataTest extends TestCase
         $this->assertArrayNotHasKey('plain_thumbnail_path', $output);
     }
 
+    #[Test]
+    public function thumbnail_metadata_to_array_clears_value_that_was_previously_set_in_raw(): void
+    {
+        // Simulate a record that originally had a plain_thumbnail_path, then the
+        // typed property was set to null (e.g. path was cleared after migration).
+        // toArray() must write null for that key so the caller can persist the cleared value.
+        $metadata = ThumbnailMetadata::fromArray([
+            'timestamp' => 30.0,
+            'plain_thumbnail_path' => 'old/path.webp',
+        ]);
+
+        // Build a new instance with null plainThumbnailPath but the original raw
+        $cleared = new ThumbnailMetadata(
+            timestamp: $metadata->timestamp,
+            videoDuration: $metadata->videoDuration,
+            videoResolution: $metadata->videoResolution,
+            thumbnailSizes: $metadata->thumbnailSizes,
+            generatedAt: $metadata->generatedAt,
+            plainThumbnailPath: null,
+            cardThumbnailPath: $metadata->cardThumbnailPath,
+            overlayThumbnailPath: $metadata->overlayThumbnailPath,
+            selectedThumbnailCandidateId: $metadata->selectedThumbnailCandidateId,
+            thumbnailCandidates: $metadata->thumbnailCandidates,
+            compositionMode: $metadata->compositionMode,
+            foregroundExtractionMethod: $metadata->foregroundExtractionMethod,
+            foregroundBounds: $metadata->foregroundBounds,
+            foregroundCoverage: $metadata->foregroundCoverage,
+            raw: $metadata->toArray(),
+        );
+
+        $output = $cleared->toArray();
+
+        $this->assertArrayHasKey('plain_thumbnail_path', $output);
+        $this->assertNull($output['plain_thumbnail_path']);
+    }
+
     // ── ThumbnailMetadataCast ─────────────────────────────────────────────────
 
     #[Test]

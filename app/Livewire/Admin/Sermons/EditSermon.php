@@ -20,6 +20,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Component;
 
+/**
+ * @phpstan-import-type ThumbnailCandidate from \App\Models\Sermon
+ */
 class EditSermon extends Component
 {
     use WithAdminAuthorization, WithNotifications;

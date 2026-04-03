@@ -14,6 +14,13 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if (config('thumbnail-generation.enabled') && ! extension_loaded('gd')) {
+            throw new \RuntimeException(
+                'Thumbnail generation requires the GD PHP extension. '.
+                'Install php-gd or disable thumbnail generation via THUMBNAIL_GENERATION_ENABLED=false.'
+            );
+        }
+
         if (isset($_SERVER['argv']) && is_array($_SERVER['argv'])) {
             $_SERVER['argv'] = ParallelTestingProcessLimiter::apply($_SERVER['argv']);
             $_SERVER['argc'] = count($_SERVER['argv']);
