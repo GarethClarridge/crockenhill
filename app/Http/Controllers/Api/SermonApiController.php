@@ -6,12 +6,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\SermonService;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SermonIndexRequest;
 use App\Http\Resources\SermonResource;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Services\SermonExposurePolicy;
 use App\Traits\EscapesLikeWildcards;
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class SermonApiController extends Controller
@@ -25,23 +25,13 @@ class SermonApiController extends Controller
     /**
      * Display a listing of sermons.
      *
-     * Security: Strict input validation is enforced on query parameters to provide
-     * Defense in Depth against malformed input and potential Denial of Service (DoS)
+     * Security: Strict input validation is enforced on query parameters via SermonIndexRequest
+     * to provide Defense in Depth against malformed input and potential Denial of Service (DoS)
      * attacks by ensuring all inputs are bounded and correctly typed.
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(SermonIndexRequest $request): AnonymousResourceCollection
     {
-        $validated = $request->validate([
-            'search' => 'nullable|string|max:255',
-            'service' => 'nullable|string|max:50',
-            'preacher' => 'nullable|string|max:255',
-            'preacher_id' => 'nullable|integer',
-            'series' => 'nullable|string|max:255',
-            'sort' => 'nullable|string|in:date,title,preacher,series,service',
-            'order' => 'nullable|string|in:asc,desc',
-            'per_page' => 'nullable|integer|min:1|max:100',
-            'with_thumbnail' => 'nullable|boolean',
-        ]);
+        $validated = $request->validated();
 
         /**
          * Performance Optimization: Eager load preacherProfile and limit retrieved columns
