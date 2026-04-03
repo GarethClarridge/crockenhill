@@ -79,27 +79,29 @@ class SermonStorageService
 
             return [
                 'type' => 'legacy',
-                'disk' => $this->legacyDisk(),
+                'disk' => $this->legacyDisk,
                 'path' => "legacy/sermons/{$filename}",
                 'original_path' => "media/sermons/{$filename}",
             ];
-        } elseif (str_contains($sermon->audio_file_path, '/')) {
+        }
+
+        if (str_contains($sermon->audio_file_path, '/')) {
             // Newer Laravel storage pattern
             return [
                 'type' => 'storage',
-                'disk' => $this->sermonDisk(),
-                'path' => $sermon->audio_file_path,
-                'original_path' => $sermon->audio_file_path,
-            ];
-        } else {
-            // Current media processing pattern
-            return [
-                'type' => 'processing',
-                'disk' => $this->sermonDisk(),
+                'disk' => $this->sermonDisk,
                 'path' => $sermon->audio_file_path,
                 'original_path' => $sermon->audio_file_path,
             ];
         }
+
+        // Current media processing pattern
+        return [
+            'type' => 'processing',
+            'disk' => $this->sermonDisk,
+            'path' => $sermon->audio_file_path,
+            'original_path' => $sermon->audio_file_path,
+        ];
     }
 
     /**
@@ -111,7 +113,7 @@ class SermonStorageService
             return null;
         }
 
-        return Storage::disk($this->sermonDisk())->url($sermon->video_file_path);
+        return Storage::disk($this->sermonDisk)->url($sermon->video_file_path);
     }
 
     /**
@@ -154,9 +156,7 @@ class SermonStorageService
         }
 
         return match ($variant) {
-            'overlay' => isset($candidate['overlay_path'])
-                ? $candidate['overlay_path']
-                : null,
+            'overlay' => $candidate['overlay_path'] ?? null,
             'card' => $candidate['card_path'] ?? $candidate['plain_path'],
             'plain' => $candidate['plain_path'],
             default => null,
@@ -182,7 +182,7 @@ class SermonStorageService
     {
         return str_starts_with($thumbnailPath, 'private/')
             ? 'local'
-            : $this->thumbnailDisk();
+            : $this->thumbnailDisk;
     }
 
     /**
@@ -193,10 +193,8 @@ class SermonStorageService
         $info = $this->getSermonFileInfo($sermon);
 
         // Use CDN for public files if available
-        $cdnEndpoint = $this->cdnEndpoint();
-
-        if ($info['disk'] === 'do_spaces' && $cdnEndpoint) {
-            return $this->appendVersion($cdnEndpoint.'/'.$info['path'], $this->audioVersion($sermon));
+        if ($info['disk'] === 'do_spaces' && $this->cdnEndpoint) {
+            return $this->appendVersion($this->cdnEndpoint.'/'.$info['path'], $this->audioVersion($sermon));
         }
 
         return $this->appendVersion(Storage::disk($info['disk'])->url($info['path']), $this->audioVersion($sermon));
@@ -352,26 +350,6 @@ class SermonStorageService
         $separator = str_contains($url, '?') ? '&' : '?';
 
         return "{$url}{$separator}v={$version}";
-    }
-
-    private function legacyDisk(): string
-    {
-        return $this->legacyDisk;
-    }
-
-    private function sermonDisk(): string
-    {
-        return $this->sermonDisk;
-    }
-
-    private function thumbnailDisk(): string
-    {
-        return $this->thumbnailDisk;
-    }
-
-    private function cdnEndpoint(): ?string
-    {
-        return $this->cdnEndpoint;
     }
 
     private function audioVersion(Sermon $sermon): string
