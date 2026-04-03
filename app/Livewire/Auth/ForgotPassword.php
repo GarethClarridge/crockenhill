@@ -14,7 +14,11 @@ use Livewire\Component;
 
 class ForgotPassword extends Component
 {
-    #[Validate('required|email')]
+    /**
+     * Security: Explicit length constraints are enforced on input fields to provide
+     * Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
+     */
+    #[Validate('required|email|max:255')]
     public string $email = '';
 
     public string $status = '';
