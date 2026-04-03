@@ -27,7 +27,7 @@ class PreacherAliasSynchronizationTest extends TestCase
         ]);
 
         $sermon2 = Sermon::factory()->create([
-            'preacher' => '  Alias Name  ', // Testing whitespace/case
+            'preacher' => '  Alias   Name  ', // Testing internal whitespace normalization
             'preacher_id' => null,
         ]);
 

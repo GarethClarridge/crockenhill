@@ -25,12 +25,19 @@ class PreacherAliasObserver implements ShouldHandleEventsAfterCommit
             return;
         }
 
-        Sermon::query()
-            ->whereNull('preacher_id')
-            ->whereRaw('LOWER(TRIM(preacher)) = ?', [$alias->alias])
-            ->update([
-                'preacher_id' => $preacher->id,
-                'preacher' => $preacher->name,
-            ]);
+        $query = Sermon::query()->whereNull('preacher_id');
+
+        // Use REGEXP_REPLACE on MySQL to normalize internal whitespace during matching.
+        // This ensures "J.   Edwards" matches "j. edwards".
+        if (config('database.default') === 'mysql') {
+            $query->whereRaw("LOWER(REGEXP_REPLACE(TRIM(preacher), '[[:space:]]+', ' ')) = ?", [$alias->alias]);
+        } else {
+            $query->whereRaw('LOWER(TRIM(preacher)) = ?', [$alias->alias]);
+        }
+
+        $query->update([
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+        ]);
     }
 }
