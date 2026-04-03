@@ -61,6 +61,7 @@ class SitemapService
          * Performance Optimization: Use lazy() to iterate through models one by one,
          * keeping memory usage low for sites with large numbers of sermons.
          */
+        $now = now();
         $sermons = Sermon::query()
             ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'scripture_passage_id'])
             ->with([
@@ -73,7 +74,7 @@ class SitemapService
         $sitemap
             // Dynamic content via Sitemapable models
             // Eager load relationships to prevent N+1 queries during sitemap generation
-            ->add($sermons->map(fn (Sermon $sermon): Url => $this->sermonSitemapPresenter->toSitemapTag($sermon)))
+            ->add($sermons->map(fn (Sermon $sermon): Url => $this->sermonSitemapPresenter->toSitemapTag($sermon, $now)))
             ->add(
                 Page::query()
                     ->public()

@@ -702,6 +702,10 @@ class Sermon extends Model implements Sitemapable
      * Get the SEO meta description for the sermon.
      * Auto-generates from summary or title if not explicitly set.
      *
+     * Performance Optimization: Native Attribute caching prevents redundant complex
+     * string operations and relationship checks when accessed multiple times on
+     * the same instance.
+     *
      * @return Attribute<string, never>
      */
     protected function metaDescription(): Attribute
@@ -746,7 +750,7 @@ class Sermon extends Model implements Sitemapable
 
                 return Str::limit($descriptionWithSeries, 155);
             }
-        );
+        )->shouldCache();
     }
 
     /**

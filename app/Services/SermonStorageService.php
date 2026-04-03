@@ -103,7 +103,10 @@ class SermonStorageService
     }
 
     /**
-     * Get the video URL for a sermon
+     * Get the video URL for a sermon.
+     *
+     * Performance Optimization: Uses CDN for public files if available to improve
+     * load times for users.
      */
     public function getVideoUrl(Sermon $sermon): ?string
     {
@@ -111,11 +114,18 @@ class SermonStorageService
             return null;
         }
 
-        return Storage::disk($this->sermonDisk())->url($sermon->video_file_path);
+        return $this->resolvePublicUrl(
+            $this->sermonDisk(),
+            $sermon->video_file_path,
+            $this->videoVersion($sermon)
+        );
     }
 
     /**
-     * Get the thumbnail URL for a sermon
+     * Get the thumbnail URL for a sermon.
+     *
+     * Performance Optimization: Uses CDN for public files if available to improve
+     * load times for users.
      */
     public function getThumbnailUrl(Sermon $sermon): ?string
     {
@@ -123,12 +133,19 @@ class SermonStorageService
             return null;
         }
 
-        $disk = $this->resolveThumbnailDisk($sermon->thumbnail_file_path);
-        $url = Storage::disk($disk)->url($sermon->thumbnail_file_path);
-
-        return $this->appendVersion($url, $this->thumbnailVersion($sermon, $sermon->thumbnail_file_path));
+        return $this->resolvePublicUrl(
+            $this->resolveThumbnailDisk($sermon->thumbnail_file_path),
+            $sermon->thumbnail_file_path,
+            $this->thumbnailVersion($sermon, $sermon->thumbnail_file_path)
+        );
     }
 
+    /**
+     * Get the card thumbnail URL for a sermon.
+     *
+     * Performance Optimization: Uses CDN for public files if available to improve
+     * load times for users.
+     */
     public function getCardThumbnailUrl(Sermon $sermon): ?string
     {
         $cardThumbnailPath = $sermon->card_thumbnail_file_path;
@@ -137,11 +154,10 @@ class SermonStorageService
             return null;
         }
 
-        $disk = $this->resolveThumbnailDisk($cardThumbnailPath);
-
-        return $this->appendVersion(
-            Storage::disk($disk)->url($cardThumbnailPath),
-            $this->thumbnailVersion($sermon, $cardThumbnailPath),
+        return $this->resolvePublicUrl(
+            $this->resolveThumbnailDisk($cardThumbnailPath),
+            $cardThumbnailPath,
+            $this->thumbnailVersion($sermon, $cardThumbnailPath)
         );
     }
 
@@ -186,20 +202,20 @@ class SermonStorageService
     }
 
     /**
-     * Get the public URL for a sermon file
+     * Get the public URL for a sermon file.
+     *
+     * Performance Optimization: Uses CDN for public files if available to improve
+     * load times for users.
      */
     public function getPublicUrl(Sermon $sermon): string
     {
         $info = $this->getSermonFileInfo($sermon);
 
-        // Use CDN for public files if available
-        $cdnEndpoint = $this->cdnEndpoint();
-
-        if ($info['disk'] === 'do_spaces' && $cdnEndpoint) {
-            return $this->appendVersion($cdnEndpoint.'/'.$info['path'], $this->audioVersion($sermon));
-        }
-
-        return $this->appendVersion(Storage::disk($info['disk'])->url($info['path']), $this->audioVersion($sermon));
+        return $this->resolvePublicUrl(
+            $info['disk'],
+            $info['path'],
+            $this->audioVersion($sermon)
+        );
     }
 
     /**
@@ -381,6 +397,32 @@ class SermonStorageService
             $sermon->audio_file_path,
             $sermon->updated_at?->getTimestamp() ?? 0,
         ]));
+    }
+
+    private function videoVersion(Sermon $sermon): string
+    {
+        return sha1(implode('|', [
+            'video',
+            $sermon->video_file_path,
+            $sermon->updated_at?->getTimestamp() ?? 0,
+        ]));
+    }
+
+    /**
+     * Resolve the public URL for a given disk and path, utilizing CDN if available.
+     *
+     * Performance Optimization: Bypasses Storage::url() overhead when using CDN
+     * and ensures consistent versioning across all media types.
+     */
+    private function resolvePublicUrl(string $disk, string $path, string $version): string
+    {
+        $cdnEndpoint = $this->cdnEndpoint();
+
+        if ($disk === 'do_spaces' && $cdnEndpoint) {
+            return $this->appendVersion($cdnEndpoint . '/' . ltrim($path, '/'), $version);
+        }
+
+        return $this->appendVersion(Storage::disk($disk)->url($path), $version);
     }
 
     /**
