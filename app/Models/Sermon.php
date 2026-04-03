@@ -213,19 +213,23 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return list<ThumbnailCandidate>
+     * @return Attribute<list<ThumbnailCandidate>, never>
      */
-    public function getThumbnailCandidatesAttribute(): array
+    protected function thumbnailCandidates(): Attribute
     {
-        return $this->thumbnail_metadata?->thumbnailCandidates ?: [];
+        return Attribute::make(
+            get: fn (): array => $this->thumbnail_metadata?->thumbnailCandidates ?: []
+        );
     }
 
     /**
-     * @return ThumbnailCandidate|null
+     * @return Attribute<ThumbnailCandidate|null, never>
      */
-    public function getSelectedThumbnailCandidateAttribute(): ?array
+    protected function selectedThumbnailCandidate(): Attribute
     {
-        return $this->thumbnail_metadata?->selectedCandidate();
+        return Attribute::make(
+            get: fn (): ?array => $this->thumbnail_metadata?->selectedCandidate()
+        );
     }
 
     /**

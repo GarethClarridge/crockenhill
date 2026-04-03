@@ -20,13 +20,13 @@ class SermonStorageServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new SermonStorageService;
-
         Storage::fake('public');
         Storage::fake('do_spaces');
 
         Config::set('media-processing.storage.sermon_disk', 'public');
         Config::set('media-processing.storage.legacy_disk', 'public');
+
+        $this->service = new SermonStorageService;
     }
 
     #[Test]
@@ -75,6 +75,7 @@ class SermonStorageServiceTest extends TestCase
     {
         Config::set('media-processing.storage.sermon_disk', 'do_spaces');
         Config::set('filesystems.disks.do_spaces.cdn_endpoint', 'https://cdn.example.com');
+        $this->service->clearInternalCaches();
 
         $sermon = Sermon::factory()->create([
             'audio_file_path' => 'sermons/cdn-test.mp3',
@@ -132,6 +133,7 @@ class SermonStorageServiceTest extends TestCase
 
         // Configure sermon to use source disk
         Config::set('media-processing.storage.sermon_disk', 'source_disk');
+        $this->service->clearInternalCaches();
 
         $sermon = Sermon::factory()->create([
             'audio_file_path' => 'sermons/move-me.mp3',
@@ -159,6 +161,7 @@ class SermonStorageServiceTest extends TestCase
         Storage::fake('source_disk');
         Storage::fake('target_disk');
         Config::set('media-processing.storage.sermon_disk', 'source_disk');
+        $this->service->clearInternalCaches();
 
         $sermon = Sermon::factory()->create(['audio_file_path' => 'sermons/gone.mp3']);
 
@@ -194,6 +197,7 @@ class SermonStorageServiceTest extends TestCase
     {
         Storage::fake('thumb_disk');
         Config::set('thumbnail-generation.storage.disk', 'thumb_disk');
+        $this->service->clearInternalCaches();
 
         $sermon = Sermon::factory()->create([
             'thumbnail_file_path' => 'thumbnails/sermon-1.jpg',

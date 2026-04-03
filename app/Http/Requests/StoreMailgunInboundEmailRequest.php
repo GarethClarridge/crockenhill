@@ -17,21 +17,26 @@ class StoreMailgunInboundEmailRequest extends FormRequest
     }
 
     /**
+     * Get the validation rules that apply to the request.
+     *
+     * Security: Explicit length constraints are enforced on all text fields to provide
+     * Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
+     *
      * @return array<string, array<int, string>|string>
      */
     public function rules(): array
     {
         return [
-            'timestamp' => ['required', 'string'],
-            'token' => ['required', 'string'],
-            'signature' => ['required', 'string'],
+            'timestamp' => ['required', 'string', 'max:50'],
+            'token' => ['required', 'string', 'max:100'],
+            'signature' => ['required', 'string', 'max:128'],
             'from' => ['required', 'string', 'max:255'],
             'subject' => ['required', 'string', 'max:255'],
             'Message-Id' => ['nullable', 'string', 'max:512'],
-            'message-headers' => ['nullable', 'string'],
-            'body-plain' => ['nullable', 'string'],
-            'body-html' => ['nullable', 'string'],
-            'Date' => ['nullable', 'string'],
+            'message-headers' => ['nullable', 'string', 'max:100000'],
+            'body-plain' => ['nullable', 'string', 'max:500000'],
+            'body-html' => ['nullable', 'string', 'max:500000'],
+            'Date' => ['nullable', 'string', 'max:128'],
         ];
     }
 

@@ -6,6 +6,7 @@
 
 @section('meta_tags')
     <x-meta-tags :title="$heading" :description="$description" />
+    <x-breadcrumbs area="christ" heading="Children's Corner" :jsonOnly="true" />
 
     {{-- JSON-LD ItemList --}}
     @if (isset($json_ld_data))

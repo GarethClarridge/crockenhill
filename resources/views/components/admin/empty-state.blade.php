@@ -4,6 +4,7 @@
     'description' => null,
     'colspan',
     'hasFilters' => false,
+    'resetAction' => 'resetFilters',
 ])
 
 @php
@@ -33,7 +34,7 @@
 
             @if($hasFilters)
                 <div class="mt-2">
-                    <x-form-button variant="outline" size="sm" icon="x-mark" wire:click="resetFilters">
+                    <x-form-button variant="outline" size="sm" icon="x-mark" wire:click="{{ $resetAction }}">
                         Clear all filters
                     </x-form-button>
                 </div>
