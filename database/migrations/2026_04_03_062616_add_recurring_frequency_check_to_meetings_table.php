@@ -19,6 +19,11 @@ return new class extends Migration
                 'ALTER TABLE meetings ADD CONSTRAINT %s CHECK (is_recurring = 0 OR frequency IS NOT NULL)',
                 self::CONSTRAINT_NAME
             ));
+        } elseif (DB::getDriverName() === 'pgsql') {
+            DB::statement(sprintf(
+                'ALTER TABLE meetings ADD CONSTRAINT %s CHECK (is_recurring = false OR frequency IS NOT NULL)',
+                self::CONSTRAINT_NAME
+            ));
         }
     }
 
@@ -29,6 +34,8 @@ return new class extends Migration
     {
         if (DB::getDriverName() === 'mysql') {
             DB::statement(sprintf('ALTER TABLE meetings DROP CHECK %s', self::CONSTRAINT_NAME));
+        } elseif (DB::getDriverName() === 'pgsql') {
+            DB::statement(sprintf('ALTER TABLE meetings DROP CONSTRAINT %s', self::CONSTRAINT_NAME));
         }
     }
 };
