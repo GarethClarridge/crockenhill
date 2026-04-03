@@ -63,36 +63,42 @@ class SermonIdentitySyncService
 
     private function syncPreacherIdentity(Sermon $sermon): void
     {
-        // 1. If preacher_id was explicitly changed, it always wins.
-        // Sync the string cache to match the new ID.
-        if ($sermon->isDirty('preacher_id')) {
-            if ($sermon->preacher_id !== null) {
-                $preacher = Preacher::query()->find($sermon->preacher_id);
-                if ($preacher instanceof Preacher) {
-                    $sermon->preacher = $preacher->name;
-                }
+        $preacherIdChanged = $sermon->isDirty('preacher_id');
+        $preacherNameChanged = $sermon->isDirty('preacher');
+
+        // 1. Explicit ID change or constant authority: ID wins.
+        // We sync the string cache from the ID, but skip this if the name string
+        // was explicitly changed (allowing it to resolve to a new ID in step 2).
+        if ($sermon->preacher_id !== null && ($preacherIdChanged || ! $preacherNameChanged)) {
+            $preacher = Preacher::query()->find($sermon->preacher_id);
+
+            if ($preacher instanceof Preacher && $sermon->preacher !== $preacher->name) {
+                $sermon->preacher = $preacher->name;
             }
 
-            return;
+            // If the ID was the primary thing that changed, we are done.
+            if ($preacherIdChanged) {
+                return;
+            }
         }
 
-        // 2. If the preacher name string was changed, try to resolve it.
-        if ($sermon->isDirty('preacher')) {
+        // 2. Explicit name string change: try to resolve to a known identity.
+        if ($preacherNameChanged) {
             $matchedPreacher = $this->matchExistingPreacher($sermon->preacher);
 
             if ($matchedPreacher instanceof Preacher) {
                 $sermon->preacher_id = $matchedPreacher->id;
                 $sermon->preacher = $matchedPreacher->name;
             } else {
-                // Name changed to something that doesn't match; decouple ID.
+                // Name changed to something unknown; decouple from the current identity.
                 $sermon->preacher_id = null;
             }
 
             return;
         }
 
-        // 3. Initial resolution case (no ID set yet, and name was not explicitly dirty)
-        if ($sermon->preacher_id === null && $sermon->preacher !== null) {
+        // 3. Initial resolution or backfill for unassigned records.
+        if ($sermon->preacher_id === null && is_string($sermon->preacher) && trim($sermon->preacher) !== '') {
             $matchedPreacher = $this->matchExistingPreacher($sermon->preacher);
 
             if ($matchedPreacher instanceof Preacher) {
