@@ -39,8 +39,8 @@ class RichArticleMetadataTest extends TestCase
         $response->assertSee('<meta property="article:section" content="Sermons">', false);
         $response->assertSee('<meta property="article:tag" content="Test Series">', false);
 
-        // Check Schema.org Linking (JSON-LD output uses escaped slashes by default in json_encode)
+        // Check Schema.org Linking
         $response->assertSee('"publisher":', false);
-        $response->assertSee('"@id": "http:\/\/localhost"', false);
+        $response->assertSee('"@id": "http://localhost"', false);
     }
 }

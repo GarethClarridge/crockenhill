@@ -29,6 +29,17 @@ return [
         'longitude' => '0.16404725602797054',
     ],
 
+    'services' => [
+        'morning' => [
+            'day' => 'Sunday',
+            'time' => '10:30',
+        ],
+        'evening' => [
+            'day' => 'Sunday',
+            'time' => '18:00',
+        ],
+    ],
+
     'social' => [
         'facebook' => 'https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905',
         'youtube' => 'https://www.youtube.com/@crockenhillbaptistchurch9727/streams',
