@@ -6,6 +6,8 @@ namespace Tests\Feature\Api;
 
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Models\Preacher;
+use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
@@ -159,5 +161,177 @@ class SermonApiControllerTest extends TestCase
         $response = $this->getJson("/api/sermons/{$talk->id}");
 
         $response->assertStatus(404);
+    }
+
+    // ── Search ─────────────────────────────────────────────────────────────
+
+    #[Test]
+    public function api_index_searches_by_title(): void
+    {
+        Sermon::factory()->create(['title' => 'Finding Hope']);
+        Sermon::factory()->create(['title' => 'Lost in Wilderness']);
+
+        $response = $this->getJson('/api/sermons?search=Hope');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame('Finding Hope', $response->json('data.0.title'));
+    }
+
+    #[Test]
+    public function api_index_searches_by_preacher_string(): void
+    {
+        Sermon::factory()->create(['preacher' => 'John Bunyan']);
+        Sermon::factory()->create(['preacher' => 'Charles Spurgeon']);
+
+        $response = $this->getJson('/api/sermons?search=Bunyan');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame('John Bunyan', $response->json('data.0.preacher'));
+    }
+
+    #[Test]
+    public function api_index_searches_by_preacher_profile_name(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Alistair Begg']);
+        Sermon::factory()->create(['preacher_id' => $preacher->id, 'preacher' => 'A. Begg']);
+        Sermon::factory()->create(['preacher' => 'Other Preacher']);
+
+        $response = $this->getJson('/api/sermons?search=Alistair');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        // SermonResource uses displayPreacherName() which prefers profile name if loaded
+        $this->assertSame('Alistair Begg', $response->json('data.0.preacher'));
+    }
+
+    #[Test]
+    public function api_index_searches_by_series(): void
+    {
+        Sermon::factory()->create(['series' => 'Parables of Jesus']);
+        Sermon::factory()->create(['series' => 'Life of David']);
+
+        $response = $this->getJson('/api/sermons?search=Parables');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame('Parables of Jesus', $response->json('data.0.series'));
+    }
+
+    #[Test]
+    public function api_index_searches_by_scripture_reference(): void
+    {
+        $passage = ScripturePassage::factory()->create([
+            'display_reference' => 'Genesis 1:1',
+            'normalized_reference' => 'Genesis 1:1',
+        ]);
+        Sermon::factory()->create(['scripture_passage_id' => $passage->id, 'reference' => 'Gen 1:1']);
+        Sermon::factory()->create(['reference' => 'John 1:1']);
+
+        $response = $this->getJson('/api/sermons?search=Genesis');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        // SermonResource uses displayReference() which prefers passage display_reference if loaded
+        $this->assertSame('Genesis 1:1', $response->json('data.0.reference'));
+    }
+
+    #[Test]
+    public function api_index_escapes_like_wildcards(): void
+    {
+        Sermon::factory()->create(['title' => '100% Grace']);
+        Sermon::factory()->create(['title' => '1000 Reasons']);
+
+        // Searching for '%' should only find the sermon with an actual '%' character,
+        // not everything because '%' is a wildcard in LIKE.
+        $response = $this->getJson('/api/sermons?search=%');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame('100% Grace', $response->json('data.0.title'));
+    }
+
+    // ── Filtering ──────────────────────────────────────────────────────────
+
+    #[Test]
+    public function api_index_filters_by_preacher_string_directly(): void
+    {
+        Sermon::factory()->create(['preacher' => 'Exact Name']);
+        Sermon::factory()->create(['preacher' => 'Another Name']);
+
+        $response = $this->getJson('/api/sermons?preacher=Exact%20Name');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame('Exact Name', $response->json('data.0.preacher'));
+    }
+
+    #[Test]
+    public function api_index_filters_by_preacher_id(): void
+    {
+        $preacher = Preacher::factory()->create();
+        Sermon::factory()->create(['preacher_id' => $preacher->id]);
+        Sermon::factory()->create(['preacher_id' => null]);
+
+        $response = $this->getJson("/api/sermons?preacher_id={$preacher->id}");
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        $this->assertEquals($preacher->id, $response->json('data.0.preacher_id'));
+    }
+
+    #[Test]
+    public function api_index_filters_by_with_thumbnail(): void
+    {
+        Sermon::factory()->create(['thumbnail_file_path' => 'thumbnails/sermon1.webp']);
+        Sermon::factory()->create(['thumbnail_file_path' => null]);
+
+        $response = $this->getJson('/api/sermons?with_thumbnail=1');
+
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json('data'));
+        $this->assertNotNull($response->json('data.0.thumbnail_url'));
+    }
+
+    // ── Sorting ────────────────────────────────────────────────────────────
+
+    #[Test]
+    public function api_index_sorts_by_date_asc(): void
+    {
+        Sermon::factory()->create(['date' => '2024-01-01']);
+        Sermon::factory()->create(['date' => '2023-01-01']);
+
+        $response = $this->getJson('/api/sermons?sort=date&order=asc');
+
+        $response->assertStatus(200);
+        $this->assertSame('2023-01-01', $response->json('data.0.date'));
+    }
+
+    #[Test]
+    public function api_index_sorts_by_title_desc(): void
+    {
+        Sermon::factory()->create(['title' => 'Alpha']);
+        Sermon::factory()->create(['title' => 'Omega']);
+
+        $response = $this->getJson('/api/sermons?sort=title&order=desc');
+
+        $response->assertStatus(200);
+        $this->assertSame('Omega', $response->json('data.0.title'));
+    }
+
+    #[Test]
+    public function api_index_sorts_by_preacher_name(): void
+    {
+        $preacherA = Preacher::factory()->create(['name' => 'Alistair']);
+        $preacherB = Preacher::factory()->create(['name' => 'Zebedee']);
+
+        Sermon::factory()->create(['preacher_id' => $preacherB->id, 'preacher' => 'Zebedee']);
+        Sermon::factory()->create(['preacher_id' => $preacherA->id, 'preacher' => 'Alistair']);
+
+        $response = $this->getJson('/api/sermons?sort=preacher&order=asc');
+
+        $response->assertStatus(200);
+        $this->assertSame('Alistair', $response->json('data.0.preacher'));
     }
 }
