@@ -15,7 +15,6 @@ use App\Services\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
 use App\Services\SermonStorageService;
 use App\Services\ThumbnailGenerationService;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -135,11 +134,6 @@ class EditSermon extends Component
         $this->showSummary = $sermon->show_summary;
         $this->showPoints = $sermon->show_points;
         $this->loadThumbnailCandidates();
-    }
-
-    public function updatedTitle(): void
-    {
-        $this->slug = Str::slug($this->title);
     }
 
     public function addPoint(): void

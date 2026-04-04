@@ -53,18 +53,6 @@ class EditSermonTest extends TestCase
     }
 
     #[Test]
-    public function it_updates_slug_automatically_when_title_changes(): void
-    {
-        $sermon = Sermon::factory()->create(['title' => 'Original Title', 'slug' => 'original-title']);
-
-        $this->actingAs($this->admin);
-
-        Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('title', 'New Updated Title')
-            ->assertSet('slug', 'new-updated-title');
-    }
-
-    #[Test]
     public function it_can_add_and_remove_points(): void
     {
         $sermon = Sermon::factory()->create(['points' => ['Point 1']]);

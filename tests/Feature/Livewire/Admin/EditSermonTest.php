@@ -335,20 +335,6 @@ class EditSermonTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Slug auto-update
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function slug_is_auto_updated_when_title_changes(): void
-    {
-        $this->actingAs($this->admin);
-
-        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
-            ->set('title', 'My New Sermon Title')
-            ->assertSet('slug', 'my-new-sermon-title');
-    }
-
-    // -------------------------------------------------------------------------
     // Points management
     // -------------------------------------------------------------------------
 
