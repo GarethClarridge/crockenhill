@@ -73,7 +73,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
 
         $log->refresh();
 
-        $this->assertSame(ProcessingStatus::PENDING, $log->status);
+        $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertNull($log->error_message);
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
@@ -235,7 +235,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         }
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::FAILED, $log->status);
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
         $this->assertNotNull($log->error_message);
         $this->assertNotNull($log->completed_at);
         Mail::assertQueued(LivestreamProcessingFailed::class, fn ($mail) => $mail->processingId === $log->processing_id);
@@ -249,7 +249,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
 
         $log = MediaProcessingLog::factory()->livestream()->create([
             'source_file_path' => 'livestreams/2026/legacy-service.mp4',
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
             'error_message' => 'Manual Review Note: Multiple speech blocks met the 20-minute sermon threshold.',
             'processing_metadata' => null,

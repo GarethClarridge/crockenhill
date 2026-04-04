@@ -420,7 +420,7 @@ class Sermon extends Model implements Sitemapable
     public function scopeProcessingCompleted(Builder $query): Builder
     {
         return $query->whereHas('processingLogs', function (Builder $q): void {
-            $q->where('status', ProcessingStatus::COMPLETED);
+            $q->where('status', ProcessingStatus::Completed);
         });
     }
 
@@ -433,7 +433,7 @@ class Sermon extends Model implements Sitemapable
     public function scopeProcessingFailed(Builder $query): Builder
     {
         return $query->whereHas('processingLogs', function (Builder $q): void {
-            $q->where('status', ProcessingStatus::FAILED);
+            $q->where('status', ProcessingStatus::Failed);
         });
     }
 
@@ -446,7 +446,7 @@ class Sermon extends Model implements Sitemapable
     public function scopeProcessingInProgress(Builder $query): Builder
     {
         return $query->whereHas('processingLogs', function (Builder $q): void {
-            $q->where('status', ProcessingStatus::PROCESSING);
+            $q->where('status', ProcessingStatus::Processing);
         });
     }
 

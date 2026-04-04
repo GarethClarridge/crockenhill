@@ -410,7 +410,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
         MediaProcessingLog::create([
             'processing_id' => $realId,
             'original_filename' => 'test.mp3',
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
         ]);
 
         $fakeId = (string) Str::uuid();
@@ -460,7 +460,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
         MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => 'test.mp3',
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'transcribing_audio_failed',
         ]);
 

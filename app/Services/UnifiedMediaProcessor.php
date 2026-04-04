@@ -152,7 +152,7 @@ class UnifiedMediaProcessor
                 'file_hash' => $fileHash,
                 'owner_user_id' => Auth::id(),
                 'source_file_path' => $storedFilePath,
-                'status' => ProcessingStatus::PENDING,
+                'status' => ProcessingStatus::Pending,
                 'current_step' => 'audio_processing_initiated',
                 'processing_metadata' => [
                     'id3_metadata' => $id3Metadata,
@@ -234,7 +234,7 @@ class UnifiedMediaProcessor
 
         $existingLog = MediaProcessingLog::query()
             ->where('file_hash', $fileHash)
-            ->whereIn('status', [ProcessingStatus::PENDING->value, ProcessingStatus::PROCESSING->value])
+            ->whereIn('status', [ProcessingStatus::Pending->value, ProcessingStatus::Processing->value])
             ->latest()
             ->first();
 

@@ -86,7 +86,7 @@ class GetMediaProcessingStatusTest extends TestCase
             ->processing('audio_transcription')
             ->state([
                 'processing_id' => $processingId,
-                'status' => ProcessingStatus::PROCESSING,
+                'status' => ProcessingStatus::Processing,
             ])
             ->create();
 

@@ -136,7 +136,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => $metadata->filename,
             'source_file_path' => $storedFilePath,
-            'status' => \App\Enums\ProcessingStatus::PENDING,
+            'status' => \App\Enums\ProcessingStatus::Pending,
         ]);
         $job = new CreateSermonRecord($processingLog);
 
@@ -245,7 +245,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Assert processing log was marked as failed
         $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::FAILED, $processingLog->status);
+        $this->assertEquals(ProcessingStatus::Failed, $processingLog->status);
         $this->assertEquals('transcribing_audio', $processingLog->current_step);
         $this->assertStringContainsString('Transcription failed', $processingLog->error_message);
     }
@@ -366,7 +366,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Assert processing log was marked as completed
         $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::COMPLETED, $processingLog->status);
+        $this->assertEquals(ProcessingStatus::Completed, $processingLog->status);
     }
 
     #[Test]
@@ -459,7 +459,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_id' => 'admin-only-test',
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'updating_sermon_record',
             'sermon_id' => $sermon->id,
         ]);
@@ -484,7 +484,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_id' => 'test-id',
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'updating_sermon_record',
             'sermon_id' => $sermon->id,
         ]);
@@ -495,7 +495,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_id' => 'failure-test-id',
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'status' => \App\Enums\ProcessingStatus::PROCESSING,
+            'status' => \App\Enums\ProcessingStatus::Processing,
             'current_step' => 'updating_sermon_record',
             'sermon_id' => 99999, // Non-existent sermon ID
         ]);
@@ -541,7 +541,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => $metadata->originalName,
             'source_file_path' => $storedFilePath,
-            'status' => ProcessingStatus::PENDING,
+            'status' => ProcessingStatus::Pending,
             'current_step' => 'initiated',
         ]);
 
@@ -585,7 +585,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
             'source_file_path' => 'sermons/test-audio.mp3',
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'transcribing_audio_failed',
             'sermon_id' => $sermon->id,
             'error_message' => 'Transcription service unavailable',
@@ -613,9 +613,9 @@ class SermonProcessingJobChainTest extends TestCase
         $processingLog->refresh();
         if ($result->success) {
             $this->assertContains($processingLog->status, [
-                ProcessingStatus::PENDING,
-                ProcessingStatus::PROCESSING,
-                ProcessingStatus::COMPLETED,
+                ProcessingStatus::Pending,
+                ProcessingStatus::Processing,
+                ProcessingStatus::Completed,
             ]);
         }
     }
@@ -632,19 +632,19 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_id' => $processingId,
             'processing_type' => 'audio',
             'original_filename' => $file->getClientOriginalName(),
-            'status' => ProcessingStatus::PENDING,
+            'status' => ProcessingStatus::Pending,
             'current_step' => 'initiated',
         ]);
 
         // Verify processing log was created
         $this->assertNotNull($processingLog);
         $this->assertEquals('test-sermon.mp3', $processingLog->original_filename);
-        $this->assertEquals(ProcessingStatus::PENDING, $processingLog->status);
+        $this->assertEquals(ProcessingStatus::Pending, $processingLog->status);
 
         // Test that we can retrieve the processing status
         $statusResult = app(\App\Services\UnifiedMediaProcessor::class)->getStatus($processingId);
         $this->assertEquals($processingId, $statusResult->processingId);
-        $this->assertEquals(ProcessingStatus::PENDING->value, $statusResult->status);
+        $this->assertEquals(ProcessingStatus::Pending->value, $statusResult->status);
     }
 
     #[Test]
@@ -672,7 +672,7 @@ class SermonProcessingJobChainTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => $metadata->originalName,
             'source_file_path' => $storedFilePath,
-            'status' => ProcessingStatus::PENDING,
+            'status' => ProcessingStatus::Pending,
             'current_step' => 'initiated',
         ]);
 
@@ -695,7 +695,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => $processingId,
-            'status' => ProcessingStatus::PROCESSING->value,
+            'status' => ProcessingStatus::Processing->value,
             'current_step' => 'sermon_record_created',
         ]);
 
@@ -720,7 +720,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Verify processing log completion
         $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::COMPLETED, $processingLog->status);
+        $this->assertEquals(ProcessingStatus::Completed, $processingLog->status);
     }
 
     private function handleUpdateSermonRecordJob(UpdateSermonRecord $job): void
