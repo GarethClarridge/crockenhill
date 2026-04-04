@@ -11,9 +11,10 @@ class SermonSitemapPresenter
         private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
 
-    public function toSitemapTag(Sermon $sermon): Url
+    public function toSitemapTag(Sermon $sermon, ?\Carbon\CarbonInterface $now = null): Url
     {
-        $daysOld = abs(now()->diffInDays($sermon->date, false));
+        $now ??= now();
+        $daysOld = abs($now->diffInDays($sermon->date, false));
         $priority = $daysOld < 30 ? 0.8 : 0.6;
         $changeFreq = $daysOld < 365 ? Url::CHANGE_FREQUENCY_MONTHLY : Url::CHANGE_FREQUENCY_YEARLY;
 
@@ -24,8 +25,8 @@ class SermonSitemapPresenter
             $lastModified = $sermon->updated_at;
         }
 
-        $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
-        $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
+        $videoUrl = $sermon->hasVideo() ? $this->sermonViewPresenter->videoUrl($sermon) : null;
+        $thumbnailUrl = $sermon->hasThumbnail() ? $this->sermonViewPresenter->thumbnailUrl($sermon) : null;
 
         $url = Url::create($this->sermonViewPresenter->canonicalUrl($sermon))
             ->setLastModificationDate($lastModified)

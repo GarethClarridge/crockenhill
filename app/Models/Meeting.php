@@ -130,7 +130,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     {
         return Attribute::make(
             get: fn (): string => $this->page->heading ?? Str::title(str_replace('-', ' ', $this->slug))
-        );
+        )->shouldCache();
     }
 
     /**
@@ -163,7 +163,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
                 return null;
             }
-        );
+        )->shouldCache();
     }
 
     /**
@@ -442,7 +442,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
                 'thumbnail' => $media->getUrl('thumbnail'),
                 'name' => $media->name,
             ])
-        );
+        )->shouldCache();
     }
 
     /**
