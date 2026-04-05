@@ -76,7 +76,7 @@ class Preacher extends Model implements Sitemapable
 
                 return Storage::disk('public')->url($this->image_path);
             }
-        );
+        )->shouldCache();
     }
 
     public function getRouteKeyName(): string
