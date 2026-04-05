@@ -91,7 +91,7 @@ class SyncSongsCommandTest extends TestCase
             'canonical_key' => 'legacy-song-1001',
             'slug' => 'a-new-commandment',
             'title' => 'A New Commandment',
-            'lyrics_xml' => '',
+            'lyrics_xml' => '<song></song>',
         ]);
 
         $this->artisan('service-tracking:sync-songs', ['--path' => $path])
@@ -126,7 +126,7 @@ class SyncSongsCommandTest extends TestCase
             'canonical_key' => 'legacy-song-524',
             'slug' => 'where-high-the-heavenly-temple-stands',
             'title' => 'Where High The Heavenly Temple Stands',
-            'lyrics_xml' => '',
+            'lyrics_xml' => '<song></song>',
             'lyrics_plain' => null,
             'verse_order' => null,
             'copyright' => null,

@@ -19,3 +19,8 @@
 **Learning:** Found that the `meetings` table allowed a meeting to be marked as recurring (`is_recurring = true`) without a mandatory `frequency`, leading to potential logic errors during next-occurrence calculations. This dependency was only partially enforced in some UI-layer validation but missing in others.
 
 **Action:** Enforce cross-column dependencies using database-level `CHECK` constraints (`is_recurring = 0 OR frequency IS NOT NULL`). Synchronize this rule across all validation entry points (FormRequests and Livewire Forms). When testing data integrity, add new dedicated test files to avoid modifying or deleting existing coverage, and ensure tests target both the database level (using raw DB inserts) and the application level (using Validator).
+
+## 2026-04-05 - Song Catalog String Integrity
+**Learning:** Discovered that several tables in the song catalog (`songs`, `song_authors`, `song_books`) allowed empty strings for required identification fields like `title`, `canonical_key`, and `display_name`. While these columns were `NOT NULL`, MySQL permits empty strings, which could lead to unusable records and broken UI logic.
+
+**Action:** Implement `CHECK` constraints to explicitly forbid empty strings (`column <> ''`) for all required textual identifiers. When applying these constraints to existing tables, include a data normalization step in the migration to safely transition legacy records. Synchronize application services (e.g., `SongCatalogSyncService`) to provide meaningful defaults when source data is incomplete, ensuring the application and database remain in sync.

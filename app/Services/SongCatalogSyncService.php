@@ -478,11 +478,16 @@ class SongCatalogSyncService
 
         $title = $this->stringOrNull($representative['title'] ?? null) ?? 'Untitled';
 
+        $lyricsXml = trim((string) ($representative['lyrics'] ?? ''));
+        if ($lyricsXml === '') {
+            $lyricsXml = '<song></song>';
+        }
+
         $attributes = [
             'canonical_key' => $canonicalKey,
             'title' => $title,
             'alternate_title' => $this->stringOrNull($representative['alternate_title'] ?? null),
-            'lyrics_xml' => (string) ($representative['lyrics'] ?? ''),
+            'lyrics_xml' => $lyricsXml,
             'lyrics_plain' => $parsedLyrics['lyrics_plain'],
             'verse_order' => $this->stringOrNull($representative['verse_order'] ?? null),
             'copyright' => $this->stringOrNull($representative['copyright'] ?? null),
