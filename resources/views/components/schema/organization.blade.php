@@ -4,7 +4,7 @@
   '@context' => 'https://schema.org',
   '@type' => 'Church',
   'name' => config('organization.name'),
-  '@id' => config('app.url'),
+  '@id' => config('app.url').'/',
   'url' => config('app.url'),
   'logo' => asset('images/Primary.png'),
   'description' => config('organization.description'),
@@ -23,6 +23,7 @@
   ],
   'telephone' => config('organization.phone'),
   'email' => config('organization.email_admin'),
+  'openingHoursSpecification' => config('organization.opening_hours'),
   'sameAs' => array_values(config('organization.social')),
 ], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
