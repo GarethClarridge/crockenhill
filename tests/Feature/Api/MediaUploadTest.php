@@ -400,7 +400,7 @@ class MediaUploadTest extends TestCase
         $token = $this->tokenFor($this->admin);
 
         $this->withToken($token)
-            ->getJson("/api/media/processing/{$processingId}/status?include_logs=true")
+            ->getJson("/api/media/processing/{$processingId}/status?include_logs=1")
             ->assertOk();
     }
 }

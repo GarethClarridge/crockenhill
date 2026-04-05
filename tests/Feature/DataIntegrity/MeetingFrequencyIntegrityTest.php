@@ -41,14 +41,34 @@ class MeetingFrequencyIntegrityTest extends TestCase
     }
 
     #[Test]
-    public function it_allows_null_frequency_at_database_level(): void
+    public function it_allows_null_frequency_for_non_recurring_meetings_at_database_level(): void
     {
         $meeting = Meeting::factory()->create([
+            'is_recurring' => false,
             'frequency' => null,
-            'slug' => 'meeting-null',
+            'slug' => 'meeting-null-non-recurring',
         ]);
 
         $this->assertNull($meeting->fresh()->frequency);
+    }
+
+    #[Test]
+    public function it_rejects_null_frequency_for_recurring_meetings_at_database_level(): void
+    {
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('meetings_recurring_frequency_check');
+
+        DB::table('meetings')->insert([
+            'slug' => 'recurring-null-freq',
+            'type' => 'Adults',
+            'day' => 'Monday',
+            'who' => 'Anyone',
+            'pictures' => false,
+            'is_recurring' => true,
+            'frequency' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     #[Test]
