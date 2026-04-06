@@ -451,9 +451,12 @@ class MediaProcessingLog extends Model
     public static function validationRules(): array
     {
         return [
+            'file_size' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],
             'sermon_start_time' => ['nullable', 'numeric', 'min:0'],
             'sermon_end_time' => ['nullable', 'numeric', 'min:0', 'gte:sermon_start_time'],
+            'visual_sample_count' => ['nullable', 'integer', 'min:0'],
+            'visual_processing_time' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 
