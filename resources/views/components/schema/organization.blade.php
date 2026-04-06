@@ -27,8 +27,8 @@
   'openingHoursSpecification' => collect(config('organization.services'))->map(fn ($service) => [
     '@type' => 'OpeningHoursSpecification',
     'dayOfWeek' => $service['day'],
-    'opens' => $service['time'],
-    'closes' => \Carbon\Carbon::createFromFormat('H:i', $service['time'])->addHours(1)->format('H:i'),
+    'opens' => $service['opens'],
+    'closes' => $service['closes'],
   ])->values()->all(),
 ], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>

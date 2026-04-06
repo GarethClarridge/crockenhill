@@ -32,11 +32,13 @@ return [
     'services' => [
         'morning' => [
             'day' => 'Sunday',
-            'time' => '10:30',
+            'opens' => '10:30',
+            'closes' => '12:00',
         ],
         'evening' => [
             'day' => 'Sunday',
-            'time' => '18:00',
+            'opens' => '18:00',
+            'closes' => '19:00',
         ],
     ],
 
