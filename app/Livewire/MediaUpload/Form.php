@@ -125,7 +125,7 @@ class Form extends Component
 
             if ($result->success) {
                 $this->processingId = $result->processingId;
-                $this->status = ProcessingStatus::PROCESSING->value;
+                $this->status = ProcessingStatus::Processing->value;
                 $this->currentStep = 'Processing started';
                 $this->progressPercentage = 10;
                 $this->successMessage = 'Upload complete. Processing has started.';

@@ -47,7 +47,7 @@ class CompletionOutcomePreservationTest extends TestCase
 
         $processingLog->refresh();
 
-        $this->assertSame(ProcessingStatus::COMPLETED, $processingLog->status);
+        $this->assertSame(ProcessingStatus::Completed, $processingLog->status);
         $this->assertSame('notification_failed_permanently', $processingLog->current_step);
         $this->assertSame(
             'Notification failed permanently: Connection timed out',
@@ -70,7 +70,7 @@ class CompletionOutcomePreservationTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->audio()->processing()->create([
             'sermon_id' => $sermon->id,
             'source_file_path' => 'temp/completed-sermon.mp3',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'updating_sermon_record',
             'error_message' => null,
         ]);
@@ -90,7 +90,7 @@ class CompletionOutcomePreservationTest extends TestCase
 
         $processingLog->refresh();
 
-        $this->assertSame(ProcessingStatus::PROCESSING, $processingLog->status);
+        $this->assertSame(ProcessingStatus::Processing, $processingLog->status);
         $this->assertSame('notification_failed', $processingLog->current_step);
         $this->assertSame(
             'Notification failed: SMTP transport unavailable',
@@ -101,7 +101,7 @@ class CompletionOutcomePreservationTest extends TestCase
 
         $processingLog->refresh();
 
-        $this->assertSame(ProcessingStatus::COMPLETED, $processingLog->status);
+        $this->assertSame(ProcessingStatus::Completed, $processingLog->status);
         $this->assertSame('notification_failed', $processingLog->current_step);
         $this->assertSame(
             'Notification failed: SMTP transport unavailable',

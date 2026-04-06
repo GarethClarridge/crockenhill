@@ -208,7 +208,7 @@ class CleanupTemporaryFilesTest extends TestCase
         $job->handle($mockStorage);
 
         $log->refresh();
-        $this->assertEquals(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertEquals(ProcessingStatus::Cancelled, $log->status);
         $this->assertEquals('cancelled', $log->current_step);
         $this->assertNull($log->completed_at);
     }

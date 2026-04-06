@@ -199,7 +199,7 @@ class SermonProcessingLoggerTest extends TestCase
                 return $level === 'info' && str_contains($message, 'completed');
             });
 
-        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::COMPLETED, ['sermon_id' => 42]);
+        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::Completed, ['sermon_id' => 42]);
     }
 
     #[Test]
@@ -211,7 +211,7 @@ class SermonProcessingLoggerTest extends TestCase
                 return $level === 'error';
             });
 
-        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::FAILED, [], 'Disk full');
+        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::Failed, [], 'Disk full');
     }
 
     #[Test]
@@ -223,7 +223,7 @@ class SermonProcessingLoggerTest extends TestCase
                 return $level === 'info' && str_contains($message, 'cancelled');
             });
 
-        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::CANCELLED, [], 'User requested');
+        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::Cancelled, [], 'User requested');
     }
 
     // --- logError() ---

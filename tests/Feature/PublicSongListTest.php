@@ -74,7 +74,7 @@ class PublicSongListTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $churchService->id,
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
         ]);
 
         ServiceSection::factory()->create([
@@ -156,7 +156,7 @@ class PublicSongListTest extends TestCase
 
         MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $churchService->id,
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
         ]);
 
         $this->get(route('church.songs.index'))

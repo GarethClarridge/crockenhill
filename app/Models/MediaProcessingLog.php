@@ -245,7 +245,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeProcessing(Builder $query): Builder
     {
-        return $query->where('status', ProcessingStatus::PROCESSING->value);
+        return $query->where('status', ProcessingStatus::Processing->value);
     }
 
     /**
@@ -254,7 +254,7 @@ class MediaProcessingLog extends Model
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', ProcessingStatus::PENDING->value);
+        return $query->where('status', ProcessingStatus::Pending->value);
     }
 
     /**
@@ -263,7 +263,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeCompleted(Builder $query): Builder
     {
-        return $query->where('status', ProcessingStatus::COMPLETED->value);
+        return $query->where('status', ProcessingStatus::Completed->value);
     }
 
     /**
@@ -272,7 +272,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeFailed(Builder $query): Builder
     {
-        return $query->where('status', ProcessingStatus::FAILED->value);
+        return $query->where('status', ProcessingStatus::Failed->value);
     }
 
     /**
@@ -283,7 +283,7 @@ class MediaProcessingLog extends Model
     {
         return $query
             ->where('processing_type', MediaType::Livestream->value)
-            ->where('status', ProcessingStatus::FAILED->value)
+            ->where('status', ProcessingStatus::Failed->value)
             ->where('current_step', 'manual_review_required')
             ->where(function (Builder $query): void {
                 $query->whereNotNull('processing_metadata->manual_review->reason_code');
@@ -320,27 +320,27 @@ class MediaProcessingLog extends Model
 
     public function isComplete(): bool
     {
-        return $this->status === ProcessingStatus::COMPLETED;
+        return $this->status === ProcessingStatus::Completed;
     }
 
     public function isFailed(): bool
     {
-        return $this->status === ProcessingStatus::FAILED;
+        return $this->status === ProcessingStatus::Failed;
     }
 
     public function isProcessing(): bool
     {
-        return $this->status === ProcessingStatus::PROCESSING;
+        return $this->status === ProcessingStatus::Processing;
     }
 
     public function isPending(): bool
     {
-        return $this->status === ProcessingStatus::PENDING;
+        return $this->status === ProcessingStatus::Pending;
     }
 
     public function isCancelled(): bool
     {
-        return $this->status === ProcessingStatus::CANCELLED;
+        return $this->status === ProcessingStatus::Cancelled;
     }
 
     /**
@@ -375,7 +375,7 @@ class MediaProcessingLog extends Model
         }
 
         return $this->legacyManualReviewReasonCode() !== null
-            && $this->status === ProcessingStatus::FAILED
+            && $this->status === ProcessingStatus::Failed
             && $this->current_step === 'manual_review_required'
             && $this->processing_type === MediaType::Livestream;
     }
@@ -432,7 +432,7 @@ class MediaProcessingLog extends Model
     {
         if (
             $this->processing_type !== MediaType::Livestream
-            || $this->status !== ProcessingStatus::FAILED
+            || $this->status !== ProcessingStatus::Failed
             || $this->current_step !== 'manual_review_required'
             || ! is_string($this->error_message)
             || $this->error_message === ''
@@ -451,9 +451,12 @@ class MediaProcessingLog extends Model
     public static function validationRules(): array
     {
         return [
+            'file_size' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],
             'sermon_start_time' => ['nullable', 'numeric', 'min:0'],
             'sermon_end_time' => ['nullable', 'numeric', 'min:0', 'gte:sermon_start_time'],
+            'visual_sample_count' => ['nullable', 'integer', 'min:0'],
+            'visual_processing_time' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

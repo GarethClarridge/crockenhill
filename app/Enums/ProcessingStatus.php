@@ -6,55 +6,55 @@ namespace App\Enums;
 
 enum ProcessingStatus: string
 {
-    case PENDING = 'pending';
-    case STARTED = 'started';
-    case PROCESSING = 'processing';
-    case COMPLETED = 'completed';
-    case SKIPPED = 'skipped';
-    case FAILED = 'failed';
-    case CANCELLED = 'cancelled';
+    case Pending = 'pending';
+    case Started = 'started';
+    case Processing = 'processing';
+    case Completed = 'completed';
+    case Skipped = 'skipped';
+    case Failed = 'failed';
+    case Cancelled = 'cancelled';
 
     public function label(): string
     {
         return match ($this) {
-            self::PENDING => 'Pending',
-            self::STARTED => 'Started',
-            self::PROCESSING => 'Processing',
-            self::COMPLETED => 'Completed',
-            self::SKIPPED => 'Skipped',
-            self::FAILED => 'Failed',
-            self::CANCELLED => 'Cancelled',
+            self::Pending => 'Pending',
+            self::Started => 'Started',
+            self::Processing => 'Processing',
+            self::Completed => 'Completed',
+            self::Skipped => 'Skipped',
+            self::Failed => 'Failed',
+            self::Cancelled => 'Cancelled',
         };
     }
 
     public function isComplete(): bool
     {
-        return $this === self::COMPLETED;
+        return $this === self::Completed;
     }
 
     public function isFailed(): bool
     {
-        return $this === self::FAILED;
+        return $this === self::Failed;
     }
 
     public function isSkipped(): bool
     {
-        return $this === self::SKIPPED;
+        return $this === self::Skipped;
     }
 
     public function isCancelled(): bool
     {
-        return $this === self::CANCELLED;
+        return $this === self::Cancelled;
     }
 
     public function isInProgress(): bool
     {
-        return $this === self::PROCESSING;
+        return $this === self::Processing;
     }
 
     public function isPending(): bool
     {
-        return $this === self::PENDING;
+        return $this === self::Pending;
     }
 
     /**
@@ -62,6 +62,6 @@ enum ProcessingStatus: string
      */
     public function isRetryable(): bool
     {
-        return $this === self::FAILED || $this === self::CANCELLED;
+        return $this === self::Failed || $this === self::Cancelled;
     }
 }

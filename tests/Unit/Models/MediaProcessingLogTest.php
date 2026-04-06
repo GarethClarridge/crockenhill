@@ -35,7 +35,7 @@ class MediaProcessingLogTest extends TestCase
         $data = [
             'processing_id' => 'uuid-123',
             'processing_type' => MediaType::Audio,
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'initialization',
             'error_message' => 'Something went wrong',
             'original_filename' => 'test.mp3',
@@ -127,7 +127,7 @@ class MediaProcessingLogTest extends TestCase
         ]);
 
         $this->assertInstanceOf(ProcessingStatus::class, $log->status);
-        $this->assertEquals(ProcessingStatus::PROCESSING, $log->status);
+        $this->assertEquals(ProcessingStatus::Processing, $log->status);
         $this->assertInstanceOf(SermonAnalysis::class, $log->ai_analysis);
         $this->assertInstanceOf(ProcessingMetadata::class, $log->processing_metadata);
         $this->assertIsFloat($log->duration);
@@ -213,10 +213,10 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function it_defines_status_scopes(): void
     {
-        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::PROCESSING]);
-        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::PENDING]);
-        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::COMPLETED]);
-        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::FAILED]);
+        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Processing]);
+        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Pending]);
+        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Completed]);
+        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Failed]);
 
         $this->assertCount(1, MediaProcessingLog::processing()->get());
         $this->assertCount(1, MediaProcessingLog::pending()->get());
@@ -227,7 +227,7 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function it_provides_status_helpers(): void
     {
-        $log = new MediaProcessingLog(['status' => ProcessingStatus::COMPLETED]);
+        $log = new MediaProcessingLog(['status' => ProcessingStatus::Completed]);
 
         $this->assertTrue($log->isComplete());
         $this->assertFalse($log->isFailed());
@@ -238,19 +238,19 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function it_manages_status_transitions(): void
     {
-        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::PENDING]);
+        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Pending]);
 
         app(\App\Services\MediaProcessingRunTransitionService::class)->markAsProcessing($log, 'step1');
-        $this->assertEquals(ProcessingStatus::PROCESSING, $log->status);
+        $this->assertEquals(ProcessingStatus::Processing, $log->status);
         $this->assertEquals('step1', $log->current_step);
         $this->assertNotNull($log->started_at);
 
         app(\App\Services\MediaProcessingRunTransitionService::class)->markAsCompleted($log);
-        $this->assertEquals(ProcessingStatus::COMPLETED, $log->status);
+        $this->assertEquals(ProcessingStatus::Completed, $log->status);
         $this->assertNotNull($log->completed_at);
 
         app(\App\Services\MediaProcessingRunTransitionService::class)->markAsFailed($log, 'Error occurred', 'step2');
-        $this->assertEquals(ProcessingStatus::FAILED, $log->status);
+        $this->assertEquals(ProcessingStatus::Failed, $log->status);
         $this->assertEquals('Error occurred', $log->error_message);
         $this->assertEquals('step2', $log->current_step);
     }
@@ -259,7 +259,7 @@ class MediaProcessingLogTest extends TestCase
     public function it_can_preserve_completion_context_when_marked_as_completed(): void
     {
         $log = MediaProcessingLog::factory()->create([
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'notification_failed',
             'error_message' => 'Notification failed: SMTP transport unavailable',
         ]);
@@ -270,7 +270,7 @@ class MediaProcessingLogTest extends TestCase
             errorMessage: 'Notification failed: SMTP transport unavailable'
         );
 
-        $this->assertEquals(ProcessingStatus::COMPLETED, $log->status);
+        $this->assertEquals(ProcessingStatus::Completed, $log->status);
         $this->assertEquals('notification_failed', $log->current_step);
         $this->assertEquals(
             'Notification failed: SMTP transport unavailable',
@@ -288,7 +288,7 @@ class MediaProcessingLogTest extends TestCase
 
         $this->assertFalse($result);
         $log->refresh();
-        $this->assertEquals(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertEquals(ProcessingStatus::Cancelled, $log->status);
         $this->assertEquals('cancelled', $log->current_step);
         $this->assertNull($log->completed_at);
     }
@@ -296,7 +296,7 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function it_stores_structured_metadata_when_marked_for_manual_review(): void
     {
-        $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::PROCESSING]);
+        $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::Processing]);
 
         $speechSegments = [
             ['segment_id' => 1, 'start_time' => 0.0, 'end_time' => 1320.0, 'duration' => 1320.0],
@@ -307,7 +307,7 @@ class MediaProcessingLogTest extends TestCase
             ->markForManualReview($log, 'ratio_below_threshold', 'The longest speech block was not at least 1.5x longer.', $speechSegments);
         $log->refresh();
 
-        $this->assertSame(ProcessingStatus::FAILED, $log->status);
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
         $this->assertSame('manual_review_required', $log->current_step);
         $this->assertSame('The longest speech block was not at least 1.5x longer.', $log->error_message);
 
@@ -368,7 +368,7 @@ class MediaProcessingLogTest extends TestCase
     public function it_detects_legacy_manual_review_rows_as_awaiting_review(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
             'error_message' => 'Manual Review Note: Multiple speech blocks met the 20-minute sermon threshold.',
             'processing_metadata' => null,
@@ -382,14 +382,14 @@ class MediaProcessingLogTest extends TestCase
     public function it_includes_legacy_manual_review_rows_in_the_awaiting_review_scope(): void
     {
         $legacyLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
             'error_message' => 'Manual Review Note: Sermon auto-selection confidence was insufficient.',
             'processing_metadata' => null,
         ]);
 
         MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
             'error_message' => 'Unrelated failure message',
             'processing_metadata' => null,
@@ -414,7 +414,7 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function it_confirms_sermon_segment_and_records_audit_data(): void
     {
-        $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::FAILED]);
+        $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::Failed]);
         app(\App\Services\MediaProcessingRunTransitionService::class)
             ->markForManualReview($log, 'ratio_below_threshold', 'Ratio below threshold.');
         $log->refresh();
@@ -422,7 +422,7 @@ class MediaProcessingLogTest extends TestCase
         app(\App\Services\MediaProcessingRunTransitionService::class)->confirmSermonSegment($log, 42, 7);
         $log->refresh();
 
-        $this->assertSame(ProcessingStatus::PENDING, $log->status);
+        $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertNull($log->error_message);
         $this->assertSame(42, $log->manuallyConfirmedSegmentId());
@@ -477,40 +477,40 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function mark_as_failed_does_not_overwrite_a_cancelled_run(): void
     {
-        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::CANCELLED]);
+        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Cancelled]);
 
         $result = app(\App\Services\MediaProcessingRunTransitionService::class)
             ->markAsFailed($log, 'Should be ignored');
 
         $this->assertFalse($result);
         $log->refresh();
-        $this->assertSame(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertSame(ProcessingStatus::Cancelled, $log->status);
         $this->assertNotEquals('Should be ignored', $log->error_message);
     }
 
     #[Test]
     public function mark_as_completed_does_not_overwrite_a_cancelled_run(): void
     {
-        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::CANCELLED]);
+        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Cancelled]);
 
         $result = app(\App\Services\MediaProcessingRunTransitionService::class)
             ->markAsCompleted($log, 'completed');
 
         $this->assertFalse($result);
         $log->refresh();
-        $this->assertSame(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertSame(ProcessingStatus::Cancelled, $log->status);
     }
 
     #[Test]
     public function mark_as_processing_does_not_overwrite_a_cancelled_run(): void
     {
-        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::CANCELLED]);
+        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Cancelled]);
 
         $result = app(\App\Services\MediaProcessingRunTransitionService::class)
             ->markAsProcessing($log, 'some_step');
 
         $this->assertFalse($result);
         $log->refresh();
-        $this->assertSame(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertSame(ProcessingStatus::Cancelled, $log->status);
     }
 }

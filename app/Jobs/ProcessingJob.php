@@ -47,7 +47,7 @@ abstract class ProcessingJob
                 'step' => $step,
             ],
             [
-                'status' => ProcessingStatus::STARTED->value,
+                'status' => ProcessingStatus::Started->value,
                 'message' => $message,
                 'started_at' => now(),
                 'completed_at' => null,
@@ -76,7 +76,7 @@ abstract class ProcessingJob
         ]);
 
         $stepLog->fill([
-            'status' => ProcessingStatus::COMPLETED->value,
+            'status' => ProcessingStatus::Completed->value,
             'message' => $message,
             'started_at' => $stepLog->started_at ?? now(),
             'completed_at' => now(),
@@ -105,7 +105,7 @@ abstract class ProcessingJob
         ]);
 
         $stepLog->fill([
-            'status' => ProcessingStatus::FAILED->value,
+            'status' => ProcessingStatus::Failed->value,
             'message' => $error,
             'started_at' => $stepLog->started_at ?? now(),
             'completed_at' => now(),
@@ -133,7 +133,7 @@ abstract class ProcessingJob
         ]);
 
         $stepLog->fill([
-            'status' => ProcessingStatus::SKIPPED->value,
+            'status' => ProcessingStatus::Skipped->value,
             'message' => $message,
             'started_at' => $stepLog->started_at ?? now(),
             'completed_at' => now(),
@@ -152,7 +152,7 @@ abstract class ProcessingJob
 
         // Check if any processing steps have been cancelled
         $cancelledSteps = SermonProcessingStep::where('processing_id', $this->processingId)
-            ->where('status', ProcessingStatus::CANCELLED->value)
+            ->where('status', ProcessingStatus::Cancelled->value)
             ->count();
 
         if ($cancelledSteps > 0) {

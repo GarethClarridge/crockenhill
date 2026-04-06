@@ -140,7 +140,7 @@ class ConfirmSegmentApiTest extends TestCase
             ->assertJsonStructure(['success', 'message', 'status_url']);
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::PENDING, $log->status);
+        $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
         Queue::assertPushed(\App\Jobs\ExtractSermon::class, function (\App\Jobs\ExtractSermon $job): bool {

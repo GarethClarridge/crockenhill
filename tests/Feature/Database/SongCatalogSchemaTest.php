@@ -101,15 +101,15 @@ class SongCatalogSchemaTest extends TestCase
 
         DB::table('songs')->insert([
             [
-                'canonical_key' => 'legacy-song-key',
-                'title' => '',
+                'canonical_key' => 'legacy-song-key-1',
+                'title' => 'Legacy Song 1',
                 'lyrics_xml' => '<song><lyrics /></song>',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'canonical_key' => 'legacy-song-key',
-                'title' => '',
+                'canonical_key' => 'legacy-song-key-2',
+                'title' => 'Legacy Song 2',
                 'lyrics_xml' => '<song><lyrics /></song>',
                 'created_at' => now(),
                 'updated_at' => now(),

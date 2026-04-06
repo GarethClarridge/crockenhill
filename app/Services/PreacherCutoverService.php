@@ -70,10 +70,10 @@ class PreacherCutoverService
             }
 
             $rawAlias = $this->normalizeName($rawName);
-            $alias = PreacherAlias::query()->firstOrCreate(
+            $alias = PreacherAlias::withoutEvents(fn () => PreacherAlias::query()->firstOrCreate(
                 ['alias' => $rawAlias],
                 ['preacher_id' => $preacher->id],
-            );
+            ));
 
             if ($alias->wasRecentlyCreated) {
                 $summary['aliases_created']++;
@@ -107,10 +107,10 @@ class PreacherCutoverService
                 $preacher = $this->resolveCachedPreacher($canonicalName, $preacherCache);
 
                 if ($this->normalizeName($rawPreacher) !== $this->normalizeName($canonicalName)) {
-                    PreacherAlias::query()->firstOrCreate(
+                    PreacherAlias::withoutEvents(fn () => PreacherAlias::query()->firstOrCreate(
                         ['alias' => $this->normalizeName($rawPreacher)],
                         ['preacher_id' => $preacher->id],
-                    );
+                    ));
                 }
 
                 $sermon->update([
