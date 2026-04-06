@@ -21,6 +21,7 @@ This folder contains completed implementation plans and historical audit/refacto
 | **song-video-feature-implementation-plan.md** | April 2026 | Song video publication, public display, and admin management |
 | **test-coverage-improvement-plan.md** | March 2026 | Full controller, job, service, Livewire, and DTO test coverage plan completion |
 | **media-upload-combined-report-and-plan.md** | April 2026 | Historical combined audit and phased media-upload refactor plan after completed context was split out |
+| **livestream-derived-service-plan.md** | April 2026 | Livestream-first church service projection, staged merge review, and identity-first matching plan after delivery |
 
 ## Historical Audits & Reports
 

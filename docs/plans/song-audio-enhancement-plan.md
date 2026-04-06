@@ -1,89 +1,83 @@
-# Plan: Song Video Audio Enhancement
+# Song Video Audio Enhancement Plan
 
-## Context
+Updated 2026-04-06.
 
-Sermon audio enhancement (noise reduction, dynamic normalisation, loudness normalisation via FFmpeg) was added in March 2026 as a best-effort step in the sermon processing pipeline (`EnhanceAudio` job). The same FFmpeg filter chain — `afftdn`, `dynaudnorm`, `loudnorm` — could improve listener experience on song clips extracted from livestreams.
+## Status
 
-Unlike sermons, songs have no transcription step, so the Whisper accuracy motivation doesn't apply. The benefit here is purely audio quality for listeners.
+This feature is still implementable, but the original draft assumed a simpler local-file flow than the current song publication path actually uses.
 
----
+## Current Reality
 
-## What Songs Are
+- Song clips are published through `SongPublicationHandler`, which works in terms of Laravel storage disks and promoted files rather than a permanently local working file.
+- `AudioEnhancementService` already contains the FFmpeg-based audio enhancement logic used for sermon audio, but it currently targets audio-file output (`.mp3`) rather than video containers.
+- The current song publication flow is the right integration point because songs do not go through the same processing-log/state-machine pipeline used for sermons.
 
-Songs extracted from livestreams are published as `SongVideo` records via `SongPublicationHandler`. They are MP4 video clips (not audio-only files), stored at `sermons/songs/{song_id}/{section_id}.mp4`. The handler takes an `extracted_video_path` and writes the final video to storage — no audio extraction, no transcription.
+## Recommended Approach
 
-Relevant file: `app/Services/SectionPublication/SongPublicationHandler.php`
+### 1. Extend `AudioEnhancementService` for video containers
 
----
+Add a video-aware enhancement method that:
 
-## Chosen Approach: Extend `AudioEnhancementService`, call from `SongPublicationHandler`
+- Accepts a local MP4 input path plus a processing identifier.
+- Reuses the existing filter stack and configuration toggles.
+- Preserves the video stream while re-encoding the audio stream to an MP4-compatible codec.
+- Returns `null` on failure so publication can fall back to the original clip.
 
-`AudioEnhancementService` already centralises the FFmpeg filter logic. Rather than adding a new job and new pipeline step (which would require updating `ProcessingPhaseRegistry` offsets again), the service should gain a second method for video files.
+Expected behaviour:
 
-### Why not a new job?
+- Video stream is copied unchanged.
+- Audio stream is enhanced best-effort and written to a temp MP4.
+- The method follows the same non-throwing contract as the existing sermon enhancement path.
 
-Song publication doesn't use the `MediaProcessingLog` state machine that the rest of the processing pipeline does. There's no `current_step` tracking, no retry-from-cursor logic. Wrapping it in a job would add boilerplate with no meaningful benefit.
+### 2. Make `SongPublicationHandler` storage-aware
 
----
+Update publication to work for both local and remote disks.
 
-## Implementation Steps
+Tasks:
 
-### 1. Add `enhanceVideoAudio()` to `AudioEnhancementService`
+- [ ] Resolve the current extracted clip from its configured storage disk.
+- [ ] If the source file is not already available as a local filesystem path, download it to a temp working file first.
+- [ ] Run best-effort audio enhancement against that local temp file.
+- [ ] Promote the enhanced MP4 when enhancement succeeds; otherwise promote the original clip.
+- [ ] Keep the final persisted output path and public/private storage behaviour unchanged.
 
-```php
-/**
- * Enhance the audio track of an MP4 video file in-place (video stream copied unchanged).
- * Returns the output path, or null if enhancement is disabled or fails.
- */
-public function enhanceVideoAudio(string $inputPath, string $processingId): ?string
-```
+Why this matters:
 
-- Same filter chain as `enhance()`: `afftdn`, `dynaudnorm`, two-pass `loudnorm`
-- FFmpeg flags: `-c:v copy` (preserve video stream, re-encode audio only)
-- Output codec: `-c:a aac -b:a 192k` (AAC is standard for MP4 containers; MP3 is not)
-- Output path: `storage_path("app/temp/{$processingId}_enhanced_song.mp4")`
-- Returns `null` (never throws) on any failure — same best-effort contract as `enhance()`
+- The handler already owns storage promotion semantics.
+- The enhancement service should focus on FFmpeg work, not disk-specific storage policy.
+- This keeps song publication robust for local disks and S3-compatible disks alike.
 
-The two-pass loudnorm measurement pass is identical; only the second-pass output flags change.
+### 3. Clean up temp files inside the handler
 
-### 2. Call from `SongPublicationHandler::publish()`
+Do not depend on the general processing cleanup job for this feature.
 
-In `publish()`, after the source video path is resolved and before writing the `SongVideo` record:
+Tasks:
 
-```php
-// Best-effort audio enhancement — falls back to original if it fails
-$enhancedPath = $this->audioEnhancementService->enhanceVideoAudio(
-    $sourceVideoPath,
-    $processingId
-);
+- [ ] Use a `try`/`finally` structure in the handler to delete any temp download and temp enhanced-video files created during publication.
+- [ ] Preserve fallback behaviour if cleanup fails silently.
 
-$finalVideoPath = $enhancedPath ?? $sourceVideoPath;
-```
+Rationale:
 
-Inject `AudioEnhancementService` via the constructor (it's already bound in the service container).
+- Song publication is not part of the same cleanup lifecycle as sermon processing jobs.
+- The handler already knows exactly which temp files it created.
 
-### 3. Cleanup
+## Not Recommended from the Earlier Draft
 
-The enhanced temp file (`_enhanced_song.mp4`) is written to `storage/app/temp/`. Add it to the cleanup list in `CleanupTemporaryFiles` — or rely on the existing temp cleanup strategy if it already sweeps that directory generically.
-
----
+- Do not treat song enhancement as a new queued processing phase with `ProcessingPhaseRegistry` changes.
+- Do not assume the source clip is always a stable local path that can be enhanced in place.
+- Do not rely on broad temp-directory sweeping as the primary cleanup strategy for this feature.
 
 ## Tests to Add
 
-**Unit — `AudioEnhancementServiceTest`:**
-- `enhanceVideoAudio` returns `null` when `audio_enhancement.enabled = false`
-- `enhanceVideoAudio` returns `null` when input file does not exist
-- Filter chain uses `-c:v copy` and `-c:a aac` (not `-c:a libmp3lame`)
-- Output path ends in `_enhanced_song.mp4` (not `.mp3`)
+- [ ] Unit coverage for the new video enhancement method: disabled config, missing input, success path, and expected FFmpeg/output settings.
+- [ ] Handler-level test for a local-disk source where enhancement succeeds and the enhanced video is promoted.
+- [ ] Handler-level test for a remote/private disk source that requires temp download before enhancement.
+- [ ] Handler-level test confirming fallback to the original clip when enhancement returns `null`.
+- [ ] Handler-level test confirming temp files are cleaned up in both success and fallback flows.
 
-**Feature — `SongPublicationHandlerTest` (or equivalent):**
-- When enhancement succeeds, `SongVideo` is created with the enhanced video path
-- When enhancement returns `null`, `SongVideo` is created with the original path (no exception)
+## Definition of Done
 
----
-
-## Notes
-
-- The `AudioEnhancementService` config (`audio_enhancement.enabled`, noise reduction, dynamic norm, loudness norm toggles) applies to both sermon and song enhancement — there's no need for separate config keys unless different behaviour per type is wanted later.
-- Songs are often recorded at fairly consistent levels (church PA systems), so the noise reduction and loudness normalisation benefit may be less dramatic than for sermon speech recordings.
-- This work is independent of the sermon pipeline changes — no `ProcessingPhaseRegistry` offsets need updating.
+- [ ] Song publication can enhance clip audio without changing existing publication semantics.
+- [ ] The implementation works for both local and remote storage disks.
+- [ ] Failed enhancement never blocks song publication.
+- [ ] Temp files are cleaned up by the publication flow itself.
