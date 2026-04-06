@@ -27,6 +27,8 @@ trait WithUploadLifecycle
 
     public ?string $originalFileName = null;
 
+    public bool $autoTrimVideo = false;
+
     // Upload progress tracking
     public int $uploadProgress = 0;
 
@@ -46,6 +48,9 @@ trait WithUploadLifecycle
     public function updatedMediaType(): void
     {
         $this->mediaFile = null;
+        if ($this->mediaType !== MediaType::Video->value) {
+            $this->autoTrimVideo = false;
+        }
         $this->resetErrorBag('mediaFile');
     }
 
@@ -196,6 +201,10 @@ trait WithUploadLifecycle
         $this->uploadCancelled = false;
         $this->uploadProgress = 0;
         $this->mediaFile = null;
+
+        if ($this->mediaType !== MediaType::Video->value) {
+            $this->autoTrimVideo = false;
+        }
     }
 
     /**

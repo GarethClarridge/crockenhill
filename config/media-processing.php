@@ -216,6 +216,16 @@ return [
         ],
     ],
 
+    'video_auto_trim' => [
+        'enabled' => env('VIDEO_AUTO_TRIM_ENABLED', true),
+        'max_file_size' => 1024 * 1024 * 1024, // 1GB - matches sermon video uploads
+        'manual_review' => [
+            'enabled' => env('VIDEO_AUTO_TRIM_MANUAL_REVIEW_ENABLED', true),
+        ],
+        // Auto-trim intentionally skips song-catalog matching and instead treats
+        // unmatched leading/trailing song-like sections as trim candidates.
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Section Publishing (Phase 3)

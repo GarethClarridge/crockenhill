@@ -1,8 +1,8 @@
 <div class="space-y-6">
     <div class="flex justify-between items-center">
         <div>
-            <h1 class="font-display text-3xl">Livestream review queue</h1>
-            <p class="text-gray-600">Livestream runs paused for manual sermon selection</p>
+            <h1 class="font-display text-3xl">Sermon review queue</h1>
+            <p class="text-gray-600">Segmentation-style runs paused for manual sermon selection</p>
         </div>
     </div>
 
@@ -30,6 +30,7 @@
                             $reasonCode = $reviewMeta['reason_code'] ?? null;
                             $speechSegments = $reviewMeta['speech_segments'] ?? [];
                             $isConfirmed = ($reviewMeta['status'] ?? null) === 'confirmed';
+                            $runLabel = $log->isAutoTrimVideoRun() ? 'Auto-trim video' : 'Livestream';
                         @endphp
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 whitespace-nowrap">
@@ -38,6 +39,7 @@
                             </td>
                             <td class="px-4 py-3">
                                 <p class="text-sm font-medium truncate max-w-xs">{{ $log->original_filename }}</p>
+                                <p class="text-xs text-gray-500">{{ $runLabel }}</p>
                                 <p class="text-xs text-gray-500 font-mono">{{ $log->processing_id }}</p>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">
@@ -93,7 +95,7 @@
                     @empty
                         <tr>
                             <td colspan="7" class="px-4 py-12 text-center">
-                                <p class="text-gray-500">No livestream runs are awaiting manual review.</p>
+                                <p class="text-gray-500">No sermon processing runs are awaiting manual review.</p>
                             </td>
                         </tr>
                     @endforelse

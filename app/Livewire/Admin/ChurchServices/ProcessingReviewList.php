@@ -43,8 +43,8 @@ class ProcessingReviewList extends Component
         return view('livewire.admin.church-services.processing-review-list', [
             'pendingReviews' => $pendingReviews,
         ])->layout('layouts.admin', [
-            'title' => 'Livestream Review Queue',
-            'heading' => 'Livestream Review Queue',
+            'title' => 'Sermon Review Queue',
+            'heading' => 'Sermon Review Queue',
         ]);
     }
 }

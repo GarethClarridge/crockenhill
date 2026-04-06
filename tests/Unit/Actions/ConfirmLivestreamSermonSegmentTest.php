@@ -111,7 +111,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Only livestream runs');
+        $this->expectExceptionMessage('Only segmentation-style runs');
 
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
     }

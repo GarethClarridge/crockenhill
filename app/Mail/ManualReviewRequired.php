@@ -25,7 +25,7 @@ class ManualReviewRequired extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Manual Review Required - Livestream Processing '.$this->processingId,
+            subject: 'Manual Review Required - Sermon Processing '.$this->processingId,
         );
     }
 

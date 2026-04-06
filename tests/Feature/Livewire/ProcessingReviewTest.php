@@ -75,7 +75,7 @@ class ProcessingReviewTest extends TestCase
         Livewire::test(ProcessingReviewList::class)
             ->assertSee($flagged->processing_id)
             ->assertSee('Awaiting review')
-            ->assertDontSee('No livestream runs are awaiting manual review');
+            ->assertDontSee('No sermon processing runs are awaiting manual review');
     }
 
     #[Test]
@@ -84,7 +84,7 @@ class ProcessingReviewTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(ProcessingReviewList::class)
-            ->assertSee('No livestream runs are awaiting manual review');
+            ->assertSee('No sermon processing runs are awaiting manual review');
     }
 
     #[Test]

@@ -25,8 +25,15 @@ class UnifiedMediaProcessor
         private readonly GetMediaProcessingStatus $getMediaProcessingStatus,
     ) {}
 
-    public function process(string $type, UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
-    {
+    /**
+     * @param  array<string, mixed>  $options
+     */
+    public function process(
+        string $type,
+        UploadedFile $file,
+        ?string $clientFileDate = null,
+        array $options = []
+    ): ProcessingResult {
         Log::info('Unified media processing started', [
             'type' => $type,
             'filename' => $file->getClientOriginalName(),
@@ -53,7 +60,7 @@ class UnifiedMediaProcessor
 
         return match ($mediaType) {
             MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash),
-            MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash),
+            MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options),
             MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash),
         };
     }
@@ -259,18 +266,33 @@ class UnifiedMediaProcessor
      * Process video by extracting audio and joining existing sermon processing.
      * Uses ProcessingInitiator for shared metadata extraction and log creation.
      */
-    private function processDirectVideo(UploadedFile $file, ?string $clientFileDate, ?string $fileHash): ProcessingResult
-    {
+    /**
+     * @param  array<string, mixed>  $options
+     */
+    private function processDirectVideo(
+        UploadedFile $file,
+        ?string $clientFileDate,
+        ?string $fileHash,
+        array $options = []
+    ): ProcessingResult {
         try {
             // Store video file temporarily before processing (preserves file timestamps for metadata extraction)
             $tempPath = $file->store('temp/video-processing');
+            $videoProcessingMode = $this->resolveVideoProcessingMode($options);
 
             // Create processing log via shared initiator
             $processingLog = $this->processingInitiator->initiateProcessing(
                 $file,
                 MediaType::Video,
                 $clientFileDate,
-                ['source_file_path' => $tempPath, 'file_hash' => $fileHash]
+                [
+                    'source_file_path' => $tempPath,
+                    'file_hash' => $fileHash,
+                    'processing_metadata' => [
+                        'video_processing_mode' => $videoProcessingMode,
+                        'trim_requested' => $videoProcessingMode === MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                    ],
+                ]
             );
 
             $this->processingRunOrchestrator->start($processingLog);
@@ -303,5 +325,21 @@ class UnifiedMediaProcessor
         }
 
         return "An internal error occurred while initiating {$type} processing.";
+    }
+
+    /**
+     * @param  array<string, mixed>  $options
+     */
+    private function resolveVideoProcessingMode(array $options): string
+    {
+        $mode = $options['video_processing_mode'] ?? null;
+
+        if ($mode === MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM) {
+            return MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM;
+        }
+
+        return ($options['auto_trim'] ?? false) === true
+            ? MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM
+            : MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO;
     }
 }

@@ -24,7 +24,7 @@ class MemberController extends Controller
                 ->count()
             : 0;
 
-        $pendingLivestreamReviewCount = $isAdmin
+        $pendingSermonReviewCount = $isAdmin
             ? MediaProcessingLog::query()
                 ->awaitingManualSermonReview()
                 ->count()
@@ -33,7 +33,7 @@ class MemberController extends Controller
         return view('members.home', [
             'heading' => 'Members',
             'pendingInboundEmailCount' => $pendingInboundEmailCount,
-            'pendingLivestreamReviewCount' => $pendingLivestreamReviewCount,
+            'pendingLivestreamReviewCount' => $pendingSermonReviewCount,
         ]);
     }
 }

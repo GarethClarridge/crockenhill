@@ -121,7 +121,12 @@ class Form extends Component
             ]);
 
             $processor = $this->getProcessor();
-            $result = $processor->process($this->mediaType, $originalFile, $this->fileModifiedDate);
+            $result = $processor->process(
+                $this->mediaType,
+                $originalFile,
+                $this->fileModifiedDate,
+                $this->processingOptions()
+            );
 
             if ($result->success) {
                 $this->processingId = $result->processingId;
@@ -321,6 +326,25 @@ class Form extends Component
         $this->errorMessage = null;
         $this->successMessage = null;
         $this->cancelledMessage = null;
+        $this->manualReviewMessage = null;
+        $this->manualReviewUrl = null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function processingOptions(): array
+    {
+        if ($this->mediaType !== MediaType::Video->value) {
+            return [];
+        }
+
+        return [
+            'auto_trim' => $this->autoTrimVideo,
+            'video_processing_mode' => $this->autoTrimVideo
+                ? MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM
+                : MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO,
+        ];
     }
 
     private function getProcessor(): UnifiedMediaProcessor

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Contracts\TranscriptionServiceInterface;
-use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
@@ -72,11 +71,8 @@ class TranscribeSpeechSegments extends ProcessingJob implements ShouldQueue
         $this->processingLog = $processingLog;
         $this->initializeStepLogging($this->processingLog->processing_id);
 
-        if (
-            $this->processingLog->processing_type !== MediaType::Livestream
-            || $this->processingLog->isCancelled()
-        ) {
-            $this->logStepSkipped(ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS, 'Speech segment transcription only runs for active livestream processing');
+        if (! $this->processingLog->usesSegmentationPipeline() || $this->processingLog->isCancelled()) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS, 'Speech segment transcription only runs for active segmentation processing');
 
             return;
         }

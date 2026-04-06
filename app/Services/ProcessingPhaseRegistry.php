@@ -25,6 +25,7 @@ class ProcessingPhaseRegistry
         return match ($pipeline) {
             'audio' => $this->audioPhases(),
             'video' => $this->videoPhases(),
+            'video_auto_trim' => $this->videoAutoTrimPhases(),
             'livestream' => $this->livestreamPhases(),
             default => [],
         };
@@ -38,7 +39,7 @@ class ProcessingPhaseRegistry
             return 50;
         }
 
-        $pipelines = ['audio', 'video', 'livestream'];
+        $pipelines = ['audio', 'video', 'video_auto_trim', 'livestream'];
 
         if ($mediaType !== null) {
             $preferredPipeline = $this->pipelineForMediaType($mediaType);
@@ -58,13 +59,16 @@ class ProcessingPhaseRegistry
 
     public function progressForLog(MediaProcessingLog $processingLog): int
     {
-        return $this->progressForStep($processingLog->current_step, $processingLog->processing_type);
+        $normalizedStep = $this->normalizeStep($processingLog->current_step);
+        $phase = $this->phaseForPipelineStep($this->pipelineForLog($processingLog), $normalizedStep);
+
+        return $phase['progress'] ?? $this->progressForStep($processingLog->current_step, $processingLog->processing_type);
     }
 
     /**
      * @return array{
      *     action: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream'|'manual_review',
-     *     pipeline?: 'audio'|'video'|'livestream',
+     *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
      *     job_offset?: int,
      *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
      *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
@@ -94,8 +98,8 @@ class ProcessingPhaseRegistry
             );
         }
 
-        /** @var 'audio'|'video'|'livestream' $pipeline */
-        $pipeline = $this->pipelineForMediaType($processingLog->processing_type);
+        /** @var 'audio'|'video'|'video_auto_trim'|'livestream' $pipeline */
+        $pipeline = $this->pipelineForLog($processingLog);
         $phase = $this->phaseForPipelineStep($pipeline, $normalizedStep);
 
         if ($phase !== null) {
@@ -156,6 +160,11 @@ class ProcessingPhaseRegistry
             MediaType::Video => 'video',
             MediaType::Livestream => 'livestream',
         };
+    }
+
+    private function pipelineForLog(MediaProcessingLog $processingLog): string
+    {
+        return $processingLog->processingPipelineProfile();
     }
 
     /**
@@ -402,6 +411,211 @@ class ProcessingPhaseRegistry
                 'key' => 'cleanup',
                 'progress' => 95,
                 'job_offset' => 9,
+                'steps' => [
+                    'cleanup',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return list<array{
+     *     key: string,
+     *     progress: int,
+     *     job_offset: int,
+     *     steps: list<string>,
+     *     retry_action?: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream',
+     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none'
+     * }>
+     */
+    private function videoAutoTrimPhases(): array
+    {
+        return [
+            [
+                'key' => 'video_initiated',
+                'progress' => 10,
+                'job_offset' => 0,
+                'steps' => [
+                    'video_processing_initiated',
+                ],
+            ],
+            [
+                'key' => 'validate_video',
+                'progress' => 15,
+                'job_offset' => 0,
+                'steps' => [
+                    'validating',
+                    'video_validation_complete',
+                ],
+            ],
+            [
+                'key' => 'rms_generation',
+                'progress' => 20,
+                'job_offset' => 1,
+                'steps' => [
+                    'rms_generation',
+                ],
+            ],
+            [
+                'key' => 'analyze_segments',
+                'progress' => 30,
+                'job_offset' => 2,
+                'rerun_strategy' => 'targeted_reset',
+                'reset_scope' => 'analyze_segments',
+                'steps' => [
+                    'segmentation',
+                ],
+            ],
+            [
+                'key' => 'segment_analysis',
+                'progress' => 40,
+                'job_offset' => 2,
+                'rerun_strategy' => 'targeted_reset',
+                'reset_scope' => 'analyze_segments',
+                'steps' => [
+                    'segmenting',
+                    'analyzing_segments',
+                ],
+            ],
+            [
+                'key' => 'classify_sections',
+                'progress' => 45,
+                'job_offset' => 3,
+                'steps' => [
+                    'classifying_sections',
+                ],
+            ],
+            [
+                'key' => 'classified_sections',
+                'progress' => 52,
+                'job_offset' => 3,
+                'steps' => [
+                    'section_classification_complete',
+                    'section_classification_skipped',
+                ],
+            ],
+            [
+                'key' => 'transcribe_speech_segments',
+                'progress' => 53,
+                'job_offset' => 4,
+                'steps' => [
+                    'transcribe_speech_segments',
+                ],
+            ],
+            [
+                'key' => 'classify_speech_sections',
+                'progress' => 54,
+                'job_offset' => 5,
+                'steps' => [
+                    'classify_speech_sections',
+                ],
+            ],
+            [
+                'key' => 'reclassify_intro_outro',
+                'progress' => 55,
+                'job_offset' => 6,
+                'steps' => [
+                    'reclassify_intro_outro',
+                ],
+            ],
+            [
+                'key' => 'manual_review',
+                'progress' => 55,
+                'job_offset' => 7,
+                'steps' => [
+                    'manual_review_required',
+                ],
+            ],
+            [
+                'key' => 'manual_review_confirmed',
+                'progress' => 56,
+                'job_offset' => 7,
+                'steps' => [
+                    'manual_review_confirmed',
+                ],
+            ],
+            [
+                'key' => 'extract_sermon',
+                'progress' => 57,
+                'job_offset' => 7,
+                'steps' => [
+                    'extraction',
+                    'extracting_sermon',
+                ],
+            ],
+            [
+                'key' => 'extraction_complete',
+                'progress' => 60,
+                'job_offset' => 7,
+                'steps' => [
+                    'extraction_complete',
+                ],
+            ],
+            [
+                'key' => 'create_sermon_record',
+                'progress' => 70,
+                'job_offset' => 9,
+                'steps' => [
+                    'sermon_creation',
+                    'creating_sermon',
+                    'creating_sermon_record',
+                    'sermon_record_created',
+                ],
+            ],
+            [
+                'key' => 'transcribe_audio',
+                'progress' => 80,
+                'job_offset' => 11,
+                'steps' => [
+                    'transcribing_audio',
+                    'transcribing_audio_failed',
+                    'transcription_completed',
+                    'transcription',
+                ],
+            ],
+            [
+                'key' => 'analyze_transcript',
+                'progress' => 88,
+                'job_offset' => 12,
+                'steps' => [
+                    'analyzing_transcript',
+                    'analyzing_transcript_failed',
+                    'ai_analysis_completed',
+                    'ai_analysis_fallback',
+                ],
+            ],
+            [
+                'key' => 'generate_thumbnail',
+                'progress' => 90,
+                'job_offset' => 13,
+                'steps' => [
+                    'generating_thumbnail',
+                ],
+            ],
+            [
+                'key' => 'send_notification',
+                'progress' => 92,
+                'job_offset' => 14,
+                'steps' => [
+                    'sending_notification',
+                ],
+            ],
+            [
+                'key' => 'notification_complete',
+                'progress' => 93,
+                'job_offset' => 14,
+                'steps' => [
+                    'notification_sent',
+                    'notification_skipped',
+                    'notification_failed',
+                    'notification_failed_permanently',
+                ],
+            ],
+            [
+                'key' => 'cleanup',
+                'progress' => 95,
+                'job_offset' => 15,
                 'steps' => [
                     'cleanup',
                 ],

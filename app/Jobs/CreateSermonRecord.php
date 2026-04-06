@@ -106,8 +106,8 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             $sermon = $sermonCreationService->createSermon($refreshedLog, $options);
 
             // Store video permanently if needed
-            if ($this->processingLog->processing_type === MediaType::Video && $this->processingLog->source_file_path) {
-                $finalVideoPath = $this->storeVideoForSermon($sermon->id, $this->processingLog->source_file_path);
+            if ($this->processingLog->processing_type === MediaType::Video && $this->videoSourcePath() !== null) {
+                $finalVideoPath = $this->storeVideoForSermon($sermon->id, $this->videoSourcePath());
                 $sermon->update(['video_file_path' => $finalVideoPath]);
                 $this->processingLog->update(['video_file_path' => $finalVideoPath]);
             }
@@ -189,6 +189,17 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
         ]);
 
         return $finalPath;
+    }
+
+    private function videoSourcePath(): ?string
+    {
+        if (is_string($this->processingLog->video_file_path) && $this->processingLog->video_file_path !== '') {
+            return $this->processingLog->video_file_path;
+        }
+
+        return is_string($this->processingLog->source_file_path) && $this->processingLog->source_file_path !== ''
+            ? $this->processingLog->source_file_path
+            : null;
     }
 
     /**

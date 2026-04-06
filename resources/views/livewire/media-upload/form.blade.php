@@ -44,6 +44,24 @@
                 </div>
             </div>
 
+            @if($mediaType === 'video' && config('media-processing.video_auto_trim.enabled', true))
+                <div class="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <x-toggle
+                        label="Auto-trim to sermon"
+                        hint="Use this for roughly clipped sermon videos with a short song, prayer, or notices at the start or end. Leave it off for already-clean sermon clips. Ambiguous runs may pause for manual review."
+                        wire:model.live="autoTrimVideo" />
+
+                    <div class="mt-3 text-sm text-gray-600">
+                        @if($autoTrimVideo)
+                            <p><strong>Auto-trim:</strong> Segment recording → Classify sermon bounds → Extract trimmed sermon video → Transcription → AI Analysis</p>
+                            <p class="mt-1">Choose <strong>Full Livestream</strong> instead when you are uploading the entire service and want the full livestream workflow.</p>
+                        @else
+                            <p><strong>Whole sermon video:</strong> Upload the video as-is when it already starts and ends in the right place.</p>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             {{-- File Upload Area --}}
             @if($mediaType)
                 <div class="mb-6">

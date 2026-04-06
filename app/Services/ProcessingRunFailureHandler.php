@@ -17,6 +17,8 @@ class ProcessingRunFailureHandler
 
     public const PROFILE_VIDEO = 'video';
 
+    public const PROFILE_VIDEO_AUTO_TRIM = 'video_auto_trim';
+
     public const PROFILE_LIVESTREAM = 'livestream';
 
     public function __construct(
@@ -57,6 +59,7 @@ class ProcessingRunFailureHandler
         match ($profile) {
             self::PROFILE_AUDIO => $this->markAudioFailure($processingLog, $message),
             self::PROFILE_VIDEO => $this->markVideoFailure($processingLog, $message),
+            self::PROFILE_VIDEO_AUTO_TRIM => $this->markVideoAutoTrimFailure($processingLog, $message),
             self::PROFILE_LIVESTREAM => $this->markLivestreamFailure($processingLog, $exception, $message),
             default => null,
         };
@@ -78,23 +81,24 @@ class ProcessingRunFailureHandler
         ]);
     }
 
+    private function markVideoAutoTrimFailure(MediaProcessingLog $processingLog, string $message): void
+    {
+        $this->processingRunTransitions->markAsFailed(
+            $processingLog,
+            "Video auto-trim processing failed: {$message}"
+        );
+
+        $tempFiles = $this->segmentationTempFiles($processingLog);
+
+        if ($tempFiles !== []) {
+            $this->storageService->cleanupTemporaryFiles($tempFiles);
+        }
+    }
+
     private function markLivestreamFailure(MediaProcessingLog $processingLog, \Throwable $exception, string $message): void
     {
         $this->processingRunTransitions->markAsFailed($processingLog, $message);
-
-        $tempFiles = [];
-
-        if (is_string($processingLog->source_file_path) && $processingLog->source_file_path !== '') {
-            $tempFiles[] = $processingLog->source_file_path;
-        }
-
-        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
-
-        foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {
-            if (is_string($metadata[$key] ?? null) && $metadata[$key] !== '') {
-                $tempFiles[] = $metadata[$key];
-            }
-        }
+        $tempFiles = $this->segmentationTempFiles($processingLog);
 
         if ($tempFiles !== []) {
             $this->storageService->cleanupTemporaryFiles($tempFiles);
@@ -121,8 +125,31 @@ class ProcessingRunFailureHandler
         return match ($profile) {
             self::PROFILE_AUDIO => 'An internal error occurred during audio processing.',
             self::PROFILE_VIDEO => 'An internal error occurred during video processing.',
+            self::PROFILE_VIDEO_AUTO_TRIM => 'An internal error occurred during sermon video auto-trim processing.',
             self::PROFILE_LIVESTREAM => 'An internal error occurred during livestream processing.',
             default => 'An internal error occurred during processing.',
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function segmentationTempFiles(MediaProcessingLog $processingLog): array
+    {
+        $tempFiles = [];
+
+        if (is_string($processingLog->source_file_path) && $processingLog->source_file_path !== '') {
+            $tempFiles[] = $processingLog->source_file_path;
+        }
+
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+
+        foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {
+            if (is_string($metadata[$key] ?? null) && $metadata[$key] !== '') {
+                $tempFiles[] = $metadata[$key];
+            }
+        }
+
+        return array_values(array_unique($tempFiles));
     }
 }

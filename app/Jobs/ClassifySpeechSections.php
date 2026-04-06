@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
@@ -48,11 +47,8 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         $this->processingLog = $processingLog;
         $this->initializeStepLogging($this->processingLog->processing_id);
 
-        if (
-            $this->processingLog->processing_type !== MediaType::Livestream
-            || $this->processingLog->isCancelled()
-        ) {
-            $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS, 'Speech section classification only runs for active livestream processing');
+        if (! $this->processingLog->usesSegmentationPipeline() || $this->processingLog->isCancelled()) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS, 'Speech section classification only runs for active segmentation processing');
 
             return;
         }

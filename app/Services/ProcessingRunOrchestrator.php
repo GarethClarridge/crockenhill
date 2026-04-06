@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Contracts\ProvidesSafeMessage;
-use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Bus\Batch;
@@ -24,31 +23,49 @@ class ProcessingRunOrchestrator
 
     public function start(MediaProcessingLog $processingLog): void
     {
-        match ($processingLog->processing_type) {
-            MediaType::Audio => $this->dispatchChain(
+        match ($processingLog->processingPipelineProfile()) {
+            'audio' => $this->dispatchChain(
                 $this->pipelineBuilder->buildAudioPipeline($processingLog),
                 $this->audioQueue(),
                 $processingLog->processing_id,
                 ProcessingRunFailureHandler::PROFILE_AUDIO
             ),
-            MediaType::Video => $this->dispatchChain(
+            'video' => $this->dispatchChain(
                 $this->pipelineBuilder->buildDirectVideoPipeline($processingLog),
                 $this->videoQueue(),
                 $processingLog->processing_id,
                 ProcessingRunFailureHandler::PROFILE_VIDEO
             ),
-            MediaType::Livestream => $this->dispatchLivestreamStart($processingLog),
+            'video_auto_trim' => $this->dispatchChain(
+                $this->pipelineBuilder->buildAutoTrimVideoPipeline($processingLog),
+                $this->videoQueue(),
+                $processingLog->processing_id,
+                ProcessingRunFailureHandler::PROFILE_VIDEO_AUTO_TRIM
+            ),
+            'livestream' => $this->dispatchLivestreamStart($processingLog),
+            default => throw new \InvalidArgumentException(
+                'Unknown processing pipeline profile: '.$processingLog->processingPipelineProfile()
+            ),
         };
     }
 
     public function resumeAfterManualReview(MediaProcessingLog $processingLog): void
     {
-        $this->dispatchChain(
-            $this->pipelineBuilder->buildLivestreamPostReviewChainJobs($processingLog),
-            $this->livestreamQueue(),
-            $processingLog->processing_id,
-            ProcessingRunFailureHandler::PROFILE_LIVESTREAM
-        );
+        match ($processingLog->processingPipelineProfile()) {
+            'livestream' => $this->dispatchChain(
+                $this->pipelineBuilder->buildLivestreamPostReviewChainJobs($processingLog),
+                $this->livestreamQueue(),
+                $processingLog->processing_id,
+                ProcessingRunFailureHandler::PROFILE_LIVESTREAM
+            ),
+            'video_auto_trim' => $this->dispatchChain(
+                $this->pipelineBuilder->buildAutoTrimVideoPostReviewChainJobs($processingLog),
+                $this->videoQueue(),
+                $processingLog->processing_id,
+                ProcessingRunFailureHandler::PROFILE_VIDEO_AUTO_TRIM
+            ),
+            default => throw new \InvalidArgumentException('Manual sermon review is only available for segmentation-style processing runs.'),
+        };
     }
 
     public function reclassify(MediaProcessingLog $processingLog): void
@@ -113,8 +130,8 @@ class ProcessingRunOrchestrator
             return false;
         }
 
-        if ($processingLog->processing_type === MediaType::Livestream) {
-            $this->cleanupLivestreamFiles($processingLog->fresh() ?? $processingLog);
+        if ($processingLog->usesSegmentationPipeline()) {
+            $this->cleanupSegmentationFiles($processingLog->fresh() ?? $processingLog);
         }
 
         return true;
@@ -181,6 +198,7 @@ class ProcessingRunOrchestrator
         $jobs = match ($pipeline) {
             'audio' => array_slice($this->pipelineBuilder->buildAudioPipeline($freshLog), $jobOffset),
             'video' => array_slice($this->pipelineBuilder->buildDirectVideoPipeline($freshLog), $jobOffset),
+            'video_auto_trim' => array_slice($this->pipelineBuilder->buildAutoTrimVideoPipeline($freshLog), $jobOffset),
             'livestream' => array_slice($this->pipelineBuilder->buildLivestreamChainJobs($freshLog), $jobOffset),
             default => [],
         };
@@ -202,13 +220,14 @@ class ProcessingRunOrchestrator
         $this->dispatchChain(
             $jobs,
             match ($pipeline) {
-                'video' => $this->videoQueue(),
+                'video', 'video_auto_trim' => $this->videoQueue(),
                 'livestream' => $this->livestreamQueue(),
                 default => $this->audioQueue(),
             },
             $processingLog->processing_id,
             match ($pipeline) {
                 'video' => ProcessingRunFailureHandler::PROFILE_VIDEO,
+                'video_auto_trim' => ProcessingRunFailureHandler::PROFILE_VIDEO_AUTO_TRIM,
                 'livestream' => ProcessingRunFailureHandler::PROFILE_LIVESTREAM,
                 default => ProcessingRunFailureHandler::PROFILE_AUDIO,
             }
@@ -224,7 +243,7 @@ class ProcessingRunOrchestrator
     /**
      * @param  array{
      *     action: 'dispatch_chain'|'dispatch_livestream_chain',
-     *     pipeline?: 'audio'|'video'|'livestream',
+     *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
      *     job_offset?: int,
      *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
      *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
@@ -283,7 +302,7 @@ class ProcessingRunOrchestrator
     /**
      * @param  array{
      *     action: 'manual_review',
-     *     pipeline?: 'audio'|'video'|'livestream',
+     *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
      *     job_offset?: int,
      *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
      *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
@@ -307,7 +326,7 @@ class ProcessingRunOrchestrator
         return $this->markForManualReview($processingLog, $reasonCode, $reasonMessage);
     }
 
-    private function cleanupLivestreamFiles(MediaProcessingLog $processingLog): void
+    private function cleanupSegmentationFiles(MediaProcessingLog $processingLog): void
     {
         $tempFiles = [];
 

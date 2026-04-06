@@ -76,6 +76,34 @@ class ProcessingPipelineBuilder
     }
 
     /**
+     * Build job pipeline for sermon video uploads that should be auto-trimmed
+     * before entering the standard sermon-processing flow.
+     *
+     * @return array<int, object>
+     */
+    public function buildAutoTrimVideoPipeline(MediaProcessingLog $log): array
+    {
+        return [
+            new ValidateVideoFile($log),
+            new GenerateRmsLog($log),
+            new AnalyzeSegments($log),
+            new ClassifyServiceSections($log),
+            new TranscribeSpeechSegments($log),
+            new ClassifySpeechSections($log),
+            new ReclassifyIntroOutroSections($log),
+            new ExtractSermon($log),
+            new EnhanceAudio($log),
+            new CreateSermonRecord($log),
+            new IdentifySpeaker($log),
+            new TranscribeAudio($log),
+            new ProcessTranscriptWithAI($log),
+            new GenerateThumbnail($log),
+            new SendCompletionNotification($log),
+            new CleanupTemporaryFiles($log),
+        ];
+    }
+
+    /**
      * Jobs to run in parallel at the start of the livestream pipeline.
      * Always includes RMS generation; includes visual analysis if enabled.
      *
@@ -140,6 +168,26 @@ class ProcessingPipelineBuilder
             new ProcessTranscriptWithAI($log),
             new GenerateThumbnail($log),
             new PrepareSectionPublicationCandidates($log),
+            new SendCompletionNotification($log),
+            new CleanupTemporaryFiles($log),
+        ];
+    }
+
+    /**
+     * Resume chain for auto-trimmed video runs after manual sermon segment confirmation.
+     *
+     * @return non-empty-list<object>
+     */
+    public function buildAutoTrimVideoPostReviewChainJobs(MediaProcessingLog $log): array
+    {
+        return [
+            new ExtractSermon($log),
+            new EnhanceAudio($log),
+            new CreateSermonRecord($log),
+            new IdentifySpeaker($log),
+            new TranscribeAudio($log),
+            new ProcessTranscriptWithAI($log),
+            new GenerateThumbnail($log),
             new SendCompletionNotification($log),
             new CleanupTemporaryFiles($log),
         ];

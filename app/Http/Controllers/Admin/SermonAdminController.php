@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProcessMediaRequest;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Http\RedirectResponse;
@@ -55,8 +56,11 @@ class SermonAdminController extends Controller
         try {
             $file = $request->file('file');
             $type = $validatedData['type'];
+            $options = $this->processingOptions($validatedData);
 
-            $result = $this->mediaProcessor->process($type, $file);
+            $result = $options === []
+                ? $this->mediaProcessor->process($type, $file)
+                : $this->mediaProcessor->process($type, $file, options: $options);
 
             if ($result->success) {
                 return redirect()
@@ -93,5 +97,26 @@ class SermonAdminController extends Controller
         if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
             abort(404, 'Sermon not found for the specified date.');
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $validatedData
+     * @return array<string, mixed>
+     */
+    private function processingOptions(array $validatedData): array
+    {
+        $autoTrim = (bool) ($validatedData['auto_trim'] ?? false);
+        $videoProcessingMode = isset($validatedData['video_processing_mode']) && is_string($validatedData['video_processing_mode'])
+            ? $validatedData['video_processing_mode']
+            : null;
+
+        if (! $autoTrim && $videoProcessingMode !== MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM) {
+            return [];
+        }
+
+        return [
+            'auto_trim' => $autoTrim,
+            'video_processing_mode' => $videoProcessingMode ?? MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+        ];
     }
 }

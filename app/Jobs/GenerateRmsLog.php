@@ -81,8 +81,7 @@ class GenerateRmsLog implements ShouldQueue
                 throw new \Exception('Video file not found after waiting: '.$videoPath);
             }
 
-            // Use livestream-specific file size limit since this job is only used for livestream processing
-            $maxFileSize = config('media-processing.types.livestream.max_file_size', 2147483648); // 2GB
+            $maxFileSize = $this->maxFileSize();
             if ($this->processingLog->file_size > $maxFileSize) {
                 throw new \Exception('File size exceeds maximum allowed size');
             }
@@ -139,5 +138,17 @@ class GenerateRmsLog implements ShouldQueue
         }
 
         return $sourceFilePath;
+    }
+
+    private function maxFileSize(): int
+    {
+        if ($this->processingLog->isAutoTrimVideoRun()) {
+            return (int) config(
+                'media-processing.video_auto_trim.max_file_size',
+                config('media-processing.types.video.max_file_size', 1073741824)
+            );
+        }
+
+        return (int) config('media-processing.types.livestream.max_file_size', 2147483648);
     }
 }

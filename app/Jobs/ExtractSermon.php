@@ -193,6 +193,18 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 'processing_metadata' => array_merge(
                     $this->processingLog->processing_metadata?->toArray() ?? [],
                     [
+                        'extracted_segment_path' => $sermonVideoPath,
+                        'extracted_audio_path' => $sermonAudioPath,
+                        'trim' => [
+                            'original_duration' => $this->processingLog->duration,
+                            'final_duration' => $this->totalPlannedDuration($extractionPlan['segments']),
+                            'trim_start' => (float) $extractionPlan['segments'][0]['start_time'],
+                            'trim_end' => (float) $extractionPlan['segments'][count($extractionPlan['segments']) - 1]['end_time'],
+                            'segments' => $extractionPlan['segments'],
+                            'source' => $extractionPlan['source'],
+                            'strategy' => $extractionPlan['metadata']['strategy'] ?? null,
+                            'mode' => $extractionPlan['mode'],
+                        ],
                         'audio_compression' => [
                             'original_size_mb' => round($audioExtractionResult['original_size'] / 1024 / 1024, 1),
                             'final_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
-use App\Enums\MediaType;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
@@ -20,7 +19,7 @@ class ConfirmLivestreamSermonSegment
     ) {}
 
     /**
-     * Confirm a speech segment as the sermon for a livestream run awaiting manual review.
+     * Confirm a speech segment as the sermon for a segmentation-style run awaiting manual review.
      *
      * Validates all preconditions, persists confirmation metadata, and dispatches
      * the post-review processing chain. Returns the dispatched batch.
@@ -39,8 +38,8 @@ class ConfirmLivestreamSermonSegment
                 throw new \InvalidArgumentException('Processing log not found.');
             }
 
-            if ($log->processing_type !== MediaType::Livestream) {
-                throw new \InvalidArgumentException('Only livestream runs can be confirmed via manual review.');
+            if (! $log->canUseManualSermonReview()) {
+                throw new \InvalidArgumentException('Only segmentation-style runs can be confirmed via manual review.');
             }
 
             if (! $log->requiresManualSermonReview()) {

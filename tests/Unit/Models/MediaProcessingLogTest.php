@@ -201,27 +201,31 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function it_defines_type_scopes(): void
     {
-        MediaProcessingLog::factory()->create(['processing_type' => 'audio']);
-        MediaProcessingLog::factory()->create(['processing_type' => 'video']);
-        MediaProcessingLog::factory()->create(['processing_type' => 'livestream']);
+        $audio = MediaProcessingLog::factory()->create(['processing_type' => 'audio']);
+        $video = MediaProcessingLog::factory()->create(['processing_type' => 'video']);
+        $livestream = MediaProcessingLog::factory()->create(['processing_type' => 'livestream']);
 
-        $this->assertCount(1, MediaProcessingLog::audio()->get());
-        $this->assertCount(1, MediaProcessingLog::video()->get());
-        $this->assertCount(1, MediaProcessingLog::livestream()->get());
+        $ids = [$audio->id, $video->id, $livestream->id];
+
+        $this->assertSame([$audio->id], MediaProcessingLog::audio()->whereKey($ids)->pluck('id')->all());
+        $this->assertSame([$video->id], MediaProcessingLog::video()->whereKey($ids)->pluck('id')->all());
+        $this->assertSame([$livestream->id], MediaProcessingLog::livestream()->whereKey($ids)->pluck('id')->all());
     }
 
     #[Test]
     public function it_defines_status_scopes(): void
     {
-        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Processing]);
-        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Pending]);
-        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Completed]);
-        MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Failed]);
+        $processing = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Processing]);
+        $pending = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Pending]);
+        $completed = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Completed]);
+        $failed = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Failed]);
 
-        $this->assertCount(1, MediaProcessingLog::processing()->get());
-        $this->assertCount(1, MediaProcessingLog::pending()->get());
-        $this->assertCount(1, MediaProcessingLog::completed()->get());
-        $this->assertCount(1, MediaProcessingLog::failed()->get());
+        $ids = [$processing->id, $pending->id, $completed->id, $failed->id];
+
+        $this->assertSame([$processing->id], MediaProcessingLog::processing()->whereKey($ids)->pluck('id')->all());
+        $this->assertSame([$pending->id], MediaProcessingLog::pending()->whereKey($ids)->pluck('id')->all());
+        $this->assertSame([$completed->id], MediaProcessingLog::completed()->whereKey($ids)->pluck('id')->all());
+        $this->assertSame([$failed->id], MediaProcessingLog::failed()->whereKey($ids)->pluck('id')->all());
     }
 
     #[Test]

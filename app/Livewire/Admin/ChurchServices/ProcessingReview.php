@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\ChurchServices;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
-use App\Enums\MediaType;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\MediaProcessingLog;
@@ -34,7 +33,7 @@ class ProcessingReview extends Component
 
         $this->authorizeAdmin();
 
-        if ($processingLog->processing_type !== MediaType::Livestream) {
+        if (! $processingLog->canUseManualSermonReview()) {
             abort(404);
         }
 
@@ -90,9 +89,10 @@ class ProcessingReview extends Component
             'sourceAvailable' => $sourceAvailable,
             'confirmedSegmentId' => $log->manuallyConfirmedSegmentId(),
             'requiresReview' => $log->requiresManualSermonReview(),
+            'runLabel' => $log->isAutoTrimVideoRun() ? 'Auto-trim sermon video' : 'Livestream run',
         ])->layout('layouts.admin', [
-            'title' => 'Review Livestream Processing',
-            'heading' => 'Review Livestream Processing',
+            'title' => 'Review Sermon Processing',
+            'heading' => 'Review Sermon Processing',
         ]);
     }
 

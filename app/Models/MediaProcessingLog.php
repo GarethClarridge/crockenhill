@@ -71,6 +71,10 @@ class MediaProcessingLog extends Model
     /** @use HasFactory<\Database\Factories\MediaProcessingLogFactory> */
     use HasFactory;
 
+    public const VIDEO_PROCESSING_MODE_FULL_VIDEO = 'full_video';
+
+    public const VIDEO_PROCESSING_MODE_AUTO_TRIM = 'auto_trim';
+
     protected $fillable = [
         'processing_id',
         'processing_type',
@@ -282,14 +286,17 @@ class MediaProcessingLog extends Model
     public function scopeAwaitingManualSermonReview(Builder $query): Builder
     {
         return $query
-            ->where('processing_type', MediaType::Livestream->value)
             ->where('status', ProcessingStatus::Failed->value)
             ->where('current_step', 'manual_review_required')
             ->where(function (Builder $query): void {
                 $query->whereNotNull('processing_metadata->manual_review->reason_code');
 
                 foreach (self::legacyManualReviewReasonPatterns() as $pattern) {
-                    $query->orWhere('error_message', 'like', '%'.$pattern.'%');
+                    $query->orWhere(function (Builder $query) use ($pattern): void {
+                        $query
+                            ->where('processing_type', MediaType::Livestream->value)
+                            ->where('error_message', 'like', '%'.$pattern.'%');
+                    });
                 }
             });
     }
@@ -367,7 +374,9 @@ class MediaProcessingLog extends Model
         $manualReviewStatus = $this->processing_metadata?->manualReview?->status;
 
         if ($manualReviewStatus === 'required') {
-            return true;
+            return $this->canUseManualSermonReview()
+                && $this->status === ProcessingStatus::Failed
+                && $this->current_step === 'manual_review_required';
         }
 
         if ($manualReviewStatus === 'confirmed') {
@@ -378,6 +387,51 @@ class MediaProcessingLog extends Model
             && $this->status === ProcessingStatus::Failed
             && $this->current_step === 'manual_review_required'
             && $this->processing_type === MediaType::Livestream;
+    }
+
+    public function videoProcessingMode(): string
+    {
+        if ($this->processing_type !== MediaType::Video) {
+            return self::VIDEO_PROCESSING_MODE_FULL_VIDEO;
+        }
+
+        $raw = $this->processing_metadata->raw ?? [];
+        $mode = $raw['video_processing_mode'] ?? null;
+
+        if ($mode === self::VIDEO_PROCESSING_MODE_AUTO_TRIM) {
+            return self::VIDEO_PROCESSING_MODE_AUTO_TRIM;
+        }
+
+        return ($raw['trim_requested'] ?? false) === true
+            ? self::VIDEO_PROCESSING_MODE_AUTO_TRIM
+            : self::VIDEO_PROCESSING_MODE_FULL_VIDEO;
+    }
+
+    public function isAutoTrimVideoRun(): bool
+    {
+        return $this->processing_type === MediaType::Video
+            && $this->videoProcessingMode() === self::VIDEO_PROCESSING_MODE_AUTO_TRIM;
+    }
+
+    public function usesSegmentationPipeline(): bool
+    {
+        return $this->processing_type === MediaType::Livestream
+            || $this->isAutoTrimVideoRun();
+    }
+
+    public function canUseManualSermonReview(): bool
+    {
+        return $this->usesSegmentationPipeline();
+    }
+
+    public function processingPipelineProfile(): string
+    {
+        return match (true) {
+            $this->processing_type === MediaType::Audio => 'audio',
+            $this->processing_type === MediaType::Livestream => 'livestream',
+            $this->isAutoTrimVideoRun() => 'video_auto_trim',
+            default => 'video',
+        };
     }
 
     // Accessors for backward compatibility

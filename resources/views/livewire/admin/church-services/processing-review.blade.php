@@ -2,8 +2,8 @@
     {{-- Header --}}
     <div class="flex justify-between items-center">
         <div>
-            <h1 class="font-display text-3xl">Review livestream processing</h1>
-            <p class="text-gray-600">Select the correct sermon segment to resume processing</p>
+            <h1 class="font-display text-3xl">Review sermon processing</h1>
+            <p class="text-gray-600">Select the correct sermon segment to resume processing for this {{ strtolower($runLabel) }}</p>
         </div>
         <x-button link="{{ route('admin.services.processing.review.index') }}" variant="outline" inline wire:navigate>
             Back to queue
@@ -40,6 +40,10 @@
                         <span class="text-gray-400">Unknown</span>
                     @endif
                 </dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Run Type</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ $runLabel }}</dd>
             </div>
             <div>
                 <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</dt>

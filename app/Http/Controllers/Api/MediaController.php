@@ -9,11 +9,13 @@ use App\Enums\ApiTokenAbility;
 use App\Enums\MediaType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MediaStatusRequest;
+use App\Models\MediaProcessingLog;
 use App\Services\MediaValidationService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class MediaController extends Controller
 {
@@ -40,7 +42,7 @@ class MediaController extends Controller
             ], 400);
         }
 
-        $request->validate($this->validation->rulesForType($mediaType));
+        $validated = $request->validate($this->uploadRules($mediaType));
 
         try {
             $file = $request->file('file');
@@ -52,7 +54,10 @@ class MediaController extends Controller
                 'size' => $file->getSize(),
             ]);
 
-            $result = $this->mediaProcessor->process($type, $file);
+            $options = $this->processingOptions($validated);
+            $result = $options === []
+                ? $this->mediaProcessor->process($type, $file)
+                : $this->mediaProcessor->process($type, $file, options: $options);
 
             if ($result->success) {
                 return response()->json($result->toArray(), 202);
@@ -259,5 +264,48 @@ class MediaController extends Controller
         return response()->json([
             'message' => 'Missing required token ability: '.ApiTokenAbility::MEDIA_PROCESS->value,
         ], 403);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function uploadRules(MediaType $mediaType): array
+    {
+        $autoTrimProhibited = $mediaType !== MediaType::Video
+            || ! (bool) config('media-processing.video_auto_trim.enabled', true);
+
+        return array_merge($this->validation->rulesForType($mediaType), [
+            'auto_trim' => ['sometimes', 'boolean', Rule::prohibitedIf($autoTrimProhibited)],
+            'video_processing_mode' => [
+                'sometimes',
+                'string',
+                Rule::in([
+                    MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO,
+                    MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                ]),
+                Rule::prohibitedIf($autoTrimProhibited),
+            ],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function processingOptions(array $validated): array
+    {
+        $autoTrim = (bool) ($validated['auto_trim'] ?? false);
+        $videoProcessingMode = isset($validated['video_processing_mode']) && is_string($validated['video_processing_mode'])
+            ? $validated['video_processing_mode']
+            : null;
+
+        if (! $autoTrim && $videoProcessingMode !== MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM) {
+            return [];
+        }
+
+        return [
+            'auto_trim' => $autoTrim,
+            'video_processing_mode' => $videoProcessingMode ?? MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+        ];
     }
 }
