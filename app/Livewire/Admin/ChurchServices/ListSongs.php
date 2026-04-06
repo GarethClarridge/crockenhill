@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\SermonService;
 use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
@@ -18,7 +19,7 @@ use Livewire\WithPagination;
 
 class ListSongs extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'usage_count';
 
@@ -54,9 +55,17 @@ class ListSongs extends Component
         $this->abortIfDisabled();
     }
 
-    public function updatedSearch(): void
+    /**
+     * @return array<string, mixed>
+     */
+    protected function filterProperties(): array
     {
-        $this->resetPage();
+        return [
+            'search' => '',
+            'serviceFilter' => null,
+            'dateFrom' => null,
+            'dateTo' => null,
+        ];
     }
 
     public function updatedServiceFilter(): void
@@ -77,6 +86,7 @@ class ListSongs extends Component
     public function render(): View
     {
         $this->sanitizeSorting();
+        $this->computeHasFilters();
 
         $search = trim($this->search);
         $escapedSearch = $this->escapeLike($search);

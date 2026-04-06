@@ -103,10 +103,10 @@
                     <td class="px-4 py-3">
                         <div class="flex gap-1">
                             @if($sermon->audio_file_path)
-                                <x-heroicon-o-musical-note class="w-4 h-4 text-green-500" />
+                                <x-heroicon-o-musical-note class="w-4 h-4 text-green-500" title="Has audio recording" aria-label="Has audio recording" />
                             @endif
                             @if($sermon->video_file_path)
-                                <x-heroicon-o-video-camera class="w-4 h-4 text-blue-500" />
+                                <x-heroicon-o-video-camera class="w-4 h-4 text-blue-500" title="Has video recording" aria-label="Has video recording" />
                             @endif
                         </div>
                     </td>
