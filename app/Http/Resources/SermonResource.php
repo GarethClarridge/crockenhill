@@ -42,9 +42,6 @@ class SermonResource extends JsonResource
                         : Storage::disk('public')->url($this->preacherProfile->image_path))
                     : null,
             ] : null),
-            'preacher_source' => $this->preacher_source,
-            'preacher_confidence' => $this->preacher_confidence,
-            'needs_preacher_review' => $this->needs_preacher_review,
             'series' => $this->series,
             'reference' => $this->displayReference(),
             'points' => $this->when($this->show_points, fn (): ?array => $this->points),
