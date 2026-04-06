@@ -29,3 +29,7 @@
 ## 2026-04-01 - [Sermon Asset Authorization Testing]
 **Learning:** Testing authorization logic for `BinaryFileResponse` endpoints requires simulating guest and authenticated user states while toggling configuration values (`Config::set()`). Guests should be redirected to login (`assertRedirect(route('login'))`) for private content, while authenticated users or public content should resolve to the asset's public URL or serve the file directly.
 **Action:** Use `Config::set()` to toggle content visibility and `actingAs()` to simulate different user levels in feature tests targeting asset controllers.
+
+## 2026-04-10 - [Testing API Resources with Relationships]
+**Learning:** When testing API responses that use `JsonResource` wrappers (e.g., `SermonResource`), assertions must account for data transformation logic in the resource. For example, if a resource uses methods like `displayPreacherName()` which prioritize related model data over local table columns, the test expectations must match the related model's values when that relationship is loaded.
+**Action:** Verify the resource's `toArray` implementation and related model accessor/display methods when setting up assertions for API integration tests.

@@ -34,4 +34,6 @@ return [
         'youtube' => 'https://www.youtube.com/@crockenhillbaptistchurch9727/streams',
     ],
 
+    'opening_hours' => require __DIR__.'/opening-hours.php',
+
 ];

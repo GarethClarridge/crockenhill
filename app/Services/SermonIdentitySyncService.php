@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\PreacherSource;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\ScripturePassage;
@@ -20,6 +21,34 @@ class SermonIdentitySyncService
     {
         $this->syncPreacherIdentity($sermon);
         $this->syncScriptureIdentity($sermon);
+    }
+
+    /**
+     * Retroactively link sermons to a preacher when a new alias is registered.
+     */
+    public function backfillSermonsForAlias(PreacherAlias $alias): void
+    {
+        $preacher = $alias->preacher;
+
+        if (! $preacher instanceof Preacher) {
+            return;
+        }
+
+        $query = Sermon::query()->whereNull('preacher_id');
+
+        // Normalize internal whitespace during matching.
+        if (config('database.default') === 'mysql') {
+            $query->whereRaw("LOWER(REGEXP_REPLACE(TRIM(preacher), '[[:space:]]+', ' ')) = ?", [$alias->alias]);
+        } else {
+            $query->whereRaw('LOWER(TRIM(preacher)) = ?', [$alias->alias]);
+        }
+
+        $query->update([
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+            'preacher_source' => PreacherSource::MANUAL->value,
+            'needs_preacher_review' => false,
+        ]);
     }
 
     public function findExistingScripturePassage(?string $rawReference): ?ScripturePassage
@@ -63,21 +92,48 @@ class SermonIdentitySyncService
 
     private function syncPreacherIdentity(Sermon $sermon): void
     {
-        if ($sermon->preacher_id !== null) {
+        $preacherIdChanged = $sermon->isDirty('preacher_id');
+        $preacherNameChanged = $sermon->isDirty('preacher');
+
+        // 1. Explicit ID change or constant authority: ID wins.
+        // We sync the string cache from the ID, but skip this if the name string
+        // was explicitly changed (allowing it to resolve to a new ID in step 2).
+        if ($sermon->preacher_id !== null && ($preacherIdChanged || ! $preacherNameChanged)) {
             $preacher = Preacher::query()->find($sermon->preacher_id);
 
-            if ($preacher instanceof Preacher) {
+            if ($preacher instanceof Preacher && $sermon->preacher !== $preacher->name) {
                 $sermon->preacher = $preacher->name;
+            }
+
+            // If the ID was the primary thing that changed, we are done.
+            if ($preacherIdChanged) {
+                return;
+            }
+        }
+
+        // 2. Explicit name string change: try to resolve to a known identity.
+        if ($preacherNameChanged) {
+            $matchedPreacher = $this->matchExistingPreacher($sermon->preacher);
+
+            if ($matchedPreacher instanceof Preacher) {
+                $sermon->preacher_id = $matchedPreacher->id;
+                $sermon->preacher = $matchedPreacher->name;
+            } else {
+                // Name changed to something unknown; decouple from the current identity.
+                $sermon->preacher_id = null;
             }
 
             return;
         }
 
-        $matchedPreacher = $this->matchExistingPreacher($sermon->preacher);
+        // 3. Initial resolution or backfill for unassigned records.
+        if ($sermon->preacher_id === null && is_string($sermon->preacher) && trim($sermon->preacher) !== '') {
+            $matchedPreacher = $this->matchExistingPreacher($sermon->preacher);
 
-        if ($matchedPreacher instanceof Preacher) {
-            $sermon->preacher_id = $matchedPreacher->id;
-            $sermon->preacher = $matchedPreacher->name;
+            if ($matchedPreacher instanceof Preacher) {
+                $sermon->preacher_id = $matchedPreacher->id;
+                $sermon->preacher = $matchedPreacher->name;
+            }
         }
     }
 
