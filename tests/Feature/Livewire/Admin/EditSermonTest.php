@@ -137,6 +137,7 @@ class EditSermonTest extends TestCase
             ->set('slug', 'updated-title')
             ->set('date', '2025-07-01')
             ->set('service', SermonService::EVENING->value)
+            ->set('preacherId', null)
             ->set('preacher', 'David Johnson')
             ->set('reference', 'Romans 8:28')
             ->call('save')
@@ -154,7 +155,10 @@ class EditSermonTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $preacher = Preacher::factory()->create(['name' => 'Mark Drury']);
+        $preacher = Preacher::factory()->create([
+            'name' => 'Mark Drury Admin Edit',
+            'slug' => 'mark-drury-admin-edit',
+        ]);
 
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
             ->set('preacherId', $preacher->id)

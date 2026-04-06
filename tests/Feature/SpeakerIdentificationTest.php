@@ -350,7 +350,10 @@ class SpeakerIdentificationTest extends TestCase
             'media-processing.speaker_identification.mode' => 'enforce',
         ]);
 
-        $preacher = Preacher::factory()->create(['name' => 'Mark Drury']);
+        $preacher = Preacher::factory()->create([
+            'name' => 'Mark Drury Enforce Test',
+            'slug' => 'mark-drury-enforce-test',
+        ]);
         $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
         $sermon = Sermon::factory()->create([
             'preacher_source' => PreacherSource::DEFAULT->value,
@@ -379,7 +382,7 @@ class SpeakerIdentificationTest extends TestCase
         $this->assertEquals(PreacherSource::SPEAKER_MODEL, $sermon->preacher_source);
         $this->assertEquals(0.90, $sermon->preacher_confidence);
         $this->assertFalse($sermon->needs_preacher_review);
-        $this->assertEquals('Mark Drury', $sermon->preacher);
+        $this->assertEquals('Mark Drury Enforce Test', $sermon->preacher);
     }
 
     #[Test]
@@ -391,15 +394,18 @@ class SpeakerIdentificationTest extends TestCase
         ]);
 
         $visitingPreacher = Preacher::factory()->create([
-            'name' => 'Visiting Speaker',
+            'name' => 'Visiting Speaker Shadow Mode',
             'slug' => 'visiting-speaker-shadow-mode',
         ]);
-        $matchedPreacher = Preacher::factory()->create(['name' => 'Mark Drury']);
+        $matchedPreacher = Preacher::factory()->create([
+            'name' => 'Mark Drury Shadow Match',
+            'slug' => 'mark-drury-shadow-match',
+        ]);
         $profile = SpeakerProfile::factory()->create(['preacher_id' => $matchedPreacher->id, 'is_active' => true]);
 
         $sermon = Sermon::factory()->create([
             'preacher_id' => $visitingPreacher->id,
-            'preacher' => 'Visiting Speaker',
+            'preacher' => 'Visiting Speaker Shadow Mode',
             'preacher_source' => PreacherSource::DEFAULT->value,
             'duration' => 300.0,
         ]);
@@ -420,7 +426,7 @@ class SpeakerIdentificationTest extends TestCase
 
         // Preacher assignment unchanged in shadow mode
         $this->assertEquals($visitingPreacher->id, $sermon->preacher_id);
-        $this->assertEquals('Visiting Speaker', $sermon->preacher);
+        $this->assertEquals('Visiting Speaker Shadow Mode', $sermon->preacher);
         $this->assertEquals(PreacherSource::DEFAULT, $sermon->preacher_source);
         // Confidence is stored for observability
         $this->assertEquals(0.88, $sermon->preacher_confidence);
@@ -480,7 +486,7 @@ class SpeakerIdentificationTest extends TestCase
         ]);
 
         $preacher = Preacher::factory()->create([
-            'name' => 'Visiting Speaker',
+            'name' => 'Visiting Speaker Error Mode',
             'slug' => 'visiting-speaker-error-mode',
         ]);
         SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);

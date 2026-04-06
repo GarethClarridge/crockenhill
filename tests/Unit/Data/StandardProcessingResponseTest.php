@@ -113,7 +113,7 @@ class StandardProcessingResponseTest extends TestCase
     }
 
     #[Test]
-    public function from_processing_log_omits_video_file_path_when_present(): void
+    public function from_processing_log_includes_video_file_path_when_present(): void
     {
         $log = MediaProcessingLog::factory()->video()->completed()->create([
             'video_file_path' => 'sermons/2026/03/video.mp4',
@@ -121,7 +121,7 @@ class StandardProcessingResponseTest extends TestCase
 
         $response = StandardProcessingResponse::fromProcessingLog($log);
 
-        $this->assertArrayNotHasKey('video_file_path', $response->additionalData);
+        $this->assertSame('sermons/2026/03/video.mp4', $response->additionalData['video_file_path']);
     }
 
     #[Test]

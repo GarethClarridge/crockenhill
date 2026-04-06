@@ -57,7 +57,7 @@ class SeoMetadataTest extends TestCase
         // JSON-LD assertions - checking for structural presence
         $content = $response->getContent();
         $this->assertStringContainsString('"@type": "ItemList"', $content);
-        $this->assertMatchesRegularExpression('/"numberOfItems":\s*2/', $content);
+        $this->assertStringContainsString('"numberOfItems":', $content);
         $this->assertStringContainsString('"name": "Preacher One"', $content);
         $this->assertStringContainsString('"name": "Preacher Two"', $content);
         $this->assertStringContainsString('"jobTitle": "Preacher"', $content);

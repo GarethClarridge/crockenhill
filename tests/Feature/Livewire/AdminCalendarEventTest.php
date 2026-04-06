@@ -58,7 +58,7 @@ class AdminCalendarEventTest extends TestCase
         $this->actingAs($this->admin);
 
         $page = Page::factory()->create(['heading' => 'Prayer Meeting']);
-        $meeting = Meeting::factory()->create(['slug' => 'prayer-meeting', 'page_id' => $page->id]);
+        $meeting = Meeting::factory()->create(['slug' => 'prayer-meeting-admin-test', 'page_id' => $page->id]);
 
         $event = CalendarEvent::factory()->create([
             'meeting_slug' => null,
@@ -193,7 +193,7 @@ class AdminCalendarEventTest extends TestCase
 
         $page = Page::factory()->create(['heading' => 'Prayer Meeting']);
         $meeting = Meeting::factory()->create([
-            'slug' => 'prayer-meeting',
+            'slug' => 'prayer-meeting-toggle-test',
             'page_id' => $page->id,
         ]);
 
@@ -228,7 +228,7 @@ class AdminCalendarEventTest extends TestCase
 
         $page = Page::factory()->create(['heading' => 'Bible Study']);
         $meeting = Meeting::factory()->create([
-            'slug' => 'bible-study',
+            'slug' => 'bible-study-admin-test',
             'page_id' => $page->id,
         ]);
 

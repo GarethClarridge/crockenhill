@@ -63,8 +63,8 @@ class SermonResourceTest extends TestCase
     public function it_includes_preacher_details_when_loaded(): void
     {
         $preacher = Preacher::factory()->create([
-            'name' => 'John Smith',
-            'slug' => 'john-smith',
+            'name' => 'John Smith Resource Test',
+            'slug' => 'john-smith-resource-test',
             'image_path' => 'preachers/john.jpg',
         ]);
         $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id]);
@@ -79,7 +79,7 @@ class SermonResourceTest extends TestCase
         $this->assertArrayHasKey('preacher_details', $array);
         $this->assertNotInstanceOf(\Illuminate\Http\Resources\MissingValue::class, $array['preacher_details']);
         $this->assertEquals($preacher->id, $array['preacher_details']['id']);
-        $this->assertEquals('John Smith', $array['preacher_details']['name']);
+        $this->assertEquals('John Smith Resource Test', $array['preacher_details']['name']);
         $this->assertStringContainsString('preachers/john.jpg', $array['preacher_details']['image_url']);
     }
 

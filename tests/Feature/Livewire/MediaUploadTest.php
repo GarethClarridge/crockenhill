@@ -285,7 +285,7 @@ class MediaUploadTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create([
             'processing_id' => 'proc-manual-review',
             'owner_user_id' => $this->admin->id,
-            'status' => \App\Enums\ProcessingStatus::FAILED,
+            'status' => \App\Enums\ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
         ]);
 

@@ -33,7 +33,10 @@ class PreacherAliasTest extends TestCase
     #[Test]
     public function it_belongs_to_a_preacher(): void
     {
-        $preacher = Preacher::factory()->create(['name' => 'Mark Drury']);
+        $preacher = Preacher::factory()->create([
+            'name' => 'Mark Drury Alias Test',
+            'slug' => 'mark-drury-alias-test',
+        ]);
         $alias = PreacherAlias::create([
             'preacher_id' => $preacher->id,
             'alias' => 'Mark D',
@@ -41,7 +44,7 @@ class PreacherAliasTest extends TestCase
 
         $this->assertInstanceOf(Preacher::class, $alias->preacher);
         $this->assertEquals($preacher->id, $alias->preacher->id);
-        $this->assertEquals('Mark Drury', $alias->preacher->name);
+        $this->assertEquals('Mark Drury Alias Test', $alias->preacher->name);
     }
 
     #[Test]

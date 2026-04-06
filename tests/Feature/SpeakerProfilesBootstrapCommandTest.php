@@ -23,7 +23,10 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
             'media-processing.speaker_identification.model_version' => 'v1.0',
         ]);
 
-        $preacher = Preacher::factory()->create(['name' => 'Mark Drury', 'slug' => 'mark-drury']);
+        $preacher = Preacher::factory()->create([
+            'name' => 'Mark Drury Bootstrap Test',
+            'slug' => 'mark-drury-bootstrap-test',
+        ]);
         Sermon::factory()->count(2)->withPreacher($preacher)->create();
 
         $embedding = array_fill(0, 256, 0.1);
@@ -65,7 +68,10 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
             'media-processing.speaker_identification.model_version' => 'v1.0',
         ]);
 
-        $preacher = Preacher::factory()->create(['name' => 'Mark Drury', 'slug' => 'mark-drury']);
+        $preacher = Preacher::factory()->create([
+            'name' => 'Mark Drury Bootstrap Idempotent',
+            'slug' => 'mark-drury-bootstrap-idempotent',
+        ]);
         Sermon::factory()->count(2)->withPreacher($preacher)->create();
 
         $embedding = array_fill(0, 256, 0.2);
@@ -101,7 +107,10 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
             'media-processing.speaker_identification.model_version' => 'v1.0',
         ]);
 
-        $preacher = Preacher::factory()->create(['name' => 'Mark Drury', 'slug' => 'mark-drury']);
+        $preacher = Preacher::factory()->create([
+            'name' => 'Mark Drury Bootstrap Legacy',
+            'slug' => 'mark-drury-bootstrap-legacy',
+        ]);
 
         // Legacy sermon: bare filename without '/', plus a filetype
         Sermon::factory()->count(2)->withPreacher($preacher)->create([

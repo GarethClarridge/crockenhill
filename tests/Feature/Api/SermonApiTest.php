@@ -371,24 +371,22 @@ class SermonApiTest extends TestCase
         $this->assertEquals(8, $response->json('meta.total'));
     }
 
-    public function test_per_page_is_clamped_to_maximum_of_100(): void
+    public function test_per_page_is_rejected_when_greater_than_100(): void
     {
         Sermon::factory()->count(5)->create();
 
-        $response = $this->getJson('/api/sermons?per_page=999');
-
-        $response->assertStatus(200);
-        $this->assertLessThanOrEqual(100, $response->json('meta.per_page'));
+        $this->getJson('/api/sermons?per_page=999')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
     }
 
-    public function test_per_page_is_clamped_to_minimum_of_1(): void
+    public function test_per_page_is_rejected_when_less_than_1(): void
     {
         Sermon::factory()->count(3)->create();
 
-        $response = $this->getJson('/api/sermons?per_page=0');
-
-        $response->assertStatus(200);
-        $this->assertGreaterThanOrEqual(1, $response->json('meta.per_page'));
+        $this->getJson('/api/sermons?per_page=0')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
     }
 
     public function test_api_search_functionality_with_thumbnails(): void

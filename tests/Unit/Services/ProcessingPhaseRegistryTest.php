@@ -106,12 +106,12 @@ class ProcessingPhaseRegistryTest extends TestCase
         $registry = app(ProcessingPhaseRegistry::class);
 
         $transcriptionLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'transcribe_speech_segments',
         ]);
 
         $alignmentLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'align_with_oos',
         ]);
 

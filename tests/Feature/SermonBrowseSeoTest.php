@@ -22,13 +22,16 @@ class SermonBrowseSeoTest extends TestCase
 
     public function test_preacher_sermons_page_has_correct_seo_data(): void
     {
-        $preacher = Preacher::factory()->create(['name' => 'John Smith', 'slug' => 'john-smith']);
+        $preacher = Preacher::query()->firstOrCreate(
+            ['slug' => 'john-smith-browse-test'],
+            ['name' => 'John Smith Browse Test', 'is_active' => true]
+        );
 
-        $response = $this->get('/christ/sermons/preachers/john-smith');
+        $response = $this->get('/christ/sermons/preachers/john-smith-browse-test');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Sermons by John Smith | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse all sermons preached by John Smith at Crockenhill Baptist Church.">', false);
+        $response->assertSee('<title>Sermons by John Smith Browse Test | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<meta name="description" content="Browse all sermons preached by John Smith Browse Test at Crockenhill Baptist Church.">', false);
     }
 
     public function test_series_sermons_page_has_correct_seo_data(): void

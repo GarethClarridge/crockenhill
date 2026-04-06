@@ -187,7 +187,10 @@ class SermonIdentityAuthorityTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $preacher = Preacher::factory()->create(['name' => 'Mark Drury']);
+        $preacher = Preacher::factory()->create([
+            'name' => 'Mark Drury Identity Test',
+            'slug' => 'mark-drury-identity-test',
+        ]);
         $passage = ScripturePassage::factory()->create([
             'bible_id' => 'de4e12af7f28f599-02',
             'normalized_reference' => 'John 3:16',
@@ -203,7 +206,7 @@ class SermonIdentityAuthorityTest extends TestCase
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
             ->set('preacherId', null)
-            ->set('preacher', '  Mark   Drury  ')
+            ->set('preacher', '  Mark   Drury   Identity   Test  ')
             ->set('reference', 'John 3:16')
             ->call('save')
             ->assertDispatched('notify', type: 'success', message: 'Sermon updated');

@@ -44,6 +44,7 @@ class MeetingFrequencyIntegrityTest extends TestCase
     public function it_allows_null_frequency_at_database_level(): void
     {
         $meeting = Meeting::factory()->create([
+            'is_recurring' => false,
             'frequency' => null,
             'slug' => 'meeting-null',
         ]);

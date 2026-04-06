@@ -167,16 +167,20 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function preacher_page_shows_sermons_for_that_preacher(): void
     {
-        $preacher = Preacher::factory()->create(['name' => 'John Smith', 'slug' => 'john-smith']);
+        $preacher = Preacher::query()->firstOrCreate(
+            ['slug' => 'john-smith-feature-test'],
+            ['name' => 'John Smith Feature Test', 'is_active' => true]
+        );
         Sermon::factory()->create([
             'title' => 'Sermon By John',
             'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
             'content_type' => SermonContentType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons/preachers/john-smith');
+        $response = $this->get('/christ/sermons/preachers/john-smith-feature-test');
         $response->assertStatus(200);
-        $response->assertSee('John Smith');
+        $response->assertSee('John Smith Feature Test');
     }
 
     #[Test]

@@ -6,6 +6,7 @@ use App\Enums\ApiTokenAbility;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -62,7 +63,7 @@ class ProcessingStatusThumbnailTest extends TestCase
                 'found' => true,
                 'processing_id' => $processingId,
                 'thumbnail_generated' => true,
-                'thumbnail_url' => Storage::disk('public')->url('sermons/thumbnails/test-thumbnail.jpg'),
+                'thumbnail_url' => app(SermonStorageService::class)->getThumbnailUrl($sermon),
             ]);
 
         $this->assertNotNull($response->json('thumbnail_generated_at'));
