@@ -293,6 +293,7 @@ class MediaProcessingLog extends Model
 
                 foreach (self::legacyManualReviewReasonPatterns() as $pattern) {
                     $query->orWhere(function (Builder $query) use ($pattern): void {
+                        // Legacy fallback rows only ever existed for livestream runs.
                         $query
                             ->where('processing_type', MediaType::Livestream->value)
                             ->where('error_message', 'like', '%'.$pattern.'%');
@@ -395,14 +396,13 @@ class MediaProcessingLog extends Model
             return self::VIDEO_PROCESSING_MODE_FULL_VIDEO;
         }
 
-        $raw = $this->processing_metadata->raw ?? [];
-        $mode = $raw['video_processing_mode'] ?? null;
+        $mode = $this->processing_metadata?->videoProcessingMode;
 
         if ($mode === self::VIDEO_PROCESSING_MODE_AUTO_TRIM) {
             return self::VIDEO_PROCESSING_MODE_AUTO_TRIM;
         }
 
-        return ($raw['trim_requested'] ?? false) === true
+        return $this->processing_metadata?->trimRequested === true
             ? self::VIDEO_PROCESSING_MODE_AUTO_TRIM
             : self::VIDEO_PROCESSING_MODE_FULL_VIDEO;
     }

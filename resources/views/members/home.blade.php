@@ -60,10 +60,10 @@
             </x-button>
 
             <x-button link="{{ route('admin.services.processing.review.index') }}" icon="video-camera" iconStyle="solid">
-              Livestream review
-              @if(($pendingLivestreamReviewCount ?? 0) > 0)
+              Sermon review
+              @if(($pendingSermonReviewCount ?? 0) > 0)
               <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
-                {{ $pendingLivestreamReviewCount }}
+                {{ $pendingSermonReviewCount }}
               </span>
               @endif
             </x-button>

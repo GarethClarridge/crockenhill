@@ -3,8 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Enums\MediaType;
-use App\Models\MediaProcessingLog;
 use App\Services\MediaValidationService;
+use App\Services\VideoProcessingOptions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -45,24 +45,7 @@ class ProcessMediaRequest extends FormRequest
         return [
             ...$fileRules,
             'type' => ['required', Rule::enum(MediaType::class)],
-            'auto_trim' => [
-                'sometimes',
-                'boolean',
-                Rule::prohibitedIf(
-                    $mediaType !== MediaType::Video || ! (bool) config('media-processing.video_auto_trim.enabled', true)
-                ),
-            ],
-            'video_processing_mode' => [
-                'sometimes',
-                'string',
-                Rule::in([
-                    MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO,
-                    MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
-                ]),
-                Rule::prohibitedIf(
-                    $mediaType !== MediaType::Video || ! (bool) config('media-processing.video_auto_trim.enabled', true)
-                ),
-            ],
+            ...VideoProcessingOptions::validationRules($mediaType),
         ];
     }
 

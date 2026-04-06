@@ -528,6 +528,65 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
+    public function it_rejects_auto_trim_video_processing_when_the_feature_is_disabled(): void
+    {
+        config(['media-processing.video_auto_trim.enabled' => false]);
+
+        $file = UploadedFile::fake()->create('sermon-video.mp4', 2048);
+
+        $result = $this->processor->process('video', $file, null, [
+            'auto_trim' => true,
+            'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+        ]);
+
+        $this->assertFalse($result->success);
+        $this->assertSame('AUTO_TRIM_DISABLED', $result->errorCode);
+        $this->assertStringContainsString('disabled', $result->message);
+    }
+
+    #[Test]
+    public function it_persists_auto_trim_video_processing_metadata_for_direct_video_runs(): void
+    {
+        Bus::fake();
+
+        $file = UploadedFile::fake()->create('sermon-video.mp4', 2048);
+
+        $processingLog = MediaProcessingLog::factory()->video()->pending()->create([
+            'original_filename' => 'sermon-video.mp4',
+            'current_step' => 'video_processing_initiated',
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'trim_requested' => true,
+            ],
+        ]);
+
+        $this->processingInitiator
+            ->expects($this->once())
+            ->method('initiateProcessing')
+            ->with(
+                $file,
+                \App\Enums\MediaType::Video,
+                null,
+                $this->callback(function (array $attributes): bool {
+                    return ($attributes['processing_metadata']['video_processing_mode'] ?? null) === MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM
+                        && ($attributes['processing_metadata']['trim_requested'] ?? null) === true;
+                })
+            )
+            ->willReturn($processingLog);
+
+        $this->pipelineBuilder
+            ->method('buildAutoTrimVideoPipeline')
+            ->willReturn([new AudioStubJob]);
+
+        $result = $this->processor->process('video', $file, null, [
+            'auto_trim' => true,
+            'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+        ]);
+
+        $this->assertTrue($result->success);
+    }
+
+    #[Test]
     public function it_creates_processing_log_for_direct_video(): void
     {
         Bus::fake();

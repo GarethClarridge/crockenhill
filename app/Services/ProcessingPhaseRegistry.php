@@ -553,6 +553,16 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
+                'key' => 'enhance_audio',
+                'progress' => 65,
+                'job_offset' => 8,
+                'steps' => [
+                    'audio_enhancement',
+                    'audio_enhancement_complete',
+                    'audio_enhancement_skipped',
+                ],
+            ],
+            [
                 'key' => 'create_sermon_record',
                 'progress' => 70,
                 'job_offset' => 9,

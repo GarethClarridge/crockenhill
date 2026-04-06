@@ -51,6 +51,18 @@ class UnifiedMediaProcessor
             );
         }
 
+        if (
+            $mediaType === MediaType::Video
+            && VideoProcessingOptions::requestsAutoTrim($options)
+            && ! (bool) config('media-processing.video_auto_trim.enabled', true)
+        ) {
+            return ProcessingResult::failure(
+                processingId: 'disabled-'.Str::uuid(),
+                message: 'Auto-trim video uploads are currently disabled.',
+                errorCode: 'AUTO_TRIM_DISABLED'
+            );
+        }
+
         $fileHash = $this->computeFileHash($file);
         $duplicate = $this->findActiveDuplicate($fileHash);
 
@@ -278,7 +290,7 @@ class UnifiedMediaProcessor
         try {
             // Store video file temporarily before processing (preserves file timestamps for metadata extraction)
             $tempPath = $file->store('temp/video-processing');
-            $videoProcessingMode = $this->resolveVideoProcessingMode($options);
+            $videoProcessingMode = VideoProcessingOptions::resolveMode($options);
 
             // Create processing log via shared initiator
             $processingLog = $this->processingInitiator->initiateProcessing(
@@ -325,21 +337,5 @@ class UnifiedMediaProcessor
         }
 
         return "An internal error occurred while initiating {$type} processing.";
-    }
-
-    /**
-     * @param  array<string, mixed>  $options
-     */
-    private function resolveVideoProcessingMode(array $options): string
-    {
-        $mode = $options['video_processing_mode'] ?? null;
-
-        if ($mode === MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM) {
-            return MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM;
-        }
-
-        return ($options['auto_trim'] ?? false) === true
-            ? MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM
-            : MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO;
     }
 }

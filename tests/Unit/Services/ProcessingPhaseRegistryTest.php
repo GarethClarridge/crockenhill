@@ -131,4 +131,28 @@ class ProcessingPhaseRegistryTest extends TestCase
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($alignmentLog));
     }
+
+    #[Test]
+    public function it_maps_auto_trim_video_runs_to_their_dedicated_pipeline_phases(): void
+    {
+        $registry = app(ProcessingPhaseRegistry::class);
+
+        $processingLog = MediaProcessingLog::factory()->video()->create([
+            'status' => ProcessingStatus::Failed,
+            'current_step' => 'audio_enhancement_complete',
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'trim_requested' => true,
+            ],
+        ]);
+
+        $this->assertSame(65, $registry->progressForLog($processingLog));
+        $this->assertSame([
+            'action' => 'dispatch_chain',
+            'pipeline' => 'video_auto_trim',
+            'job_offset' => 8,
+            'rerun_strategy' => 'safe_to_rerun',
+            'reset_scope' => 'none',
+        ], $registry->retryPlanFor($processingLog));
+    }
 }

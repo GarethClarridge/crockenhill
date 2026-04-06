@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\MediaValidationService;
 use App\Services\UnifiedMediaProcessor;
+use App\Services\VideoProcessingOptions;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
@@ -335,16 +336,7 @@ class Form extends Component
      */
     private function processingOptions(): array
     {
-        if ($this->mediaType !== MediaType::Video->value) {
-            return [];
-        }
-
-        return [
-            'auto_trim' => $this->autoTrimVideo,
-            'video_processing_mode' => $this->autoTrimVideo
-                ? MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM
-                : MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO,
-        ];
+        return VideoProcessingOptions::forMediaType($this->mediaType, $this->autoTrimVideo);
     }
 
     private function getProcessor(): UnifiedMediaProcessor

@@ -192,4 +192,23 @@ class DirectSermonVideoUploadTest extends TestCase
                 'processing_id' => 'test-processing-id-123',
             ]);
     }
+
+    public function test_video_upload_accepts_auto_trim_requests(): void
+    {
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
+        $videoFile = $this->fakeVideoUpload('test-sermon.mp4', 100 * 1024);
+
+        $response = $this->postJson('/api/media/video', [
+            'file' => $videoFile,
+            'auto_trim' => true,
+            'video_processing_mode' => 'auto_trim',
+        ]);
+
+        $response->assertStatus(202)
+            ->assertJson([
+                'success' => true,
+                'processing_id' => 'test-processing-id-123',
+            ]);
+    }
 }

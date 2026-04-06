@@ -142,6 +142,41 @@ class MediaUploadTest extends TestCase
     }
 
     #[Test]
+    public function it_passes_auto_trim_video_options_when_enabled_for_a_video_upload(): void
+    {
+        $this->actingAs($this->admin);
+
+        $expectedId = '00000000-0000-0000-0000-000000000321';
+        $file = UploadedFile::fake()->create('sermon.mp4', 2048, 'video/mp4');
+
+        $mockResult = \App\Services\ProcessingResult::success($expectedId, 'Started');
+
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor->expects($this->once())
+            ->method('process')
+            ->with(
+                'video',
+                $this->isInstanceOf(UploadedFile::class),
+                null,
+                [
+                    'auto_trim' => true,
+                    'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                ]
+            )
+            ->willReturn($mockResult);
+
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
+
+        Livewire::test(MediaUpload::class)
+            ->set('mediaType', 'video')
+            ->set('autoTrimVideo', true)
+            ->set('mediaFile', $file)
+            ->call('uploadComplete')
+            ->assertSet('processingId', $expectedId)
+            ->assertSet('status', 'processing');
+    }
+
+    #[Test]
     public function it_handles_processing_failures_gracefully()
     {
         $this->actingAs($this->admin);

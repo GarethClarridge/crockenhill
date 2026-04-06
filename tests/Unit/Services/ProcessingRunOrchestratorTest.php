@@ -208,6 +208,133 @@ class ProcessingRunOrchestratorTest extends TestCase
     }
 
     #[Test]
+    public function it_starts_auto_trim_video_runs_via_the_canonical_orchestrator_entrypoint(): void
+    {
+        Bus::fake();
+
+        $processingLog = MediaProcessingLog::factory()->video()->pending()->create([
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'trim_requested' => true,
+            ],
+        ]);
+
+        $builder = $this->mock(ProcessingPipelineBuilder::class);
+        $builder->shouldReceive('buildAutoTrimVideoPipeline')
+            ->once()
+            ->with($processingLog)
+            ->andReturn([new CleanupTemporaryFiles($processingLog)]);
+
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
+
+        app(ProcessingRunOrchestrator::class)->start($processingLog);
+
+        Bus::assertDispatched(CleanupTemporaryFiles::class, function (CleanupTemporaryFiles $job): bool {
+            return $job->queue === 'video-processing';
+        });
+    }
+
+    #[Test]
+    public function it_resumes_auto_trim_video_runs_after_manual_review_using_the_post_review_chain(): void
+    {
+        Mail::fake();
+        config(['queue.default' => 'sync']);
+
+        $processingLog = MediaProcessingLog::factory()->video()->pending()->create([
+            'source_file_path' => 'temp/video-processing/sermon.mp4',
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'trim_requested' => true,
+            ],
+        ]);
+
+        $builder = $this->mock(ProcessingPipelineBuilder::class);
+        $builder->shouldReceive('buildAutoTrimVideoPostReviewChainJobs')
+            ->once()
+            ->andReturn([new AlwaysFailingJob]);
+
+        $storageService = $this->mock(VideoStorageService::class);
+        $storageService->shouldReceive('cleanupTemporaryFiles')
+            ->once()
+            ->with(Mockery::type('array'));
+
+        $this->app->forgetInstance(\App\Services\ProcessingRunFailureHandler::class);
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
+
+        try {
+            app(ProcessingRunOrchestrator::class)->resumeAfterManualReview($processingLog);
+        } catch (\RuntimeException) {
+            // Sync queue rethrows after the chain catch callback has run.
+        }
+
+        $processingLog->refresh();
+        $this->assertSame(ProcessingStatus::Failed, $processingLog->status);
+        $this->assertStringContainsString('Video auto-trim processing failed', $processingLog->error_message);
+    }
+
+    #[Test]
+    public function it_retries_auto_trim_video_runs_from_the_failed_phase(): void
+    {
+        Bus::fake();
+
+        $processingLog = MediaProcessingLog::factory()->video()->failed()->create([
+            'current_step' => 'transcribing_audio_failed',
+            'error_message' => 'Temporary outage',
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'trim_requested' => true,
+            ],
+        ]);
+
+        $result = app(ProcessingRunOrchestrator::class)->retry($processingLog);
+
+        $this->assertTrue($result->success);
+
+        $processingLog->refresh();
+        $this->assertSame(ProcessingStatus::Pending, $processingLog->status);
+        $this->assertNull($processingLog->error_message);
+
+        Bus::assertChained([
+            TranscribeAudio::class,
+            ProcessTranscriptWithAI::class,
+            GenerateThumbnail::class,
+            SendCompletionNotification::class,
+            CleanupTemporaryFiles::class,
+        ]);
+    }
+
+    #[Test]
+    public function it_cancels_auto_trim_video_runs_and_cleans_up_segmentation_files(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->video()->processing()->create([
+            'source_file_path' => 'temp/video-processing/sermon.mp4',
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'trim_requested' => true,
+                'extracted_segment_path' => 'temp/video-processing/segment.mp4',
+                'extracted_audio_path' => 'temp/video-processing/segment.mp3',
+            ],
+        ]);
+
+        $storageService = $this->mock(VideoStorageService::class);
+        $storageService->shouldReceive('cleanupTemporaryFiles')
+            ->once()
+            ->with([
+                'temp/video-processing/sermon.mp4',
+                'temp/video-processing/segment.mp4',
+                'temp/video-processing/segment.mp3',
+            ]);
+
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
+
+        $cancelled = app(ProcessingRunOrchestrator::class)->cancel($processingLog);
+
+        $this->assertTrue($cancelled);
+        $processingLog->refresh();
+        $this->assertSame(ProcessingStatus::Cancelled, $processingLog->status);
+    }
+
+    #[Test]
     public function it_does_not_dispatch_the_livestream_follow_on_chain_after_cancellation(): void
     {
         Bus::fake();

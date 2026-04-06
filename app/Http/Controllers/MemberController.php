@@ -33,7 +33,7 @@ class MemberController extends Controller
         return view('members.home', [
             'heading' => 'Members',
             'pendingInboundEmailCount' => $pendingInboundEmailCount,
-            'pendingLivestreamReviewCount' => $pendingSermonReviewCount,
+            'pendingSermonReviewCount' => $pendingSermonReviewCount,
         ]);
     }
 }

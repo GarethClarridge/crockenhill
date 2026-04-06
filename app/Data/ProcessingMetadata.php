@@ -14,6 +14,8 @@ final class ProcessingMetadata extends JsonData
         public readonly ?ProcessingId3Metadata $id3Metadata = null,
         public readonly ?ProcessingManualReviewMetadata $manualReview = null,
         public readonly ?array $speakerIdentification = null,
+        public readonly ?string $videoProcessingMode = null,
+        public readonly ?bool $trimRequested = null,
         public readonly array $raw = [],
     ) {}
 
@@ -27,6 +29,8 @@ final class ProcessingMetadata extends JsonData
             speakerIdentification: ($payload['speaker_identification'] ?? null) && is_array($payload['speaker_identification'])
                 ? $payload['speaker_identification']
                 : null,
+            videoProcessingMode: self::stringOrNull($payload['video_processing_mode'] ?? null),
+            trimRequested: self::boolOrNull($payload['trim_requested'] ?? null),
             raw: $payload,
         );
     }
@@ -48,6 +52,14 @@ final class ProcessingMetadata extends JsonData
 
         if ($this->speakerIdentification !== null) {
             $data['speaker_identification'] = $this->speakerIdentification;
+        }
+
+        if ($this->videoProcessingMode !== null) {
+            $data['video_processing_mode'] = $this->videoProcessingMode;
+        }
+
+        if ($this->trimRequested !== null) {
+            $data['trim_requested'] = $this->trimRequested;
         }
 
         return $data;

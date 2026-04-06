@@ -115,7 +115,7 @@ class MemberControllerTest extends TestCase
         $response = $this->get(route('memberHome'));
 
         $response->assertOk();
-        $response->assertSeeText('Livestream review');
+        $response->assertSeeText('Sermon review');
         $response->assertSeeText('1');
     }
 

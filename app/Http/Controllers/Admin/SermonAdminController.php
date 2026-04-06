@@ -6,9 +6,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProcessMediaRequest;
-use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\UnifiedMediaProcessor;
+use App\Services\VideoProcessingOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -105,18 +105,12 @@ class SermonAdminController extends Controller
      */
     private function processingOptions(array $validatedData): array
     {
-        $autoTrim = (bool) ($validatedData['auto_trim'] ?? false);
-        $videoProcessingMode = isset($validatedData['video_processing_mode']) && is_string($validatedData['video_processing_mode'])
-            ? $validatedData['video_processing_mode']
-            : null;
-
-        if (! $autoTrim && $videoProcessingMode !== MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM) {
-            return [];
-        }
-
-        return [
-            'auto_trim' => $autoTrim,
-            'video_processing_mode' => $videoProcessingMode ?? MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
-        ];
+        return VideoProcessingOptions::forMediaType(
+            is_string($validatedData['type'] ?? null) ? $validatedData['type'] : null,
+            (bool) ($validatedData['auto_trim'] ?? false),
+            isset($validatedData['video_processing_mode']) && is_string($validatedData['video_processing_mode'])
+                ? $validatedData['video_processing_mode']
+                : null
+        );
     }
 }

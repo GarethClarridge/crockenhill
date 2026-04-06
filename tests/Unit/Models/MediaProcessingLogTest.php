@@ -156,6 +156,8 @@ class MediaProcessingLogTest extends TestCase
             'speaker_identification' => [
                 'outcome' => 'matched',
             ],
+            'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+            'trim_requested' => true,
             'legacy_context' => 'preserve-me',
         ];
 
@@ -175,8 +177,44 @@ class MediaProcessingLogTest extends TestCase
 
         $this->assertSame('ID3 Title', $log->processing_metadata->id3Metadata?->title);
         $this->assertSame('ratio_below_threshold', $log->processing_metadata?->manualReview?->reasonCode);
+        $this->assertSame(MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM, $log->processing_metadata?->videoProcessingMode);
+        $this->assertTrue($log->processing_metadata?->trimRequested);
         $this->assertSame($processingMetadata, $log->processing_metadata?->toArray());
         $this->assertSame($songClusters, $log->song_clusters?->toArray());
+    }
+
+    #[Test]
+    public function it_derives_auto_trim_pipeline_helpers_from_processing_metadata(): void
+    {
+        $autoTrimVideo = MediaProcessingLog::factory()->video()->create([
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'trim_requested' => true,
+            ],
+        ]);
+
+        $fullVideo = MediaProcessingLog::factory()->video()->create([
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO,
+            ],
+        ]);
+
+        $livestream = MediaProcessingLog::factory()->livestream()->create();
+
+        $this->assertSame(MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM, $autoTrimVideo->videoProcessingMode());
+        $this->assertTrue($autoTrimVideo->isAutoTrimVideoRun());
+        $this->assertTrue($autoTrimVideo->usesSegmentationPipeline());
+        $this->assertSame('video_auto_trim', $autoTrimVideo->processingPipelineProfile());
+        $this->assertTrue($autoTrimVideo->canUseManualSermonReview());
+
+        $this->assertSame(MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO, $fullVideo->videoProcessingMode());
+        $this->assertFalse($fullVideo->isAutoTrimVideoRun());
+        $this->assertFalse($fullVideo->usesSegmentationPipeline());
+        $this->assertSame('video', $fullVideo->processingPipelineProfile());
+        $this->assertFalse($fullVideo->canUseManualSermonReview());
+
+        $this->assertTrue($livestream->usesSegmentationPipeline());
+        $this->assertSame('livestream', $livestream->processingPipelineProfile());
     }
 
     #[Test]
