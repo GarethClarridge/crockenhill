@@ -92,6 +92,10 @@ class SongCatalogSchemaTest extends TestCase
     #[Test]
     public function reconcile_song_catalog_schema_migration_repairs_legacy_songs_shape(): void
     {
+        if (DB::getDriverName() === 'mysql') {
+            $this->dropCheckIfExists('songs', 'songs_not_empty_check');
+        }
+
         Schema::table('songs', function (Blueprint $table): void {
             $table->dropUnique('songs_canonical_key_unique');
             $table->dropIndex('songs_ccli_number_index');
@@ -177,6 +181,19 @@ class SongCatalogSchemaTest extends TestCase
         $item->refresh();
 
         $this->assertNull($item->song_id);
+    }
+
+    private function dropCheckIfExists(string $table, string $constraint): void
+    {
+        $exists = DB::table('information_schema.table_constraints')
+            ->where('table_schema', DB::getDatabaseName())
+            ->where('table_name', $table)
+            ->where('constraint_name', $constraint)
+            ->exists();
+
+        if ($exists) {
+            DB::statement("ALTER TABLE `{$table}` DROP CHECK `{$constraint}`");
+        }
     }
 
     private function columnType(string $tableName, string $columnName): ?string
