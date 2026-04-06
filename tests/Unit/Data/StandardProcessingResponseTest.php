@@ -7,8 +7,12 @@ namespace Tests\Unit\Data;
 use App\Data\StandardProcessingResponse;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
+use App\Services\SermonStorageService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -109,7 +113,7 @@ class StandardProcessingResponseTest extends TestCase
     }
 
     #[Test]
-    public function from_processing_log_includes_video_file_path_when_present(): void
+    public function from_processing_log_omits_video_file_path_when_present(): void
     {
         $log = MediaProcessingLog::factory()->video()->completed()->create([
             'video_file_path' => 'sermons/2026/03/video.mp4',
@@ -117,7 +121,36 @@ class StandardProcessingResponseTest extends TestCase
 
         $response = StandardProcessingResponse::fromProcessingLog($log);
 
-        $this->assertSame('sermons/2026/03/video.mp4', $response->additionalData['video_file_path']);
+        $this->assertArrayNotHasKey('video_file_path', $response->additionalData);
+    }
+
+    #[Test]
+    public function from_processing_log_uses_public_thumbnail_url_from_storage_service(): void
+    {
+        Storage::fake('do_spaces');
+        Config::set('thumbnail-generation.storage.disk', 'do_spaces');
+        Config::set('filesystems.disks.do_spaces.cdn_endpoint', 'https://cdn.example.com');
+        app(SermonStorageService::class)->clearInternalCaches();
+
+        $sermon = Sermon::factory()->create([
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_generated_at' => now(),
+        ]);
+
+        $log = MediaProcessingLog::factory()
+            ->video()
+            ->withSermon($sermon)
+            ->create([
+                'video_file_path' => 'sermons/2026/03/video.mp4',
+            ]);
+
+        $response = StandardProcessingResponse::fromProcessingLog($log->fresh('sermon'));
+
+        $this->assertTrue($response->additionalData['thumbnail_generated']);
+        $this->assertStringStartsWith(
+            'https://cdn.example.com/sermons/thumbnails/test-thumbnail.jpg?v=',
+            (string) $response->additionalData['thumbnail_url'],
+        );
     }
 
     // -------------------------------------------------------------------------

@@ -281,16 +281,12 @@ class StandardProcessingResponse
             ],
         };
 
-        if ($log->video_file_path !== null) {
-            $metadata['video_file_path'] = $log->video_file_path;
-        }
-
         // Add thumbnail data if sermon exists
         $sermon = $log->sermon;
         if ($sermon instanceof \App\Models\Sermon) {
             $metadata['thumbnail_generated'] = ! empty($sermon->thumbnail_file_path);
             $metadata['thumbnail_url'] = $sermon->thumbnail_file_path
-                ? \Illuminate\Support\Facades\Storage::disk('public')->url($sermon->thumbnail_file_path)
+                ? app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon)
                 : null;
             $metadata['thumbnail_generated_at'] = $sermon->thumbnail_generated_at?->toISOString();
         }

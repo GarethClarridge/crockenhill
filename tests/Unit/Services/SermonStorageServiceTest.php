@@ -180,6 +180,23 @@ class SermonStorageServiceTest extends TestCase
         $url = $this->service->getVideoUrl($sermon);
 
         $this->assertStringContainsString('/storage/sermons/1/video.mp4', $url);
+        $this->assertStringContainsString('?v=', $url);
+    }
+
+    #[Test]
+    public function it_returns_video_url_from_cdn_when_configured(): void
+    {
+        Config::set('media-processing.storage.sermon_disk', 'do_spaces');
+        Config::set('filesystems.disks.do_spaces.cdn_endpoint', 'https://cdn.example.com');
+        $this->service->clearInternalCaches();
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+
+        $url = $this->service->getVideoUrl($sermon);
+
+        $this->assertStringStartsWith('https://cdn.example.com/sermons/1/video.mp4?v=', $url);
     }
 
     #[Test]
@@ -210,6 +227,22 @@ class SermonStorageServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_thumbnail_url_from_cdn_when_configured(): void
+    {
+        Config::set('thumbnail-generation.storage.disk', 'do_spaces');
+        Config::set('filesystems.disks.do_spaces.cdn_endpoint', 'https://cdn.example.com');
+        $this->service->clearInternalCaches();
+
+        $sermon = Sermon::factory()->create([
+            'thumbnail_file_path' => 'sermons/thumbnails/sermon-1.jpg',
+        ]);
+
+        $url = $this->service->getThumbnailUrl($sermon);
+
+        $this->assertStringStartsWith('https://cdn.example.com/sermons/thumbnails/sermon-1.jpg?v=', $url);
+    }
+
+    #[Test]
     public function it_returns_null_thumbnail_url_when_no_thumbnail_path(): void
     {
         $sermon = Sermon::factory()->create([
@@ -217,6 +250,65 @@ class SermonStorageServiceTest extends TestCase
         ]);
 
         $this->assertNull($this->service->getThumbnailUrl($sermon));
+    }
+
+    #[Test]
+    public function it_returns_card_thumbnail_url_from_cdn_when_configured(): void
+    {
+        Config::set('thumbnail-generation.storage.disk', 'do_spaces');
+        Config::set('filesystems.disks.do_spaces.cdn_endpoint', 'https://cdn.example.com');
+        $this->service->clearInternalCaches();
+
+        $sermon = Sermon::factory()->make([
+            'thumbnail_metadata' => [
+                'card_thumbnail_path' => 'sermons/thumbnails/sermon-card.jpg',
+            ],
+        ]);
+
+        $url = $this->service->getCardThumbnailUrl($sermon);
+
+        $this->assertStringStartsWith('https://cdn.example.com/sermons/thumbnails/sermon-card.jpg?v=', (string) $url);
+    }
+
+    #[Test]
+    public function it_rejects_path_traversal_in_video_paths(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => '../secrets.mp4',
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid video file path');
+
+        $this->service->getVideoUrl($sermon);
+    }
+
+    #[Test]
+    public function it_rejects_path_traversal_in_thumbnail_paths(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'thumbnail_file_path' => '../secrets.jpg',
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid thumbnail path');
+
+        $this->service->getThumbnailUrl($sermon);
+    }
+
+    #[Test]
+    public function it_rejects_path_traversal_in_card_thumbnail_paths(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'thumbnail_metadata' => [
+                'card_thumbnail_path' => '../secrets.jpg',
+            ],
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid thumbnail path');
+
+        $this->service->getCardThumbnailUrl($sermon);
     }
 
     #[Test]

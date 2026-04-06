@@ -127,7 +127,7 @@ class SermonIdentitySyncService
         }
 
         // 3. Initial resolution or backfill for unassigned records.
-        if ($sermon->preacher_id === null && is_string($sermon->preacher) && trim($sermon->preacher) !== '') {
+        if ($sermon->preacher_id === null && trim($sermon->preacher) !== '') {
             $matchedPreacher = $this->matchExistingPreacher($sermon->preacher);
 
             if ($matchedPreacher instanceof Preacher) {

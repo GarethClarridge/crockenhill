@@ -53,10 +53,7 @@ class SermonStorageService
      */
     public function getSermonFileInfo(Sermon $sermon): array
     {
-        // Security check: Prevent path traversal
-        if (str_contains($sermon->audio_file_path, '..')) {
-            throw new \InvalidArgumentException('Invalid audio file path: Path traversal detected.');
-        }
+        $this->validatePath($sermon->audio_file_path, 'audio file');
 
         // Private files stored on the local disk (unreachable via the public/storage symlink)
         if (str_starts_with($sermon->audio_file_path, 'private/')) {
@@ -105,7 +102,7 @@ class SermonStorageService
     }
 
     /**
-     * Get the video URL for a sermon
+     * Get the video URL for a sermon.
      */
     public function getVideoUrl(Sermon $sermon): ?string
     {
@@ -113,11 +110,17 @@ class SermonStorageService
             return null;
         }
 
-        return Storage::disk($this->sermonDisk)->url($sermon->video_file_path);
+        $this->validatePath($sermon->video_file_path, 'video file');
+
+        return $this->resolvePublicUrl(
+            $this->sermonDisk,
+            $sermon->video_file_path,
+            $this->videoVersion($sermon),
+        );
     }
 
     /**
-     * Get the thumbnail URL for a sermon
+     * Get the thumbnail URL for a sermon.
      */
     public function getThumbnailUrl(Sermon $sermon): ?string
     {
@@ -125,10 +128,11 @@ class SermonStorageService
             return null;
         }
 
-        $disk = $this->resolveThumbnailDisk($sermon->thumbnail_file_path);
-        $url = Storage::disk($disk)->url($sermon->thumbnail_file_path);
-
-        return $this->appendVersion($url, $this->thumbnailVersion($sermon, $sermon->thumbnail_file_path));
+        return $this->resolvePublicUrl(
+            $this->resolveThumbnailDisk($sermon->thumbnail_file_path),
+            $sermon->thumbnail_file_path,
+            $this->thumbnailVersion($sermon, $sermon->thumbnail_file_path),
+        );
     }
 
     public function getCardThumbnailUrl(Sermon $sermon): ?string
@@ -139,10 +143,9 @@ class SermonStorageService
             return null;
         }
 
-        $disk = $this->resolveThumbnailDisk($cardThumbnailPath);
-
-        return $this->appendVersion(
-            Storage::disk($disk)->url($cardThumbnailPath),
+        return $this->resolvePublicUrl(
+            $this->resolveThumbnailDisk($cardThumbnailPath),
+            $cardThumbnailPath,
             $this->thumbnailVersion($sermon, $cardThumbnailPath),
         );
     }
@@ -180,24 +183,21 @@ class SermonStorageService
 
     public function resolveThumbnailDisk(string $thumbnailPath): string
     {
+        $this->validatePath($thumbnailPath, 'thumbnail');
+
         return str_starts_with($thumbnailPath, 'private/')
             ? 'local'
             : $this->thumbnailDisk;
     }
 
     /**
-     * Get the public URL for a sermon file
+     * Get the public URL for a sermon file.
      */
     public function getPublicUrl(Sermon $sermon): string
     {
         $info = $this->getSermonFileInfo($sermon);
 
-        // Use CDN for public files if available
-        if ($info['disk'] === 'do_spaces' && $this->cdnEndpoint) {
-            return $this->appendVersion($this->cdnEndpoint.'/'.$info['path'], $this->audioVersion($sermon));
-        }
-
-        return $this->appendVersion(Storage::disk($info['disk'])->url($info['path']), $this->audioVersion($sermon));
+        return $this->resolvePublicUrl($info['disk'], $info['path'], $this->audioVersion($sermon));
     }
 
     /**
@@ -361,6 +361,24 @@ class SermonStorageService
         ]));
     }
 
+    private function videoVersion(Sermon $sermon): string
+    {
+        return sha1(implode('|', [
+            'video',
+            $sermon->video_file_path,
+            $sermon->updated_at?->getTimestamp() ?? 0,
+        ]));
+    }
+
+    private function resolvePublicUrl(string $disk, string $path, string $version): string
+    {
+        if ($disk === 'do_spaces' && $this->cdnEndpoint) {
+            return $this->appendVersion($this->cdnEndpoint.'/'.ltrim($path, '/'), $version);
+        }
+
+        return $this->appendVersion(Storage::disk($disk)->url($path), $version);
+    }
+
     /**
      * @return array{last_modified: ?int, size: ?int}
      */
@@ -402,5 +420,12 @@ class SermonStorageService
                 ?? $sermon->updated_at?->getTimestamp()
                 ?? 0,
         ]));
+    }
+
+    private function validatePath(?string $path, string $type): void
+    {
+        if (is_string($path) && str_contains($path, '..')) {
+            throw new \InvalidArgumentException("Invalid {$type} path: Path traversal detected.");
+        }
     }
 }
