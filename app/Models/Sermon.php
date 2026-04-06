@@ -181,7 +181,7 @@ class Sermon extends Model implements Sitemapable
     {
         return Attribute::make(
             get: fn (): string => $this->date->format('F j, Y')
-        );
+        )->shouldCache();
     }
 
     /**
@@ -191,7 +191,7 @@ class Sermon extends Model implements Sitemapable
     {
         return Attribute::make(
             get: fn (): ?string => $this->thumbnail_metadata?->plainThumbnailPath
-        );
+        )->shouldCache();
     }
 
     /**
@@ -209,7 +209,7 @@ class Sermon extends Model implements Sitemapable
 
                 return $metadata->cardThumbnailPath ?? $metadata->plainThumbnailPath;
             }
-        );
+        )->shouldCache();
     }
 
     /**
@@ -239,7 +239,7 @@ class Sermon extends Model implements Sitemapable
     {
         return Attribute::make(
             get: fn (): ?string => $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null
-        );
+        )->shouldCache();
     }
 
     /**
@@ -759,7 +759,7 @@ class Sermon extends Model implements Sitemapable
 
                 return Str::limit($descriptionWithSeries, 155);
             }
-        );
+        )->shouldCache();
     }
 
     /**
