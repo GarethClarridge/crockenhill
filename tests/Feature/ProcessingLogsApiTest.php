@@ -93,7 +93,7 @@ class ProcessingLogsApiTest extends TestCase
 
         // Test getting status with logs via query parameter
         $response = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/{$processingId}/status?include_logs=1&log_limit=10");
+            ->getJson("/api/media/processing/{$processingId}/status?include_logs=true&log_limit=10");
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -153,7 +153,7 @@ class ProcessingLogsApiTest extends TestCase
 
         // Request only 3 logs
         $response = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/{$processingId}/status?include_logs=1&log_limit=3");
+            ->getJson("/api/media/processing/{$processingId}/status?include_logs=true&log_limit=3");
 
         $response->assertStatus(200);
 
@@ -207,7 +207,7 @@ class ProcessingLogsApiTest extends TestCase
         File::put($this->originalLogFile, implode("\n", $logEntries));
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/{$processingId}/status?include_logs=1");
+            ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
         $response->assertJsonStructure([
             'processing_id',
@@ -232,7 +232,7 @@ class ProcessingLogsApiTest extends TestCase
         $nonexistentId = Str::uuid()->toString();
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/{$nonexistentId}/status?include_logs=1");
+            ->getJson("/api/media/processing/{$nonexistentId}/status?include_logs=true");
 
         $response->assertStatus(404)
             ->assertJson([
@@ -270,7 +270,7 @@ class ProcessingLogsApiTest extends TestCase
         File::put($this->originalLogFile, '');
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/{$processingId}/status?include_logs=1");
+            ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
         $response->assertStatus(200);
 
@@ -301,7 +301,7 @@ class ProcessingLogsApiTest extends TestCase
         File::put($this->originalLogFile, implode("\n", $logEntries));
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/{$processingId}/status?include_logs=1");
+            ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
         $response->assertStatus(200);
 
@@ -345,7 +345,7 @@ class ProcessingLogsApiTest extends TestCase
         File::put($this->originalLogFile, implode("\n", $logEntries));
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/{$processingId1}/status?include_logs=1");
+            ->getJson("/api/media/processing/{$processingId1}/status?include_logs=true");
 
         $response->assertStatus(200);
 
@@ -384,7 +384,7 @@ class ProcessingLogsApiTest extends TestCase
         File::put($this->originalLogFile, implode("\n", $logEntries));
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/{$processingId}/status?include_logs=1");
+            ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
         $response->assertStatus(200);
 
@@ -402,7 +402,7 @@ class ProcessingLogsApiTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        $response = $this->getJson("/api/media/processing/{$processingId}/status?include_logs=1");
+        $response = $this->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
         $response->assertStatus(401);
     }
@@ -429,7 +429,7 @@ class ProcessingLogsApiTest extends TestCase
         File::put($this->originalLogFile, implode("\n", $logEntries));
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/{$processingId}/status?include_logs=1");
+            ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
         $response->assertStatus(200);
 

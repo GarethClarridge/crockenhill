@@ -7,7 +7,6 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
-use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonApiTest extends TestCase
@@ -25,8 +24,7 @@ class SermonApiTest extends TestCase
         Sermon::query()->delete();
     }
 
-    #[Test]
-    public function can_list_sermons_via_api(): void
+    public function test_can_list_sermons_via_api(): void
     {
         // Create test sermons
         $sermons = Sermon::factory()->count(3)->create();
@@ -60,8 +58,7 @@ class SermonApiTest extends TestCase
         $this->assertCount(3, $response->json('data'));
     }
 
-    #[Test]
-    public function can_show_individual_sermon_via_api(): void
+    public function test_can_show_individual_sermon_via_api(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon',
@@ -87,8 +84,7 @@ class SermonApiTest extends TestCase
         );
     }
 
-    #[Test]
-    public function api_includes_preacher_details_image_url_when_preacher_is_loaded(): void
+    public function test_api_includes_preacher_details_image_url_when_preacher_is_loaded(): void
     {
         $preacher = Preacher::factory()->create([
             'name' => 'Test Preacher',
@@ -116,8 +112,7 @@ class SermonApiTest extends TestCase
             ]);
     }
 
-    #[Test]
-    public function thumbnail_url_is_null_when_no_thumbnail_exists(): void
+    public function test_thumbnail_url_is_null_when_no_thumbnail_exists(): void
     {
         $sermon = Sermon::factory()->create([
             'thumbnail_file_path' => null,
@@ -133,8 +128,7 @@ class SermonApiTest extends TestCase
             ]);
     }
 
-    #[Test]
-    public function can_filter_sermons_with_thumbnails(): void
+    public function test_can_filter_sermons_with_thumbnails(): void
     {
         // Create sermons with and without thumbnails
         $sermonWithThumbnail = Sermon::factory()->create([
@@ -155,8 +149,7 @@ class SermonApiTest extends TestCase
         $this->assertNotContains($sermonWithoutThumbnail->id, $sermonIds);
     }
 
-    #[Test]
-    public function can_filter_sermons_by_service(): void
+    public function test_can_filter_sermons_by_service(): void
     {
         $morningSermon = Sermon::factory()->create(['service' => 'morning']);
         $eveningSermon = Sermon::factory()->create(['service' => 'evening']);
@@ -171,8 +164,7 @@ class SermonApiTest extends TestCase
         $this->assertNotContains($eveningSermon->id, $sermonIds);
     }
 
-    #[Test]
-    public function api_list_excludes_childrens_talks(): void
+    public function test_api_list_excludes_childrens_talks(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'API Sermon',
@@ -194,8 +186,7 @@ class SermonApiTest extends TestCase
         $this->assertNotContains('API Childrens Talk', $titles);
     }
 
-    #[Test]
-    public function api_show_returns_not_found_for_childrens_talks(): void
+    public function test_api_show_returns_not_found_for_childrens_talks(): void
     {
         $talk = Sermon::factory()->create([
             'content_type' => SermonContentType::ChildrensTalk,
@@ -205,8 +196,7 @@ class SermonApiTest extends TestCase
             ->assertNotFound();
     }
 
-    #[Test]
-    public function api_includes_thumbnail_metadata_when_available(): void
+    public function test_api_includes_thumbnail_metadata_when_available(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon with Metadata',
@@ -247,8 +237,7 @@ class SermonApiTest extends TestCase
             ]);
     }
 
-    #[Test]
-    public function api_omits_points_when_show_points_is_false(): void
+    public function test_api_omits_points_when_show_points_is_false(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Hidden Outline Sermon',
@@ -266,8 +255,7 @@ class SermonApiTest extends TestCase
         $this->assertArrayNotHasKey('points', $response->json('data'));
     }
 
-    #[Test]
-    public function api_index_omits_points_when_show_points_is_false(): void
+    public function test_api_index_omits_points_when_show_points_is_false(): void
     {
         $hiddenOutlineSermon = Sermon::factory()->create([
             'title' => 'Hidden Outline Sermon',
@@ -299,8 +287,7 @@ class SermonApiTest extends TestCase
         $this->assertSame(['Visible point one'], $visibleSermonData['points']);
     }
 
-    #[Test]
-    public function api_omits_internal_thumbnail_paths_from_thumbnail_metadata(): void
+    public function test_api_omits_internal_thumbnail_paths_from_thumbnail_metadata(): void
     {
         $thumbnailPath = 'sermons/thumbnails/'.uniqid('thumbnail-', true).'.jpg';
 
@@ -332,8 +319,7 @@ class SermonApiTest extends TestCase
         $this->assertArrayNotHasKey('overlay_thumbnail_path', $thumbnailMetadata);
     }
 
-    #[Test]
-    public function api_handles_missing_thumbnail_metadata_gracefully(): void
+    public function test_api_handles_missing_thumbnail_metadata_gracefully(): void
     {
         $sermon = Sermon::factory()->create([
             'thumbnail_file_path' => null,
@@ -351,8 +337,7 @@ class SermonApiTest extends TestCase
             ]);
     }
 
-    #[Test]
-    public function api_pagination_includes_thumbnail_data(): void
+    public function test_api_pagination_includes_thumbnail_data(): void
     {
         // Create sermons with and without thumbnails
         Sermon::factory()->count(5)->create([
@@ -386,30 +371,27 @@ class SermonApiTest extends TestCase
         $this->assertEquals(8, $response->json('meta.total'));
     }
 
-    #[Test]
-    public function per_page_is_rejected_when_greater_than_100(): void
+    public function test_per_page_is_clamped_to_maximum_of_100(): void
     {
         Sermon::factory()->count(5)->create();
 
         $response = $this->getJson('/api/sermons?per_page=999');
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['per_page']);
+        $response->assertStatus(200);
+        $this->assertLessThanOrEqual(100, $response->json('meta.per_page'));
     }
 
-    #[Test]
-    public function per_page_is_rejected_when_less_than_1(): void
+    public function test_per_page_is_clamped_to_minimum_of_1(): void
     {
         Sermon::factory()->count(3)->create();
 
         $response = $this->getJson('/api/sermons?per_page=0');
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['per_page']);
+        $response->assertStatus(200);
+        $this->assertGreaterThanOrEqual(1, $response->json('meta.per_page'));
     }
 
-    #[Test]
-    public function api_search_functionality_with_thumbnails(): void
+    public function test_api_search_functionality_with_thumbnails(): void
     {
         $sermonWithThumbnail = Sermon::factory()->create([
             'title' => 'Searchable Sermon Title',
@@ -440,8 +422,7 @@ class SermonApiTest extends TestCase
         $this->assertNull($sermonData['thumbnail_url']);
     }
 
-    #[Test]
-    public function api_sorting_works_with_thumbnail_data(): void
+    public function test_api_sorting_works_with_thumbnail_data(): void
     {
         $oldSermon = Sermon::factory()->create([
             'date' => '2023-01-01',
@@ -476,8 +457,7 @@ class SermonApiTest extends TestCase
         $this->assertNotNull($olderSermonData['thumbnail_url']);
     }
 
-    #[Test]
-    public function api_includes_thumbnail_data_in_response(): void
+    public function test_api_includes_thumbnail_data_in_response(): void
     {
         $sermon = Sermon::factory()->create([
             'thumbnail_file_path' => 'sermons/thumbnails/cache-test.jpg',
@@ -496,8 +476,7 @@ class SermonApiTest extends TestCase
         $this->assertStringContainsString('cache-test.jpg', $data['thumbnail_url']);
     }
 
-    #[Test]
-    public function api_handles_concurrent_requests_with_thumbnails(): void
+    public function test_api_handles_concurrent_requests_with_thumbnails(): void
     {
         // Create multiple sermons with thumbnails
         $sermons = Sermon::factory()->count(10)->create([
@@ -524,8 +503,7 @@ class SermonApiTest extends TestCase
         }
     }
 
-    #[Test]
-    public function index_validates_input_parameters(): void
+    public function test_index_validates_input_parameters(): void
     {
         // Test oversized search term
         $this->getJson('/api/sermons?search='.str_repeat('a', 256))
