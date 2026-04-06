@@ -12,6 +12,12 @@ use Symfony\Component\Process\Process;
 
 class VisualAnalysisService
 {
+    public const RULE_SET_AUTO = 'auto';
+
+    public const RULE_SET_OLD_STYLE = 'old_style';
+
+    public const RULE_SET_NEW_STYLE = 'new_style';
+
     private const SAMPLE_INTERVAL_SECONDS = 10;
 
     private const BRIGHTNESS_THRESHOLD = 0.48;
@@ -28,6 +34,30 @@ class VisualAnalysisService
 
     private const SPAN_THRESHOLD_NEW = 0.35;
 
+    private const LOW_PROFILE_YLOW_CEILING = 0.18;
+
+    private const LOW_PROFILE_BRIGHTNESS_FLOOR = 0.24;
+
+    private const LOW_PROFILE_BRIGHTNESS_CEILING = 0.34;
+
+    private const LOW_PROFILE_EDGE_DENSITY_FLOOR = 0.48;
+
+    private const LOW_PROFILE_SPAN_FLOOR = 0.31;
+
+    private const LOW_PROFILE_CONTRAST_CEILING = 0.04;
+
+    private const LOW_PROFILE_BASE_CONFIDENCE = 0.38;
+
+    private const DENSE_CLUSTER_MAX_GAP_SECONDS = 30;
+
+    private const DENSE_START_ANCHOR_LEAD_SECONDS = 15;
+
+    private const DENSE_START_ANCHOR_TRAIL_SECONDS = 30;
+
+    private const DENSE_END_ANCHOR_LEAD_SECONDS = 30;
+
+    private const DENSE_END_ANCHOR_TRAIL_SECONDS = 30;
+
     private string $tempDisk;
 
     public function __construct()
@@ -39,6 +69,7 @@ class VisualAnalysisService
      * Analyze video for song periods using visual frame analysis
      *
      * @param  ?\Closure(float $currentTime): void  $progressCallback
+     * @param  self::RULE_SET_*  $ruleSet
      * @return array<array{
      *     timestamp: float,
      *     classification: string,
@@ -51,14 +82,20 @@ class VisualAnalysisService
      *     detection_mode: 'old_style'|'new_style'|'none'
      * }>
      */
-    public function analyzeVideo(string $videoPath, ?int $sampleInterval = null, ?\Closure $progressCallback = null): array
-    {
+    public function analyzeVideo(
+        string $videoPath,
+        ?int $sampleInterval = null,
+        ?\Closure $progressCallback = null,
+        string $ruleSet = self::RULE_SET_AUTO
+    ): array {
         $interval = $sampleInterval ?? self::SAMPLE_INTERVAL_SECONDS;
+        $normalizedRuleSet = $this->normalizeRuleSet($ruleSet);
 
         try {
             Log::info('Starting visual analysis', [
                 'video_path' => $videoPath,
                 'sample_interval' => $interval,
+                'rule_set' => $normalizedRuleSet,
             ]);
 
             // Extract frame metrics using FFmpeg
@@ -71,7 +108,7 @@ class VisualAnalysisService
             // Classify each frame
             $visualSamples = [];
             foreach ($metrics as $metric) {
-                $classification = $this->classifyFrame($metric);
+                $classification = $this->classifyFrame($metric, $normalizedRuleSet);
                 // Merge classification results with metrics, excluding the nested metrics array
                 $visualSamples[] = [
                     'timestamp' => $metric['timestamp'],
@@ -117,13 +154,18 @@ class VisualAnalysisService
      *     refined_visual_end?: float,
      *     dense_sample_count?: int
      * }  $cluster
+     * @param  self::RULE_SET_*  $ruleSet
      * @return array{refined_visual_start: float, refined_visual_end: float, dense_sample_count: int}
      */
-    public function refineBoundaries(string $videoPath, array $cluster): array
-    {
+    public function refineBoundaries(
+        string $videoPath,
+        array $cluster,
+        string $ruleSet = self::RULE_SET_AUTO
+    ): array {
         $denseInterval = 1;
         $introBuffer = 120;
         $outroBuffer = 60;
+        $normalizedRuleSet = $this->normalizeRuleSet($ruleSet);
 
         // Define refinement region
         $searchStart = max(0, $cluster['start_estimate'] - $introBuffer);
@@ -136,6 +178,7 @@ class VisualAnalysisService
                 'search_start' => gmdate('H:i:s', (int) $searchStart),
                 'search_end' => gmdate('H:i:s', (int) $searchEnd),
                 'interval' => $denseInterval,
+                'rule_set' => $normalizedRuleSet,
             ]);
 
             // Extract dense samples in region
@@ -159,7 +202,7 @@ class VisualAnalysisService
             // Classify each sample
             $songSamples = [];
             foreach ($denseSamples as $metric) {
-                $classification = $this->classifyFrame($metric);
+                $classification = $this->classifyFrame($metric, $normalizedRuleSet);
                 if ($classification['classification'] === LivestreamSegmentClassification::Song->value) {
                     $songSamples[] = $metric['timestamp'];
                 }
@@ -175,9 +218,33 @@ class VisualAnalysisService
                 ];
             }
 
-            // Find earliest and latest song timestamps
-            $refinedStart = min($songSamples);
-            $refinedEnd = max($songSamples);
+            $denseClusters = $this->clusterDenseSongSamples($songSamples);
+            $bestCluster = $this->selectBestDenseCluster($denseClusters, $cluster);
+
+            if ($bestCluster === null) {
+                Log::warning('No anchored dense song cluster found, using original estimates');
+
+                return [
+                    'refined_visual_start' => $cluster['start_estimate'],
+                    'refined_visual_end' => $cluster['end_estimate'],
+                    'dense_sample_count' => count($denseSamples),
+                ];
+            }
+
+            $refinedStart = $this->selectAnchoredDenseBoundary(
+                $songSamples,
+                (float) $cluster['start_estimate'],
+                self::DENSE_START_ANCHOR_LEAD_SECONDS,
+                self::DENSE_START_ANCHOR_TRAIL_SECONDS,
+                true
+            ) ?? $bestCluster['start'];
+            $refinedEnd = $this->selectAnchoredDenseBoundary(
+                $songSamples,
+                (float) $cluster['end_estimate'],
+                self::DENSE_END_ANCHOR_LEAD_SECONDS,
+                self::DENSE_END_ANCHOR_TRAIL_SECONDS,
+                false
+            ) ?? $bestCluster['end'];
 
             Log::info('Boundaries refined', [
                 'original_start' => gmdate('H:i:s', (int) $cluster['start_estimate']),
@@ -185,6 +252,7 @@ class VisualAnalysisService
                 'original_end' => gmdate('H:i:s', (int) $cluster['end_estimate']),
                 'refined_end' => gmdate('H:i:s', (int) $refinedEnd),
                 'song_samples' => count($songSamples),
+                'selected_cluster_samples' => $bestCluster['sample_count'],
             ]);
 
             return [
@@ -520,12 +588,14 @@ class VisualAnalysisService
      *     ylow?: float,
      *     percentile_span?: float
      * }  $metrics
+     * @param  self::RULE_SET_*  $ruleSet
      * @return array{classification: string, confidence: float, detection_mode: 'old_style'|'new_style'|'none'}
      */
-    public function classifyFrame(array $metrics): array
+    public function classifyFrame(array $metrics, string $ruleSet = self::RULE_SET_AUTO): array
     {
         $ylow = (float) ($metrics['ylow'] ?? 0.0);
         $percentileSpan = (float) ($metrics['percentile_span'] ?? max(0.0, $metrics['edge_density'] - $ylow));
+        $normalizedRuleSet = $this->normalizeRuleSet($ruleSet);
 
         // Brightness score: white lyric boxes have high brightness
         // Normalize: 0 at threshold, 1.0 at max (1.0)
@@ -577,14 +647,37 @@ class VisualAnalysisService
             $modeBConfidence = min(1.0, ($percentileSpan - self::SPAN_THRESHOLD_NEW) / $spanRange);
         }
 
-        $confidence = max($modeAConfidence, $modeBConfidence);
+        $modeCLowProfileConfidence = 0.0;
+        $isLowProfileSong = $ylow <= self::LOW_PROFILE_YLOW_CEILING
+            && $metrics['brightness'] >= self::LOW_PROFILE_BRIGHTNESS_FLOOR
+            && $metrics['brightness'] <= self::LOW_PROFILE_BRIGHTNESS_CEILING
+            && $metrics['edge_density'] >= self::LOW_PROFILE_EDGE_DENSITY_FLOOR
+            && $percentileSpan >= self::LOW_PROFILE_SPAN_FLOOR
+            && $metrics['contrast'] <= self::LOW_PROFILE_CONTRAST_CEILING;
+
+        if ($isLowProfileSong) {
+            $edgeBoost = min(0.12, max(0.0, ($metrics['edge_density'] - self::LOW_PROFILE_EDGE_DENSITY_FLOOR) * 0.4));
+            $spanBoost = min(0.08, max(0.0, ($percentileSpan - self::LOW_PROFILE_SPAN_FLOOR) * 0.3));
+            $modeCLowProfileConfidence = min(0.65, self::LOW_PROFILE_BASE_CONFIDENCE + $edgeBoost + $spanBoost);
+        }
+
+        $modeBConfidence = max($modeBConfidence, $modeCLowProfileConfidence);
+        $confidence = match ($normalizedRuleSet) {
+            self::RULE_SET_OLD_STYLE => $modeAConfidence,
+            self::RULE_SET_NEW_STYLE => $modeBConfidence,
+            default => max($modeAConfidence, $modeBConfidence),
+        };
         $classification = $confidence >= self::MIN_CONFIDENCE
             ? LivestreamSegmentClassification::Song->value
             : LivestreamSegmentClassification::Speech->value;
 
         $detectionMode = 'none';
         if ($classification === LivestreamSegmentClassification::Song->value) {
-            $detectionMode = $modeAConfidence >= $modeBConfidence ? 'old_style' : 'new_style';
+            $detectionMode = match ($normalizedRuleSet) {
+                self::RULE_SET_OLD_STYLE => self::RULE_SET_OLD_STYLE,
+                self::RULE_SET_NEW_STYLE => self::RULE_SET_NEW_STYLE,
+                default => $modeAConfidence >= $modeBConfidence ? self::RULE_SET_OLD_STYLE : self::RULE_SET_NEW_STYLE,
+            };
         }
 
         // Debug logging to understand classification decisions
@@ -607,10 +700,12 @@ class VisualAnalysisService
                 'mode_confidences' => [
                     'old_style' => round($modeAConfidence, 3),
                     'new_style' => round($modeBConfidence, 3),
+                    'low_profile' => round($modeCLowProfileConfidence, 3),
                 ],
                 'confidence' => round($confidence, 3),
                 'classification' => $classification,
                 'detection_mode' => $detectionMode,
+                'rule_set' => $normalizedRuleSet,
                 'thresholds' => [
                     'brightness' => self::BRIGHTNESS_THRESHOLD,
                     'contrast' => self::CONTRAST_THRESHOLD,
@@ -619,6 +714,12 @@ class VisualAnalysisService
                     'ylow_ceiling_new' => self::YLOW_CEILING_NEW,
                     'brightness_ceiling_new' => self::BRIGHTNESS_CEILING_NEW,
                     'span_threshold_new' => self::SPAN_THRESHOLD_NEW,
+                    'low_profile_ylow_ceiling' => self::LOW_PROFILE_YLOW_CEILING,
+                    'low_profile_brightness_floor' => self::LOW_PROFILE_BRIGHTNESS_FLOOR,
+                    'low_profile_brightness_ceiling' => self::LOW_PROFILE_BRIGHTNESS_CEILING,
+                    'low_profile_edge_floor' => self::LOW_PROFILE_EDGE_DENSITY_FLOOR,
+                    'low_profile_span_floor' => self::LOW_PROFILE_SPAN_FLOOR,
+                    'low_profile_contrast_ceiling' => self::LOW_PROFILE_CONTRAST_CEILING,
                 ],
             ]);
         }
@@ -628,5 +729,153 @@ class VisualAnalysisService
             'confidence' => round($confidence, 3),
             'detection_mode' => $detectionMode,
         ];
+    }
+
+    /**
+     * @return self::RULE_SET_*
+     */
+    private function normalizeRuleSet(string $ruleSet): string
+    {
+        return match ($ruleSet) {
+            self::RULE_SET_OLD_STYLE, self::RULE_SET_NEW_STYLE => $ruleSet,
+            default => self::RULE_SET_AUTO,
+        };
+    }
+
+    /**
+     * @param  list<float>  $timestamps
+     * @return list<array{start: float, end: float, sample_count: int}>
+     */
+    private function clusterDenseSongSamples(array $timestamps): array
+    {
+        if ($timestamps === []) {
+            return [];
+        }
+
+        sort($timestamps);
+
+        $clusters = [];
+        $currentStart = $timestamps[0];
+        $currentEnd = $timestamps[0];
+        $sampleCount = 1;
+
+        foreach (array_slice($timestamps, 1) as $timestamp) {
+            if (($timestamp - $currentEnd) <= self::DENSE_CLUSTER_MAX_GAP_SECONDS) {
+                $currentEnd = $timestamp;
+                $sampleCount++;
+
+                continue;
+            }
+
+            $clusters[] = [
+                'start' => $currentStart,
+                'end' => $currentEnd,
+                'sample_count' => $sampleCount,
+            ];
+
+            $currentStart = $timestamp;
+            $currentEnd = $timestamp;
+            $sampleCount = 1;
+        }
+
+        $clusters[] = [
+            'start' => $currentStart,
+            'end' => $currentEnd,
+            'sample_count' => $sampleCount,
+        ];
+
+        return $clusters;
+    }
+
+    /**
+     * @param  list<array{start: float, end: float, sample_count: int}>  $denseClusters
+     * @param  array{
+     *     start_estimate: float,
+     *     end_estimate: float,
+     *     samples: list<float>,
+     *     confidence?: float,
+     *     sample_count?: int,
+     *     refined_visual_start?: float,
+     *     refined_visual_end?: float,
+     *     dense_sample_count?: int
+     * }  $cluster
+     * @return array{start: float, end: float, sample_count: int}|null
+     */
+    private function selectBestDenseCluster(array $denseClusters, array $cluster): ?array
+    {
+        if ($denseClusters === []) {
+            return null;
+        }
+
+        $startEstimate = (float) $cluster['start_estimate'];
+        $endEstimate = (float) $cluster['end_estimate'];
+        $estimateMidpoint = $startEstimate + (($endEstimate - $startEstimate) / 2.0);
+        $coarseSamples = $cluster['samples'];
+
+        usort($denseClusters, function (array $left, array $right) use ($coarseSamples, $startEstimate, $endEstimate, $estimateMidpoint): int {
+            $leftAnchors = $this->countAnchoredSamples($left, $coarseSamples);
+            $rightAnchors = $this->countAnchoredSamples($right, $coarseSamples);
+
+            if ($leftAnchors !== $rightAnchors) {
+                return $rightAnchors <=> $leftAnchors;
+            }
+
+            $leftOverlap = $this->calculateWindowOverlap($left['start'], $left['end'], $startEstimate, $endEstimate);
+            $rightOverlap = $this->calculateWindowOverlap($right['start'], $right['end'], $startEstimate, $endEstimate);
+
+            if ($leftOverlap !== $rightOverlap) {
+                return $rightOverlap <=> $leftOverlap;
+            }
+
+            if ($left['sample_count'] !== $right['sample_count']) {
+                return $right['sample_count'] <=> $left['sample_count'];
+            }
+
+            $leftDistance = abs((($left['start'] + $left['end']) / 2.0) - $estimateMidpoint);
+            $rightDistance = abs((($right['start'] + $right['end']) / 2.0) - $estimateMidpoint);
+
+            return $leftDistance <=> $rightDistance;
+        });
+
+        return $denseClusters[0];
+    }
+
+    /**
+     * @param  array{start: float, end: float, sample_count: int}  $denseCluster
+     * @param  list<float>  $coarseSamples
+     */
+    private function countAnchoredSamples(array $denseCluster, array $coarseSamples): int
+    {
+        return count(array_filter($coarseSamples, fn (float $sample): bool => $sample >= $denseCluster['start'] && $sample <= $denseCluster['end']));
+    }
+
+    private function calculateWindowOverlap(float $leftStart, float $leftEnd, float $rightStart, float $rightEnd): float
+    {
+        $overlapStart = max($leftStart, $rightStart);
+        $overlapEnd = min($leftEnd, $rightEnd);
+
+        return max(0.0, $overlapEnd - $overlapStart);
+    }
+
+    /**
+     * @param  list<float>  $songSamples
+     */
+    private function selectAnchoredDenseBoundary(
+        array $songSamples,
+        float $estimate,
+        float $leadWindow,
+        float $trailWindow,
+        bool $takeMinimum
+    ): ?float {
+        $candidates = array_values(array_filter(
+            $songSamples,
+            fn (float $timestamp): bool => $timestamp >= ($estimate - $leadWindow) && $timestamp <= ($estimate + $trailWindow)
+        ));
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        return $takeMinimum ? min($candidates) : max($candidates);
     }
 }

@@ -13,6 +13,14 @@ This folder contains completed implementation plans and historical audit/refacto
 | **api-bible-sermon-text-plan.md** | March 2026 | Integration with api.bible for automatic Bible text enrichment on sermons |
 | **childrens-talk-identification-patch-plan.md** | March 2026 | Improved heuristics for childrens talk classification in OoS alignment |
 | **email-text-upload-plan.md** | March 2026 | Admin UI for manual email text submission (paste-and-process) |
+| **local-whisper-implementation-plan.md** | March 2026 | Local Whisper transcription support for development without OpenAI transcription costs |
+| **plan-livestream-improvements.md** | March 2026 | Children's talk detection, transcript-informed song matching, and admin service flow view |
+| **plan-livestream-processing-fixes.md** | March 2026 | Livestream section ordering, song OCR matching, childrens-talk fixes, and intro/outro reclassification |
+| **plan-merge-adjacent-sections.md** | March 2026 | Adjacent same-type section merging in processing and service review |
+| **SIMPLIFICATION-PLAN-2026-02-25.md** | April 2026 | Historical execution log for the multi-phase simplification plan after completed phases were split out |
+| **song-video-feature-implementation-plan.md** | April 2026 | Song video publication, public display, and admin management |
+| **test-coverage-improvement-plan.md** | March 2026 | Full controller, job, service, Livewire, and DTO test coverage plan completion |
+| **media-upload-combined-report-and-plan.md** | April 2026 | Historical combined audit and phased media-upload refactor plan after completed context was split out |
 
 ## Historical Audits & Reports
 

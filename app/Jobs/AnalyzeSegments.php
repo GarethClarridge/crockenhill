@@ -20,6 +20,14 @@ class AnalyzeSegments implements ShouldQueue
 {
     use ChecksCancellation, InteractsWithQueue, Queueable, SerializesModels;
 
+    private const VISUAL_AUDIO_SUPPORT_WINDOW = 45.0;
+
+    private const VISUAL_ONLY_CONFIDENCE_THRESHOLD = 0.7;
+
+    private const VISUAL_AUDIO_START_LEAD_CAP = 10.0;
+
+    private const VISUAL_AUDIO_END_TRAIL_CAP = 5.0;
+
     public int $tries = 3;
 
     public int $timeout = 1800;
@@ -351,8 +359,12 @@ class AnalyzeSegments implements ShouldQueue
         string $rmsLogPath,
         array $visualClusters
     ): array {
-        $segments = [];
+        $visualSegments = [];
         $segmentOrder = 0;
+
+        $rmsAnalysis = $segmentationService->analyzeSegments($rmsLogPath);
+        /** @var array<int, LivestreamSegment> $rmsSegments */
+        $rmsSegments = $rmsAnalysis['segments'];
 
         // Get total duration from RMS log for sermon identification
         $fullRmsLogPath = \Illuminate\Support\Facades\Storage::disk(config('media-processing.storage.temp_disk'))
@@ -385,8 +397,10 @@ class AnalyzeSegments implements ShouldQueue
                 'speech_avg_rms' => $calibration['speech_avg_rms'],
             ]);
 
-            $segments[] = $segment;
+            $visualSegments[] = $segment;
         }
+
+        $segments = $this->mergeVisualAndRmsSongSegments($visualSegments, $rmsSegments);
 
         // Generate speech segments from gaps between songs
         $segments = $this->fillGapsWithSpeechSegments($segments, $totalDuration, $segmentOrder);
@@ -401,6 +415,104 @@ class AnalyzeSegments implements ShouldQueue
         }
 
         return $segments;
+    }
+
+    /**
+     * @param  array<int, LivestreamSegment>  $visualSegments
+     * @param  array<int, LivestreamSegment>  $rmsSegments
+     * @return array<int, LivestreamSegment>
+     */
+    private function mergeVisualAndRmsSongSegments(array $visualSegments, array $rmsSegments): array
+    {
+        $baselineSongSegments = array_values(array_filter($rmsSegments, fn (LivestreamSegment $segment): bool => $segment->isSong()));
+        $merged = [];
+        $coveredBaselineIndexes = [];
+
+        foreach ($visualSegments as $visualSegment) {
+            $supportedBaselineIndexes = [];
+
+            foreach ($baselineSongSegments as $index => $baselineSongSegment) {
+                if (! $this->segmentsOverlapOrAreNearby($visualSegment, $baselineSongSegment)) {
+                    continue;
+                }
+
+                $coveredBaselineIndexes[$index] = true;
+                $supportedBaselineIndexes[] = $index;
+            }
+
+            $visualConfidence = (float) ($visualSegment->metadata['visual_confidence'] ?? 0.0);
+            if ($supportedBaselineIndexes !== []) {
+                $matchedBaselineSegments = array_map(
+                    fn (int $index): LivestreamSegment => $baselineSongSegments[$index],
+                    $supportedBaselineIndexes
+                );
+
+                $merged[] = $this->mergeVisualSegmentWithBaselineSupport($visualSegment, $matchedBaselineSegments);
+
+                continue;
+            }
+
+            if ($visualConfidence >= self::VISUAL_ONLY_CONFIDENCE_THRESHOLD) {
+                $merged[] = $visualSegment;
+            }
+        }
+
+        foreach ($baselineSongSegments as $index => $baselineSongSegment) {
+            if (isset($coveredBaselineIndexes[$index])) {
+                continue;
+            }
+
+            $merged[] = $baselineSongSegment;
+        }
+
+        usort($merged, fn (LivestreamSegment $left, LivestreamSegment $right): int => $left->startTime <=> $right->startTime);
+
+        return $merged;
+    }
+
+    private function segmentsOverlapOrAreNearby(LivestreamSegment $left, LivestreamSegment $right): bool
+    {
+        if ($left->endTime >= $right->startTime && $right->endTime >= $left->startTime) {
+            return true;
+        }
+
+        $gap = min(
+            abs($left->startTime - $right->endTime),
+            abs($right->startTime - $left->endTime)
+        );
+
+        return $gap <= self::VISUAL_AUDIO_SUPPORT_WINDOW;
+    }
+
+    /**
+     * @param  non-empty-array<int, LivestreamSegment>  $baselineSegments
+     */
+    private function mergeVisualSegmentWithBaselineSupport(LivestreamSegment $visualSegment, array $baselineSegments): LivestreamSegment
+    {
+        $earliestBaselineStart = min(array_map(fn (LivestreamSegment $segment): float => $segment->startTime, $baselineSegments));
+        $latestBaselineEnd = max(array_map(fn (LivestreamSegment $segment): float => $segment->endTime, $baselineSegments));
+
+        $startFloor = $earliestBaselineStart - self::VISUAL_AUDIO_START_LEAD_CAP;
+        $mergedStart = min($earliestBaselineStart, max($visualSegment->startTime, $startFloor));
+        $mergedEnd = max($latestBaselineEnd, min($visualSegment->endTime, $latestBaselineEnd + self::VISUAL_AUDIO_END_TRAIL_CAP));
+
+        $metadata = array_merge($visualSegment->metadata ?? [], [
+            'baseline_song_segments_merged' => count($baselineSegments),
+            'baseline_song_start' => $earliestBaselineStart,
+            'baseline_song_end' => $latestBaselineEnd,
+        ]);
+
+        return new LivestreamSegment(
+            startTime: $mergedStart,
+            endTime: $mergedEnd,
+            duration: $mergedEnd - $mergedStart,
+            classification: $visualSegment->classification,
+            avgRms: $visualSegment->avgRms,
+            peakRms: $visualSegment->peakRms,
+            isSermonCandidate: false,
+            segmentOrder: $visualSegment->segmentOrder,
+            metadata: $metadata,
+        );
     }
 
     /**

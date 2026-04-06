@@ -87,6 +87,128 @@ class PerformVisualAnalysisTest extends TestCase
     }
 
     #[Test]
+    public function it_uses_old_style_rules_for_uploads_before_april_1_2026(): void
+    {
+        Storage::fake('local');
+        Config::set('media-processing.visual_analysis.enabled', true);
+
+        $processingLog = MediaProcessingLog::factory()->create([
+            'source_file_path' => 'temp/test_video.mp4',
+            'status' => 'processing',
+            'extracted_date' => '2026-03-31',
+        ]);
+
+        Storage::disk('local')->put('temp/test_video.mp4', 'fake video content');
+
+        $mockVisualService = Mockery::mock(VisualAnalysisService::class);
+        $mockClusteringService = Mockery::mock(SongClusteringService::class);
+
+        $visualSamples = [
+            ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.9],
+            ['timestamp' => 20.0, 'classification' => 'song', 'confidence' => 0.85],
+        ];
+        $songClusters = [[
+            'start_estimate' => 10.0,
+            'end_estimate' => 20.0,
+            'sample_count' => 2,
+            'samples' => [10.0, 20.0],
+            'confidence' => 0.875,
+        ]];
+
+        $mockVisualService->shouldReceive('analyzeVideo')
+            ->once()
+            ->withArgs(function (string $videoPath, ?int $sampleInterval, $progressCallback, string $ruleSet): bool {
+                return str_ends_with($videoPath, 'temp/test_video.mp4')
+                    && $sampleInterval === null
+                    && $progressCallback instanceof \Closure
+                    && $ruleSet === VisualAnalysisService::RULE_SET_OLD_STYLE;
+            })
+            ->andReturn($visualSamples);
+
+        $mockClusteringService->shouldReceive('clusterSongPeriods')
+            ->once()
+            ->with($visualSamples)
+            ->andReturn($songClusters);
+
+        $mockVisualService->shouldReceive('refineBoundaries')
+            ->once()
+            ->withArgs(function (string $videoPath, array $cluster, string $ruleSet): bool {
+                return str_ends_with($videoPath, 'temp/test_video.mp4')
+                    && $cluster['start_estimate'] === 10.0
+                    && $ruleSet === VisualAnalysisService::RULE_SET_OLD_STYLE;
+            })
+            ->andReturn([
+                'refined_visual_start' => 8.0,
+                'refined_visual_end' => 22.0,
+                'dense_sample_count' => 15,
+            ]);
+
+        $job = new PerformVisualAnalysis($processingLog);
+        $job->handle($mockVisualService, $mockClusteringService);
+    }
+
+    #[Test]
+    public function it_uses_new_style_rules_for_uploads_on_or_after_april_1_2026(): void
+    {
+        Storage::fake('local');
+        Config::set('media-processing.visual_analysis.enabled', true);
+
+        $processingLog = MediaProcessingLog::factory()->create([
+            'source_file_path' => 'temp/test_video.mp4',
+            'status' => 'processing',
+            'extracted_date' => '2026-04-01',
+        ]);
+
+        Storage::disk('local')->put('temp/test_video.mp4', 'fake video content');
+
+        $mockVisualService = Mockery::mock(VisualAnalysisService::class);
+        $mockClusteringService = Mockery::mock(SongClusteringService::class);
+
+        $visualSamples = [
+            ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.9],
+            ['timestamp' => 20.0, 'classification' => 'song', 'confidence' => 0.85],
+        ];
+        $songClusters = [[
+            'start_estimate' => 10.0,
+            'end_estimate' => 20.0,
+            'sample_count' => 2,
+            'samples' => [10.0, 20.0],
+            'confidence' => 0.875,
+        ]];
+
+        $mockVisualService->shouldReceive('analyzeVideo')
+            ->once()
+            ->withArgs(function (string $videoPath, ?int $sampleInterval, $progressCallback, string $ruleSet): bool {
+                return str_ends_with($videoPath, 'temp/test_video.mp4')
+                    && $sampleInterval === null
+                    && $progressCallback instanceof \Closure
+                    && $ruleSet === VisualAnalysisService::RULE_SET_NEW_STYLE;
+            })
+            ->andReturn($visualSamples);
+
+        $mockClusteringService->shouldReceive('clusterSongPeriods')
+            ->once()
+            ->with($visualSamples)
+            ->andReturn($songClusters);
+
+        $mockVisualService->shouldReceive('refineBoundaries')
+            ->once()
+            ->withArgs(function (string $videoPath, array $cluster, string $ruleSet): bool {
+                return str_ends_with($videoPath, 'temp/test_video.mp4')
+                    && $cluster['start_estimate'] === 10.0
+                    && $ruleSet === VisualAnalysisService::RULE_SET_NEW_STYLE;
+            })
+            ->andReturn([
+                'refined_visual_start' => 8.0,
+                'refined_visual_end' => 22.0,
+                'dense_sample_count' => 15,
+            ]);
+
+        $job = new PerformVisualAnalysis($processingLog);
+        $job->handle($mockVisualService, $mockClusteringService);
+    }
+
+    #[Test]
     public function it_skips_when_processing_is_cancelled(): void
     {
         $processingLog = MediaProcessingLog::factory()->create(['status' => 'cancelled']);

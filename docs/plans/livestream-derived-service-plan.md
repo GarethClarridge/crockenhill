@@ -310,7 +310,7 @@ Once later OoS/manual/email changes are accepted, the existing reconciliation fl
 | 2 | Livestream projection pipeline | New job + projection service + linking logic |
 | 3 | Merge/review engine for later sources | Conflict staging, review metadata, safer import/update path |
 | 4 | Review UI and operational hardening | Admin review actions, regression coverage, observability |
-| 5 | Merge policy: identity-first matching ✅ | Fix false conflicts on song reordering and duplicate section types |
+| 5 | Merge policy: identity-first matching | Fix false conflicts on song reordering and duplicate section types |
 
 ## PR 1: Livestream Source Groundwork
 

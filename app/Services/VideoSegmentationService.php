@@ -27,6 +27,10 @@ class VideoSegmentationService
 
     private const OUTRO_SEARCH_BUFFER = 60.0;
 
+    private const RMS_SECTION_MERGE_GAP = 45.0;
+
+    private const VISUAL_START_LEAD_CAP_SECONDS = 10.0;
+
     private ?FFProbe $ffprobe = null;
 
     private readonly float $minSermonDuration;
@@ -530,26 +534,12 @@ class VideoSegmentationService
             // Parse RMS sections within search region
             $sections = $this->rmsAnalysisService->parseAudioSections($logContent, $threshold, 0); // No min duration for boundary detection
 
-            // Find RMS section that best overlaps with visual boundaries
-            $bestSection = null;
-            $bestOverlap = 0;
+            $candidateSections = array_values(array_filter($sections, function (array $section) use ($searchStart, $searchEnd): bool {
+                return ! ($section['end'] < $searchStart || $section['start'] > $searchEnd);
+            }));
 
-            foreach ($sections as $section) {
-                // Check if section overlaps with search region
-                if ($section['end'] < $searchStart || $section['start'] > $searchEnd) {
-                    continue;
-                }
-
-                // Calculate overlap with visual boundaries
-                $overlapStart = max($section['start'], $visualStart);
-                $overlapEnd = min($section['end'], $visualEnd);
-                $overlap = max(0, $overlapEnd - $overlapStart);
-
-                if ($overlap > $bestOverlap) {
-                    $bestOverlap = $overlap;
-                    $bestSection = $section;
-                }
-            }
+            $seedSection = $this->selectBestMergedSection($candidateSections, $cluster, $visualStart, $visualEnd);
+            $bestSection = $this->expandSectionAroundSeed($candidateSections, $seedSection, $visualStart, $visualEnd);
 
             // Determine final boundaries using min/max approach
             if ($bestSection === null) {
@@ -567,7 +557,7 @@ class VideoSegmentationService
                 $rmsStart = $bestSection['start'];
                 $rmsEnd = $bestSection['end'];
 
-                $finalStart = min($visualStart, $rmsStart);
+                $finalStart = max($visualStart, $rmsStart - self::VISUAL_START_LEAD_CAP_SECONDS);
                 $finalEnd = max($visualEnd, $rmsEnd);
                 $boundaryMethod = 'visual_rms_union';
 
@@ -615,5 +605,123 @@ class VideoSegmentationService
 
             throw $e;
         }
+    }
+
+    /**
+     * @param  list<array{start: float, end: float}>  $sections
+     * @param  array{
+     *     start_estimate: float,
+     *     end_estimate: float,
+     *     samples: array<int, float>,
+     *     confidence: float,
+     *     sample_count?: int,
+     *     refined_visual_start?: float,
+     *     refined_visual_end?: float,
+     *     dense_sample_count?: int
+     * }  $cluster
+     * @return array{start: float, end: float}|null
+     */
+    private function selectBestMergedSection(array $sections, array $cluster, float $visualStart, float $visualEnd): ?array
+    {
+        if ($sections === []) {
+            return null;
+        }
+
+        $samples = $cluster['samples'];
+        $visualMidpoint = $visualStart + (($visualEnd - $visualStart) / 2.0);
+
+        usort($sections, function (array $left, array $right) use ($samples, $visualStart, $visualEnd, $visualMidpoint): int {
+            $leftAnchors = $this->countClusterSamplesInSection($left, $samples);
+            $rightAnchors = $this->countClusterSamplesInSection($right, $samples);
+
+            if ($leftAnchors !== $rightAnchors) {
+                return $rightAnchors <=> $leftAnchors;
+            }
+
+            $leftOverlap = $this->calculateOverlap($left['start'], $left['end'], $visualStart, $visualEnd);
+            $rightOverlap = $this->calculateOverlap($right['start'], $right['end'], $visualStart, $visualEnd);
+
+            if ($leftOverlap !== $rightOverlap) {
+                return $rightOverlap <=> $leftOverlap;
+            }
+
+            $leftDistance = abs((($left['start'] + $left['end']) / 2.0) - $visualMidpoint);
+            $rightDistance = abs((($right['start'] + $right['end']) / 2.0) - $visualMidpoint);
+
+            return $leftDistance <=> $rightDistance;
+        });
+
+        return $sections[0];
+    }
+
+    /**
+     * @param  list<array{start: float, end: float}>  $sections
+     * @param  array{start: float, end: float}|null  $seedSection
+     * @return array{start: float, end: float}|null
+     */
+    private function expandSectionAroundSeed(array $sections, ?array $seedSection, float $visualStart, float $visualEnd): ?array
+    {
+        if ($seedSection === null || $sections === []) {
+            return $seedSection;
+        }
+
+        usort($sections, fn (array $left, array $right): int => $left['start'] <=> $right['start']);
+
+        $seedIndex = null;
+        foreach ($sections as $index => $section) {
+            if ($section['start'] === $seedSection['start'] && $section['end'] === $seedSection['end']) {
+                $seedIndex = $index;
+                break;
+            }
+        }
+
+        if ($seedIndex === null) {
+            return $seedSection;
+        }
+
+        $expanded = $seedSection;
+
+        for ($index = $seedIndex + 1; $index < count($sections); $index++) {
+            $section = $sections[$index];
+            if (($section['start'] - $expanded['end']) > self::RMS_SECTION_MERGE_GAP) {
+                break;
+            }
+            if ($section['start'] > ($visualEnd + self::OUTRO_SEARCH_BUFFER)) {
+                break;
+            }
+
+            $expanded['end'] = max($expanded['end'], $section['end']);
+        }
+
+        for ($index = $seedIndex - 1; $index >= 0; $index--) {
+            $section = $sections[$index];
+            if (($expanded['start'] - $section['end']) > self::RMS_SECTION_MERGE_GAP) {
+                break;
+            }
+            if ($section['end'] < ($visualStart - self::VISUAL_START_LEAD_CAP_SECONDS)) {
+                break;
+            }
+
+            $expanded['start'] = min($expanded['start'], $section['start']);
+        }
+
+        return $expanded;
+    }
+
+    /**
+     * @param  array{start: float, end: float}  $section
+     * @param  array<int, float>  $samples
+     */
+    private function countClusterSamplesInSection(array $section, array $samples): int
+    {
+        return count(array_filter($samples, fn (float $sample): bool => $sample >= $section['start'] && $sample <= $section['end']));
+    }
+
+    private function calculateOverlap(float $leftStart, float $leftEnd, float $rightStart, float $rightEnd): float
+    {
+        $overlapStart = max($leftStart, $rightStart);
+        $overlapEnd = min($leftEnd, $rightEnd);
+
+        return max(0.0, $overlapEnd - $overlapStart);
     }
 }

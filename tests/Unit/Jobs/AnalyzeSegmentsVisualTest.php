@@ -45,6 +45,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
 
         // Mock service
         $mockService = Mockery::mock(VideoSegmentationService::class);
+        $this->mockBaselineRmsAnalysis($mockService, 600.0);
 
         // Expect calibration call
         $mockService->shouldReceive('calibratePerSongThreshold')
@@ -169,6 +170,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->createMockRmsLog('temp/rms.log', 500.0);
 
         $mockService = Mockery::mock(VideoSegmentationService::class);
+        $this->mockBaselineRmsAnalysis($mockService, 500.0);
 
         // Mock both songs
         $mockService->shouldReceive('calibratePerSongThreshold')->twice()->andReturn([
@@ -188,7 +190,10 @@ class AnalyzeSegmentsVisualTest extends TestCase
                     avgRms: -35.0,
                     peakRms: -33.0,
                     segmentOrder: 0,
-                    metadata: ['calibration_method' => 'per_song_visual']
+                    metadata: [
+                        'visual_confidence' => 0.85,
+                        'calibration_method' => 'per_song_visual',
+                    ]
                 ),
                 new LivestreamSegmentData(
                     startTime: 295.0,
@@ -198,7 +203,10 @@ class AnalyzeSegmentsVisualTest extends TestCase
                     avgRms: -35.0,
                     peakRms: -33.0,
                     segmentOrder: 1,
-                    metadata: ['calibration_method' => 'per_song_visual']
+                    metadata: [
+                        'visual_confidence' => 0.88,
+                        'calibration_method' => 'per_song_visual',
+                    ]
                 )
             );
 
@@ -246,6 +254,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->createMockRmsLog('temp/rms.log', 3600.0); // 1 hour total
 
         $mockService = Mockery::mock(VideoSegmentationService::class);
+        $this->mockBaselineRmsAnalysis($mockService, 3600.0);
 
         $mockService->shouldReceive('calibratePerSongThreshold')->andReturn([
             'threshold' => -40.0,
@@ -262,7 +271,10 @@ class AnalyzeSegmentsVisualTest extends TestCase
                 avgRms: -35.0,
                 peakRms: -33.0,
                 segmentOrder: 0,
-                metadata: ['calibration_method' => 'per_song_visual']
+                metadata: [
+                    'visual_confidence' => 0.85,
+                    'calibration_method' => 'per_song_visual',
+                ]
             )
         );
 
@@ -301,6 +313,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->createMockRmsLog('temp/rms.log', 600.0);
 
         $mockService = Mockery::mock(VideoSegmentationService::class);
+        $this->mockBaselineRmsAnalysis($mockService, 600.0);
 
         $mockService->shouldReceive('calibratePerSongThreshold')->andReturn([
             'threshold' => -40.0,
@@ -342,6 +355,85 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->assertEquals('per_song_visual', $songSegment->calibration_method);
     }
 
+    #[Test]
+    public function it_backfills_rms_song_segments_when_visual_detection_misses_them(): void
+    {
+        Storage::fake('local');
+
+        $songClusters = [
+            [
+                'start_estimate' => 50.0,
+                'end_estimate' => 100.0,
+                'samples' => [50.0, 60.0, 70.0, 80.0, 90.0],
+                'confidence' => 0.85,
+            ],
+        ];
+
+        $processingLog = MediaProcessingLog::factory()->create([
+            'rms_log_path' => 'temp/rms.log',
+            'song_clusters' => $songClusters,
+            'status' => 'processing',
+        ]);
+
+        $this->createMockRmsLog('temp/rms.log', 500.0);
+
+        $mockService = Mockery::mock(VideoSegmentationService::class);
+        $this->mockBaselineRmsAnalysis($mockService, 500.0, [
+            new LivestreamSegmentData(
+                startTime: 50.0,
+                endTime: 100.0,
+                duration: 50.0,
+                classification: 'song',
+                avgRms: -35.0,
+                peakRms: -33.0,
+                segmentOrder: 0
+            ),
+            new LivestreamSegmentData(
+                startTime: 300.0,
+                endTime: 360.0,
+                duration: 60.0,
+                classification: 'song',
+                avgRms: -34.0,
+                peakRms: -31.0,
+                segmentOrder: 1
+            ),
+        ]);
+
+        $mockService->shouldReceive('calibratePerSongThreshold')->once()->andReturn([
+            'threshold' => -40.0,
+            'song_avg_rms' => -35.0,
+            'speech_avg_rms' => -50.0,
+        ]);
+
+        $mockService->shouldReceive('detectBoundariesForCluster')->once()->andReturn(
+            new LivestreamSegmentData(
+                startTime: 45.0,
+                endTime: 105.0,
+                duration: 60.0,
+                classification: 'song',
+                avgRms: -35.0,
+                peakRms: -33.0,
+                segmentOrder: 0,
+                metadata: [
+                    'visual_confidence' => 0.85,
+                    'calibration_method' => 'per_song_visual',
+                ]
+            )
+        );
+
+        $job = new AnalyzeSegments($processingLog);
+        $job->handle($mockService);
+
+        $songSegments = LivestreamSegment::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('classification', 'song')
+            ->orderBy('start_time')
+            ->get();
+
+        $this->assertCount(2, $songSegments);
+        $this->assertEquals([45.0, 300.0], $songSegments->pluck('start_time')->map(fn ($time) => (float) $time)->all());
+    }
+
     /**
      * Create a mock RMS log file
      */
@@ -358,6 +450,33 @@ class AnalyzeSegmentsVisualTest extends TestCase
 
         $content = implode("\n", $lines);
         Storage::disk('local')->put($path, $content);
+    }
+
+    /**
+     * @param  array<int, LivestreamSegmentData>  $songSegments
+     */
+    private function mockBaselineRmsAnalysis(Mockery\MockInterface $mockService, float $duration, array $songSegments = []): void
+    {
+        $mockService->shouldReceive('analyzeSegments')
+            ->once()
+            ->andReturn([
+                'segments' => array_merge($songSegments, [
+                    new LivestreamSegmentData(
+                        startTime: 0.0,
+                        endTime: $duration,
+                        duration: $duration,
+                        classification: 'speech',
+                        avgRms: -50.0,
+                        peakRms: -40.0,
+                        isSermonCandidate: true,
+                        segmentOrder: count($songSegments)
+                    ),
+                ]),
+                'threshold_metadata' => [
+                    'method' => 'adaptive',
+                    'threshold' => -45.0,
+                ],
+            ]);
     }
 
     #[Test]
@@ -390,6 +509,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->createMockRmsLog('temp/rms.log', 600.0);
 
         $mockService = Mockery::mock(VideoSegmentationService::class);
+        $this->mockBaselineRmsAnalysis($mockService, 600.0);
 
         $mockService->shouldReceive('calibratePerSongThreshold')->twice()->andReturn([
             'threshold' => -40.0,
@@ -408,7 +528,10 @@ class AnalyzeSegmentsVisualTest extends TestCase
                     avgRms: -35.0,
                     peakRms: -33.0,
                     segmentOrder: 0,
-                    metadata: ['calibration_method' => 'per_song_visual']
+                    metadata: [
+                        'visual_confidence' => 0.85,
+                        'calibration_method' => 'per_song_visual',
+                    ]
                 ),
                 new LivestreamSegmentData(
                     startTime: 395.0,
@@ -418,7 +541,10 @@ class AnalyzeSegmentsVisualTest extends TestCase
                     avgRms: -35.0,
                     peakRms: -33.0,
                     segmentOrder: 1,
-                    metadata: ['calibration_method' => 'per_song_visual']
+                    metadata: [
+                        'visual_confidence' => 0.88,
+                        'calibration_method' => 'per_song_visual',
+                    ]
                 )
             );
 

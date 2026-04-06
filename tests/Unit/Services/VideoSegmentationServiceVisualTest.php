@@ -157,6 +157,37 @@ class VideoSegmentationServiceVisualTest extends TestCase
     }
 
     #[Test]
+    public function it_merges_nearby_rms_sections_for_a_single_visual_song_cluster(): void
+    {
+        $rmsLog = $this->createMockRmsLog([
+            ['time' => 1700.0, 'rms' => -50.0],
+            ['time' => 1750.0, 'rms' => -33.0],
+            ['time' => 1790.0, 'rms' => -34.0],
+            ['time' => 1825.0, 'rms' => -50.0],
+            ['time' => 1840.0, 'rms' => -33.0],
+            ['time' => 1880.0, 'rms' => -34.0],
+            ['time' => 1905.0, 'rms' => -50.0],
+            ['time' => 1940.0, 'rms' => -32.0],
+            ['time' => 2000.0, 'rms' => -33.0],
+            ['time' => 2095.0, 'rms' => -50.0],
+        ]);
+
+        $cluster = [
+            'start_estimate' => 1746.0,
+            'end_estimate' => 1931.0,
+            'refined_visual_start' => 1746.0,
+            'refined_visual_end' => 1931.0,
+            'samples' => [1750.0, 1760.0, 1770.0, 1840.0, 1850.0, 1940.0, 1950.0],
+            'confidence' => 0.6,
+        ];
+
+        $segment = $this->service->detectBoundariesForCluster($rmsLog, $cluster, -40.0);
+
+        $this->assertLessThanOrEqual(1746.0, $segment->startTime);
+        $this->assertGreaterThanOrEqual(2000.0, $segment->endTime);
+    }
+
+    #[Test]
     public function it_includes_calibration_metadata_in_segment(): void
     {
         $rmsLog = $this->createMockRmsLog([

@@ -264,6 +264,55 @@ EOF;
     }
 
     #[Test]
+    public function it_classifies_low_profile_lyric_frame_as_song(): void
+    {
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.321,
+            contrast: 0.01,
+            edgeDensity: 0.49,
+            ylow: 0.169,
+        ));
+
+        $this->assertSame('song', $result['classification']);
+        $this->assertSame('new_style', $result['detection_mode']);
+        $this->assertGreaterThan(0.35, $result['confidence']);
+    }
+
+    #[Test]
+    public function it_does_not_apply_new_style_rules_when_old_style_has_been_forced(): void
+    {
+        $result = $this->service->classifyFrame(
+            $this->makeMetrics(
+                brightness: 0.321,
+                contrast: 0.01,
+                edgeDensity: 0.49,
+                ylow: 0.169,
+            ),
+            VisualAnalysisService::RULE_SET_OLD_STYLE
+        );
+
+        $this->assertSame('speech', $result['classification']);
+        $this->assertSame('none', $result['detection_mode']);
+    }
+
+    #[Test]
+    public function it_does_not_apply_old_style_rules_when_new_style_has_been_forced(): void
+    {
+        $result = $this->service->classifyFrame(
+            $this->makeMetrics(
+                brightness: 0.95,
+                contrast: 0.9,
+                edgeDensity: 0.95,
+                ylow: 0.55,
+            ),
+            VisualAnalysisService::RULE_SET_NEW_STYLE
+        );
+
+        $this->assertSame('speech', $result['classification']);
+        $this->assertSame('none', $result['detection_mode']);
+    }
+
+    #[Test]
     public function it_scales_new_style_confidence_with_percentile_span(): void
     {
         $result = $this->service->classifyFrame($this->makeMetrics(
@@ -321,6 +370,20 @@ EOF;
     }
 
     #[Test]
+    public function it_does_not_treat_static_speaker_frames_as_low_profile_song_slides(): void
+    {
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.316,
+            contrast: 0.106,
+            edgeDensity: 0.698,
+            ylow: 0.18,
+        ));
+
+        $this->assertSame('speech', $result['classification']);
+        $this->assertSame('none', $result['detection_mode']);
+    }
+
+    #[Test]
     public function it_returns_refined_boundaries_with_proper_structure(): void
     {
         $cluster = [
@@ -337,6 +400,65 @@ EOF;
         $this->assertEquals($cluster['start_estimate'], $result['refined_visual_start']);
         $this->assertEquals($cluster['end_estimate'], $result['refined_visual_end']);
         $this->assertEquals(0, $result['dense_sample_count']);
+    }
+
+    #[Test]
+    public function it_anchors_dense_boundary_refinement_to_the_original_cluster(): void
+    {
+        $denseSamples = [
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 0.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 10.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 20.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 100.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 110.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 120.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 130.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 140.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 170.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 180.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 190.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 220.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 230.0),
+            $this->makeMetrics(0.35, 0.01, 0.7, 0.12, 240.0),
+        ];
+
+        $service = new class($denseSamples) extends VisualAnalysisService
+        {
+            /**
+             * @param  array<int, array{
+             *     timestamp: float,
+             *     brightness: float,
+             *     contrast: float,
+             *     edge_density: float,
+             *     ylow: float,
+             *     percentile_span: float
+             * }>  $denseSamples
+             */
+            public function __construct(private readonly array $denseSamples)
+            {
+                parent::__construct();
+            }
+
+            public function extractFrameMetricsInRegion(
+                string $videoPath,
+                float $startTime,
+                float $endTime,
+                int $sampleInterval
+            ): array {
+                return $this->denseSamples;
+            }
+        };
+
+        $cluster = [
+            'start_estimate' => 100.0,
+            'end_estimate' => 240.0,
+            'samples' => [100.0, 110.0, 120.0, 130.0, 140.0, 170.0, 180.0, 190.0, 220.0, 230.0, 240.0],
+        ];
+
+        $result = $service->refineBoundaries('/nonexistent/video.mp4', $cluster);
+
+        $this->assertSame(100.0, $result['refined_visual_start']);
+        $this->assertSame(240.0, $result['refined_visual_end']);
     }
 
     #[Test]

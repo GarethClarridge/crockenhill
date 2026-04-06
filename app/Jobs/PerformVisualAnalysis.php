@@ -18,6 +18,8 @@ class PerformVisualAnalysis implements ShouldQueue
 {
     use Batchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    private const NEW_STYLE_RULE_SET_CUTOFF = '2026-04-01';
+
     public int $tries = 3;
 
     public int $timeout = 3600; // 1 hour for large videos
@@ -102,6 +104,7 @@ class PerformVisualAnalysis implements ShouldQueue
 
             $startTime = microtime(true);
             $videoDuration = $this->processingLog->duration;
+            $visualRuleSet = $this->resolveVisualRuleSet();
 
             // Perform visual analysis with progress reporting (throttled to one DB write per 30s)
             $lastProgressUpdate = 0.0;
@@ -130,7 +133,7 @@ class PerformVisualAnalysis implements ShouldQueue
                 ]);
             };
 
-            $visualSamples = $visualService->analyzeVideo($videoPath, null, $progressCallback);
+            $visualSamples = $visualService->analyzeVideo($videoPath, null, $progressCallback, $visualRuleSet);
 
             if (empty($visualSamples)) {
                 Log::warning('No visual samples extracted, will fallback to RMS-only', [
@@ -169,10 +172,11 @@ class PerformVisualAnalysis implements ShouldQueue
             Log::info('Refining cluster boundaries with dense sampling', [
                 'processing_id' => $this->processingLog->processing_id,
                 'cluster_count' => count($songClusters),
+                'rule_set' => $visualRuleSet,
             ]);
 
             foreach ($songClusters as &$cluster) {
-                $refinement = $visualService->refineBoundaries($videoPath, $cluster);
+                $refinement = $visualService->refineBoundaries($videoPath, $cluster, $visualRuleSet);
 
                 // Add refined boundaries to cluster
                 $cluster['refined_visual_start'] = $refinement['refined_visual_start'];
@@ -296,5 +300,23 @@ class PerformVisualAnalysis implements ShouldQueue
         }
 
         return $sourceFilePath;
+    }
+
+    /**
+     * March 31, 2026 and earlier use the original highlighted-lyrics rules.
+     * April 1, 2026 and later use the newer lyric-slide rules.
+     *
+     * @return 'auto'|'old_style'|'new_style'
+     */
+    private function resolveVisualRuleSet(): string
+    {
+        $extractedDate = $this->processingLog->extracted_date;
+        if (! $extractedDate instanceof \DateTimeInterface) {
+            return VisualAnalysisService::RULE_SET_AUTO;
+        }
+
+        return $extractedDate->format('Y-m-d') < self::NEW_STYLE_RULE_SET_CUTOFF
+            ? VisualAnalysisService::RULE_SET_OLD_STYLE
+            : VisualAnalysisService::RULE_SET_NEW_STYLE;
     }
 }
