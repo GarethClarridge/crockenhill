@@ -50,7 +50,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => '2024-01-15_morning_sermon.mp3',
             'source_file_path' => 'sermons/2024/01/test-file.mp3',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'ai_analysis_completed',
             'ai_analysis' => json_encode(['title' => 'Test Sermon']),
         ]);
@@ -74,7 +74,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
             'source_file_path' => null, // Missing file path
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'sermon_record_created',
         ]);
 
@@ -95,7 +95,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => 'nonexistent-audio.mp3',
             'stored_file_path' => 'path/to/nonexistent-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'sermon_record_created',
         ]);
 
@@ -123,7 +123,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         // Verify processing log was updated with error
         $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::FAILED, $processingLog->status);
+        $this->assertEquals(ProcessingStatus::Failed, $processingLog->status);
         $this->assertStringContainsString('Audio file not found', $processingLog->error_message);
     }
 
@@ -136,7 +136,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'original_filename' => 'test-audio.mp3',
             'source_file_path' => 'path/to/audio.mp3',
             'transcript_file_path' => null, // No transcript path
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'transcription_completed',
         ]);
 
@@ -165,7 +165,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'original_filename' => 'test-audio.mp3',
             'source_file_path' => 'path/to/audio.mp3',
             'transcript_file_path' => 'transcripts/sermon_1.md',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'transcription_completed',
         ]);
 
@@ -202,7 +202,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_id' => 'test-id',
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'ai_analysis_completed',
             'sermon_id' => $sermon->id,
         ]);
@@ -231,7 +231,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => 'large-audio.mp3',
             'source_file_path' => 'path/to/large-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'sermon_record_created',
             'sermon_id' => $sermon->id,
         ]);
@@ -265,7 +265,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
             'source_file_path' => 'path/to/test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'sermon_record_created',
             'sermon_id' => $sermon->id,
         ]);
@@ -303,7 +303,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'original_filename' => 'test-audio.mp3',
             'source_file_path' => 'path/to/audio.mp3',
             'transcript_file_path' => 'transcripts/sermon_1.md',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'transcription_completed',
         ]);
 
@@ -385,7 +385,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_id' => 'retry-test-id',
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'transcribing_audio_failed',
             'error_message' => 'Temporary service unavailable',
         ]);
@@ -399,7 +399,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
             // Verify processing log was reset to retry transcription
             $processingLog->refresh();
-            $this->assertEquals(ProcessingStatus::PENDING, $processingLog->status);
+            $this->assertEquals(ProcessingStatus::Pending, $processingLog->status);
             $this->assertEquals('transcribing_audio_failed', $processingLog->current_step);
         } else {
             // Retry failed - acceptable in test environment without full services
@@ -417,7 +417,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_id' => 'active-test-id',
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'transcribing_audio',
         ]);
 
@@ -437,7 +437,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_id' => 'manual-review-test-id',
             'processing_type' => 'audio',
             'original_filename' => 'problematic-audio.mp3',
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'transcribing_audio_failed',
             'error_message' => 'Audio quality too poor for transcription',
         ]);
@@ -461,7 +461,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_id' => 'detailed-error-test-id',
             'processing_type' => 'audio',
             'original_filename' => 'error-test-audio.mp3',
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'analyzing_transcript_failed',
             'error_message' => 'OpenAI API returned 429: Rate limit exceeded',
         ]);
@@ -482,7 +482,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_id' => 'retry-test-preparing',
             'processing_type' => 'audio',
             'original_filename' => 'test-sermon.mp3',
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'preparing',
             'error_message' => 'Connection could not be established with host "mailpit:1025"',
         ]);
@@ -494,7 +494,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         // Check processing log was updated - for 'preparing' step, it should be marked for manual review
         $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::FAILED, $processingLog->status);
+        $this->assertEquals(ProcessingStatus::Failed, $processingLog->status);
         $this->assertEquals('manual_review_required', $processingLog->current_step);
         $this->assertStringContainsString('Early processing failure detected', $processingLog->error_message);
     }
@@ -515,7 +515,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_type' => 'audio',
             'original_filename' => 'test-sermon.mp3',
             'transcript_file_path' => 'transcripts/test-transcript.md', // Required for ProcessTranscriptWithAI job
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'analyzing_transcript',
             'error_message' => 'AI analysis service unavailable',
             'sermon_id' => $sermon->id,
@@ -530,9 +530,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
         // may either remain at retry entry point or progress through AI fallback/completion.
         $processingLog->refresh();
         $this->assertContains($processingLog->status, [
-            ProcessingStatus::PENDING,
-            ProcessingStatus::PROCESSING,
-            ProcessingStatus::COMPLETED,
+            ProcessingStatus::Pending,
+            ProcessingStatus::Processing,
+            ProcessingStatus::Completed,
         ]);
         $this->assertContains($processingLog->current_step, [
             'analyzing_transcript',
@@ -551,7 +551,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_id' => 'retry-test-unknown',
             'processing_type' => 'audio',
             'original_filename' => 'test-sermon.mp3',
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'legacy_unknown_phase',
             'error_message' => 'Unknown processing step: legacy_unknown_phase',
         ]);
@@ -562,7 +562,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $this->assertEquals('Processing retry initiated successfully', $result->message);
 
         $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::FAILED, $processingLog->status);
+        $this->assertEquals(ProcessingStatus::Failed, $processingLog->status);
         $this->assertEquals('manual_review_required', $processingLog->current_step);
         $this->assertStringContainsString('Unknown processing step: legacy_unknown_phase.', $processingLog->error_message);
     }
@@ -575,7 +575,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'processing_id' => 'retry-test-not-failed',
             'processing_type' => 'audio',
             'original_filename' => 'test-sermon.mp3',
-            'status' => ProcessingStatus::COMPLETED, // Not failed
+            'status' => ProcessingStatus::Completed, // Not failed
             'current_step' => 'completed',
         ]);
 

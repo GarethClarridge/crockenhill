@@ -130,7 +130,7 @@ class PublicSongUsageService
                             ->from('media_processing_logs')
                             ->whereColumn('media_processing_logs.church_service_id', 'church_services.id')
                             ->where('media_processing_logs.processing_type', MediaType::Livestream->value)
-                            ->where('media_processing_logs.status', ProcessingStatus::COMPLETED->value)
+                            ->where('media_processing_logs.status', ProcessingStatus::Completed->value)
                             ->whereExists(function (QueryBuilder $sectionQuery): void {
                                 $sectionQuery->selectRaw('1')
                                     ->from('service_sections')

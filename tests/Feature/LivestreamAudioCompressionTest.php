@@ -62,7 +62,7 @@ class LivestreamAudioCompressionTest extends TestCase
         // Create a processing log
         $processingLog = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-compression-metadata',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
         ]);
 
         // Simulate updating with compression metadata

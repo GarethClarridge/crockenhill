@@ -262,7 +262,7 @@ class ProcessingLogsApiTest extends TestCase
         MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'original_filename' => 'test.mp3',
         ]);
 
@@ -288,7 +288,7 @@ class ProcessingLogsApiTest extends TestCase
         MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'original_filename' => 'test.mp3',
         ]);
 
@@ -325,14 +325,14 @@ class ProcessingLogsApiTest extends TestCase
         MediaProcessingLog::create([
             'processing_id' => $processingId1,
             'source_type' => 'audio',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'original_filename' => 'test1.mp3',
         ]);
 
         MediaProcessingLog::create([
             'processing_id' => $processingId2,
             'source_type' => 'audio',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'original_filename' => 'test2.mp3',
         ]);
 
@@ -366,7 +366,7 @@ class ProcessingLogsApiTest extends TestCase
         MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'original_filename' => 'test.mp3',
         ]);
 
@@ -415,7 +415,7 @@ class ProcessingLogsApiTest extends TestCase
         MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'original_filename' => 'test.mp3',
         ]);
 

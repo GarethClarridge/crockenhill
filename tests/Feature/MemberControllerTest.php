@@ -105,7 +105,7 @@ class MemberControllerTest extends TestCase
         ]);
 
         MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
             'error_message' => 'Manual Review Note: Multiple speech blocks met the 20-minute sermon threshold.',
             'processing_metadata' => null,

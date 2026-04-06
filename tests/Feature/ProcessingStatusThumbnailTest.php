@@ -39,7 +39,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->create([
             'sermon_id' => $sermon->id,
             'processing_id' => $processingId,
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
         ]);
 
         // Create authenticated user
@@ -80,7 +80,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->create([
             'sermon_id' => $sermon->id,
             'processing_id' => $processingId,
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
         ]);
 
         // Create authenticated user
@@ -107,7 +107,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->create([
             'sermon_id' => null,
             'processing_id' => $processingId,
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
         ]);
 
         // Create authenticated user

@@ -162,8 +162,8 @@ class SermonProcessingLogger
         }
 
         $logLevel = match ($status) {
-            ProcessingStatus::COMPLETED => 'info',
-            ProcessingStatus::CANCELLED => 'info',
+            ProcessingStatus::Completed => 'info',
+            ProcessingStatus::Cancelled => 'info',
             default => 'error',
         };
 

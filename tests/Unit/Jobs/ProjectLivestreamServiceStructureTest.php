@@ -36,7 +36,7 @@ class ProjectLivestreamServiceStructureTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'processing_id' => 'test-job-001',
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'extracted_date' => '2026-03-23',
             'extracted_service' => SermonService::MORNING->value,
         ]);
@@ -59,7 +59,7 @@ class ProjectLivestreamServiceStructureTest extends TestCase
             ->first();
 
         $this->assertNotNull($step);
-        $this->assertSame(ProcessingStatus::COMPLETED, $step->status);
+        $this->assertSame(ProcessingStatus::Completed, $step->status);
         $this->assertStringContainsString('1 item(s)', $step->message);
 
         $this->assertSame(1, ChurchService::query()->count());
@@ -82,7 +82,7 @@ class ProjectLivestreamServiceStructureTest extends TestCase
             ->first();
 
         $this->assertNotNull($step);
-        $this->assertSame(ProcessingStatus::SKIPPED, $step->status);
+        $this->assertSame(ProcessingStatus::Skipped, $step->status);
     }
 
     #[Test]
@@ -90,7 +90,7 @@ class ProjectLivestreamServiceStructureTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'processing_id' => 'test-cancelled-001',
-            'status' => ProcessingStatus::CANCELLED,
+            'status' => ProcessingStatus::Cancelled,
         ]);
 
         $job = new ProjectLivestreamServiceStructure($log);
@@ -102,7 +102,7 @@ class ProjectLivestreamServiceStructureTest extends TestCase
             ->first();
 
         $this->assertNotNull($step);
-        $this->assertSame(ProcessingStatus::SKIPPED, $step->status);
+        $this->assertSame(ProcessingStatus::Skipped, $step->status);
     }
 
     #[Test]
@@ -124,7 +124,7 @@ class ProjectLivestreamServiceStructureTest extends TestCase
             ->first();
 
         $this->assertNotNull($step);
-        $this->assertSame(ProcessingStatus::SKIPPED, $step->status);
+        $this->assertSame(ProcessingStatus::Skipped, $step->status);
     }
 
     #[Test]
@@ -143,7 +143,7 @@ class ProjectLivestreamServiceStructureTest extends TestCase
             ->first();
 
         $this->assertNotNull($step);
-        $this->assertSame(ProcessingStatus::FAILED, $step->status);
+        $this->assertSame(ProcessingStatus::Failed, $step->status);
         $this->assertSame('Something went wrong', $step->message);
     }
 }

@@ -30,7 +30,7 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
             'extracted_date' => $churchService->date,
             'extracted_service' => $churchService->service,
             'processing_metadata' => [
@@ -73,7 +73,7 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
             'extracted_date' => $churchService->date,
             'extracted_service' => $churchService->service,
             'processing_metadata' => [
@@ -101,13 +101,13 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
         ]);
 
         $matchedByColumns = MediaProcessingLog::factory()->livestream()->completed()->create([
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
             'extracted_date' => $churchService->date,
             'extracted_service' => $churchService->service,
         ]);
 
         $matchedByMetadata = MediaProcessingLog::factory()->livestream()->completed()->create([
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
             'extracted_date' => null,
             'extracted_service' => null,
             'processing_metadata' => [
@@ -117,19 +117,19 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
         ]);
 
         MediaProcessingLog::factory()->livestream()->pending()->create([
-            'status' => ProcessingStatus::PENDING,
+            'status' => ProcessingStatus::Pending,
             'extracted_date' => $churchService->date,
             'extracted_service' => $churchService->service,
         ]);
 
         MediaProcessingLog::factory()->audio()->completed()->create([
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
             'extracted_date' => $churchService->date,
             'extracted_service' => $churchService->service,
         ]);
 
         MediaProcessingLog::factory()->livestream()->completed()->create([
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
             'extracted_date' => '2026-03-18',
             'extracted_service' => $churchService->service,
         ]);
