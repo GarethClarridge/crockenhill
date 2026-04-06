@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Enums\MediaType;
+use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
@@ -80,6 +81,7 @@ class TranscribeSpeechSegments extends ProcessingJob implements ShouldQueue
             return;
         }
 
+        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::TranscribeSpeechSegments->value);
         $this->logStepStart(ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS);
 
         $sections = ServiceSection::query()

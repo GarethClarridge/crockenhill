@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\MediaType;
+use App\Enums\ProcessingStep;
 use App\Models\MediaProcessingLog;
 use App\Services\OosAlignmentService;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -46,6 +47,7 @@ class AlignWithOos extends ProcessingJob implements ShouldQueue
             return;
         }
 
+        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::AlignWithOos->value);
         $this->logStepStart(ChurchServiceProcessingTimeline::ALIGN_WITH_OOS);
 
         $result = $alignmentService->alignForProcessingLog($this->processingLog);

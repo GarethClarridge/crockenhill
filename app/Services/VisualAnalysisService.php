@@ -22,6 +22,12 @@ class VisualAnalysisService
 
     private const MIN_CONFIDENCE = 0.35;
 
+    private const YLOW_CEILING_NEW = 0.20;
+
+    private const BRIGHTNESS_CEILING_NEW = 0.50;
+
+    private const SPAN_THRESHOLD_NEW = 0.35;
+
     private string $tempDisk;
 
     public function __construct()
@@ -33,7 +39,17 @@ class VisualAnalysisService
      * Analyze video for song periods using visual frame analysis
      *
      * @param  ?\Closure(float $currentTime): void  $progressCallback
-     * @return array<array{timestamp: float, classification: string, confidence: float, brightness: float, contrast: float, edge_density: float}>
+     * @return array<array{
+     *     timestamp: float,
+     *     classification: string,
+     *     confidence: float,
+     *     brightness: float,
+     *     contrast: float,
+     *     edge_density: float,
+     *     ylow: float,
+     *     percentile_span: float,
+     *     detection_mode: 'old_style'|'new_style'|'none'
+     * }>
      */
     public function analyzeVideo(string $videoPath, ?int $sampleInterval = null, ?\Closure $progressCallback = null): array
     {
@@ -64,6 +80,9 @@ class VisualAnalysisService
                     'brightness' => $metric['brightness'],
                     'contrast' => $metric['contrast'],
                     'edge_density' => $metric['edge_density'],
+                    'ylow' => $metric['ylow'],
+                    'percentile_span' => $metric['percentile_span'],
+                    'detection_mode' => $classification['detection_mode'],
                 ];
             }
 
@@ -192,7 +211,14 @@ class VisualAnalysisService
     /**
      * Extract frame metrics for a specific time region
      *
-     * @return array<array{timestamp: float, brightness: float, contrast: float, edge_density: float}>
+     * @return array<array{
+     *     timestamp: float,
+     *     brightness: float,
+     *     contrast: float,
+     *     edge_density: float,
+     *     ylow: float,
+     *     percentile_span: float
+     * }>
      */
     public function extractFrameMetricsInRegion(
         string $videoPath,
@@ -279,7 +305,14 @@ class VisualAnalysisService
      * Extract frame metrics using FFmpeg signalstats filter
      *
      * @param  ?\Closure(float $currentTime): void  $progressCallback
-     * @return array<array{timestamp: float, brightness: float, contrast: float, edge_density: float}>
+     * @return array<array{
+     *     timestamp: float,
+     *     brightness: float,
+     *     contrast: float,
+     *     edge_density: float,
+     *     ylow: float,
+     *     percentile_span: float
+     * }>
      */
     public function extractFrameMetrics(string $videoPath, int $sampleInterval, ?\Closure $progressCallback = null): array
     {
@@ -367,7 +400,14 @@ class VisualAnalysisService
     /**
      * Parse FFmpeg metadata output to extract frame metrics
      *
-     * @return array<array{timestamp: float, brightness: float, contrast: float, edge_density: float}>
+     * @return array<array{
+     *     timestamp: float,
+     *     brightness: float,
+     *     contrast: float,
+     *     edge_density: float,
+     *     ylow: float,
+     *     percentile_span: float
+     * }>
      */
     private function parseMetricsLog(string $logPath): array
     {
@@ -389,7 +429,7 @@ class VisualAnalysisService
 
                 // Initialize new metric entry
                 if ($currentMetric !== null) {
-                    $metrics[] = $currentMetric;
+                    $metrics[] = $this->finalizeMetric($currentMetric);
                 }
 
                 $currentMetric = [
@@ -397,6 +437,8 @@ class VisualAnalysisService
                     'brightness' => 0.0,
                     'contrast' => 0.0,
                     'edge_density' => 0.0,
+                    'ylow' => 0.0,
+                    'percentile_span' => 0.0,
                 ];
 
                 continue;
@@ -422,28 +464,69 @@ class VisualAnalysisService
             if (preg_match('/lavfi\.signalstats\.YHIGH=(\d+(?:\.\d+)?)/', $line, $matches)) {
                 if ($currentMetric !== null) {
                     $yhigh = (float) $matches[1] / 255.0;
-                    // High YHIGH indicates many bright pixels (white lyric boxes)
+                    // YHIGH is the 90th percentile luminance value.
                     $currentMetric['edge_density'] = $yhigh;
+                }
+            }
+
+            if (preg_match('/lavfi\.signalstats\.YLOW=(\d+(?:\.\d+)?)/', $line, $matches)) {
+                if ($currentMetric !== null) {
+                    $currentMetric['ylow'] = (float) $matches[1] / 255.0;
                 }
             }
         }
 
         // Add final metric if exists
         if ($currentMetric !== null) {
-            $metrics[] = $currentMetric;
+            $metrics[] = $this->finalizeMetric($currentMetric);
         }
 
         return $metrics;
     }
 
     /**
+     * @param  array{
+     *     timestamp: float,
+     *     brightness: float,
+     *     contrast: float,
+     *     edge_density: float,
+     *     ylow: float,
+     *     percentile_span: float
+     * }  $metric
+     * @return array{
+     *     timestamp: float,
+     *     brightness: float,
+     *     contrast: float,
+     *     edge_density: float,
+     *     ylow: float,
+     *     percentile_span: float
+     * }
+     */
+    private function finalizeMetric(array $metric): array
+    {
+        $metric['percentile_span'] = max(0.0, $metric['edge_density'] - $metric['ylow']);
+
+        return $metric;
+    }
+
+    /**
      * Classify a frame as song or speech based on visual characteristics
      *
-     * @param  array{timestamp: float, brightness: float, contrast: float, edge_density: float}  $metrics
-     * @return array{classification: string, confidence: float}
+     * @param  array{
+     *     timestamp: float,
+     *     brightness: float,
+     *     contrast: float,
+     *     edge_density: float,
+     *     ylow?: float,
+     *     percentile_span?: float
+     * }  $metrics
+     * @return array{classification: string, confidence: float, detection_mode: 'old_style'|'new_style'|'none'}
      */
     public function classifyFrame(array $metrics): array
     {
+        $ylow = (float) ($metrics['ylow'] ?? 0.0);
+        $percentileSpan = (float) ($metrics['percentile_span'] ?? max(0.0, $metrics['edge_density'] - $ylow));
+
         // Brightness score: white lyric boxes have high brightness
         // Normalize: 0 at threshold, 1.0 at max (1.0)
         $brightnessScore = 0.0;
@@ -481,8 +564,28 @@ class VisualAnalysisService
                      ($contrastScore * $weights['contrast']) +
                      ($edgeDensityScore * $weights['edge_density']);
 
-        // Classify based on confidence threshold
-        $classification = $confidence >= self::MIN_CONFIDENCE ? LivestreamSegmentClassification::Song->value : LivestreamSegmentClassification::Speech->value;
+        $modeAConfidence = $confidence;
+        $isOldStyleSong = $modeAConfidence >= self::MIN_CONFIDENCE;
+
+        $isNewStyleSong = $ylow <= self::YLOW_CEILING_NEW
+            && $metrics['brightness'] <= self::BRIGHTNESS_CEILING_NEW
+            && $percentileSpan >= self::SPAN_THRESHOLD_NEW;
+
+        $modeBConfidence = 0.0;
+        if ($isNewStyleSong) {
+            $spanRange = 1.0 - self::SPAN_THRESHOLD_NEW;
+            $modeBConfidence = min(1.0, ($percentileSpan - self::SPAN_THRESHOLD_NEW) / $spanRange);
+        }
+
+        $confidence = max($modeAConfidence, $modeBConfidence);
+        $classification = $confidence >= self::MIN_CONFIDENCE
+            ? LivestreamSegmentClassification::Song->value
+            : LivestreamSegmentClassification::Speech->value;
+
+        $detectionMode = 'none';
+        if ($classification === LivestreamSegmentClassification::Song->value) {
+            $detectionMode = $modeAConfidence >= $modeBConfidence ? 'old_style' : 'new_style';
+        }
 
         // Debug logging to understand classification decisions
         if ($metrics['timestamp'] % 600 === 0 || $confidence >= 0.5) {
@@ -493,19 +596,29 @@ class VisualAnalysisService
                     'brightness' => round($metrics['brightness'], 3),
                     'contrast' => round($metrics['contrast'], 3),
                     'edge_density' => round($metrics['edge_density'], 3),
+                    'ylow' => round($ylow, 3),
+                    'percentile_span' => round($percentileSpan, 3),
                 ],
                 'scores' => [
                     'brightness' => round($brightnessScore, 3),
                     'contrast' => round($contrastScore, 3),
                     'edge_density' => round($edgeDensityScore, 3),
                 ],
+                'mode_confidences' => [
+                    'old_style' => round($modeAConfidence, 3),
+                    'new_style' => round($modeBConfidence, 3),
+                ],
                 'confidence' => round($confidence, 3),
                 'classification' => $classification,
+                'detection_mode' => $detectionMode,
                 'thresholds' => [
                     'brightness' => self::BRIGHTNESS_THRESHOLD,
                     'contrast' => self::CONTRAST_THRESHOLD,
                     'edge_density' => self::EDGE_DENSITY_THRESHOLD,
                     'min_confidence' => self::MIN_CONFIDENCE,
+                    'ylow_ceiling_new' => self::YLOW_CEILING_NEW,
+                    'brightness_ceiling_new' => self::BRIGHTNESS_CEILING_NEW,
+                    'span_threshold_new' => self::SPAN_THRESHOLD_NEW,
                 ],
             ]);
         }
@@ -513,6 +626,7 @@ class VisualAnalysisService
         return [
             'classification' => $classification,
             'confidence' => round($confidence, 3),
+            'detection_mode' => $detectionMode,
         ];
     }
 }

@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
+use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -96,6 +97,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             return;
         }
 
+        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::MatchSongsFromTranscript->value);
         $this->logStepStart(ChurchServiceProcessingTimeline::MATCH_SONGS_FROM_TRANSCRIPT);
 
         /** @var EloquentCollection<int, ServiceSection> $sections */

@@ -85,10 +85,12 @@ class ClassifySpeechSectionsTest extends TestCase
         $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
         $section->refresh();
+        $processingLog->refresh();
 
         $this->assertSame(ServiceSectionType::PRAYER, $section->section_type);
         $this->assertFalse($section->needs_manual_review);
         $this->assertSame('ai_transcript', $section->metadata['confidence_source'] ?? null);
+        $this->assertSame('classify_speech_sections', $processingLog->current_step);
         $this->assertDatabaseHas('sermon_processing_steps', [
             'processing_id' => $processingLog->processing_id,
             'step' => ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS,

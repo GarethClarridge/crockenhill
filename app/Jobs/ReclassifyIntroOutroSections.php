@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\MediaType;
+use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
@@ -59,6 +60,7 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
             return;
         }
 
+        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::ReclassifyIntroOutro->value);
         $this->logStepStart(ChurchServiceProcessingTimeline::RECLASSIFY_INTRO_OUTRO);
 
         /** @var EloquentCollection<int, ServiceSection> $songSections */

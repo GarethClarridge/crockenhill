@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\MediaType;
+use App\Enums\ProcessingStep;
 use App\Models\MediaProcessingLog;
 use App\Services\LivestreamChurchServiceProjectionService;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -48,6 +49,7 @@ class ProjectLivestreamServiceStructure extends ProcessingJob implements ShouldQ
             return;
         }
 
+        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::ProjectLivestreamServiceStructure->value);
         $this->logStepStart(ChurchServiceProcessingTimeline::PROJECT_LIVESTREAM_SERVICE_STRUCTURE);
 
         $result = $projectionService->project($this->processingLog);

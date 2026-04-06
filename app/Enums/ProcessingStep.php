@@ -40,6 +40,12 @@ enum ProcessingStep: string
     case ClassifyingSections = 'classifying_sections';
     case SectionClassificationComplete = 'section_classification_complete';
     case SectionClassificationSkipped = 'section_classification_skipped';
+    case TranscribeSpeechSegments = 'transcribe_speech_segments';
+    case ClassifySpeechSections = 'classify_speech_sections';
+    case ProjectLivestreamServiceStructure = 'project_livestream_service_structure';
+    case AlignWithOos = 'align_with_oos';
+    case MatchSongsFromTranscript = 'match_songs_from_transcript';
+    case ReclassifyIntroOutro = 'reclassify_intro_outro';
     case Extraction = 'extraction';
     case ExtractingSermon = 'extracting_sermon';
     case ExtractionComplete = 'extraction_complete';

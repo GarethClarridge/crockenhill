@@ -272,6 +272,35 @@ class MediaUploadTest extends TestCase
     }
 
     #[Test]
+    public function it_sets_the_admin_manual_review_url_when_polling_a_manual_review_failure(): void
+    {
+        $this->actingAs($this->admin);
+
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor->expects($this->never())
+            ->method('getStatus');
+
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => 'proc-manual-review',
+            'owner_user_id' => $this->admin->id,
+            'status' => \App\Enums\ProcessingStatus::FAILED,
+            'current_step' => 'manual_review_required',
+        ]);
+
+        Livewire::test(MediaUpload::class)
+            ->set('processingId', 'proc-manual-review')
+            ->set('status', 'processing')
+            ->call('checkProcessingStatus')
+            ->assertSet('status', 'failed')
+            ->assertSet('currentStep', 'Manual review required')
+            ->assertSet('progressPercentage', 100)
+            ->assertSet('manualReviewUrl', route('admin.services.processing.review', $log))
+            ->assertSet('errorMessage', null);
+    }
+
+    #[Test]
     public function it_clears_file_when_media_type_changes()
     {
         $this->actingAs($this->admin);

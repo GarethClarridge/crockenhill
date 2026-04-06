@@ -14,7 +14,10 @@ use Illuminate\Support\Facades\Log;
  *     confidence: float,
  *     brightness?: float,
  *     contrast?: float,
- *     edge_density?: float
+ *     edge_density?: float,
+ *     ylow?: float,
+ *     percentile_span?: float,
+ *     detection_mode?: 'old_style'|'new_style'|'none'
  * }
  * @phpstan-type SongCluster array{
  *     start_estimate: float,

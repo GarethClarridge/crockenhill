@@ -104,8 +104,10 @@ class TranscribeSpeechSegmentsTest extends TestCase
         $job->handle($videoExtractor, app(StorageAdapterHelper::class), $transcriptionService);
 
         $section->refresh();
+        $processingLog->refresh();
 
         $this->assertSame('Segment transcript', $section->metadata['transcript'] ?? null);
+        $this->assertSame('transcribe_speech_segments', $processingLog->current_step);
         $this->assertDatabaseHas('sermon_processing_steps', [
             'processing_id' => $processingLog->processing_id,
             'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,

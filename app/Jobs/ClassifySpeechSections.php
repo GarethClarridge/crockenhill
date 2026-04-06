@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\MediaType;
+use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
@@ -62,6 +63,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
             return;
         }
 
+        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::ClassifySpeechSections->value);
         $this->logStepStart(ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS);
 
         $existingSections = ServiceSection::query()

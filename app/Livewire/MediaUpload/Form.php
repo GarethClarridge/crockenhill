@@ -259,7 +259,7 @@ class Form extends Component
 
             if ($nextStatus === 'failed' && $log->current_step === 'manual_review_required') {
                 $this->manualReviewMessage = 'The sermon candidate could not be identified automatically. Please review the segments and confirm which one is the sermon.';
-                $this->manualReviewUrl = route('services.processing.review', $log);
+                $this->manualReviewUrl = route('admin.services.processing.review', $log);
                 $this->errorMessage = null;
                 $this->successMessage = null;
                 $this->cancelledMessage = null;

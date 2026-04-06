@@ -491,14 +491,69 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
-                'key' => 'match_songs_from_transcript',
+                'key' => 'transcribe_speech_segments',
+                'progress' => 53,
+                'job_offset' => 2,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'transcribe_speech_segments',
+                ],
+            ],
+            [
+                'key' => 'classify_speech_sections',
                 'progress' => 54,
+                'job_offset' => 3,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'classify_speech_sections',
+                ],
+            ],
+            [
+                'key' => 'project_livestream_service_structure',
+                'progress' => 54,
+                'job_offset' => 4,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'project_livestream_service_structure',
+                ],
+            ],
+            [
+                'key' => 'align_with_oos',
+                'progress' => 55,
+                'job_offset' => 5,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'align_with_oos',
+                ],
+            ],
+            [
+                'key' => 'match_songs_from_transcript',
+                'progress' => 55,
                 'job_offset' => 6,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
                 'steps' => [
                     'match_songs_from_transcript',
+                ],
+            ],
+            [
+                'key' => 'reclassify_intro_outro',
+                'progress' => 55,
+                'job_offset' => 7,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'reclassify_intro_outro',
                 ],
             ],
             [

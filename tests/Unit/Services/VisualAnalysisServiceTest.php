@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit\Services;
 
 use App\Services\VisualAnalysisService;
@@ -20,83 +22,74 @@ class VisualAnalysisServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_classifies_high_brightness_frame_as_song(): void
+    public function it_classifies_high_brightness_old_style_frame_as_song(): void
     {
-        $metrics = [
-            'timestamp' => 100.0,
-            'brightness' => 0.95,  // Very high brightness (white lyric boxes)
-            'contrast' => 0.9,     // Very high contrast (not used - 0% weight)
-            'edge_density' => 0.95, // Very strong edges (80% weight - primary indicator)
-        ];
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.95,
+            contrast: 0.9,
+            edgeDensity: 0.95,
+            ylow: 0.55,
+        ));
 
-        $result = $this->service->classifyFrame($metrics);
-
-        $this->assertEquals('song', $result['classification']);
-        // With edge_density at 80% weight and 0.95 value, confidence should be high
+        $this->assertSame('song', $result['classification']);
+        $this->assertSame('old_style', $result['detection_mode']);
         $this->assertGreaterThan(0.5, $result['confidence']);
     }
 
     #[Test]
-    public function it_classifies_low_brightness_frame_as_speech(): void
+    public function it_classifies_low_signal_frame_as_speech(): void
     {
-        $metrics = [
-            'timestamp' => 100.0,
-            'brightness' => 0.3,  // Low brightness (no white boxes)
-            'contrast' => 0.4,    // Low contrast
-            'edge_density' => 0.2, // Few edges
-        ];
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.3,
+            contrast: 0.4,
+            edgeDensity: 0.2,
+            ylow: 0.15,
+        ));
 
-        $result = $this->service->classifyFrame($metrics);
-
-        $this->assertEquals('speech', $result['classification']);
-        $this->assertLessThan(0.7, $result['confidence']);
+        $this->assertSame('speech', $result['classification']);
+        $this->assertSame('none', $result['detection_mode']);
+        $this->assertLessThan(0.35, $result['confidence']);
     }
 
     #[Test]
-    public function it_classifies_borderline_frame_correctly(): void
+    public function it_classifies_borderline_old_style_frame_above_threshold_without_regression(): void
     {
-        // Frame with moderate brightness - should be classified as speech
-        $metrics = [
-            'timestamp' => 100.0,
-            'brightness' => 0.55, // Just below threshold
-            'contrast' => 0.6,
-            'edge_density' => 0.45,
-        ];
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.5,
+            contrast: 0.6,
+            edgeDensity: 0.86,
+            ylow: 0.5,
+        ));
 
-        $result = $this->service->classifyFrame($metrics);
-
-        $this->assertEquals('speech', $result['classification']);
+        $this->assertSame('song', $result['classification']);
+        $this->assertSame('old_style', $result['detection_mode']);
+        $this->assertSame(0.36, $result['confidence']);
     }
 
     #[Test]
-    public function it_weights_edge_density_most_heavily(): void
+    public function it_still_weights_edge_density_most_heavily_for_old_style_detection(): void
     {
-        // Edge density (80% weight) should dominate classification
-        $highEdgeDensityMetrics = [
-            'timestamp' => 100.0,
-            'brightness' => 0.6,  // Moderate brightness (20% weight)
-            'contrast' => 0.1,    // Low contrast (0% weight - disabled)
-            'edge_density' => 0.95, // Very high edge density (80% weight - primary)
-        ];
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.6,
+            contrast: 0.1,
+            edgeDensity: 0.95,
+            ylow: 0.58,
+        ));
 
-        $result = $this->service->classifyFrame($highEdgeDensityMetrics);
-
-        // Should be classified as song because edge density is high
-        $this->assertEquals('song', $result['classification']);
+        $this->assertSame('song', $result['classification']);
+        $this->assertSame('old_style', $result['detection_mode']);
         $this->assertGreaterThan(0.5, $result['confidence']);
     }
 
     #[Test]
-    public function it_returns_confidence_score(): void
+    public function it_returns_confidence_score_within_expected_bounds(): void
     {
-        $metrics = [
-            'timestamp' => 100.0,
-            'brightness' => 0.8,
-            'contrast' => 0.75,
-            'edge_density' => 0.6,
-        ];
-
-        $result = $this->service->classifyFrame($metrics);
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.8,
+            contrast: 0.75,
+            edgeDensity: 0.6,
+            ylow: 0.45,
+        ));
 
         $this->assertArrayHasKey('confidence', $result);
         $this->assertIsFloat($result['confidence']);
@@ -105,43 +98,40 @@ class VisualAnalysisServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_classifies_as_speech_when_edge_density_is_below_threshold(): void
+    public function it_classifies_as_speech_when_edge_density_is_below_old_style_threshold(): void
     {
-        $service = new VisualAnalysisService;
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.8,
+            contrast: 0.75,
+            edgeDensity: 0.6,
+            ylow: 0.48,
+        ));
 
-        $metrics = [
-            'timestamp' => 100.0,
-            'brightness' => 0.8,
-            'contrast' => 0.75,
-            'edge_density' => 0.6,  // Below EDGE_DENSITY_THRESHOLD (0.75)
-        ];
-
-        $result = $service->classifyFrame($metrics);
-
-        // Edge density is the primary signal (weight 0.8). Below threshold means low confidence → speech.
-        $this->assertEquals('speech', $result['classification']);
+        $this->assertSame('speech', $result['classification']);
+        $this->assertSame('none', $result['detection_mode']);
     }
 
     #[Test]
-    public function it_parses_frame_metrics_from_ffmpeg_output(): void
+    public function it_parses_ylow_and_percentile_span_from_ffmpeg_output(): void
     {
-        // Create mock FFmpeg metadata output
         $metadataOutput = <<<'EOF'
 frame:0    pts:0       pts_time:0
 lavfi.signalstats.YAVG=127.5
 lavfi.signalstats.YDIF=85.2
 lavfi.signalstats.YHIGH=200.0
+lavfi.signalstats.YLOW=80.0
 frame:60   pts:3600    pts_time:10.0
 lavfi.signalstats.YAVG=180.0
 lavfi.signalstats.YDIF=120.0
 lavfi.signalstats.YHIGH=220.0
+lavfi.signalstats.YLOW=40.0
 frame:120  pts:7200    pts_time:20.0
 lavfi.signalstats.YAVG=50.0
 lavfi.signalstats.YDIF=30.0
 lavfi.signalstats.YHIGH=80.0
+lavfi.signalstats.YLOW=20.0
 EOF;
 
-        // Create temporary file
         $tempDir = Storage::disk('local')->path('temp');
         if (! is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
@@ -149,29 +139,29 @@ EOF;
         $tempFile = $tempDir.'/test_metrics.log';
         file_put_contents($tempFile, $metadataOutput);
 
-        // Use reflection to call private method
         $reflection = new \ReflectionClass($this->service);
         $method = $reflection->getMethod('parseMetricsLog');
         $method->setAccessible(true);
 
         $metrics = $method->invoke($this->service, $tempFile);
 
-        // Verify we got 3 frames
         $this->assertCount(3, $metrics);
 
-        // Verify first frame
         $this->assertEquals(0.0, $metrics[0]['timestamp']);
-        $this->assertEqualsWithDelta(0.5, $metrics[0]['brightness'], 0.01); // 127.5/255
+        $this->assertEqualsWithDelta(0.5, $metrics[0]['brightness'], 0.01);
+        $this->assertEqualsWithDelta(0.314, $metrics[0]['ylow'], 0.01);
+        $this->assertEqualsWithDelta(0.471, $metrics[0]['percentile_span'], 0.01);
 
-        // Verify second frame (high brightness - lyric box)
         $this->assertEquals(10.0, $metrics[1]['timestamp']);
-        $this->assertEqualsWithDelta(0.706, $metrics[1]['brightness'], 0.01); // 180/255
+        $this->assertEqualsWithDelta(0.706, $metrics[1]['brightness'], 0.01);
+        $this->assertEqualsWithDelta(0.157, $metrics[1]['ylow'], 0.01);
+        $this->assertEqualsWithDelta(0.706, $metrics[1]['percentile_span'], 0.01);
 
-        // Verify third frame (low brightness - speech)
         $this->assertEquals(20.0, $metrics[2]['timestamp']);
-        $this->assertEqualsWithDelta(0.196, $metrics[2]['brightness'], 0.01); // 50/255
+        $this->assertEqualsWithDelta(0.196, $metrics[2]['brightness'], 0.01);
+        $this->assertEqualsWithDelta(0.078, $metrics[2]['ylow'], 0.01);
+        $this->assertEqualsWithDelta(0.235, $metrics[2]['percentile_span'], 0.01);
 
-        // Cleanup
         @unlink($tempFile);
     }
 
@@ -199,94 +189,151 @@ EOF;
     #[Test]
     public function it_normalizes_brightness_values_correctly(): void
     {
-        // Test boundary values
-        $maxBrightness = [
-            'timestamp' => 0.0,
-            'brightness' => 1.0, // 255/255
-            'contrast' => 1.0,
-            'edge_density' => 1.0,
-        ];
+        $maxBrightness = $this->makeMetrics(
+            brightness: 1.0,
+            contrast: 1.0,
+            edgeDensity: 1.0,
+            ylow: 0.6,
+        );
 
         $result = $this->service->classifyFrame($maxBrightness);
-        $this->assertEquals('song', $result['classification']);
+        $this->assertSame('song', $result['classification']);
+        $this->assertSame('old_style', $result['detection_mode']);
 
-        $minBrightness = [
-            'timestamp' => 0.0,
-            'brightness' => 0.0, // 0/255
-            'contrast' => 0.0,
-            'edge_density' => 0.0,
-        ];
+        $minBrightness = $this->makeMetrics(
+            brightness: 0.0,
+            contrast: 0.0,
+            edgeDensity: 0.0,
+            ylow: 0.0,
+        );
 
         $result = $this->service->classifyFrame($minBrightness);
-        $this->assertEquals('speech', $result['classification']);
+        $this->assertSame('speech', $result['classification']);
+        $this->assertSame('none', $result['detection_mode']);
     }
 
     #[Test]
     public function it_returns_proper_structure_from_classification(): void
     {
-        $metrics = [
-            'timestamp' => 100.0,
-            'brightness' => 0.8,
-            'contrast' => 0.75,
-            'edge_density' => 0.6,
-        ];
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.8,
+            contrast: 0.75,
+            edgeDensity: 0.6,
+            ylow: 0.45,
+        ));
 
-        $result = $this->service->classifyFrame($metrics);
-
-        // Verify structure
         $this->assertArrayHasKey('classification', $result);
         $this->assertArrayHasKey('confidence', $result);
-        $this->assertCount(2, $result);
+        $this->assertArrayHasKey('detection_mode', $result);
+        $this->assertCount(3, $result);
 
-        // Verify types
         $this->assertIsString($result['classification']);
         $this->assertIsFloat($result['confidence']);
-
-        // Verify classification is valid
+        $this->assertIsString($result['detection_mode']);
         $this->assertContains($result['classification'], ['song', 'speech']);
+        $this->assertContains($result['detection_mode'], ['old_style', 'new_style', 'none']);
     }
 
     #[Test]
-    public function it_applies_weighted_scoring_correctly(): void
+    public function it_applies_weighted_old_style_scoring_correctly(): void
     {
-        // Test scenario where edge density (80% weight) dominates
-        $edgeDensityOnlyHigh = [
-            'timestamp' => 0.0,
-            'brightness' => 0.5, // Moderate (20% weight)
-            'contrast' => 0.0,    // Low (0% weight - disabled)
-            'edge_density' => 0.9, // Very high (80% weight - primary)
-        ];
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.5,
+            contrast: 0.0,
+            edgeDensity: 0.9,
+            ylow: 0.5,
+        ));
 
-        $result = $this->service->classifyFrame($edgeDensityOnlyHigh);
+        $this->assertSame(0.488, $result['confidence']);
+        $this->assertSame('old_style', $result['detection_mode']);
+    }
 
-        // With 80% weight on edge_density, 0.9 value contributes significantly
-        // Even moderate brightness only adds ~0.02, edge_density drives the score
-        $this->assertGreaterThan(0.4, $result['confidence']);
+    #[Test]
+    public function it_classifies_new_style_frame_as_song(): void
+    {
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.35,
+            contrast: 0.03,
+            edgeDensity: 0.7,
+            ylow: 0.12,
+        ));
+
+        $this->assertSame('song', $result['classification']);
+        $this->assertSame('new_style', $result['detection_mode']);
+        $this->assertSame(0.354, $result['confidence']);
+    }
+
+    #[Test]
+    public function it_scales_new_style_confidence_with_percentile_span(): void
+    {
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.4,
+            contrast: 0.02,
+            edgeDensity: 0.85,
+            ylow: 0.1,
+        ));
+
+        $this->assertSame('song', $result['classification']);
+        $this->assertSame('new_style', $result['detection_mode']);
+        $this->assertSame(0.615, $result['confidence']);
+    }
+
+    #[Test]
+    public function it_prevents_mode_b_false_positives_for_speech_frames(): void
+    {
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.45,
+            contrast: 0.08,
+            edgeDensity: 0.58,
+            ylow: 0.44,
+        ));
+
+        $this->assertSame('speech', $result['classification']);
+        $this->assertSame('none', $result['detection_mode']);
+    }
+
+    #[Test]
+    public function it_does_not_treat_uniformly_dark_frames_as_new_style_song_slides(): void
+    {
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.08,
+            contrast: 0.01,
+            edgeDensity: 0.15,
+            ylow: 0.05,
+        ));
+
+        $this->assertSame('speech', $result['classification']);
+        $this->assertSame('none', $result['detection_mode']);
+    }
+
+    #[Test]
+    public function it_does_not_treat_bright_speech_frames_as_song_when_yhigh_is_not_high_enough(): void
+    {
+        $result = $this->service->classifyFrame($this->makeMetrics(
+            brightness: 0.75,
+            contrast: 0.05,
+            edgeDensity: 0.7,
+            ylow: 0.6,
+        ));
+
+        $this->assertSame('speech', $result['classification']);
+        $this->assertSame('none', $result['detection_mode']);
     }
 
     #[Test]
     public function it_returns_refined_boundaries_with_proper_structure(): void
     {
-        // This test verifies the structure returned by refineBoundaries
-        // Without actually running FFmpeg (would need integration test for that)
         $cluster = [
-            'start_estimate' => 1420.0, // 23:40
-            'end_estimate' => 1490.0,   // 24:50
+            'start_estimate' => 1420.0,
+            'end_estimate' => 1490.0,
             'samples' => [1420, 1430, 1440, 1450, 1460, 1470, 1480, 1490],
         ];
 
-        // We can't actually test the full functionality in a unit test
-        // because it requires video file and FFmpeg, but we can verify
-        // that the method exists and returns correct structure on error fallback
-
-        // When video file doesn't exist, should return fallback with original estimates
         $result = $this->service->refineBoundaries('/nonexistent/video.mp4', $cluster);
 
         $this->assertArrayHasKey('refined_visual_start', $result);
         $this->assertArrayHasKey('refined_visual_end', $result);
         $this->assertArrayHasKey('dense_sample_count', $result);
-
-        // Should fallback to original estimates
         $this->assertEquals($cluster['start_estimate'], $result['refined_visual_start']);
         $this->assertEquals($cluster['end_estimate'], $result['refined_visual_end']);
         $this->assertEquals(0, $result['dense_sample_count']);
@@ -295,20 +342,19 @@ EOF;
     #[Test]
     public function it_adjusts_timestamps_correctly_in_region_extraction(): void
     {
-        // This verifies the logic that timestamps should be relative to video start
-        // Create mock FFmpeg metadata output for a region starting at 1000s
         $metadataOutput = <<<'EOF'
 frame:0    pts:0       pts_time:0
 lavfi.signalstats.YAVG=180.0
 lavfi.signalstats.YDIF=120.0
 lavfi.signalstats.YHIGH=220.0
+lavfi.signalstats.YLOW=40.0
 frame:60   pts:3600    pts_time:1.0
 lavfi.signalstats.YAVG=190.0
 lavfi.signalstats.YDIF=130.0
 lavfi.signalstats.YHIGH=230.0
+lavfi.signalstats.YLOW=45.0
 EOF;
 
-        // Create temporary file
         $tempDir = Storage::disk('local')->path('temp');
         if (! is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
@@ -316,20 +362,43 @@ EOF;
         $tempFile = $tempDir.'/test_region_metrics.log';
         file_put_contents($tempFile, $metadataOutput);
 
-        // Parse the log
         $reflection = new \ReflectionClass($this->service);
         $method = $reflection->getMethod('parseMetricsLog');
         $method->setAccessible(true);
         $metrics = $method->invoke($this->service, $tempFile);
 
-        // Verify timestamps are as extracted (before adjustment)
         $this->assertEquals(0.0, $metrics[0]['timestamp']);
         $this->assertEquals(1.0, $metrics[1]['timestamp']);
-
-        // In actual extractFrameMetricsInRegion, timestamps would be adjusted
-        // by adding the startTime to each timestamp
-        // This logic should be verified in integration tests
+        $this->assertArrayHasKey('ylow', $metrics[0]);
+        $this->assertArrayHasKey('percentile_span', $metrics[0]);
 
         @unlink($tempFile);
+    }
+
+    /**
+     * @return array{
+     *     timestamp: float,
+     *     brightness: float,
+     *     contrast: float,
+     *     edge_density: float,
+     *     ylow: float,
+     *     percentile_span: float
+     * }
+     */
+    private function makeMetrics(
+        float $brightness,
+        float $contrast,
+        float $edgeDensity,
+        float $ylow,
+        float $timestamp = 100.0,
+    ): array {
+        return [
+            'timestamp' => $timestamp,
+            'brightness' => $brightness,
+            'contrast' => $contrast,
+            'edge_density' => $edgeDensity,
+            'ylow' => $ylow,
+            'percentile_span' => max(0.0, $edgeDensity - $ylow),
+        ];
     }
 }

@@ -42,6 +42,9 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame(56, $registry->progressForStep('manual_review_confirmed'));
         $this->assertSame(10, $registry->progressForStep('initiated_from_livestream:abc123'));
         $this->assertSame(10, $registry->progressForStep('restarting_from_beginning'));
+        $this->assertSame(53, $registry->progressForStep('transcribe_speech_segments', MediaType::Livestream));
+        $this->assertSame(54, $registry->progressForStep('classify_speech_sections', MediaType::Livestream));
+        $this->assertSame(55, $registry->progressForStep('align_with_oos', MediaType::Livestream));
         $this->assertSame(87, $registry->progressForStep('updating_sermon_record'));
         $this->assertSame(92, $registry->progressForStep('sending_notification'));
         $this->assertSame(93, $registry->progressForStep('notification_sent'));
@@ -95,5 +98,37 @@ class ProcessingPhaseRegistryTest extends TestCase
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
+    }
+
+    #[Test]
+    public function it_retries_speech_segment_transcription_and_alignment_from_their_own_livestream_phase(): void
+    {
+        $registry = app(ProcessingPhaseRegistry::class);
+
+        $transcriptionLog = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'transcribe_speech_segments',
+        ]);
+
+        $alignmentLog = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'align_with_oos',
+        ]);
+
+        $this->assertSame([
+            'action' => 'dispatch_livestream_chain',
+            'pipeline' => 'livestream',
+            'job_offset' => 2,
+            'rerun_strategy' => 'safe_to_rerun',
+            'reset_scope' => 'none',
+        ], $registry->retryPlanFor($transcriptionLog));
+
+        $this->assertSame([
+            'action' => 'dispatch_livestream_chain',
+            'pipeline' => 'livestream',
+            'job_offset' => 5,
+            'rerun_strategy' => 'safe_to_rerun',
+            'reset_scope' => 'none',
+        ], $registry->retryPlanFor($alignmentLog));
     }
 }
