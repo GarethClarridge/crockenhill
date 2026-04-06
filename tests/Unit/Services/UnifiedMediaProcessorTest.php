@@ -93,7 +93,7 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->assertNotNull($log);
         $this->assertEquals(\App\Enums\MediaType::Audio, $log->processing_type);
         $this->assertEquals('sermon.mp3', $log->original_filename);
-        $this->assertEquals(ProcessingStatus::Pending, $log->status);
+        $this->assertEquals(ProcessingStatus::PENDING, $log->status);
     }
 
     #[Test]
@@ -431,7 +431,7 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->assertTrue($result->success);
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::FAILED, $log->status);
         $this->assertSame('manual_review_required', $log->current_step);
     }
 
@@ -556,7 +556,7 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_type' => 'video',
             'original_filename' => 'sermon-video.mp4',
-            'status' => ProcessingStatus::Pending->value,
+            'status' => ProcessingStatus::PENDING->value,
             'current_step' => 'video_processing_initiated',
         ]);
     }

@@ -70,27 +70,12 @@ class SeoMetaTagsTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('"@type": "Church"', false);
         $response->assertSee('"name": "Crockenhill Baptist Church"', false);
-        $response->assertSee('"@id": "'.config('app.url').'/"', false);
+        $response->assertSee('"@id": "'.config('app.url').'"', false);
         $response->assertSee('"streetAddress": "Eynsford Road"', false);
         $response->assertSee('"postalCode": "BR8 8JS"', false);
         $response->assertSee('"latitude": "51.38349261524606"', false);
         $response->assertSee('"longitude": "0.16404725602797054"', false);
         $response->assertSee('"telephone": "+44-1322-663995"', false);
-        $response->assertSee('"openingHoursSpecification":', false);
-        $response->assertSee('"opens": "10:30"', false);
-        $response->assertSee('"opens": "18:00"', false);
-    }
-
-    #[Test]
-    public function homepage_has_website_schema(): void
-    {
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
-        $response->assertSee('"@type": "WebSite"', false);
-        $response->assertSee('"name": "Crockenhill Baptist Church"', false);
-        $response->assertSee('"@id": "'.config('app.url').'/"', false);
-        $response->assertSee('"url": "'.config('app.url').'"', false);
     }
 
     #[Test]

@@ -9,12 +9,10 @@ use App\Models\ChurchService;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
-use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use App\Observers\CalendarEventObserver;
 use App\Observers\ChurchServiceObserver;
 use App\Observers\MediaLibraryCacheObserver;
-use App\Observers\PreacherAliasObserver;
 use App\Observers\PreacherObserver;
 use App\Observers\SermonIdentityObserver;
 use App\Observers\SermonObserver;
@@ -41,6 +39,5 @@ class ModelObserverServiceProvider extends ServiceProvider
         Meeting::observe(SitemapCacheObserver::class);
         Preacher::observe(PreacherObserver::class);
         Preacher::observe(SitemapCacheObserver::class);
-        PreacherAlias::observe(PreacherAliasObserver::class);
     }
 }

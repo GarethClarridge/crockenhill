@@ -78,7 +78,7 @@ class AdminMeetingTest extends TestCase
             ->set('form.leadersEmail', 'leader@example.com')
             ->set('form.meetingDate', '2026-03-11')
             ->set('form.isRecurring', true)
-            ->set('form.frequency', MeetingFrequency::WEEKLY->value)
+            ->set('form.frequency', MeetingFrequency::Weekly->value)
             ->set('form.pageId', $page->id)
             ->call('save')
             ->assertRedirect(route('admin.meetings.index'));
@@ -87,7 +87,7 @@ class AdminMeetingTest extends TestCase
 
         $this->assertSame($page->id, $meeting->page_id);
         $this->assertSame(MeetingType::ADULTS, $meeting->type);
-        $this->assertSame(MeetingFrequency::WEEKLY, $meeting->frequency);
+        $this->assertSame(MeetingFrequency::Weekly, $meeting->frequency);
         $this->assertSame('19:30', $meeting->start_time?->format('H:i'));
         $this->assertSame('21:00', $meeting->end_time?->format('H:i'));
         $this->assertSame('2026-03-11', $meeting->meeting_date?->format('Y-m-d'));
@@ -121,7 +121,7 @@ class AdminMeetingTest extends TestCase
             ->set('form.day', 'Thursday')
             ->set('form.who', 'Adults')
             ->set('form.isRecurring', true)
-            ->set('form.frequency', MeetingFrequency::WEEKLY->value)
+            ->set('form.frequency', MeetingFrequency::Weekly->value)
             ->set('form.isRecurring', false)
             ->call('save')
             ->assertRedirect(route('admin.meetings.index'));
@@ -152,7 +152,7 @@ class AdminMeetingTest extends TestCase
             'leaders_email' => 'old@example.com',
             'meeting_date' => '2026-05-20',
             'is_recurring' => true,
-            'frequency' => MeetingFrequency::MONTHLY->value,
+            'frequency' => MeetingFrequency::Monthly->value,
         ]);
 
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])
@@ -168,7 +168,7 @@ class AdminMeetingTest extends TestCase
             ->assertSet('form.leadersEmail', 'old@example.com')
             ->assertSet('form.meetingDate', '2026-05-20')
             ->assertSet('form.isRecurring', true)
-            ->assertSet('form.frequency', MeetingFrequency::MONTHLY->value)
+            ->assertSet('form.frequency', MeetingFrequency::Monthly->value)
             ->assertSet('form.pageId', $page->id);
     }
 
@@ -185,7 +185,7 @@ class AdminMeetingTest extends TestCase
             'type' => MeetingType::ADULTS->value,
             'meeting_date' => '2026-03-01',
             'is_recurring' => true,
-            'frequency' => MeetingFrequency::WEEKLY->value,
+            'frequency' => MeetingFrequency::Weekly->value,
         ]);
 
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])

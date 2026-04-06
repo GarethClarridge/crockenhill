@@ -18,7 +18,8 @@ class ProcessingLogService
 
     public function getProcessingLogs(string $processingId, int $limit = 50): ProcessingLogCollection
     {
-        $logs = $this->parseLogsFromFile($processingId, $limit);
+        $logPath = empty($this->logFilePath) ? storage_path('logs/laravel.log') : $this->logFilePath;
+        $logs = $this->parseLogsFromFile($processingId, $limit, null, $logPath);
 
         return new ProcessingLogCollection(
             entries: $logs,
@@ -29,7 +30,8 @@ class ProcessingLogService
 
     public function getLogsSince(string $processingId, Carbon $since): ProcessingLogCollection
     {
-        $logs = $this->parseLogsFromFile($processingId, null, $since);
+        $logPath = empty($this->logFilePath) ? storage_path('logs/laravel.log') : $this->logFilePath;
+        $logs = $this->parseLogsFromFile($processingId, null, $since, $logPath);
 
         return new ProcessingLogCollection(
             entries: $logs,
@@ -40,7 +42,8 @@ class ProcessingLogService
 
     public function getLogsByStep(string $processingId, string $step): ProcessingLogCollection
     {
-        $allLogs = $this->parseLogsFromFile($processingId);
+        $logPath = empty($this->logFilePath) ? storage_path('logs/laravel.log') : $this->logFilePath;
+        $allLogs = $this->parseLogsFromFile($processingId, null, null, $logPath);
         $filteredLogs = $allLogs->filter(fn (ProcessingLogEntry $entry) => $entry->step === $step);
 
         return new ProcessingLogCollection(
@@ -55,7 +58,8 @@ class ProcessingLogService
      */
     public function getPerformanceMetrics(string $processingId): ?array
     {
-        $logs = $this->parseLogsFromFile($processingId);
+        $logPath = empty($this->logFilePath) ? storage_path('logs/laravel.log') : $this->logFilePath;
+        $logs = $this->parseLogsFromFile($processingId, null, null, $logPath);
 
         $metrics = [];
         $totalExecutionTime = 0;
@@ -87,17 +91,12 @@ class ProcessingLogService
         ];
     }
 
-    private function getResolvedLogPath(): string
-    {
-        return empty($this->logFilePath) ? storage_path('logs/laravel.log') : $this->logFilePath;
-    }
-
     /**
      * @return Collection<int, ProcessingLogEntry>
      */
-    private function parseLogsFromFile(string $processingId, ?int $limit = null, ?Carbon $since = null): Collection
+    private function parseLogsFromFile(string $processingId, ?int $limit = null, ?Carbon $since = null, ?string $customLogPath = null): Collection
     {
-        $logPath = $this->getResolvedLogPath();
+        $logPath = $customLogPath ?? (empty($this->logFilePath) ? storage_path('logs/laravel.log') : $this->logFilePath);
 
         if (! file_exists($logPath)) {
             return collect();

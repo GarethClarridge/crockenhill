@@ -130,7 +130,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     {
         return Attribute::make(
             get: fn (): string => $this->page->heading ?? Str::title(str_replace('-', ' ', $this->slug))
-        )->shouldCache();
+        );
     }
 
     /**
@@ -163,7 +163,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
                 return null;
             }
-        )->shouldCache();
+        );
     }
 
     /**
@@ -229,10 +229,10 @@ class Meeting extends Model implements HasMedia, Sitemapable
         }
 
         return match ($this->frequency) {
-            MeetingFrequency::DAILY => $this->calculateNextDailyOccurrence($now, $meetingDate),
-            MeetingFrequency::WEEKLY => $this->calculateNextWeeklyOccurrence($now, $meetingDate),
-            MeetingFrequency::MONTHLY => $this->calculateNextMonthlyOccurrence($now, $meetingDate),
-            MeetingFrequency::ANNUALLY => $this->calculateNextAnnualOccurrence($now, $meetingDate),
+            MeetingFrequency::Daily => $this->calculateNextDailyOccurrence($now, $meetingDate),
+            MeetingFrequency::Weekly => $this->calculateNextWeeklyOccurrence($now, $meetingDate),
+            MeetingFrequency::Monthly => $this->calculateNextMonthlyOccurrence($now, $meetingDate),
+            MeetingFrequency::Annually => $this->calculateNextAnnualOccurrence($now, $meetingDate),
         };
     }
 
@@ -442,7 +442,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
                 'thumbnail' => $media->getUrl('thumbnail'),
                 'name' => $media->name,
             ])
-        )->shouldCache();
+        );
     }
 
     /**

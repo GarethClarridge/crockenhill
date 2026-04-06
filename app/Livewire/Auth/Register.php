@@ -25,9 +25,6 @@ class Register extends Component
 
     /**
      * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password|null>>
-     *
-     * Security: Explicit length constraints are enforced on sensitive fields to provide
-     * Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
      */
     public function rules(): array
     {
@@ -37,7 +34,6 @@ class Register extends Component
             'password' => [
                 'required',
                 'string',
-                'max:100', // Defense in Depth against DoS
                 'confirmed',
                 Password::defaults(),
             ],

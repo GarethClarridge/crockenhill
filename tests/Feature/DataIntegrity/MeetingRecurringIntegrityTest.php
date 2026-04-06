@@ -44,11 +44,11 @@ class MeetingRecurringIntegrityTest extends TestCase
     {
         $meeting = Meeting::factory()->create([
             'is_recurring' => true,
-            'frequency' => \App\Enums\MeetingFrequency::WEEKLY,
+            'frequency' => \App\Enums\MeetingFrequency::Weekly,
         ]);
 
         $this->assertTrue($meeting->is_recurring);
-        $this->assertEquals(\App\Enums\MeetingFrequency::WEEKLY, $meeting->frequency);
+        $this->assertEquals(\App\Enums\MeetingFrequency::Weekly, $meeting->frequency);
     }
 
     #[Test]

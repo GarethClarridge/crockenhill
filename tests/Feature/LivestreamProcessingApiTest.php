@@ -232,7 +232,7 @@ class LivestreamProcessingApiTest extends TestCase
         // Create a simple processing record for testing
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => '12345678-1234-1234-1234-123456789abc',
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'video_analysis',
             'original_filename' => 'test-video.mp4',
         ]);
@@ -282,10 +282,10 @@ class LivestreamProcessingApiTest extends TestCase
 
         // Test different statuses and their expected progress
         $testCases = [
-            ['status' => ProcessingStatus::Pending, 'progress' => 0],
-            ['status' => ProcessingStatus::Processing, 'progress' => 50],
-            ['status' => ProcessingStatus::Completed, 'progress' => 100],
-            ['status' => ProcessingStatus::Failed, 'progress' => 0],
+            ['status' => ProcessingStatus::PENDING, 'progress' => 0],
+            ['status' => ProcessingStatus::PROCESSING, 'progress' => 50],
+            ['status' => ProcessingStatus::COMPLETED, 'progress' => 100],
+            ['status' => ProcessingStatus::FAILED, 'progress' => 0],
         ];
 
         foreach ($testCases as $testCase) {
@@ -314,7 +314,7 @@ class LivestreamProcessingApiTest extends TestCase
         $sermon = Sermon::factory()->create();
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => '12345678-1234-1234-1234-123456789def',
-            'status' => ProcessingStatus::Completed,
+            'status' => ProcessingStatus::COMPLETED,
             'sermon_id' => $sermon->id,
             'video_file_path' => 'sermons/1/video.mp4',
         ]);

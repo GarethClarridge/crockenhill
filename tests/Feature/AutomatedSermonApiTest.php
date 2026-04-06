@@ -201,7 +201,7 @@ class AutomatedSermonApiTest extends TestCase
         MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => 'test-sermon.mp3',
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'transcribing_audio',
         ]);
 
@@ -265,7 +265,7 @@ class AutomatedSermonApiTest extends TestCase
             'processing_id' => $processingId,
             'processing_type' => 'audio',
             'original_filename' => 'failed-sermon.mp3',
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'transcribing_audio_failed',
             'error_message' => 'Temporary service unavailable',
             'source_file_path' => 'temp/test-audio.mp3',
@@ -293,7 +293,7 @@ class AutomatedSermonApiTest extends TestCase
 
             $this->assertDatabaseHas('media_processing_logs', [
                 'processing_id' => $processingId,
-                'status' => ProcessingStatus::Pending->value,
+                'status' => ProcessingStatus::PENDING->value,
             ]);
         }
     }
@@ -306,7 +306,7 @@ class AutomatedSermonApiTest extends TestCase
         MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => 'active-sermon.mp3',
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'transcribing_audio',
         ]);
 

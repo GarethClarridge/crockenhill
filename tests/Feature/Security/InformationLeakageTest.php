@@ -94,7 +94,7 @@ class InformationLeakageTest extends TestCase
             'processing_id' => (string) \Illuminate\Support\Str::uuid(),
             'processing_type' => MediaType::Audio,
             'original_filename' => 'test.mp3',
-            'status' => ProcessingStatus::Pending,
+            'status' => ProcessingStatus::PENDING,
             'current_step' => 'audio_processing_initiated',
             'owner_user_id' => $user->id,
         ]);
@@ -107,7 +107,7 @@ class InformationLeakageTest extends TestCase
 
         $processingLog->refresh();
 
-        $this->assertEquals(ProcessingStatus::Failed, $processingLog->status);
+        $this->assertEquals(ProcessingStatus::FAILED, $processingLog->status);
         $this->assertStringContainsString('Audio processing failed:', $processingLog->error_message);
         $this->assertMatchesRegularExpression('/internal error.*audio processing/i', $processingLog->error_message);
         $this->assertStringNotContainsString('Sensitive DB Error', $processingLog->error_message);
@@ -162,7 +162,7 @@ class InformationLeakageTest extends TestCase
             'processing_id' => (string) \Illuminate\Support\Str::uuid(),
             'processing_type' => MediaType::Audio,
             'original_filename' => 'test.mp3',
-            'status' => ProcessingStatus::Pending,
+            'status' => ProcessingStatus::PENDING,
             'current_step' => 'audio_processing_initiated',
             'owner_user_id' => $user->id,
         ]);

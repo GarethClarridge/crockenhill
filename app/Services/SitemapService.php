@@ -70,12 +70,10 @@ class SitemapService
             ->whereVisibleInSitemap()
             ->lazy();
 
-        $now = now();
-
         $sitemap
             // Dynamic content via Sitemapable models
             // Eager load relationships to prevent N+1 queries during sitemap generation
-            ->add($sermons->map(fn (Sermon $sermon): Url => $this->sermonSitemapPresenter->toSitemapTag($sermon, $now)))
+            ->add($sermons->map(fn (Sermon $sermon): Url => $this->sermonSitemapPresenter->toSitemapTag($sermon)))
             ->add(
                 Page::query()
                     ->public()

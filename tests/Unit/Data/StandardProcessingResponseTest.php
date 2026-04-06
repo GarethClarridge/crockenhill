@@ -306,7 +306,7 @@ class StandardProcessingResponseTest extends TestCase
     public function from_processing_log_maps_step_to_correct_progress(string $step, int $expectedProgress): void
     {
         $log = MediaProcessingLog::factory()->audio()->create([
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => $step,
         ]);
 
@@ -319,12 +319,12 @@ class StandardProcessingResponseTest extends TestCase
     public function from_processing_log_uses_media_specific_progress_for_shared_steps(): void
     {
         $videoLog = MediaProcessingLog::factory()->video()->create([
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'updating_sermon_record',
         ]);
 
         $thumbnailLog = MediaProcessingLog::factory()->video()->create([
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'generating_thumbnail',
         ]);
 
@@ -381,7 +381,7 @@ class StandardProcessingResponseTest extends TestCase
     public function from_processing_log_audio_type_includes_audio_duration_metadata(): void
     {
         $log = MediaProcessingLog::factory()->audio()->create([
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'transcribing_audio',
             'duration' => 1800.0,
         ]);
@@ -396,7 +396,7 @@ class StandardProcessingResponseTest extends TestCase
     public function from_processing_log_video_type_includes_video_duration_metadata(): void
     {
         $log = MediaProcessingLog::factory()->video()->create([
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'transcribing_audio',
             'duration' => 3600.0,
         ]);
@@ -411,7 +411,7 @@ class StandardProcessingResponseTest extends TestCase
     public function from_processing_log_livestream_type_includes_segments_count_metadata(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'segmentation',
         ]);
 
@@ -425,7 +425,7 @@ class StandardProcessingResponseTest extends TestCase
     public function from_processing_log_sets_processing_id_and_status_from_model(): void
     {
         $log = MediaProcessingLog::factory()->audio()->create([
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'transcribing_audio',
             'error_message' => null,
         ]);

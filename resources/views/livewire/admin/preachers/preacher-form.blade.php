@@ -10,9 +10,9 @@
 
     <x-card heading="Preacher details">
         <div class="space-y-4">
-            <x-input label="Name" wire:model.live.debounce="name" required maxlength="255" />
+            <x-input label="Name" wire:model.live.debounce="name" required />
 
-            <x-input label="Slug" wire:model="slug" required maxlength="255"
+            <x-input label="Slug" wire:model="slug" required
                 hint="URL-friendly identifier (auto-generated from name)" />
 
             <x-textarea label="Bio" wire:model="bio" rows="4"
@@ -42,7 +42,7 @@
                 @endif
 
                 <div class="flex gap-2 pt-2">
-                    <x-input wire:model="newAlias" placeholder="New alias (lowercase)" class="flex-1" maxlength="255" />
+                    <x-input wire:model="newAlias" placeholder="New alias (lowercase)" class="flex-1" />
                     <x-form-button variant="outline" wire:click="addAlias" icon="plus">
                         Add
                     </x-form-button>

@@ -73,7 +73,7 @@ class ProcessingInitiator
             'processing_type' => $processingType,
             'original_filename' => $file->getClientOriginalName(),
             'owner_user_id' => Auth::id(),
-            'status' => ProcessingStatus::Pending,
+            'status' => ProcessingStatus::PENDING,
             'current_step' => "{$processingType->value}_processing_initiated",
             'processing_metadata' => array_merge($baseMetadata, $extraMetadata),
         ], $additionalLogData);

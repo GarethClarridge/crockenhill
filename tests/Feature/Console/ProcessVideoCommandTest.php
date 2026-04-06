@@ -55,7 +55,7 @@ class ProcessVideoCommandTest extends TestCase
             ->expectsOutputToContain('Resumed the canonical livestream sermon flow.');
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Pending, $log->status);
+        $this->assertSame(ProcessingStatus::PENDING, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
         Queue::assertPushed(ExtractSermon::class);
@@ -127,7 +127,7 @@ class ProcessVideoCommandTest extends TestCase
             ->doesntExpectOutput('Resumed the canonical livestream sermon flow.');
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::FAILED, $log->status);
         $this->assertNull(Sermon::query()->where('livestream_processing_id', $processingId)->first());
     }
 }

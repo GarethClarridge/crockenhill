@@ -16,9 +16,9 @@
     {{-- Main content (default slot = lg:col-span-2) --}}
             <x-card heading="{{ $contentTypeLabel }} details">
                 <div class="space-y-4">
-                    <x-input label="Title" wire:model.live.debounce="title" required maxlength="255" />
+                    <x-input label="Title" wire:model.live.debounce="title" required />
 
-                    <x-input label="Slug" wire:model="slug" required maxlength="255"
+                    <x-input label="Slug" wire:model="slug" required
                         hint="URL-friendly identifier (auto-generated from title)" />
 
                     <div class="grid grid-cols-2 gap-4">
@@ -85,7 +85,7 @@
             @else
                 <x-card heading="AI-Generated Content">
                     <div class="space-y-4">
-                        <x-textarea label="Summary" wire:model="summary" rows="5" maxlength="1000"
+                        <x-textarea label="Summary" wire:model="summary" rows="5"
                             hint="AI-generated sermon summary" />
 
                         <div>

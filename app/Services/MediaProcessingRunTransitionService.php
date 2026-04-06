@@ -25,7 +25,7 @@ class MediaProcessingRunTransitionService
     public function markAsProcessing(MediaProcessingLog $processingLog, ?string $step = null): bool
     {
         return $this->updateRunFields($processingLog, [
-            'status' => ProcessingStatus::Processing,
+            'status' => ProcessingStatus::PROCESSING,
             'current_step' => $step,
             'started_at' => $processingLog->started_at ?? now(),
         ]);
@@ -37,7 +37,7 @@ class MediaProcessingRunTransitionService
         ?string $errorMessage = null
     ): bool {
         return $this->updateRunFields($processingLog, [
-            'status' => ProcessingStatus::Completed,
+            'status' => ProcessingStatus::COMPLETED,
             'current_step' => $step ?? 'completed',
             'completed_at' => now(),
             'error_message' => $errorMessage,
@@ -47,7 +47,7 @@ class MediaProcessingRunTransitionService
     public function markAsFailed(MediaProcessingLog $processingLog, string $errorMessage, ?string $step = null): bool
     {
         return $this->updateRunFields($processingLog, [
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => $step ?? $processingLog->current_step,
             'error_message' => $errorMessage,
             'completed_at' => now(),
@@ -59,7 +59,7 @@ class MediaProcessingRunTransitionService
         // Cancellation is the terminal transition that is allowed to override any
         // non-cancelled state, so this deliberately skips the cancelled-run guard.
         return $processingLog->update([
-            'status' => ProcessingStatus::Cancelled,
+            'status' => ProcessingStatus::CANCELLED,
             'current_step' => 'cancelled',
             'error_message' => $message ?? 'Processing cancelled by user',
             'completed_at' => now(),
@@ -89,7 +89,7 @@ class MediaProcessingRunTransitionService
         ))->toArray();
 
         return $processingLog->update([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'manual_review_required',
             'error_message' => $reasonMessage,
             'processing_metadata' => $metadata,
@@ -116,7 +116,7 @@ class MediaProcessingRunTransitionService
         ))->toArray();
 
         return $processingLog->update([
-            'status' => ProcessingStatus::Pending,
+            'status' => ProcessingStatus::PENDING,
             'current_step' => 'manual_review_confirmed',
             'error_message' => null,
             'processing_metadata' => $metadata,
@@ -131,7 +131,7 @@ class MediaProcessingRunTransitionService
     public function resetForRetry(MediaProcessingLog $processingLog): bool
     {
         return $processingLog->update([
-            'status' => ProcessingStatus::Pending,
+            'status' => ProcessingStatus::PENDING,
             'error_message' => null,
             'started_at' => null,
             'completed_at' => null,

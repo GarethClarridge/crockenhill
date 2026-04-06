@@ -76,9 +76,8 @@
                                  class="w-10 h-10 object-cover rounded-lg"
                                  loading="lazy" />
                         @else
-                            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center" title="No image">
+                            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center" aria-label="No image">
                                 <x-heroicon-o-photo class="w-5 h-5 text-gray-300" aria-hidden="true" />
-                                <span class="sr-only">No image</span>
                             </div>
                         @endif
                     </td>
@@ -108,17 +107,17 @@
                     {{-- Navigation --}}
                     <td class="px-4 py-3">
                         @if($page->navigation)
-                            <x-heroicon-o-check-circle class="w-5 h-5 text-green-500" title="In navigation" aria-label="In navigation" />
+                            <x-heroicon-o-check-circle class="w-5 h-5 text-green-500" aria-hidden="true" />
                         @else
-                            <x-heroicon-o-x-circle class="w-5 h-5 text-gray-300" title="Hidden from navigation" aria-label="Hidden from navigation" />
+                            <x-heroicon-o-x-circle class="w-5 h-5 text-gray-300" aria-hidden="true" />
                         @endif
                     </td>
                     {{-- Meeting --}}
                     <td class="px-4 py-3">
                         @if($page->meeting)
-                            <x-heroicon-o-calendar class="w-5 h-5 text-blue-500" title="Linked to meeting" aria-label="Linked to meeting" />
+                            <x-heroicon-o-calendar class="w-5 h-5 text-blue-500" aria-hidden="true" />
                         @else
-                            <span class="text-gray-300" title="No linked meeting">-</span>
+                            <span class="text-gray-300">-</span>
                         @endif
                     </td>
                     {{-- Updated --}}

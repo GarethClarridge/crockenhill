@@ -124,7 +124,7 @@ class PublicSongDetailTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $livestreamedService->id,
-            'status' => ProcessingStatus::Completed,
+            'status' => ProcessingStatus::COMPLETED,
         ]);
 
         ServiceSection::factory()->create([

@@ -780,7 +780,7 @@ class AdminChurchServiceTest extends TestCase
             'extracted_date' => '2026-04-26',
             'extracted_service' => SermonService::MORNING,
             'source_file_path' => null,
-            'status' => ProcessingStatus::Completed,
+            'status' => ProcessingStatus::COMPLETED,
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])

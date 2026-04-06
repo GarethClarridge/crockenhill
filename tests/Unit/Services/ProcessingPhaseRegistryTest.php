@@ -64,7 +64,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $registry = app(ProcessingPhaseRegistry::class);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'transcribing_audio_failed',
         ]);
 
@@ -83,7 +83,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $registry = app(ProcessingPhaseRegistry::class);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'preparing_section_publication_candidates',
         ]);
 

@@ -106,7 +106,7 @@ class Page extends Model implements HasMedia, Sitemapable
 
                 return null; // Or some default/error handling if slug is missing
             }
-        )->shouldCache();
+        );
     }
 
     /**
@@ -185,7 +185,7 @@ class Page extends Model implements HasMedia, Sitemapable
 
                 return Str::limit($description, 155);
             }
-        )->shouldCache();
+        );
     }
 
     /**

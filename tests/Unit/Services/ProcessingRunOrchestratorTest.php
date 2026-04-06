@@ -67,7 +67,7 @@ class ProcessingRunOrchestratorTest extends TestCase
         $this->assertTrue($result->success);
 
         $processingLog->refresh();
-        $this->assertSame(ProcessingStatus::Pending, $processingLog->status);
+        $this->assertSame(ProcessingStatus::PENDING, $processingLog->status);
         $this->assertNull($processingLog->error_message);
 
         Bus::assertChained([
@@ -108,7 +108,7 @@ class ProcessingRunOrchestratorTest extends TestCase
         }
 
         $processingLog->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $processingLog->status);
+        $this->assertSame(ProcessingStatus::FAILED, $processingLog->status);
         $this->assertNotNull($processingLog->completed_at);
         Mail::assertQueued(LivestreamProcessingFailed::class, fn (LivestreamProcessingFailed $mail): bool => $mail->processingId === $processingLog->processing_id);
     }
@@ -143,7 +143,7 @@ class ProcessingRunOrchestratorTest extends TestCase
         }
 
         $processingLog->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $processingLog->status);
+        $this->assertSame(ProcessingStatus::FAILED, $processingLog->status);
         $this->assertNotNull($processingLog->completed_at);
         Mail::assertQueued(LivestreamProcessingFailed::class, fn (LivestreamProcessingFailed $mail): bool => $mail->processingId === $processingLog->processing_id);
     }
@@ -176,7 +176,7 @@ class ProcessingRunOrchestratorTest extends TestCase
 
         $this->assertTrue($cancelled);
         $processingLog->refresh();
-        $this->assertSame(ProcessingStatus::Cancelled, $processingLog->status);
+        $this->assertSame(ProcessingStatus::CANCELLED, $processingLog->status);
     }
 
     #[Test]
@@ -194,7 +194,7 @@ class ProcessingRunOrchestratorTest extends TestCase
         $this->assertTrue($result->success);
 
         $processingLog->refresh();
-        $this->assertSame(ProcessingStatus::Pending, $processingLog->status);
+        $this->assertSame(ProcessingStatus::PENDING, $processingLog->status);
         $this->assertNull($processingLog->error_message);
 
         Bus::assertChained([

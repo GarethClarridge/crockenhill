@@ -50,7 +50,7 @@ class ProcessingReviewTest extends TestCase
         $this->actingAs($this->admin);
 
         $flagged = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'manual_review_required',
             'processing_metadata' => [
                 'manual_review' => [
@@ -68,7 +68,7 @@ class ProcessingReviewTest extends TestCase
 
         // A non-livestream failed run — should not appear
         MediaProcessingLog::factory()->audio()->create([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'manual_review_required',
         ]);
 
@@ -93,7 +93,7 @@ class ProcessingReviewTest extends TestCase
         $this->actingAs($this->admin);
 
         $legacyLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'manual_review_required',
             'error_message' => 'Manual Review Note: Multiple speech blocks met the 20-minute sermon threshold.',
             'processing_metadata' => null,
@@ -132,7 +132,7 @@ class ProcessingReviewTest extends TestCase
 
         $log = MediaProcessingLog::factory()->livestream()->create([
             'source_file_path' => 'livestreams/2026/review-detail.mp4',
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'manual_review_required',
             'processing_metadata' => [
                 'manual_review' => [
@@ -262,7 +262,7 @@ class ProcessingReviewTest extends TestCase
         $this->actingAs($this->admin);
 
         $audioLog = MediaProcessingLog::factory()->audio()->create([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'manual_review_required',
         ]);
 
@@ -288,7 +288,7 @@ class ProcessingReviewTest extends TestCase
     public function manual_review_email_contains_correct_review_url(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'manual_review_required',
         ]);
 
@@ -314,7 +314,7 @@ class ProcessingReviewTest extends TestCase
     private function makeLogAwaitingReview(): MediaProcessingLog
     {
         return MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'current_step' => 'manual_review_required',
             'processing_metadata' => [
                 'manual_review' => [

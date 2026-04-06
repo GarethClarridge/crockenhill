@@ -65,7 +65,7 @@ class CleanupOrphanedTempFilesCommandTest extends TestCase
         touch(Storage::disk('local')->path($filePath), now()->subHours(48)->timestamp);
 
         MediaProcessingLog::factory()->create([
-            'status' => \App\Enums\ProcessingStatus::Started,
+            'status' => \App\Enums\ProcessingStatus::STARTED,
             'source_file_path' => $filePath,
         ]);
 

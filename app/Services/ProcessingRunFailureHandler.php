@@ -65,7 +65,7 @@ class ProcessingRunFailureHandler
     private function markAudioFailure(MediaProcessingLog $processingLog, string $message): void
     {
         $processingLog->update([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'error_message' => "Audio processing failed: {$message}",
         ]);
     }
@@ -73,7 +73,7 @@ class ProcessingRunFailureHandler
     private function markVideoFailure(MediaProcessingLog $processingLog, string $message): void
     {
         $processingLog->update([
-            'status' => ProcessingStatus::Failed,
+            'status' => ProcessingStatus::FAILED,
             'error_message' => "Video processing failed: {$message}",
         ]);
     }

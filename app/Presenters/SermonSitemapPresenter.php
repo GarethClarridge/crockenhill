@@ -11,10 +11,9 @@ class SermonSitemapPresenter
         private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
 
-    public function toSitemapTag(Sermon $sermon, ?\Carbon\CarbonInterface $now = null): Url
+    public function toSitemapTag(Sermon $sermon): Url
     {
-        $now ??= now();
-        $daysOld = (int) abs($now->diffInDays($sermon->date, false));
+        $daysOld = abs(now()->diffInDays($sermon->date, false));
         $priority = $daysOld < 30 ? 0.8 : 0.6;
         $changeFreq = $daysOld < 365 ? Url::CHANGE_FREQUENCY_MONTHLY : Url::CHANGE_FREQUENCY_YEARLY;
 
@@ -25,38 +24,28 @@ class SermonSitemapPresenter
             $lastModified = $sermon->updated_at;
         }
 
+        $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
+        $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
+
         $url = Url::create($this->sermonViewPresenter->canonicalUrl($sermon))
             ->setLastModificationDate($lastModified)
             ->setChangeFrequency($changeFreq)
             ->setPriority($priority);
 
-        /**
-         * Performance Optimization: Defer media URL resolutions until existence is confirmed via database columns.
-         * This avoids redundant Storage::disk() and version hash calls for sermons without media.
-         */
-        $thumbnailUrl = null;
-        if ($sermon->hasThumbnail()) {
-            $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
-        }
-
-        if ($sermon->hasVideo() && $thumbnailUrl !== null) {
-            $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
-
-            if ($videoUrl !== null) {
-                $videoOptions = [];
-                if ($sermon->duration && $sermon->duration > 0) {
-                    $videoOptions['duration'] = (int) $sermon->duration;
-                }
-
-                $url->addVideo(
-                    $thumbnailUrl,
-                    $sermon->title,
-                    $sermon->summary ?? $sermon->title,
-                    $videoUrl,
-                    null,
-                    $videoOptions
-                );
+        if ($sermon->hasVideo() && $videoUrl !== null && $thumbnailUrl !== null) {
+            $videoOptions = [];
+            if ($sermon->duration && $sermon->duration > 0) {
+                $videoOptions['duration'] = (int) $sermon->duration;
             }
+
+            $url->addVideo(
+                $thumbnailUrl,
+                $sermon->title,
+                $sermon->summary ?? $sermon->title,
+                $videoUrl,
+                null,
+                $videoOptions
+            );
         }
 
         if ($thumbnailUrl !== null) {

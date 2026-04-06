@@ -39,7 +39,7 @@ class ProcessingRunFailureHandlerTest extends TestCase
         $this->handler->handle($log->processing_id, new \RuntimeException('Internal details'), ProcessingRunFailureHandler::PROFILE_AUDIO);
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::FAILED, $log->status);
         $this->assertStringContainsString('An internal error occurred during audio processing', $log->error_message);
     }
 
@@ -72,7 +72,7 @@ class ProcessingRunFailureHandlerTest extends TestCase
         $this->handler->handle($log->processing_id, new \RuntimeException('boom'), ProcessingRunFailureHandler::PROFILE_VIDEO);
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::FAILED, $log->status);
         $this->assertStringContainsString('An internal error occurred during video processing', $log->error_message);
     }
 
@@ -171,6 +171,6 @@ class ProcessingRunFailureHandlerTest extends TestCase
         );
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Cancelled, $log->status);
+        $this->assertSame(ProcessingStatus::CANCELLED, $log->status);
     }
 }

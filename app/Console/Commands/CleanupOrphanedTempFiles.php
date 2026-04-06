@@ -153,11 +153,11 @@ class CleanupOrphanedTempFiles extends Command
         $paths = MediaProcessingLog::query()
             ->where(function (Builder $query): void {
                 $query->whereIn('status', [
-                    ProcessingStatus::Pending->value,
-                    ProcessingStatus::Started->value,
-                    ProcessingStatus::Processing->value,
+                    ProcessingStatus::PENDING->value,
+                    ProcessingStatus::STARTED->value,
+                    ProcessingStatus::PROCESSING->value,
                 ])->orWhere(function (Builder $query): void {
-                    $query->where('status', ProcessingStatus::Failed->value)
+                    $query->where('status', ProcessingStatus::FAILED->value)
                         ->where('current_step', 'manual_review_required');
                 });
             })

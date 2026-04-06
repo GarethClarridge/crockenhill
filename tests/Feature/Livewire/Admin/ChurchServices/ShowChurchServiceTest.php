@@ -74,7 +74,7 @@ class ShowChurchServiceTest extends TestCase
         }
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::FAILED, $log->status);
         $this->assertNotNull($log->error_message);
         $this->assertNotNull($log->completed_at);
         Mail::assertQueued(LivestreamProcessingFailed::class, fn ($mail) => $mail->processingId === $log->processing_id);

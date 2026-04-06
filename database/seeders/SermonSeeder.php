@@ -142,7 +142,7 @@ class SermonSeeder extends Seeder
                 'processing_id' => 'seed-prodigal-son-processing',
                 'processing_type' => MediaType::Livestream,
                 'original_filename' => '2024-11-24-morning-service.mp4',
-                'status' => ProcessingStatus::Completed,
+                'status' => ProcessingStatus::COMPLETED,
                 'current_step' => 'completed',
                 'sermon_id' => null,
                 'audio_file_path' => 'sermons/seed/2024-11-24.mp3',

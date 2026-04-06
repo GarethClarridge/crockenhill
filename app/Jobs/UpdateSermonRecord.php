@@ -226,7 +226,7 @@ class UpdateSermonRecord implements ShouldQueue
                 $processingLog = $sermon->processingLogs()->latest()->first();
                 if ($processingLog) {
                     $processingLog->update([
-                        'status' => ProcessingStatus::Completed,
+                        'status' => ProcessingStatus::COMPLETED,
                         'current_step' => 'completed_with_basic_data',
                         'error_message' => 'AI processing failed, used basic data: '.$exception->getMessage(),
                     ]);

@@ -290,7 +290,7 @@ class ShowChurchService extends Component
     private function timelineEntryFromRecordedStep(string $label, SermonProcessingStep $step): array
     {
         $status = $step->status->value;
-        if ($step->status === ProcessingStatus::Started) {
+        if ($step->status === ProcessingStatus::STARTED) {
             $status = 'running';
         }
 
