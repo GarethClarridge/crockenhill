@@ -29,7 +29,7 @@
         'publisher' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),
-            '@id' => config('app.url'),
+            '@id' => config('app.url').'/',
             'logo' => [
                 '@type' => 'ImageObject',
                 'url' => asset('images/Primary.png'),
