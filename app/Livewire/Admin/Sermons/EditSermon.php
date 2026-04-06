@@ -15,6 +15,7 @@ use App\Services\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
 use App\Services\SermonStorageService;
 use App\Services\ThumbnailGenerationService;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -75,6 +76,8 @@ class EditSermon extends Component
 
     public ?string $selectedThumbnailCandidateId = null;
 
+    public string $lastGeneratedSlug = '';
+
     /**
      * @return array<string, mixed>
      */
@@ -133,7 +136,19 @@ class EditSermon extends Component
         $this->points = $sermon->points ?? [];
         $this->showSummary = $sermon->show_summary;
         $this->showPoints = $sermon->show_points;
+        $this->lastGeneratedSlug = (string) Str::slug($this->title);
         $this->loadThumbnailCandidates();
+    }
+
+    public function updatedTitle(): void
+    {
+        $generatedSlug = (string) Str::slug($this->title);
+
+        if ($this->slug === '' || $this->slug === $this->lastGeneratedSlug) {
+            $this->slug = $generatedSlug;
+        }
+
+        $this->lastGeneratedSlug = $generatedSlug;
     }
 
     public function addPoint(): void

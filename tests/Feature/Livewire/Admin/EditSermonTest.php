@@ -61,6 +61,31 @@ class EditSermonTest extends TestCase
             ->assertStatus(200);
     }
 
+    // -------------------------------------------------------------------------
+    // Slug auto-update
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function slug_is_auto_updated_when_title_changes(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->set('title', 'My New Sermon Title')
+            ->assertSet('slug', 'my-new-sermon-title');
+    }
+
+    #[Test]
+    public function slug_is_not_auto_updated_if_manually_overridden(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->set('slug', 'custom-seo-slug')
+            ->set('title', 'Another Title Change')
+            ->assertSet('slug', 'custom-seo-slug');
+    }
+
     #[Test]
     public function it_renders_saved_thumbnail_candidates(): void
     {
