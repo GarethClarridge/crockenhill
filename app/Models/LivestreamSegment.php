@@ -264,6 +264,9 @@ class LivestreamSegment extends Model
             'start_time' => ['required', 'numeric', 'min:0'],
             'end_time' => ['required', 'numeric', 'min:0', 'gte:start_time'],
             'duration' => ['required', 'numeric', 'min:0'],
+            'visual_sample_count' => ['nullable', 'integer', 'min:0'],
+            'visual_confidence' => ['nullable', 'numeric', 'between:0,1'],
+            'segment_order' => ['nullable', 'integer', 'min:0'],
         ];
     }
 
