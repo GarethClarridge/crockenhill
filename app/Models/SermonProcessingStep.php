@@ -61,7 +61,7 @@ class SermonProcessingStep extends Model
     public function markAsStarted(?string $message = null): bool
     {
         return $this->update([
-            'status' => ProcessingStatus::STARTED->value,
+            'status' => ProcessingStatus::Started->value,
             'message' => $message,
             'started_at' => now(),
             'completed_at' => null,
@@ -74,7 +74,7 @@ class SermonProcessingStep extends Model
     public function markAsCompleted(?string $message = null): bool
     {
         return $this->update([
-            'status' => ProcessingStatus::COMPLETED->value,
+            'status' => ProcessingStatus::Completed->value,
             'message' => $message,
             'completed_at' => now(),
         ]);
@@ -86,7 +86,7 @@ class SermonProcessingStep extends Model
     public function markAsFailed(string $errorMessage): bool
     {
         return $this->update([
-            'status' => ProcessingStatus::FAILED->value,
+            'status' => ProcessingStatus::Failed->value,
             'message' => $errorMessage,
             'completed_at' => now(),
         ]);
@@ -98,7 +98,7 @@ class SermonProcessingStep extends Model
     public function markAsSkipped(?string $message = null): bool
     {
         return $this->update([
-            'status' => ProcessingStatus::SKIPPED->value,
+            'status' => ProcessingStatus::Skipped->value,
             'message' => $message,
             'started_at' => $this->started_at ?? now(),
             'completed_at' => now(),
@@ -111,7 +111,7 @@ class SermonProcessingStep extends Model
     public function markAsCancelled(?string $message = null): bool
     {
         return $this->update([
-            'status' => ProcessingStatus::CANCELLED->value,
+            'status' => ProcessingStatus::Cancelled->value,
             'message' => $message ?? 'Cancelled by user',
             'completed_at' => now(),
         ]);
@@ -122,7 +122,7 @@ class SermonProcessingStep extends Model
      */
     public function isCompleted(): bool
     {
-        return $this->status === ProcessingStatus::COMPLETED;
+        return $this->status === ProcessingStatus::Completed;
     }
 
     /**
@@ -130,7 +130,7 @@ class SermonProcessingStep extends Model
      */
     public function isFailed(): bool
     {
-        return $this->status === ProcessingStatus::FAILED;
+        return $this->status === ProcessingStatus::Failed;
     }
 
     /**
@@ -138,7 +138,7 @@ class SermonProcessingStep extends Model
      */
     public function isSkipped(): bool
     {
-        return $this->status === ProcessingStatus::SKIPPED;
+        return $this->status === ProcessingStatus::Skipped;
     }
 
     /**
@@ -146,7 +146,7 @@ class SermonProcessingStep extends Model
      */
     public function isStarted(): bool
     {
-        return $this->status === ProcessingStatus::STARTED;
+        return $this->status === ProcessingStatus::Started;
     }
 
     /**
@@ -154,7 +154,7 @@ class SermonProcessingStep extends Model
      */
     public function isCancelled(): bool
     {
-        return $this->status === ProcessingStatus::CANCELLED;
+        return $this->status === ProcessingStatus::Cancelled;
     }
 
     /**

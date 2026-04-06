@@ -43,7 +43,7 @@ class ProcessingInitiatorTest extends TestCase
         $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
         $this->assertInstanceOf(MediaProcessingLog::class, $log);
-        $this->assertEquals(ProcessingStatus::PENDING, $log->status);
+        $this->assertEquals(ProcessingStatus::Pending, $log->status);
         $this->assertEquals(MediaType::Video, $log->processing_type);
         $this->assertEquals('sermon.mp4', $log->original_filename);
         $this->assertNotEmpty($log->processing_id);
@@ -206,7 +206,7 @@ class ProcessingInitiatorTest extends TestCase
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => $log->processing_id,
             'processing_type' => 'video',
-            'status' => ProcessingStatus::PENDING->value,
+            'status' => ProcessingStatus::Pending->value,
         ]);
     }
 

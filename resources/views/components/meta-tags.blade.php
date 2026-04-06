@@ -9,6 +9,10 @@
     'canonical' => null,
     'audio' => null,
     'video' => null,
+    'author' => null,
+    'publishedTime' => null,
+    'section' => null,
+    'tags' => null,
 ])
 
 @php
@@ -40,6 +44,23 @@
 @if($video)
 <meta property="og:video" content="{{ $video }}">
 <meta property="og:video:type" content="video/mp4">
+@endif
+
+@if($type === 'article')
+@if($author)
+<meta property="article:author" content="{{ str_starts_with($author, 'http') ? $author : url($author) }}">
+@endif
+@if($publishedTime)
+<meta property="article:published_time" content="{{ $publishedTime }}">
+@endif
+@if($section)
+<meta property="article:section" content="{{ $section }}">
+@endif
+@if($tags)
+@foreach(\Illuminate\Support\Arr::wrap($tags) as $tag)
+<meta property="article:tag" content="{{ $tag }}">
+@endforeach
+@endif
 @endif
 
 {{-- Twitter Card meta tags --}}

@@ -20,7 +20,7 @@ final class ProcessingLogScenario
 
     private MediaType $type = MediaType::Audio;
 
-    private ?ProcessingStatus $status = ProcessingStatus::PENDING;
+    private ?ProcessingStatus $status = ProcessingStatus::Pending;
 
     private ?User $owner = null;
 
@@ -52,14 +52,14 @@ final class ProcessingLogScenario
 
     public function pending(): self
     {
-        $this->status = ProcessingStatus::PENDING;
+        $this->status = ProcessingStatus::Pending;
 
         return $this;
     }
 
     public function processing(?string $step = null): self
     {
-        $this->status = ProcessingStatus::PROCESSING;
+        $this->status = ProcessingStatus::Processing;
 
         if ($step !== null) {
             $this->attributes['current_step'] = $step;
@@ -70,14 +70,14 @@ final class ProcessingLogScenario
 
     public function completed(): self
     {
-        $this->status = ProcessingStatus::COMPLETED;
+        $this->status = ProcessingStatus::Completed;
 
         return $this;
     }
 
     public function failed(?string $message = null): self
     {
-        $this->status = ProcessingStatus::FAILED;
+        $this->status = ProcessingStatus::Failed;
 
         if ($message !== null) {
             $this->attributes['error_message'] = $message;
@@ -129,11 +129,11 @@ final class ProcessingLogScenario
 
         if ($this->status !== null) {
             $factory = match ($this->status) {
-                ProcessingStatus::PENDING => $factory->pending(),
-                ProcessingStatus::PROCESSING => $factory->processing(),
-                ProcessingStatus::COMPLETED => $factory->completed(),
-                ProcessingStatus::FAILED => $factory->failed(),
-                ProcessingStatus::CANCELLED => $factory->cancelled(),
+                ProcessingStatus::Pending => $factory->pending(),
+                ProcessingStatus::Processing => $factory->processing(),
+                ProcessingStatus::Completed => $factory->completed(),
+                ProcessingStatus::Failed => $factory->failed(),
+                ProcessingStatus::Cancelled => $factory->cancelled(),
             };
         }
 

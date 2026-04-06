@@ -26,11 +26,11 @@ class MediaProcessingLogFactory extends Factory
             'processing_type' => $processingType,
             'original_filename' => $this->faker->regexify('[0-9]{4}-[0-9]{2}-[0-9]{2}').'_sermon.mp3',
             'status' => $this->faker->randomElement([
-                ProcessingStatus::PENDING,
-                ProcessingStatus::PROCESSING,
-                ProcessingStatus::COMPLETED,
-                ProcessingStatus::FAILED,
-                ProcessingStatus::CANCELLED,
+                ProcessingStatus::Pending,
+                ProcessingStatus::Processing,
+                ProcessingStatus::Completed,
+                ProcessingStatus::Failed,
+                ProcessingStatus::Cancelled,
             ]),
             'current_step' => $this->faker->optional()->randomElement([
                 'metadata_extraction',
@@ -89,7 +89,7 @@ class MediaProcessingLogFactory extends Factory
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => ProcessingStatus::PENDING,
+            'status' => ProcessingStatus::Pending,
             'current_step' => null,
             'error_message' => null,
             'sermon_id' => null,
@@ -102,7 +102,7 @@ class MediaProcessingLogFactory extends Factory
     public function processing(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => $this->faker->randomElement([
                 'metadata_extraction',
                 'audio_transcription',
@@ -118,7 +118,7 @@ class MediaProcessingLogFactory extends Factory
     public function completed(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
             'current_step' => 'completed',
             'error_message' => null,
             'sermon_id' => fn () => Sermon::factory()->create()->id,
@@ -131,7 +131,7 @@ class MediaProcessingLogFactory extends Factory
     public function failed(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => $this->faker->randomElement([
                 'metadata_extraction',
                 'audio_transcription',
@@ -149,7 +149,7 @@ class MediaProcessingLogFactory extends Factory
     public function cancelled(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => ProcessingStatus::CANCELLED,
+            'status' => ProcessingStatus::Cancelled,
             'current_step' => 'cancelled',
             'error_message' => 'Processing cancelled by user',
             'sermon_id' => null,
@@ -163,7 +163,7 @@ class MediaProcessingLogFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'sermon_id' => $sermon->id,
-            'status' => ProcessingStatus::COMPLETED,
+            'status' => ProcessingStatus::Completed,
             'current_step' => 'completed',
             'error_message' => null,
         ]);
@@ -195,7 +195,7 @@ class MediaProcessingLogFactory extends Factory
 
         return $this->state(fn (array $attributes) => [
             'processing_type' => MediaType::Livestream,
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
             'error_message' => $reasonMessage,
             'processing_metadata' => [

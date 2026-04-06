@@ -14,3 +14,8 @@
 **Learning:** Found that several media-related tables (`media_processing_logs`, `song_videos`, `livestream_segments`) lacked database-level `CHECK` constraints for durations and timing invariants (e.g., `end_time >= start_time`). While the application logic generally handles these, the database is the last line of defense against corrupted data from failed processing jobs or manual database edits.
 
 **Action:** Implement `CHECK` constraints for all numeric columns that have logical bounds (e.g., duration must be non-negative). When implementing these constraints, use raw SQL `DB::statement` for maximum compatibility and provide explicit constraint names to ensure helpful error messages in test failures. Always verify that existing tests which perform migration rollbacks are updated to account for the new migration steps.
+
+## 2026-04-03 - Recurring Meeting Frequency Dependency
+**Learning:** Found that the `meetings` table allowed a meeting to be marked as recurring (`is_recurring = true`) without a mandatory `frequency`, leading to potential logic errors during next-occurrence calculations. This dependency was only partially enforced in some UI-layer validation but missing in others.
+
+**Action:** Enforce cross-column dependencies using database-level `CHECK` constraints (`is_recurring = 0 OR frequency IS NOT NULL`). Synchronize this rule across all validation entry points (FormRequests and Livewire Forms). When testing data integrity, add new dedicated test files to avoid modifying or deleting existing coverage, and ensure tests target both the database level (using raw DB inserts) and the application level (using Validator).

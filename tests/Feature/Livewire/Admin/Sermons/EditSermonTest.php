@@ -29,6 +29,31 @@ class EditSermonTest extends TestCase
     }
 
     #[Test]
+    public function it_updates_slug_automatically_when_title_changes(): void
+    {
+        $sermon = Sermon::factory()->create(['title' => 'Original Title', 'slug' => 'original-title']);
+
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditSermon::class, ['sermon' => $sermon])
+            ->set('title', 'New Updated Title')
+            ->assertSet('slug', 'new-updated-title');
+    }
+
+    #[Test]
+    public function it_does_not_update_slug_automatically_if_manually_overridden(): void
+    {
+        $sermon = Sermon::factory()->create(['title' => 'Original Title', 'slug' => 'original-title']);
+
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditSermon::class, ['sermon' => $sermon])
+            ->set('slug', 'custom-seo-slug')
+            ->set('title', 'New Updated Title')
+            ->assertSet('slug', 'custom-seo-slug');
+    }
+
+    #[Test]
     public function it_authorizes_admin_access(): void
     {
         $user = User::factory()->create(['is_admin' => false]);
@@ -50,18 +75,6 @@ class EditSermonTest extends TestCase
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
             ->assertStatus(200)
             ->assertSee('Edit Sermon');
-    }
-
-    #[Test]
-    public function it_updates_slug_automatically_when_title_changes(): void
-    {
-        $sermon = Sermon::factory()->create(['title' => 'Original Title', 'slug' => 'original-title']);
-
-        $this->actingAs($this->admin);
-
-        Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('title', 'New Updated Title')
-            ->assertSet('slug', 'new-updated-title');
     }
 
     #[Test]

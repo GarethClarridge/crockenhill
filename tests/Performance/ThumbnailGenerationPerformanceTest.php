@@ -23,6 +23,10 @@ class ThumbnailGenerationPerformanceTest extends TestCase
     {
         parent::setUp();
 
+        if (! config('app.run_performance_tests')) {
+            $this->markTestSkipped('Performance tests are disabled');
+        }
+
         // Mock the VideoSegmentationService dependency
         $videoService = $this->createMock(VideoSegmentationService::class);
         $videoService->method('getVideoMetadata')->willReturn([
@@ -47,11 +51,6 @@ class ThumbnailGenerationPerformanceTest extends TestCase
     #[Test]
     public function thumbnail_generation_completes_within_reasonable_time()
     {
-        // Skip if not in performance testing environment
-        if (! env('RUN_PERFORMANCE_TESTS', false)) {
-            $this->markTestSkipped('Performance tests are disabled');
-        }
-
         $sermon = Sermon::factory()->create([
             'title' => 'Performance Test Sermon with a Very Long Title That Should Be Wrapped Properly',
             'date' => now(),
@@ -163,11 +162,6 @@ class ThumbnailGenerationPerformanceTest extends TestCase
     #[Test]
     public function memory_usage_stays_reasonable_during_processing()
     {
-        // Skip if not in performance testing environment
-        if (! env('RUN_PERFORMANCE_TESTS', false)) {
-            $this->markTestSkipped('Performance tests are disabled');
-        }
-
         $sermon = Sermon::factory()->create([
             'title' => 'Memory Test Sermon',
             'date' => now(),
@@ -196,11 +190,6 @@ class ThumbnailGenerationPerformanceTest extends TestCase
     #[Test]
     public function concurrent_thumbnail_generation_performance()
     {
-        // Skip if not in performance testing environment
-        if (! env('RUN_PERFORMANCE_TESTS', false)) {
-            $this->markTestSkipped('Performance tests are disabled');
-        }
-
         $sermons = [];
         $tempFiles = [];
 

@@ -58,16 +58,16 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     {
         return [
             // pending with no step hits the default branch (50) — captured here as a baseline fixture
-            'audio pending' => [ProcessingStatus::PENDING, null, 50],
-            'audio initiated' => [ProcessingStatus::PROCESSING, 'audio_processing_initiated', 10],
-            'audio validating' => [ProcessingStatus::PROCESSING, 'validating', 15],
-            'audio transcribing' => [ProcessingStatus::PROCESSING, 'transcribing_audio', 70],
-            'audio analyzing transcript' => [ProcessingStatus::PROCESSING, 'analyzing_transcript', 85],
-            'audio generating thumbnail' => [ProcessingStatus::PROCESSING, 'generating_thumbnail', 88],
-            'audio cleanup' => [ProcessingStatus::PROCESSING, 'cleanup', 95],
-            'audio completed' => [ProcessingStatus::COMPLETED, 'completed', 100],
-            'audio failed' => [ProcessingStatus::FAILED, 'transcribing_audio', 0],
-            'audio cancelled' => [ProcessingStatus::CANCELLED, 'cancelled', 0],
+            'audio pending' => [ProcessingStatus::Pending, null, 50],
+            'audio initiated' => [ProcessingStatus::Processing, 'audio_processing_initiated', 10],
+            'audio validating' => [ProcessingStatus::Processing, 'validating', 15],
+            'audio transcribing' => [ProcessingStatus::Processing, 'transcribing_audio', 70],
+            'audio analyzing transcript' => [ProcessingStatus::Processing, 'analyzing_transcript', 85],
+            'audio generating thumbnail' => [ProcessingStatus::Processing, 'generating_thumbnail', 88],
+            'audio cleanup' => [ProcessingStatus::Processing, 'cleanup', 95],
+            'audio completed' => [ProcessingStatus::Completed, 'completed', 100],
+            'audio failed' => [ProcessingStatus::Failed, 'transcribing_audio', 0],
+            'audio cancelled' => [ProcessingStatus::Cancelled, 'cancelled', 0],
         ];
     }
 
@@ -105,15 +105,15 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     public static function videoStatusTransitionProvider(): array
     {
         return [
-            'video pending' => [ProcessingStatus::PENDING, null, 50],
-            'video initiated' => [ProcessingStatus::PROCESSING, 'video_processing_initiated', 10],
-            'video extracting audio' => [ProcessingStatus::PROCESSING, 'extracting_audio', 25],
-            'video sermon creation' => [ProcessingStatus::PROCESSING, 'sermon_creation', 60],
-            'video transcribing' => [ProcessingStatus::PROCESSING, 'transcribing_audio', 70],
-            'video thumbnail' => [ProcessingStatus::PROCESSING, 'generating_thumbnail', 88],
-            'video completed' => [ProcessingStatus::COMPLETED, 'completed', 100],
-            'video failed' => [ProcessingStatus::FAILED, 'extracting_audio', 0],
-            'video cancelled' => [ProcessingStatus::CANCELLED, 'cancelled', 0],
+            'video pending' => [ProcessingStatus::Pending, null, 50],
+            'video initiated' => [ProcessingStatus::Processing, 'video_processing_initiated', 10],
+            'video extracting audio' => [ProcessingStatus::Processing, 'extracting_audio', 25],
+            'video sermon creation' => [ProcessingStatus::Processing, 'sermon_creation', 60],
+            'video transcribing' => [ProcessingStatus::Processing, 'transcribing_audio', 70],
+            'video thumbnail' => [ProcessingStatus::Processing, 'generating_thumbnail', 88],
+            'video completed' => [ProcessingStatus::Completed, 'completed', 100],
+            'video failed' => [ProcessingStatus::Failed, 'extracting_audio', 0],
+            'video cancelled' => [ProcessingStatus::Cancelled, 'cancelled', 0],
         ];
     }
 
@@ -151,21 +151,21 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     public static function livestreamStatusTransitionProvider(): array
     {
         return [
-            'livestream pending' => [ProcessingStatus::PENDING, null, 50],
-            'livestream rms generation' => [ProcessingStatus::PROCESSING, 'rms_generation', 20],
-            'livestream segmentation' => [ProcessingStatus::PROCESSING, 'segmentation', 30],
-            'livestream analyzing segments' => [ProcessingStatus::PROCESSING, 'analyzing_segments', 40],
-            'livestream transcribe speech segments' => [ProcessingStatus::PROCESSING, 'transcribe_speech_segments', 53],
-            'livestream classify speech sections' => [ProcessingStatus::PROCESSING, 'classify_speech_sections', 54],
-            'livestream align with oos' => [ProcessingStatus::PROCESSING, 'align_with_oos', 55],
-            'livestream extracting sermon' => [ProcessingStatus::PROCESSING, 'extracting_sermon', 57],
-            'livestream creating sermon' => [ProcessingStatus::PROCESSING, 'creating_sermon', 60],
-            'livestream transcribing' => [ProcessingStatus::PROCESSING, 'transcribing_audio', 70],
-            'livestream ai analysis' => [ProcessingStatus::PROCESSING, 'ai_analysis_completed', 85],
-            'livestream cleanup' => [ProcessingStatus::PROCESSING, 'cleanup', 95],
-            'livestream completed' => [ProcessingStatus::COMPLETED, 'completed', 100],
-            'livestream failed' => [ProcessingStatus::FAILED, 'segmentation', 0],
-            'livestream cancelled' => [ProcessingStatus::CANCELLED, 'cancelled', 0],
+            'livestream pending' => [ProcessingStatus::Pending, null, 50],
+            'livestream rms generation' => [ProcessingStatus::Processing, 'rms_generation', 20],
+            'livestream segmentation' => [ProcessingStatus::Processing, 'segmentation', 30],
+            'livestream analyzing segments' => [ProcessingStatus::Processing, 'analyzing_segments', 40],
+            'livestream transcribe speech segments' => [ProcessingStatus::Processing, 'transcribe_speech_segments', 53],
+            'livestream classify speech sections' => [ProcessingStatus::Processing, 'classify_speech_sections', 54],
+            'livestream align with oos' => [ProcessingStatus::Processing, 'align_with_oos', 55],
+            'livestream extracting sermon' => [ProcessingStatus::Processing, 'extracting_sermon', 57],
+            'livestream creating sermon' => [ProcessingStatus::Processing, 'creating_sermon', 60],
+            'livestream transcribing' => [ProcessingStatus::Processing, 'transcribing_audio', 70],
+            'livestream ai analysis' => [ProcessingStatus::Processing, 'ai_analysis_completed', 85],
+            'livestream cleanup' => [ProcessingStatus::Processing, 'cleanup', 95],
+            'livestream completed' => [ProcessingStatus::Completed, 'completed', 100],
+            'livestream failed' => [ProcessingStatus::Failed, 'segmentation', 0],
+            'livestream cancelled' => [ProcessingStatus::Cancelled, 'cancelled', 0],
         ];
     }
 
@@ -228,7 +228,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     public function failed_livestream_status_exposes_error_message(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'segmentation',
             'error_message' => 'RMS generation timed out after 300 seconds',
         ]);
@@ -267,16 +267,16 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     public static function previouslyUnmappedStepProvider(): array
     {
         return [
-            'audio initiated from livestream' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'initiated_from_livestream',          10],
-            'audio initiated from livestream with source id' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'initiated_from_livestream:ls-123',   10],
-            'livestream restarting from beginning' => [MediaType::Livestream, ProcessingStatus::PROCESSING, 'restarting_from_beginning',          10],
-            'audio updating sermon record' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'updating_sermon_record',             87],
-            'video updating sermon record' => [MediaType::Video,     ProcessingStatus::PROCESSING, 'updating_sermon_record',             90],
-            'audio sending notification' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'sending_notification',               92],
-            'audio notification sent' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_sent',                  93],
-            'audio notification skipped' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_skipped',               93],
-            'audio notification failed' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_failed',                93],
-            'audio notification failed permanently' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_failed_permanently',    93],
+            'audio initiated from livestream' => [MediaType::Audio,     ProcessingStatus::Processing, 'initiated_from_livestream',          10],
+            'audio initiated from livestream with source id' => [MediaType::Audio,     ProcessingStatus::Processing, 'initiated_from_livestream:ls-123',   10],
+            'livestream restarting from beginning' => [MediaType::Livestream, ProcessingStatus::Processing, 'restarting_from_beginning',          10],
+            'audio updating sermon record' => [MediaType::Audio,     ProcessingStatus::Processing, 'updating_sermon_record',             87],
+            'video updating sermon record' => [MediaType::Video,     ProcessingStatus::Processing, 'updating_sermon_record',             90],
+            'audio sending notification' => [MediaType::Audio,     ProcessingStatus::Processing, 'sending_notification',               92],
+            'audio notification sent' => [MediaType::Audio,     ProcessingStatus::Processing, 'notification_sent',                  93],
+            'audio notification skipped' => [MediaType::Audio,     ProcessingStatus::Processing, 'notification_skipped',               93],
+            'audio notification failed' => [MediaType::Audio,     ProcessingStatus::Processing, 'notification_failed',                93],
+            'audio notification failed permanently' => [MediaType::Audio,     ProcessingStatus::Processing, 'notification_failed_permanently',    93],
         ];
     }
 
@@ -311,7 +311,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     public function failed_historical_logs_with_removed_legacy_retry_steps_still_round_trip_cleanly(): void
     {
         $log = MediaProcessingLog::factory()->audio()->create([
-            'status' => ProcessingStatus::FAILED,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'retry_initiated',
             'error_message' => 'Unknown processing step: retry_initiated',
         ]);
@@ -322,7 +322,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
             ->assertJson([
                 'found' => true,
                 'processing_id' => $log->processing_id,
-                'status' => ProcessingStatus::FAILED->value,
+                'status' => ProcessingStatus::Failed->value,
                 'current_step' => 'retry_initiated',
                 'progress_percentage' => 0,
                 'error_message' => 'Unknown processing step: retry_initiated',
@@ -339,7 +339,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
         $nonAdmin = User::factory()->create(['is_admin' => false, 'email_verified_at' => now()]);
         $log = MediaProcessingLog::factory()->audio()->create([
             'owner_user_id' => $nonAdmin->id,
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
         ]);
 
         $token = $nonAdmin->createToken('test', [ApiTokenAbility::MEDIA_PROCESS->value])->plainTextToken;
@@ -358,7 +358,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
 
         $log = MediaProcessingLog::factory()->audio()->create([
             'owner_user_id' => $owner->id,
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'transcribing_audio',
         ]);
 
@@ -376,7 +376,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     public function cancel_transitions_processing_record_to_cancelled(): void
     {
         $log = MediaProcessingLog::factory()->audio()->create([
-            'status' => ProcessingStatus::PROCESSING,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'transcribing_audio',
         ]);
 
@@ -387,7 +387,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
 
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => $log->processing_id,
-            'status' => ProcessingStatus::CANCELLED->value,
+            'status' => ProcessingStatus::Cancelled->value,
         ]);
     }
 

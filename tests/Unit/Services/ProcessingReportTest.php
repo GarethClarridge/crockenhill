@@ -56,7 +56,7 @@ class ProcessingReportTest extends TestCase
     #[Test]
     public function it_handles_processing_status_enum(): void
     {
-        $report = new ProcessingReport(['status' => ProcessingStatus::COMPLETED]);
+        $report = new ProcessingReport(['status' => ProcessingStatus::Completed]);
 
         $this->assertEquals('completed', $report->getStatus());
     }
@@ -64,7 +64,7 @@ class ProcessingReportTest extends TestCase
     #[Test]
     public function it_handles_failed_processing_status_enum(): void
     {
-        $report = new ProcessingReport(['status' => ProcessingStatus::FAILED]);
+        $report = new ProcessingReport(['status' => ProcessingStatus::Failed]);
 
         $this->assertEquals('failed', $report->getStatus());
     }

@@ -30,17 +30,17 @@ class MediaProcessingRunTransitionServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->pending()->create();
 
         $this->assertTrue($this->service->markAsProcessing($log, 'step_one'));
-        $this->assertSame(ProcessingStatus::PROCESSING, $log->status);
+        $this->assertSame(ProcessingStatus::Processing, $log->status);
         $this->assertSame('step_one', $log->current_step);
         $this->assertNotNull($log->started_at);
 
         $this->assertTrue($this->service->markAsCompleted($log, 'completed'));
-        $this->assertSame(ProcessingStatus::COMPLETED, $log->status);
+        $this->assertSame(ProcessingStatus::Completed, $log->status);
         $this->assertSame('completed', $log->current_step);
         $this->assertNotNull($log->completed_at);
 
         $this->assertTrue($this->service->markAsFailed($log, 'Something went wrong', 'step_two'));
-        $this->assertSame(ProcessingStatus::FAILED, $log->status);
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
         $this->assertSame('step_two', $log->current_step);
         $this->assertSame('Something went wrong', $log->error_message);
     }
@@ -59,7 +59,7 @@ class MediaProcessingRunTransitionServiceTest extends TestCase
             errorMessage: 'Notification failed: SMTP transport unavailable'
         );
 
-        $this->assertSame(ProcessingStatus::COMPLETED, $log->status);
+        $this->assertSame(ProcessingStatus::Completed, $log->status);
         $this->assertSame('notification_failed', $log->current_step);
         $this->assertSame('Notification failed: SMTP transport unavailable', $log->error_message);
     }
@@ -74,7 +74,7 @@ class MediaProcessingRunTransitionServiceTest extends TestCase
         $this->assertFalse($this->service->markAsFailed($log, 'Should be ignored'));
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertSame(ProcessingStatus::Cancelled, $log->status);
         $this->assertSame('cancelled', $log->current_step);
     }
 
@@ -92,7 +92,7 @@ class MediaProcessingRunTransitionServiceTest extends TestCase
 
         $log->refresh();
 
-        $this->assertSame(ProcessingStatus::FAILED, $log->status);
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
         $this->assertSame('manual_review_required', $log->current_step);
         $this->assertSame('ratio_below_threshold', $log->manualReviewMetadata()['reason_code']);
     }
@@ -109,7 +109,7 @@ class MediaProcessingRunTransitionServiceTest extends TestCase
 
         $log->refresh();
 
-        $this->assertSame(ProcessingStatus::PENDING, $log->status);
+        $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertSame(42, $log->manuallyConfirmedSegmentId());
         $this->assertSame(7, $log->manualReviewMetadata()['confirmed_by_user_id']);
@@ -129,7 +129,7 @@ class MediaProcessingRunTransitionServiceTest extends TestCase
 
         $log->refresh();
 
-        $this->assertSame(ProcessingStatus::PENDING, $log->status);
+        $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('transcribing_audio_failed', $log->current_step);
         $this->assertNull($log->error_message);
         $this->assertNull($log->started_at);

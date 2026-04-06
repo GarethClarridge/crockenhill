@@ -100,7 +100,7 @@ class ProcessingRunOrchestrator
 
     public function cancel(MediaProcessingLog $processingLog): bool
     {
-        if ($processingLog->status === ProcessingStatus::COMPLETED) {
+        if ($processingLog->status === ProcessingStatus::Completed) {
             return false;
         }
 

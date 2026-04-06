@@ -8,6 +8,7 @@ use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ApiTokenAbility;
 use App\Enums\MediaType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\MediaStatusRequest;
 use App\Services\MediaValidationService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Http\JsonResponse;
@@ -77,7 +78,7 @@ class MediaController extends Controller
     /**
      * Get processing status - unified for all media types
      */
-    public function status(Request $request, string $processingId): JsonResponse
+    public function status(MediaStatusRequest $request, string $processingId): JsonResponse
     {
         if (($abilityResponse = $this->ensureMediaProcessAbility($request)) !== null) {
             return $abilityResponse;
@@ -91,9 +92,11 @@ class MediaController extends Controller
             ], 400);
         }
 
+        $validated = $request->validated();
+
         try {
-            $includeLogs = $request->boolean('include_logs');
-            $logLimit = min(max($request->integer('log_limit', 20), 1), 100);
+            $includeLogs = (bool) ($validated['include_logs'] ?? false);
+            $logLimit = (int) ($validated['log_limit'] ?? 20);
 
             $response = $includeLogs
                 ? $this->mediaProcessor->getStatusWithLogs($processingId, true, $logLimit)

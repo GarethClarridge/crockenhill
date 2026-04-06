@@ -6,12 +6,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\SermonService;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SermonIndexRequest;
 use App\Http\Resources\SermonResource;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Services\SermonExposurePolicy;
 use App\Traits\EscapesLikeWildcards;
-use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class SermonApiController extends Controller
@@ -25,23 +25,13 @@ class SermonApiController extends Controller
     /**
      * Display a listing of sermons.
      *
-     * Security: Strict input validation is enforced on query parameters to provide
-     * Defense in Depth against malformed input and potential Denial of Service (DoS)
+     * Security: Strict input validation is enforced on query parameters via SermonIndexRequest
+     * to provide Defense in Depth against malformed input and potential Denial of Service (DoS)
      * attacks by ensuring all inputs are bounded and correctly typed.
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(SermonIndexRequest $request): AnonymousResourceCollection
     {
-        $request->validate([
-            'search' => 'nullable|string|max:255',
-            'service' => 'nullable|string|max:50',
-            'preacher' => 'nullable|string|max:255',
-            'preacher_id' => 'nullable|integer',
-            'series' => 'nullable|string|max:255',
-            'sort' => 'nullable|string|in:date,title,preacher,series,service',
-            'order' => 'nullable|string|in:asc,desc,ASC,DESC',
-            'per_page' => 'nullable|integer',
-            'with_thumbnail' => 'nullable|boolean',
-        ]);
+        $validated = $request->validated();
 
         /**
          * Performance Optimization: Eager load preacherProfile and limit retrieved columns
@@ -62,8 +52,8 @@ class SermonApiController extends Controller
             ]);
 
         // Search functionality
-        if ($request->has('search')) {
-            $search = (string) $request->get('search');
+        if (isset($validated['search'])) {
+            $search = (string) $validated['search'];
             // Escape special characters to prevent LIKE injection (Defense in Depth)
             $escapedSearch = $this->escapeLike($search);
 
@@ -82,26 +72,26 @@ class SermonApiController extends Controller
         }
 
         // Filter by service if provided
-        if ($request->has('service')) {
-            $serviceEnum = SermonService::tryFrom((string) $request->get('service'));
+        if (isset($validated['service'])) {
+            $serviceEnum = SermonService::tryFrom((string) $validated['service']);
             if ($serviceEnum !== null) {
                 $query->forService($serviceEnum);
             }
         }
 
         // Filter by preacher if provided
-        if ($request->has('preacher')) {
-            $query->byPreacher($request->get('preacher'));
+        if (isset($validated['preacher'])) {
+            $query->byPreacher($validated['preacher']);
         }
 
         // Filter by preacher_id if provided
-        if ($request->has('preacher_id')) {
-            $query->where('preacher_id', $request->get('preacher_id'));
+        if (isset($validated['preacher_id'])) {
+            $query->where('preacher_id', $validated['preacher_id']);
         }
 
         // Filter by series if provided
-        if ($request->has('series')) {
-            $query->inSeries($request->get('series'));
+        if (isset($validated['series'])) {
+            $query->inSeries($validated['series']);
         }
 
         // Filter to only sermons with thumbnails if requested
@@ -110,13 +100,8 @@ class SermonApiController extends Controller
         }
 
         // Sorting functionality
-        $sortField = $request->get('sort', 'date');
-        $sortOrder = $request->get('order', 'desc');
-
-        // Validate sort field to prevent SQL injection
-        $allowedSortFields = ['date', 'title', 'preacher', 'series', 'service'];
-        $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'date';
-        $sortOrder = in_array(strtolower($sortOrder), ['asc', 'desc']) ? $sortOrder : 'desc';
+        $sortField = $validated['sort'] ?? 'date';
+        $sortOrder = $validated['order'] ?? 'desc';
 
         if ($sortField === 'preacher') {
             $query->orderByPreacherName($sortOrder);
@@ -124,7 +109,7 @@ class SermonApiController extends Controller
             $query->orderBy($sortField, $sortOrder);
         }
 
-        $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
+        $perPage = (int) ($validated['per_page'] ?? 15);
         $sermons = $query->paginate($perPage);
         $sermons->through(fn (Sermon $sermon): Sermon => $this->withSermonView($sermon));
 

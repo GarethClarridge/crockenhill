@@ -1,3 +1,31 @@
+<div
+    x-data="{
+        title: $wire.entangle('title').live,
+        slug: $wire.entangle('slug').live,
+        lastGeneratedSlug: '',
+        slugify(value) {
+            return value
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/[\s_-]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        },
+        init() {
+            this.lastGeneratedSlug = this.slugify(this.title);
+
+            this.$watch('title', (value) => {
+                const generatedSlug = this.slugify(value);
+
+                if (this.slug === '' || this.slug === this.lastGeneratedSlug) {
+                    this.slug = generatedSlug;
+                }
+
+                this.lastGeneratedSlug = generatedSlug;
+            });
+        },
+    }"
+>
 <x-admin.form-shell
     :title="'Edit ' . $contentTypeLabel"
     :description="$isChildrensTalk
@@ -5,6 +33,14 @@
         : 'Update sermon details, metadata, and any AI-assisted content shown publicly.'"
 >
     <x-slot:actions>
+        @php
+            $publicUrl = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
+                ? route('childrens-corner.show', ['sermon' => $sermon->slug])
+                : route('sermons.show', ['sermon' => $sermon->slug]);
+        @endphp
+        <x-button :link="$publicUrl" variant="ghost" icon="eye" inline>
+            View Public
+        </x-button>
         <x-button link="{{ route('admin.sermons.index') }}" variant="outline" inline>
             Cancel
         </x-button>
@@ -16,9 +52,9 @@
     {{-- Main content (default slot = lg:col-span-2) --}}
             <x-card heading="{{ $contentTypeLabel }} details">
                 <div class="space-y-4">
-                    <x-input label="Title" wire:model.live.debounce="title" required />
+                    <x-input label="Title" wire:model.live.debounce="title" required maxlength="255" />
 
-                    <x-input label="Slug" wire:model="slug" required
+                    <x-input label="Slug" wire:model="slug" required maxlength="255"
                         hint="URL-friendly identifier (auto-generated from title)" />
 
                     <div class="grid grid-cols-2 gap-4">
@@ -55,15 +91,15 @@
                         :options="$preachers->map(fn($name, $id) => ['id' => $id, 'name' => $name])->values()->toArray()"
                         placeholder="Select a {{ $isChildrensTalk ? 'speaker' : 'preacher' }}..." />
 
-                    <x-input label="Or enter {{ $isChildrensTalk ? 'speaker' : 'preacher' }} name" wire:model="preacher"
+                    <x-input label="Or enter {{ $isChildrensTalk ? 'speaker' : 'preacher' }} name" wire:model="preacher" maxlength="255"
                         hint="Used when the {{ $isChildrensTalk ? 'speaker' : 'preacher' }} is not in the list above" />
 
                     @unless($isChildrensTalk)
-                        <x-input label="Bible Reference" wire:model="reference"
+                        <x-input label="Bible Reference" wire:model="reference" maxlength="255"
                             placeholder="e.g., John 3:16-21" />
                     @endunless
 
-                    <x-input label="Series" wire:model="series"
+                    <x-input label="Series" wire:model="series" maxlength="255"
                         placeholder="e.g., Gospel of John" />
                 </div>
 
@@ -85,7 +121,7 @@
             @else
                 <x-card heading="AI-Generated Content">
                     <div class="space-y-4">
-                        <x-textarea label="Summary" wire:model="summary" rows="5"
+                        <x-textarea label="Summary" wire:model="summary" rows="5" maxlength="1000"
                             hint="AI-generated sermon summary" />
 
                         <div>
@@ -261,3 +297,4 @@
         </x-card>
     </x-slot:sidebar>
 </x-admin.form-shell>
+</div>
