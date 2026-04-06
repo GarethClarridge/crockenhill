@@ -32,8 +32,8 @@ class SermonItemListPresenter
             '@type' => 'ItemList',
             'numberOfItems' => $flatSermons->count(),
             'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
-                $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
-                $publicUrl = $this->sermonViewPresenter->publicUrl($sermon);
+                $thumbnailUrl = $sermon->hasThumbnail() ? $sermon->card_thumbnail_url : null;
+                $publicUrl = $sermon->public_url;
 
                 $item = [
                     '@type' => 'Article',
@@ -50,7 +50,7 @@ class SermonItemListPresenter
                     'author' => [
                         '@type' => 'Person',
                         'name' => $sermon->displayPreacherName(),
-                        'url' => $this->sermonViewPresenter->preacherUrl($sermon),
+                        'url' => $sermon->preacher_url,
                     ],
                     'publisher' => [
                         '@type' => 'Organization',

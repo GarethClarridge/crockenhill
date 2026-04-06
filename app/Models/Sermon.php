@@ -82,6 +82,10 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $series_url
  * @property-read ?string $plain_thumbnail_file_path
  * @property-read ?string $card_thumbnail_file_path
+ * @property-read ?string $card_thumbnail_url
+ * @property-read ?string $preacher_url
+ * @property-read string $public_url
+ * @property-read string $canonical_url
  * @property-read list<ThumbnailCandidate> $thumbnail_candidates
  * @property-read ThumbnailCandidate|null $selected_thumbnail_candidate
  * @property-read ServiceSection|null $publishedServiceSection
@@ -181,7 +185,7 @@ class Sermon extends Model implements Sitemapable
     {
         return Attribute::make(
             get: fn (): string => $this->date->format('F j, Y')
-        );
+        )->shouldCache();
     }
 
     /**
@@ -191,7 +195,7 @@ class Sermon extends Model implements Sitemapable
     {
         return Attribute::make(
             get: fn (): ?string => $this->thumbnail_metadata?->plainThumbnailPath
-        );
+        )->shouldCache();
     }
 
     /**
@@ -209,7 +213,47 @@ class Sermon extends Model implements Sitemapable
 
                 return $metadata->cardThumbnailPath ?? $metadata->plainThumbnailPath;
             }
-        );
+        )->shouldCache();
+    }
+
+    /**
+     * @return Attribute<?string, never>
+     */
+    protected function cardThumbnailUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($this)
+        )->shouldCache();
+    }
+
+    /**
+     * @return Attribute<?string, never>
+     */
+    protected function preacherUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => app(\App\Presenters\SermonViewPresenter::class)->preacherUrl($this)
+        )->shouldCache();
+    }
+
+    /**
+     * @return Attribute<string, never>
+     */
+    protected function publicUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => app(\App\Presenters\SermonViewPresenter::class)->publicUrl($this)
+        )->shouldCache();
+    }
+
+    /**
+     * @return Attribute<string, never>
+     */
+    protected function canonicalUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => app(\App\Presenters\SermonViewPresenter::class)->canonicalUrl($this)
+        )->shouldCache();
     }
 
     /**
@@ -219,7 +263,7 @@ class Sermon extends Model implements Sitemapable
     {
         return Attribute::make(
             get: fn (): array => $this->thumbnail_metadata?->thumbnailCandidates ?: []
-        );
+        )->shouldCache();
     }
 
     /**
@@ -229,7 +273,7 @@ class Sermon extends Model implements Sitemapable
     {
         return Attribute::make(
             get: fn (): ?array => $this->thumbnail_metadata?->selectedCandidate()
-        );
+        )->shouldCache();
     }
 
     /**
@@ -239,7 +283,7 @@ class Sermon extends Model implements Sitemapable
     {
         return Attribute::make(
             get: fn (): ?string => $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null
-        );
+        )->shouldCache();
     }
 
     /**
@@ -759,7 +803,7 @@ class Sermon extends Model implements Sitemapable
 
                 return Str::limit($descriptionWithSeries, 155);
             }
-        );
+        )->shouldCache();
     }
 
     /**

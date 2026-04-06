@@ -3,16 +3,17 @@
 ])
 
 @php
-    $cardThumbnailUrl = app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon);
+    $cardThumbnailUrl = $sermon->card_thumbnail_url;
     $speakerName = $sermon->displayPreacherName();
     $hasAudio = filled($sermon->audio_file_path);
     $hasVideo = filled($sermon->video_file_path);
+    $publicUrl = $sermon->public_url;
 @endphp
 
 <article class="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
     @if ($cardThumbnailUrl)
         <a
-            href="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}"
+            href="{{ $publicUrl }}"
             wire:navigate
             class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
         >
@@ -37,7 +38,7 @@
             <div class="space-y-2">
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-cbc-teal-dark/80">Children's Corner</p>
                 <a
-                    href="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}"
+                    href="{{ $publicUrl }}"
                     wire:navigate
                     class="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                 >
@@ -89,7 +90,7 @@
                 @endif
             </div>
 
-            <x-button link="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}" variant="secondary" size="sm" inline>
+            <x-button link="{{ $publicUrl }}" variant="secondary" size="sm" inline>
                 Open talk
             </x-button>
         </div>
