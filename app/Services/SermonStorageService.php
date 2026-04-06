@@ -54,9 +54,7 @@ class SermonStorageService
     public function getSermonFileInfo(Sermon $sermon): array
     {
         // Security check: Prevent path traversal
-        if (str_contains($sermon->audio_file_path, '..')) {
-            throw new \InvalidArgumentException('Invalid audio file path: Path traversal detected.');
-        }
+        $this->validatePath($sermon->audio_file_path, 'audio file');
 
         // Private files stored on the local disk (unreachable via the public/storage symlink)
         if (str_starts_with($sermon->audio_file_path, 'private/')) {
@@ -113,6 +111,8 @@ class SermonStorageService
             return null;
         }
 
+        $this->validatePath($sermon->video_file_path, 'video file');
+
         return Storage::disk($this->sermonDisk)->url($sermon->video_file_path);
     }
 
@@ -124,6 +124,8 @@ class SermonStorageService
         if (! $sermon->thumbnail_file_path) {
             return null;
         }
+
+        $this->validatePath($sermon->thumbnail_file_path, 'thumbnail file');
 
         $disk = $this->resolveThumbnailDisk($sermon->thumbnail_file_path);
         $url = Storage::disk($disk)->url($sermon->thumbnail_file_path);
@@ -138,6 +140,8 @@ class SermonStorageService
         if (! is_string($cardThumbnailPath) || $cardThumbnailPath === '') {
             return null;
         }
+
+        $this->validatePath($cardThumbnailPath, 'card thumbnail');
 
         $disk = $this->resolveThumbnailDisk($cardThumbnailPath);
 
@@ -180,6 +184,8 @@ class SermonStorageService
 
     public function resolveThumbnailDisk(string $thumbnailPath): string
     {
+        $this->validatePath($thumbnailPath, 'thumbnail');
+
         return str_starts_with($thumbnailPath, 'private/')
             ? 'local'
             : $this->thumbnailDisk;
@@ -402,5 +408,17 @@ class SermonStorageService
                 ?? $sermon->updated_at?->getTimestamp()
                 ?? 0,
         ]));
+    }
+
+    /**
+     * Security check: Prevent path traversal in file paths.
+     *
+     * @throws \InvalidArgumentException When path traversal is detected
+     */
+    private function validatePath(?string $path, string $type): void
+    {
+        if (is_string($path) && str_contains($path, '..')) {
+            throw new \InvalidArgumentException("Invalid {$type} path: Path traversal detected.");
+        }
     }
 }
