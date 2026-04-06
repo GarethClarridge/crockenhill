@@ -47,6 +47,12 @@ class ConfigValidationTest extends TestCase
     }
 
     #[Test]
+    public function it_has_performance_test_toggle(): void
+    {
+        $this->assertArrayHasKey('run_performance_tests', config('app'));
+    }
+
+    #[Test]
     public function it_configures_queue_retry_after_for_long_running_jobs(): void
     {
         $redisRetryAfter = (int) config('queue.connections.redis.retry_after', 0);
