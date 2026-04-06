@@ -6,12 +6,13 @@ namespace Tests\Unit\Http\Requests;
 
 use App\Http\Requests\StoreMailgunInboundEmailRequest;
 use Illuminate\Support\Facades\Validator;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class StoreMailgunInboundEmailRequestTest extends TestCase
 {
-    /** @test */
-    public function it_validates_max_lengths()
+    #[Test]
+    public function it_validates_max_lengths(): void
     {
         $request = new StoreMailgunInboundEmailRequest;
         $request->merge([
@@ -43,8 +44,8 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
         $this->assertArrayHasKey('Date', $validator->errors()->toArray());
     }
 
-    /** @test */
-    public function it_validates_max_body_and_header_lengths()
+    #[Test]
+    public function it_validates_max_body_and_header_lengths(): void
     {
         $request = new StoreMailgunInboundEmailRequest;
 
@@ -69,8 +70,8 @@ class StoreMailgunInboundEmailRequestTest extends TestCase
         $this->assertArrayHasKey('body-html', $validator->errors()->toArray());
     }
 
-    /** @test */
-    public function it_passes_valid_lengths()
+    #[Test]
+    public function it_passes_valid_lengths(): void
     {
         $request = new StoreMailgunInboundEmailRequest;
         $request->merge([

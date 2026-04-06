@@ -8,13 +8,14 @@ use App\Enums\CalendarEventStatus;
 use App\Models\CalendarEvent;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class CalendarEventIntegrityTest extends TestCase
 {
     use DatabaseTransactions;
 
-    /** @test */
+    #[Test]
     public function it_allows_valid_status_values(): void
     {
         $event = CalendarEvent::factory()->create(['status' => CalendarEventStatus::CONFIRMED]);
@@ -24,7 +25,7 @@ class CalendarEventIntegrityTest extends TestCase
         $this->assertEquals(CalendarEventStatus::PENDING, $event->fresh()->status);
     }
 
-    /** @test */
+    #[Test]
     public function it_rejects_invalid_status_values_at_database_level(): void
     {
         if (\DB::getDriverName() === 'sqlite') {
@@ -45,7 +46,7 @@ class CalendarEventIntegrityTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_allows_end_datetime_equal_to_start_datetime(): void
     {
         $now = now()->startOfMinute();
@@ -57,7 +58,7 @@ class CalendarEventIntegrityTest extends TestCase
         $this->assertTrue($event->fresh()->end_datetime->equalTo($event->fresh()->start_datetime));
     }
 
-    /** @test */
+    #[Test]
     public function it_allows_end_datetime_after_start_datetime(): void
     {
         $now = now()->startOfMinute();
@@ -69,7 +70,7 @@ class CalendarEventIntegrityTest extends TestCase
         $this->assertTrue($event->fresh()->end_datetime->isAfter($event->fresh()->start_datetime));
     }
 
-    /** @test */
+    #[Test]
     public function it_rejects_end_datetime_before_start_datetime_at_database_level(): void
     {
         if (\DB::getDriverName() === 'sqlite') {

@@ -5,14 +5,15 @@ namespace Tests\Unit;
 use App\Models\Sermon;
 use App\Presenters\SermonItemListPresenter;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonItemListPresenterTest extends TestCase
 {
     use DatabaseTransactions;
 
-    /** @test */
-    public function it_generates_item_list_json_ld()
+    #[Test]
+    public function it_generates_item_list_json_ld(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon',

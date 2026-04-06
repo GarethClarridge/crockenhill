@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonListingNPlusOneTest extends TestCase
@@ -25,9 +26,7 @@ class SermonListingNPlusOneTest extends TestCase
         parent::tearDown();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function repository_query_results_include_all_required_columns_for_meta_description(): void
     {
         // Create 1 sermon with a summary and show_summary = true
@@ -45,9 +44,7 @@ class SermonListingNPlusOneTest extends TestCase
         $this->assertStringContainsString('Some unique summary', $sermon->meta_description);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function sitemap_service_query_results_include_all_required_columns_for_meta_description(): void
     {
         // Force the thumbnail generation to be mocked if needed, but we mostly care about the text content

@@ -9,13 +9,14 @@ use App\Models\ServiceSection;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ServiceSectionIntegrityTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_has_foreign_key_constraints(): void
     {
         if (DB::getDriverName() === 'sqlite') {
@@ -42,7 +43,7 @@ class ServiceSectionIntegrityTest extends TestCase
         $this->assertTrue($expectedFk, 'Foreign key constraint missing for expected_item_id');
     }
 
-    /** @test */
+    #[Test]
     public function it_enforces_foreign_key_on_matched_item_id(): void
     {
         if (DB::getDriverName() === 'sqlite') {
@@ -58,7 +59,7 @@ class ServiceSectionIntegrityTest extends TestCase
             ->update(['matched_item_id' => 999999]);
     }
 
-    /** @test */
+    #[Test]
     public function it_enforces_foreign_key_on_expected_item_id(): void
     {
         if (DB::getDriverName() === 'sqlite') {
@@ -74,7 +75,7 @@ class ServiceSectionIntegrityTest extends TestCase
             ->update(['expected_item_id' => 999999]);
     }
 
-    /** @test */
+    #[Test]
     public function it_nulls_out_matched_item_id_on_item_deletion(): void
     {
         $item = ChurchServiceItem::factory()->create();
@@ -89,7 +90,7 @@ class ServiceSectionIntegrityTest extends TestCase
         $this->assertNull($section->fresh()->matched_item_id);
     }
 
-    /** @test */
+    #[Test]
     public function it_nulls_out_expected_item_id_on_item_deletion(): void
     {
         $item = ChurchServiceItem::factory()->create();

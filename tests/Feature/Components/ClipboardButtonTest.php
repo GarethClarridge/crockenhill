@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature\Components;
 
 use Illuminate\Support\Facades\Blade;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ClipboardButtonTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_renders_clipboard_button_with_full_label_by_default(): void
     {
         $url = 'https://example.com/test';
@@ -22,7 +23,7 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString('type="button"', $rendered);
     }
 
-    /** @test */
+    #[Test]
     public function it_renders_clipboard_button_with_hidden_label_when_specified(): void
     {
         $url = 'https://example.com/test';
@@ -32,7 +33,7 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString('x-bind:class="{ \'sr-only\': !copied }"', $rendered);
     }
 
-    /** @test */
+    #[Test]
     public function it_supports_generic_content_prop(): void
     {
         $content = 'John 3:16';
@@ -42,7 +43,7 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString('Copy reference', $rendered);
     }
 
-    /** @test */
+    #[Test]
     public function it_supports_custom_labels_and_icons(): void
     {
         $content = 'Test content';
@@ -53,7 +54,7 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString('svg', $rendered);
     }
 
-    /** @test */
+    #[Test]
     public function it_safely_escapes_content_with_quotes(): void
     {
         $content = "Reference 'quoted'";
@@ -63,7 +64,7 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString('quoted', $rendered);
     }
 
-    /** @test */
+    #[Test]
     public function it_updates_aria_label_and_title_on_copy_state(): void
     {
         $content = 'Test content';
@@ -73,7 +74,7 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString(':title="copied ? \'Success!\' : \'Copy it to clipboard\'"', $rendered);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_unsupported_browser_state_via_alpine(): void
     {
         $rendered = Blade::render('<x-clipboard-button content="test" />');
@@ -84,7 +85,7 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString('if (!navigator.clipboard) return;', $rendered);
     }
 
-    /** @test */
+    #[Test]
     public function it_has_accessible_announcements_for_state_changes(): void
     {
         $rendered = Blade::render('<x-clipboard-button content="test" />');
@@ -93,7 +94,7 @@ class ClipboardButtonTest extends TestCase
         $this->assertStringContainsString('aria-live="polite"', $rendered);
     }
 
-    /** @test */
+    #[Test]
     public function it_has_visible_focus_indicator_classes(): void
     {
         $rendered = Blade::render('<x-clipboard-button content="test" />');

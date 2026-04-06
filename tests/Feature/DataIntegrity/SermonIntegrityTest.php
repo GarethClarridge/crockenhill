@@ -6,14 +6,15 @@ namespace Tests\Feature\DataIntegrity;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonIntegrityTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
-    public function it_has_date_index()
+    #[Test]
+    public function it_has_date_index(): void
     {
         $this->assertTrue(
             collect(Schema::getIndexes('sermons'))->contains('name', 'sermons_date_index'),
