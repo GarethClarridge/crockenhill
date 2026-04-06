@@ -32,6 +32,5 @@ class SermonItemListPresenterTest extends TestCase
         $this->assertEquals('Test Sermon', $item['name']);
         $this->assertEquals('John Doe', $item['author']['name']);
         $this->assertEquals('2024-01-01T00:00:00+00:00', $item['datePublished']);
-        $this->assertStringContainsString('2024/01', $item['url']);
     }
 }
