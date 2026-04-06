@@ -17,12 +17,16 @@ use Livewire\Features\SupportRedirects\Redirector;
 
 class Login extends Component
 {
+    /**
+     * Security: Explicit length constraints are enforced on input fields to provide
+     * Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
+     */
     /** @var string|array<string, mixed> */
-    #[Validate('required|string|email')]
+    #[Validate('required|string|email|max:255')]
     public string|array $email = '';
 
     /** @var string|array<string, mixed> */
-    #[Validate('required|string|min:1')]
+    #[Validate('required|string|min:1|max:100')]
     public string|array $password = '';
 
     /** @var bool|array<string, mixed> */
