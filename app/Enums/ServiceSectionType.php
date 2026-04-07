@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
 use Illuminate\Support\Str;
 
 enum ServiceSectionType: string
 {
+    use HasValues;
+
     case WELCOME = 'welcome';
     case PRAYER = 'prayer';
     case NOTICES = 'notices';

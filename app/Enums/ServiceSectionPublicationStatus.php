@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum ServiceSectionPublicationStatus: string
 {
+    use HasValues;
+
     case NOT_APPLICABLE = 'not_applicable';
     case PENDING_APPROVAL = 'pending_approval';
     case APPROVED = 'approved';
