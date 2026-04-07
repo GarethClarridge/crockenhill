@@ -32,6 +32,11 @@ class SermonResource extends JsonResource
             'service' => $this->service,
             'preacher' => $this->displayPreacherName(),
             'preacher_id' => $this->preacher_id,
+            /**
+             * Security: Internal preacher-matching metadata (preacher_source, preacher_confidence,
+             * needs_preacher_review) is explicitly excluded from the public API to prevent
+             * information exposure regarding automated processing logic and internal state.
+             */
             'preacher_details' => $this->whenLoaded('preacherProfile', fn () => $this->preacherProfile ? [
                 'id' => $this->preacherProfile->id,
                 'name' => $this->preacherProfile->name,
@@ -42,9 +47,6 @@ class SermonResource extends JsonResource
                         : Storage::disk('public')->url($this->preacherProfile->image_path))
                     : null,
             ] : null),
-            'preacher_source' => $this->preacher_source,
-            'preacher_confidence' => $this->preacher_confidence,
-            'needs_preacher_review' => $this->needs_preacher_review,
             'series' => $this->series,
             'reference' => $this->displayReference(),
             'points' => $this->when($this->show_points, fn (): ?array => $this->points),

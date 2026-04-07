@@ -42,7 +42,6 @@ class SermonApiController extends Controller
             ->whereSermon()
             ->select([
                 'id', 'title', 'slug', 'date', 'service', 'preacher', 'preacher_id',
-                'preacher_source', 'preacher_confidence', 'needs_preacher_review',
                 'series', 'reference', 'scripture_passage_id', 'points', 'show_summary', 'show_points', 'audio_file_path', 'filetype', 'thumbnail_file_path',
                 'thumbnail_metadata',
             ])

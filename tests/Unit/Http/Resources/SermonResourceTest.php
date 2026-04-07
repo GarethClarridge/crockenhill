@@ -190,4 +190,22 @@ class SermonResourceTest extends TestCase
 
         $this->assertNull($array['thumbnail_metadata']);
     }
+
+    #[Test]
+    public function it_does_not_expose_internal_preacher_metadata(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'preacher_source' => \App\Enums\PreacherSource::SPEAKER_MODEL,
+            'preacher_confidence' => 0.95,
+            'needs_preacher_review' => false,
+        ]);
+        $sermon->setAttribute('sermon_view', $this->sermonViewData);
+
+        $resource = new SermonResource($sermon);
+        $array = $resource->toArray(request());
+
+        $this->assertArrayNotHasKey('preacher_source', $array);
+        $this->assertArrayNotHasKey('preacher_confidence', $array);
+        $this->assertArrayNotHasKey('needs_preacher_review', $array);
+    }
 }

@@ -113,7 +113,7 @@ class StandardProcessingResponseTest extends TestCase
     }
 
     #[Test]
-    public function from_processing_log_includes_video_file_path_when_present(): void
+    public function from_processing_log_does_not_include_internal_video_file_path(): void
     {
         $log = MediaProcessingLog::factory()->video()->completed()->create([
             'video_file_path' => 'sermons/2026/03/video.mp4',
@@ -121,7 +121,7 @@ class StandardProcessingResponseTest extends TestCase
 
         $response = StandardProcessingResponse::fromProcessingLog($log);
 
-        $this->assertSame('sermons/2026/03/video.mp4', $response->additionalData['video_file_path']);
+        $this->assertArrayNotHasKey('video_file_path', $response->additionalData);
     }
 
     #[Test]
@@ -140,9 +140,7 @@ class StandardProcessingResponseTest extends TestCase
         $log = MediaProcessingLog::factory()
             ->video()
             ->withSermon($sermon)
-            ->create([
-                'video_file_path' => 'sermons/2026/03/video.mp4',
-            ]);
+            ->create();
 
         $response = StandardProcessingResponse::fromProcessingLog($log->fresh('sermon'));
 
@@ -276,10 +274,10 @@ class StandardProcessingResponseTest extends TestCase
         $array = StandardProcessingResponse::found(
             processingId: 'proc-004',
             status: 'processing',
-            additionalData: ['video_file_path' => 'sermons/1/video.mp4', 'has_thumbnail' => true],
+            additionalData: ['custom_key' => 'custom_value', 'has_thumbnail' => true],
         )->toArray();
 
-        $this->assertEquals('sermons/1/video.mp4', $array['video_file_path']);
+        $this->assertEquals('custom_value', $array['custom_key']);
         $this->assertTrue($array['has_thumbnail']);
     }
 

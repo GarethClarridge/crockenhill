@@ -281,9 +281,11 @@ class StandardProcessingResponse
             ],
         };
 
-        if ($log->video_file_path !== null) {
-            $metadata['video_file_path'] = $log->video_file_path;
-        }
+        /**
+         * Security: The internal 'video_file_path' is deliberately excluded from the
+         * processing status response to prevent leaking internal storage structures
+         * and filesystem paths to the API consumer.
+         */
 
         // Add thumbnail data if sermon exists
         $sermon = $log->sermon;
