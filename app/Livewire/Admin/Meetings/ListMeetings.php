@@ -55,6 +55,16 @@ class ListMeetings extends Component
         $this->authorizeAdmin();
     }
 
+    public function updatedTypeFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedRecurringFilter(): void
+    {
+        $this->resetPage();
+    }
+
     /**
      * @return array<string, mixed>
      */

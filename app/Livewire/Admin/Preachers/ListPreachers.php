@@ -47,6 +47,11 @@ class ListPreachers extends Component
         $this->authorizeAdmin();
     }
 
+    public function updatedActiveFilter(): void
+    {
+        $this->resetPage();
+    }
+
     /**
      * @return array<string, mixed>
      */

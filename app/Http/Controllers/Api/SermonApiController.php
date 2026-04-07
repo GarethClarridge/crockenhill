@@ -112,7 +112,7 @@ class SermonApiController extends Controller
 
         $perPage = (int) ($validated['per_page'] ?? 15);
         $sermons = $query->paginate($perPage);
-        $sermons->through(fn (Sermon $sermon): Sermon => $this->withSermonView($sermon));
+        $sermons->through(fn (Sermon $sermon): Sermon => $this->withSermonViewForApi($sermon));
 
         return SermonResource::collection($sermons);
     }
@@ -126,12 +126,12 @@ class SermonApiController extends Controller
 
         $sermon->load('preacherProfile', 'scripturePassage');
 
-        return new SermonResource($this->withSermonView($sermon));
+        return new SermonResource($this->withSermonViewForApi($sermon));
     }
 
-    private function withSermonView(Sermon $sermon): Sermon
+    private function withSermonViewForApi(Sermon $sermon): Sermon
     {
-        $sermon->setAttribute('sermon_view', $this->sermonViewPresenter->present($sermon));
+        $sermon->setAttribute('sermon_view', $this->sermonViewPresenter->presentForApi($sermon));
 
         return $sermon;
     }
