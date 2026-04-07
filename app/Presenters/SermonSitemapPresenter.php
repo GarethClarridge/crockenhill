@@ -39,24 +39,22 @@ class SermonSitemapPresenter
             $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
         }
 
-        if ($sermon->hasVideo() && $thumbnailUrl !== null) {
-            $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
+        $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
 
-            if ($videoUrl !== null) {
-                $videoOptions = [];
-                if ($sermon->duration && $sermon->duration > 0) {
-                    $videoOptions['duration'] = (int) $sermon->duration;
-                }
-
-                $url->addVideo(
-                    $thumbnailUrl,
-                    $sermon->title,
-                    $sermon->summary ?? $sermon->title,
-                    $videoUrl,
-                    null,
-                    $videoOptions
-                );
+        if ($videoUrl !== null && $thumbnailUrl !== null) {
+            $videoOptions = [];
+            if ($sermon->duration && $sermon->duration > 0) {
+                $videoOptions['duration'] = (int) $sermon->duration;
             }
+
+            $url->addVideo(
+                $thumbnailUrl,
+                $sermon->title,
+                $sermon->summary ?? $sermon->title,
+                $videoUrl,
+                null,
+                $videoOptions
+            );
         }
 
         if ($thumbnailUrl !== null) {

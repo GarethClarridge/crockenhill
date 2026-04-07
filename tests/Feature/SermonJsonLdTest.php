@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
@@ -94,6 +95,25 @@ class SermonJsonLdTest extends TestCase
         $this->assertStringNotContainsString('"@type": "AudioObject"', $content);
         $this->assertStringNotContainsString('"duration"', $content);
         $this->assertStringNotContainsString('"transcript"', $content);
+    }
+
+    #[Test]
+    public function rejected_sermon_video_is_omitted_from_json_ld(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'title' => 'Rejected Video JSON-LD Sermon',
+            'slug' => 'rejected-video-json-ld-sermon',
+            'date' => '2024-03-21',
+            'audio_file_path' => 'audio/test.mp3',
+            'video_file_path' => 'video/test.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+
+        $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $this->assertStringNotContainsString('"@type": "VideoObject"', $response->getContent());
+        $this->assertStringContainsString('"@type": "AudioObject"', $response->getContent());
     }
 
     #[Test]

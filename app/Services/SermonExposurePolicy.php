@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonVideoQualityStatus;
+use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\Sermon;
 use Illuminate\Contracts\Auth\Authenticatable;
 
@@ -36,6 +38,33 @@ class SermonExposurePolicy
     public function shouldExposeOnSermonApi(Sermon $sermon): bool
     {
         return $sermon->content_type === SermonContentType::Sermon;
+    }
+
+    public function shouldExposeVideo(Sermon $sermon): bool
+    {
+        if (! $sermon->hasVideo()) {
+            return false;
+        }
+
+        return match ($sermon->videoVisibilityOverride()) {
+            SermonVideoVisibilityOverride::ForceHide => false,
+            SermonVideoVisibilityOverride::ForceShow => true,
+            SermonVideoVisibilityOverride::Default => $this->automaticVideoVisibility($sermon),
+        };
+    }
+
+    public function shouldExposeVideoThumbnail(Sermon $sermon): bool
+    {
+        if (! $sermon->hasVideo()) {
+            return true;
+        }
+
+        return $this->shouldExposeVideo($sermon);
+    }
+
+    public function shouldGenerateVideoThumbnail(Sermon $sermon): bool
+    {
+        return $this->shouldExposeVideo($sermon);
     }
 
     public function shouldIncludeInSitemap(Sermon $sermon): bool
@@ -81,5 +110,19 @@ class SermonExposurePolicy
         $month = $sermon->date->format('m');
 
         return url("/christ/sermons/{$year}/{$month}/{$sermon->slug}");
+    }
+
+    private function automaticVideoVisibility(Sermon $sermon): bool
+    {
+        if (! (bool) config('media-processing.video_quality.enforce_public_visibility', true)) {
+            return true;
+        }
+
+        return match ($sermon->videoQualityStatus()) {
+            SermonVideoQualityStatus::Approved => true,
+            SermonVideoQualityStatus::Rejected => false,
+            SermonVideoQualityStatus::NeedsReview => ! (bool) config('media-processing.video_quality.hide_needs_review', false),
+            SermonVideoQualityStatus::Unassessed => true,
+        };
     }
 }

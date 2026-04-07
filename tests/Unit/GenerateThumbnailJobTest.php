@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Data\ThumbnailResult;
 use App\Enums\MediaType;
+use App\Enums\SermonVideoQualityStatus;
 use App\Jobs\GenerateThumbnail;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -176,6 +177,30 @@ class GenerateThumbnailJobTest extends TestCase
 
         $job = new GenerateThumbnail($log);
         $job->handle($mockService);
+    }
+
+    #[Test]
+    public function it_skips_thumbnail_generation_for_rejected_videos(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+        $log = $this->createProcessingLog($sermon, 'sermons/1/video.mp4');
+
+        Storage::disk('public')->put('sermons/1/video.mp4', 'fake video content');
+
+        $mockService = $this->createMock(ThumbnailGenerationService::class);
+        $mockService->expects($this->never())->method('generateThumbnail');
+
+        Log::shouldReceive('info')->twice();
+        Log::shouldReceive('warning')->never();
+
+        $job = new GenerateThumbnail($log);
+        $job->handle($mockService);
+
+        $sermon->refresh();
+        $this->assertNull($sermon->thumbnail_file_path);
     }
 
     #[Test]

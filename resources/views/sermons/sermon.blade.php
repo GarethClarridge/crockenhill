@@ -4,6 +4,8 @@
 use Illuminate\Support\Str;
 $fullTitle = $sermon->title . ' | ' . ($sermon->displayPreacherName() ?? 'Unknown preacher');
 $displayReference = $sermon->displayReference();
+$hasPublicAudio = filled($sermonView['audio_url']);
+$hasPublicVideo = filled($sermonView['video_url']);
 @endphp
 
 @section('title'){{ $fullTitle }}@stop
@@ -35,7 +37,7 @@ $displayReference = $sermon->displayReference();
   {{-- ══ Row 1: Hero thumbnail / Media (full width) ══════════ --}}
 
   {{-- ── Hero thumbnail (video-less sermons only) ─────────── --}}
-  @if(!$sermon->video_file_path && $sermon->hasThumbnail())
+  @if(! $hasPublicVideo && $sermonView['thumbnail_url'])
   <div class="overflow-hidden rounded-xl shadow-sm border border-gray-100">
     <img
       src="{{ $sermonView['thumbnail_url'] }}"
@@ -45,14 +47,14 @@ $displayReference = $sermon->displayReference();
   @endif
 
   {{-- ── Media ─────────────────────────────────────────────── --}}
-  @if ($sermon->audio_file_path || !empty($sermon->video_file_path))
+  @if ($hasPublicAudio || $hasPublicVideo)
   <div class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
       <x-heroicon-o-play-circle class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
       <h2 class="font-display text-xl text-gray-900">
-        @if ($sermon->audio_file_path && !empty($sermon->video_file_path))
+        @if ($hasPublicAudio && $hasPublicVideo)
         Watch or listen
-        @elseif (!empty($sermon->video_file_path))
+        @elseif ($hasPublicVideo)
         Watch
         @else
         Listen
@@ -60,13 +62,13 @@ $displayReference = $sermon->displayReference();
       </h2>
     </div>
     <div class="p-6 space-y-6">
-      @if ($sermon->audio_file_path)
+      @if ($hasPublicAudio)
       <audio src="{{ $sermonView['audio_url'] }}" class="w-full rounded-lg" controls>
         Your browser does not support the <code>audio</code> element.
       </audio>
       @endif
 
-      @if (!empty($sermon->video_file_path))
+      @if ($hasPublicVideo)
       <video src="{{ $sermonView['video_url'] }}"
         class="w-full rounded-lg"
         controls

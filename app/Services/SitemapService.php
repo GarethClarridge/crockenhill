@@ -62,7 +62,7 @@ class SitemapService
          * keeping memory usage low for sites with large numbers of sermons.
          */
         $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'scripture_passage_id'])
+            ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'video_quality_status', 'video_visibility_override', 'thumbnail_file_path', 'thumbnail_generated_at', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'scripture_passage_id'])
             ->with([
                 'preacherProfile:id,name,slug',
                 'scripturePassage:id,display_reference,normalized_reference',

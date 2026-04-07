@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonVideoQualityStatus;
+use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\SermonExposurePolicy;
@@ -144,5 +146,51 @@ class SermonExposurePolicyTest extends TestCase
         // Sermon canonical follows specific year/month/slug format
         $expectedSermonCanonical = url('/christ/sermons/2025/05/sermon-slug');
         $this->assertSame($expectedSermonCanonical, $this->policy->canonicalUrl($sermon));
+    }
+
+    #[Test]
+    public function should_expose_video_hides_rejected_videos_by_default(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+
+        $this->assertFalse($this->policy->shouldExposeVideo($sermon));
+    }
+
+    #[Test]
+    public function force_show_can_expose_a_rejected_video(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+            'video_visibility_override' => SermonVideoVisibilityOverride::ForceShow,
+        ]);
+
+        $this->assertTrue($this->policy->shouldExposeVideo($sermon));
+    }
+
+    #[Test]
+    public function force_hide_can_hide_an_approved_video(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Approved,
+            'video_visibility_override' => SermonVideoVisibilityOverride::ForceHide,
+        ]);
+
+        $this->assertFalse($this->policy->shouldExposeVideo($sermon));
+    }
+
+    #[Test]
+    public function unassessed_videos_remain_visible_during_backfill_window(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Unassessed,
+        ]);
+
+        $this->assertTrue($this->policy->shouldExposeVideo($sermon));
     }
 }

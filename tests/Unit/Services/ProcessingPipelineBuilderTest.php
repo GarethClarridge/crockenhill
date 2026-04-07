@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
+use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
@@ -85,7 +86,7 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildDirectVideoPipeline($log);
 
-        $this->assertCount(10, $jobs);
+        $this->assertCount(11, $jobs);
         $this->assertInstanceOf(ValidateVideoFile::class, $jobs[0]);
         $this->assertInstanceOf(ExtractAudioFromVideo::class, $jobs[1]);
         $this->assertInstanceOf(EnhanceAudio::class, $jobs[2]);
@@ -93,9 +94,10 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(IdentifySpeaker::class, $jobs[4]);
         $this->assertInstanceOf(TranscribeAudio::class, $jobs[5]);
         $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[6]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[7]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[8]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[9]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[7]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[8]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[9]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[10]);
     }
 
     #[Test]
@@ -132,7 +134,7 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildAutoTrimVideoPipeline($log);
 
-        $this->assertCount(16, $jobs);
+        $this->assertCount(17, $jobs);
         $this->assertInstanceOf(ValidateVideoFile::class, $jobs[0]);
         $this->assertInstanceOf(GenerateRmsLog::class, $jobs[1]);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[2]);
@@ -146,9 +148,10 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(IdentifySpeaker::class, $jobs[10]);
         $this->assertInstanceOf(TranscribeAudio::class, $jobs[11]);
         $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[12]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[13]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[14]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[15]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[13]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[14]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[15]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[16]);
     }
 
     // --- buildLivestreamParallelJobs() ---
@@ -201,7 +204,7 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildLivestreamChainJobs($log);
 
-        $this->assertCount(18, $jobs);
+        $this->assertCount(19, $jobs);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[0]);
         $this->assertInstanceOf(ClassifyServiceSections::class, $jobs[1]);
         $this->assertInstanceOf(TranscribeSpeechSegments::class, $jobs[2]);
@@ -216,10 +219,11 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(IdentifySpeaker::class, $jobs[11]);
         $this->assertInstanceOf(TranscribeAudio::class, $jobs[12]);
         $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[13]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[14]);
-        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[15]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[16]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[17]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[14]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[15]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[16]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[17]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[18]);
     }
 
     #[Test]
@@ -273,7 +277,7 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildSectionReclassificationChainJobs($log);
 
-        $this->assertCount(15, $jobs);
+        $this->assertCount(16, $jobs);
         $this->assertInstanceOf(ClassifyServiceSections::class, $jobs[0]);
         $this->assertInstanceOf(TranscribeSpeechSegments::class, $jobs[1]);
         $this->assertInstanceOf(ClassifySpeechSections::class, $jobs[2]);
@@ -287,8 +291,9 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(IdentifySpeaker::class, $jobs[10]);
         $this->assertInstanceOf(TranscribeAudio::class, $jobs[11]);
         $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[12]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[13]);
-        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[14]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[13]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[14]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[15]);
         $this->assertTrue($jobs[0]->preservesRunStatus());
     }
 
@@ -301,17 +306,18 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildLivestreamPostReviewChainJobs($log);
 
-        $this->assertCount(10, $jobs);
+        $this->assertCount(11, $jobs);
         $this->assertInstanceOf(ExtractSermon::class, $jobs[0]);
         $this->assertInstanceOf(SubmitToProcessing::class, $jobs[1]);
         $this->assertInstanceOf(EnhanceAudio::class, $jobs[2]);
         $this->assertInstanceOf(IdentifySpeaker::class, $jobs[3]);
         $this->assertInstanceOf(TranscribeAudio::class, $jobs[4]);
         $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[5]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[6]);
-        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[7]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[8]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[9]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[6]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[7]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[8]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[9]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[10]);
     }
 
     #[Test]

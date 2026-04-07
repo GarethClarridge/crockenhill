@@ -2,13 +2,17 @@
 
 namespace Tests\Feature\Livewire\Admin;
 
+use App\Data\SermonVideoQualityAssessmentResult;
 use App\Data\ThumbnailResult;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\SermonVideoQualityStatus;
+use App\Enums\SermonVideoVisibilityOverride;
 use App\Livewire\Admin\Sermons\EditSermon;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Services\SermonVideoQualityAssessmentService;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -361,6 +365,59 @@ class EditSermonTest extends TestCase
         $this->sermon->refresh();
         $this->assertSame('sermons/thumbnails/candidate-3-overlay.webp', $this->sermon->thumbnail_file_path);
         $this->assertSame('candidate-3', $this->sermon->thumbnail_metadata?->selectedThumbnailCandidateId);
+    }
+
+    #[Test]
+    public function it_updates_video_visibility_override_from_the_edit_screen(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->sermon->update([
+            'video_file_path' => 'sermons/1/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->assertSee('Video quality')
+            ->call('setVideoVisibilityOverride', 'force_show')
+            ->assertDispatched('notify', type: 'success', message: 'Video visibility override updated');
+
+        $this->sermon->refresh();
+        $this->assertSame(SermonVideoVisibilityOverride::ForceShow, $this->sermon->video_visibility_override);
+    }
+
+    #[Test]
+    public function it_reruns_video_quality_assessment_from_the_edit_screen(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->sermon->update([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+
+        $service = $this->createMock(SermonVideoQualityAssessmentService::class);
+        $service->expects($this->once())
+            ->method('assess')
+            ->willReturn(new SermonVideoQualityAssessmentResult(
+                status: SermonVideoQualityStatus::Approved,
+                reason: null,
+                sampleCount: 8,
+                sampleTimestamps: [60.0],
+                blankFrameRatio: 0.0,
+                frozenPairRatio: 0.0,
+                lowDetailRatio: 0.0,
+                aggregateScore: 0.9,
+            ));
+
+        app()->instance(SermonVideoQualityAssessmentService::class, $service);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->call('rerunVideoQualityAssessment')
+            ->assertDispatched('notify', type: 'success', message: 'Video quality assessment updated');
+
+        $this->sermon->refresh();
+        $this->assertSame(SermonVideoQualityStatus::Approved, $this->sermon->video_quality_status);
+        $this->assertNotNull($this->sermon->video_quality_assessed_at);
     }
 
     // -------------------------------------------------------------------------

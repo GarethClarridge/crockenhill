@@ -11,6 +11,8 @@ use App\Enums\ProcessingStatus;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\SermonVideoQualityStatus;
+use App\Enums\SermonVideoVisibilityOverride;
 use App\Presenters\SermonSitemapPresenter;
 use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -66,6 +68,10 @@ use Spatie\Sitemap\Tags\Url;
  * @property ThumbnailMetadata|null $thumbnail_metadata
  * @property ?string $livestream_processing_id
  * @property ?string $video_file_path
+ * @property SermonVideoQualityStatus|null $video_quality_status
+ * @property ?string $video_quality_reason
+ * @property SermonVideoVisibilityOverride|null $video_visibility_override
+ * @property ?Carbon $video_quality_assessed_at
  * @property ?SermonSourceType $source_type
  * @property ?float $segment_start_time
  * @property ?float $segment_end_time
@@ -144,6 +150,10 @@ class Sermon extends Model implements Sitemapable
         'thumbnail_metadata', // Metadata about thumbnail generation
         'livestream_processing_id', // Link to livestream processing
         'video_file_path', // Path to sermon video file
+        'video_quality_status',
+        'video_quality_reason',
+        'video_visibility_override',
+        'video_quality_assessed_at',
         'source_type', // Source type: manual, livestream, upload
         'segment_start_time', // Start time of sermon segment in livestream
         'segment_end_time', // End time of sermon segment in livestream
@@ -168,6 +178,9 @@ class Sermon extends Model implements Sitemapable
             'show_summary' => 'boolean',
             'show_points' => 'boolean',
             'source_type' => SermonSourceType::class,
+            'video_quality_status' => SermonVideoQualityStatus::class,
+            'video_visibility_override' => SermonVideoVisibilityOverride::class,
+            'video_quality_assessed_at' => 'datetime',
             'preacher_source' => PreacherSource::class,
             'preacher_confidence' => 'float',
             'needs_preacher_review' => 'boolean',
@@ -648,6 +661,20 @@ class Sermon extends Model implements Sitemapable
     public function hasVideo(): bool
     {
         return ! empty($this->video_file_path);
+    }
+
+    public function videoQualityStatus(): SermonVideoQualityStatus
+    {
+        return $this->video_quality_status instanceof SermonVideoQualityStatus
+            ? $this->video_quality_status
+            : SermonVideoQualityStatus::Unassessed;
+    }
+
+    public function videoVisibilityOverride(): SermonVideoVisibilityOverride
+    {
+        return $this->video_visibility_override instanceof SermonVideoVisibilityOverride
+            ? $this->video_visibility_override
+            : SermonVideoVisibilityOverride::Default;
     }
 
     /**

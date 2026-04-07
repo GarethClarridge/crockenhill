@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\SermonExposurePolicy;
 use App\Services\ThumbnailGenerationService;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -97,6 +98,16 @@ class GenerateThumbnail implements ShouldQueue
             if (! $sermon) {
                 Log::warning('Sermon not found for thumbnail generation', [
                     'sermon_id' => $this->sermonId,
+                ]);
+
+                return;
+            }
+
+            if ($sermon->hasVideo() && ! app(SermonExposurePolicy::class)->shouldGenerateVideoThumbnail($sermon)) {
+                Log::info('Thumbnail generation skipped: video quality verdict does not allow public thumbnail', [
+                    'sermon_id' => $this->sermonId,
+                    'video_path' => $this->videoPath,
+                    'processing_id' => $this->processingLog->processing_id,
                 ]);
 
                 return;

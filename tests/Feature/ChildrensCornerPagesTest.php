@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -90,6 +91,28 @@ class ChildrensCornerPagesTest extends TestCase
         $response->assertSee('"@type": "Article"', false);
         $response->assertSee('"headline": "Little Listeners"', false);
         $response->assertSee('"publisher":', false);
+    }
+
+    #[Test]
+    public function detail_page_omits_rejected_childrens_talk_video(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $talk = Sermon::factory()->create([
+            'title' => 'Audio Only Little Listeners',
+            'slug' => 'audio-only-little-listeners',
+            'content_type' => SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'sermons/audio/little-listeners.mp3',
+            'video_file_path' => 'sermons/video/little-listeners.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+
+        $response = $this->get("/christ/childrens-corner/{$talk->slug}");
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Video available');
+        $response->assertDontSee('<video', false);
+        $response->assertSee('Listen');
     }
 
     #[Test]

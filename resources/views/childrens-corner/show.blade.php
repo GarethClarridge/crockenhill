@@ -26,8 +26,8 @@
 
 @section('dynamic_content')
     @php
-        $hasAudio = filled($sermon->audio_file_path);
-        $hasVideo = filled($sermon->video_file_path);
+        $hasAudio = filled($sermonView['audio_url']);
+        $hasVideo = filled($sermonView['video_url']);
     @endphp
 
     <section class="space-y-8">

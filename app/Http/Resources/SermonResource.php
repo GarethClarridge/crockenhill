@@ -49,6 +49,7 @@ class SermonResource extends JsonResource
             'reference' => $this->displayReference(),
             'points' => $this->when($this->show_points, fn (): ?array => $this->points),
             'audio_url' => $sermonView['audio_url'],
+            'video_url' => $sermonView['video_url'],
             'thumbnail_url' => $sermonView['thumbnail_url'],
             'thumbnail_metadata' => $this->publicThumbnailMetadata(),
             'series_url' => $this->series_url,

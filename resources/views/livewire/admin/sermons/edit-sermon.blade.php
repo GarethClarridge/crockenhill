@@ -267,6 +267,71 @@
             </x-card>
         @endunless
 
+        @if($sermon->hasVideo())
+            <x-card heading="Video quality">
+                <div class="space-y-4">
+                    <dl class="space-y-2 text-sm">
+                        <div class="flex items-start justify-between gap-3">
+                            <dt class="text-gray-500">Status</dt>
+                            <dd class="font-medium text-gray-900">{{ $sermon->videoQualityStatus()->label() }}</dd>
+                        </div>
+                        <div class="flex items-start justify-between gap-3">
+                            <dt class="text-gray-500">Reason</dt>
+                            <dd class="font-medium text-gray-900">{{ $sermon->video_quality_reason ?: 'None' }}</dd>
+                        </div>
+                        <div class="flex items-start justify-between gap-3">
+                            <dt class="text-gray-500">Assessed</dt>
+                            <dd class="font-medium text-gray-900">{{ $sermon->video_quality_assessed_at?->format('j M Y H:i') ?? 'Not assessed' }}</dd>
+                        </div>
+                        <div class="flex items-start justify-between gap-3">
+                            <dt class="text-gray-500">Override</dt>
+                            <dd class="font-medium text-gray-900">{{ $sermon->videoVisibilityOverride()->label() }}</dd>
+                        </div>
+                    </dl>
+
+                    <div class="grid gap-2">
+                        <x-form-button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            wire:click="setVideoVisibilityOverride('default')"
+                        >
+                            Use automatic verdict
+                        </x-form-button>
+                        <x-form-button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            wire:click="setVideoVisibilityOverride('force_show')"
+                        >
+                            Force show video
+                        </x-form-button>
+                        <x-form-button
+                            type="button"
+                            variant="danger"
+                            size="sm"
+                            wire:click="setVideoVisibilityOverride('force_hide')"
+                        >
+                            Force hide video
+                        </x-form-button>
+                        <x-form-button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            icon="arrow-path"
+                            wire:click="rerunVideoQualityAssessment"
+                        >
+                            Re-run assessment
+                        </x-form-button>
+                    </div>
+
+                    <p wire:loading wire:target="rerunVideoQualityAssessment" class="text-sm text-gray-500">
+                        Reassessing the sermon video...
+                    </p>
+                </div>
+            </x-card>
+        @endif
+
         <x-card heading="{{ $isChildrensTalk ? 'Published Media' : 'Media Files' }}">
             <div class="space-y-3">
                 @if($sermon->audio_file_path)

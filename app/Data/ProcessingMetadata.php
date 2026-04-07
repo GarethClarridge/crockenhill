@@ -8,12 +8,14 @@ final class ProcessingMetadata extends JsonData
 {
     /**
      * @param  array<string, mixed>|null  $speakerIdentification
+     * @param  array<string, mixed>|null  $videoQuality
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
         public readonly ?ProcessingId3Metadata $id3Metadata = null,
         public readonly ?ProcessingManualReviewMetadata $manualReview = null,
         public readonly ?array $speakerIdentification = null,
+        public readonly ?array $videoQuality = null,
         public readonly ?string $videoProcessingMode = null,
         public readonly ?bool $trimRequested = null,
         public readonly array $raw = [],
@@ -28,6 +30,9 @@ final class ProcessingMetadata extends JsonData
             manualReview: ProcessingManualReviewMetadata::fromArray($payload['manual_review'] ?? null),
             speakerIdentification: ($payload['speaker_identification'] ?? null) && is_array($payload['speaker_identification'])
                 ? $payload['speaker_identification']
+                : null,
+            videoQuality: ($payload['video_quality'] ?? null) && is_array($payload['video_quality'])
+                ? $payload['video_quality']
                 : null,
             videoProcessingMode: self::stringOrNull($payload['video_processing_mode'] ?? null),
             trimRequested: self::boolOrNull($payload['trim_requested'] ?? null),
@@ -52,6 +57,10 @@ final class ProcessingMetadata extends JsonData
 
         if ($this->speakerIdentification !== null) {
             $data['speaker_identification'] = $this->speakerIdentification;
+        }
+
+        if ($this->videoQuality !== null) {
+            $data['video_quality'] = $this->videoQuality;
         }
 
         if ($this->videoProcessingMode !== null) {

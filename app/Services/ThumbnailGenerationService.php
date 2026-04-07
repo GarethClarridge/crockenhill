@@ -79,7 +79,8 @@ class ThumbnailGenerationService
         FrameExtractionService $frameExtractionService,
         private readonly StorageAdapterHelper $storageHelper,
         private readonly ThumbnailForegroundExtractionService $foregroundExtractor,
-        private readonly ThumbnailCanvasComposer $canvasComposer
+        private readonly ThumbnailCanvasComposer $canvasComposer,
+        private readonly ?SermonExposurePolicy $exposurePolicy = null,
     ) {
         $this->storageDisk = (string) config('thumbnail-generation.storage.disk', 'public');
         $this->storagePath = (string) config('thumbnail-generation.storage.path', 'sermons/thumbnails');
@@ -95,6 +96,10 @@ class ThumbnailGenerationService
         try {
             if (! config('thumbnail-generation.enabled')) {
                 return ThumbnailResult::skipped('Thumbnail generation is disabled');
+            }
+
+            if (! $this->videoThumbnailAllowed($sermon)) {
+                return ThumbnailResult::skipped('Video quality verdict does not allow public thumbnail generation');
             }
 
             if (! $this->frameExtractionService->videoFileExists($videoPath, $disk)) {
@@ -618,6 +623,10 @@ class ThumbnailGenerationService
             return ThumbnailResult::skipped('Sermon has no video file for thumbnail generation');
         }
 
+        if (! $this->videoThumbnailAllowed($sermon)) {
+            return ThumbnailResult::skipped('Video quality verdict does not allow public thumbnail generation');
+        }
+
         $sermonDisk = config('media-processing.storage.sermon_disk');
         $videoPath = $sermon->video_file_path;
 
@@ -645,6 +654,11 @@ class ThumbnailGenerationService
         }
 
         return $image;
+    }
+
+    private function videoThumbnailAllowed(Sermon $sermon): bool
+    {
+        return ($this->exposurePolicy ?? app(SermonExposurePolicy::class))->shouldGenerateVideoThumbnail($sermon);
     }
 
     private function saveTemporaryThumbnail(ImageInterface $image, string $prefix = 'thumbnail'): string

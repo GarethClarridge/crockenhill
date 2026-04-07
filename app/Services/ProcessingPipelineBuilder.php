@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
+use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
@@ -69,6 +70,7 @@ class ProcessingPipelineBuilder
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
+            new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new SendCompletionNotification($log),
             new CleanupTemporaryFiles($log),
@@ -97,6 +99,7 @@ class ProcessingPipelineBuilder
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
+            new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new SendCompletionNotification($log),
             new CleanupTemporaryFiles($log),
@@ -144,6 +147,7 @@ class ProcessingPipelineBuilder
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
+            new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new PrepareSectionPublicationCandidates($log),
             new SendCompletionNotification($log),
@@ -166,6 +170,7 @@ class ProcessingPipelineBuilder
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
+            new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new PrepareSectionPublicationCandidates($log),
             new SendCompletionNotification($log),
@@ -187,6 +192,7 @@ class ProcessingPipelineBuilder
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
+            new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new SendCompletionNotification($log),
             new CleanupTemporaryFiles($log),
@@ -215,6 +221,7 @@ class ProcessingPipelineBuilder
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
+            new AssessSermonVideoQuality($log),
             new GenerateThumbnail($log),
             new PrepareSectionPublicationCandidates($log),
         ];

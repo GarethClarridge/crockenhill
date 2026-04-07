@@ -42,6 +42,7 @@ class SermonResourceTest extends TestCase
         $this->assertEquals($sermon->id, $array['id']);
         $this->assertEquals('Test Sermon', $array['title']);
         $this->assertEquals($this->sermonViewData['audio_url'], $array['audio_url']);
+        $this->assertEquals($this->sermonViewData['video_url'], $array['video_url']);
         $this->assertEquals($this->sermonViewData['thumbnail_url'], $array['thumbnail_url']);
         $this->assertEquals(['Point 1', 'Point 2'], $array['points']);
     }

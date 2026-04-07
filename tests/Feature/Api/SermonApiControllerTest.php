@@ -6,10 +6,12 @@ namespace Tests\Feature\Api;
 
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\SermonVideoQualityStatus;
 use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -161,6 +163,25 @@ class SermonApiControllerTest extends TestCase
         $response = $this->getJson("/api/sermons/{$talk->id}");
 
         $response->assertStatus(404);
+    }
+
+    #[Test]
+    public function api_show_does_not_return_video_url_for_rejected_videos(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        Storage::disk('public')->put('sermons/video.mp4', 'video');
+
+        $sermon = Sermon::factory()->create([
+            'content_type' => SermonContentType::Sermon,
+            'video_file_path' => 'sermons/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+
+        $this->getJson("/api/sermons/{$sermon->id}")
+            ->assertOk()
+            ->assertJsonPath('data.video_url', null);
     }
 
     // ── Search ─────────────────────────────────────────────────────────────

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Presenters;
 
+use App\Enums\SermonVideoQualityStatus;
+use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
@@ -93,5 +95,41 @@ class SermonViewPresenterTest extends TestCase
         $this->assertNull($presented['thumbnail_url']);
         $this->assertNull($presented['transcript']);
         $this->assertNull($presented['video_url']);
+    }
+
+    #[Test]
+    public function it_hides_rejected_video_urls_and_video_generated_thumbnails(): void
+    {
+        Storage::disk('public')->put('sermons/test.mp4', 'video');
+        Storage::disk('public')->put('thumbnails/test.jpg', 'thumb');
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/test.mp4',
+            'thumbnail_file_path' => 'thumbnails/test.jpg',
+            'thumbnail_metadata' => ['plain_thumbnail_path' => 'thumbnails/test.jpg'],
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+
+        $presented = $this->presenter->present($sermon);
+
+        $this->assertNull($presented['video_url']);
+        $this->assertNull($presented['thumbnail_url']);
+        $this->assertNull($presented['card_thumbnail_url']);
+    }
+
+    #[Test]
+    public function it_allows_force_show_to_expose_a_rejected_video(): void
+    {
+        Storage::disk('public')->put('sermons/test.mp4', 'video');
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/test.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+            'video_visibility_override' => SermonVideoVisibilityOverride::ForceShow,
+        ]);
+
+        $presented = $this->presenter->present($sermon);
+
+        $this->assertStringContainsString('/storage/sermons/test.mp4', $presented['video_url'] ?? '');
     }
 }

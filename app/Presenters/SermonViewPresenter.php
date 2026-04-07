@@ -34,6 +34,10 @@ class SermonViewPresenter
 
     public function cardThumbnailUrl(Sermon $sermon): ?string
     {
+        if (! $this->exposurePolicy->shouldExposeVideoThumbnail($sermon)) {
+            return null;
+        }
+
         if (! $sermon->hasPlainThumbnail()) {
             return null;
         }
@@ -87,6 +91,10 @@ class SermonViewPresenter
 
     public function thumbnailUrl(Sermon $sermon): ?string
     {
+        if (! $this->exposurePolicy->shouldExposeVideoThumbnail($sermon)) {
+            return null;
+        }
+
         if (! $sermon->hasThumbnail()) {
             return null;
         }
@@ -101,7 +109,7 @@ class SermonViewPresenter
 
     public function videoUrl(Sermon $sermon): ?string
     {
-        if (! $sermon->hasVideo()) {
+        if (! $this->exposurePolicy->shouldExposeVideo($sermon)) {
             return null;
         }
 

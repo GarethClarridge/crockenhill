@@ -32,6 +32,8 @@ class ChildrensCornerController extends Controller
                 'preacher_id',
                 'audio_file_path',
                 'video_file_path',
+                'video_quality_status',
+                'video_visibility_override',
                 'thumbnail_file_path',
                 'thumbnail_metadata',
                 'scripture_passage_id',

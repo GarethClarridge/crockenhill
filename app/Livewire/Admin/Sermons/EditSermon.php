@@ -7,6 +7,8 @@ namespace App\Livewire\Admin\Sermons;
 use App\Actions\QueueScriptureEnrichment;
 use App\Enums\PreacherSource;
 use App\Enums\SermonService;
+use App\Enums\SermonVideoVisibilityOverride;
+use App\Jobs\AssessSermonVideoQuality;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
@@ -270,6 +272,45 @@ class EditSermon extends Component
         $this->loadThumbnailCandidates();
 
         $this->success('Thumbnails regenerated');
+    }
+
+    public function setVideoVisibilityOverride(string $override): void
+    {
+        $this->authorizeAdmin();
+
+        $visibilityOverride = SermonVideoVisibilityOverride::tryFrom($override);
+        if (! $visibilityOverride instanceof SermonVideoVisibilityOverride) {
+            $this->error('Invalid video visibility override.');
+
+            return;
+        }
+
+        $this->sermon->update([
+            'video_visibility_override' => $visibilityOverride,
+        ]);
+
+        $this->sermon->refresh();
+
+        $this->success('Video visibility override updated');
+    }
+
+    public function rerunVideoQualityAssessment(): void
+    {
+        $this->authorizeAdmin();
+        $this->sermon->refresh();
+
+        if (! $this->sermon->hasVideo()) {
+            $this->error('No video file is available for assessment.');
+
+            return;
+        }
+
+        (new AssessSermonVideoQuality(sermonId: $this->sermon->id))
+            ->handle(app(\App\Services\SermonVideoQualityAssessmentService::class));
+
+        $this->sermon->refresh();
+
+        $this->success('Video quality assessment updated');
     }
 
     public function render(): View

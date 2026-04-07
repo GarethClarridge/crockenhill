@@ -407,6 +407,27 @@ class MediaProcessingLog extends Model
             : self::VIDEO_PROCESSING_MODE_FULL_VIDEO;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function videoQualityMetadata(): array
+    {
+        $metadata = $this->processing_metadata?->videoQuality;
+
+        return is_array($metadata) ? $metadata : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    public function putVideoQualityMetadata(array $metadata): void
+    {
+        $processingMetadata = $this->processing_metadata?->toArray() ?? [];
+        $processingMetadata['video_quality'] = $metadata;
+
+        $this->forceFill(['processing_metadata' => $processingMetadata])->save();
+    }
+
     public function isAutoTrimVideoRun(): bool
     {
         return $this->processing_type === MediaType::Video
