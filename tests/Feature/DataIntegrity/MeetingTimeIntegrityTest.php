@@ -59,7 +59,7 @@ class MeetingTimeIntegrityTest extends TestCase
         Livewire::actingAs($this->admin)
             ->test(CreateMeeting::class)
             ->set('form.slug', 'test-meeting')
-            ->set('form.type', MeetingType::ADULTS->value)
+            ->set('form.type', MeetingType::Adults->value)
             ->set('form.day', 'Monday')
             ->set('form.who', 'Anyone')
             ->set('form.startTime', '11:00')

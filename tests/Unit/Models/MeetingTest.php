@@ -51,7 +51,7 @@ class MeetingTest extends TestCase
 
         // Test frequency (assuming it's a string, no special cast yet)
         $meetingWithFrequency = \App\Models\Meeting::factory()->recurring('monthly')->create();
-        $this->assertEquals(\App\Enums\MeetingFrequency::MONTHLY, $meetingWithFrequency->frequency);
+        $this->assertEquals(\App\Enums\MeetingFrequency::Monthly, $meetingWithFrequency->frequency);
 
         $meetingWithoutFrequency = \App\Models\Meeting::factory()->notRecurring()->create();
         $this->assertNull($meetingWithoutFrequency->frequency);

@@ -10,18 +10,18 @@ enum MeetingFrequency: string
 {
     use HasValues;
 
-    case DAILY = 'daily';
-    case WEEKLY = 'weekly';
-    case MONTHLY = 'monthly';
-    case ANNUALLY = 'annually';
+    case Daily = 'daily';
+    case Weekly = 'weekly';
+    case Monthly = 'monthly';
+    case Annually = 'annually';
 
     public function label(): string
     {
         return match ($this) {
-            self::DAILY => 'Daily',
-            self::WEEKLY => 'Weekly',
-            self::MONTHLY => 'Monthly',
-            self::ANNUALLY => 'Annually',
+            self::Daily => 'Daily',
+            self::Weekly => 'Weekly',
+            self::Monthly => 'Monthly',
+            self::Annually => 'Annually',
         };
     }
 }

@@ -10,18 +10,18 @@ enum MeetingType: string
 {
     use HasValues;
 
-    case SUNDAY_AND_BIBLE_STUDIES = 'SundayAndBibleStudies';
-    case CHILDREN_AND_YOUNG_PEOPLE = 'ChildrenAndYoungPeople';
-    case ADULTS = 'Adults';
-    case OCCASIONAL = 'Occasional';
+    case SundayAndBibleStudies = 'SundayAndBibleStudies';
+    case ChildrenAndYoungPeople = 'ChildrenAndYoungPeople';
+    case Adults = 'Adults';
+    case Occasional = 'Occasional';
 
     public function label(): string
     {
         return match ($this) {
-            self::SUNDAY_AND_BIBLE_STUDIES => 'Sunday & Bible Studies',
-            self::CHILDREN_AND_YOUNG_PEOPLE => 'Children & Young People',
-            self::ADULTS => 'Adults',
-            self::OCCASIONAL => 'Occasional',
+            self::SundayAndBibleStudies => 'Sunday & Bible Studies',
+            self::ChildrenAndYoungPeople => 'Children & Young People',
+            self::Adults => 'Adults',
+            self::Occasional => 'Occasional',
         };
     }
 }
