@@ -37,6 +37,7 @@ class GenerateThumbnailJobTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'video_file_path' => 'sermons/1/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Unassessed,
         ]);
 
         $log = $this->createProcessingLog($sermon, 'sermons/1/video.mp4');
@@ -64,6 +65,7 @@ class GenerateThumbnailJobTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'video_file_path' => 'sermons/1/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::Unassessed,
         ]);
         $log = $this->createProcessingLog($sermon, 'sermons/1/video.mp4');
 

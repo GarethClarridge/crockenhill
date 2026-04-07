@@ -58,7 +58,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             $this->frameExtractionService,
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
-            app(\App\Services\ThumbnailCanvasComposer::class)
+            app(\App\Services\ThumbnailCanvasComposer::class),
+            app(\App\Services\SermonExposurePolicy::class),
         );
     }
 
@@ -92,7 +93,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             $this->frameExtractionService,
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
-            app(\App\Services\ThumbnailCanvasComposer::class)
+            app(\App\Services\ThumbnailCanvasComposer::class),
+            app(\App\Services\SermonExposurePolicy::class),
         );
 
         $sermon = Sermon::factory()->create([
@@ -220,7 +222,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             $frameService,
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
-            app(\App\Services\ThumbnailCanvasComposer::class)
+            app(\App\Services\ThumbnailCanvasComposer::class),
+            app(\App\Services\SermonExposurePolicy::class),
         );
 
         // Create a temporary file
@@ -421,7 +424,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             $this->createMock(FrameExtractionService::class),
             app(StorageAdapterHelper::class),
             $extractor,
-            app(\App\Services\ThumbnailCanvasComposer::class)
+            app(\App\Services\ThumbnailCanvasComposer::class),
+            app(\App\Services\SermonExposurePolicy::class),
         );
     }
 

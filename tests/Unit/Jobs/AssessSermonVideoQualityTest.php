@@ -65,7 +65,7 @@ class AssessSermonVideoQualityTest extends TestCase
 
         $sermon->refresh();
 
-        $this->assertSame(SermonVideoQualityStatus::NeedsReview, $sermon->video_quality_status);
+        $this->assertSame(SermonVideoQualityStatus::Unassessed, $sermon->video_quality_status);
         $this->assertSame('analysis_failed', $sermon->video_quality_reason);
     }
 }

@@ -10,7 +10,7 @@ final class SermonVideoQualityAssessmentResult
 {
     /**
      * @param  list<float>  $sampleTimestamps
-     * @param  array<string, float|int|string|null>  $metrics
+     * @param  array<string, mixed>  $metrics
      */
     public function __construct(
         public readonly SermonVideoQualityStatus $status,
@@ -27,7 +27,7 @@ final class SermonVideoQualityAssessmentResult
     public static function failed(string $reason = 'analysis_failed'): self
     {
         return new self(
-            status: SermonVideoQualityStatus::NeedsReview,
+            status: SermonVideoQualityStatus::Unassessed,
             reason: $reason,
             sampleCount: 0,
             sampleTimestamps: [],

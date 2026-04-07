@@ -528,6 +528,19 @@ class Sermon extends Model implements Sitemapable
         return $this->thumbnail_candidates !== [];
     }
 
+    public function hasVideoGeneratedThumbnail(): bool
+    {
+        $metadata = $this->thumbnail_metadata;
+
+        if ($metadata === null) {
+            return false;
+        }
+
+        return $metadata->videoDuration !== null
+            || $metadata->thumbnailCandidates !== []
+            || $metadata->selectedThumbnailCandidateId !== null;
+    }
+
     /**
      * @return ThumbnailCandidate|null
      */

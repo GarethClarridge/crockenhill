@@ -305,12 +305,16 @@ class EditSermon extends Component
             return;
         }
 
-        (new AssessSermonVideoQuality(sermonId: $this->sermon->id))
-            ->handle(app(\App\Services\SermonVideoQualityAssessmentService::class));
+        dispatch((new AssessSermonVideoQuality(sermonId: $this->sermon->id))
+            ->onQueue((string) config('media-processing.queues.video', 'video-processing')));
 
+        $this->success('Video quality assessment queued');
+    }
+
+    public function refreshVideoQualityAssessment(): void
+    {
+        $this->authorizeAdmin();
         $this->sermon->refresh();
-
-        $this->success('Video quality assessment updated');
     }
 
     public function render(): View

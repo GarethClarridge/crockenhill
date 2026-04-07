@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Presenters;
 
+use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use App\Presenters\SermonSitemapPresenter;
 use App\Presenters\SermonViewPresenter;
@@ -95,6 +96,30 @@ class SermonSitemapPresenterTest extends TestCase
         $tag = $this->presenter->toSitemapTag($sermon);
 
         $this->assertCount(0, $tag->videos);
+    }
+
+    #[Test]
+    public function rejected_sermon_video_is_omitted_from_video_sitemap_entries(): void
+    {
+        Storage::fake('public');
+        Storage::fake('sermons');
+        Config::set('thumbnail-generation.storage.disk', 'public');
+        Config::set('media-processing.storage.sermon_disk', 'sermons');
+
+        /** @var Sermon $sermon */
+        $sermon = Sermon::factory()->make([
+            'video_file_path' => 'videos/test.mp4',
+            'thumbnail_file_path' => 'thumbnails/fallback.jpg',
+            'thumbnail_metadata' => ['plain_thumbnail_path' => 'thumbnails/fallback.jpg'],
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+            'date' => '2026-02-15',
+            'slug' => 'rejected-video',
+        ]);
+
+        $tag = $this->presenter->toSitemapTag($sermon);
+
+        $this->assertCount(0, $tag->videos);
+        $this->assertCount(1, $tag->images);
     }
 
     #[Test]

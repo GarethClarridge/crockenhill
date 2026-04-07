@@ -97,6 +97,7 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
             app(\App\Services\ThumbnailCanvasComposer::class),
+            app(\App\Services\SermonExposurePolicy::class),
         );
 
         $result = $service->generateThumbnail($sermon, 'videos/test.mp4', 'public');
@@ -161,6 +162,7 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
                 app(StorageAdapterHelper::class),
                 app(ThumbnailForegroundExtractionService::class),
                 app(\App\Services\ThumbnailCanvasComposer::class),
+                app(\App\Services\SermonExposurePolicy::class),
             ])
             ->onlyMethods(['createPlainThumbnail'])
             ->getMock();

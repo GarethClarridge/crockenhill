@@ -44,7 +44,8 @@ class ThumbnailGenerationPerformanceTest extends TestCase
             $frameExtractionService,
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
-            app(ThumbnailCanvasComposer::class)
+            app(ThumbnailCanvasComposer::class),
+            app(\App\Services\SermonExposurePolicy::class),
         );
     }
 

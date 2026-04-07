@@ -62,6 +62,64 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
     }
 
     #[Test]
+    public function frozen_burst_windows_need_review_when_auto_reject_is_disabled(): void
+    {
+        config(['media-processing.video_quality.auto_reject_frozen_frames' => false]);
+
+        $coarseFrames = $this->frames('checker', 3);
+        $burstFrames = array_map(
+            fn (int $index): string => $this->frame("frozen-review-{$index}.png", 'checker', 99),
+            range(1, 5),
+        );
+
+        $result = $this->assessWithFrames([...$coarseFrames, ...$burstFrames]);
+
+        $this->assertSame(SermonVideoQualityStatus::NeedsReview, $result->status);
+        $this->assertSame('frozen_frames', $result->reason);
+        $this->assertSame(1.0, $result->frozenPairRatio);
+    }
+
+    #[Test]
+    public function frozen_detection_requires_each_burst_window_to_match(): void
+    {
+        config([
+            'media-processing.video_quality.sampling.burst_window_count' => 2,
+            'media-processing.video_quality.thresholds.frozen_pair_ratio_reject' => 0.5,
+        ]);
+
+        $coarseFrames = $this->frames('checker', 3);
+        $frozenWindow = array_map(
+            fn (int $index): string => $this->frame("mixed-frozen-{$index}.png", 'checker', 99),
+            range(1, 5),
+        );
+        $healthyWindow = $this->frames('checker', 5, 200);
+
+        $result = $this->assessWithFrames([...$coarseFrames, ...$frozenWindow, ...$healthyWindow]);
+
+        $this->assertSame(SermonVideoQualityStatus::Approved, $result->status);
+        $this->assertNull($result->reason);
+        $this->assertSame(0.0, $result->frozenPairRatio);
+    }
+
+    #[Test]
+    public function very_low_detail_frames_can_be_flagged_for_review(): void
+    {
+        config([
+            'media-processing.video_quality.thresholds.blank_variance' => -1.0,
+            'media-processing.video_quality.thresholds.low_detail_ratio_reject' => 1.1,
+        ]);
+
+        $coarseFrames = $this->frames('gray', 3);
+        $burstFrames = $this->frames('checker', 5, 20);
+
+        $result = $this->assessWithFrames([...$coarseFrames, ...$burstFrames]);
+
+        $this->assertSame(SermonVideoQualityStatus::NeedsReview, $result->status);
+        $this->assertSame('very_low_detail', $result->reason);
+        $this->assertSame(1.0, $result->lowDetailRatio);
+    }
+
+    #[Test]
     public function varied_healthy_frames_are_approved(): void
     {
         $result = $this->assessWithFrames($this->frames('checker', 8));
@@ -84,7 +142,7 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
 
         $result = $service->assess($sermon, 'sermons/video.mp4', 'public');
 
-        $this->assertSame(SermonVideoQualityStatus::NeedsReview, $result->status);
+        $this->assertSame(SermonVideoQualityStatus::Unassessed, $result->status);
         $this->assertSame('analysis_failed', $result->reason);
     }
 
@@ -136,6 +194,9 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
 
         if ($style === 'black') {
             imagefilledrectangle($image, 0, 0, 63, 63, imagecolorallocate($image, 0, 0, 0));
+        } elseif ($style === 'gray') {
+            $value = 96 + ($seed % 64);
+            imagefilledrectangle($image, 0, 0, 63, 63, imagecolorallocate($image, $value, $value, $value));
         } else {
             for ($y = 0; $y < 64; $y++) {
                 for ($x = 0; $x < 64; $x++) {

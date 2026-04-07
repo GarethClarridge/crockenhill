@@ -193,4 +193,59 @@ class SermonExposurePolicyTest extends TestCase
 
         $this->assertTrue($this->policy->shouldExposeVideo($sermon));
     }
+
+    #[Test]
+    public function needs_review_videos_follow_hide_needs_review_configuration(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/video.mp4',
+            'video_quality_status' => SermonVideoQualityStatus::NeedsReview,
+        ]);
+
+        Config::set('media-processing.video_quality.hide_needs_review', false);
+        $this->assertTrue($this->policy->shouldExposeVideo($sermon));
+
+        Config::set('media-processing.video_quality.hide_needs_review', true);
+        $this->assertFalse($this->policy->shouldExposeVideo($sermon));
+    }
+
+    #[Test]
+    public function rejected_videos_keep_non_video_generated_thumbnails(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/video.mp4',
+            'thumbnail_file_path' => 'thumbnails/fallback.jpg',
+            'thumbnail_metadata' => ['plain_thumbnail_path' => 'thumbnails/fallback.jpg'],
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+
+        $this->assertFalse($this->policy->shouldExposeVideo($sermon));
+        $this->assertTrue($this->policy->shouldExposeThumbnail($sermon));
+    }
+
+    #[Test]
+    public function rejected_videos_hide_video_generated_thumbnails(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/video.mp4',
+            'thumbnail_file_path' => 'thumbnails/generated.jpg',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/generated.jpg',
+                'video_duration' => 1800.0,
+                'selected_thumbnail_candidate_id' => 'candidate-1',
+                'thumbnail_candidates' => [
+                    [
+                        'id' => 'candidate-1',
+                        'timestamp' => 420.0,
+                        'score' => 0.9,
+                        'plain_path' => 'thumbnails/generated.jpg',
+                    ],
+                ],
+            ],
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+
+        $this->assertFalse($this->policy->shouldExposeVideo($sermon));
+        $this->assertFalse($this->policy->shouldExposeThumbnail($sermon));
+    }
 }

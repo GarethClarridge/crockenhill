@@ -106,7 +106,19 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->create([
             'video_file_path' => 'sermons/test.mp4',
             'thumbnail_file_path' => 'thumbnails/test.jpg',
-            'thumbnail_metadata' => ['plain_thumbnail_path' => 'thumbnails/test.jpg'],
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/test.jpg',
+                'video_duration' => 1800.0,
+                'selected_thumbnail_candidate_id' => 'candidate-1',
+                'thumbnail_candidates' => [
+                    [
+                        'id' => 'candidate-1',
+                        'timestamp' => 300.0,
+                        'score' => 0.9,
+                        'plain_path' => 'thumbnails/test.jpg',
+                    ],
+                ],
+            ],
             'video_quality_status' => SermonVideoQualityStatus::Rejected,
         ]);
 
@@ -115,6 +127,26 @@ class SermonViewPresenterTest extends TestCase
         $this->assertNull($presented['video_url']);
         $this->assertNull($presented['thumbnail_url']);
         $this->assertNull($presented['card_thumbnail_url']);
+    }
+
+    #[Test]
+    public function it_keeps_non_video_generated_thumbnails_for_rejected_videos(): void
+    {
+        Storage::disk('public')->put('sermons/test.mp4', 'video');
+        Storage::disk('public')->put('thumbnails/fallback.jpg', 'thumb');
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/test.mp4',
+            'thumbnail_file_path' => 'thumbnails/fallback.jpg',
+            'thumbnail_metadata' => ['plain_thumbnail_path' => 'thumbnails/fallback.jpg'],
+            'video_quality_status' => SermonVideoQualityStatus::Rejected,
+        ]);
+
+        $presented = $this->presenter->present($sermon);
+
+        $this->assertNull($presented['video_url']);
+        $this->assertStringContainsString('/storage/thumbnails/fallback.jpg', $presented['thumbnail_url'] ?? '');
+        $this->assertStringContainsString('/storage/thumbnails/fallback.jpg', $presented['card_thumbnail_url'] ?? '');
     }
 
     #[Test]

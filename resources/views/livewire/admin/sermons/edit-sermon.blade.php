@@ -268,7 +268,7 @@
         @endunless
 
         @if($sermon->hasVideo())
-            <x-card heading="Video quality">
+            <x-card heading="Video quality" wire:poll.10s.visible="refreshVideoQualityAssessment">
                 <div class="space-y-4">
                     <dl class="space-y-2 text-sm">
                         <div class="flex items-start justify-between gap-3">
@@ -326,7 +326,7 @@
                     </div>
 
                     <p wire:loading wire:target="rerunVideoQualityAssessment" class="text-sm text-gray-500">
-                        Reassessing the sermon video...
+                        Queueing the sermon video assessment...
                     </p>
                 </div>
             </x-card>

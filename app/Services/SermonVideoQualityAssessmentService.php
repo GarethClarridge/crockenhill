@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
  * Small, explainable video-quality gate for obvious sermon video failures.
  *
  * @phpstan-type FrameMetrics array{brightness: float, variance: float, detail_score: float, aggregate_score: float, blank: bool, low_detail: bool}
+ * @phpstan-type FrozenWindowMetrics array{ratio: float, pair_count: int}
  */
 class SermonVideoQualityAssessmentService
 {
@@ -72,13 +73,13 @@ class SermonVideoQualityAssessmentService
         $burstTimestamps = $this->burstSampleTimestamps($duration);
 
         $coarseMetrics = $this->extractMetricsForTimestamps($localVideoPath, $coarseTimestamps);
-        $burstPairs = $this->frozenPairDiffs($localVideoPath, $burstTimestamps);
+        $frozenWindowMetrics = $this->frozenWindowMetrics($localVideoPath, $burstTimestamps);
 
         if ($coarseMetrics === []) {
             return SermonVideoQualityAssessmentResult::failed();
         }
 
-        return $this->buildResult($coarseMetrics, $coarseTimestamps, $burstPairs);
+        return $this->buildResult($coarseMetrics, $coarseTimestamps, $frozenWindowMetrics);
     }
 
     /**
@@ -178,14 +179,15 @@ class SermonVideoQualityAssessmentService
 
     /**
      * @param  list<list<float>>  $burstWindows
-     * @return list<float>
+     * @return list<FrozenWindowMetrics>
      */
-    private function frozenPairDiffs(string $localVideoPath, array $burstWindows): array
+    private function frozenWindowMetrics(string $localVideoPath, array $burstWindows): array
     {
-        $pairDiffs = [];
+        $windowMetrics = [];
 
         foreach ($burstWindows as $timestamps) {
             $previousFingerprint = null;
+            $pairDiffs = [];
 
             foreach ($timestamps as $timestamp) {
                 $framePath = $this->frameExtractionService->extractBaseFrame($localVideoPath, $timestamp);
@@ -208,9 +210,14 @@ class SermonVideoQualityAssessmentService
                     $this->cleanupFrame($framePath);
                 }
             }
+
+            $windowMetrics[] = [
+                'ratio' => $this->ratio($pairDiffs, static fn (float $diff): bool => $diff <= (float) config('media-processing.video_quality.thresholds.frozen_frame_diff', 0.01)),
+                'pair_count' => count($pairDiffs),
+            ];
         }
 
-        return $pairDiffs;
+        return $windowMetrics;
     }
 
     /**
@@ -231,23 +238,25 @@ class SermonVideoQualityAssessmentService
             $stepY = max(1, (int) floor($height / 48));
             $luminanceValues = [];
             $detailAccumulator = 0.0;
+            $previousRowLuminanceByColumn = [];
 
             for ($y = 0; $y < $height; $y += $stepY) {
-                $previousRowLuminance = null;
+                $previousColumnLuminance = null;
 
                 for ($x = 0; $x < $width; $x += $stepX) {
                     $luminance = $this->pixelLuminance($image, $x, $y);
                     $luminanceValues[] = $luminance;
 
-                    if ($x >= $stepX) {
-                        $detailAccumulator += abs($luminance - $this->pixelLuminance($image, $x - $stepX, $y));
+                    if ($previousColumnLuminance !== null) {
+                        $detailAccumulator += abs($luminance - $previousColumnLuminance);
                     }
 
-                    if ($previousRowLuminance !== null) {
-                        $detailAccumulator += abs($luminance - $previousRowLuminance);
+                    if (array_key_exists($x, $previousRowLuminanceByColumn)) {
+                        $detailAccumulator += abs($luminance - $previousRowLuminanceByColumn[$x]);
                     }
 
-                    $previousRowLuminance = $luminance;
+                    $previousRowLuminanceByColumn[$x] = $luminance;
+                    $previousColumnLuminance = $luminance;
                 }
             }
 
@@ -283,14 +292,15 @@ class SermonVideoQualityAssessmentService
     /**
      * @param  list<FrameMetrics>  $coarseMetrics
      * @param  list<float>  $coarseTimestamps
-     * @param  list<float>  $burstPairDiffs
+     * @param  list<FrozenWindowMetrics>  $frozenWindowMetrics
      */
-    private function buildResult(array $coarseMetrics, array $coarseTimestamps, array $burstPairDiffs): SermonVideoQualityAssessmentResult
+    private function buildResult(array $coarseMetrics, array $coarseTimestamps, array $frozenWindowMetrics): SermonVideoQualityAssessmentResult
     {
         $sampleCount = count($coarseMetrics);
         $blankFrameRatio = $this->ratio($coarseMetrics, static fn (array $metric): bool => $metric['blank']);
         $lowDetailRatio = $this->ratio($coarseMetrics, static fn (array $metric): bool => $metric['low_detail']);
-        $frozenPairRatio = $this->ratio($burstPairDiffs, static fn (float $diff): bool => $diff <= (float) config('media-processing.video_quality.thresholds.frozen_frame_diff', 0.01));
+        $frozenPairCount = (int) array_sum(array_column($frozenWindowMetrics, 'pair_count'));
+        $frozenPairRatio = $frozenWindowMetrics === [] ? 0.0 : min(array_column($frozenWindowMetrics, 'ratio'));
         $aggregateScore = array_sum(array_column($coarseMetrics, 'aggregate_score')) / $sampleCount;
         $averageBrightness = array_sum(array_column($coarseMetrics, 'brightness')) / $sampleCount;
         $averageDetail = array_sum(array_column($coarseMetrics, 'detail_score')) / $sampleCount;
@@ -300,7 +310,7 @@ class SermonVideoQualityAssessmentService
             blankFrameRatio: $blankFrameRatio,
             lowDetailRatio: $lowDetailRatio,
             frozenPairRatio: $frozenPairRatio,
-            frozenPairCount: count($burstPairDiffs),
+            frozenPairCount: $frozenPairCount,
             averageBrightness: $averageBrightness,
         );
 
@@ -317,7 +327,12 @@ class SermonVideoQualityAssessmentService
                 'avg_brightness' => round($averageBrightness, 6),
                 'avg_detail_score' => round($averageDetail, 6),
                 'avg_luminance_variance' => round($averageVariance, 6),
-                'frozen_pair_count' => count($burstPairDiffs),
+                'frozen_pair_count' => $frozenPairCount,
+                'frozen_window_count' => count($frozenWindowMetrics),
+                'frozen_window_ratios' => array_map(
+                    static fn (array $metrics): float => round($metrics['ratio'], 6),
+                    $frozenWindowMetrics,
+                ),
             ],
         );
     }
@@ -342,11 +357,14 @@ class SermonVideoQualityAssessmentService
         }
 
         if (
-            (bool) config('media-processing.video_quality.auto_reject_frozen_frames', true)
-            && $frozenPairCount >= 4
+            $frozenPairCount >= 4
             && $frozenPairRatio >= (float) config('media-processing.video_quality.thresholds.frozen_pair_ratio_reject', 0.95)
         ) {
-            return [SermonVideoQualityStatus::Rejected, 'frozen_frames'];
+            if ((bool) config('media-processing.video_quality.auto_reject_frozen_frames', true)) {
+                return [SermonVideoQualityStatus::Rejected, 'frozen_frames'];
+            }
+
+            return [SermonVideoQualityStatus::NeedsReview, 'frozen_frames'];
         }
 
         if ($lowDetailRatio >= (float) config('media-processing.video_quality.thresholds.low_detail_ratio_reject', 0.95)) {

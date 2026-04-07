@@ -55,7 +55,16 @@ class SermonExposurePolicy
 
     public function shouldExposeVideoThumbnail(Sermon $sermon): bool
     {
+        return $this->shouldExposeThumbnail($sermon);
+    }
+
+    public function shouldExposeThumbnail(Sermon $sermon): bool
+    {
         if (! $sermon->hasVideo()) {
+            return true;
+        }
+
+        if (! $sermon->hasVideoGeneratedThumbnail()) {
             return true;
         }
 

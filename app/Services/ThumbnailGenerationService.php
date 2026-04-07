@@ -80,7 +80,7 @@ class ThumbnailGenerationService
         private readonly StorageAdapterHelper $storageHelper,
         private readonly ThumbnailForegroundExtractionService $foregroundExtractor,
         private readonly ThumbnailCanvasComposer $canvasComposer,
-        private readonly ?SermonExposurePolicy $exposurePolicy = null,
+        private readonly SermonExposurePolicy $exposurePolicy,
     ) {
         $this->storageDisk = (string) config('thumbnail-generation.storage.disk', 'public');
         $this->storagePath = (string) config('thumbnail-generation.storage.path', 'sermons/thumbnails');
@@ -658,7 +658,11 @@ class ThumbnailGenerationService
 
     private function videoThumbnailAllowed(Sermon $sermon): bool
     {
-        return ($this->exposurePolicy ?? app(SermonExposurePolicy::class))->shouldGenerateVideoThumbnail($sermon);
+        if (! $sermon->hasVideo()) {
+            return true;
+        }
+
+        return $this->exposurePolicy->shouldGenerateVideoThumbnail($sermon);
     }
 
     private function saveTemporaryThumbnail(ImageInterface $image, string $prefix = 'thumbnail'): string
