@@ -32,7 +32,6 @@ Route::view('/', 'full-width-pages.home')->name('Home');
 
 // Special pages route
 Route::view('/christmas', 'full-width-pages.christmas')->name('christmas');
-Route::view('/easter', 'full-width-pages.easter')->name('easter');
 
 // Full width pages
 Route::view('/christ', 'full-width-pages.christ')->name('christ');

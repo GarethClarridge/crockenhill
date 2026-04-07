@@ -58,8 +58,10 @@ class MediaProcessingLogFactory extends Factory
      */
     public function audio(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn () => [
             'processing_type' => MediaType::Audio,
+            'source_file_path' => 'sermons/test/'.uniqid().'.mp3',
+            'audio_file_path' => null,
         ]);
     }
 
@@ -68,8 +70,10 @@ class MediaProcessingLogFactory extends Factory
      */
     public function video(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn () => [
             'processing_type' => MediaType::Video,
+            'source_file_path' => 'videos/test/'.uniqid().'.mp4',
+            'audio_file_path' => 'sermons/test/'.uniqid().'.mp3',
         ]);
     }
 
@@ -78,8 +82,10 @@ class MediaProcessingLogFactory extends Factory
      */
     public function livestream(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn () => [
             'processing_type' => MediaType::Livestream,
+            'source_file_path' => 'livestreams/test/'.uniqid().'.mp4',
+            'audio_file_path' => 'sermons/test/'.uniqid().'.mp3',
         ]);
     }
 

@@ -30,6 +30,31 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
+    public function media_type_factory_states_create_matching_file_paths(): void
+    {
+        $audio = MediaProcessingLog::factory()->audio()->make();
+        $video = MediaProcessingLog::factory()->video()->make();
+        $livestream = MediaProcessingLog::factory()->livestream()->make();
+
+        $this->assertSame(MediaType::Audio, $audio->processing_type);
+        $this->assertStringStartsWith('sermons/test/', (string) $audio->source_file_path);
+        $this->assertStringEndsWith('.mp3', (string) $audio->source_file_path);
+        $this->assertNull($audio->audio_file_path);
+
+        $this->assertSame(MediaType::Video, $video->processing_type);
+        $this->assertStringStartsWith('videos/test/', (string) $video->source_file_path);
+        $this->assertStringEndsWith('.mp4', (string) $video->source_file_path);
+        $this->assertStringStartsWith('sermons/test/', (string) $video->audio_file_path);
+        $this->assertStringEndsWith('.mp3', (string) $video->audio_file_path);
+
+        $this->assertSame(MediaType::Livestream, $livestream->processing_type);
+        $this->assertStringStartsWith('livestreams/test/', (string) $livestream->source_file_path);
+        $this->assertStringEndsWith('.mp4', (string) $livestream->source_file_path);
+        $this->assertStringStartsWith('sermons/test/', (string) $livestream->audio_file_path);
+        $this->assertStringEndsWith('.mp3', (string) $livestream->audio_file_path);
+    }
+
+    #[Test]
     public function it_has_fillable_attributes(): void
     {
         $data = [
