@@ -7,6 +7,7 @@ namespace App\Services;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class TranscriptStorageService
 {
@@ -242,7 +243,7 @@ class TranscriptStorageService
                 $content = $storage->get($path);
 
                 return is_string($content) ? $content : null;
-            } catch (Exception $e) {
+            } catch (Throwable $e) {
                 Log::warning('Failed to read transcript from disk', [
                     'disk' => $disk,
                     'transcript_file_path' => $path,
@@ -265,16 +266,40 @@ class TranscriptStorageService
         $sermonDisk = (string) config('media-processing.storage.sermon_disk', '');
         $defaultDisk = (string) config('filesystems.default', '');
 
-        $diskCandidates = [
+        $configuredDisks = [
             $transcriptDisk,
             $sermonDisk,
             $defaultDisk,
-            'local',
-            'public',
-            'do_spaces',
         ];
 
+        $diskCandidates = [
+            ...$configuredDisks,
+            'local',
+            'public',
+        ];
+
+        if ($this->shouldIncludeSpacesFallback($configuredDisks)) {
+            $diskCandidates[] = 'do_spaces';
+        }
+
         return array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
+    }
+
+    /**
+     * DigitalOcean Spaces is kept as a legacy fallback, but only when it is usable
+     * or explicitly configured. Otherwise a missing bucket crashes S3 disk creation.
+     *
+     * @param  array<int, string>  $configuredDisks
+     */
+    private function shouldIncludeSpacesFallback(array $configuredDisks): bool
+    {
+        if (in_array('do_spaces', $configuredDisks, true)) {
+            return true;
+        }
+
+        $bucket = config('filesystems.disks.do_spaces.bucket');
+
+        return is_string($bucket) && trim($bucket) !== '';
     }
 
     private function transcriptDisk(): string

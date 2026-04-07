@@ -126,10 +126,11 @@ class SermonPagesTest extends TestCase
     #[Test]
     public function sermon_page_handles_missing_transcript_file_without_crashing(): void
     {
-        // Fake all disks that TranscriptStorageService iterates over so no network calls are made
+        config(['filesystems.disks.do_spaces.bucket' => null]);
+
+        // Fake the active local disks, but leave do_spaces unfaked to catch invalid S3 fallback regressions.
         Storage::fake('local');
         Storage::fake('public');
-        Storage::fake('do_spaces');
 
         $sermon = Sermon::factory()->create([
             'slug' => 'missing-transcript-sermon',

@@ -14,7 +14,10 @@ class TranscriptStorageServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['media-processing.storage.transcript_disk' => 'local']);
+        config([
+            'filesystems.disks.do_spaces.bucket' => null,
+            'media-processing.storage.transcript_disk' => 'local',
+        ]);
         Storage::fake();
         $this->service = new TranscriptStorageService;
     }
@@ -167,6 +170,21 @@ class TranscriptStorageServiceTest extends TestCase
 
         $disks = $this->service->getTranscriptReadDisks();
 
+        $this->assertSame(['local', 'public'], $disks);
+    }
+
+    #[Test]
+    public function it_includes_spaces_fallback_when_bucket_is_configured(): void
+    {
+        config([
+            'filesystems.disks.do_spaces.bucket' => 'configured-bucket',
+            'media-processing.storage.transcript_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'local',
+            'filesystems.default' => 'local',
+        ]);
+
+        $disks = $this->service->getTranscriptReadDisks();
+
         $this->assertSame(['local', 'public', 'do_spaces'], $disks);
     }
 
@@ -215,6 +233,23 @@ class TranscriptStorageServiceTest extends TestCase
         Storage::fake('local');
         Storage::fake('public');
         Storage::fake('do_spaces');
+
+        $result = $this->service->readTranscriptFromPath('transcripts/missing.md');
+
+        $this->assertNull($result);
+    }
+
+    #[Test]
+    public function it_skips_unconfigured_spaces_fallback_when_transcript_is_missing(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        config([
+            'filesystems.disks.do_spaces.bucket' => null,
+            'media-processing.storage.transcript_disk' => 'public',
+            'media-processing.storage.sermon_disk' => 'public',
+            'filesystems.default' => 'local',
+        ]);
 
         $result = $this->service->readTranscriptFromPath('transcripts/missing.md');
 
