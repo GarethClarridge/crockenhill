@@ -12,7 +12,7 @@
 
     <x-card heading="Event details">
         <div class="space-y-4">
-            <x-input label="Title" wire:model="title" required />
+            <x-input label="Title" wire:model="title" required autofocus />
 
             <x-textarea label="Description" wire:model="description" rows="4" />
 

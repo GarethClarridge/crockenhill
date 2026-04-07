@@ -52,7 +52,7 @@
     {{-- Main content (default slot = lg:col-span-2) --}}
             <x-card heading="{{ $contentTypeLabel }} details">
                 <div class="space-y-4">
-                    <x-input label="Title" wire:model.live.debounce="title" required maxlength="255" />
+                    <x-input label="Title" wire:model.live.debounce="title" required maxlength="255" autofocus />
 
                     <x-input label="Slug" wire:model="slug" required maxlength="255"
                         hint="URL-friendly identifier (auto-generated from title)" />

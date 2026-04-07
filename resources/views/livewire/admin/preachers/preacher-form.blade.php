@@ -10,7 +10,7 @@
 
     <x-card heading="Preacher details">
         <div class="space-y-4">
-            <x-input label="Name" wire:model.live.debounce="name" required maxlength="255" />
+            <x-input label="Name" wire:model.live.debounce="name" required maxlength="255" autofocus />
 
             <x-input label="Slug" wire:model="slug" required maxlength="255"
                 hint="URL-friendly identifier (auto-generated from name)" />
