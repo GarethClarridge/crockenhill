@@ -1,4 +1,4 @@
-@props(['label' => null, 'hint' => null, 'required' => false, 'icon' => null, 'clearable' => false, 'maxlength' => null, 'shortcut' => null])
+@props(['label' => null, 'hint' => null, 'required' => false, 'icon' => null, 'clearable' => false, 'maxlength' => null, 'shortcut' => null, 'autofocus' => false])
 
 @php
 $modelName = $attributes->wire('model')->value();
@@ -16,7 +16,7 @@ $describedBy = implode(' ', $describedBy);
 @endphp
 
 <div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }}, focused: false }"
-     x-init="count = $refs.input.value.length"
+     x-init="count = $refs.input.value.length; @if($autofocus) $nextTick(() => $refs.input.focus()) @endif"
      @if($shortcut === 'slash') @keydown.window.slash="if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) && !document.activeElement.isContentEditable) { $event.preventDefault(); $refs.input.focus(); }" @endif>
     @if($label)
         <label @if($id) for="{{ $id }}" @endif class="block text-sm font-medium text-gray-700 mb-1">
