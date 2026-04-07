@@ -55,6 +55,28 @@ class SermonViewPresenter
     }
 
     /**
+     * Present a lightweight subset of sermon view data for use in API resources.
+     *
+     * Performance Optimization: Only returns fields required by the public API,
+     * avoiding expensive operations like reading full transcripts from cache or storage
+     * and generating non-API URLs (like canonical or video URLs).
+     *
+     * @return array{
+     *     audio_url: ?string,
+     *     preacher_url: ?string,
+     *     thumbnail_url: ?string
+     * }
+     */
+    public function presentForApi(Sermon $sermon): array
+    {
+        return [
+            'audio_url' => $this->audioUrl($sermon),
+            'preacher_url' => $this->preacherUrl($sermon),
+            'thumbnail_url' => $this->thumbnailUrl($sermon),
+        ];
+    }
+
+    /**
      * @return array{
      *     audio_url: ?string,
      *     canonical_url: string,

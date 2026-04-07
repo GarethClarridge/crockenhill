@@ -53,6 +53,16 @@ class ListPages extends Component
         $this->authorizeAdmin();
     }
 
+    public function updatedAreaFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedNavigationFilter(): void
+    {
+        $this->resetPage();
+    }
+
     /**
      * @return array<string, mixed>
      */
