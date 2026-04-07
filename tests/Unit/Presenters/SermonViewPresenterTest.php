@@ -76,6 +76,24 @@ class SermonViewPresenterTest extends TestCase
     }
 
     #[Test]
+    public function it_exposes_plain_thumbnail_url_separately_from_card_thumbnail_url(): void
+    {
+        Storage::disk('public')->put('thumbnails/plain.jpg', 'plain');
+        Storage::disk('public')->put('thumbnails/card.jpg', 'card');
+
+        $sermon = Sermon::factory()->create([
+            'thumbnail_file_path' => 'thumbnails/overlay.jpg',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/plain.jpg',
+                'card_thumbnail_path' => 'thumbnails/card.jpg',
+            ],
+        ]);
+
+        $this->assertStringContainsString('/storage/thumbnails/plain.jpg', $this->presenter->plainThumbnailUrl($sermon) ?? '');
+        $this->assertStringContainsString('/storage/thumbnails/card.jpg', $this->presenter->cardThumbnailUrl($sermon) ?? '');
+    }
+
+    #[Test]
     public function it_returns_null_optional_media_and_fallback_preacher_url_when_missing(): void
     {
         $sermon = Sermon::factory()->create([

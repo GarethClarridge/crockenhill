@@ -150,6 +150,21 @@ class SermonStorageService
         );
     }
 
+    public function getPlainThumbnailUrl(Sermon $sermon): ?string
+    {
+        $plainThumbnailPath = $sermon->plain_thumbnail_file_path;
+
+        if (! is_string($plainThumbnailPath) || $plainThumbnailPath === '') {
+            return null;
+        }
+
+        return $this->resolvePublicUrl(
+            $this->resolveThumbnailDisk($plainThumbnailPath),
+            $plainThumbnailPath,
+            $this->thumbnailVersion($sermon, $plainThumbnailPath),
+        );
+    }
+
     public function getThumbnailCandidatePath(Sermon $sermon, string $candidateId, string $variant): ?string
     {
         $candidate = $sermon->findThumbnailCandidate($candidateId);

@@ -26,19 +26,19 @@ class ThumbnailCanvasComposer
 
     private const int REF_EDGE_INSET = 75;
 
-    private const int REF_LOGO_WIDTH = 250;
+    private const int REF_LOGO_WIDTH = 125;
 
     private const int REF_TITLE_FONT_SIZE = 96;
 
     private const int REF_CARD_TITLE_FONT_SIZE = 84;
 
-    private const int REF_METADATA_FONT_SIZE = 72;
+    private const int REF_METADATA_FONT_SIZE = 48;
 
     private const int REF_TITLE_MIN_FONT_SIZE = 58;
 
     private const int REF_CARD_TITLE_MIN_FONT_SIZE = 48;
 
-    private const int REF_METADATA_MIN_FONT_SIZE = 42;
+    private const int REF_METADATA_MIN_FONT_SIZE = 28;
 
     private const int REF_ACCENT_WIDTH = 12;
 
@@ -100,12 +100,20 @@ class ThumbnailCanvasComposer
             (int) round(($height / 2) - ($titleLayout['height'] / 2)),
         );
 
+        $titleTextY = $this->centerVisibleTextY(
+            $titleLayout['lines'],
+            $titleTopY,
+            $titleLayout['height'],
+            $titleLayout['font_size'],
+            self::TITLE_LINE_HEIGHT,
+        );
+
         $this->drawAccentLine($canvas, $inset, $titleTopY, $accentWidth, $titleLayout['height']);
         $this->drawTextLines(
             $canvas,
             $titleLayout['lines'],
             $titleStartX,
-            $titleTopY,
+            $titleTextY,
             $titleLayout['font_size'],
             $this->foregroundColor(),
             self::TITLE_LINE_HEIGHT,
@@ -425,6 +433,53 @@ class ThumbnailCanvasComposer
             'text' => $this->ellipsizeText($normalizedText, $maxWidth, $minimumFontSize),
             'font_size' => $minimumFontSize,
         ];
+    }
+
+    /**
+     * @param  list<string>  $lines
+     */
+    private function centerVisibleTextY(
+        array $lines,
+        int $layoutTopY,
+        int $layoutHeight,
+        int $fontSize,
+        float $lineHeightMultiplier
+    ): int {
+        $visibleHeight = $this->visibleTextBlockHeight($lines, $fontSize, $lineHeightMultiplier);
+
+        if ($visibleHeight <= 0 || $visibleHeight >= $layoutHeight) {
+            return $layoutTopY + $this->fontVisualTopOffset($fontSize);
+        }
+
+        return $layoutTopY + max(
+            (int) round(($layoutHeight - $visibleHeight) / 2),
+            $this->fontVisualTopOffset($fontSize),
+        );
+    }
+
+    private function fontVisualTopOffset(int $fontSize): int
+    {
+        return max(1, (int) round($fontSize * 0.125));
+    }
+
+    /**
+     * @param  list<string>  $lines
+     */
+    private function visibleTextBlockHeight(array $lines, int $fontSize, float $lineHeightMultiplier): int
+    {
+        if ($lines === []) {
+            return 0;
+        }
+
+        $fontPath = $this->getOswaldFontPath();
+        $maxLineHeight = 0;
+
+        foreach ($lines as $line) {
+            $bounds = $this->textHelper->calculateTextBounds($line, $fontSize, $fontPath);
+            $maxLineHeight = max($maxLineHeight, (int) round($bounds['height']));
+        }
+
+        return (int) round(($fontSize * $lineHeightMultiplier * max(0, count($lines) - 1)) + $maxLineHeight);
     }
 
     /**

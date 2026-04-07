@@ -58,6 +58,24 @@ class ThumbnailForegroundExtractionServiceTest extends TestCase
         $this->assertNull($result);
     }
 
+    #[Test]
+    public function it_rejects_sparse_cutouts_that_leave_large_holes_inside_the_subject_bounds(): void
+    {
+        $mockClient = $this->createMock(PoofClient::class);
+        $mockClient->expects($this->once())
+            ->method('removeBackground')
+            ->willReturn([
+                'contents' => $this->makeSparseForegroundPng(),
+                'request_id' => 'req_sparse_cutout',
+            ]);
+
+        app()->instance(PoofClient::class, $mockClient);
+
+        $result = $this->service->extract($this->makeSolidImage(400, 300, 44, 61, 118));
+
+        $this->assertNull($result);
+    }
+
     private function makeSolidImage(int $width, int $height, int $red, int $green, int $blue): ImageInterface
     {
         $image = imagecreatetruecolor($width, $height);
@@ -89,6 +107,31 @@ class ThumbnailForegroundExtractionServiceTest extends TestCase
 
         if (! is_string($contents)) {
             $this->fail('Failed to create Poof foreground image.');
+        }
+
+        return $contents;
+    }
+
+    private function makeSparseForegroundPng(): string
+    {
+        $image = imagecreatetruecolor(400, 300);
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+
+        $transparent = imagecolorallocatealpha($image, 0, 0, 0, 127);
+        imagefill($image, 0, 0, $transparent);
+
+        $subject = imagecolorallocatealpha($image, 20, 220, 40, 0);
+        imagefilledrectangle($image, 140, 70, 150, 270, $subject);
+        imagefilledrectangle($image, 250, 70, 260, 270, $subject);
+
+        ob_start();
+        imagepng($image);
+        $contents = ob_get_clean();
+        imagedestroy($image);
+
+        if (! is_string($contents)) {
+            $this->fail('Failed to create sparse Poof foreground image.');
         }
 
         return $contents;

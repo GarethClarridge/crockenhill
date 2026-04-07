@@ -3,8 +3,9 @@
 ])
 
 @php
+    $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
     $sermonUrl = "/christ/sermons/{$sermon->date->format('Y')}/{$sermon->date->format('m')}/{$sermon->slug}";
-    $cardThumbnailUrl = app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon);
+    $cardThumbnailUrl = $sermonViewPresenter->plainThumbnailUrl($sermon);
     $preacherName = $sermon->displayPreacherName();
     $reference = $sermon->displayReference();
     $preacherUrl = filled($sermon->preacherProfile?->slug ?? null)

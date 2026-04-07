@@ -12,6 +12,8 @@ class ThumbnailForegroundExtractionService
 {
     private const string METHOD_POOF_API = 'poof_api';
 
+    private const float MIN_FOREGROUND_DENSITY = 0.28;
+
     /**
      * @return array{
      *     image: ImageInterface,
@@ -41,15 +43,23 @@ class ThumbnailForegroundExtractionService
                 return null;
             }
 
+            $bounds = $this->boundsFromMetrics($metrics);
+            $density = $metrics['pixels'] / max(1, $bounds['width'] * $bounds['height']);
+
+            if ($density < self::MIN_FOREGROUND_DENSITY) {
+                Log::warning('Poof foreground extraction rejected sparse cutout', [
+                    'density' => round($density, 4),
+                    'minimum_density' => self::MIN_FOREGROUND_DENSITY,
+                    'bounds' => $bounds,
+                ]);
+
+                return null;
+            }
+
             return [
                 'image' => $foreground,
                 'coverage' => $metrics['pixels'] / max(1, $foreground->width() * $foreground->height()),
-                'bounds' => [
-                    'x' => $metrics['min_x'],
-                    'y' => $metrics['min_y'],
-                    'width' => ($metrics['max_x'] - $metrics['min_x']) + 1,
-                    'height' => ($metrics['max_y'] - $metrics['min_y']) + 1,
-                ],
+                'bounds' => $bounds,
                 'method' => self::METHOD_POOF_API,
             ];
         } catch (\Throwable $e) {
@@ -71,6 +81,20 @@ class ThumbnailForegroundExtractionService
         $image->toPng()->save($path);
 
         return $path;
+    }
+
+    /**
+     * @param  array{min_x:int,max_x:int,min_y:int,max_y:int,pixels:int}  $metrics
+     * @return array{x:int,y:int,width:int,height:int}
+     */
+    private function boundsFromMetrics(array $metrics): array
+    {
+        return [
+            'x' => $metrics['min_x'],
+            'y' => $metrics['min_y'],
+            'width' => ($metrics['max_x'] - $metrics['min_x']) + 1,
+            'height' => ($metrics['max_y'] - $metrics['min_y']) + 1,
+        ];
     }
 
     /**

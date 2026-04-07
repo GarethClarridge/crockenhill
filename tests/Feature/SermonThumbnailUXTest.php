@@ -27,16 +27,19 @@ class SermonThumbnailUXTest extends TestCase
             'thumbnail_file_path' => 'thumbnails/test-overlay.jpg',
             'thumbnail_metadata' => [
                 'plain_thumbnail_path' => 'thumbnails/test-plain.jpg',
+                'card_thumbnail_path' => 'thumbnails/test-card.jpg',
             ],
             'date' => '2026-02-19',
         ]);
 
-        // Mock plain thumbnail file required by hasPlainThumbnail()/card route.
+        // Listing cards should use the bare frame, not the generated card/person variant.
         Storage::disk('public')->put('thumbnails/test-plain.jpg', 'fake content');
+        Storage::disk('public')->put('thumbnails/test-card.jpg', 'fake content');
 
         $response = $this->get('/christ/sermons/all');
         $response->assertStatus(200);
-        $response->assertSee(app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon), false);
+        $response->assertSee(app(\App\Presenters\SermonViewPresenter::class)->plainThumbnailUrl($sermon), false);
+        $response->assertDontSee(app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon), false);
         $response->assertSee('?v=', false);
         $response->assertSee('alt="Sermon: Sermon with Thumbnail"', false);
     }

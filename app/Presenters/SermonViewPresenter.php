@@ -45,6 +45,19 @@ class SermonViewPresenter
         return $this->storageService->getCardThumbnailUrl($sermon);
     }
 
+    public function plainThumbnailUrl(Sermon $sermon): ?string
+    {
+        if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
+            return null;
+        }
+
+        if (! $sermon->hasPlainThumbnail()) {
+            return null;
+        }
+
+        return $this->storageService->getPlainThumbnailUrl($sermon);
+    }
+
     public function preacherUrl(Sermon $sermon): ?string
     {
         if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
