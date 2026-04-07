@@ -14,6 +14,36 @@ use Owenoj\LaravelGetId3\GetId3;
 
 class MetadataExtractionService
 {
+    /**
+     * @var array<string, int>
+     */
+    private const MONTH_NAME_NUMBERS = [
+        'jan' => 1,
+        'january' => 1,
+        'feb' => 2,
+        'february' => 2,
+        'mar' => 3,
+        'march' => 3,
+        'apr' => 4,
+        'april' => 4,
+        'may' => 5,
+        'jun' => 6,
+        'june' => 6,
+        'jul' => 7,
+        'july' => 7,
+        'aug' => 8,
+        'august' => 8,
+        'sep' => 9,
+        'sept' => 9,
+        'september' => 9,
+        'oct' => 10,
+        'october' => 10,
+        'nov' => 11,
+        'november' => 11,
+        'dec' => 12,
+        'december' => 12,
+    ];
+
     public function extractFromUploadedFile(UploadedFile $file): SermonMetadata
     {
         $originalName = $file->getClientOriginalName();
@@ -79,6 +109,14 @@ class MetadataExtractionService
             }
         }
 
+        // Named month format: 5th April 2026, 5 April 2026, April 5 2026
+        if (! $foundDatePattern) {
+            $namedMonthDate = $this->tryExtractNamedMonthDate($nameWithoutExtension);
+            if ($namedMonthDate !== null) {
+                return $namedMonthDate;
+            }
+        }
+
         // If we found a date pattern but it was invalid, don't try year extraction
         if ($foundDatePattern) {
             return Carbon::today();
@@ -136,6 +174,38 @@ class MetadataExtractionService
             $year = (int) $matches[1];
             $month = (int) $matches[2];
             $day = (int) $matches[3];
+
+            if ($this->isValidDate($year, $month, $day)) {
+                return Carbon::createFromDate($year, $month, $day);
+            }
+
+            return null;
+        }
+
+        // Named month format: 5th April 2026, 5 April 2026, April 5 2026
+        return $this->tryExtractNamedMonthDate($nameWithoutExtension);
+    }
+
+    private function tryExtractNamedMonthDate(string $nameWithoutExtension): ?Carbon
+    {
+        $monthNames = implode('|', array_keys(self::MONTH_NAME_NUMBERS));
+
+        if (preg_match('/\b(\d{1,2})(?:st|nd|rd|th)?[\s_\-]+('.$monthNames.')[\s_\-,]+(\d{4})\b/i', $nameWithoutExtension, $matches)) {
+            $day = (int) $matches[1];
+            $month = self::MONTH_NAME_NUMBERS[strtolower($matches[2])];
+            $year = (int) $matches[3];
+
+            if ($this->isValidDate($year, $month, $day)) {
+                return Carbon::createFromDate($year, $month, $day);
+            }
+
+            return null;
+        }
+
+        if (preg_match('/\b('.$monthNames.')[\s_\-]+(\d{1,2})(?:st|nd|rd|th)?(?:,)?[\s_\-,]+(\d{4})\b/i', $nameWithoutExtension, $matches)) {
+            $month = self::MONTH_NAME_NUMBERS[strtolower($matches[1])];
+            $day = (int) $matches[2];
+            $year = (int) $matches[3];
 
             if ($this->isValidDate($year, $month, $day)) {
                 return Carbon::createFromDate($year, $month, $day);
@@ -510,56 +580,39 @@ class MetadataExtractionService
     }
 
     /**
-     * Extract date from video file metadata (creation date) with fallback to filename
+     * Extract date from video file metadata (creation date) with fallbacks.
      *
      * Cascading date extraction strategy:
-     * 1. Client-provided file date (from browser's File.lastModified API)
-     * 2. Video metadata creation_time tag (from FFprobe)
-     * 3. File timestamp (for non-HTTP uploads)
-     * 4. Filename parsing
+     * 1. Video metadata creation_time tag (from FFprobe)
+     * 2. Filename parsing
+     * 3. Client-provided file date (from browser's File.lastModified API)
+     * 4. File timestamp (for non-HTTP uploads)
      * 5. Today's date (final fallback)
      *
      * @param  UploadedFile|string  $file  UploadedFile or absolute file path
-     * @param  string|null  $clientProvidedDate  Date provided from client-side JavaScript (YYYY-MM-DD format)
+     * @param  string|null  $clientProvidedDate  Date provided from client-side JavaScript (YYYY-MM-DD format, File.lastModified)
      * @return Carbon The extracted date
      */
     public function extractDateFromVideo(UploadedFile|string $file, ?string $clientProvidedDate = null): Carbon
     {
+        $filename = $file instanceof UploadedFile ? $file->getClientOriginalName() : basename($file);
+        $clientDate = $this->parseClientProvidedDate($clientProvidedDate, $filename);
+
         try {
             // Get file path - handle both UploadedFile and string path
             $filePath = $file instanceof UploadedFile ? $file->getRealPath() : $file;
-            $filename = $file instanceof UploadedFile ? $file->getClientOriginalName() : basename($file);
-
-            // Strategy 1: Use client-provided file date (from JavaScript extraction of File.lastModified)
-            if ($clientProvidedDate) {
-                try {
-                    $parsedDate = Carbon::parse($clientProvidedDate);
-
-                    Log::info('Using client-provided file modification date', [
-                        'filename' => $filename,
-                        'client_date' => $clientProvidedDate,
-                        'parsed_date' => $parsedDate->toDateString(),
-                    ]);
-
-                    return $parsedDate;
-                } catch (\Exception $e) {
-                    Log::warning('Failed to parse client-provided date, falling back', [
-                        'client_date' => $clientProvidedDate,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
+            $filenameDate = $this->tryExtractDateFromFilename($filename);
 
             if (! $filePath || ! file_exists($filePath)) {
-                Log::warning('Video file not found for date extraction, using filename', [
+                Log::warning('Video file not found for date extraction, using available fallbacks', [
                     'file_path' => $filePath,
                     'filename' => $filename,
                 ]);
 
-                return $this->extractDateFromFilename($filename);
+                return $filenameDate ?? $clientDate ?? $this->extractDateFromFilename($filename);
             }
 
-            // Strategy 2: Try to extract creation date from video metadata using FFprobe
+            // Strategy 1: Try to extract creation date from video metadata using FFprobe.
             $ffprobe = \FFMpeg\FFProbe::create([
                 'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
                 'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
@@ -573,7 +626,6 @@ class MetadataExtractionService
             if ($tags && isset($tags['creation_time'])) {
                 $creationTime = $tags['creation_time'];
                 $metadataDate = Carbon::parse($creationTime);
-                $filenameDate = $this->tryExtractDateFromFilename($filename);
 
                 // If the filename encodes a real date that is older than the metadata date,
                 // the metadata is likely a download/re-encode timestamp — prefer the filename.
@@ -595,7 +647,28 @@ class MetadataExtractionService
                 return $metadataDate;
             }
 
-            // Strategy 2: For UploadedFile, check the original file's modification time
+            // Strategy 2: Use a real date from the filename before trusting browser lastModified.
+            if ($filenameDate !== null) {
+                Log::info('Using filename date for video date extraction', [
+                    'filename' => $filename,
+                    'filename_date' => $filenameDate->toDateString(),
+                ]);
+
+                return $filenameDate;
+            }
+
+            // Strategy 3: Use client-provided file date (from JavaScript extraction of File.lastModified).
+            if ($clientDate !== null) {
+                Log::info('Using client-provided file modification date', [
+                    'filename' => $filename,
+                    'client_date' => $clientProvidedDate,
+                    'parsed_date' => $clientDate->toDateString(),
+                ]);
+
+                return $clientDate;
+            }
+
+            // Strategy 4: For UploadedFile, check the original file's modification time
             // This preserves the date from the user's filesystem before Laravel stores it
             if ($file instanceof UploadedFile) {
                 $originalMtime = filemtime($filePath);
@@ -630,9 +703,26 @@ class MetadataExtractionService
         }
 
         // Fallback to filename extraction
-        $filename = $file instanceof UploadedFile ? $file->getClientOriginalName() : basename($file);
+        return $this->tryExtractDateFromFilename($filename) ?? $clientDate ?? $this->extractDateFromFilename($filename);
+    }
 
-        return $this->extractDateFromFilename($filename);
+    private function parseClientProvidedDate(?string $clientProvidedDate, string $filename): ?Carbon
+    {
+        if ($clientProvidedDate === null || $clientProvidedDate === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($clientProvidedDate);
+        } catch (\Exception $e) {
+            Log::warning('Failed to parse client-provided date, falling back', [
+                'filename' => $filename,
+                'client_date' => $clientProvidedDate,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**

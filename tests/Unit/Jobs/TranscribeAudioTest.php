@@ -8,6 +8,7 @@ use App\Exceptions\TranscriptionException;
 use App\Jobs\TranscribeAudio;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Log;
@@ -60,6 +61,60 @@ class TranscribeAudioTest extends TestCase
 
         $sermon->refresh();
         $this->assertEquals('transcripts/'.$sermon->id.'/transcript.txt', $sermon->transcript_file_path);
+    }
+
+    #[Test]
+    public function it_does_not_cleanup_transcript_after_it_has_been_attached_to_the_sermon(): void
+    {
+        $sermon = Sermon::factory()->create();
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'source_file_path' => 'sermons/audio/test.mp3',
+            'sermon_id' => $sermon->id,
+            'processing_id' => 'test-proc-post-transcript-failure',
+        ]);
+        $transcriptPath = 'transcripts/'.$sermon->id.'/transcript.txt';
+
+        $this->app->instance(
+            MediaProcessingRunTransitionService::class,
+            new class extends MediaProcessingRunTransitionService
+            {
+                public function updateStep(MediaProcessingLog $processingLog, string $step): bool
+                {
+                    if ($step === 'transcription_completed') {
+                        throw new \RuntimeException('Step update failed after transcript storage');
+                    }
+
+                    return parent::updateStep($processingLog, $step);
+                }
+            }
+        );
+
+        $mockService = $this->createMock(TranscriptionServiceInterface::class);
+        $mockService->expects($this->once())
+            ->method('transcribe')
+            ->with('sermons/audio/test.mp3', 'test-proc-post-transcript-failure')
+            ->willReturn('This is the sermon transcript content.');
+        $mockService->expects($this->once())
+            ->method('storeTranscript')
+            ->with($sermon->id, 'This is the sermon transcript content.')
+            ->willReturn($transcriptPath);
+        $mockService->expects($this->never())
+            ->method('cleanupOnFailure');
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->atLeast()->once();
+
+        $job = new TranscribeAudio($log);
+
+        try {
+            $job->handle($mockService);
+            $this->fail('The post-transcript step update exception was not rethrown.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Step update failed after transcript storage', $e->getMessage());
+        }
+
+        $sermon->refresh();
+        $this->assertSame($transcriptPath, $sermon->transcript_file_path);
     }
 
     #[Test]

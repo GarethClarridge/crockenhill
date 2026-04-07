@@ -7,6 +7,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
 use App\Services\MediaProcessingRunTransitionService;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 abstract class ProcessingJob
 {
@@ -41,19 +42,20 @@ abstract class ProcessingJob
             return;
         }
 
-        SermonProcessingStep::updateOrCreate(
-            [
-                'processing_id' => $this->processingId,
-                'step' => $step,
-            ],
-            [
-                'status' => ProcessingStatus::Started->value,
-                'message' => $message,
-                'started_at' => now(),
-                'completed_at' => null,
-            ]
-        );
-
+        $this->writeProcessingStep('started', $step, function () use ($message, $step): void {
+            SermonProcessingStep::updateOrCreate(
+                [
+                    'processing_id' => $this->processingId,
+                    'step' => $step,
+                ],
+                [
+                    'status' => ProcessingStatus::Started->value,
+                    'message' => $message,
+                    'started_at' => now(),
+                    'completed_at' => null,
+                ]
+            );
+        });
     }
 
     /**
@@ -70,18 +72,19 @@ abstract class ProcessingJob
             return;
         }
 
-        $stepLog = SermonProcessingStep::firstOrNew([
-            'processing_id' => $this->processingId,
-            'step' => $step,
-        ]);
+        $this->writeProcessingStep('completed', $step, function () use ($message, $step): void {
+            $stepLog = SermonProcessingStep::firstOrNew([
+                'processing_id' => $this->processingId,
+                'step' => $step,
+            ]);
 
-        $stepLog->fill([
-            'status' => ProcessingStatus::Completed->value,
-            'message' => $message,
-            'started_at' => $stepLog->started_at ?? now(),
-            'completed_at' => now(),
-        ])->save();
-
+            $stepLog->fill([
+                'status' => ProcessingStatus::Completed->value,
+                'message' => $message,
+                'started_at' => $stepLog->started_at ?? now(),
+                'completed_at' => now(),
+            ])->save();
+        });
     }
 
     /**
@@ -99,18 +102,19 @@ abstract class ProcessingJob
             return;
         }
 
-        $stepLog = SermonProcessingStep::firstOrNew([
-            'processing_id' => $this->processingId,
-            'step' => $step,
-        ]);
+        $this->writeProcessingStep('failed', $step, function () use ($error, $step): void {
+            $stepLog = SermonProcessingStep::firstOrNew([
+                'processing_id' => $this->processingId,
+                'step' => $step,
+            ]);
 
-        $stepLog->fill([
-            'status' => ProcessingStatus::Failed->value,
-            'message' => $error,
-            'started_at' => $stepLog->started_at ?? now(),
-            'completed_at' => now(),
-        ])->save();
-
+            $stepLog->fill([
+                'status' => ProcessingStatus::Failed->value,
+                'message' => $error,
+                'started_at' => $stepLog->started_at ?? now(),
+                'completed_at' => now(),
+            ])->save();
+        });
     }
 
     /**
@@ -127,18 +131,37 @@ abstract class ProcessingJob
             return;
         }
 
-        $stepLog = SermonProcessingStep::firstOrNew([
-            'processing_id' => $this->processingId,
-            'step' => $step,
-        ]);
+        $this->writeProcessingStep('skipped', $step, function () use ($message, $step): void {
+            $stepLog = SermonProcessingStep::firstOrNew([
+                'processing_id' => $this->processingId,
+                'step' => $step,
+            ]);
 
-        $stepLog->fill([
-            'status' => ProcessingStatus::Skipped->value,
-            'message' => $message,
-            'started_at' => $stepLog->started_at ?? now(),
-            'completed_at' => now(),
-        ])->save();
+            $stepLog->fill([
+                'status' => ProcessingStatus::Skipped->value,
+                'message' => $message,
+                'started_at' => $stepLog->started_at ?? now(),
+                'completed_at' => now(),
+            ])->save();
+        });
+    }
 
+    /**
+     * @param  callable(): void  $write
+     */
+    private function writeProcessingStep(string $status, string $step, callable $write): void
+    {
+        try {
+            $write();
+        } catch (Throwable $e) {
+            Log::warning('Failed to write sermon processing step; continuing job', [
+                'processing_id' => $this->processingId,
+                'step' => $step,
+                'status' => $status,
+                'job_class' => get_class($this),
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

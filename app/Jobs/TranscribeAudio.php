@@ -40,6 +40,8 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
      */
     public function handle(TranscriptionServiceInterface $transcriptionService): void
     {
+        $transcriptAttachedToSermon = false;
+
         try {
             Log::info('Starting audio transcription', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -98,6 +100,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             }
 
             $sermon->update(['transcript_file_path' => $transcriptPath]);
+            $transcriptAttachedToSermon = true;
 
             // Update processing log and mark step as complete
             $this->updateProcessingRunStep($this->processingLog, 'transcription_completed');
@@ -120,9 +123,10 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             $this->logStepFailed('transcribing', $e->getMessage());
 
             // Clean up partial transcript files; swallow errors so the status write above is preserved.
-            if ($this->processingLog->sermon_id) {
+            $sermonIdForCleanup = $this->sermonIdForTranscriptCleanup($transcriptAttachedToSermon);
+            if ($sermonIdForCleanup !== null) {
                 try {
-                    $transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
+                    $transcriptionService->cleanupOnFailure($sermonIdForCleanup);
                 } catch (\Exception $cleanupException) {
                     Log::warning('Failed to clean up after non-retryable transcription error', [
                         'processing_id' => $this->processingLog->processing_id,
@@ -142,8 +146,9 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             ]);
 
             // Clean up any partial transcript files
-            if ($this->processingLog->sermon_id) {
-                $transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
+            $sermonIdForCleanup = $this->sermonIdForTranscriptCleanup($transcriptAttachedToSermon);
+            if ($sermonIdForCleanup !== null) {
+                $transcriptionService->cleanupOnFailure($sermonIdForCleanup);
             }
 
             // Update processing log with error and log step failure
@@ -168,8 +173,9 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
 
         // Clean up any partial files
         try {
-            if ($this->processingLog->sermon_id) {
-                app(TranscriptionServiceInterface::class)->cleanupOnFailure($this->processingLog->sermon_id);
+            $sermonIdForCleanup = $this->sermonIdForTranscriptCleanup();
+            if ($sermonIdForCleanup !== null) {
+                app(TranscriptionServiceInterface::class)->cleanupOnFailure($sermonIdForCleanup);
             }
         } catch (\Exception $e) {
             Log::warning('Failed to cleanup after transcription failure', [
@@ -205,6 +211,27 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
         }
 
         return $path;
+    }
+
+    private function sermonIdForTranscriptCleanup(bool $transcriptAttachedToSermon = false): ?int
+    {
+        if ($this->processingLog->sermon_id === null) {
+            return null;
+        }
+
+        if ($transcriptAttachedToSermon) {
+            return null;
+        }
+
+        $existingTranscriptPath = Sermon::query()
+            ->whereKey($this->processingLog->sermon_id)
+            ->value('transcript_file_path');
+
+        if (! empty($existingTranscriptPath)) {
+            return null;
+        }
+
+        return $this->processingLog->sermon_id;
     }
 
     /**

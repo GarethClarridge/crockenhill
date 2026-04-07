@@ -73,6 +73,22 @@ class MetadataExtractionServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_extracts_named_month_date_format_from_filename(): void
+    {
+        $testCases = [
+            'Easter Sunday 5th April 2026.mp4' => '2026-04-05',
+            '5 April 2026 morning service.mp4' => '2026-04-05',
+            'April 5 2026 evening service.mp4' => '2026-04-05',
+            'Dec 25th 2024 Christmas.mp4' => '2024-12-25',
+        ];
+
+        foreach ($testCases as $filename => $expectedDate) {
+            $result = $this->service->extractDateFromFilename($filename);
+            $this->assertEquals($expectedDate, $result->format('Y-m-d'), "Failed for filename: {$filename}");
+        }
+    }
+
+    #[Test]
     public function it_extracts_year_only_when_no_full_date_found(): void
     {
         $testCases = [
@@ -102,6 +118,48 @@ class MetadataExtractionServiceTest extends TestCase
             $result = $this->service->extractDateFromFilename($filename);
             $this->assertEquals($today->format('Y-m-d'), $result->format('Y-m-d'), "Failed for filename: {$filename}");
         }
+    }
+
+    #[Test]
+    public function it_prefers_filename_date_over_client_modified_date_for_video_uploads(): void
+    {
+        $result = $this->service->extractDateFromVideo(
+            '/missing/Easter Sunday 5th April 2026.mp4',
+            '2026-04-06'
+        );
+
+        $this->assertSame('2026-04-05', $result->toDateString());
+    }
+
+    #[Test]
+    public function it_uses_client_modified_date_for_video_uploads_when_filename_has_no_date(): void
+    {
+        $result = $this->service->extractDateFromVideo(
+            '/missing/easter-sunday-service.mp4',
+            '2026-04-06'
+        );
+
+        $this->assertSame('2026-04-06', $result->toDateString());
+    }
+
+    #[Test]
+    public function it_uses_client_modified_date_when_video_metadata_cannot_be_read_and_filename_has_no_date(): void
+    {
+        $tempPath = tempnam(sys_get_temp_dir(), 'video-date-');
+        $this->assertIsString($tempPath);
+
+        $videoPath = $tempPath.'.mp4';
+        $this->assertTrue(rename($tempPath, $videoPath));
+        file_put_contents($videoPath, 'not a real video file');
+
+        try {
+            $result = $this->service->extractDateFromVideo($videoPath, '2026-04-06');
+        } finally {
+            @unlink($videoPath);
+            @unlink($tempPath);
+        }
+
+        $this->assertSame('2026-04-06', $result->toDateString());
     }
 
     #[Test]
