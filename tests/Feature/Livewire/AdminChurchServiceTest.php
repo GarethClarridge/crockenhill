@@ -11,6 +11,7 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Events\ChurchServiceCanonicalListChanged;
 use App\Jobs\AlignWithOos;
+use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
 use App\Jobs\EnhanceAudio;
@@ -728,6 +729,7 @@ class AdminChurchServiceTest extends TestCase
             IdentifySpeaker::class,
             TranscribeAudio::class,
             ProcessTranscriptWithAI::class,
+            AssessSermonVideoQuality::class,
             GenerateThumbnail::class,
             PrepareSectionPublicationCandidates::class,
         ]);
@@ -801,6 +803,7 @@ class AdminChurchServiceTest extends TestCase
             IdentifySpeaker::class,
             TranscribeAudio::class,
             ProcessTranscriptWithAI::class,
+            AssessSermonVideoQuality::class,
             GenerateThumbnail::class,
             PrepareSectionPublicationCandidates::class,
         ]);

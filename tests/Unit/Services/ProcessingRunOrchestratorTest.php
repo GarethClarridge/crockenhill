@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\ProcessingStatus;
+use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\PrepareSectionPublicationCandidates;
@@ -200,6 +201,7 @@ class ProcessingRunOrchestratorTest extends TestCase
         Bus::assertChained([
             TranscribeAudio::class,
             ProcessTranscriptWithAI::class,
+            AssessSermonVideoQuality::class,
             GenerateThumbnail::class,
             PrepareSectionPublicationCandidates::class,
             SendCompletionNotification::class,
@@ -297,6 +299,7 @@ class ProcessingRunOrchestratorTest extends TestCase
         Bus::assertChained([
             TranscribeAudio::class,
             ProcessTranscriptWithAI::class,
+            AssessSermonVideoQuality::class,
             GenerateThumbnail::class,
             SendCompletionNotification::class,
             CleanupTemporaryFiles::class,

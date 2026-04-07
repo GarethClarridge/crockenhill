@@ -4,6 +4,7 @@ namespace Tests\Feature\Livewire;
 
 use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
+use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
@@ -421,6 +422,7 @@ class MediaUploadTest extends TestCase
             IdentifySpeaker::class,
             TranscribeAudio::class,
             ProcessTranscriptWithAI::class,
+            AssessSermonVideoQuality::class,
             GenerateThumbnail::class,
             PrepareSectionPublicationCandidates::class,
             SendCompletionNotification::class,
