@@ -50,6 +50,7 @@ class SermonFactory extends Factory
             ]),
             'show_summary' => true,
             'show_points' => true,
+            'download_count' => 0,
         ];
     }
 

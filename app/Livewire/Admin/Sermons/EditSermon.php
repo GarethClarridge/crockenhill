@@ -53,6 +53,8 @@ class EditSermon extends Component
 
     public ?float $segmentEndTime = null;
 
+    public int $downloadCount = 0;
+
     public ?string $reference = null;
 
     public ?string $series = null;
@@ -132,6 +134,7 @@ class EditSermon extends Component
         $this->duration = $sermon->duration;
         $this->segmentStartTime = $sermon->segment_start_time;
         $this->segmentEndTime = $sermon->segment_end_time;
+        $this->downloadCount = $sermon->download_count ?? 0;
         $this->reference = $sermon->displayReference();
         $this->series = $sermon->series;
         $this->summary = $sermon->summary;

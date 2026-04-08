@@ -159,6 +159,7 @@ class Sermon extends Model implements Sitemapable
         'segment_end_time', // End time of sermon segment in livestream
         'duration', // Duration of the sermon in seconds
         'scripture_passage_id',
+        'download_count',
     ];
 
     /**
@@ -184,6 +185,7 @@ class Sermon extends Model implements Sitemapable
             'preacher_source' => PreacherSource::class,
             'preacher_confidence' => 'float',
             'needs_preacher_review' => 'boolean',
+            'download_count' => 'integer',
         ];
     }
 
