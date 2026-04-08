@@ -210,7 +210,7 @@ class ThumbnailGenerationService
         try {
             $image = $this->createResizedBaseImage($baseFramePath);
             $foreground = $this->extractForegroundLayer($image);
-            $mainImage = $this->canvasComposer->buildMainThumbnailCanvas($sermon, $foreground);
+            $mainImage = $this->buildOverlayCanvas($sermon, $foreground);
 
             return [
                 'path' => $this->saveTemporaryThumbnail($mainImage, 'thumbnail_overlay'),
@@ -529,13 +529,25 @@ class ThumbnailGenerationService
     }
 
     /**
+     * @param  ForegroundLayer|null  $foreground
+     */
+    private function buildOverlayCanvas(Sermon $sermon, ?array $foreground): ImageInterface
+    {
+        if (config('thumbnail-generation.theme.style', 'centered') === 'classic') {
+            return $this->canvasComposer->buildMainThumbnailCanvas($sermon, $foreground);
+        }
+
+        return $this->canvasComposer->buildCenteredThumbnailCanvas($sermon, $foreground);
+    }
+
+    /**
      * @return RenderedAssets|null
      */
     private function createRenderedAssetsFromImage(Sermon $sermon, ImageInterface $image): ?array
     {
         try {
             $foreground = $this->extractForegroundLayer($image);
-            $overlayImage = $this->canvasComposer->buildMainThumbnailCanvas($sermon, $foreground);
+            $overlayImage = $this->buildOverlayCanvas($sermon, $foreground);
             $cardImage = $this->canvasComposer->buildCardThumbnailCanvas($sermon, $foreground);
 
             return [

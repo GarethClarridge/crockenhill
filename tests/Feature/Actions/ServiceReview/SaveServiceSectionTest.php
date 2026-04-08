@@ -8,11 +8,13 @@ use App\Actions\ServiceReview\SaveServiceSection;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
@@ -172,6 +174,44 @@ class SaveServiceSectionTest extends TestCase
 
         $this->assertFalse($section->needs_manual_review);
         $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+    }
+
+    #[Test]
+    public function it_dispatches_prepare_candidates_when_publishable_but_no_media_extracted(): void
+    {
+        Bus::fake();
+
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $preacher = Preacher::factory()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'title' => "Children's Talk",
+            'needs_manual_review' => true,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'extracted_video_path' => null,
+            'extracted_audio_path' => null,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_reason' => 'demoted_secondary_sermon_to_childrens_talk',
+                'review_flags' => ['heuristic_demotion'],
+            ],
+        ]);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::CHILDRENS_TALK->value, 'title' => "Children's Talk"]],
+            speakerEdits: [$section->id => ['preacher_id' => (string) $preacher->id, 'speaker_name' => '']],
+            userId: $this->admin->id,
+        );
+
+        $section->refresh();
+
+        $this->assertFalse($section->needs_manual_review);
+        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        Bus::assertDispatched(PrepareSectionPublicationCandidates::class);
     }
 
     #[Test]

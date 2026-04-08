@@ -30,7 +30,9 @@ return [
     ],
 
     'theme' => [
+        'style' => env('THUMBNAIL_STYLE', 'centered'),
         'logo_path' => env('THUMBNAIL_LOGO_PATH', 'images/Primary.png'),
+        'corner_overlay_path' => env('THUMBNAIL_CORNER_OVERLAY_PATH', 'images/brand/CBCBrandCornerOverlay.png'),
         'palette' => [
             'background_color' => env('THUMBNAIL_BACKGROUND_COLOR', '#D7EAE6'),
             'foreground_color' => env('THUMBNAIL_FOREGROUND_COLOR', '#145557'),

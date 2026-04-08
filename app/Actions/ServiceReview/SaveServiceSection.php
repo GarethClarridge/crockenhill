@@ -7,6 +7,7 @@ namespace App\Actions\ServiceReview;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
 use App\Services\ServiceSectionPublicationTransitionService;
@@ -118,18 +119,28 @@ class SaveServiceSection
             $this->publicationTransitions->isPublishableType($section)
             && ! $section->needs_manual_review
             && $section->publication_status === ServiceSectionPublicationStatus::NOT_APPLICABLE
-            && $section->hasExtractedMedia()
         ) {
-            if ($section->extracted_at === null) {
-                $section->extracted_at = now();
+            $section->save();
+
+            if ($section->hasExtractedMedia()) {
+                if ($section->extracted_at === null) {
+                    $section->extracted_at = now();
+                }
+
+                if ($section->unpublished_expires_at === null) {
+                    $retainHours = (int) config('media-processing.section_publishing.retain_unpublished_hours', 48);
+                    $section->unpublished_expires_at = now()->addHours(max(1, $retainHours));
+                }
+
+                $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL);
+                $section->save();
+            } else {
+                $section->loadMissing('processingLog');
+                PrepareSectionPublicationCandidates::dispatch($section->processingLog)
+                    ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
             }
 
-            if ($section->unpublished_expires_at === null) {
-                $retainHours = (int) config('media-processing.section_publishing.retain_unpublished_hours', 48);
-                $section->unpublished_expires_at = now()->addHours(max(1, $retainHours));
-            }
-
-            $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL);
+            return;
         }
 
         $section->save();
