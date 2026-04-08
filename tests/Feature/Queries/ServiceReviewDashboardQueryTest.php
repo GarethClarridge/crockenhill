@@ -437,6 +437,25 @@ class ServiceReviewDashboardQueryTest extends TestCase
     }
 
     #[Test]
+    public function batch_approval_skip_reason_returns_blocked_for_heuristic_demotion_flag(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => ['heuristic_demotion'],
+            ],
+        ]);
+
+        $this->assertSame('blocked by other review flags', $this->query->batchApprovalSkipReason($section));
+    }
+
+    #[Test]
     public function pending_publication_sections_for_service_returns_only_that_services_sections(): void
     {
         $service = ChurchService::factory()->create([

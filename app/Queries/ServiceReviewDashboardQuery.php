@@ -275,6 +275,16 @@ class ServiceReviewDashboardQuery
             ];
         }
 
+        $reviewFlags = $section->metadata['review_flags'] ?? [];
+
+        if (is_array($reviewFlags) && in_array('heuristic_demotion', $reviewFlags, true)) {
+            $reasons[] = [
+                'key' => 'heuristic_demotion',
+                'label' => 'Heuristic classification',
+                'classes' => 'bg-indigo-100 text-indigo-800',
+            ];
+        }
+
         return $reasons;
     }
 

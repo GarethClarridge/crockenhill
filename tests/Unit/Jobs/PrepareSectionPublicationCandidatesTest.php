@@ -275,6 +275,95 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
+    public function it_moves_a_heuristically_demoted_childrens_talk_to_pending_approval_when_speaker_matches(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class],
+            'media-processing.section_publishing.retain_unpublished_hours' => 48,
+            'media-processing.speaker_identification.enabled' => true,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+        ]);
+
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+        Storage::disk('public')->put('sermons/audio/section.mp3', 'section-audio');
+
+        $preacher = Preacher::factory()->create(['name' => 'Bob Preacher']);
+        $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
+
+        $speakerService = $this->createMock(SpeakerIdentificationInterface::class);
+        $speakerService->expects($this->once())
+            ->method('identify')
+            ->willReturn(SpeakerMatchResult::matched(
+                $profile->load('preacher'),
+                0.93,
+                0.68,
+                [$profile->id => 0.93]
+            ));
+        $this->instance(SpeakerIdentificationInterface::class, $speakerService);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_reason' => 'demoted_secondary_sermon_to_childrens_talk',
+                'review_flags' => ['heuristic_demotion'],
+                'original_ai_classification' => ServiceSectionType::SERMON->value,
+            ],
+            'start_time' => 200.0,
+            'end_time' => 680.0,
+        ]);
+        $expectedAudioPath = 'private/section-publications/'.$section->id.'/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->willReturn('temp/section-video.mp4');
+        $videoExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->willReturn([
+                'audio_path' => $expectedAudioPath,
+                'full_path' => Storage::disk('local')->path($expectedAudioPath),
+                'original_size' => 2048,
+                'final_size' => 2048,
+                'compression_applied' => false,
+                'compression_ratio' => 1.0,
+                'valid_for_transcription' => true,
+            ]);
+
+        $job = new PrepareSectionPublicationCandidates($processingLog);
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertFalse($section->needs_manual_review);
+        $this->assertSame($expectedAudioPath, $section->extracted_audio_path);
+        $this->assertNotNull($section->extracted_video_path);
+        $this->assertNotNull($section->extracted_at);
+        $this->assertSame('matched', $section->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertSame('Bob Preacher', $section->metadata['childrens_talk_speaker']['reviewed']['preacher_name'] ?? null);
+    }
+
+    #[Test]
     public function it_skips_all_work_when_processing_is_cancelled(): void
     {
         config([

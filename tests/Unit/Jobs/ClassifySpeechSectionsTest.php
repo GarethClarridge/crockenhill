@@ -556,8 +556,10 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $this->assertNotNull($demoted);
         $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $demoted->section_type);
-        $this->assertTrue($demoted->needs_manual_review);
+        $this->assertFalse($demoted->needs_manual_review);
+        $this->assertSame('high', $demoted->metadata['confidence_level'] ?? null);
         $this->assertSame('demoted_secondary_sermon_to_childrens_talk', $demoted->metadata['review_reason'] ?? null);
+        $this->assertContains('heuristic_demotion', $demoted->metadata['review_flags'] ?? []);
         $this->assertSame(ServiceSectionType::SERMON->value, $demoted->metadata['original_ai_classification'] ?? null);
     }
 
@@ -724,8 +726,10 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $this->assertNotNull($demoted);
         $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $demoted->section_type);
-        $this->assertTrue($demoted->needs_manual_review);
+        $this->assertFalse($demoted->needs_manual_review);
+        $this->assertSame('high', $demoted->metadata['confidence_level'] ?? null);
         $this->assertSame('demoted_secondary_sermon_to_childrens_talk', $demoted->metadata['review_reason'] ?? null);
+        $this->assertContains('heuristic_demotion', $demoted->metadata['review_flags'] ?? []);
     }
 
     #[Test]

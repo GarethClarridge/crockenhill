@@ -373,9 +373,11 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 
             if ($duration < $maxChildrensTalkSeconds) {
                 $sections[$index]['section_type'] = ServiceSectionType::CHILDRENS_TALK->value;
-                $sections[$index]['needs_manual_review'] = true;
+                $sections[$index]['needs_manual_review'] = false;
                 $sections[$index]['metadata'] = array_merge($sections[$index]['metadata'], [
+                    'confidence_level' => 'high',
                     'review_reason' => 'demoted_secondary_sermon_to_childrens_talk',
+                    'review_flags' => ['heuristic_demotion'],
                     'original_ai_classification' => ServiceSectionType::SERMON->value,
                 ]);
             } else {
