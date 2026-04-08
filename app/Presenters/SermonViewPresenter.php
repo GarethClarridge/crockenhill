@@ -63,12 +63,13 @@ class SermonViewPresenter
      *
      * Performance Optimization: Only returns fields required by the public API,
      * avoiding expensive operations like reading full transcripts from cache or storage
-     * and generating non-API URLs (like canonical or video URLs).
+     * and generating non-API URLs (like canonical URLs).
      *
      * @return array{
      *     audio_url: ?string,
      *     preacher_url: ?string,
-     *     thumbnail_url: ?string
+     *     thumbnail_url: ?string,
+     *     video_url: ?string
      * }
      */
     public function presentForApi(Sermon $sermon): array
@@ -77,6 +78,7 @@ class SermonViewPresenter
             'audio_url' => $this->audioUrl($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
+            'video_url' => $this->videoUrl($sermon),
         ];
     }
 
