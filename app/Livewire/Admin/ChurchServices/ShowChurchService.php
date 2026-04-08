@@ -218,6 +218,7 @@ class ShowChurchService extends Component
         $serviceDate = $this->churchService->date->toDateString();
         $serviceType = $this->churchService->service;
         $resolver = $this->identityResolver();
+        $fallbackProcessingIds = $this->fallbackProcessingIdsForService();
 
         $query = MediaProcessingLog::query()
             ->livestream()
@@ -234,9 +235,18 @@ class ShowChurchService extends Component
                     ->orderBy('started_at')
                     ->orderBy('id'),
             ])
+            ->where(function ($query) use ($resolver, $serviceDate, $serviceType, $fallbackProcessingIds): void {
+                $resolver->scopeMatchesIdentity($query, $serviceDate, $serviceType);
+
+                $query->orWhere('church_service_id', $this->churchService->id);
+
+                if ($fallbackProcessingIds !== []) {
+                    $query->orWhereIn('processing_id', $fallbackProcessingIds);
+                }
+            })
             ->orderByDesc('created_at');
 
-        return $resolver->scopeMatchesIdentity($query, $serviceDate, $serviceType)->get();
+        return $query->get();
     }
 
     /**
@@ -457,7 +467,15 @@ class ShowChurchService extends Component
         $serviceDate = $this->churchService->date->toDateString();
         $serviceType = $this->churchService->service;
 
-        return $this->identityResolver()->matchesService($processingLog, $serviceDate, $serviceType);
+        if ($this->identityResolver()->matchesService($processingLog, $serviceDate, $serviceType)) {
+            return true;
+        }
+
+        if ($processingLog->church_service_id === $this->churchService->id) {
+            return true;
+        }
+
+        return in_array($processingLog->processing_id, $this->fallbackProcessingIdsForService(), true);
     }
 
     private function identityResolver(): MediaProcessingIdentityResolver
@@ -470,5 +488,31 @@ class ShowChurchService extends Component
         if (! (bool) config('service-tracking.enabled', true)) {
             abort(404);
         }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function fallbackProcessingIdsForService(): array
+    {
+        $processingIds = [];
+
+        $importMetadata = $this->churchService->import_metadata?->toArray() ?? [];
+        $projectionProcessingId = $importMetadata['livestream_projection']['processing_id'] ?? null;
+
+        if (is_string($projectionProcessingId) && trim($projectionProcessingId) !== '') {
+            $processingIds[] = $projectionProcessingId;
+        }
+
+        foreach ($this->churchService->items as $item) {
+            $metadata = is_array($item->metadata) ? $item->metadata : [];
+            $itemProcessingId = $metadata['livestream_projection']['processing_id'] ?? null;
+
+            if (is_string($itemProcessingId) && trim($itemProcessingId) !== '') {
+                $processingIds[] = $itemProcessingId;
+            }
+        }
+
+        return array_values(array_unique($processingIds));
     }
 }

@@ -146,4 +146,52 @@ class ShowChurchServiceTest extends TestCase
         $this->assertDatabaseMissing('sermons', ['id' => $sermon->id]);
         $this->assertDatabaseMissing('church_services', ['id' => $churchService->id]);
     }
+
+    #[Test]
+    public function it_shows_repaired_runs_found_via_service_projection_metadata(): void
+    {
+        $processingId = '44444444-4444-4444-4444-444444444444';
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-04-27',
+            'service' => SermonService::MORNING->value,
+            'source' => 'livestream',
+            'import_metadata' => [
+                'livestream_projection' => [
+                    'processing_id' => $processingId,
+                ],
+            ],
+        ]);
+
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'title' => 'Sermon',
+            'metadata' => [
+                'livestream_projection' => [
+                    'processing_id' => $processingId,
+                    'service_section_id' => 400,
+                ],
+            ],
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'processing_id' => $processingId,
+            'church_service_id' => null,
+            'extracted_date' => null,
+            'extracted_service' => null,
+            'processing_metadata' => [
+                'repair' => [
+                    'original_extracted_date' => '2026-04-27',
+                    'original_extracted_service' => SermonService::MORNING->value,
+                ],
+            ],
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $churchService])
+            ->assertSee($log->processing_id)
+            ->assertSee('Reclassify')
+            ->assertSee('Delete upload');
+    }
 }
