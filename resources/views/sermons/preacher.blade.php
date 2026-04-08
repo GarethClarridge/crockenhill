@@ -10,6 +10,10 @@
     :description="$description"
     :image="$preacher->profile_image_url"
 />
+<x-schema.webpage
+    :title="$heading"
+    :description="$description"
+/>
 <x-breadcrumbs area="christ" :heading="$heading" :jsonOnly="true" />
 
 <x-schema.person :$preacher />

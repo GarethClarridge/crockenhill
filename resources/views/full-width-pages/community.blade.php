@@ -10,6 +10,10 @@ Community
 <x-meta-tags
   title="Community"
   description="Join our community activities at Crockenhill Baptist Church. Meet local people, activities for children, and opportunities to learn about Jesus in Kent." />
+<x-schema.webpage
+  title="Community"
+  description="Join our community activities at Crockenhill Baptist Church. Meet local people, activities for children, and opportunities to learn about Jesus in Kent."
+/>
 <x-breadcrumbs area="community" heading="Community" :jsonOnly="true" />
 @stop
 

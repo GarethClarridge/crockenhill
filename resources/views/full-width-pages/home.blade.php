@@ -10,6 +10,10 @@
   description="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all."
   :image="asset('/images/homepage/may2024wide.webp')"
   image-alt="Crockenhill Baptist Church members outside the church building" />
+<x-schema.webpage
+  heading="Crockenhill Baptist Church"
+  description="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all."
+/>
 <x-schema.website />
 <x-schema.organization />
 @endsection
@@ -102,8 +106,8 @@
     label="What to expect on Sunday mornings"
     ariaLabel="What to expect on Sunday mornings" />
 
-  <!-- <x-youtube 
-      link="https://www.youtube.com/embed?listType=playlist&list=UUtSUTtkZlALToswWQpWS2kA" 
+  <!-- <x-youtube
+      link="https://www.youtube.com/embed?listType=playlist&list=UUtSUTtkZlALToswWQpWS2kA"
       title=""
     /> -->
 

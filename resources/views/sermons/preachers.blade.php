@@ -9,6 +9,10 @@
     :title="$heading"
     :description="$description"
 />
+<x-schema.webpage
+    :title="$heading"
+    :description="$description"
+/>
 <x-breadcrumbs area="christ" heading="Preachers" :jsonOnly="true" />
 
 {{-- JSON-LD Preachers List --}}

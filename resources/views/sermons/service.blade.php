@@ -9,6 +9,10 @@
     :title="$heading"
     :description="$description"
 />
+<x-schema.webpage
+    :title="$heading"
+    :description="$description"
+/>
 <x-breadcrumbs area="christ" :heading="$heading" :jsonOnly="true" />
 @if(in_array($service, ['morning', 'evening']))
 <link rel="alternate" type="application/rss+xml" title="{{ $heading }} Podcast" href="{{ route('podcast.feed', $service) }}">
