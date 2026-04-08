@@ -67,7 +67,7 @@ class AdminMeetingTest extends TestCase
 
         Livewire::test(CreateMeeting::class)
             ->set('form.slug', 'midweek-bible-study')
-            ->set('form.type', MeetingType::ADULTS->value)
+            ->set('form.type', MeetingType::Adults->value)
             ->set('form.startTime', '19:30')
             ->set('form.endTime', '21:00')
             ->set('form.day', 'Wednesday')
@@ -78,7 +78,7 @@ class AdminMeetingTest extends TestCase
             ->set('form.leadersEmail', 'leader@example.com')
             ->set('form.meetingDate', '2026-03-11')
             ->set('form.isRecurring', true)
-            ->set('form.frequency', MeetingFrequency::WEEKLY->value)
+            ->set('form.frequency', MeetingFrequency::Weekly->value)
             ->set('form.pageId', $page->id)
             ->call('save')
             ->assertRedirect(route('admin.meetings.index'));
@@ -86,8 +86,8 @@ class AdminMeetingTest extends TestCase
         $meeting = Meeting::query()->where('slug', 'midweek-bible-study')->firstOrFail();
 
         $this->assertSame($page->id, $meeting->page_id);
-        $this->assertSame(MeetingType::ADULTS, $meeting->type);
-        $this->assertSame(MeetingFrequency::WEEKLY, $meeting->frequency);
+        $this->assertSame(MeetingType::Adults, $meeting->type);
+        $this->assertSame(MeetingFrequency::Weekly, $meeting->frequency);
         $this->assertSame('19:30', $meeting->start_time?->format('H:i'));
         $this->assertSame('21:00', $meeting->end_time?->format('H:i'));
         $this->assertSame('2026-03-11', $meeting->meeting_date?->format('Y-m-d'));
@@ -101,7 +101,7 @@ class AdminMeetingTest extends TestCase
 
         Livewire::test(CreateMeeting::class)
             ->set('form.slug', 'weekly-prayer')
-            ->set('form.type', MeetingType::ADULTS->value)
+            ->set('form.type', MeetingType::Adults->value)
             ->set('form.day', 'Thursday')
             ->set('form.who', 'Adults')
             ->set('form.isRecurring', true)
@@ -117,11 +117,11 @@ class AdminMeetingTest extends TestCase
 
         Livewire::test(CreateMeeting::class)
             ->set('form.slug', 'weekly-prayer')
-            ->set('form.type', MeetingType::ADULTS->value)
+            ->set('form.type', MeetingType::Adults->value)
             ->set('form.day', 'Thursday')
             ->set('form.who', 'Adults')
             ->set('form.isRecurring', true)
-            ->set('form.frequency', MeetingFrequency::WEEKLY->value)
+            ->set('form.frequency', MeetingFrequency::Weekly->value)
             ->set('form.isRecurring', false)
             ->call('save')
             ->assertRedirect(route('admin.meetings.index'));
@@ -141,7 +141,7 @@ class AdminMeetingTest extends TestCase
         $meeting = Meeting::factory()->create([
             'page_id' => $page->id,
             'slug' => 'evening-prayer',
-            'type' => MeetingType::OCCASIONAL->value,
+            'type' => MeetingType::Occasional->value,
             'start_time' => '18:15:00',
             'end_time' => '19:45:00',
             'day' => 'Friday',
@@ -152,12 +152,12 @@ class AdminMeetingTest extends TestCase
             'leaders_email' => 'old@example.com',
             'meeting_date' => '2026-05-20',
             'is_recurring' => true,
-            'frequency' => MeetingFrequency::MONTHLY->value,
+            'frequency' => MeetingFrequency::Monthly->value,
         ]);
 
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])
             ->assertSet('form.slug', 'evening-prayer')
-            ->assertSet('form.type', MeetingType::OCCASIONAL->value)
+            ->assertSet('form.type', MeetingType::Occasional->value)
             ->assertSet('form.startTime', '18:15')
             ->assertSet('form.endTime', '19:45')
             ->assertSet('form.day', 'Friday')
@@ -168,7 +168,7 @@ class AdminMeetingTest extends TestCase
             ->assertSet('form.leadersEmail', 'old@example.com')
             ->assertSet('form.meetingDate', '2026-05-20')
             ->assertSet('form.isRecurring', true)
-            ->assertSet('form.frequency', MeetingFrequency::MONTHLY->value)
+            ->assertSet('form.frequency', MeetingFrequency::Monthly->value)
             ->assertSet('form.pageId', $page->id);
     }
 
@@ -182,15 +182,15 @@ class AdminMeetingTest extends TestCase
         $meeting = Meeting::factory()->create([
             'page_id' => $oldPage->id,
             'slug' => 'old-slug',
-            'type' => MeetingType::ADULTS->value,
+            'type' => MeetingType::Adults->value,
             'meeting_date' => '2026-03-01',
             'is_recurring' => true,
-            'frequency' => MeetingFrequency::WEEKLY->value,
+            'frequency' => MeetingFrequency::Weekly->value,
         ]);
 
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])
             ->set('form.slug', 'new-slug')
-            ->set('form.type', MeetingType::CHILDREN_AND_YOUNG_PEOPLE->value)
+            ->set('form.type', MeetingType::ChildrenAndYoungPeople->value)
             ->set('form.startTime', '17:00')
             ->set('form.endTime', '18:30')
             ->set('form.day', 'Saturday')
@@ -208,7 +208,7 @@ class AdminMeetingTest extends TestCase
         $meeting->refresh();
 
         $this->assertSame('new-slug', $meeting->slug);
-        $this->assertSame(MeetingType::CHILDREN_AND_YOUNG_PEOPLE, $meeting->type);
+        $this->assertSame(MeetingType::ChildrenAndYoungPeople, $meeting->type);
         $this->assertSame('17:00', $meeting->start_time?->format('H:i'));
         $this->assertSame('18:30', $meeting->end_time?->format('H:i'));
         $this->assertSame('Saturday', $meeting->day);

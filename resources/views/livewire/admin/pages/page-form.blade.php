@@ -38,7 +38,7 @@
 
         <x-card heading="Page details">
             <div class="space-y-4">
-                <x-input label="Heading" wire:model.live.debounce="form.heading" required maxlength="255" />
+                <x-input label="Heading" wire:model.live.debounce="form.heading" required maxlength="255" autofocus />
 
                 <x-input label="Slug" wire:model="form.slug" required maxlength="255"
                     hint="URL-friendly identifier (auto-generated from heading)" />

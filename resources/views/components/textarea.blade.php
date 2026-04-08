@@ -1,4 +1,4 @@
-@props(['label' => null, 'hint' => null, 'required' => false, 'maxlength' => null])
+@props(['label' => null, 'hint' => null, 'required' => false, 'maxlength' => null, 'autofocus' => false])
 
 @php
 $modelName = $attributes->wire('model')->value();
@@ -13,7 +13,7 @@ if ($hasError) $describedBy[] = $id . '-error';
 $describedBy = implode(' ', $describedBy);
 @endphp
 
-<div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }} }" x-init="count = $refs.textarea.value.length">
+<div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }} }" x-init="count = $refs.textarea.value.length; @if($autofocus) $nextTick(() => $refs.textarea.focus()) @endif">
     @if($label)
         <label @if($id) for="{{ $id }}" @endif class="block text-sm font-medium text-gray-700 mb-1">
             {{ $label }}

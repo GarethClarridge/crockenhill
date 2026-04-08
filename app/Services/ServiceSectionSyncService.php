@@ -13,6 +13,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class ServiceSectionSyncService
 {
@@ -49,7 +50,9 @@ class ServiceSectionSyncService
      */
     public function sync(MediaProcessingLog $processingLog, array $classifiedSections): void
     {
-        DB::transaction(function () use ($processingLog, $classifiedSections): void {
+        $defaultPublicationStatus = ServiceSectionPublicationStatus::NOT_APPLICABLE->value;
+
+        DB::transaction(function () use ($processingLog, $classifiedSections, $defaultPublicationStatus): void {
             $existingByOrder = ServiceSection::query()
                 ->where('media_processing_log_id', $processingLog->id)
                 ->lockForUpdate()
@@ -79,6 +82,14 @@ class ServiceSectionSyncService
 
                 $existing = $existingByOrder->get($sectionData['section_order']);
 
+                $validationPayload = array_merge($payload, [
+                    'publication_status' => $existing instanceof ServiceSection
+                        ? $existing->publication_status->value
+                        : $defaultPublicationStatus,
+                ]);
+
+                Validator::make($validationPayload, ServiceSection::validationRules())->validate();
+
                 if ($existing instanceof ServiceSection) {
                     $signatureChanged = $this->hasMaterialSignatureChange($existing, $payload);
 
@@ -104,6 +115,7 @@ class ServiceSectionSyncService
                     $payload,
                     [
                         'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+                        'song_match_type' => null,
                         'published_sermon_id' => null,
                         'published_at' => null,
                         'extracted_video_path' => null,

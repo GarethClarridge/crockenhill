@@ -67,6 +67,36 @@ class ListSermons extends Component
         $this->authorizeAdmin();
     }
 
+    public function updatedServiceFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedPreacherFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSeriesFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedHasVideoFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedNeedsReviewFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedLast12Months(): void
+    {
+        $this->resetPage();
+    }
+
     /**
      * @return array<string, mixed>
      */

@@ -7,11 +7,13 @@ namespace App\Services;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Throwable;
 
 class TranscriptStorageService
 {
     private const TRANSCRIPT_DIRECTORY = 'transcripts';
+
+    /** @var array<int, string>|null */
+    private ?array $transcriptReadDisks = null;
 
     /**
      * Store transcript content to file
@@ -243,7 +245,7 @@ class TranscriptStorageService
                 $content = $storage->get($path);
 
                 return is_string($content) ? $content : null;
-            } catch (Throwable $e) {
+            } catch (Exception $e) {
                 Log::warning('Failed to read transcript from disk', [
                     'disk' => $disk,
                     'transcript_file_path' => $path,
@@ -258,48 +260,33 @@ class TranscriptStorageService
     /**
      * Get the ordered list of disks to try when reading a transcript.
      *
+     * Performance Optimization: Memoize the list of disks to avoid redundant config() calls
+     * and array operations during high-frequency transcript lookups.
+     *
      * @return array<int, string>
      */
     public function getTranscriptReadDisks(): array
     {
+        if ($this->transcriptReadDisks !== null) {
+            return $this->transcriptReadDisks;
+        }
+
         $transcriptDisk = (string) config('media-processing.storage.transcript_disk', '');
         $sermonDisk = (string) config('media-processing.storage.sermon_disk', '');
         $defaultDisk = (string) config('filesystems.default', '');
 
-        $configuredDisks = [
+        $diskCandidates = [
             $transcriptDisk,
             $sermonDisk,
             $defaultDisk,
-        ];
-
-        $diskCandidates = [
-            ...$configuredDisks,
             'local',
             'public',
+            'do_spaces',
         ];
 
-        if ($this->shouldIncludeSpacesFallback($configuredDisks)) {
-            $diskCandidates[] = 'do_spaces';
-        }
+        $this->transcriptReadDisks = array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
 
-        return array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
-    }
-
-    /**
-     * DigitalOcean Spaces is kept as a legacy fallback, but only when it is usable
-     * or explicitly configured. Otherwise a missing bucket crashes S3 disk creation.
-     *
-     * @param  array<int, string>  $configuredDisks
-     */
-    private function shouldIncludeSpacesFallback(array $configuredDisks): bool
-    {
-        if (in_array('do_spaces', $configuredDisks, true)) {
-            return true;
-        }
-
-        $bucket = config('filesystems.disks.do_spaces.bucket');
-
-        return is_string($bucket) && trim($bucket) !== '';
+        return $this->transcriptReadDisks;
     }
 
     private function transcriptDisk(): string

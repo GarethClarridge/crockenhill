@@ -277,6 +277,24 @@ class ServiceSection extends Model
     }
 
     /**
+     * @return array<string, list<string>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'section_type' => ['required', 'string', 'in:'.implode(',', ServiceSectionType::values())],
+            'section_order' => ['required', 'integer', 'min:0'],
+            'start_time' => ['required', 'numeric', 'min:0'],
+            'end_time' => ['required', 'numeric', 'min:0', 'gt:start_time'],
+            'duration' => ['required', 'numeric', 'min:0'],
+            'status' => ['required', 'string', 'in:'.implode(',', ServiceSectionStatus::values())],
+            'confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'song_match_type' => ['nullable', 'string', 'in:'.implode(',', ServiceSectionSongMatchType::values())],
+            'publication_status' => ['required', 'string', 'in:'.implode(',', ServiceSectionPublicationStatus::values())],
+        ];
+    }
+
+    /**
      * @return array{preacher_id:int|null,preacher_name:string,source:string}|null
      */
     private function publicationSpeakerSignaturePayload(): ?array

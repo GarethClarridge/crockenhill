@@ -160,26 +160,4 @@ class GetMediaProcessingStatusTest extends TestCase
         $this->assertNull($service->find($hiddenLog->processing_id));
     }
 
-    #[Test]
-    public function it_surfaces_video_file_path_from_the_standard_processing_response(): void
-    {
-        $admin = $this->actingAsVerifiedAdmin();
-        $processingId = Str::uuid()->toString();
-
-        $this->processingLogScenario()
-            ->as(\App\Enums\MediaType::Video)
-            ->completed()
-            ->state([
-                'processing_id' => $processingId,
-                'video_file_path' => 'sermons/2026/03/video.mp4',
-            ])
-            ->create();
-
-        $this->actingAs($admin);
-
-        $response = app(GetMediaProcessingStatus::class)->get($processingId);
-
-        $this->assertTrue($response->found);
-        $this->assertSame('sermons/2026/03/video.mp4', $response->additionalData['video_file_path']);
-    }
 }

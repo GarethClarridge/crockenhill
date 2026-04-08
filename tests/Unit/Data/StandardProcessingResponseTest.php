@@ -98,6 +98,18 @@ class StandardProcessingResponseTest extends TestCase
     }
 
     #[Test]
+    public function from_processing_log_does_not_leak_internal_video_file_path(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->completed()->create([
+            'video_file_path' => 'sermons/2026/03/video.mp4',
+        ]);
+
+        $response = StandardProcessingResponse::fromProcessingLog($log);
+
+        $this->assertArrayNotHasKey('video_file_path', $response->additionalData);
+    }
+
+    #[Test]
     public function from_processing_status_delegates_to_found(): void
     {
         $response = StandardProcessingResponse::fromProcessingStatus(
@@ -110,18 +122,6 @@ class StandardProcessingResponseTest extends TestCase
         $this->assertEquals('test-789', $response->processingId);
         $this->assertEquals('completed', $response->status);
         $this->assertEquals(100, $response->progressPercentage);
-    }
-
-    #[Test]
-    public function from_processing_log_includes_video_file_path_when_present(): void
-    {
-        $log = MediaProcessingLog::factory()->video()->completed()->create([
-            'video_file_path' => 'sermons/2026/03/video.mp4',
-        ]);
-
-        $response = StandardProcessingResponse::fromProcessingLog($log);
-
-        $this->assertSame('sermons/2026/03/video.mp4', $response->additionalData['video_file_path']);
     }
 
     #[Test]

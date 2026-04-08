@@ -5,8 +5,6 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use LogicException;
 
 /**
@@ -36,15 +34,8 @@ class SermonResource extends JsonResource
                 'id' => $this->preacherProfile->id,
                 'name' => $this->preacherProfile->name,
                 'slug' => $this->preacherProfile->slug,
-                'image_url' => $this->preacherProfile->image_path
-                    ? (Str::startsWith($this->preacherProfile->image_path, ['http://', 'https://', '/'])
-                        ? $this->preacherProfile->image_path
-                        : Storage::disk('public')->url($this->preacherProfile->image_path))
-                    : null,
+                'image_url' => $this->preacherProfile->profile_image_url,
             ] : null),
-            'preacher_source' => $this->preacher_source,
-            'preacher_confidence' => $this->preacher_confidence,
-            'needs_preacher_review' => $this->needs_preacher_review,
             'series' => $this->series,
             'reference' => $this->displayReference(),
             'points' => $this->when($this->show_points, fn (): ?array => $this->points),

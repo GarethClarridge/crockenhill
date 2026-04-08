@@ -52,10 +52,15 @@
     {{-- Main content (default slot = lg:col-span-2) --}}
             <x-card heading="{{ $contentTypeLabel }} details">
                 <div class="space-y-4">
-                    <x-input label="Title" wire:model.live.debounce="title" required maxlength="255" />
+                    <x-input label="Title" wire:model.live.debounce="title" required maxlength="255" autofocus />
 
-                    <x-input label="Slug" wire:model="slug" required maxlength="255"
-                        hint="URL-friendly identifier (auto-generated from title)" />
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <x-input label="Slug" wire:model="slug" required maxlength="255"
+                            hint="URL-friendly identifier (auto-generated from title)" />
+
+                        <x-input type="number" label="Download Count" wire:model="downloadCount" readonly
+                            hint="Incremented automatically when the audio is downloaded" />
+                    </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <x-input type="date" label="Date" wire:model="date" required />

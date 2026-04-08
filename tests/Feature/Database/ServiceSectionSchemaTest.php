@@ -252,4 +252,37 @@ class ServiceSectionSchemaTest extends TestCase
             'extracted_at' => now(),
         ]);
     }
+
+    #[Test]
+    public function approved_sections_must_have_extracted_audio_path_to_satisfy_fortified_constraint(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'extracted_video_path' => 'sermons/sections/13/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-13.mp3',
+            'extracted_at' => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('service_sections')
+            ->where('id', $section->id)
+            ->update([
+                'extracted_audio_path' => null,
+            ]);
+    }
+
+    #[Test]
+    public function invalid_section_type_values_are_rejected_by_the_database(): void
+    {
+        $section = ServiceSection::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('service_sections')
+            ->where('id', $section->id)
+            ->update(['section_type' => 'invalid_type_blob']);
+    }
 }

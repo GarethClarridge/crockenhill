@@ -29,6 +29,7 @@
 <meta property="og:type" content="{{ $type }}">
 <meta property="og:url" content="{{ $metaUrl }}">
 <meta property="og:site_name" content="{{ $siteName }}">
+<meta property="og:locale" content="en_GB">
 <meta property="og:image" content="{{ $metaImage }}">
 <meta property="og:image:width" content="{{ $imageWidth }}">
 <meta property="og:image:height" content="{{ $imageHeight }}">
