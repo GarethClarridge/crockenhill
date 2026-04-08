@@ -62,12 +62,13 @@ return [
         'daily_budget' => (int) env('API_BIBLE_DAILY_BUDGET', 5000),
     ],
 
-    'poof' => [
-        'enabled' => env('POOF_ENABLED', false),
-        'api_key' => env('POOF_API_KEY'),
-        'base_url' => env('POOF_BASE_URL', 'https://api.poof.bg/v1'),
-        'timeout_seconds' => (int) env('POOF_TIMEOUT_SECONDS', 15),
-        'max_retries' => (int) env('POOF_MAX_RETRIES', 2),
+    'pixian' => [
+        'enabled' => env('PIXIAN_ENABLED', false),
+        'api_id' => env('PIXIAN_API_ID'),
+        'api_secret' => env('PIXIAN_API_SECRET'),
+        'base_url' => env('PIXIAN_BASE_URL', 'https://api.pixian.ai/api/v2'),
+        'timeout_seconds' => (int) env('PIXIAN_TIMEOUT_SECONDS', 180),
+        'test' => env('PIXIAN_TEST', false),
     ],
 
 ];

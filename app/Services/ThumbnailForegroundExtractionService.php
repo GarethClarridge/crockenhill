@@ -10,7 +10,7 @@ use Intervention\Image\Laravel\Facades\Image;
 
 class ThumbnailForegroundExtractionService
 {
-    private const string METHOD_POOF_API = 'poof_api';
+    private const string METHOD_PIXIAN_API = 'pixian_api';
 
     private const float MIN_FOREGROUND_DENSITY = 0.28;
 
@@ -27,7 +27,7 @@ class ThumbnailForegroundExtractionService
         try {
             $sourcePath = $this->storeTemporarySourceImage($image);
             try {
-                $result = app(PoofClient::class)->removeBackground($sourcePath);
+                $result = app(PixianClient::class)->removeBackground($sourcePath);
             } finally {
                 @unlink($sourcePath);
             }
@@ -47,7 +47,7 @@ class ThumbnailForegroundExtractionService
             $density = $metrics['pixels'] / max(1, $bounds['width'] * $bounds['height']);
 
             if ($density < self::MIN_FOREGROUND_DENSITY) {
-                Log::warning('Poof foreground extraction rejected sparse cutout', [
+                Log::warning('Pixian foreground extraction rejected sparse cutout', [
                     'density' => round($density, 4),
                     'minimum_density' => self::MIN_FOREGROUND_DENSITY,
                     'bounds' => $bounds,
@@ -60,10 +60,10 @@ class ThumbnailForegroundExtractionService
                 'image' => $foreground,
                 'coverage' => $metrics['pixels'] / max(1, $foreground->width() * $foreground->height()),
                 'bounds' => $bounds,
-                'method' => self::METHOD_POOF_API,
+                'method' => self::METHOD_PIXIAN_API,
             ];
         } catch (\Throwable $e) {
-            Log::warning('Poof foreground extraction failed', [
+            Log::warning('Pixian foreground extraction failed', [
                 'error' => $e->getMessage(),
             ]);
 
@@ -73,9 +73,9 @@ class ThumbnailForegroundExtractionService
 
     private function storeTemporarySourceImage(ImageInterface $image): string
     {
-        $path = tempnam(sys_get_temp_dir(), 'poof-thumb-');
+        $path = tempnam(sys_get_temp_dir(), 'pixian-thumb-');
         if ($path === false) {
-            throw new \RuntimeException('Failed to create a temporary image path for Poof.');
+            throw new \RuntimeException('Failed to create a temporary image path for Pixian.');
         }
 
         $image->toPng()->save($path);

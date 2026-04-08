@@ -39,7 +39,7 @@ class ThumbnailDataTest extends TestCase
                 ],
             ],
             'composition_mode' => 'layered_subject',
-            'foreground_extraction_method' => 'poof_api',
+            'foreground_extraction_method' => 'pixian_api',
             'foreground_bounds' => ['x' => 10, 'y' => 20, 'width' => 30, 'height' => 40],
             'foreground_coverage' => 0.1234,
         ]);
@@ -56,7 +56,7 @@ class ThumbnailDataTest extends TestCase
         $this->assertSame('candidate-1', $metadata->thumbnailCandidates[0]['id']);
         $this->assertSame('thumbs/candidate-1-card.webp', $metadata->thumbnailCandidates[0]['card_path']);
         $this->assertSame('layered_subject', $metadata->compositionMode);
-        $this->assertSame('poof_api', $metadata->foregroundExtractionMethod);
+        $this->assertSame('pixian_api', $metadata->foregroundExtractionMethod);
         $this->assertSame(['x' => 10, 'y' => 20, 'width' => 30, 'height' => 40], $metadata->foregroundBounds);
         $this->assertSame(0.1234, $metadata->foregroundCoverage);
     }

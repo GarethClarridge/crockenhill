@@ -231,11 +231,11 @@ class EditSermonTest extends TestCase
                             'overlay_path' => 'sermons/thumbnails/candidate-2-overlay.webp',
                             'plain_path' => 'sermons/thumbnails/candidate-2-plain.webp',
                             'composition_mode' => 'layered_subject',
-                            'foreground_extraction_method' => 'poof_api',
+                            'foreground_extraction_method' => 'pixian_api',
                         ],
                     ],
                     'composition_mode' => 'layered_subject',
-                    'foreground_extraction_method' => 'poof_api',
+                    'foreground_extraction_method' => 'pixian_api',
                 ],
             ));
 
@@ -305,11 +305,11 @@ class EditSermonTest extends TestCase
                             'overlay_path' => 'sermons/thumbnails/candidate-2-overlay.webp',
                             'plain_path' => 'sermons/thumbnails/candidate-2-plain.webp',
                             'composition_mode' => 'layered_subject',
-                            'foreground_extraction_method' => 'poof_api',
+                            'foreground_extraction_method' => 'pixian_api',
                         ],
                     ],
                     'composition_mode' => 'layered_subject',
-                    'foreground_extraction_method' => 'poof_api',
+                    'foreground_extraction_method' => 'pixian_api',
                 ],
             ));
 

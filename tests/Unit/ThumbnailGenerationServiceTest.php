@@ -316,7 +316,7 @@ class ThumbnailGenerationServiceTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertSame('layered_subject', $result['composition_metadata']['composition_mode']);
-        $this->assertSame('poof_api', $result['composition_metadata']['foreground_extraction_method']);
+        $this->assertSame('pixian_api', $result['composition_metadata']['foreground_extraction_method']);
         $this->assertSame(['x' => 340, 'y' => 110, 'width' => 600, 'height' => 520], $result['composition_metadata']['foreground_bounds']);
         $this->assertSame(0.16, $result['composition_metadata']['foreground_coverage']);
     }
@@ -410,7 +410,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         $this->assertSame('candidate-1', $result->metadata['selected_thumbnail_candidate_id']);
         $this->assertArrayHasKey('card_thumbnail_path', $result->metadata);
         $this->assertSame('layered_subject', $result->metadata['composition_mode']);
-        $this->assertSame('poof_api', $result->metadata['foreground_extraction_method']);
+        $this->assertSame('pixian_api', $result->metadata['foreground_extraction_method']);
         $this->assertArrayHasKey('card_path', $result->metadata['thumbnail_candidates'][0]);
         $this->assertArrayHasKey('overlay_path', $result->metadata['thumbnail_candidates'][0]);
     }
@@ -453,7 +453,7 @@ class ThumbnailGenerationServiceTest extends TestCase
             'image' => Image::read($overlay),
             'coverage' => 0.16,
             'bounds' => ['x' => 340, 'y' => 110, 'width' => 600, 'height' => 520],
-            'method' => 'poof_api',
+            'method' => 'pixian_api',
         ];
     }
 
