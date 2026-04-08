@@ -28,6 +28,10 @@ $hasPublicVideo = filled($sermonView['video_url']);
   :tags="$sermon->series" />
 
 <x-schema.sermon :$sermon :$sermonView />
+<x-schema.webpage
+  :heading="$fullTitle"
+  :description="$description ?? $sermon->meta_description"
+/>
 @endsection
 
 @section('dynamic_content')

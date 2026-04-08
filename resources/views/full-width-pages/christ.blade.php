@@ -8,6 +8,10 @@
 <x-meta-tags
   title="Christ"
   description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church." />
+<x-schema.webpage
+  heading="Christ"
+  description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church."
+/>
 <x-breadcrumbs area="christ" heading="Christ" :jsonOnly="true" />
 
 <x-schema.faq :questions="[
