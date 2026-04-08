@@ -24,10 +24,7 @@
                 required
             />
 
-            <div class="flex items-center">
-                <input type="checkbox" id="remember" wire:model="remember" class="h-4 w-4 rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal">
-                <label for="remember" class="ml-2 block text-sm text-gray-700">Remember me</label>
-            </div>
+            <x-checkbox label="Remember me" id="remember" wire:model="remember" />
         </div>
 
         <div class="mt-6">
@@ -38,10 +35,10 @@
 
         <div class="mt-6 space-y-2 text-center text-sm">
             <div>
-                <a href="{{ route('password.request') }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">Forgot your password?</a>
+                <a href="{{ route('password.request') }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors">Forgot your password?</a>
             </div>
             <div>
-                <a href="{{ route('register') }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">Don't have an account? Register</a>
+                <a href="{{ route('register') }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors">Don't have an account? Register</a>
             </div>
         </div>
     </div>

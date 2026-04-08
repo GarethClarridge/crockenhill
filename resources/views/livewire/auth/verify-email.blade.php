@@ -17,7 +17,7 @@
         <div class="mt-4">
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" class="text-red-600 hover:underline bg-transparent border-none cursor-pointer p-0 m-0">Logout</button>
+                <button type="submit" class="text-cbc-crimson hover:text-cbc-crimson/80 transition-colors font-medium">Logout</button>
             </form>
         </div>
     </div>

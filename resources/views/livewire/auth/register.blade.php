@@ -1,10 +1,9 @@
 <form wire:submit.prevent="register" class="w-full max-w-md mx-auto mt-8">
     <div class="bg-white p-8 rounded-md shadow border border-gray-200">
         @if ($error)
-            <div class="mb-4 px-4 py-3 border rounded-md bg-red-50 border-red-200 text-red-800 flex items-start gap-3" role="alert">
-                <x-heroicon-o-exclamation-circle class="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                <span>{{ $error }}</span>
-            </div>
+            <x-alert type="error" class="mb-4">
+                {{ $error }}
+            </x-alert>
         @endif
 
         <div class="space-y-4">
@@ -53,7 +52,7 @@
         </div>
 
         <div class="mt-4 text-center text-sm">
-            <a href="{{ route('login') }}" class="text-blue-600 hover:text-blue-800 transition-colors">Already have an account? Login</a>
+            <a href="{{ route('login') }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors">Already have an account? Login</a>
         </div>
     </div>
 </form>
