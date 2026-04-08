@@ -1,16 +1,23 @@
 @extends('layouts.main')
 
+@php
+    $resolvedDescription = $metaDescription ?? (isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading));
+@endphp
+
 @section('title')
 {{$heading}}
 @stop
 
-@section('meta_description'){{ $metaDescription ?? (isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading)) }}@stop
+@section('meta_description'){{ $resolvedDescription }}@stop
 
 @section('meta_tags')
 <x-meta-tags
     :title="$heading"
-    :description="$metaDescription ?? (isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading))"
+    :description="$resolvedDescription"
+    :image="$headingpicture ?? null"
+    :image-alt="$headingpicture ? 'Crockenhill Baptist Church: ' . $heading : null"
 />
+<x-schema.webpage :$heading :description="$resolvedDescription" :image="$headingpicture ?? null" />
 @stop
 
 @section('content')
