@@ -7,12 +7,18 @@
 ])
 
 @php
+    $pageUrl = $canonical ?? url()->current();
     $schema = [
         '@context' => 'https://schema.org',
         '@type' => 'WebPage',
+        '@id' => $pageUrl.'#webpage',
+        'url' => $pageUrl,
         'name' => $heading,
         'description' => $description ?? $heading,
-        'url' => $canonical ?? url()->current(),
+        'isPartOf' => [
+            '@type' => 'WebSite',
+            '@id' => config('app.url').'/',
+        ],
         'publisher' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),
