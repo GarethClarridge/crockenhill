@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Presenters;
 
 use App\Models\Sermon;
@@ -20,10 +22,9 @@ class SermonSitemapPresenter
 
         // Use updated_at if valid, otherwise fall back to date.
         // Note: old records may have invalid updated_at values (0000-00-00) that aren't null.
-        $lastModified = $sermon->date;
-        if ($sermon->updated_at instanceof \Carbon\CarbonInterface && $sermon->updated_at->year > 0) {
-            $lastModified = $sermon->updated_at;
-        }
+        $lastModified = ($sermon->updated_at instanceof \Carbon\CarbonInterface && $sermon->updated_at->year > 0)
+            ? $sermon->updated_at
+            : $sermon->date;
 
         $url = Url::create($this->sermonViewPresenter->canonicalUrl($sermon))
             ->setLastModificationDate($lastModified)
