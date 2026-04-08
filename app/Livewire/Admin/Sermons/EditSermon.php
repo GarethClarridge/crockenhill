@@ -53,6 +53,8 @@ class EditSermon extends Component
 
     public ?float $segmentEndTime = null;
 
+    public int $downloadCount = 0;
+
     public ?string $reference = null;
 
     public ?string $series = null;
@@ -97,6 +99,7 @@ class EditSermon extends Component
             'duration' => 'nullable|numeric|min:0',
             'segmentStartTime' => 'nullable|numeric|min:0',
             'segmentEndTime' => 'nullable|numeric|min:0|gte:segmentStartTime',
+            'downloadCount' => 'required|integer|min:0',
             'reference' => 'nullable|string|max:255',
             'series' => 'nullable|string|max:255',
             'summary' => 'nullable|string|max:1000',
@@ -132,6 +135,7 @@ class EditSermon extends Component
         $this->duration = $sermon->duration;
         $this->segmentStartTime = $sermon->segment_start_time;
         $this->segmentEndTime = $sermon->segment_end_time;
+        $this->downloadCount = $sermon->download_count ?? 0;
         $this->reference = $sermon->displayReference();
         $this->series = $sermon->series;
         $this->summary = $sermon->summary;
@@ -199,6 +203,7 @@ class EditSermon extends Component
             'duration' => $validated['duration'],
             'segment_start_time' => $validated['segmentStartTime'],
             'segment_end_time' => $validated['segmentEndTime'],
+            'download_count' => $validated['downloadCount'],
             'needs_preacher_review' => false,
             'reference' => $newReference,
             'scripture_passage_id' => $scripturePassageId,
