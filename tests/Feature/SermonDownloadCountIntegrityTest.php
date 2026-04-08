@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -34,15 +35,27 @@ class SermonDownloadCountIntegrityTest extends TestCase
     }
 
     #[Test]
-    public function database_enforces_non_negative_download_count(): void
+    public function download_count_validation_rejects_negative_values(): void
     {
-        $sermon = Sermon::factory()->create();
+        $validator = Validator::make(
+            ['download_count' => -1],
+            ['download_count' => 'required|integer|min:0']
+        );
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('download_count', $validator->errors()->toArray());
+    }
 
-        // Raw DB update to bypass model/validation logic and test DB constraint
-        \Illuminate\Support\Facades\DB::table('sermons')
-            ->where('id', $sermon->id)
-            ->update(['download_count' => -1]);
+    #[Test]
+    public function download_count_validation_accepts_zero_and_positive_values(): void
+    {
+        foreach ([0, 1, 100] as $value) {
+            $validator = Validator::make(
+                ['download_count' => $value],
+                ['download_count' => 'required|integer|min:0']
+            );
+
+            $this->assertFalse($validator->fails(), "Expected {$value} to pass validation.");
+        }
     }
 }

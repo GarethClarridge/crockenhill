@@ -58,8 +58,8 @@
                         <x-input label="Slug" wire:model="slug" required maxlength="255"
                             hint="URL-friendly identifier (auto-generated from title)" />
 
-                        <x-input type="number" label="Download Count" wire:model="downloadCount" required min="0"
-                            hint="Number of times the audio has been downloaded" />
+                        <x-input type="number" label="Download Count" wire:model="downloadCount" readonly
+                            hint="Incremented automatically when the audio is downloaded" />
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
