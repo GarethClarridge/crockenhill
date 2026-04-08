@@ -3,13 +3,16 @@
 ])
 
 @php
-    $sermonUrl = "/christ/sermons/{$sermon->date->format('Y')}/{$sermon->date->format('m')}/{$sermon->slug}";
-    $cardThumbnailUrl = app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon);
+    /**
+     * Performance Optimization: Consolidate URL logic into the SermonViewPresenter
+     * to reduce logic duplication and leverage singleton instances.
+     */
+    $presenter = app(\App\Presenters\SermonViewPresenter::class);
+    $sermonUrl = $presenter->canonicalUrl($sermon);
+    $cardThumbnailUrl = $presenter->cardThumbnailUrl($sermon);
     $preacherName = $sermon->displayPreacherName();
     $reference = $sermon->displayReference();
-    $preacherUrl = filled($sermon->preacherProfile?->slug ?? null)
-        ? '/christ/sermons/preachers/'.$sermon->preacherProfile->slug
-        : (filled($preacherName) ? '/christ/sermons/preachers/'.\Illuminate\Support\Str::slug($preacherName) : null);
+    $preacherUrl = $presenter->preacherUrl($sermon);
 @endphp
 
 <div class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
