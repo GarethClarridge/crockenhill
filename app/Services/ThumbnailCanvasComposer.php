@@ -143,7 +143,7 @@ class ThumbnailCanvasComposer
             }
         }
 
-        $this->placeForegroundSubject($canvas, $foreground, $subjectMaxWidth, $inset, $inset);
+        $this->placeForegroundSubject($canvas, $foreground, $inset, $inset);
 
         return $canvas;
     }
@@ -189,7 +189,7 @@ class ThumbnailCanvasComposer
             self::TITLE_LINE_HEIGHT,
         );
 
-        $this->placeForegroundSubject($canvas, $foreground, $subjectMaxWidth, $inset, $inset);
+        $this->placeForegroundSubject($canvas, $foreground, $inset, $inset);
 
         return $canvas;
     }
@@ -317,7 +317,6 @@ class ThumbnailCanvasComposer
     private function placeForegroundSubject(
         ImageInterface $canvas,
         ?array $foreground,
-        int $maxWidth,
         int $topInset,
         int $rightInset
     ): void {
@@ -329,7 +328,8 @@ class ThumbnailCanvasComposer
         $subjectWidth = max(1, $subjectImage->width());
         $subjectHeight = max(1, $subjectImage->height());
         $maxHeight = max(1, $canvas->height() - $topInset);
-        $scale = min($maxWidth / $subjectWidth, $maxHeight / $subjectHeight);
+        $maxCanvasWidth = max(1, $canvas->width() - $rightInset);
+        $scale = $maxHeight / $subjectHeight;
 
         if ($scale <= 0) {
             return;
@@ -337,6 +337,12 @@ class ThumbnailCanvasComposer
 
         $targetWidth = max(1, (int) round($subjectWidth * $scale));
         $targetHeight = max(1, (int) round($subjectHeight * $scale));
+
+        if ($targetWidth > $maxCanvasWidth) {
+            $scale = $maxCanvasWidth / $subjectWidth;
+            $targetWidth = max(1, (int) round($subjectWidth * $scale));
+            $targetHeight = max(1, (int) round($subjectHeight * $scale));
+        }
 
         $subjectImage->resize($targetWidth, $targetHeight);
 

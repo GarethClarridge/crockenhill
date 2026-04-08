@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
+use App\Actions\DeleteLivestreamUpload;
 use App\Actions\ServiceReview\ResolvePendingStructureMerge;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
@@ -17,6 +18,7 @@ use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ServiceFlowBuilder;
 use App\Support\ServiceRecordTimeline;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -112,6 +114,60 @@ class ShowChurchService extends Component
         $this->authorizeAdmin();
 
         $this->resolvePendingMerge('keep_current');
+    }
+
+    public function deleteUpload(int $processingLogId): \Livewire\Features\SupportRedirects\Redirector|RedirectResponse|null
+    {
+
+        $this->authorizeAdmin();
+
+        $processingLog = MediaProcessingLog::query()->find($processingLogId);
+        if (! $processingLog instanceof MediaProcessingLog) {
+            $this->error('Processing run not found.');
+
+            return null;
+        }
+
+        if (! $this->processingLogMatchesService($processingLog)) {
+            $this->error('Selected run does not belong to this service.');
+
+            return null;
+        }
+
+        try {
+            $result = app(DeleteLivestreamUpload::class)->execute($processingLog);
+        } catch (\InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
+
+            return null;
+        }
+
+        if (in_array($this->churchService->id, $result['deleted_service_ids'], true)) {
+            return $this->success(
+                'Broken livestream upload deleted. The empty projected service was removed too.',
+                route('admin.services.index')
+            );
+        }
+
+        $this->churchService = $this->churchService->fresh([
+            'items' => fn ($query) => $query
+                ->with('song:id,title')
+                ->orderBy('position')
+                ->orderBy('id'),
+        ]) ?? $this->churchService;
+
+        $sermonLabel = $result['deleted_sermons'] === 1 ? 'sermon' : 'sermons';
+        $itemLabel = $result['deleted_projected_items'] === 1 ? 'projected item' : 'projected items';
+
+        $this->success(sprintf(
+            'Broken livestream upload deleted. Removed %d %s and %d %s.',
+            $result['deleted_sermons'],
+            $sermonLabel,
+            $result['deleted_projected_items'],
+            $itemLabel,
+        ));
+
+        return null;
     }
 
     private function resolvePendingMerge(string $resolution): void

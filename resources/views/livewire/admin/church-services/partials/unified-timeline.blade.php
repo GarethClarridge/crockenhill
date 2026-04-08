@@ -28,6 +28,18 @@
         >
             Reclassify
         </x-form-button>
+
+        <x-form-button
+            type="button"
+            variant="danger"
+            size="sm"
+            icon="trash"
+            wire:click="deleteUpload({{ $run->id }})"
+            wire:target="deleteUpload({{ $run->id }})"
+            wire:confirm="Delete this livestream upload? This will remove the processing run, projected service items, and any sermons or assets created from it."
+        >
+            Delete upload
+        </x-form-button>
     </div>
 
     {{-- Collapsible processing timeline --}}
