@@ -74,7 +74,7 @@ class SeoMetadataTest extends TestCase
         $response->assertSee('<meta name="description" content="Browse all sermons preached by John Doe at Crockenhill Baptist Church.">', false);
     }
 
-    public function test_pages_have_webpage_schema()
+    public function test_pages_have_webpage_schema(): void
     {
         $response = $this->get('/');
         $response->assertStatus(200);

@@ -11,7 +11,7 @@
     :image="$preacher->profile_image_url"
 />
 <x-schema.webpage
-    :title="$heading"
+    :heading="$heading"
     :description="$description"
 />
 <x-breadcrumbs area="christ" :heading="$heading" :jsonOnly="true" />
