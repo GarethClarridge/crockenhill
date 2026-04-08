@@ -11,6 +11,16 @@ class MediaProcessingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        /**
+         * Performance Optimization: Register core media processing services as singletons.
+         * These services are stateless and frequently used during the request cycle.
+         */
+        $this->app->singleton(\App\Services\SermonStorageService::class);
+        $this->app->singleton(\App\Services\SermonExposurePolicy::class);
+        $this->app->singleton(\App\Services\TranscriptStorageService::class);
+        $this->app->singleton(\App\Services\BritishEnglishConverter::class);
+        $this->app->singleton(\App\Presenters\SermonViewPresenter::class);
+
         // Register supporting services that existing services depend on
         $this->app->bind(\App\Services\LivestreamSegmentationService::class, function ($app) {
             return new \App\Services\LivestreamSegmentationService(

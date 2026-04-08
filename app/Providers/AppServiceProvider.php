@@ -10,7 +10,23 @@ use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+        /**
+         * Performance Optimization: Register core stateless repositories, services, and presenters
+         * as singletons to reduce object instantiation overhead during the request cycle.
+         */
+        $this->app->singleton(\App\Repositories\SermonRepository::class);
+        $this->app->singleton(\App\Repositories\PageRepository::class);
+        $this->app->singleton(\App\Services\PageImageCacheService::class);
+        $this->app->singleton(\App\Presenters\PageImagePresenter::class);
+        $this->app->singleton(\App\Presenters\PageCardPresenter::class);
+        $this->app->singleton(\App\Presenters\RelatedPagePresenter::class);
+        $this->app->singleton(\App\Services\PublicPageReadModelCache::class);
+        $this->app->singleton(\App\Services\PublicMeetingReadModelCache::class);
+        $this->app->singleton(\App\Presenters\SermonSitemapPresenter::class);
+        $this->app->singleton(\App\Presenters\PageSitemapPresenter::class);
+    }
 
     public function boot(): void
     {

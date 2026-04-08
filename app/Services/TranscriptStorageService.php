@@ -12,6 +12,9 @@ class TranscriptStorageService
 {
     private const TRANSCRIPT_DIRECTORY = 'transcripts';
 
+    /** @var array<int, string>|null */
+    private ?array $transcriptReadDisks = null;
+
     /**
      * Store transcript content to file
      *
@@ -257,10 +260,17 @@ class TranscriptStorageService
     /**
      * Get the ordered list of disks to try when reading a transcript.
      *
+     * Performance Optimization: Memoize the list of disks to avoid redundant config() calls
+     * and array operations during high-frequency transcript lookups.
+     *
      * @return array<int, string>
      */
     public function getTranscriptReadDisks(): array
     {
+        if ($this->transcriptReadDisks !== null) {
+            return $this->transcriptReadDisks;
+        }
+
         $transcriptDisk = (string) config('media-processing.storage.transcript_disk', '');
         $sermonDisk = (string) config('media-processing.storage.sermon_disk', '');
         $defaultDisk = (string) config('filesystems.default', '');
@@ -274,7 +284,9 @@ class TranscriptStorageService
             'do_spaces',
         ];
 
-        return array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
+        $this->transcriptReadDisks = array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
+
+        return $this->transcriptReadDisks;
     }
 
     private function transcriptDisk(): string
