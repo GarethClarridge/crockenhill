@@ -12,63 +12,105 @@ use Illuminate\Support\Str;
 
 class SermonViewPresenter
 {
+    /**
+     * @var array<string, mixed>
+     */
+    private array $memoizedUrls = [];
+
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
         private readonly SermonTranscriptReader $transcriptReader,
     ) {}
 
+    /**
+     * Clear the internal URL cache.
+     * Useful for long-running processes or tests.
+     */
+    public function clearInternalCaches(): void
+    {
+        $this->memoizedUrls = [];
+    }
+
     public function audioUrl(Sermon $sermon): ?string
     {
-        if (! filled($sermon->audio_file_path)) {
-            return null;
+        $key = $this->cacheKey($sermon, 'audio');
+
+        if (! array_key_exists($key, $this->memoizedUrls)) {
+            $this->memoizedUrls[$key] = filled($sermon->audio_file_path)
+                ? $this->storageService->getPublicUrl($sermon)
+                : null;
         }
 
-        return $this->storageService->getPublicUrl($sermon);
+        return $this->memoizedUrls[$key];
     }
 
     public function canonicalUrl(Sermon $sermon): string
     {
-        return $this->exposurePolicy->canonicalUrl($sermon);
+        return $this->memoizedUrls[$this->cacheKey($sermon, 'canonical')] ??= $this->exposurePolicy->canonicalUrl($sermon);
     }
 
     public function cardThumbnailUrl(Sermon $sermon): ?string
     {
-        if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-            return null;
+        $key = $this->cacheKey($sermon, 'card_thumb');
+
+        if (! array_key_exists($key, $this->memoizedUrls)) {
+            $this->memoizedUrls[$key] = (function () use ($sermon) {
+                if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
+                    return null;
+                }
+
+                if (! $sermon->hasPlainThumbnail()) {
+                    return null;
+                }
+
+                return $this->storageService->getCardThumbnailUrl($sermon);
+            })();
         }
 
-        if (! $sermon->hasPlainThumbnail()) {
-            return null;
-        }
-
-        return $this->storageService->getCardThumbnailUrl($sermon);
+        return $this->memoizedUrls[$key];
     }
 
     public function plainThumbnailUrl(Sermon $sermon): ?string
     {
-        if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-            return null;
+        $key = $this->cacheKey($sermon, 'plain_thumb');
+
+        if (! array_key_exists($key, $this->memoizedUrls)) {
+            $this->memoizedUrls[$key] = (function () use ($sermon) {
+                if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
+                    return null;
+                }
+
+                if (! $sermon->hasPlainThumbnail()) {
+                    return null;
+                }
+
+                return $this->storageService->getPlainThumbnailUrl($sermon);
+            })();
         }
 
-        if (! $sermon->hasPlainThumbnail()) {
-            return null;
-        }
-
-        return $this->storageService->getPlainThumbnailUrl($sermon);
+        return $this->memoizedUrls[$key];
     }
 
     public function preacherUrl(Sermon $sermon): ?string
     {
-        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-            return '/christ/sermons/preachers/'.$sermon->preacherProfile->slug;
+        $key = $this->cacheKey($sermon, 'preacher');
+
+        if (! array_key_exists($key, $this->memoizedUrls)) {
+            $this->memoizedUrls[$key] = (function () use ($sermon) {
+                if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+                    return '/christ/sermons/preachers/'.$sermon->preacherProfile->slug;
+                }
+
+                $preacherName = $sermon->displayPreacherName();
+
+                return filled($preacherName)
+                    ? '/christ/sermons/preachers/'.Str::slug($preacherName)
+                    : null;
+            })();
         }
 
-        $preacherName = $sermon->displayPreacherName();
-
-        return filled($preacherName)
-            ? '/christ/sermons/preachers/'.Str::slug($preacherName)
-            : null;
+        return $this->memoizedUrls[$key];
     }
 
     /**
@@ -123,20 +165,28 @@ class SermonViewPresenter
 
     public function publicUrl(Sermon $sermon): string
     {
-        return $this->exposurePolicy->publicUrl($sermon);
+        return $this->memoizedUrls[$this->cacheKey($sermon, 'public')] ??= $this->exposurePolicy->publicUrl($sermon);
     }
 
     public function thumbnailUrl(Sermon $sermon): ?string
     {
-        if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-            return null;
+        $key = $this->cacheKey($sermon, 'thumb');
+
+        if (! array_key_exists($key, $this->memoizedUrls)) {
+            $this->memoizedUrls[$key] = (function () use ($sermon) {
+                if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
+                    return null;
+                }
+
+                if (! $sermon->hasThumbnail()) {
+                    return null;
+                }
+
+                return $this->storageService->getThumbnailUrl($sermon);
+            })();
         }
 
-        if (! $sermon->hasThumbnail()) {
-            return null;
-        }
-
-        return $this->storageService->getThumbnailUrl($sermon);
+        return $this->memoizedUrls[$key];
     }
 
     public function transcript(Sermon $sermon): ?string
@@ -146,10 +196,28 @@ class SermonViewPresenter
 
     public function videoUrl(Sermon $sermon): ?string
     {
-        if (! $this->exposurePolicy->shouldExposeVideo($sermon)) {
-            return null;
+        $key = $this->cacheKey($sermon, 'video');
+
+        if (! array_key_exists($key, $this->memoizedUrls)) {
+            $this->memoizedUrls[$key] = (function () use ($sermon) {
+                if (! $this->exposurePolicy->shouldExposeVideo($sermon)) {
+                    return null;
+                }
+
+                return $this->storageService->getVideoUrl($sermon);
+            })();
         }
 
-        return $this->storageService->getVideoUrl($sermon);
+        return $this->memoizedUrls[$key];
+    }
+
+    /**
+     * Generate a cache key for the given sermon and type.
+     */
+    private function cacheKey(Sermon $sermon, string $type): string
+    {
+        $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
+
+        return "{$type}_{$sermon->id}_{$timestamp}";
     }
 }
