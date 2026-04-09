@@ -63,4 +63,21 @@ class ScripturePassage extends Model
 
         return $this->fetched_at->diffInDays(now()) >= $refreshAfterDays;
     }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'bible_id' => ['required', 'string', 'max:255'],
+            'normalized_reference' => ['required', 'string', 'max:255'],
+            'api_passage_id' => ['nullable', 'string', 'max:255'],
+            'display_reference' => ['nullable', 'string', 'max:255'],
+            'fums_token' => ['nullable', 'string', 'max:255'],
+            'html_content' => ['required', 'string'],
+            'copyright' => ['required', 'string'],
+            'fetched_at' => ['required', 'date'],
+        ];
+    }
 }
