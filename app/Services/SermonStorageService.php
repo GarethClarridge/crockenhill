@@ -20,6 +20,11 @@ class SermonStorageService
 
     private ?string $cdnEndpoint;
 
+    /**
+     * @var array<string, string>
+     */
+    private array $memoizedVersions = [];
+
     public function __construct()
     {
         $this->refreshConfig();
@@ -33,6 +38,7 @@ class SermonStorageService
     {
         $this->refreshConfig();
         $this->clearCachedMetadata();
+        $this->memoizedVersions = [];
     }
 
     /**
@@ -369,19 +375,23 @@ class SermonStorageService
 
     private function audioVersion(Sermon $sermon): string
     {
-        return sha1(implode('|', [
+        $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
+
+        return $this->memoizedVersions["audio_{$sermon->id}_{$timestamp}"] ??= sha1(implode('|', [
             'audio',
             $sermon->audio_file_path,
-            $sermon->updated_at?->getTimestamp() ?? 0,
+            $timestamp,
         ]));
     }
 
     private function videoVersion(Sermon $sermon): string
     {
-        return sha1(implode('|', [
+        $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
+
+        return $this->memoizedVersions["video_{$sermon->id}_{$timestamp}"] ??= sha1(implode('|', [
             'video',
             $sermon->video_file_path,
-            $sermon->updated_at?->getTimestamp() ?? 0,
+            $timestamp,
         ]));
     }
 
@@ -428,12 +438,16 @@ class SermonStorageService
 
     private function thumbnailVersion(Sermon $sermon, string $thumbnailPath): string
     {
-        return sha1(implode('|', [
+        $timestamp = $sermon->thumbnail_generated_at?->getTimestamp()
+            ?? $sermon->updated_at?->getTimestamp()
+            ?? 0;
+
+        $cacheKey = "thumb_{$sermon->id}_{$timestamp}_".sha1($thumbnailPath);
+
+        return $this->memoizedVersions[$cacheKey] ??= sha1(implode('|', [
             'thumbnail',
             $thumbnailPath,
-            $sermon->thumbnail_generated_at?->getTimestamp()
-                ?? $sermon->updated_at?->getTimestamp()
-                ?? 0,
+            $timestamp,
         ]));
     }
 
