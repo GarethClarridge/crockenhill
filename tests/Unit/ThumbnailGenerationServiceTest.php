@@ -351,7 +351,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         $fallbackThumbnail = $fallbackService->createBrandedThumbnail($sermon, $this->storeBaseFrame());
         $fallbackImage = Image::read(Storage::disk('local')->path($fallbackThumbnail['path']));
 
-        $backgroundPixel = $this->getImagePixel($fallbackImage, 1180, 660);
+        $backgroundPixel = $this->getImagePixel($fallbackImage, 1180, 80);
         $logoPixel = $this->findDarkPixelInRegion($fallbackImage, 40, 40, 260, 240);
         $titlePixel = $this->findDarkPixelInRegion($fallbackImage, 60, 180, 700, 420);
         $metadataPixel = $this->findDarkPixelInRegion($fallbackImage, 40, 430, 520, 700);

@@ -62,6 +62,12 @@ class ThumbnailCanvasComposer
 
     private const int CENTERED_TITLE_MAX_LINES = 3;
 
+    private const float CENTERED_TITLE_TOP_PADDING_RATIO = 0.06;
+
+    private const float CENTERED_TITLE_MAX_HEIGHT_RATIO = 0.65;
+
+    private const float CENTERED_SUBJECT_OVERLAP_LINES = 1.5;
+
     private const float TITLE_LINE_HEIGHT = 0.92;
 
     private const float METADATA_LINE_HEIGHT = 1.04;
@@ -233,19 +239,20 @@ class ThumbnailCanvasComposer
             $titleMinFontSize,
             self::CENTERED_TITLE_MAX_LINES,
             self::TITLE_LINE_HEIGHT,
-            (int) round($height * 0.55),
+            $this->resolveCenteredTitleMaxHeight($height),
             $montserratFontPath,
         );
 
-        // Centre the title in the top half; overlay is bottom-left so no top clearance needed.
-        $titleTopY = max(
-            (int) round($height * 0.04),
-            (int) round(($height / 4) - ($titleLayout['height'] / 2)),
-        );
+        // Keep the title near the top while allowing longer copy to occupy more of the canvas.
+        $titleTopY = $this->resolveCenteredTitleTopY($height, $titleLayout['height']);
         $numLines = count($titleLayout['lines']);
         $lineSpacing = (int) round($titleLayout['font_size'] * self::TITLE_LINE_HEIGHT);
-        $lastLineTopY = $titleTopY + (max(0, $numLines - 1) * $lineSpacing);
-        $imageTopY = $lastLineTopY + (int) round($titleLayout['font_size'] / 2);
+        $imageTopY = $this->resolveCenteredForegroundTopY(
+            $titleTopY,
+            $numLines,
+            $lineSpacing,
+            $titleLayout['font_size'],
+        );
 
         $this->drawCenteredTextLines(
             $canvas,
@@ -926,6 +933,40 @@ class ThumbnailCanvasComposer
 
         $x = (int) round(($canvas->width() - $targetWidth) / 2);
         $canvas->place($subjectImage, 'top-left', $x, $imageTopY);
+    }
+
+    private function resolveCenteredTitleMaxHeight(int $height): int
+    {
+        return (int) round($height * self::CENTERED_TITLE_MAX_HEIGHT_RATIO);
+    }
+
+    private function resolveCenteredTitleTopY(int $height, int $titleLayoutHeight): int
+    {
+        $titleTopPadding = (int) round($height * self::CENTERED_TITLE_TOP_PADDING_RATIO);
+
+        return max(
+            $titleTopPadding,
+            (int) round(($height / 4) - ($titleLayoutHeight / 2)),
+        );
+    }
+
+    private function resolveCenteredForegroundTopY(
+        int $titleTopY,
+        int $lineCount,
+        int $lineSpacing,
+        int $fontSize,
+    ): int {
+        if ($lineCount <= 0) {
+            return $titleTopY;
+        }
+
+        $fullyOverlappedLines = (int) floor(self::CENTERED_SUBJECT_OVERLAP_LINES);
+        $partialLineOverlap = self::CENTERED_SUBJECT_OVERLAP_LINES - $fullyOverlappedLines;
+        $overlapStartLineIndex = max(0, $lineCount - $fullyOverlappedLines - 1);
+
+        return $titleTopY
+            + ($overlapStartLineIndex * $lineSpacing)
+            + (int) round($fontSize * $partialLineOverlap);
     }
 
     private function getMontserratBlackFontPath(): ?string

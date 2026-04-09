@@ -142,10 +142,9 @@ class ThumbnailCanvasComposerTest extends TestCase
         $this->assertInstanceOf(\GdImage::class, $native);
 
         // Title is drawn in the brand foreground colour (#145557 = dark teal).
-        // Overlay is now bottom-left so title can start near the top (y >= 29 = 4% of 720).
-        // Scan from y=29 down to the canvas midpoint for dark-teal pixels (R<40, G>60, B>60).
+        // The centered layout now keeps a 6% top inset (y >= 43 on a 720px canvas).
         $foundTeal = false;
-        for ($y = 29; $y <= 360 && ! $foundTeal; $y++) {
+        for ($y = 43; $y <= 360 && ! $foundTeal; $y++) {
             for ($x = 0; $x < imagesx($native) && ! $foundTeal; $x++) {
                 $colorIndex = imagecolorat($native, $x, $y);
                 $color = imagecolorsforindex($native, $colorIndex);
@@ -156,6 +155,37 @@ class ThumbnailCanvasComposerTest extends TestCase
         }
 
         $this->assertTrue($foundTeal, 'Expected brand-foreground (teal) title text below the corner overlay region');
+    }
+
+    #[Test]
+    public function it_keeps_centered_title_pixels_below_the_increased_top_padding(): void
+    {
+        $composer = app(ThumbnailCanvasComposer::class);
+        $method = new \ReflectionMethod($composer, 'resolveCenteredTitleTopY');
+        $method->setAccessible(true);
+
+        $this->assertSame(43, $method->invoke($composer, 720, 340));
+    }
+
+    #[Test]
+    public function it_allows_centered_title_copy_to_extend_beyond_the_top_half_of_the_canvas(): void
+    {
+        $composer = app(ThumbnailCanvasComposer::class);
+        $method = new \ReflectionMethod($composer, 'resolveCenteredTitleMaxHeight');
+        $method->setAccessible(true);
+
+        $this->assertSame(468, $method->invoke($composer, 720));
+    }
+
+    #[Test]
+    public function it_allows_the_centered_foreground_subject_to_overlap_the_bottom_line_and_a_half_of_the_title(): void
+    {
+        $composer = app(ThumbnailCanvasComposer::class);
+        $method = new \ReflectionMethod($composer, 'resolveCenteredForegroundTopY');
+        $method->setAccessible(true);
+
+        $this->assertSame(183, $method->invoke($composer, 43, 3, 100, 80));
+        $this->assertSame(83, $method->invoke($composer, 43, 2, 100, 80));
     }
 
     #[Test]
@@ -189,10 +219,10 @@ class ThumbnailCanvasComposerTest extends TestCase
         $this->assertEqualsWithDelta($leftGap, $rightGap, 60.0, 'Expected foreground subject to be horizontally centred');
     }
 
-    private function sermon(): Sermon
+    private function sermon(string $title = 'Grace Alone'): Sermon
     {
         return new Sermon([
-            'title' => 'Grace Alone',
+            'title' => $title,
             'reference' => null,
             'preacher' => '',
             'date' => Carbon::parse('2026-02-19'),
