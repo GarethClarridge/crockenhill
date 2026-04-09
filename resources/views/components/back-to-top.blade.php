@@ -1,7 +1,7 @@
 <div
     x-data="{ show: false }"
-    x-on:scroll.window="show = window.scrollY > 400"
-    class="fixed bottom-8 right-8 z-40"
+    x-on:scroll.window.throttle.100ms="show = window.scrollY > 400"
+    class="fixed bottom-4 right-4 z-40 sm:bottom-8 sm:right-8"
     x-show="show"
     x-transition:enter="transition ease-out duration-300"
     x-transition:enter-start="opacity-0 translate-y-10"
@@ -13,7 +13,7 @@
 >
     <button
         type="button"
-        @click="window.scrollTo({ top: 0, behavior: 'smooth' })"
+        @click="window.scrollTo(0, 0)"
         aria-label="Back to top"
         title="Back to top"
         class="flex h-12 w-12 items-center justify-center rounded-full bg-cbc-teal text-white shadow-lg transition-all hover:bg-cbc-teal-dark hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 active:scale-95"
