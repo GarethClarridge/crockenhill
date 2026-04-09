@@ -13,7 +13,6 @@
     heading="Christmas"
     description="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events."
 />
-<x-breadcrumbs area="church" heading="Christmas" :jsonOnly="true" />
 @stop
 
 @section('content')

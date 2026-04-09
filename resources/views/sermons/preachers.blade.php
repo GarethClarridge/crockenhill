@@ -13,7 +13,6 @@
     :heading="$heading"
     :description="$description"
 />
-<x-breadcrumbs area="christ" heading="Preachers" :jsonOnly="true" />
 
 {{-- JSON-LD Preachers List --}}
 @if(isset($json_ld_data))
