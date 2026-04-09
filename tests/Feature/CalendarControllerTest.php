@@ -70,6 +70,11 @@ class CalendarControllerTest extends TestCase
         $response->assertSee('"@type": "ItemList"', false);
         $response->assertSee('"@type": "Event"', false);
         $response->assertSee('"name": "Upcoming Event"', false);
+
+        // Check BreadcrumbList JSON-LD
+        $response->assertSee('"@type": "BreadcrumbList"', false);
+        $response->assertSee('"name": "Community"', false);
+        $response->assertSee('"name": "Church Calendar"', false);
     }
 
     #[Test]
@@ -117,6 +122,12 @@ class CalendarControllerTest extends TestCase
         $response->assertDontSee('Tentative Meeting Event');
         $response->assertDontSee('Cancelled Event');
         $response->assertDontSee('Other Meeting Event');
+
+        // Check BreadcrumbList JSON-LD
+        $response->assertSee('"@type": "BreadcrumbList"', false);
+        $response->assertSee('"name": "Community"', false);
+        $response->assertSee('"name": "Specific Meeting"', false);
+        $response->assertSee('"name": "specific-meeting events"', false);
     }
 
     #[Test]
