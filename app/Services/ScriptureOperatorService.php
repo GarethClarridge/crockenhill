@@ -284,16 +284,22 @@ class ScriptureOperatorService
             return 'failed';
         }
 
+        $passageData = [
+            'bible_id' => $bibleId,
+            'normalized_reference' => $normalizedReference,
+            'api_passage_id' => $result->passageId,
+            'display_reference' => $result->displayReference,
+            'html_content' => $sanitizedHtml,
+            'copyright' => $result->copyright,
+            'fums_token' => $result->fumsToken,
+            'fetched_at' => now(),
+        ];
+
+        ScripturePassage::validate($passageData);
+
         $passage = ScripturePassage::query()->updateOrCreate(
             ['bible_id' => $bibleId, 'normalized_reference' => $normalizedReference],
-            [
-                'api_passage_id' => $result->passageId,
-                'display_reference' => $result->displayReference,
-                'html_content' => $sanitizedHtml,
-                'copyright' => $result->copyright,
-                'fums_token' => $result->fumsToken,
-                'fetched_at' => now(),
-            ]
+            $passageData
         );
 
         $sermon->update(['scripture_passage_id' => $passage->id]);
@@ -337,14 +343,20 @@ class ScriptureOperatorService
             return 'failed';
         }
 
-        $passage->update([
+        $refreshData = [
+            'bible_id' => $passage->bible_id,
+            'normalized_reference' => $passage->normalized_reference,
             'api_passage_id' => $result->passageId,
             'display_reference' => $result->displayReference,
             'html_content' => $sanitizedHtml,
             'copyright' => $result->copyright,
             'fums_token' => $result->fumsToken,
             'fetched_at' => now(),
-        ]);
+        ];
+
+        ScripturePassage::validate($refreshData);
+
+        $passage->update($refreshData);
 
         Log::info('scripture:refresh-passages passage refreshed', [
             'passage_id' => $passage->id,

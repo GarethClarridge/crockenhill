@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Validator;
 
 /**
  * App\Models\ScripturePassage
@@ -79,5 +80,16 @@ class ScripturePassage extends Model
             'copyright' => ['required', 'string'],
             'fetched_at' => ['required', 'date'],
         ];
+    }
+
+    /**
+     * Validate data against the model's rules.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function validate(array $data): array
+    {
+        return Validator::make($data, self::validationRules())->validate();
     }
 }

@@ -20,8 +20,6 @@ return new class extends Migration
             $table->string('display_reference', 255)->nullable()->change();
             $table->string('fums_token', 255)->nullable()->change();
 
-            // The unique constraint already exists from 2026_03_13_194852_create_scripture_passages_table.php
-            // but we ensure it's backed by indexes for the individual columns as well for performance.
             $table->index('bible_id');
             $table->index('normalized_reference');
             $table->index('fetched_at');
@@ -37,6 +35,12 @@ return new class extends Migration
             $table->dropIndex(['bible_id']);
             $table->dropIndex(['normalized_reference']);
             $table->dropIndex(['fetched_at']);
+
+            $table->string('bible_id')->change();
+            $table->string('normalized_reference')->change();
+            $table->string('api_passage_id')->nullable()->change();
+            $table->string('display_reference')->nullable()->change();
+            $table->string('fums_token')->nullable()->change();
         });
     }
 };

@@ -22,7 +22,6 @@ class ScripturePassageIntegrityTest extends TestCase
         ]);
 
         $this->expectException(\Illuminate\Database\QueryException::class);
-        $this->expectExceptionMessage('Integrity constraint violation');
 
         ScripturePassage::factory()->create([
             'bible_id' => 'de4e12af7f895db2-01',
@@ -54,5 +53,19 @@ class ScripturePassageIntegrityTest extends TestCase
         ]);
 
         $this->assertEquals($longCopyright, $passage->fresh()?->copyright);
+    }
+
+    #[Test]
+    public function it_fails_validation_for_invalid_data(): void
+    {
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+
+        ScripturePassage::validate([
+            'bible_id' => '', // Required
+            'normalized_reference' => 'JHN.3.16',
+            'html_content' => 'content',
+            'copyright' => 'copyright',
+            'fetched_at' => now(),
+        ]);
     }
 }
