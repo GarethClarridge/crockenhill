@@ -5,18 +5,16 @@ declare(strict_types=1);
 namespace Tests\Unit\Http\Requests;
 
 use App\Http\Requests\SermonIndexRequest;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonIndexRequestTest extends TestCase
 {
-    use DatabaseTransactions;
     #[Test]
     public function authorize_returns_true(): void
     {
-        $request = new SermonIndexRequest();
+        $request = new SermonIndexRequest;
 
         $this->assertTrue($request->authorize());
     }
@@ -36,7 +34,7 @@ class SermonIndexRequestTest extends TestCase
             'with_thumbnail' => true,
         ];
 
-        $request = new SermonIndexRequest();
+        $request = new SermonIndexRequest;
         $validator = Validator::make($data, $request->rules());
 
         $this->assertTrue($validator->passes());
@@ -47,7 +45,7 @@ class SermonIndexRequestTest extends TestCase
     {
         $data = [];
 
-        $request = new SermonIndexRequest();
+        $request = new SermonIndexRequest;
         $validator = Validator::make($data, $request->rules());
 
         $this->assertTrue($validator->passes());
@@ -60,7 +58,7 @@ class SermonIndexRequestTest extends TestCase
             'sort' => 'invalid_field',
         ];
 
-        $request = new SermonIndexRequest();
+        $request = new SermonIndexRequest;
         $validator = Validator::make($data, $request->rules());
 
         $this->assertFalse($validator->passes());
@@ -74,7 +72,7 @@ class SermonIndexRequestTest extends TestCase
             'order' => 'sideways',
         ];
 
-        $request = new SermonIndexRequest();
+        $request = new SermonIndexRequest;
         $validator = Validator::make($data, $request->rules());
 
         $this->assertFalse($validator->passes());
@@ -84,7 +82,7 @@ class SermonIndexRequestTest extends TestCase
     #[Test]
     public function validation_rules_reject_out_of_range_per_page(): void
     {
-        $request = new SermonIndexRequest();
+        $request = new SermonIndexRequest;
 
         // Test too low
         $validator = Validator::make(['per_page' => 0], $request->rules());
@@ -102,7 +100,7 @@ class SermonIndexRequestTest extends TestCase
             'preacher_id' => 'not-an-integer',
         ];
 
-        $request = new SermonIndexRequest();
+        $request = new SermonIndexRequest;
         $validator = Validator::make($data, $request->rules());
 
         $this->assertFalse($validator->passes());
@@ -111,7 +109,7 @@ class SermonIndexRequestTest extends TestCase
     #[Test]
     public function validation_rules_reject_oversized_strings(): void
     {
-        $request = new SermonIndexRequest();
+        $request = new SermonIndexRequest;
 
         $validator = Validator::make(['search' => str_repeat('a', 256)], $request->rules());
         $this->assertFalse($validator->passes());

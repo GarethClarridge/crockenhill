@@ -9,14 +9,12 @@ use App\Presenters\SermonSitemapPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SitemapService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SitemapServiceTest extends TestCase
 {
-    use DatabaseTransactions;
     private SitemapService $service;
 
     protected function setUp(): void
@@ -48,10 +46,11 @@ class SitemapServiceTest extends TestCase
     #[Test]
     public function get_file_path_includes_test_token_in_testing_environment(): void
     {
-        // Mock the app environment to 'testing'
-        $this->app->instance('env', 'testing');
         Config::set('app.test_token', '12345');
 
+        // Note: We expect 'testing' environment as standard for tests.
+        // We're testing the logic that combines environment check and token presence.
+        $this->assertTrue(app()->environment('testing'), 'Test must run in testing environment');
         $this->assertEquals(public_path('sitemap-test-12345.xml'), $this->service->getFilePath());
     }
 
