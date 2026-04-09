@@ -10,6 +10,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\User;
 use App\Traits\EscapesLikeWildcards;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -77,6 +78,12 @@ class ListUsers extends Component
         }
 
         $user->delete();
+
+        Log::warning('User deleted by admin', [
+            'admin_id' => auth()->id(),
+            'deleted_user_id' => $user->id,
+            'deleted_user_email' => $user->email,
+        ]);
         $this->success('User deleted');
     }
 
@@ -94,6 +101,13 @@ class ListUsers extends Component
         // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
         $user->is_admin = ! $user->is_admin;
         $user->save();
+
+        Log::warning('User admin status toggled', [
+            'admin_id' => auth()->id(),
+            'target_user_id' => $user->id,
+            'target_user_email' => $user->email,
+            'new_is_admin' => $user->is_admin,
+        ]);
 
         $this->success($user->is_admin ? 'Admin granted' : 'Admin revoked');
     }
