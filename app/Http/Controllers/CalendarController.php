@@ -34,7 +34,9 @@ class CalendarController extends Controller
             'heading' => 'Church Calendar',
             'description' => 'Upcoming events at Crockenhill Baptist Church.',
             'content' => '',
+            'area' => 'community',
             'links' => collect(),
+            'slug' => 'calendar',
         ]);
     }
 
@@ -49,7 +51,9 @@ class CalendarController extends Controller
             'heading' => $meeting->slug.' events',
             'description' => "All calendar events for {$meeting->slug}.",
             'content' => '',
+            'area' => 'community',
             'links' => collect(),
+            'slug' => $meeting->slug,
         ]);
     }
 
