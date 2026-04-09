@@ -33,3 +33,7 @@
 ## 2026-04-10 - [Testing API Resources with Relationships]
 **Learning:** When testing API responses that use `JsonResource` wrappers (e.g., `SermonResource`), assertions must account for data transformation logic in the resource. For example, if a resource uses methods like `displayPreacherName()` which prioritize related model data over local table columns, the test expectations must match the related model's values when that relationship is loaded.
 **Action:** Verify the resource's `toArray` implementation and related model accessor/display methods when setting up assertions for API integration tests.
+
+## 2026-04-09 - [S3 Disk Mocking Gotcha]
+**Learning:** `AwsS3V3Adapter` constructor enforces that the bucket name is a string. Setting it to `null` in `config()` during tests (even if mocking local disks) can cause a `TypeError` if the S3 disk is instantiated by Laravel's filesystem manager during a request cycle.
+**Action:** Always provide a dummy string (e.g., 'fake-bucket') for the bucket configuration when testing components that might trigger disk resolution, even if the test is intended to exercise a different disk.
