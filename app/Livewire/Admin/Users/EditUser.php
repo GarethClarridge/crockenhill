@@ -8,6 +8,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -81,8 +82,18 @@ class EditUser extends Component
         $this->user->name = $validated['name'];
         $this->user->email = $validated['email'];
 
+        if ($this->user->is_admin !== (bool) $validated['isAdmin']) {
+            Log::warning('User admin status changed via edit form', [
+                'admin_id' => auth()->id(),
+                'target_user_id' => $this->user->id,
+                'target_user_email' => $this->user->email,
+                'old_is_admin' => $this->user->is_admin,
+                'new_is_admin' => (bool) $validated['isAdmin'],
+            ]);
+        }
+
         // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
-        $this->user->is_admin = $validated['isAdmin'];
+        $this->user->is_admin = (bool) $validated['isAdmin'];
 
         if ($this->changePassword) {
             $this->user->password = Hash::make($validated['password']);
