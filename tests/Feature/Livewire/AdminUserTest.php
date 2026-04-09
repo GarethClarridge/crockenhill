@@ -7,6 +7,7 @@ use App\Livewire\Admin\Users\EditUser;
 use App\Livewire\Admin\Users\ListUsers;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -107,6 +108,7 @@ class AdminUserTest extends TestCase
     #[Test]
     public function it_can_toggle_admin_status(): void
     {
+        Log::spy();
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create(['is_admin' => false]);
 
@@ -118,11 +120,19 @@ class AdminUserTest extends TestCase
 
         $this->assertTrue($user->fresh()->is_admin);
 
+        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status toggled'
+            && $context['admin_id'] === $admin->id
+            && $context['target_user_id'] === $user->id
+            && $context['new_is_admin'] === true);
+
         Livewire::test(ListUsers::class)
             ->call('toggleAdmin', $user->id)
             ->assertDispatched('notify', type: 'success', message: 'Admin revoked');
 
         $this->assertFalse($user->fresh()->is_admin);
+
+        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status toggled'
+            && $context['new_is_admin'] === false);
     }
 
     #[Test]
@@ -142,6 +152,7 @@ class AdminUserTest extends TestCase
     #[Test]
     public function it_can_delete_user(): void
     {
+        Log::spy();
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
 
@@ -152,6 +163,10 @@ class AdminUserTest extends TestCase
             ->assertDispatched('notify', type: 'success', message: 'User deleted');
 
         $this->assertModelMissing($user);
+
+        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User deleted by admin'
+            && $context['admin_id'] === $admin->id
+            && $context['deleted_user_id'] === $user->id);
     }
 
     #[Test]
@@ -374,6 +389,7 @@ class AdminUserTest extends TestCase
     #[Test]
     public function it_can_toggle_admin_status_in_edit_mode(): void
     {
+        Log::spy();
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create(['is_admin' => false]);
 
@@ -386,12 +402,21 @@ class AdminUserTest extends TestCase
 
         $this->assertTrue($user->fresh()->is_admin);
 
+        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status changed via edit form'
+            && $context['admin_id'] === $admin->id
+            && $context['target_user_id'] === $user->id
+            && $context['old_is_admin'] === false
+            && $context['new_is_admin'] === true);
+
         Livewire::test(EditUser::class, ['user' => $user])
             ->set('isAdmin', false)
             ->call('save')
             ->assertDispatched('notify', type: 'success', message: 'User updated');
 
         $this->assertFalse($user->fresh()->is_admin);
+
+        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status changed via edit form'
+            && $context['new_is_admin'] === false);
     }
 
     #[Test]

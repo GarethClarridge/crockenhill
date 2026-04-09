@@ -77,13 +77,13 @@ class ListUsers extends Component
             return;
         }
 
+        $user->delete();
+
         Log::warning('User deleted by admin', [
             'admin_id' => auth()->id(),
             'deleted_user_id' => $user->id,
             'deleted_user_email' => $user->email,
         ]);
-
-        $user->delete();
         $this->success('User deleted');
     }
 
@@ -100,6 +100,7 @@ class ListUsers extends Component
 
         // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
         $user->is_admin = ! $user->is_admin;
+        $user->save();
 
         Log::warning('User admin status toggled', [
             'admin_id' => auth()->id(),
@@ -107,8 +108,6 @@ class ListUsers extends Component
             'target_user_email' => $user->email,
             'new_is_admin' => $user->is_admin,
         ]);
-
-        $user->save();
 
         $this->success($user->is_admin ? 'Admin granted' : 'Admin revoked');
     }
