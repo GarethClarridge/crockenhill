@@ -107,187 +107,40 @@ class SermonAnalysisService implements SermonAnalysisInterface
     }
 
     /**
-     * Perform comprehensive AI analysis using OpenAI GPT API
+     * Perform comprehensive AI analysis using OpenAI GPT API with retry logic.
      *
      * @param  string  $transcript  The sermon transcript
      * @param  array<int, string>  $existingSeries  Array of existing series names
      * @param  string  $processingId  Processing ID for logging
      * @return array<string, mixed> The parsed analysis results
-     *
-     * @throws Exception When AI analysis fails
      */
     private function performAiAnalysis(string $transcript, array $existingSeries, string $processingId = 'unknown'): array
     {
         $maxRetries = $this->maxRetries();
-        $retryDelayBase = $this->retryDelayBase();
         $attempt = 0;
         $lastException = null;
 
         while ($attempt < $maxRetries) {
             $attempt++;
             $apiStartTime = microtime(true);
+
             try {
-
-                $model = (string) config('media-processing.analysis.model', 'gpt-4o-mini');
-
-                $this->logger->logProcessingStep(
-                    $processingId,
-                    'ai_analysis_attempt',
-                    'started',
-                    ['attempt' => $attempt, 'model' => $model]
-                );
-
-                $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
-
-                $response = $this->executeAiRequest($prompt, $model, $processingId, $attempt);
-
-                $apiTime = microtime(true) - $apiStartTime;
-
-                $this->logger->logApiCall(
-                    $processingId,
-                    'OpenAI',
-                    'chat/completions',
-                    $apiTime,
-                    200,
-                    null,
-                    ['attempt' => $attempt, 'model' => $model, 'max_completion_tokens' => 1500]
-                );
-
-                $analysisData = $this->parseAiResponse($response, $processingId);
-
-                // Validate required fields
-                $validatedData = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
-
-                // If the AI returned a title that's too long, retry to get a shorter one
-                if ($this->validator->isTitleTooLong($validatedData['title'])) {
-                    Log::info('AI-generated title exceeds character limit, retrying', [
-                        'title' => $validatedData['title'],
-                        'length' => strlen($validatedData['title']),
-                        'max' => SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
-                        'attempt' => $attempt,
-                    ]);
-
-                    throw new Exception(sprintf(
-                        'AI title exceeds %d characters (%d chars): "%s"',
-                        SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
-                        strlen($validatedData['title']),
-                        $validatedData['title']
-                    ));
-                }
-
-                $this->logger->logProcessingStep(
-                    $processingId,
-                    'ai_analysis_attempt',
-                    'completed',
-                    [
-                        'attempt' => $attempt,
-                        'title' => $validatedData['title'],
-                        'series' => $validatedData['series'] ?? 'None',
-                        'reference' => $validatedData['reference'] ?? 'None',
-                        'points_count' => count($validatedData['points']),
-                        'api_time_ms' => round($apiTime * 1000, 2),
-                    ]
-                );
-
-                return $validatedData;
-            } catch (ErrorException $e) {
+                return $this->runAnalysisAttempt($transcript, $existingSeries, $processingId, $attempt, $apiStartTime);
+            } catch (Exception|\TypeError $e) {
                 $lastException = $e;
-                $apiTime = microtime(true) - $apiStartTime;
 
-                // Extract detailed error info from OpenAI error response
-                $errorCode = $e->getCode();
-                $errorMessage = $e->getMessage();
+                $this->handleAnalysisAttemptError($e, $processingId, $attempt, $apiStartTime);
 
-                Log::error('OpenAI API ErrorException details', [
-                    'processing_id' => $processingId,
-                    'attempt' => $attempt,
-                    'error_code' => $errorCode,
-                    'error_message' => $errorMessage,
-                    'api_time_ms' => round($apiTime * 1000, 2),
-                    'exception_class' => get_class($e),
-                    'status_code' => $e->getStatusCode(),
-                ]);
-
-                $this->logger->logApiCall(
-                    $processingId,
-                    'OpenAI',
-                    'chat/completions',
-                    $apiTime,
-                    $e->getStatusCode(),
-                    $e->getMessage(),
-                    ['attempt' => $attempt]
-                );
-
-                // Don't retry on certain errors
-                if ($this->isNonRetryableError($e)) {
+                if ($e instanceof ErrorException && $this->isNonRetryableError($e)) {
                     break;
                 }
-            } catch (TransporterException $e) {
-                $lastException = $e;
-                $apiTime = microtime(true) - $apiStartTime;
-
-                $this->logger->logApiCall(
-                    $processingId,
-                    'OpenAI',
-                    'chat/completions',
-                    $apiTime,
-                    0,
-                    $e->getMessage(),
-                    ['attempt' => $attempt, 'error_type' => 'network']
-                );
-            } catch (\TypeError $e) {
-                $lastException = $e;
-                $apiTime = microtime(true) - $apiStartTime;
-
-                // Log comprehensive response parsing failure details
-                OpenAIResponseLogger::logResponse($processingId, $attempt, null, 'TypeError');
-                OpenAIResponseLogger::logTransportError(
-                    $processingId,
-                    $attempt,
-                    $e->getMessage(),
-                    null,
-                    null
-                );
-
-                $this->logger->logError(
-                    $processingId,
-                    'ai_analysis_attempt',
-                    $e,
-                    [
-                        'attempt' => $attempt,
-                        'error_type' => 'response_parsing',
-                        'api_time_ms' => round($apiTime * 1000, 2),
-                    ]
-                );
-                // Retry on malformed responses
-            } catch (Exception $e) {
-                $lastException = $e;
-
-                $this->logger->logError(
-                    $processingId,
-                    'ai_analysis_attempt',
-                    $e,
-                    ['attempt' => $attempt]
-                );
             }
 
-            // Wait before retry with exponential backoff
             if ($attempt < $maxRetries) {
-                $delay = $retryDelayBase > 0 ? $retryDelayBase ** $attempt : 0;
-                $this->logger->logProcessingStep(
-                    $processingId,
-                    'retry_delay',
-                    'waiting',
-                    ['delay_seconds' => $delay, 'next_attempt' => $attempt + 1]
-                );
-
-                if ($delay > 0) {
-                    sleep($delay);
-                }
+                $this->sleepBetweenAttempts($processingId, $attempt);
             }
         }
 
-        // All attempts failed - return fallback data
         $this->logger->logProcessingStep(
             $processingId,
             'ai_analysis',
@@ -300,6 +153,157 @@ class SermonAnalysisService implements SermonAnalysisInterface
         );
 
         return $this->getFallbackAnalysisData($transcript);
+    }
+
+    /**
+     * Execute a single AI analysis attempt.
+     *
+     * @param  array<int, string>  $existingSeries
+     * @return array<string, mixed>
+     *
+     * @throws Exception|\TypeError
+     */
+    private function runAnalysisAttempt(string $transcript, array $existingSeries, string $processingId, int $attempt, float $apiStartTime): array
+    {
+        $model = (string) config('media-processing.analysis.model', 'gpt-4o-mini');
+
+        $this->logger->logProcessingStep(
+            $processingId,
+            'ai_analysis_attempt',
+            'started',
+            ['attempt' => $attempt, 'model' => $model]
+        );
+
+        $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
+        $response = $this->executeAiRequest($prompt, $model, $processingId, $attempt);
+
+        $apiTime = microtime(true) - $apiStartTime;
+
+        $this->logger->logApiCall(
+            $processingId,
+            'OpenAI',
+            'chat/completions',
+            $apiTime,
+            200,
+            null,
+            ['attempt' => $attempt, 'model' => $model, 'max_completion_tokens' => 1500]
+        );
+
+        $analysisData = $this->parseAiResponse($response, $processingId);
+        $validatedData = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
+
+        if ($this->validator->isTitleTooLong($validatedData['title'])) {
+            Log::info('AI-generated title exceeds character limit, retrying', [
+                'title' => $validatedData['title'],
+                'length' => strlen($validatedData['title']),
+                'max' => SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
+                'attempt' => $attempt,
+            ]);
+
+            throw new Exception(sprintf(
+                'AI title exceeds %d characters (%d chars): "%s"',
+                SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
+                strlen($validatedData['title']),
+                $validatedData['title']
+            ));
+        }
+
+        $this->logger->logProcessingStep(
+            $processingId,
+            'ai_analysis_attempt',
+            'completed',
+            [
+                'attempt' => $attempt,
+                'title' => $validatedData['title'],
+                'series' => $validatedData['series'] ?? 'None',
+                'reference' => $validatedData['reference'] ?? 'None',
+                'points_count' => count($validatedData['points']),
+                'api_time_ms' => round($apiTime * 1000, 2),
+            ]
+        );
+
+        return $validatedData;
+    }
+
+    /**
+     * Handle and log errors from an AI analysis attempt.
+     */
+    private function handleAnalysisAttemptError(Exception|\TypeError $e, string $processingId, int $attempt, float $apiStartTime): void
+    {
+        $apiTime = microtime(true) - $apiStartTime;
+
+        if ($e instanceof ErrorException) {
+            Log::error('OpenAI API ErrorException details', [
+                'processing_id' => $processingId,
+                'attempt' => $attempt,
+                'error_code' => $e->getCode(),
+                'error_message' => $e->getMessage(),
+                'api_time_ms' => round($apiTime * 1000, 2),
+                'exception_class' => get_class($e),
+                'status_code' => $e->getStatusCode(),
+            ]);
+
+            $this->logger->logApiCall(
+                $processingId,
+                'OpenAI',
+                'chat/completions',
+                $apiTime,
+                $e->getStatusCode(),
+                $e->getMessage(),
+                ['attempt' => $attempt]
+            );
+
+            return;
+        }
+
+        if ($e instanceof TransporterException) {
+            $this->logger->logApiCall(
+                $processingId,
+                'OpenAI',
+                'chat/completions',
+                $apiTime,
+                0,
+                $e->getMessage(),
+                ['attempt' => $attempt, 'error_type' => 'network']
+            );
+
+            return;
+        }
+
+        if ($e instanceof \TypeError) {
+            OpenAIResponseLogger::logResponse($processingId, $attempt, null, 'TypeError');
+            OpenAIResponseLogger::logTransportError($processingId, $attempt, $e->getMessage(), null, null);
+
+            $this->logger->logError($processingId, 'ai_analysis_attempt', $e, [
+                'attempt' => $attempt,
+                'error_type' => 'response_parsing',
+                'api_time_ms' => round($apiTime * 1000, 2),
+            ]);
+
+            return;
+        }
+
+        $this->logger->logError($processingId, 'ai_analysis_attempt', $e, ['attempt' => $attempt]);
+    }
+
+    /**
+     * Wait before the next AI analysis attempt with exponential backoff.
+     */
+    private function sleepBetweenAttempts(string $processingId, int $attempt): void
+    {
+        $retryDelayBase = $this->retryDelayBase();
+        $delay = $retryDelayBase > 0 ? $retryDelayBase ** $attempt : 0;
+
+        $this->logger->logProcessingStep(
+            $processingId,
+            'retry_delay',
+            'waiting',
+            ['delay_seconds' => $delay, 'next_attempt' => $attempt + 1]
+        );
+
+        if ($delay > 0) {
+            sleep($delay);
+        }
     }
 
     /**
