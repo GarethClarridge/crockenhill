@@ -20,8 +20,9 @@ return new class extends Migration
             $table->string('display_reference', 255)->nullable()->change();
             $table->string('fums_token', 255)->nullable()->change();
 
-            $table->index('bible_id');
-            $table->index('normalized_reference');
+            // Unique constraint on (bible_id, normalized_reference) already exists from
+            // 2026_03_13_194852_create_scripture_passages_table.php.
+            // We add an index on fetched_at for performance in refresh queries.
             $table->index('fetched_at');
         });
     }
@@ -32,8 +33,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('scripture_passages', function (Blueprint $table) {
-            $table->dropIndex(['bible_id']);
-            $table->dropIndex(['normalized_reference']);
             $table->dropIndex(['fetched_at']);
 
             $table->string('bible_id')->change();

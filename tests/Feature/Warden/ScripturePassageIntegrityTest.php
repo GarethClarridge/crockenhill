@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Warden;
 
 use App\Models\ScripturePassage;
+use App\Services\ScriptureOperatorService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -60,7 +61,12 @@ class ScripturePassageIntegrityTest extends TestCase
     {
         $this->expectException(\Illuminate\Validation\ValidationException::class);
 
-        ScripturePassage::validate([
+        $service = $this->app->make(ScriptureOperatorService::class);
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('validatePassageData');
+        $method->setAccessible(true);
+
+        $method->invoke($service, [
             'bible_id' => '', // Required
             'normalized_reference' => 'JHN.3.16',
             'html_content' => 'content',

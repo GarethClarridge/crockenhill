@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Validator;
 
 /**
  * App\Models\ScripturePassage
@@ -63,33 +62,5 @@ class ScripturePassage extends Model
         $refreshAfterDays = (int) config('services.api_bible.refresh_after_days', 28);
 
         return $this->fetched_at->diffInDays(now()) >= $refreshAfterDays;
-    }
-
-    /**
-     * @return array<string, list<string>>
-     */
-    public static function validationRules(): array
-    {
-        return [
-            'bible_id' => ['required', 'string', 'max:255'],
-            'normalized_reference' => ['required', 'string', 'max:255'],
-            'api_passage_id' => ['nullable', 'string', 'max:255'],
-            'display_reference' => ['nullable', 'string', 'max:255'],
-            'fums_token' => ['nullable', 'string', 'max:255'],
-            'html_content' => ['required', 'string', 'max:16777215'], // LONGTEXT limit (effectively)
-            'copyright' => ['required', 'string', 'max:65535'],      // TEXT limit
-            'fetched_at' => ['required', 'date'],
-        ];
-    }
-
-    /**
-     * Validate data against the model's rules.
-     *
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
-     */
-    public static function validate(array $data): array
-    {
-        return Validator::make($data, self::validationRules())->validate();
     }
 }
