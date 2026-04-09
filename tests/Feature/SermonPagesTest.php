@@ -126,7 +126,7 @@ class SermonPagesTest extends TestCase
     #[Test]
     public function sermon_page_handles_missing_transcript_file_without_crashing(): void
     {
-        config(['filesystems.disks.do_spaces.bucket' => null]);
+        config(['filesystems.disks.do_spaces.bucket' => 'fake-bucket']);
 
         // Fake the active local disks, but leave do_spaces unfaked to catch invalid S3 fallback regressions.
         Storage::fake('local');
