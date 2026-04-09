@@ -98,6 +98,8 @@
     <x-layout.footer />
   </footer>
 
+  <x-back-to-top />
+
   {{-- Livewire Scripts --}}
   @livewireScripts
 </body>
