@@ -7,19 +7,13 @@ namespace App\Http\Controllers;
 use App\Models\Song;
 use App\Services\PublicSongUsageService;
 use App\Services\SongVideoService;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PublicSongListController extends Controller
 {
-    public function index(Request $request, PublicSongUsageService $songUsageService): View
+    public function index(): View
     {
         $this->abortIfDisabled();
-
-        $range = $songUsageService->normalizeRange($request->string('range')->toString());
-        $songs = $songUsageService->query($range)
-            ->paginate(24)
-            ->withQueryString();
 
         return view('church.songs.index', [
             'heading' => 'Songs',
@@ -27,8 +21,6 @@ class PublicSongListController extends Controller
             'slug' => 'songs',
             'description' => 'Browse the songs most often sung at Crockenhill Baptist Church.',
             'links' => collect(),
-            'selectedRange' => $range,
-            'songs' => $songs,
         ]);
     }
 
