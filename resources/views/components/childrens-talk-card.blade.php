@@ -5,7 +5,7 @@
 @php
     $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
     $cardThumbnailUrl = $sermonViewPresenter->cardThumbnailUrl($sermon);
-    $speakerName = $sermon->displayPreacherName();
+    $speakerName = $sermonViewPresenter->displayPreacherName($sermon);
     $hasAudio = filled($sermon->audio_file_path);
     $hasVideo = filled($sermonViewPresenter->videoUrl($sermon));
 @endphp

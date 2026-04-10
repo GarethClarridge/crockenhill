@@ -91,20 +91,6 @@ class SermonAdminController extends Controller
         }
     }
 
-    public function destroyWithDate(int $year, int $month, Sermon $sermon): RedirectResponse
-    {
-        $this->assertDateMatchesUrl($year, $month, $sermon);
-
-        return $this->destroy($sermon);
-    }
-
-    private function assertDateMatchesUrl(int $year, int $month, Sermon $sermon): void
-    {
-        if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
-            abort(404, 'Sermon not found for the specified date.');
-        }
-    }
-
     /**
      * @param  array<string, mixed>  $validatedData
      * @return array<string, mixed>

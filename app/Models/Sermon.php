@@ -84,8 +84,9 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?float $audio_length
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
- * @property-read ?string $human_date
+ * @property-read string $human_date
  * @property-read ?string $series_url
+ * @property-read string $meta_description
  * @property-read ?string $plain_thumbnail_file_path
  * @property-read ?string $card_thumbnail_file_path
  * @property-read list<ThumbnailCandidate> $thumbnail_candidates
@@ -352,32 +353,6 @@ class Sermon extends Model implements Sitemapable
     public function preacherProfile(): BelongsTo
     {
         return $this->belongsTo(Preacher::class, 'preacher_id');
-    }
-
-    public function displayPreacherName(): ?string
-    {
-        $preacherName = $this->relationLoaded('preacherProfile')
-            ? $this->preacherProfile?->name
-            : null;
-
-        $preacherName = trim((string) ($preacherName ?? $this->preacher));
-
-        return $preacherName !== '' ? $preacherName : null;
-    }
-
-    public function displayReference(): ?string
-    {
-        if ($this->relationLoaded('scripturePassage') && $this->scripturePassage instanceof ScripturePassage) {
-            $displayReference = $this->scripturePassage->display_reference ?: $this->scripturePassage->normalized_reference;
-
-            if (trim((string) $displayReference) !== '') {
-                return $displayReference;
-            }
-        }
-
-        $reference = trim((string) $this->reference);
-
-        return $reference !== '' ? $reference : null;
     }
 
     /**
@@ -755,52 +730,14 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Get the SEO meta description for the sermon.
-     * Auto-generates from summary or title if not explicitly set.
+     * Delegates to SermonViewPresenter for assembly logic.
      *
      * @return Attribute<string, never>
      */
     protected function metaDescription(): Attribute
     {
         return Attribute::make(
-            get: function (): string {
-                if (! empty($this->attributes['meta_description'])) {
-                    return $this->attributes['meta_description'];
-                }
-
-                $preacherName = $this->displayPreacherName() ?? 'Unknown preacher';
-                $description = "Listen to '{$this->title}' by {$preacherName}";
-                $description .= " preached on {$this->human_date}";
-
-                if ($this->displayReference()) {
-                    $description .= ' - '.$this->displayReference();
-                }
-
-                $summary = null;
-                if ($this->show_summary && $this->summary) {
-                    $summary = trim(strip_tags($this->summary));
-                }
-
-                $seriesSuffix = $this->series ? " (Part of the {$this->series} series)" : '';
-
-                if ($summary === null || $summary === '') {
-                    return Str::limit($description.$seriesSuffix, 155);
-                }
-
-                $descriptionWithSeries = $description.$seriesSuffix;
-                $separator = '. ';
-
-                if (Str::length($descriptionWithSeries.$separator.$summary) <= 155) {
-                    return $descriptionWithSeries.$separator.$summary;
-                }
-
-                $remainingSummaryLength = 155 - Str::length($description) - Str::length($separator);
-
-                if ($remainingSummaryLength > 0) {
-                    return $description.$separator.Str::limit($summary, $remainingSummaryLength);
-                }
-
-                return Str::limit($descriptionWithSeries, 155);
-            }
+            get: fn (): string => app(\App\Presenters\SermonViewPresenter::class)->metaDescription($this)
         )->shouldCache();
     }
 

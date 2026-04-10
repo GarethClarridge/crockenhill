@@ -53,6 +53,7 @@
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($sermons as $sermon)
                 @php
+                    $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
                     $publicUrl = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
                         ? route('childrens-corner.show', ['sermon' => $sermon->slug])
                         : route('sermons.show', ['sermon' => $sermon->slug]);
@@ -66,8 +67,8 @@
                                 {{ $sermon->content_type->label() }}
                             </span>
                         </p>
-                        @if($sermon->displayReference())
-                            <p class="text-sm text-gray-500">{{ $sermon->displayReference() }}</p>
+                        @if($sermonViewPresenter->displayReference($sermon))
+                            <p class="text-sm text-gray-500">{{ $sermonViewPresenter->displayReference($sermon) }}</p>
                         @endif
                     </td>
                     {{-- Date --}}
@@ -86,7 +87,7 @@
                     </td>
                     {{-- Preacher --}}
                     <td class="px-4 py-3">
-                        <span class="text-sm">{{ $sermon->displayPreacherName() }}</span>
+                        <span class="text-sm">{{ $sermonViewPresenter->displayPreacherName($sermon) }}</span>
                         @if($sermon->needs_preacher_review)
                             <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Review</span>
                         @endif

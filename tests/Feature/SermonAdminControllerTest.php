@@ -158,38 +158,27 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
-    public function destroy_with_date_works_when_date_matches(): void
+    public function destroy_works_via_slug_route(): void
     {
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
-        $response = $this->actingAs($this->admin)->post("/christ/sermons/2024/03/{$sermon->slug}/delete");
+        $response = $this->actingAs($this->admin)->post("/christ/sermons/{$sermon->slug}/delete");
 
         $response->assertRedirect(route('sermons.index'));
         $this->assertDatabaseMissing('sermons', ['id' => $sermon->id]);
     }
 
     #[Test]
-    public function destroy_with_date_returns_404_when_date_mismatches(): void
+    public function dated_delete_url_returns_404_after_route_consolidation(): void
     {
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
-        $response = $this->actingAs($this->admin)->post("/christ/sermons/2023/03/{$sermon->slug}/delete");
+        $response = $this->actingAs($this->admin)->post("/christ/sermons/2024/03/{$sermon->slug}/delete");
 
         $response->assertStatus(404);
         $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
     }
 
-    #[Test]
-    public function unverified_admin_cannot_delete_sermon_with_date_route(): void
-    {
-        $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
-
-        $response = $this->actingAs($this->unverifiedAdmin)
-            ->post("/christ/sermons/2024/03/{$sermon->slug}/delete");
-
-        $response->assertRedirect(route('verification.notice'));
-        $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
-    }
 
     #[Test]
     public function legacy_post_update_route_is_removed(): void

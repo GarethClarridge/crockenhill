@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Support\Facades\Log;
 use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;
@@ -79,7 +80,8 @@ class ThumbnailCanvasComposer
     private string|false|null $cachedMontserratPath = false;
 
     public function __construct(
-        private readonly ThumbnailTextHelper $textHelper
+        private readonly ThumbnailTextHelper $textHelper,
+        private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
 
     /**
@@ -416,8 +418,8 @@ class ThumbnailCanvasComposer
     private function mainMetadataLines(Sermon $sermon): array
     {
         return array_values(array_filter([
-            $sermon->displayReference(),
-            $sermon->displayPreacherName(),
+            $this->sermonViewPresenter->displayReference($sermon),
+            $this->sermonViewPresenter->displayPreacherName($sermon),
             $sermon->date->format('l jS F Y'),
         ], static fn (?string $value): bool => is_string($value) && trim($value) !== ''));
     }

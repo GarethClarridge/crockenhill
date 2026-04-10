@@ -2,8 +2,9 @@
 
 @php
 use Illuminate\Support\Str;
-$fullTitle = $sermon->title . ' | ' . ($sermon->displayPreacherName() ?? 'Unknown preacher');
-$displayReference = $sermon->displayReference();
+$sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
+$fullTitle = $sermon->title . ' | ' . ($sermonViewPresenter->displayPreacherName($sermon) ?? 'Unknown preacher');
+$displayReference = $sermonViewPresenter->displayReference($sermon);
 $hasPublicAudio = filled($sermonView['audio_url']);
 $hasPublicVideo = filled($sermonView['video_url']);
 @endphp
@@ -13,7 +14,7 @@ $hasPublicVideo = filled($sermonView['video_url']);
 @section('meta_tags')
 <x-meta-tags
   :title="$fullTitle"
-  :description="$description ?? $sermon->meta_description"
+  :description="$description ?? $sermonViewPresenter->metaDescription($sermon)"
   type="article"
   :image="$sermonView['thumbnail_url']"
   :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
@@ -30,7 +31,7 @@ $hasPublicVideo = filled($sermonView['video_url']);
 <x-schema.sermon :$sermon :$sermonView />
 <x-schema.webpage
   :heading="$fullTitle"
-  :description="$description ?? $sermon->meta_description"
+  :description="$description ?? $sermonViewPresenter->metaDescription($sermon)"
 />
 @endsection
 
@@ -242,13 +243,13 @@ $hasPublicVideo = filled($sermonView['video_url']);
           </div>
           @endif
 
-          @if ($sermon->displayPreacherName() != null)
+          @if ($sermonViewPresenter->displayPreacherName($sermon) != null)
           <div class="flex items-center gap-3">
             <x-heroicon-o-user class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
 <div>
               <dt class="sr-only">Preacher</dt>
               <dd class="text-gray-900 font-medium">
-                <a href="{{ $sermonView['preacher_url'] }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->displayPreacherName() }}</a>
+                <a href="{{ $sermonView['preacher_url'] }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermonViewPresenter->displayPreacherName($sermon) }}</a>
               </dd>
             </div>
           </div>

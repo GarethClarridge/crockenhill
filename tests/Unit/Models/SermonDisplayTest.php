@@ -8,6 +8,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -15,6 +16,14 @@ use Tests\TestCase;
 class SermonDisplayTest extends TestCase
 {
     use DatabaseTransactions;
+
+    private SermonViewPresenter $presenter;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->presenter = app(SermonViewPresenter::class);
+    }
 
     #[Test]
     public function it_displays_preacher_name_from_column_when_relation_not_loaded(): void
@@ -25,7 +34,7 @@ class SermonDisplayTest extends TestCase
         ]);
 
         $this->assertFalse($sermon->relationLoaded('preacherProfile'));
-        $this->assertEquals('John Smith', $sermon->displayPreacherName());
+        $this->assertEquals('John Smith', $this->presenter->displayPreacherName($sermon));
     }
 
     #[Test]
@@ -40,7 +49,7 @@ class SermonDisplayTest extends TestCase
         $sermon->load('preacherProfile');
 
         $this->assertTrue($sermon->relationLoaded('preacherProfile'));
-        $this->assertEquals('Pastor Dave', $sermon->displayPreacherName());
+        $this->assertEquals('Pastor Dave', $this->presenter->displayPreacherName($sermon));
     }
 
     #[Test]
@@ -56,7 +65,7 @@ class SermonDisplayTest extends TestCase
 
         $this->assertTrue($sermon->relationLoaded('preacherProfile'));
         $this->assertNull($sermon->preacherProfile);
-        $this->assertEquals('John Smith', $sermon->displayPreacherName());
+        $this->assertEquals('John Smith', $this->presenter->displayPreacherName($sermon));
     }
 
     #[Test]
@@ -67,7 +76,7 @@ class SermonDisplayTest extends TestCase
             'preacher_id' => null,
         ]);
 
-        $this->assertNull($sermon->displayPreacherName());
+        $this->assertNull($this->presenter->displayPreacherName($sermon));
     }
 
     #[Test]
@@ -78,7 +87,7 @@ class SermonDisplayTest extends TestCase
         ]);
 
         $this->assertFalse($sermon->relationLoaded('scripturePassage'));
-        $this->assertEquals('John 3:16', $sermon->displayReference());
+        $this->assertEquals('John 3:16', $this->presenter->displayReference($sermon));
     }
 
     #[Test]
@@ -96,7 +105,7 @@ class SermonDisplayTest extends TestCase
         $sermon->load('scripturePassage');
 
         $this->assertTrue($sermon->relationLoaded('scripturePassage'));
-        $this->assertEquals('I John 3:16', $sermon->displayReference());
+        $this->assertEquals('I John 3:16', $this->presenter->displayReference($sermon));
     }
 
     #[Test]
@@ -114,7 +123,7 @@ class SermonDisplayTest extends TestCase
         $sermon->load('scripturePassage');
 
         $this->assertTrue($sermon->relationLoaded('scripturePassage'));
-        $this->assertEquals('Romans 8:28', $sermon->displayReference());
+        $this->assertEquals('Romans 8:28', $this->presenter->displayReference($sermon));
     }
 
     #[Test]
@@ -133,7 +142,7 @@ class SermonDisplayTest extends TestCase
         $sermon->setRelation('scripturePassage', $passage);
 
         $this->assertTrue($sermon->relationLoaded('scripturePassage'));
-        $this->assertEquals('John 3:16', $sermon->displayReference());
+        $this->assertEquals('John 3:16', $this->presenter->displayReference($sermon));
     }
 
     #[Test]
@@ -144,7 +153,7 @@ class SermonDisplayTest extends TestCase
             'scripture_passage_id' => null,
         ]);
 
-        $this->assertNull($sermon->displayReference());
+        $this->assertNull($this->presenter->displayReference($sermon));
     }
 
     #[Test]

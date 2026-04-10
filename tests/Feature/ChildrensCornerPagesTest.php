@@ -8,6 +8,7 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -84,7 +85,7 @@ class ChildrensCornerPagesTest extends TestCase
 
         // SEO: Check speaker-enriched title
         $talk->load('preacherProfile');
-        $speakerName = $talk->displayPreacherName();
+        $speakerName = app(SermonViewPresenter::class)->displayPreacherName($talk);
         $response->assertSee("Little Listeners | {$speakerName} | Crockenhill Baptist Church");
 
         // SEO: Check Sermon structured data (Article)

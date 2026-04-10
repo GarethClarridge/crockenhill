@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Arr;
@@ -20,6 +21,7 @@ class SermonResource extends JsonResource
     public function toArray(Request $request): array
     {
         $sermonView = $this->sermonView();
+        $presenter = app(SermonViewPresenter::class);
 
         return [
             'id' => $this->id,
@@ -28,7 +30,7 @@ class SermonResource extends JsonResource
             'date' => $this->date->format('Y-m-d'),
             'human_date' => $this->human_date,
             'service' => $this->service,
-            'preacher' => $this->displayPreacherName(),
+            'preacher' => $presenter->displayPreacherName($this->resource),
             'preacher_id' => $this->preacher_id,
             'preacher_details' => $this->whenLoaded('preacherProfile', fn () => $this->preacherProfile ? [
                 'id' => $this->preacherProfile->id,
@@ -37,7 +39,7 @@ class SermonResource extends JsonResource
                 'image_url' => $this->preacherProfile->profile_image_url,
             ] : null),
             'series' => $this->series,
-            'reference' => $this->displayReference(),
+            'reference' => $presenter->displayReference($this->resource),
             'points' => $this->when($this->show_points, fn (): ?array => $this->points),
             'audio_url' => $sermonView['audio_url'],
             'video_url' => $sermonView['video_url'],

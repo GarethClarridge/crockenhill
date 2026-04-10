@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presenters;
 
+use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
@@ -138,7 +139,7 @@ class SermonViewPresenter
                     return '/christ/sermons/preachers/'.$sermon->preacherProfile->slug;
                 }
 
-                $preacherName = $sermon->displayPreacherName();
+                $preacherName = $this->displayPreacherName($sermon);
 
                 return filled($preacherName)
                     ? '/christ/sermons/preachers/'.Str::slug($preacherName)
@@ -247,6 +248,73 @@ class SermonViewPresenter
     public function transcript(Sermon $sermon): ?string
     {
         return $this->transcriptReader->read($sermon);
+    }
+
+    public function displayPreacherName(Sermon $sermon): ?string
+    {
+        $preacherName = $sermon->relationLoaded('preacherProfile')
+            ? $sermon->preacherProfile?->name
+            : null;
+
+        $preacherName = trim((string) ($preacherName ?? $sermon->preacher));
+
+        return $preacherName !== '' ? $preacherName : null;
+    }
+
+    public function displayReference(Sermon $sermon): ?string
+    {
+        if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
+            $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
+
+            if (trim((string) $displayReference) !== '') {
+                return $displayReference;
+            }
+        }
+
+        $reference = trim((string) $sermon->reference);
+
+        return $reference !== '' ? $reference : null;
+    }
+
+    public function metaDescription(Sermon $sermon): string
+    {
+        if (! empty($sermon->getAttributes()['meta_description'] ?? null)) {
+            return $sermon->getAttributes()['meta_description'];
+        }
+
+        $preacherName = $this->displayPreacherName($sermon) ?? 'Unknown preacher';
+        $description = "Listen to '{$sermon->title}' by {$preacherName}";
+        $description .= " preached on {$sermon->human_date}";
+
+        if ($this->displayReference($sermon)) {
+            $description .= ' - '.$this->displayReference($sermon);
+        }
+
+        $summary = null;
+        if ($sermon->show_summary && $sermon->summary) {
+            $summary = trim(strip_tags($sermon->summary));
+        }
+
+        $seriesSuffix = $sermon->series ? " (Part of the {$sermon->series} series)" : '';
+
+        if ($summary === null || $summary === '') {
+            return Str::limit($description.$seriesSuffix, 155);
+        }
+
+        $descriptionWithSeries = $description.$seriesSuffix;
+        $separator = '. ';
+
+        if (Str::length($descriptionWithSeries.$separator.$summary) <= 155) {
+            return $descriptionWithSeries.$separator.$summary;
+        }
+
+        $remainingSummaryLength = 155 - Str::length($description) - Str::length($separator);
+
+        if ($remainingSummaryLength > 0) {
+            return $description.$separator.Str::limit($summary, $remainingSummaryLength);
+        }
+
+        return Str::limit($descriptionWithSeries, 155);
     }
 
     public function videoUrl(Sermon $sermon): ?string

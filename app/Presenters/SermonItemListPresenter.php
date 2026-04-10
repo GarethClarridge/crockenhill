@@ -49,7 +49,7 @@ class SermonItemListPresenter
                     ],
                     'author' => [
                         '@type' => 'Person',
-                        'name' => $sermon->displayPreacherName(),
+                        'name' => $this->sermonViewPresenter->displayPreacherName($sermon),
                         'url' => $this->sermonViewPresenter->preacherUrl($sermon),
                     ],
                     'publisher' => [

@@ -127,7 +127,8 @@ class EditSermon extends Component
         $this->slug = $sermon->slug;
         $this->date = $sermon->date->format('Y-m-d');
         $this->service = $service->value;
-        $this->preacher = $sermon->displayPreacherName() ?? '';
+        $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
+        $this->preacher = $sermonViewPresenter->displayPreacherName($sermon) ?? '';
         $this->preacherId = $sermon->preacher_id;
         $this->preacherSource = $sermon->preacher_source?->value;
         $this->preacherConfidence = $sermon->preacher_confidence;
@@ -135,7 +136,7 @@ class EditSermon extends Component
         $this->segmentStartTime = $sermon->segment_start_time;
         $this->segmentEndTime = $sermon->segment_end_time;
         $this->downloadCount = $sermon->download_count ?? 0;
-        $this->reference = $sermon->displayReference();
+        $this->reference = $sermonViewPresenter->displayReference($sermon);
         $this->series = $sermon->series;
         $this->summary = $sermon->summary;
         $this->points = $sermon->points ?? [];

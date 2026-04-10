@@ -6,13 +6,13 @@
 @php
     use Illuminate\Support\Str;
 
+    $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
     $transcript = $sermonView['transcript'] ?? null;
     $duration = $sermon->duration ? \Carbon\CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
-    $preacherName = $sermon->displayPreacherName();
+    $preacherName = $sermonViewPresenter->displayPreacherName($sermon);
     $thumbnailUrl = $sermonView['thumbnail_url'] ?: asset('images/Primary.png');
     $datePublished = $sermon->date->toIso8601String();
-    // Sermon::getMetaDescriptionAttribute() is the single visibility gate for summary-derived description text.
-    $metaDescription = $sermon->meta_description;
+    $metaDescription = $sermonViewPresenter->metaDescription($sermon);
 
     $schema = [
         '@context' => 'https://schema.org',

@@ -76,10 +76,6 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/{year}/{month}/{sermon:slug}', [SermonController::class, 'showDated'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
         ->name('sermons.show.dated');
-    Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonAdminController::class, 'destroyWithDate'])
-        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->middleware(['auth', 'verified', 'admin'])
-        ->name('sermons.destroy.dated');
 
     // Audio serving route
     Route::get('/{sermon:slug}/audio', [SermonAssetController::class, 'serveAudio'])

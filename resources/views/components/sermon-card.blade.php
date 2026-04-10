@@ -10,8 +10,8 @@
     $presenter = app(\App\Presenters\SermonViewPresenter::class);
     $sermonUrl = $presenter->canonicalUrl($sermon);
     $thumbnailUrl = $presenter->plainThumbnailUrl($sermon);
-    $preacherName = $sermon->displayPreacherName();
-    $reference = $sermon->displayReference();
+    $preacherName = $presenter->displayPreacherName($sermon);
+    $reference = $presenter->displayReference($sermon);
     $preacherUrl = $presenter->preacherUrl($sermon);
     $formattedDuration = $presenter->formattedDuration($sermon);
 @endphp

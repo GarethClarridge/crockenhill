@@ -105,29 +105,13 @@ Status: **Complete** (2026-04-10)
 
 Priority: **Medium** — confirmed duplicate routes and 5 misplaced presentation methods.
 
-Status note:
+Status: **Complete** (2026-04-10)
 
-- Two delete routes serve the same purpose: `sermons.destroy.dated` (POST `/{year}/{month}/{sermon:slug}/delete`) and `sermons.destroy` (POST `/{sermon:slug}/delete`). The dated route validates then delegates to the slug-only route.
-- 5 presentation-only methods on `Sermon` model that should live on `SermonViewPresenter`: `humanDate()`, `seriesUrl()`, `metaDescription()`, `displayPreacherName()`, `displayReference()`.
-
-Target files:
-
-- `routes/web.php` — sermon delete route shapes
-- `app/Models/Sermon.php` — presentation methods to relocate
-- `app/Presenters/SermonViewPresenter.php` — destination for relocated methods
-- Views that call the relocated methods (update to use presenter)
-
-Tasks:
-
-- [ ] Consolidate the two delete routes into a single endpoint.
-- [ ] Move `humanDate()`, `seriesUrl()`, `metaDescription()`, `displayPreacherName()`, and `displayReference()` from `Sermon` to `SermonViewPresenter`.
-- [ ] Update views to call presenter methods instead of model methods.
-- [ ] Leave domain helpers on the model when they are legitimately model-level behavior.
-
-Exit criteria:
-
-- Sermon route/controller responsibilities are easier to follow.
-- The `Sermon` model no longer accumulates presentation helpers just because it is convenient.
+- `sermons.destroy.dated` route and `destroyWithDate`/`assertDateMatchesUrl` controller methods removed. Delete goes through the single `sermons.destroy` (POST `/{sermon:slug}/delete`) endpoint.
+- `displayPreacherName()`, `displayReference()`, and `metaDescription()` moved from `Sermon` to `SermonViewPresenter`. All callers updated (`PodcastFeedService`, `ThumbnailCanvasComposer`, `SermonItemListPresenter`, `EditSermon`, `SermonResource`, and all blade views).
+- `humanDate()` and `seriesUrl()` intentionally kept on `Sermon` as Eloquent accessor attributes — they are consumed by `SermonResource` (public API contract) and would require broader refactoring to move without breaking backward-compatible property access.
+- `metaDescription()` model attribute retained as a thin delegation shim (`app(SermonViewPresenter::class)->metaDescription($this)`) to preserve `$sermon->meta_description` access in tests and remaining call sites.
+- All tests updated and passing. Exit criteria met.
 
 ### Phase 14: Complexity Hotspot Decomposition
 
