@@ -17,6 +17,16 @@ class SermonViewPresenter
      */
     private array $memoizedUrls = [];
 
+    /**
+     * @var array<string, ?string>
+     */
+    private array $memoizedPreacherUrls = [];
+
+    /**
+     * @var array<string, ?string>
+     */
+    private array $memoizedSeriesUrls = [];
+
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
@@ -30,6 +40,8 @@ class SermonViewPresenter
     public function clearInternalCaches(): void
     {
         $this->memoizedUrls = [];
+        $this->memoizedPreacherUrls = [];
+        $this->memoizedSeriesUrls = [];
     }
 
     public function audioUrl(Sermon $sermon): ?string
@@ -94,10 +106,14 @@ class SermonViewPresenter
 
     public function preacherUrl(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'preacher');
+        $preacherKey = (string) ($sermon->preacher_id ?? Str::slug($sermon->displayPreacherName() ?? ''));
 
-        if (! array_key_exists($key, $this->memoizedUrls)) {
-            $this->memoizedUrls[$key] = (function () use ($sermon) {
+        if ($preacherKey === '') {
+            return null;
+        }
+
+        if (! array_key_exists($preacherKey, $this->memoizedPreacherUrls)) {
+            $this->memoizedPreacherUrls[$preacherKey] = (function () use ($sermon) {
                 if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
                     return '/christ/sermons/preachers/'.$sermon->preacherProfile->slug;
                 }
@@ -110,7 +126,22 @@ class SermonViewPresenter
             })();
         }
 
-        return $this->memoizedUrls[$key];
+        return $this->memoizedPreacherUrls[$preacherKey];
+    }
+
+    /**
+     * Get the URL for a sermon series.
+     *
+     * Performance Optimization: Memoizes series URLs based on the series name
+     * to avoid redundant Str::slug calls when processing large sermon collections.
+     */
+    public function seriesUrl(Sermon $sermon): ?string
+    {
+        if (! $sermon->series) {
+            return null;
+        }
+
+        return $this->memoizedSeriesUrls[$sermon->series] ??= '/christ/sermons/series/'.Str::slug($sermon->series);
     }
 
     /**

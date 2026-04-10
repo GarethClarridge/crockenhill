@@ -253,7 +253,7 @@ class Sermon extends Model implements Sitemapable
     protected function seriesUrl(): Attribute
     {
         return Attribute::make(
-            get: fn (): ?string => $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null
+            get: fn (): ?string => app(\App\Presenters\SermonViewPresenter::class)->seriesUrl($this)
         )->shouldCache();
     }
 

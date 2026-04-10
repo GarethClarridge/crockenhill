@@ -25,6 +25,11 @@ class SermonStorageService
      */
     private array $memoizedVersions = [];
 
+    /**
+     * @var array<string, string>
+     */
+    private array $memoizedDiskUrls = [];
+
     public function __construct()
     {
         $this->refreshConfig();
@@ -39,6 +44,7 @@ class SermonStorageService
         $this->refreshConfig();
         $this->clearCachedMetadata();
         $this->memoizedVersions = [];
+        $this->memoizedDiskUrls = [];
     }
 
     /**
@@ -398,10 +404,12 @@ class SermonStorageService
     private function resolvePublicUrl(string $disk, string $path, string $version): string
     {
         if ($disk === 'do_spaces' && $this->cdnEndpoint) {
-            return $this->appendVersion($this->cdnEndpoint.'/'.ltrim($path, '/'), $version);
+            $baseUrl = $this->cdnEndpoint;
+        } else {
+            $baseUrl = $this->memoizedDiskUrls[$disk] ??= rtrim(Storage::disk($disk)->url('/'), '/');
         }
 
-        return $this->appendVersion(Storage::disk($disk)->url($path), $version);
+        return $this->appendVersion($baseUrl.'/'.ltrim($path, '/'), $version);
     }
 
     /**
