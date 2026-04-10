@@ -22,6 +22,7 @@ final class LegacySermonImporter
 
     /**
      * @param  array<string, array<string, mixed>>  $csvIndex
+     * @param  \Closure(string $filename, string $result): void|null  $onProgress
      * @return array{imported: int, skipped: int, errors: int}
      */
     public function import(
@@ -30,6 +31,7 @@ final class LegacySermonImporter
         bool $dryRun,
         int $delay,
         bool $force,
+        ?\Closure $onProgress = null,
     ): array {
         $imported = 0;
         $skipped = 0;
@@ -57,7 +59,12 @@ final class LegacySermonImporter
                     'file' => $filename,
                     'error' => $e->getMessage(),
                 ]);
+                $result = 'error';
                 $errors++;
+            }
+
+            if ($onProgress !== null) {
+                $onProgress($filename, $result);
             }
 
             if (! $dryRun && $delay > 0) {
@@ -101,7 +108,8 @@ final class LegacySermonImporter
 
         $csvRow = $csvIndex[$this->normaliseTapeId($filename)] ?? null;
 
-        $storedPath = $this->storeFile($absolutePath, $filename, $csvRow);
+        $date = $this->extractDate($csvRow);
+        $storedPath = $this->storeFile($absolutePath, $filename, $date);
 
         $processingLog = MediaProcessingLog::create([
             'processing_id' => (string) Str::uuid(),
@@ -112,7 +120,7 @@ final class LegacySermonImporter
             'source_file_path' => $storedPath,
             'status' => ProcessingStatus::Pending,
             'current_step' => 'audio_processing_initiated',
-            'extracted_date' => $this->extractDate($csvRow),
+            'extracted_date' => $date,
             'extracted_service' => $this->extractService($csvRow),
             'duration' => $this->extractDuration($csvRow),
             'processing_metadata' => $this->buildProcessingMetadata($csvRow),
@@ -126,13 +134,20 @@ final class LegacySermonImporter
     /** @return list<string> */
     private function discoverMp3Files(string $directory): array
     {
-        $files = glob(rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'*.mp3');
+        $base = rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
 
-        return $files === false ? [] : $files;
+        // Use GLOB_BRACE for case-insensitive matching on Linux production (legacy Windows rips
+        // often have uppercase .MP3 extensions that glob('*.mp3') would miss on ext4).
+        $files = glob($base.'*.{mp3,MP3,Mp3}', GLOB_BRACE);
+
+        return $files === false ? [] : array_values(array_unique($files));
     }
 
     private function isDuplicateByHash(string $fileHash): bool
     {
+        // Intentionally includes Completed — unlike the upload flow, which only guards against
+        // in-flight duplicates, the import must also skip files that already finished processing
+        // to prevent creating duplicate sermon records from the same legacy tape.
         return MediaProcessingLog::query()
             ->where('file_hash', $fileHash)
             ->whereIn('status', [
@@ -145,6 +160,7 @@ final class LegacySermonImporter
 
     private function isDuplicateByFilename(string $filename): bool
     {
+        // Same reasoning as isDuplicateByHash — historical duplicates matter for imports.
         return MediaProcessingLog::query()
             ->where('original_filename', $filename)
             ->whereIn('status', [
@@ -166,15 +182,12 @@ final class LegacySermonImporter
         return trim((string) preg_replace('/#[^#]*#/', '', $withoutExtension));
     }
 
-    /**
-     * @param  array<string, mixed>|null  $csvRow
-     */
-    private function storeFile(string $absolutePath, string $filename, ?array $csvRow): string
+    private function storeFile(string $absolutePath, string $filename, ?Carbon $date): string
     {
         $disk = config('media-processing.storage.sermon_disk', 'public');
-        $basePath = config('media-processing.storage.paths.audio', 'sermons');
+        // Default matches UnifiedMediaProcessor::storeAudioFile; actual config value is 'sermons/audio'
+        $basePath = config('media-processing.storage.paths.audio', 'sermons/audio');
 
-        $date = $this->extractDate($csvRow);
         $year = $date?->format('Y') ?? now()->format('Y');
         $month = $date?->format('m') ?? now()->format('m');
 
@@ -182,13 +195,17 @@ final class LegacySermonImporter
         $extension = pathinfo($filename, PATHINFO_EXTENSION) ?: 'mp3';
         $storedFilename = Str::uuid().'.'.$extension;
 
-        $contents = file_get_contents($absolutePath);
+        $stream = fopen($absolutePath, 'r');
 
-        if ($contents === false) {
-            throw new \RuntimeException("Could not read file contents: {$absolutePath}");
+        if ($stream === false) {
+            throw new \RuntimeException("Could not open file for reading: {$absolutePath}");
         }
 
-        Storage::disk($disk)->put("{$directory}/{$storedFilename}", $contents);
+        try {
+            Storage::disk($disk)->put("{$directory}/{$storedFilename}", $stream);
+        } finally {
+            fclose($stream);
+        }
 
         return "{$directory}/{$storedFilename}";
     }

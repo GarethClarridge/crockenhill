@@ -55,6 +55,9 @@ class ImportLegacySermonBatchCommand extends Command
                 dryRun: $dryRun,
                 delay: $delay,
                 force: $force,
+                onProgress: function (string $filename, string $result): void {
+                    $this->line("[{$result}] {$filename}");
+                },
             );
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());

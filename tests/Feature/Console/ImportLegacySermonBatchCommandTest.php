@@ -237,6 +237,31 @@ class ImportLegacySermonBatchCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_outputs_per_file_progress(): void
+    {
+        $this->createFakeMp3('ABC123.mp3');
+
+        $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory])
+            ->assertExitCode(0)
+            ->expectsOutputToContain('[imported] ABC123.mp3');
+    }
+
+    #[Test]
+    public function it_discovers_uppercase_mp3_extensions(): void
+    {
+        $this->createFakeMp3('UPPERCASE.MP3');
+
+        $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory])
+            ->assertExitCode(0);
+
+        $this->assertDatabaseCount('media_processing_logs', 1);
+
+        $log = MediaProcessingLog::query()->first();
+        $this->assertNotNull($log);
+        $this->assertSame('UPPERCASE.MP3', $log->original_filename);
+    }
+
+    #[Test]
     public function it_strips_tape_annotation_for_csv_lookup(): void
     {
         $this->createFakeMp3('ABC123 #duplicate#.mp3');
