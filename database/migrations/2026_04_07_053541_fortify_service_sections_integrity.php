@@ -42,7 +42,7 @@ return new class extends Migration
         if ($isMysql || DB::getDriverName() === 'pgsql') {
             $this->dropConstraintIfExists('service_sections', self::PUBLICATION_MEDIA_CHECK);
 
-            $check = "((publication_status IN ('approved', 'published') AND extracted_video_path IS NOT NULL AND extracted_at IS NOT NULL) OR publication_status IN ('not_applicable', 'pending_approval', 'rejected'))";
+            $check = "((publication_status IN ('approved', 'published') AND extracted_video_path IS NOT NULL AND extracted_audio_path IS NOT NULL AND extracted_at IS NOT NULL) OR publication_status IN ('not_applicable', 'pending_approval', 'rejected'))";
 
             DB::statement(sprintf(
                 'ALTER TABLE service_sections ADD CONSTRAINT %s CHECK (%s)',
