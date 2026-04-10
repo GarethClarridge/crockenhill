@@ -250,16 +250,13 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
     #[Test]
     public function it_creates_temp_directory_for_chunks_if_not_exists(): void
     {
-        $tempDir = storage_path('app/temp');
-
-        if (is_dir($tempDir)) {
-            $this->removeDirectoryRecursively($tempDir);
-        }
+        $uniqueSubdir = 'chunk-dir-test-'.uniqid();
+        $tempDir = storage_path("app/temp/{$uniqueSubdir}");
 
         $this->assertFalse(is_dir($tempDir));
 
         $chunkFilename = 'chunk_test_0.mp3';
-        $chunkPath = storage_path("app/temp/{$chunkFilename}");
+        $chunkPath = $tempDir.DIRECTORY_SEPARATOR.$chunkFilename;
         $expectedTempDir = dirname($chunkPath);
 
         if (! is_dir($expectedTempDir)) {

@@ -35,9 +35,8 @@ class ProcessingInitiator
      *
      * For media types where date/service extraction differs from the video strategy
      * (e.g. audio using ID3 tags), pass a pre-extracted metadata array via
-     * $additionalLogData['processing_metadata']. When provided, it is merged with
-     * the base metadata keys. Pass $skipDateExtraction = true to skip the
-     * video-style date extraction entirely and use the file's SermonMetadata instead.
+     * $preExtractedMetadata. When non-null, it replaces the video-style
+     * date/service extraction entirely and is used as the base processing metadata.
      *
      * @param  array<string, mixed>  $additionalLogData  Extra columns to merge into the log record (e.g. source_file_path, file_hash)
      * @param  array<string, mixed>|null  $preExtractedMetadata  When non-null, replaces video-style date/service extraction

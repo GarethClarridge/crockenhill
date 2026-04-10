@@ -38,11 +38,12 @@ return new class extends Migration
             });
         }
 
-        // 3. Fortify publication media check to include extracted_audio_path
+        // 3. Fortify publication media check to include extracted_audio_path for non-song sections.
+        // Song sections only produce video (no audio), so audio is only required when section_type != 'song'.
         if ($isMysql || DB::getDriverName() === 'pgsql') {
             $this->dropConstraintIfExists('service_sections', self::PUBLICATION_MEDIA_CHECK);
 
-            $check = "((publication_status IN ('approved', 'published') AND extracted_video_path IS NOT NULL AND extracted_audio_path IS NOT NULL AND extracted_at IS NOT NULL) OR publication_status IN ('not_applicable', 'pending_approval', 'rejected'))";
+            $check = "((publication_status IN ('approved', 'published') AND extracted_video_path IS NOT NULL AND extracted_at IS NOT NULL AND (section_type = 'song' OR extracted_audio_path IS NOT NULL)) OR publication_status IN ('not_applicable', 'pending_approval', 'rejected'))";
 
             DB::statement(sprintf(
                 'ALTER TABLE service_sections ADD CONSTRAINT %s CHECK (%s)',
@@ -72,7 +73,7 @@ return new class extends Migration
         if ($isMysql || DB::getDriverName() === 'pgsql') {
             $this->dropConstraintIfExists('service_sections', self::PUBLICATION_MEDIA_CHECK);
 
-            // Restore the previous (slightly incomplete) check
+            // Restore the previous constraint (audio optional for all section types).
             $check = "((publication_status IN ('approved', 'published') AND extracted_video_path IS NOT NULL AND extracted_at IS NOT NULL) OR publication_status IN ('not_applicable', 'pending_approval', 'rejected'))";
 
             DB::statement(sprintf(

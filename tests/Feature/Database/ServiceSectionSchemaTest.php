@@ -259,6 +259,7 @@ class ServiceSectionSchemaTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SERMON->value,
             'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
             'extracted_video_path' => 'sermons/sections/13/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-13.mp3',
