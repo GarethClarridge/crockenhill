@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Contracts\TranscriptionServiceInterface;
@@ -32,7 +34,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public MediaProcessingLog $processingLog,
+        public readonly MediaProcessingLog $processingLog,
     ) {}
 
     /**
