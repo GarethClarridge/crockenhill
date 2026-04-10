@@ -9,7 +9,6 @@ use App\Enums\SermonService;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Number;
 use Owenoj\LaravelGetId3\GetId3;
 
 class MetadataExtractionService
@@ -542,41 +541,6 @@ class MetadataExtractionService
             'ogg' => 'OGG',
             default => strtoupper($extension),
         };
-    }
-
-    /**
-     * Validate audio file format and quality
-     *
-     * @return array<string, bool|array<int, string>|array<string, float|int|string|null>>
-     */
-    public function validateAudioFile(UploadedFile $file): array
-    {
-        $audioInfo = $this->extractAudioInfo($file);
-        $errors = [];
-
-        // Check if it's a valid audio format
-        $validFormats = ['MP3', 'WAV', 'FLAC', 'AAC', 'M4A'];
-        if ($audioInfo['format'] && ! in_array($audioInfo['format'], $validFormats)) {
-            $errors[] = "Unsupported audio format: {$audioInfo['format']}. Supported formats: ".implode(', ', $validFormats);
-        }
-
-        // Check minimum bitrate for quality (if available)
-        if ($audioInfo['bitrate'] && $audioInfo['bitrate'] < 64000) {
-            $errors[] = "Audio bitrate too low: {$audioInfo['bitrate']} bps. Minimum recommended: 64 kbps";
-        }
-
-        // Check file size limits (max 100MB as per design document)
-        $maxSize = 100 * 1024 * 1024; // 100MB in bytes
-        $fileSize = $this->toNullableFloat($audioInfo['filesize'] ?? null);
-        if ($fileSize !== null && $fileSize > $maxSize) {
-            $errors[] = 'File size too large: '.Number::fileSize($fileSize, precision: 2).'. Maximum allowed: 100 MB';
-        }
-
-        return [
-            'valid' => empty($errors),
-            'errors' => $errors,
-            'info' => $audioInfo,
-        ];
     }
 
     /**

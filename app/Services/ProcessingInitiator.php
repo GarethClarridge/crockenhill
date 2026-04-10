@@ -33,36 +33,53 @@ class ProcessingInitiator
      * Generates a processing ID, extracts date/service metadata from the file,
      * and creates a MediaProcessingLog record in PENDING state.
      *
-     * @param  array<string, mixed>  $additionalLogData  Extra columns to merge into the log record (e.g. file_size, duration)
+     * For media types where date/service extraction differs from the video strategy
+     * (e.g. audio using ID3 tags), pass a pre-extracted metadata array via
+     * $additionalLogData['processing_metadata']. When provided, it is merged with
+     * the base metadata keys. Pass $skipDateExtraction = true to skip the
+     * video-style date extraction entirely and use the file's SermonMetadata instead.
+     *
+     * @param  array<string, mixed>  $additionalLogData  Extra columns to merge into the log record (e.g. source_file_path, file_hash)
+     * @param  array<string, mixed>|null  $preExtractedMetadata  When non-null, replaces video-style date/service extraction
      * @return MediaProcessingLog The newly created processing log
      */
     public function initiateProcessing(
         UploadedFile $file,
         MediaType $processingType,
         ?string $clientFileDate = null,
-        array $additionalLogData = []
+        array $additionalLogData = [],
+        ?array $preExtractedMetadata = null
     ): MediaProcessingLog {
         $processingId = Str::uuid()->toString();
 
-        $extractedDateTime = $this->metadataService->extractDateFromVideo($file, $clientFileDate);
-        $extractedService = $this->determineService($extractedDateTime, $file->getClientOriginalName());
+        if ($preExtractedMetadata !== null) {
+            $baseMetadata = $preExtractedMetadata;
+            Log::info('Initiating media processing with pre-extracted metadata', [
+                'processing_id' => $processingId,
+                'processing_type' => $processingType->value,
+                'original_filename' => $file->getClientOriginalName(),
+            ]);
+        } else {
+            $extractedDateTime = $this->metadataService->extractDateFromVideo($file, $clientFileDate);
+            $extractedService = $this->determineService($extractedDateTime, $file->getClientOriginalName());
 
-        Log::info('Extracted metadata from media file', [
-            'processing_id' => $processingId,
-            'processing_type' => $processingType->value,
-            'original_filename' => $file->getClientOriginalName(),
-            'extracted_date' => $extractedDateTime->toDateString(),
-            'extracted_datetime' => $extractedDateTime->toDateTimeString(),
-            'extracted_service' => $extractedService->value,
-        ]);
+            Log::info('Extracted metadata from media file', [
+                'processing_id' => $processingId,
+                'processing_type' => $processingType->value,
+                'original_filename' => $file->getClientOriginalName(),
+                'extracted_date' => $extractedDateTime->toDateString(),
+                'extracted_datetime' => $extractedDateTime->toDateTimeString(),
+                'extracted_service' => $extractedService->value,
+            ]);
 
-        $baseMetadata = [
-            'extracted_date' => $extractedDateTime->toDateString(),
-            'extracted_datetime' => $extractedDateTime->toDateTimeString(),
-            'extracted_service' => $extractedService->value,
-            'date_extraction_method' => 'video_metadata_or_filename',
-            'service_extraction_method' => 'datetime_timestamp',
-        ];
+            $baseMetadata = [
+                'extracted_date' => $extractedDateTime->toDateString(),
+                'extracted_datetime' => $extractedDateTime->toDateTimeString(),
+                'extracted_service' => $extractedService->value,
+                'date_extraction_method' => 'video_metadata_or_filename',
+                'service_extraction_method' => 'datetime_timestamp',
+            ];
+        }
 
         // Merge additional processing_metadata if provided, keeping base metadata
         $extraMetadata = $additionalLogData['processing_metadata'] ?? [];

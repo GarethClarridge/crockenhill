@@ -11,7 +11,6 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -137,7 +136,7 @@ class UnifiedMediaProcessor
 
     /**
      * Process an audio file through the complete automation pipeline.
-     * Uses ProcessingPipelineBuilder for consistent job chain pattern (same as video processing).
+     * Uses ProcessingInitiator for shared log-creation boundary (same as video/livestream).
      */
     private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash): ProcessingResult
     {
@@ -149,8 +148,6 @@ class UnifiedMediaProcessor
                 'client_file_date' => $clientFileDate,
             ]);
 
-            $processingId = (string) Str::uuid();
-
             $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
 
             $metadata = SermonMetadata::fromUploadedFile($file);
@@ -158,36 +155,35 @@ class UnifiedMediaProcessor
 
             $id3Metadata = $this->metadataService->extractId3Metadata($file);
 
-            Log::info('Audio file stored, creating processing log', [
-                'processing_id' => $processingId,
+            $processingLog = $this->processingInitiator->initiateProcessing(
+                $file,
+                MediaType::Audio,
+                $clientFileDate,
+                [
+                    'source_file_path' => $storedFilePath,
+                    'file_hash' => $fileHash,
+                ],
+                preExtractedMetadata: [
+                    'id3_metadata' => $id3Metadata,
+                ]
+            );
+
+            Log::info('Audio file stored, processing log created', [
+                'processing_id' => $processingLog->processing_id,
                 'stored_path' => $storedFilePath,
                 'id3_metadata' => $id3Metadata,
-            ]);
-
-            $processingLog = MediaProcessingLog::create([
-                'processing_id' => $processingId,
-                'processing_type' => MediaType::Audio,
-                'original_filename' => $file->getClientOriginalName(),
-                'file_hash' => $fileHash,
-                'owner_user_id' => Auth::id(),
-                'source_file_path' => $storedFilePath,
-                'status' => ProcessingStatus::Pending,
-                'current_step' => 'audio_processing_initiated',
-                'processing_metadata' => [
-                    'id3_metadata' => $id3Metadata,
-                ],
             ]);
 
             $this->processingRunOrchestrator->start($processingLog);
 
             Log::info('Audio processing jobs dispatched', [
-                'processing_id' => $processingId,
+                'processing_id' => $processingLog->processing_id,
             ]);
 
             return ProcessingResult::success(
-                processingId: $processingId,
+                processingId: $processingLog->processing_id,
                 message: 'Audio processing initiated successfully',
-                statusUrl: route('api.media.processing.status', ['processingId' => $processingId])
+                statusUrl: route('api.media.processing.status', ['processingId' => $processingLog->processing_id])
             );
 
         } catch (\Exception $e) {

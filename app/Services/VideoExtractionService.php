@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\VideoProcessingException;
-use App\Traits\DetectsStorageType;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
@@ -17,8 +16,6 @@ use Illuminate\Support\Str;
 
 class VideoExtractionService
 {
-    use DetectsStorageType;
-
     private ?FFMpeg $ffmpeg;
 
     private string $tempDisk;
@@ -567,38 +564,14 @@ class VideoExtractionService
         );
     }
 
-    /**
-     * Check if file exists on specified disk (S3-aware)
-     */
     private function fileExists(string $filePath, string $disk): bool
     {
-        if ($this->isS3Disk($disk)) {
-            return Storage::disk($disk)->exists($filePath);
-        }
-
-        return file_exists($filePath);
+        return $this->storageHelper->fileExists($filePath, $disk);
     }
 
-    /**
-     * Get file size on specified disk (S3-aware)
-     */
     private function getFileSize(string $filePath, string $disk): int
     {
-        if ($this->isS3Disk($disk)) {
-            try {
-                return Storage::disk($disk)->size($filePath);
-            } catch (\Exception $e) {
-                return 0;
-            }
-        }
-
-        if (! file_exists($filePath)) {
-            return 0;
-        }
-
-        $fileSize = filesize($filePath);
-
-        return $fileSize === false ? 0 : $fileSize;
+        return $this->storageHelper->fileSize($filePath, $disk);
     }
 
     /**

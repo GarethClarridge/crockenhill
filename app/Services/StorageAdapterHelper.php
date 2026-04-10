@@ -180,6 +180,49 @@ class StorageAdapterHelper
     }
 
     /**
+     * Check whether a file exists on the given disk, handling S3 and local disks.
+     *
+     * For S3 disks, uses the Storage facade's exists() check.
+     * For local disks, uses the filesystem path and file_exists().
+     */
+    public function fileExists(string $filePath, string $diskName): bool
+    {
+        $disk = Storage::disk($diskName);
+
+        if ($this->isS3CompatibleDisk($disk)) {
+            return $disk->exists($filePath);
+        }
+
+        return file_exists($filePath);
+    }
+
+    /**
+     * Return the byte size of a file on the given disk, handling S3 and local disks.
+     *
+     * Returns 0 if the file cannot be found or the size cannot be determined.
+     */
+    public function fileSize(string $filePath, string $diskName): int
+    {
+        $disk = Storage::disk($diskName);
+
+        if ($this->isS3CompatibleDisk($disk)) {
+            try {
+                return $disk->size($filePath);
+            } catch (\Exception) {
+                return 0;
+            }
+        }
+
+        if (! file_exists($filePath)) {
+            return 0;
+        }
+
+        $size = filesize($filePath);
+
+        return $size === false ? 0 : $size;
+    }
+
+    /**
      * Return processing path and permanent path for audio/video output.
      *
      * When the target disk is S3-compatible (driver === 's3'), a local temp path under

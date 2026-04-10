@@ -226,4 +226,44 @@ class ProcessingInitiatorTest extends TestCase
 
         $this->assertEquals($user->id, $log->owner_user_id);
     }
+
+    #[Test]
+    public function it_skips_date_extraction_when_pre_extracted_metadata_is_provided(): void
+    {
+        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
+
+        $this->metadataService->expects($this->never())->method('extractDateFromVideo');
+        $this->metadataService->expects($this->never())->method('determineServiceFromTime');
+        $this->metadataService->expects($this->never())->method('determineServiceFromFilename');
+
+        $log = $this->initiator->initiateProcessing(
+            $file,
+            MediaType::Audio,
+            null,
+            ['source_file_path' => 'sermons/2026/01/audio.mp3'],
+            preExtractedMetadata: ['id3_metadata' => ['title' => 'Grace Alone', 'artist' => 'John Smith']]
+        );
+
+        $this->assertEquals(MediaType::Audio, $log->processing_type);
+        $this->assertEquals('audio_processing_initiated', $log->current_step);
+        $this->assertEquals(['title' => 'Grace Alone', 'artist' => 'John Smith'], $log->processing_metadata['id3_metadata']);
+        $this->assertEquals('sermons/2026/01/audio.mp3', $log->source_file_path);
+    }
+
+    #[Test]
+    public function it_merges_additional_processing_metadata_on_top_of_pre_extracted_metadata(): void
+    {
+        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
+
+        $log = $this->initiator->initiateProcessing(
+            $file,
+            MediaType::Audio,
+            null,
+            ['processing_metadata' => ['extra_key' => 'extra_value']],
+            preExtractedMetadata: ['id3_metadata' => ['title' => 'Faith']]
+        );
+
+        $this->assertEquals(['title' => 'Faith'], $log->processing_metadata['id3_metadata']);
+        $this->assertEquals('extra_value', $log->processing_metadata['extra_key']);
+    }
 }

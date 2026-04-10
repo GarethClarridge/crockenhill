@@ -6,7 +6,6 @@ use App\Data\SermonMetadata;
 use App\Enums\SermonService;
 use App\Services\MetadataExtractionService;
 use Carbon\Carbon;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -354,33 +353,6 @@ class MetadataExtractionServiceTest extends TestCase
         $this->assertEquals(SermonService::MORNING, $result->service);
         $this->assertEquals('2024-01-15_morning_sermon.mp3', $result->filename);
         $this->assertEquals('2024-01-15_morning_sermon.mp3', $result->originalName);
-    }
-
-    #[Test]
-    public function it_validates_audio_file_format(): void
-    {
-        // Create a mock uploaded file
-        $file = UploadedFile::fake()->create('test.mp3', 1024, 'audio/mpeg');
-
-        $result = $this->service->validateAudioFile($file);
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('valid', $result);
-        $this->assertArrayHasKey('errors', $result);
-        $this->assertArrayHasKey('info', $result);
-    }
-
-    #[Test]
-    public function it_rejects_files_that_are_too_large(): void
-    {
-        // Create a file larger than 100MB
-        $file = UploadedFile::fake()->create('large.mp3', 101 * 1024, 'audio/mpeg');
-
-        $result = $this->service->validateAudioFile($file);
-
-        $this->assertFalse($result['valid']);
-        $this->assertNotEmpty($result['errors']);
-        $this->assertStringContainsString('File size too large', $result['errors'][0]);
     }
 
     #[Test]

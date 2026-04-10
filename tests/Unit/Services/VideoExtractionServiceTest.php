@@ -106,29 +106,6 @@ class VideoExtractionServiceTest extends TestCase
         $this->service->extractSegmentAsUpload('/nonexistent/video.mp4', $segment);
     }
 
-    // ---- isS3Disk tests (via DetectsStorageType trait) ----
-    // Full coverage is in DetectsStorageTypeTest; these just verify the trait is wired up.
-
-    #[Test]
-    public function it_detects_s3_compatible_disks(): void
-    {
-        $method = $this->getPrivateMethod('isS3Disk');
-
-        Config::set('filesystems.disks.spaces', ['driver' => 's3']);
-        Config::set('filesystems.disks.local_test', ['driver' => 'local']);
-
-        $this->assertTrue($method->invoke($this->service, 'spaces'));
-        $this->assertFalse($method->invoke($this->service, 'local_test'));
-    }
-
-    #[Test]
-    public function it_returns_false_for_nonexistent_disk(): void
-    {
-        $method = $this->getPrivateMethod('isS3Disk');
-
-        $this->assertFalse($method->invoke($this->service, 'nonexistent_disk'));
-    }
-
     // ---- getProcessingOutputPath tests ----
 
     #[Test]

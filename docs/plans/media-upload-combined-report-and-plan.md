@@ -30,8 +30,8 @@ Status notes:
 
 Tasks:
 
-- [ ] Delete `MetadataExtractionService::validateAudioFile()` and any tests that exercise it in isolation.
-- [ ] Verify no callers reference the method (grep confirms none in the active pipeline).
+- [x] Delete `MetadataExtractionService::validateAudioFile()` and any tests that exercise it in isolation.
+- [x] Verify no callers reference the method (grep confirms none in the active pipeline).
 
 Exit criteria:
 
@@ -51,10 +51,10 @@ Status notes:
 
 Tasks:
 
-- [ ] Extend `ProcessingInitiator` to accept an optional pre-extracted metadata array or a metadata-extraction strategy, so audio can supply ID3 metadata while video/livestream continue using date-from-video extraction.
-- [ ] Refactor `UnifiedMediaProcessor::processAudio()` to use `ProcessingInitiator::initiateProcessing()` instead of inline log creation.
-- [ ] Preserve audio-specific file storage (the `storeAudioFile()` step happens before initiation, which differs from video's temp-store pattern).
-- [ ] Remove the inline UUID generation and `MediaProcessingLog::create()` from `processAudio()`.
+- [x] Extend `ProcessingInitiator` to accept an optional pre-extracted metadata array or a metadata-extraction strategy, so audio can supply ID3 metadata while video/livestream continue using date-from-video extraction.
+- [x] Refactor `UnifiedMediaProcessor::processAudio()` to use `ProcessingInitiator::initiateProcessing()` instead of inline log creation.
+- [x] Preserve audio-specific file storage (the `storeAudioFile()` step happens before initiation, which differs from video's temp-store pattern).
+- [x] Remove the inline UUID generation and `MediaProcessingLog::create()` from `processAudio()`.
 
 Exit criteria:
 
@@ -75,7 +75,7 @@ Status notes:
 
 Tasks:
 
-- [ ] Delegate `fileExists()` and `getFileSize()` to `StorageAdapterHelper` (or a focused `StoragePathResolver`), removing the duplicate S3-aware logic from `VideoExtractionService`.
+- [x] Delegate `fileExists()` and `getFileSize()` to `StorageAdapterHelper` (or a focused `StoragePathResolver`), removing the duplicate S3-aware logic from `VideoExtractionService`.
 - [ ] Extract FFmpeg segment extraction methods (`extractSegmentAsFile`, `extractSegmentWithReencoding`, `extractConcatenatedSegmentAsFile`, `extractSegmentAsUpload`) into a focused `VideoSegmentExtractionService` that owns only transcoding coordination.
 - [ ] Route audio extraction methods (`extractAudio`, `extractOptimizedAudio`) through `AudioCompressionService` directly where possible; deprecate or remove the `extractOptimizedAudioFromSegment()` wrapper if it adds no value.
 - [ ] Keep FFmpeg behaviour and storage semantics unchanged while reducing responsibility density.
@@ -101,7 +101,7 @@ Exit criteria:
 
 ## Definition of Done
 
-- [ ] No orphaned validation methods with hard-coded limits remain.
-- [ ] Audio startup uses `ProcessingInitiator` alongside video and livestream.
-- [ ] Video extraction/storage responsibilities are split at clear seams without behavioural drift.
-- [ ] Existing media upload tests still pass after each phase.
+- [x] No orphaned validation methods with hard-coded limits remain.
+- [x] Audio startup uses `ProcessingInitiator` alongside video and livestream.
+- [ ] Video extraction/storage responsibilities are split at clear seams without behavioural drift. (FFmpeg segment extraction methods and audio extraction routing remain in `VideoExtractionService` — file/size delegation to `StorageAdapterHelper` done; FFmpeg decomposition deferred.)
+- [x] Existing media upload tests still pass after each phase.

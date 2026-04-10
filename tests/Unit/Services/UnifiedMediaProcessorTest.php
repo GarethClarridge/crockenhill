@@ -79,6 +79,15 @@ class UnifiedMediaProcessorTest extends TestCase
             ->method('extractId3Metadata')
             ->willReturn(['title' => 'Test Sermon', 'artist' => 'Test Preacher']);
 
+        $processingLog = MediaProcessingLog::factory()->audio()->pending()->create([
+            'original_filename' => 'sermon.mp3',
+            'current_step' => 'audio_processing_initiated',
+        ]);
+
+        $this->processingInitiator
+            ->method('initiateProcessing')
+            ->willReturn($processingLog);
+
         $this->pipelineBuilder
             ->method('buildAudioPipeline')
             ->willReturn([new AudioStubJob]);
@@ -107,6 +116,14 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->metadataService
             ->method('extractId3Metadata')
             ->willReturn([]);
+
+        $processingLog = MediaProcessingLog::factory()->audio()->pending()->create([
+            'original_filename' => 'sermon.mp3',
+        ]);
+
+        $this->processingInitiator
+            ->method('initiateProcessing')
+            ->willReturn($processingLog);
 
         $this->pipelineBuilder
             ->method('buildAudioPipeline')
