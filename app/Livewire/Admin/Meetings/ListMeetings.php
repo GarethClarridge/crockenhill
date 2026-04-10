@@ -11,6 +11,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Meeting;
 use App\Traits\EscapesLikeWildcards;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -81,6 +82,12 @@ class ListMeetings extends Component
     {
 
         $this->authorizeAdmin();
+
+        Log::warning('Meeting deleted by admin', [
+            'admin_id' => auth()->id(),
+            'meeting_id' => $meeting->id,
+            'slug' => $meeting->slug,
+        ]);
 
         $meeting->delete();
         $this->success('Meeting deleted');

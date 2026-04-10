@@ -15,6 +15,7 @@ use App\Models\InboundEmail;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -147,6 +148,14 @@ class ReviewInboundEmails extends Component
 
             return;
         }
+
+        Log::warning('Inbound email rejected by admin', [
+            'admin_id' => $userId,
+            'inbound_email_id' => $inboundEmail->id,
+            'message_id' => $inboundEmail->message_id,
+            'from' => $inboundEmail->from,
+            'subject' => $inboundEmail->subject,
+        ]);
 
         $action->execute($inboundEmail, $userId);
 

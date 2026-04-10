@@ -11,6 +11,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Page;
 use App\Traits\EscapesLikeWildcards;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -80,6 +81,12 @@ class ListPages extends Component
 
         $this->authorizeAdmin();
 
+        Log::warning('Page deleted by admin', [
+            'admin_id' => auth()->id(),
+            'page_id' => $page->id,
+            'heading' => $page->heading,
+        ]);
+
         $page->delete();
         $this->success('Page deleted');
     }
@@ -88,6 +95,11 @@ class ListPages extends Component
     {
 
         $this->authorizeAdmin();
+
+        Log::warning('Pages deleted by admin (batch)', [
+            'admin_id' => auth()->id(),
+            'page_ids' => $this->selected,
+        ]);
 
         Page::whereIn('id', $this->selected)->delete();
         $this->selected = [];

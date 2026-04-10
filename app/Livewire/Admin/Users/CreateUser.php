@@ -8,6 +8,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -71,6 +72,14 @@ class CreateUser extends Component
         $user->is_admin = $validated['isAdmin'];
         $user->email_verified_at = $this->sendVerification ? null : now();
         $user->save();
+
+        if ($user->is_admin) {
+            Log::warning('New admin user created', [
+                'admin_id' => auth()->id(),
+                'target_user_id' => $user->id,
+                'target_user_email' => $user->email,
+            ]);
+        }
 
         if ($this->sendVerification) {
             $user->sendEmailVerificationNotification();

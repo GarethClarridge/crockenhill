@@ -10,6 +10,7 @@ use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\SongVideoService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -92,6 +93,14 @@ class ShowSong extends Component
     public function deleteVideo(int $videoId): void
     {
         $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
+
+        Log::warning('Song video deleted by admin', [
+            'admin_id' => auth()->id(),
+            'video_id' => $video->id,
+            'song_id' => $this->song->id,
+            'song_title' => $this->song->title,
+        ]);
+
         app(SongVideoService::class)->deleteVideo($video);
     }
 
