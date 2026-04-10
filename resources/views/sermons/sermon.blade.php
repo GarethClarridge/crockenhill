@@ -222,6 +222,16 @@ $hasPublicVideo = filled($sermonView['video_url']);
           </div>
           @endif
 
+          @if ($sermonView['formatted_duration'])
+          <div class="flex items-center gap-3">
+            <x-heroicon-o-play-circle class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
+            <div>
+              <dt class="sr-only">Duration</dt>
+              <dd class="text-gray-900 font-medium">{{ $sermonView['formatted_duration'] }}</dd>
+            </div>
+          </div>
+          @endif
+
           @if ($sermon->service != null)
           <div class="flex items-center gap-3">
             <x-heroicon-o-clock class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />

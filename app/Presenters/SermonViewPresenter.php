@@ -24,6 +24,26 @@ class SermonViewPresenter
     ) {}
 
     /**
+     * Get the human-friendly formatted duration of the sermon.
+     */
+    public function formattedDuration(Sermon $sermon): ?string
+    {
+        if ($sermon->duration === null || $sermon->duration <= 0) {
+            return null;
+        }
+
+        $seconds = (int) $sermon->duration;
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+
+        if ($hours > 0) {
+            return $hours . 'h ' . $minutes . ' mins';
+        }
+
+        return $minutes.' mins';
+    }
+
+    /**
      * Clear the internal URL cache.
      * Useful for long-running processes or tests.
      */
@@ -122,6 +142,7 @@ class SermonViewPresenter
      *
      * @return array{
      *     audio_url: ?string,
+     *     formatted_duration: ?string,
      *     preacher_url: ?string,
      *     thumbnail_url: ?string,
      *     video_url: ?string
@@ -131,6 +152,7 @@ class SermonViewPresenter
     {
         return [
             'audio_url' => $this->audioUrl($sermon),
+            'formatted_duration' => $this->formattedDuration($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'video_url' => $this->videoUrl($sermon),
@@ -142,6 +164,7 @@ class SermonViewPresenter
      *     audio_url: ?string,
      *     canonical_url: string,
      *     card_thumbnail_url: ?string,
+     *     formatted_duration: ?string,
      *     preacher_url: ?string,
      *     public_url: string,
      *     thumbnail_url: ?string,
@@ -155,6 +178,7 @@ class SermonViewPresenter
             'audio_url' => $this->audioUrl($sermon),
             'canonical_url' => $this->canonicalUrl($sermon),
             'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
+            'formatted_duration' => $this->formattedDuration($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
             'public_url' => $this->publicUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
