@@ -13,7 +13,7 @@
 >
     <button
         type="button"
-        @click="window.scrollTo(0, 0)"
+        @click="window.scrollTo({ top: 0, behavior: 'smooth' })"
         aria-label="Back to top"
         title="Back to top"
         class="flex h-12 w-12 items-center justify-center rounded-full bg-cbc-teal text-white shadow-lg transition-all hover:bg-cbc-teal-dark hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 active:scale-95"
