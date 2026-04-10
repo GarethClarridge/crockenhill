@@ -212,6 +212,95 @@ class AudioEnhancementService
         }
     }
 
+    /**
+     * Enhance the audio track of an MP4 video file using FFmpeg filters.
+     *
+     * The video stream is copied unchanged (`-c:v copy`); only the audio is re-encoded
+     * to AAC to produce an MP4-compatible output. Reuses the same filter chain and
+     * config toggles as enhance().
+     *
+     * Returns the path to the enhanced MP4 file, or null if enhancement is disabled or fails.
+     * Failure is always non-fatal — callers should fall back to the original file.
+     */
+    public function enhanceVideo(string $inputPath, string $processingId): ?string
+    {
+        if (! config('media-processing.audio_enhancement.enabled', true)) {
+            return null;
+        }
+
+        if (! file_exists($inputPath)) {
+            Log::warning('AudioEnhancementService: video input file not found', [
+                'processing_id' => $processingId,
+                'input_path' => $inputPath,
+            ]);
+
+            return null;
+        }
+
+        try {
+            $outputPath = storage_path('app/temp/'.$processingId.'_enhanced.mp4');
+            $this->ensureTempDirectoryExists($outputPath);
+
+            $filterChain = $this->buildFilterChain($inputPath, $processingId);
+
+            if ($filterChain === null) {
+                return null;
+            }
+
+            $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
+
+            $this->runVideoEnhancement($ffmpegPath, $inputPath, $filterChain, $outputPath, $processingId);
+
+            Log::info('AudioEnhancementService: video enhancement complete', [
+                'processing_id' => $processingId,
+                'output_path' => $outputPath,
+            ]);
+
+            return $outputPath;
+        } catch (\Throwable $e) {
+            Log::warning('AudioEnhancementService: video enhancement failed, continuing with original', [
+                'processing_id' => $processingId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Run the FFmpeg video enhancement pass: copy the video stream, re-encode audio to AAC.
+     *
+     * @throws \RuntimeException When FFmpeg exits with a non-zero code
+     */
+    private function runVideoEnhancement(string $ffmpegPath, string $inputPath, string $filterChain, string $outputPath, string $processingId): void
+    {
+        $command = [
+            $ffmpegPath,
+            '-y',
+            '-i', $inputPath,
+            '-af', $filterChain,
+            '-c:v', 'copy',
+            '-c:a', 'aac',
+            '-b:a', '128k',
+            $outputPath,
+        ];
+
+        Log::info('AudioEnhancementService: running video enhancement pass', [
+            'processing_id' => $processingId,
+            'filter_chain' => $filterChain,
+        ]);
+
+        $process = new Process($command);
+        $process->setTimeout(600);
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            throw new \RuntimeException(
+                'FFmpeg video enhancement failed: '.$process->getErrorOutput()
+            );
+        }
+    }
+
     private function ensureTempDirectoryExists(string $outputPath): void
     {
         $dir = dirname($outputPath);

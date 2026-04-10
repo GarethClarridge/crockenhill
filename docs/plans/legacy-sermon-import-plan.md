@@ -1,6 +1,6 @@
 # Legacy Sermon Import Plan
 
-Updated 2026-04-06.
+Updated 2026-04-10.
 
 ## Status
 
@@ -36,7 +36,7 @@ sermons:import-legacy
     {--csv= : Path to Tape Index CSV (defaults to storage/app/Tape Index.csv)}
     {--dry-run : Preview matches without creating logs}
     {--delay=0 : Seconds to pause between imports}
-    {--force : Re-import files already seen by original filename}
+    {--force : Re-import files already seen by file hash}
 ```
 
 ### Phase 2: Use The Existing Transcription Backend Choice
@@ -66,15 +66,22 @@ This is optional work, not the default implementation path.
 
 The CSV mapping from the original draft is still useful and can be retained.
 
-Recommended fields:
+### Top-Level Model Columns
+
+These are first-class columns on `MediaProcessingLog`, not nested inside `processing_metadata`:
+
+- `Date` -> `media_processing_logs.extracted_date`
+- `AM/PM` -> `media_processing_logs.extracted_service`
+- `Duration` -> `media_processing_logs.duration`
+
+### Processing Metadata (ID3)
+
+These map into the `processing_metadata.id3_metadata` JSON structure, matching `ProcessingId3Metadata`:
 
 - `Title` -> `processing_metadata.id3_metadata.title`
 - `Preacher` -> `processing_metadata.id3_metadata.preacher`
 - `Series` -> `processing_metadata.id3_metadata.series`
 - `Book` + `Reference` -> `processing_metadata.id3_metadata.reference`
-- `Date` -> `processing_metadata.extracted_date`
-- `AM/PM` -> `processing_metadata.extracted_service`
-- `Duration` -> `media_processing_logs.duration`
 
 Keep the existing tape ID cleanup rule:
 
@@ -82,10 +89,14 @@ Keep the existing tape ID cleanup rule:
 
 ## Implementation Notes
 
-- Create logs in the same shape as the normal audio upload path so downstream jobs behave consistently.
+- Create logs in the same shape as the normal audio upload path (`UnifiedMediaProcessor::processAudio`) so downstream jobs behave consistently. The audio upload path creates the `MediaProcessingLog` directly — it does not use `ProcessingInitiator` (which is video/livestream only and requires an `UploadedFile`).
+- Compute a SHA-256 `file_hash` for each MP3 via `hash_file('sha256', $path)` and store it on the log. This matches the duplicate detection used by the normal upload flow.
+- Record `file_size` on the log (trivial since the file is on disk).
+- Set `source_file_path` to the stored path on the sermon disk — this is how the audio pipeline locates the file for `ValidateAudioFile`, `EnhanceAudio`, etc.
 - Prefer the configured sermon disk and current `sermons/YYYY/MM` path conventions.
-- Use the existing duplicate guard on `original_filename` unless `--force` is passed.
+- Use the `file_hash` duplicate guard: skip files whose hash matches an existing pending/processing/completed log, unless `--force` is passed. Fall back to `original_filename` as a secondary check for re-imports where the same legacy file appears under different directories.
 - If the CSV is missing or fields are blank, continue the import and let the normal pipeline fill the gaps.
+- Output progress per file via `$this->info()` and print a summary count at the end.
 
 ## Not Recommended From The Original Draft
 
@@ -100,7 +111,8 @@ Create focused tests for:
 - CSV match -> processing log created with mapped metadata and processing started
 - no CSV match -> file still imported and processing started
 - dry run -> no files stored and no logs created
-- duplicate detection -> existing imports skipped unless `--force` is set
+- duplicate `file_hash` -> existing imports skipped unless `--force` is set
+- duplicate `original_filename` -> existing imports skipped unless `--force` is set
 - missing `--dir` -> command fails cleanly
 - missing CSV -> import still proceeds with warnings
 - empty CSV fields -> only non-empty metadata fields are written

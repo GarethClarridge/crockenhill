@@ -8,8 +8,10 @@ use App\Contracts\SectionPublicationHandler;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
+use App\Services\AudioEnhancementService;
 use App\Services\ServiceSectionPublicationTransitionService;
 use App\Services\SongVideoService;
+use App\Services\StorageAdapterHelper;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -18,6 +20,8 @@ class SongPublicationHandler implements SectionPublicationHandler
     public function __construct(
         private readonly SongVideoService $songVideoService,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
+        private readonly AudioEnhancementService $audioEnhancement,
+        private readonly StorageAdapterHelper $storageHelper,
     ) {}
 
     public function requiresAudioExtraction(): bool
@@ -83,7 +87,37 @@ class SongPublicationHandler implements SectionPublicationHandler
             throw new \RuntimeException('Section has no linked song for publication');
         }
 
-        $promotedPath = $this->promoteExtractedVideo($section, $videoPath);
+        $localTempDownload = null;
+        $enhancedTempPath = null;
+
+        try {
+            $sourceDiskName = $section->extractedAssetDisk($videoPath);
+            $localInputPath = $this->storageHelper->downloadToTemp(
+                $videoPath,
+                $sourceDiskName,
+                'local',
+                'temp/song-enhancement'
+            );
+
+            // Only track the download temp file if the disk is remote (downloadToTemp created it).
+            if ($this->storageHelper->isS3CompatibleDisk(Storage::disk($sourceDiskName))) {
+                $localTempDownload = $localInputPath;
+            }
+
+            $enhancedTempPath = $this->audioEnhancement->enhanceVideo($localInputPath, 'song-'.$section->id);
+
+            $promotedPath = $enhancedTempPath !== null
+                ? $this->promoteLocalFileAsVideo($section, $enhancedTempPath)
+                : $this->promoteExtractedVideo($section, $videoPath);
+        } finally {
+            if ($localTempDownload !== null && file_exists($localTempDownload)) {
+                @unlink($localTempDownload);
+            }
+
+            if ($enhancedTempPath !== null && file_exists($enhancedTempPath)) {
+                @unlink($enhancedTempPath);
+            }
+        }
 
         $section->extracted_video_path = $promotedPath;
 
@@ -147,6 +181,43 @@ class SongPublicationHandler implements SectionPublicationHandler
 
         if ($sourceDisk !== $targetDisk || $sourcePath !== $targetPath) {
             Storage::disk($sourceDisk)->delete($sourcePath);
+        }
+
+        return $targetPath;
+    }
+
+    /**
+     * Promote a locally-enhanced video file (absolute path) to the sermon disk.
+     *
+     * Used when enhancement produces a temp file that must be streamed to storage
+     * rather than copied between storage disks.
+     */
+    private function promoteLocalFileAsVideo(ServiceSection $section, string $localFilePath): string
+    {
+        /** @var \App\Models\ChurchServiceItem $item validated in publish() */
+        $item = $section->churchServiceItem;
+        $targetPath = 'sermons/songs/'.$item->song_id.'/'.$section->id.'.mp4';
+        $targetDisk = $this->sermonDisk();
+
+        $fileStream = fopen($localFilePath, 'r');
+        if (! is_resource($fileStream)) {
+            throw new \RuntimeException('Unable to read enhanced song video for publication');
+        }
+
+        try {
+            $written = Storage::disk($targetDisk)->put($targetPath, $fileStream);
+        } finally {
+            fclose($fileStream);
+        }
+
+        if ($written !== true || ! Storage::disk($targetDisk)->exists($targetPath)) {
+            throw new \RuntimeException('Unable to publish enhanced song video to the sermon disk');
+        }
+
+        // Remove the original extracted clip from the source disk now that the enhanced version is promoted.
+        $sourcePath = $section->extracted_video_path;
+        if (is_string($sourcePath) && $sourcePath !== '') {
+            Storage::disk($section->extractedAssetDisk($sourcePath))->delete($sourcePath);
         }
 
         return $targetPath;
