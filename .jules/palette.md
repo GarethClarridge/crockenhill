@@ -43,3 +43,7 @@
 ## 2026-04-02 - Centralized Filter Bar UX
 **Learning:** Centralizing the "Clear Filters" logic into the base `x-admin.filter-bar` component ensures consistent positioning and behavior across all admin listings. By leveraging `$wire.hasFilters`, the component can automatically provide feedback and an escape hatch for filtered states without per-view boilerplate. This reduces maintenance overhead and ensures a predictable UX for administrators navigating different data types.
 **Action:** Use the `x-admin.filter-bar` to automatically handle filter-clearing logic. Provide a `resetAction` prop to allow customization when the default `resetFilters` method is not used.
+
+## 2026-04-09 - Accessible Smooth Scrolling and Navigation
+**Learning:** Large pages (like date-grouped sermon lists) benefit from "Back to top" functionality to reduce scroll fatigue. Implementing this with `scroll-behavior: smooth` provides a pleasant transition, but it MUST be wrapped in a `@media (prefers-reduced-motion: no-preference)` block to respect accessibility settings for users with motion sensitivities. Using Alpine.js to show/hide the button based on a scroll threshold (e.g., 400px) keeps the UI clean and ensures the button is only present when useful.
+**Action:** Always wrap `scroll-behavior: smooth` in a media query checking for `no-preference`. Use Alpine.js for scroll-based visibility transitions and ensure the button is fully keyboard accessible with proper ARIA labels.
