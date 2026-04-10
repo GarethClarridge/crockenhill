@@ -82,51 +82,24 @@ Exit criteria:
 
 Priority: **Medium** — only one file has independent validation logic remaining.
 
-Status note:
+Status: **Complete** (2026-04-10)
 
-- `MediaValidationService` is the canonical source for request and Livewire upload rules.
-- `ProcessMediaRequest`, `WithUploadLifecycle`, `ValidateAudioFile`, and `AudioExtractionService` all delegate correctly — no work needed on those files.
-- The only remaining issue is `MetadataExtractionService::validateAudioFile()`, which has hardcoded validation (format list, 64kbps bitrate floor, 100MB size limit) that bypasses `MediaValidationService`.
-
-Target files:
-
-- `app/Services/MetadataExtractionService.php` — `validateAudioFile()` method (lines 552-580)
-
-Tasks:
-
-- [ ] Decide: is `MetadataExtractionService::validateAudioFile()` upload validation or quality linting?
-- [ ] If upload validation: replace hardcoded limits with config-backed limits from `MediaValidationService`.
-- [ ] If quality linting: rename the method (e.g., `assessAudioQuality()`) and scope it clearly so it no longer looks like a second upload validator.
-
-Exit criteria:
-
-- Upload validation comes from one source of truth.
-- Any remaining audio-quality checks are explicitly framed as secondary analysis, not competing validation.
+- `MetadataExtractionService::validateAudioFile()` no longer exists — removed in a prior session.
+- `MetadataExtractionService` contains only metadata extraction logic (duration, bitrate, format, filesize); zero validation.
+- `SermonValidationService::validateAudioFile()` and `AudioExtractionService::validateAudioFile()` both delegate to `MediaValidationService::validateUploadedFile(MediaType::Audio, $file)`.
+- Upload validation comes from one source of truth. Exit criteria met.
 
 ### Phase 12: Calendar Boundary Cleanup
 
 Priority: **Low** — small scope, one method to relocate.
 
-Status note:
+Status: **Complete** (2026-04-10)
 
-- `CalendarAdminController` already uses constructor injection (complete).
-- `GoogleCalendarSyncService` exists and owns sync operations.
-- The only remaining issue: `CalendarService::manuallyCategorizeEvent()` (lines 92-104) performs Google API writes that belong in `GoogleCalendarSyncService`.
-
-Target files:
-
-- `app/Services/CalendarService.php` — `manuallyCategorizeEvent()` method
-- `app/Services/GoogleCalendarSyncService.php` — should receive the relocated method
-
-Tasks:
-
-- [ ] Move the Google Calendar API write logic from `CalendarService::manuallyCategorizeEvent()` into `GoogleCalendarSyncService`.
-- [ ] Keep `CalendarService` focused on local read models and categorization behavior.
-- [ ] Add focused tests around the relocated sync behavior.
-
-Exit criteria:
-
-- Calendar read-model logic and Google API concerns are clearly separated.
+- Added `GoogleCalendarSyncService::syncCategorizationToGoogle()` — owns the Google extended-property write.
+- `CalendarService` now injects `GoogleCalendarSyncService` and delegates the write; it no longer imports `Spatie\GoogleCalendar\Event` directly.
+- `CalendarServiceTest` updated: categorization tests now call `manuallyCategorizeEvent()` directly against a mocked `GoogleCalendarSyncService`, replacing the old workaround that bypassed the method entirely.
+- `GoogleCalendarSyncServiceTest` has a focused test for the new method's graceful-failure path.
+- Calendar read-model logic and Google API concerns are clearly separated. Exit criteria met.
 
 ### Phase 8: Sermon Route / Boundary Cleanup
 

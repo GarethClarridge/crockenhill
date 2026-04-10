@@ -7,11 +7,13 @@ namespace App\Services;
 use App\Models\CalendarEvent;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Log;
-use Spatie\GoogleCalendar\Event;
 
 class CalendarService
 {
+    public function __construct(
+        private readonly GoogleCalendarSyncService $googleSync,
+    ) {}
+
     /**
      * @return Collection<int, CalendarEvent>
      */
@@ -86,31 +88,8 @@ class CalendarService
             'is_categorized_automatically' => false,
         ]);
 
-        $googleSynced = false;
-
-        try {
-            $googleEvent = Event::find($event->google_event_id);
-            /** @phpstan-ignore-next-line */
-            if ($googleEvent) {
-                // Get existing extended properties and update them
-                /** @phpstan-ignore-next-line */
-                $extendedProperties = $googleEvent->googleEvent->getExtendedProperties() ?? [];
-                if (! isset($extendedProperties['private'])) {
-                    $extendedProperties['private'] = [];
-                }
-                $extendedProperties['private']['meeting_slug'] = $meetingSlug;
-
-                $googleEvent->googleEvent->setExtendedProperties($extendedProperties);
-                $googleEvent->save();
-                $googleSynced = true;
-            }
-        } catch (\Exception $e) {
-            Log::warning('Failed to update Google Calendar extended property', [
-                'event_id' => $event->id,
-                'google_event_id' => $event->google_event_id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        $googleSynced = $event->google_event_id !== null
+            && $this->googleSync->syncCategorizationToGoogle($event->google_event_id, $meetingSlug);
 
         return new CalendarCategorizationResult($event, $googleSynced);
     }

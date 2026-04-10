@@ -144,6 +144,44 @@ class GoogleCalendarSyncService
     /**
      * @param  array<string, mixed>  $eventData
      */
+    /**
+     * Push a manual meeting_slug categorization to the Google Calendar event's extended properties.
+     *
+     * Returns true when the Google write succeeded, false when it failed gracefully.
+     */
+    public function syncCategorizationToGoogle(string $googleEventId, string $meetingSlug): bool
+    {
+        try {
+            $googleEvent = Event::find($googleEventId);
+            /** @phpstan-ignore-next-line */
+            if (! $googleEvent) {
+                return false;
+            }
+
+            /** @phpstan-ignore-next-line */
+            $extendedProperties = $googleEvent->googleEvent->getExtendedProperties() ?? [];
+            if (! isset($extendedProperties['private'])) {
+                $extendedProperties['private'] = [];
+            }
+            $extendedProperties['private']['meeting_slug'] = $meetingSlug;
+
+            $googleEvent->googleEvent->setExtendedProperties($extendedProperties);
+            $googleEvent->save();
+
+            return true;
+        } catch (\Exception $e) {
+            Log::warning('Failed to update Google Calendar extended property', [
+                'google_event_id' => $googleEventId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $eventData
+     */
     public function createEventForMeeting(string $meetingSlug, array $eventData): Event
     {
         $meeting = Meeting::where('slug', $meetingSlug)->firstOrFail();

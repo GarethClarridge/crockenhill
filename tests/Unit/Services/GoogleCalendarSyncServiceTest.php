@@ -110,6 +110,16 @@ class GoogleCalendarSyncServiceTest extends TestCase
         $this->assertDatabaseMissing('calendar_events', ['google_event_id' => 'removed-from-google']);
     }
 
+    #[Test]
+    public function it_returns_false_when_google_event_cannot_be_found_during_categorization_sync(): void
+    {
+        config(['google-calendar.calendar_id' => 'test-calendar-id']);
+
+        $result = $this->service->syncCategorizationToGoogle('nonexistent-google-event-id', 'sunday-morning');
+
+        $this->assertFalse($result);
+    }
+
     private function makeGoogleEvent(string $id, string $name, ?string $extendedMeetingSlug = null): Event
     {
         $event = new Event;
