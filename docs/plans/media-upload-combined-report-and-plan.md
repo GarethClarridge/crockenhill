@@ -1,6 +1,6 @@
 # Media Upload Refactor Plan — Remaining Work
 
-Updated 2026-04-06.
+Updated 2026-04-10.
 
 The original combined audit plus implementation history now lives in [docs/archived-plans/media-upload-combined-report-and-plan.md](../archived-plans/media-upload-combined-report-and-plan.md).
 
@@ -8,116 +8,100 @@ This active plan tracks only the refactor work that still appears necessary in t
 
 ## Current Status
 
-- Validation centralisation is partly done. `MediaValidationService` already drives request and Livewire-facing validation, but backend audio-processing validation still has duplicate limits and file checks.
-- Cancellation/status normalisation is effectively complete. The backend transition service, status response payloads, and Livewire upload UI now all handle cancelled processing explicitly.
-- Startup orchestration reuse is partly done. `ProcessingInitiator` centralises video and livestream startup, but audio still enters through a separate bespoke path.
-- Storage/extraction decomposition is partly done. Some helper extraction already exists, so the remaining work should focus on the biggest hotspots rather than restarting the whole refactor.
+- Validation centralisation is effectively complete. `MediaValidationService` is the single canonical config-driven source, used by requests, Livewire, and job chains. One orphaned validation method remains in `MetadataExtractionService` as dead code.
+- Cancellation/status normalisation is effectively complete.
+- Startup orchestration reuse is partly done. `ProcessingInitiator` centralises video and livestream startup, but audio still enters through a separate inline path in `UnifiedMediaProcessor`.
+- Storage/extraction decomposition is partly done. Helpers like `StorageAdapterHelper` and `AudioCompressionService` already exist; `VideoExtractionService` still mixes extraction, storage, and audio concerns.
+- Contract simplification is complete. All surviving interfaces (`TranscriptionServiceInterface`, `SermonAnalysisInterface`, `SpeakerIdentificationInterface`, `SectionPublicationHandler`, `OosEmailItemExtractor`, `ProvidesSafeMessage`) have multiple implementations or genuine testing value.
 
 ## Remaining Work
 
-### 1. Validation Final Mile
+### 1. Validation Dead-Code Cleanup
 
 Objective:
 
-- Make upload limits and media acceptance rules come from one runtime source of truth.
+- Remove the orphaned validation method that duplicates rules already centralised in `MediaValidationService`.
 
 Status notes:
 
-- `MediaValidationService` already provides the main request/UI rule set.
-- `ValidateAudioFile` still performs backend validation through the extraction path.
-- `MetadataExtractionService` still contains hard-coded audio validation and limit checks.
+- `MediaValidationService` is the single canonical source, config-driven via `config('media-processing.types.{type}')`.
+- `ValidateAudioFile` job delegates to `AudioExtractionService`, which delegates to `MediaValidationService` — no duplication there.
+- `MetadataExtractionService::validateAudioFile()` (lines 552-580) contains hard-coded 64 kbps and 100 MB limits but is not called by any active pipeline. It is dead code.
 
 Tasks:
 
-- [ ] Decide whether `MediaValidationService` becomes the single canonical source, or whether a lower-level shared rule object should sit beneath it.
-- [ ] Route backend audio validation through that shared source instead of duplicating limits in job/service code.
-- [ ] Remove hard-coded size/type checks from metadata extraction once equivalent shared validation exists.
-- [ ] Keep displayed frontend limits aligned with the same config-backed source.
+- [ ] Delete `MetadataExtractionService::validateAudioFile()` and any tests that exercise it in isolation.
+- [ ] Verify no callers reference the method (grep confirms none in the active pipeline).
 
 Exit criteria:
 
-- Audio, video, and livestream rules are defined once and reused consistently by requests, Livewire, jobs, and metadata extraction.
+- No hard-coded validation limits exist outside `config/media-processing.php` and `MediaValidationService`.
 
 ### 2. Startup Orchestration Deduplication
 
 Objective:
 
-- Finish consolidating processing startup paths across media types.
+- Route audio processing startup through `ProcessingInitiator` so all media types share the same log-creation and metadata-bootstrap boundary.
 
 Status notes:
 
-- `ProcessingInitiator` already covers shared startup for video and livestream processing.
-- Audio still uses a separate startup path in `UnifiedMediaProcessor`.
+- `ProcessingInitiator` already covers video and livestream startup (UUID, metadata extraction, log creation).
+- Audio startup in `UnifiedMediaProcessor::processAudio()` (lines 142-206) duplicates UUID generation and `MediaProcessingLog::create()` inline.
+- Audio metadata extraction genuinely differs from video: audio uses `extractId3Metadata()` while video uses `extractDateFromVideo()` + service detection. `ProcessingInitiator` will need to accept a flexible metadata source (callback, DTO, or optional override) rather than assuming video-style extraction.
 
 Tasks:
 
-- [ ] Extract the remaining audio startup path onto the same orchestration boundary used by video and livestream flows where practical.
-- [ ] Reuse shared setup for processing log creation, metadata bootstrap, and inferred defaults.
-- [ ] Preserve the audio-specific processing sequence after the shared startup boundary.
+- [ ] Extend `ProcessingInitiator` to accept an optional pre-extracted metadata array or a metadata-extraction strategy, so audio can supply ID3 metadata while video/livestream continue using date-from-video extraction.
+- [ ] Refactor `UnifiedMediaProcessor::processAudio()` to use `ProcessingInitiator::initiateProcessing()` instead of inline log creation.
+- [ ] Preserve audio-specific file storage (the `storeAudioFile()` step happens before initiation, which differs from video's temp-store pattern).
+- [ ] Remove the inline UUID generation and `MediaProcessingLog::create()` from `processAudio()`.
 
 Exit criteria:
 
-- There is one clear startup orchestration layer for all supported media types, with audio-specific behaviour only where the pipelines genuinely diverge.
+- All three media types (`audio`, `video`, `livestream`) create their processing logs through `ProcessingInitiator`.
+- Audio-specific metadata (ID3 tags) and file storage are preserved without duplication.
 
 ### 3. Video Extraction and Storage Boundary Cleanup
 
 Objective:
 
-- Reduce complexity in the video extraction path without redoing completed helper work.
+- Reduce complexity in `VideoExtractionService` (651 lines, 14 methods) by splitting along its natural seams.
 
 Status notes:
 
-- Shared helpers already exist for some storage/disk concerns.
-- `VideoExtractionService` remains a large coordination hotspot.
+- `StorageAdapterHelper` already handles S3 upload retry, temp cleanup, and processing output paths.
+- `AudioCompressionService` already handles audio extraction and compression.
+- `VideoExtractionService` delegates to both helpers but still contains duplicate `fileExists()` and `getFileSize()` logic, and still owns FFmpeg extraction, storage path resolution, and audio extraction coordination in one class.
 
 Tasks:
 
-- [ ] Split `VideoExtractionService` only where the seams are now clear: extraction/transcoding coordination, storage resolution, and path promotion/cleanup.
-- [ ] Reuse existing helper classes rather than introducing parallel abstractions.
+- [ ] Delegate `fileExists()` and `getFileSize()` to `StorageAdapterHelper` (or a focused `StoragePathResolver`), removing the duplicate S3-aware logic from `VideoExtractionService`.
+- [ ] Extract FFmpeg segment extraction methods (`extractSegmentAsFile`, `extractSegmentWithReencoding`, `extractConcatenatedSegmentAsFile`, `extractSegmentAsUpload`) into a focused `VideoSegmentExtractionService` that owns only transcoding coordination.
+- [ ] Route audio extraction methods (`extractAudio`, `extractOptimizedAudio`) through `AudioCompressionService` directly where possible; deprecate or remove the `extractOptimizedAudioFromSegment()` wrapper if it adds no value.
 - [ ] Keep FFmpeg behaviour and storage semantics unchanged while reducing responsibility density.
 
 Exit criteria:
 
-- `VideoExtractionService` is materially easier to follow, and storage/disk/path logic lives in focused collaborators instead of one large service.
+- `VideoExtractionService` is materially smaller and delegates clearly to focused collaborators.
+- Storage/disk/path logic lives in `StorageAdapterHelper` (or equivalent), not in the extraction service.
+- No behavioural drift — existing callers and tests continue to work.
 
-### 4. Selective Contract Simplification
+## Explicitly Closed
 
-Objective:
-
-- Remove indirection only where it no longer earns its keep.
-
-Status notes:
-
-- The earlier plan treated interface cleanup as a broad sweep.
-- The codebase now needs a narrower pass based on actual extension seams, not blanket removal.
-
-Tasks:
-
-- [ ] Audit media-processing interfaces one by one.
-- [ ] Remove only pass-through contracts with no alternate implementation value and no testing benefit.
-- [ ] Keep abstractions that separate external services, disk/storage differences, or independently testable workflows.
-
-Exit criteria:
-
-- The dependency graph is easier to follow, with less ceremonial indirection and no loss of meaningful substitution boundaries.
-
-## Explicitly Closed from the Earlier Plan
-
-- Status and cancellation normalization no longer belongs in remaining work unless new regressions appear.
-- Broad "start over" decomposition is not needed; the remaining refactor should build on helpers already introduced.
-- Contract cleanup should not proceed as a framework-wide simplification exercise.
+- **Status and cancellation normalisation** — complete; no regressions.
+- **Contract simplification** — complete. All six surviving interfaces in `app/Contracts/` have multiple implementations or genuine testing/substitution value. No ceremonial pass-throughs remain.
+- **Broad "start over" decomposition** — not needed; remaining refactor builds on helpers already introduced.
+- **Validation centralisation** — effectively complete once the dead-code cleanup (item 1) is done.
 
 ## Suggested Order
 
-1. Validation final mile
-2. Startup orchestration deduplication
-3. Video extraction and storage boundary cleanup
-4. Selective contract simplification
+1. Validation dead-code cleanup (small, safe)
+2. Startup orchestration deduplication (moderate, self-contained)
+3. Video extraction and storage boundary cleanup (largest, benefits from items 1-2 being stable)
 
 ## Definition of Done
 
-- [ ] Validation rules are centralised and reused across every media entry point.
-- [ ] Audio startup uses the shared orchestration boundary.
+- [ ] No orphaned validation methods with hard-coded limits remain.
+- [ ] Audio startup uses `ProcessingInitiator` alongside video and livestream.
 - [ ] Video extraction/storage responsibilities are split at clear seams without behavioural drift.
-- [ ] Any contract removals are justified by a concrete usage audit.
 - [ ] Existing media upload tests still pass after each phase.

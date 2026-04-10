@@ -1,51 +1,61 @@
 # Song Video Audio Enhancement Plan
 
-Updated 2026-04-06.
+Updated 2026-04-09.
 
 ## Status
 
-This feature is still implementable, but the original draft assumed a simpler local-file flow than the current song publication path actually uses.
+Ready to implement.
 
 ## Current Reality
 
 - Song clips are published through `SongPublicationHandler`, which works in terms of Laravel storage disks and promoted files rather than a permanently local working file.
 - `AudioEnhancementService` already contains the FFmpeg-based audio enhancement logic used for sermon audio, but it currently targets audio-file output (`.mp3`) rather than video containers.
 - The current song publication flow is the right integration point because songs do not go through the same processing-log/state-machine pipeline used for sermons.
+- The handler is already storage-aware: `extractedAssetDisk()` resolves the source disk, and `promoteExtractedVideo()` handles cross-disk streaming and cleanup.
 
 ## Recommended Approach
 
-### 1. Extend `AudioEnhancementService` for video containers
+### 1. Add a video-aware enhancement method to `AudioEnhancementService`
 
-Add a video-aware enhancement method that:
+Add an `enhanceVideo()` method that:
 
 - Accepts a local MP4 input path plus a processing identifier.
-- Reuses the existing filter stack and configuration toggles.
-- Preserves the video stream while re-encoding the audio stream to an MP4-compatible codec.
-- Returns `null` on failure so publication can fall back to the original clip.
+- Reuses the existing `buildFilterChain()` and config toggles — the filter stack is codec-agnostic.
+- Copies the video stream unchanged (`-c:v copy`) and re-encodes only the audio stream to AAC (`-c:a aac -b:a 128k`).
+- Outputs to a temp `.mp4` file in `storage/app/temp/`.
+- Returns the enhanced file path, or `null` on failure — same non-throwing contract as `enhance()`.
+- Uses the existing `audio_enhancement.enabled` config toggle (no separate song toggle needed).
 
-Expected behaviour:
+FFmpeg command structure:
 
-- Video stream is copied unchanged.
-- Audio stream is enhanced best-effort and written to a temp MP4.
-- The method follows the same non-throwing contract as the existing sermon enhancement path.
+```
+ffmpeg -y -i {input} -af {filterChain} -c:v copy -c:a aac -b:a 128k {output.mp4}
+```
 
-### 2. Make `SongPublicationHandler` storage-aware
+Key difference from `enhance()`: video stream is passed through with `-c:v copy`, and the audio codec is AAC (MP4-compatible) rather than libmp3lame.
 
-Update publication to work for both local and remote disks.
+### 2. Insert enhancement into `SongPublicationHandler::publish()`
+
+The handler already owns storage resolution and promotion. The only change needed is to slot enhancement between the file-existence check and `promoteExtractedVideo()`.
+
+Insertion point — after the existing file validation (line ~77) and before `promoteExtractedVideo()` (line ~86):
+
+```
+validate file exists on source disk
+                                        ← NEW: download to local temp if remote disk
+                                        ← NEW: run enhanceVideo() on local file
+                                        ← NEW: if enhanced, use enhanced file as promotion source
+promoteExtractedVideo(section, path)
+```
 
 Tasks:
 
-- [ ] Resolve the current extracted clip from its configured storage disk.
-- [ ] If the source file is not already available as a local filesystem path, download it to a temp working file first.
-- [ ] Run best-effort audio enhancement against that local temp file.
-- [ ] Promote the enhanced MP4 when enhancement succeeds; otherwise promote the original clip.
-- [ ] Keep the final persisted output path and public/private storage behaviour unchanged.
-
-Why this matters:
-
-- The handler already owns storage promotion semantics.
-- The enhancement service should focus on FFmpeg work, not disk-specific storage policy.
-- This keeps song publication robust for local disks and S3-compatible disks alike.
+- [ ] If the source disk is S3/remote, download the extracted clip to a local temp file using the same `StorageAdapterHelper::downloadToTemp()` pattern used by `EnhanceAudio`.
+- [ ] If the source disk is local, resolve its real filesystem path directly.
+- [ ] Run `enhanceVideo()` against the local file — best-effort.
+- [ ] When enhancement succeeds, promote the enhanced MP4 instead of the original clip.
+- [ ] When enhancement returns `null`, fall back to promoting the original clip unchanged.
+- [ ] Keep the final persisted output path, public/private storage behaviour, and `SongVideo` creation unchanged.
 
 ### 3. Clean up temp files inside the handler
 
@@ -53,31 +63,43 @@ Do not depend on the general processing cleanup job for this feature.
 
 Tasks:
 
-- [ ] Use a `try`/`finally` structure in the handler to delete any temp download and temp enhanced-video files created during publication.
-- [ ] Preserve fallback behaviour if cleanup fails silently.
+- [ ] Use a `try`/`finally` structure in `publish()` to delete any temp download and temp enhanced-video files created during publication — matching the pattern in `EnhanceAudio` (lines 128–131).
+- [ ] Preserve fallback behaviour if cleanup fails silently (`@unlink`).
 
 Rationale:
 
 - Song publication is not part of the same cleanup lifecycle as sermon processing jobs.
-- The handler already knows exactly which temp files it created.
+- The handler knows exactly which temp files it created.
 
 ## Not Recommended from the Earlier Draft
 
 - Do not treat song enhancement as a new queued processing phase with `ProcessingPhaseRegistry` changes.
 - Do not assume the source clip is always a stable local path that can be enhanced in place.
 - Do not rely on broad temp-directory sweeping as the primary cleanup strategy for this feature.
+- Do not add a separate `song_enhancement_enabled` config toggle — the existing `audio_enhancement.enabled` flag controls both paths.
 
 ## Tests to Add
 
-- [ ] Unit coverage for the new video enhancement method: disabled config, missing input, success path, and expected FFmpeg/output settings.
-- [ ] Handler-level test for a local-disk source where enhancement succeeds and the enhanced video is promoted.
-- [ ] Handler-level test for a remote/private disk source that requires temp download before enhancement.
-- [ ] Handler-level test confirming fallback to the original clip when enhancement returns `null`.
-- [ ] Handler-level test confirming temp files are cleaned up in both success and fallback flows.
+### AudioEnhancementService — `enhanceVideo()` method
+
+- [ ] Returns `null` when enhancement is disabled via config.
+- [ ] Returns `null` when input file does not exist.
+- [ ] Constructs correct FFmpeg command: `-c:v copy`, `-c:a aac`, `-b:a 128k`, `.mp4` output extension.
+- [ ] Reuses `buildFilterChain()` for the `-af` filter string (existing filter-chain tests cover the filter logic itself).
+
+### SongPublicationHandler — enhancement integration
+
+- [ ] Local-disk source: enhancement succeeds → enhanced video is promoted.
+- [ ] Local-disk source: enhancement returns `null` → original clip is promoted unchanged.
+- [ ] Remote-disk source: temp download occurs before enhancement.
+- [ ] Temp files (download + enhanced output) are cleaned up in both success and fallback flows.
+- [ ] Existing publish behaviour is unchanged when `audio_enhancement.enabled` is `false`.
 
 ## Definition of Done
 
-- [ ] Song publication can enhance clip audio without changing existing publication semantics.
+- [ ] `enhanceVideo()` method added to `AudioEnhancementService` with video-stream copy and AAC audio.
+- [ ] `SongPublicationHandler::publish()` runs best-effort enhancement before promotion.
 - [ ] The implementation works for both local and remote storage disks.
 - [ ] Failed enhancement never blocks song publication.
 - [ ] Temp files are cleaned up by the publication flow itself.
+- [ ] All new tests pass; PHPStan stays at 0 errors.

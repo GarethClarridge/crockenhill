@@ -1,10 +1,10 @@
 # Simplification Plan (2026-02-25) — Remaining Work
 
-Updated 2026-04-06 after a codebase review against the current app state.
+Updated 2026-04-09 after a codebase audit against every target file.
 
 The historical mixed-status execution log still lives in [docs/archived-plans/SIMPLIFICATION-PLAN-2026-02-25.md](../archived-plans/SIMPLIFICATION-PLAN-2026-02-25.md).
 
-This file now tracks only work that still appears necessary.
+This file tracks only work that still appears necessary.
 
 ## Scope
 
@@ -19,134 +19,58 @@ This file now tracks only work that still appears necessary.
 
 ## Remaining Phases
 
-### Phase 3: Validation Rule Convergence (Re-Scoped)
+### Phase 9: Legacy Storage Migration and Cleanup
+
+Priority: **Critical** — 93% of sermons (662/710) still use legacy storage patterns.
 
 Status note:
 
-- `MediaValidationService` is already the canonical source for request and Livewire upload rules.
-- The remaining work is the final mile where older helpers still validate with their own logic.
+- Runtime branches on legacy path formats in every sermon file access.
+- Migration and verification tooling is **complete and production-ready** — the remaining work is executing the migration, verifying, then stripping legacy code.
 
 Target files:
 
-- `app/Services/MediaValidationService.php`
-- `app/Http/Requests/ProcessMediaRequest.php`
-- `app/Livewire/Traits/WithUploadLifecycle.php`
-- `app/Jobs/ValidateAudioFile.php`
-- `app/Services/AudioExtractionService.php`
-- `app/Services/MetadataExtractionService.php`
+- `app/Services/SermonStorageService.php` — legacy branching in `getSermonFileInfo()` (lines 68-101)
+- `app/Services/SermonStorageMaintenanceService.php` — migration orchestrator (complete, ready to use)
+
+Tooling (complete — no changes needed):
+
+- `app/Console/Commands/MigrateSermonStorageCommand.php` — supports dry-run, batching, progress reporting
+- `app/Console/Commands/VerifySermonStorageCommand.php` — comprehensive diagnostics with pattern breakdown
 
 Tasks:
 
-- [ ] Keep `MediaValidationService` as the single source of truth for upload limits and allowed types.
-- [ ] Remove the `ValidateAudioFile -> AudioExtractionService -> MediaValidationService` wrapper hop unless it still adds real value.
-- [ ] Decide whether `MetadataExtractionService::validateAudioFile()` is upload validation or quality linting.
-- [ ] If it is upload validation, align it with canonical config-backed limits.
-- [ ] If it is quality linting, rename and scope it clearly so it no longer looks like a second validator.
-
-Exit criteria:
-
-- Upload validation comes from one source of truth.
-- Any remaining audio-quality checks are explicitly framed as secondary analysis, not competing validation.
-
-### Phase 8: Sermon Route / Boundary Cleanup (Re-Scoped)
-
-Status note:
-
-- Presenter extraction has already started.
-- This phase should now focus on the remaining blurry boundaries rather than a broad rewrite.
-
-Target files:
-
-- `routes/web.php`
-- `app/Http/Controllers/SermonController.php`
-- `app/Http/Controllers/Admin/SermonAdminController.php`
-- `app/Models/Sermon.php`
-- `app/Presenters/SermonViewPresenter.php`
-
-Tasks:
-
-- [ ] Reduce duplicate sermon delete route shapes if they no longer justify separate dated and slug-only endpoints.
-- [ ] Keep presenters as the canonical place for public URL and asset URL formatting.
-- [ ] Move remaining presentation-only helpers out of `Sermon` where they materially couple the model to routing, SEO, or view formatting.
-- [ ] Leave domain helpers on the model when they are still legitimately model-level behavior.
-
-Exit criteria:
-
-- Sermon route/controller responsibilities are easier to follow.
-- The `Sermon` model no longer accumulates presentation helpers just because it is convenient.
-
-### Phase 9: Legacy Fallback Retirement Across Content / Media
-
-Status note:
-
-- This work is still needed.
-- Runtime still branches on legacy sermon storage patterns.
-
-Target files:
-
-- `app/Services/SermonStorageService.php`
-- `app/Services/SermonStorageMaintenanceService.php`
-- `app/Console/Commands/MigrateSermonStorageCommand.php`
-- `app/Console/Commands/VerifySermonStorageCommand.php`
-
-Tasks:
-
-- [ ] Add a record-level migration path that canonicalises legacy sermon storage rows, not just file placement.
-- [ ] Validate the resolved locations on the target disk before retiring legacy runtime branches.
-- [ ] Retire the remaining legacy-path logic in `SermonStorageService` once the data is canonical.
-- [ ] Remove `MigrateSermonStorageCommand` and `VerifySermonStorageCommand` only after the migration path is complete and verified.
+- [ ] Run `MigrateSermonStorageCommand` with `--dry-run` first to preview scope and catch issues.
+- [ ] Execute the migration against the target disk (662 legacy sermons to canonicalize).
+- [ ] Run `VerifySermonStorageCommand` to confirm all files are accessible in canonical locations.
+- [ ] Strip legacy-pattern detection from `SermonStorageService::getSermonFileInfo()`.
+- [ ] Remove `filetype` column dependency and `legacy_disk` configuration.
+- [ ] Remove `MigrateSermonStorageCommand` and `VerifySermonStorageCommand` after verification.
 
 Exit criteria:
 
 - Runtime no longer branches on legacy sermon storage/path formats.
 - Legacy storage cleanup is a completed migration, not an indefinitely-supported fallback path.
 
-### Phase 12: Calendar Boundary Cleanup (Re-Scoped)
-
-Status note:
-
-- `CalendarAdminController` already uses constructor injection.
-- The original controller-injection task is complete and should not stay on the active plan.
-
-Target files:
-
-- `app/Http/Controllers/Admin/CalendarAdminController.php`
-- `app/Services/CalendarService.php`
-- `app/Services/GoogleCalendarSyncService.php`
-- calendar sync-related tests
-
-Tasks:
-
-- [ ] Move Google Calendar API write concerns out of `CalendarService`.
-- [ ] Keep `CalendarService` focused on local read models and local categorization behavior.
-- [ ] Let `GoogleCalendarSyncService` own remote sync/update concerns.
-- [ ] Add focused tests around sync failure handling and retry-safe behavior.
-- [ ] Only add cache invalidation work here if calendar caching is introduced or restored as part of the refactor.
-
-Exit criteria:
-
-- Calendar read-model logic and Google API concerns are clearly separated.
-- The active plan no longer claims unfinished cache work that does not currently exist in app code.
-
 ### Phase 13: Schema Snapshot and Migration Hygiene
 
+Priority: **High** — schema dump is stale (10+ migrations since last regeneration on 2026-03-22).
+
 Status note:
 
-- This work is still needed.
-- The checked-in schema dump has drifted from the live migrations.
+- `AuditSchemaGuardrailsCommand` already exists and is functional (122 lines).
+- The schema dump has drifted from the live migrations.
 
 Target files:
 
-- `database/schema/mysql-schema.sql`
-- `database/migrations/*`
-- `app/Console/Commands/AuditSchemaGuardrailsCommand.php`
+- `database/schema/mysql-schema.sql` — stale, needs regeneration
 - CI or local tooling that depends on schema snapshots
 
 Tasks:
 
 - [ ] Decide one approach and enforce it: keep the schema dump current, or stop relying on it.
 - [ ] If retained, regenerate the schema dump so it matches the current schema.
-- [ ] Add guardrails that catch dump drift in normal development flow.
+- [ ] Add guardrails that catch dump drift in normal development flow (e.g., CI check or git hook).
 - [ ] Remove stale tooling assumptions tied to pre-cleanup schema shapes.
 
 Exit criteria:
@@ -154,12 +78,99 @@ Exit criteria:
 - Database bootstrap paths are deterministic.
 - The schema dump, if kept, reflects the real schema rather than a partially-stale snapshot.
 
-### Phase 14: Complexity Hotspot Decomposition (Re-Scoped)
+### Phase 3: Validation Rule Convergence
+
+Priority: **Medium** — only one file has independent validation logic remaining.
 
 Status note:
 
-- Some decomposition has already happened.
-- The remaining target is the truly oversized services, not a blanket split-everything exercise.
+- `MediaValidationService` is the canonical source for request and Livewire upload rules.
+- `ProcessMediaRequest`, `WithUploadLifecycle`, `ValidateAudioFile`, and `AudioExtractionService` all delegate correctly — no work needed on those files.
+- The only remaining issue is `MetadataExtractionService::validateAudioFile()`, which has hardcoded validation (format list, 64kbps bitrate floor, 100MB size limit) that bypasses `MediaValidationService`.
+
+Target files:
+
+- `app/Services/MetadataExtractionService.php` — `validateAudioFile()` method (lines 552-580)
+
+Tasks:
+
+- [ ] Decide: is `MetadataExtractionService::validateAudioFile()` upload validation or quality linting?
+- [ ] If upload validation: replace hardcoded limits with config-backed limits from `MediaValidationService`.
+- [ ] If quality linting: rename the method (e.g., `assessAudioQuality()`) and scope it clearly so it no longer looks like a second upload validator.
+
+Exit criteria:
+
+- Upload validation comes from one source of truth.
+- Any remaining audio-quality checks are explicitly framed as secondary analysis, not competing validation.
+
+### Phase 12: Calendar Boundary Cleanup
+
+Priority: **Low** — small scope, one method to relocate.
+
+Status note:
+
+- `CalendarAdminController` already uses constructor injection (complete).
+- `GoogleCalendarSyncService` exists and owns sync operations.
+- The only remaining issue: `CalendarService::manuallyCategorizeEvent()` (lines 92-104) performs Google API writes that belong in `GoogleCalendarSyncService`.
+
+Target files:
+
+- `app/Services/CalendarService.php` — `manuallyCategorizeEvent()` method
+- `app/Services/GoogleCalendarSyncService.php` — should receive the relocated method
+
+Tasks:
+
+- [ ] Move the Google Calendar API write logic from `CalendarService::manuallyCategorizeEvent()` into `GoogleCalendarSyncService`.
+- [ ] Keep `CalendarService` focused on local read models and categorization behavior.
+- [ ] Add focused tests around the relocated sync behavior.
+
+Exit criteria:
+
+- Calendar read-model logic and Google API concerns are clearly separated.
+
+### Phase 8: Sermon Route / Boundary Cleanup
+
+Priority: **Medium** — confirmed duplicate routes and 5 misplaced presentation methods.
+
+Status note:
+
+- Two delete routes serve the same purpose: `sermons.destroy.dated` (POST `/{year}/{month}/{sermon:slug}/delete`) and `sermons.destroy` (POST `/{sermon:slug}/delete`). The dated route validates then delegates to the slug-only route.
+- 5 presentation-only methods on `Sermon` model that should live on `SermonViewPresenter`: `humanDate()`, `seriesUrl()`, `metaDescription()`, `displayPreacherName()`, `displayReference()`.
+
+Target files:
+
+- `routes/web.php` — sermon delete route shapes
+- `app/Models/Sermon.php` — presentation methods to relocate
+- `app/Presenters/SermonViewPresenter.php` — destination for relocated methods
+- Views that call the relocated methods (update to use presenter)
+
+Tasks:
+
+- [ ] Consolidate the two delete routes into a single endpoint.
+- [ ] Move `humanDate()`, `seriesUrl()`, `metaDescription()`, `displayPreacherName()`, and `displayReference()` from `Sermon` to `SermonViewPresenter`.
+- [ ] Update views to call presenter methods instead of model methods.
+- [ ] Leave domain helpers on the model when they are legitimately model-level behavior.
+
+Exit criteria:
+
+- Sermon route/controller responsibilities are easier to follow.
+- The `Sermon` model no longer accumulates presentation helpers just because it is convenient.
+
+### Phase 14: Complexity Hotspot Decomposition
+
+Priority: **Low-Medium** — incremental work, no urgency.
+
+Status note:
+
+- Five services remain oversized. Current line counts and public method counts:
+
+| Service | Lines | Public Methods |
+|---------|------:|---------------:|
+| MetadataExtractionService | 859 | 12 |
+| ThumbnailGenerationService | 847 | 7 |
+| VideoExtractionService | 651 | 8 |
+| AudioTranscriptionService | 616 | 8 |
+| SermonAnalysisService | 568 | 6 |
 
 Target files:
 
@@ -182,12 +193,12 @@ Exit criteria:
 
 ## Suggested Order
 
-1. Phase 9
-2. Phase 13
-3. Phase 3
-4. Phase 12
-5. Phase 8
-6. Phase 14
+1. **Phase 9** — Critical. 93% of sermons affected, tooling ready to execute.
+2. **Phase 13** — Quick win. Schema dump regeneration and drift guardrails.
+3. **Phase 3** — Quick win. Single file decision (MetadataExtractionService).
+4. **Phase 12** — Quick win. Single method relocation.
+5. **Phase 8** — Moderate effort. Route consolidation + 5 method moves + view updates.
+6. **Phase 14** — Ongoing. Incremental decomposition of oversized services.
 
 ## Definition of Done
 
