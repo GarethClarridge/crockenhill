@@ -72,6 +72,12 @@ class ThumbnailCanvasComposer
 
     private const float METADATA_LINE_HEIGHT = 1.04;
 
+    /** @var string|false|null false = not yet resolved, null = not found */
+    private string|false|null $cachedOswaldPath = false;
+
+    /** @var string|false|null false = not yet resolved, null = not found */
+    private string|false|null $cachedMontserratPath = false;
+
     public function __construct(
         private readonly ThumbnailTextHelper $textHelper
     ) {}
@@ -126,14 +132,11 @@ class ThumbnailCanvasComposer
         $metadataGap = $this->scaleFromReference(self::REF_META_LINE_GAP, $width);
         $metadataMaxWidth = max($this->scaleFromReference(340, $width), $textRightEdge - $inset);
 
-        $metadataBlockHeight = 0;
         /** @var list<array{text:string,font_size:int}> $renderedMetadataLines */
         $renderedMetadataLines = [];
         if ($metadataLines !== []) {
             foreach ($metadataLines as $line) {
-                $renderedLine = $this->fitSingleLineText($line, $metadataMaxWidth, $metadataFontSize, $metadataMinFontSize);
-                $renderedMetadataLines[] = $renderedLine;
-                $metadataBlockHeight += $renderedLine['font_size'] + $metadataGap;
+                $renderedMetadataLines[] = $this->fitSingleLineText($line, $metadataMaxWidth, $metadataFontSize, $metadataMinFontSize);
             }
         }
 
@@ -320,7 +323,7 @@ class ThumbnailCanvasComposer
 
     private function placeCornerOverlay(ImageInterface $image): void
     {
-        $overlayRelativePath = 'images/brand/CBCBrandBottomCornerOverlay.png';
+        $overlayRelativePath = (string) config('thumbnail-generation.theme.corner_overlay_path', 'images/brand/CBCBrandBottomCornerOverlay.png');
         $fullOverlayPath = public_path($overlayRelativePath);
 
         if (! file_exists($fullOverlayPath)) {
@@ -668,8 +671,28 @@ class ThumbnailCanvasComposer
                 $testLine = $currentLine === '' ? $word : $currentLine.' '.$word;
                 $bounds = $this->textHelper->calculateTextBounds($testLine, $fontSize, $fontPath);
 
-                if ((int) round($bounds['width']) <= $maxWidth || $currentLine === '') {
+                if ((int) round($bounds['width']) <= $maxWidth) {
                     $currentLine = $testLine;
+
+                    continue;
+                }
+
+                if ($currentLine === '') {
+                    // Single word overflows — break at character level rather than accepting overflow.
+                    $partial = '';
+                    foreach (mb_str_split($word) as $char) {
+                        $testPartial = $partial.$char;
+                        $charBounds = $this->textHelper->calculateTextBounds($testPartial, $fontSize, $fontPath);
+
+                        if ((int) round($charBounds['width']) > $maxWidth && $partial !== '') {
+                            $lines[] = $partial;
+                            $partial = $char;
+                        } else {
+                            $partial .= $char;
+                        }
+                    }
+
+                    $currentLine = $partial;
 
                     continue;
                 }
@@ -729,7 +752,7 @@ class ThumbnailCanvasComposer
                 }
 
                 $color = imagecolorsforindex($native, $colorIndex);
-                if ((int) $color['alpha'] >= 64) {
+                if ((int) $color['alpha'] >= 127) {
                     continue;
                 }
 
@@ -748,9 +771,11 @@ class ThumbnailCanvasComposer
             return $image;
         }
 
+        // $native is the GdImage object held by $image — imageflip mutates it in-place,
+        // so the flip is immediately visible through the Intervention Image wrapper.
         imageflip($native, IMG_FLIP_HORIZONTAL);
 
-        return Image::read($this->encodeGdImage($native));
+        return $image;
     }
 
     private function tintImage(ImageInterface $image, string $hexColor): ImageInterface
@@ -827,6 +852,10 @@ class ThumbnailCanvasComposer
 
     private function getOswaldFontPath(): ?string
     {
+        if ($this->cachedOswaldPath !== false) {
+            return $this->cachedOswaldPath;
+        }
+
         $fontPaths = [
             public_path('fonts/oswald-regular.woff2'),
             public_path('fonts/Oswald-Regular.ttf'),
@@ -838,13 +867,13 @@ class ThumbnailCanvasComposer
 
         foreach ($fontPaths as $path) {
             if (file_exists($path)) {
-                return $path;
+                return $this->cachedOswaldPath = $path;
             }
         }
 
         Log::warning('Oswald font not found, text will use system default');
 
-        return null;
+        return $this->cachedOswaldPath = null;
     }
 
     private function scaleFromReference(int $value, int $currentWidth): int
@@ -971,6 +1000,10 @@ class ThumbnailCanvasComposer
 
     private function getMontserratBlackFontPath(): ?string
     {
+        if ($this->cachedMontserratPath !== false) {
+            return $this->cachedMontserratPath;
+        }
+
         // Prefer static weight-900 cut — variable font axis syntax (:wght=900) requires
         // FreeType 2.8.1+ which is not available in all environments.
         $fontPaths = [
@@ -988,12 +1021,12 @@ class ThumbnailCanvasComposer
 
         foreach ($fontPaths as $path) {
             if (file_exists($path)) {
-                return $path;
+                return $this->cachedMontserratPath = $path;
             }
         }
 
         Log::warning('Montserrat Black font not found, text will use system default');
 
-        return null;
+        return $this->cachedMontserratPath = null;
     }
 }
