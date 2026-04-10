@@ -76,12 +76,6 @@ class ShowChurchService extends Component
 
         $this->authorizeAdmin();
 
-        Log::warning('Media processing log deleted by admin', [
-            'admin_id' => auth()->id(),
-            'processing_log_id' => $processingLogId,
-            'church_service_id' => $this->churchService->id,
-        ]);
-
         $processingLog = MediaProcessingLog::query()->find($processingLogId);
         if (! $processingLog instanceof MediaProcessingLog) {
             $this->error('Processing run not found.');
@@ -100,6 +94,12 @@ class ShowChurchService extends Component
 
             return;
         }
+
+        Log::warning('Media processing run reclassification requested by admin', [
+            'admin_id' => auth()->id(),
+            'processing_log_id' => $processingLogId,
+            'church_service_id' => $this->churchService->id,
+        ]);
 
         // Resolve on demand because Livewire serializes component state between requests.
         app(\App\Services\ProcessingRunOrchestrator::class)->reclassify($processingLog);
@@ -140,6 +140,12 @@ class ShowChurchService extends Component
 
             return null;
         }
+
+        Log::warning('Media processing log deleted by admin', [
+            'admin_id' => auth()->id(),
+            'processing_log_id' => $processingLogId,
+            'church_service_id' => $this->churchService->id,
+        ]);
 
         try {
             $result = app(DeleteLivestreamUpload::class)->execute($processingLog);
