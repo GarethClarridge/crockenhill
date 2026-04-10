@@ -14,7 +14,6 @@
     :heading="$heading"
     :description="$description"
 />
-<x-breadcrumbs area="christ" :heading="$heading" :jsonOnly="true" />
 
 <x-schema.person :$preacher />
 

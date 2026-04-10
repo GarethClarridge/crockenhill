@@ -13,7 +13,6 @@
     :heading="$heading"
     :description="$description"
 />
-<x-breadcrumbs area="christ" heading="Sermons" :jsonOnly="true" />
 <link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="{{ route('podcast.feed', 'morning') }}">
 <link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="{{ route('podcast.feed', 'evening') }}">
 

@@ -13,7 +13,6 @@
     :heading="$heading"
     :description="$description"
 />
-<x-breadcrumbs area="christ" :heading="$heading" :jsonOnly="true" />
 
 {{-- JSON-LD Sermon List --}}
 <script type="application/ld+json">
