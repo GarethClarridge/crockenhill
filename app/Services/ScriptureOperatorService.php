@@ -355,8 +355,6 @@ class ScriptureOperatorService
         }
 
         $refreshData = [
-            'bible_id' => $passage->bible_id,
-            'normalized_reference' => $passage->normalized_reference,
             'api_passage_id' => $result->passageId,
             'display_reference' => $result->displayReference,
             'html_content' => $sanitizedHtml,
@@ -398,13 +396,13 @@ class ScriptureOperatorService
     private function validatePassageData(array $data): array
     {
         return Validator::make($data, [
-            'bible_id' => ['required', 'string', 'max:255'],
-            'normalized_reference' => ['required', 'string', 'max:255'],
+            'bible_id' => ['sometimes', 'required', 'string', 'max:255'],
+            'normalized_reference' => ['sometimes', 'required', 'string', 'max:255'],
             'api_passage_id' => ['nullable', 'string', 'max:255'],
             'display_reference' => ['nullable', 'string', 'max:255'],
             'fums_token' => ['nullable', 'string', 'max:255'],
-            'html_content' => ['required', 'string', 'max:16777215'],
-            'copyright' => ['required', 'string', 'max:65535'],
+            'html_content' => ['required', 'string'],
+            'copyright' => ['required', 'string'],
             'fetched_at' => ['required', 'date'],
         ])->validate();
     }
