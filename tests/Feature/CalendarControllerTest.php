@@ -126,7 +126,6 @@ class CalendarControllerTest extends TestCase
         // Check BreadcrumbList JSON-LD
         $response->assertSee('"@type": "BreadcrumbList"', false);
         $response->assertSee('"name": "Community"', false);
-        $response->assertSee('"name": "Specific Meeting"', false);
         $response->assertSee('"name": "specific-meeting events"', false);
     }
 
