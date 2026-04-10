@@ -281,8 +281,11 @@ class TranscriptStorageService
             $defaultDisk,
             'local',
             'public',
-            'do_spaces',
         ];
+
+        if (is_string(config('filesystems.disks.do_spaces.bucket')) && config('filesystems.disks.do_spaces.bucket') !== '') {
+            $diskCandidates[] = 'do_spaces';
+        }
 
         $this->transcriptReadDisks = array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
 
