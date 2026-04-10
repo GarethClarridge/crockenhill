@@ -1,0 +1,287 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Enums\ProcessingStatus;
+use App\Enums\SermonService;
+use App\Enums\ServiceSectionSongMatchType;
+use App\Enums\ServiceSectionType;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
+use App\Models\Song;
+use App\Services\PublicSongCatalogService;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class PublicSongCatalogServiceTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    private PublicSongCatalogService $service;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->service = app(PublicSongCatalogService::class);
+    }
+
+    // ── all range ─────────────────────────────────────────────────────────
+
+    #[Test]
+    public function all_range_includes_songs_with_zero_usage(): void
+    {
+        $song = Song::factory()->create(['title' => 'Zero Usage Song']);
+
+        $ids = $this->service->query('all')->pluck('id');
+
+        $this->assertTrue($ids->contains($song->id));
+    }
+
+    #[Test]
+    public function all_range_includes_songs_with_qualifying_usage(): void
+    {
+        $song = Song::factory()->create(['title' => 'Used Song']);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-01-15',
+            'service' => SermonService::MORNING,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'type' => 'songs',
+            'song_id' => $song->id,
+        ]);
+
+        $ids = $this->service->query('all')->pluck('id');
+
+        $this->assertTrue($ids->contains($song->id));
+    }
+
+    #[Test]
+    public function all_range_attaches_usage_count_and_last_sung_date(): void
+    {
+        $song = Song::factory()->create(['title' => 'Usage Count Song']);
+
+        foreach (['2026-01-05', '2026-02-10'] as $date) {
+            $churchService = ChurchService::factory()->create([
+                'date' => $date,
+                'service' => SermonService::MORNING,
+            ]);
+
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'type' => 'songs',
+                'song_id' => $song->id,
+            ]);
+        }
+
+        $result = $this->service->query('all')->firstWhere('id', $song->id);
+
+        $this->assertNotNull($result);
+        $this->assertSame(2, (int) $result->usage_count);
+        $this->assertSame('2026-02-10', (string) $result->last_sung_date);
+    }
+
+    #[Test]
+    public function all_range_gives_zero_usage_count_to_songs_never_sung(): void
+    {
+        $song = Song::factory()->create(['title' => 'Never Sung Song']);
+
+        $result = $this->service->query('all')->firstWhere('id', $song->id);
+
+        $this->assertNotNull($result);
+        $this->assertSame(0, (int) $result->usage_count);
+        $this->assertNull($result->last_sung_date);
+    }
+
+    #[Test]
+    public function all_range_orders_by_usage_count_descending_then_last_sung_then_title(): void
+    {
+        $highUsage = Song::factory()->create(['title' => 'High Usage']);
+        $lowUsage = Song::factory()->create(['title' => 'Low Usage']);
+        $unused = Song::factory()->create(['title' => 'Unused']);
+
+        foreach (['2026-01-01', '2026-01-08'] as $date) {
+            $churchService = ChurchService::factory()->create([
+                'date' => $date,
+                'service' => SermonService::MORNING,
+            ]);
+
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'type' => 'songs',
+                'song_id' => $highUsage->id,
+            ]);
+        }
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-01-15',
+            'service' => SermonService::MORNING,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $lowUsage->id,
+        ]);
+
+        $ids = $this->service->query('all')->get()->pluck('id');
+
+        $highPos = $ids->search($highUsage->id);
+        $lowPos = $ids->search($lowUsage->id);
+        $unusedPos = $ids->search($unused->id);
+
+        $this->assertLessThan($lowPos, $highPos);
+        $this->assertLessThan($unusedPos, $lowPos);
+    }
+
+    // ── year range ────────────────────────────────────────────────────────
+
+    #[Test]
+    public function year_range_excludes_songs_not_sung_this_year(): void
+    {
+        $oldSong = Song::factory()->create(['title' => 'Old Song']);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2024-06-01',
+            'service' => SermonService::MORNING,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'type' => 'songs',
+            'song_id' => $oldSong->id,
+        ]);
+
+        $ids = $this->service->query('year')->pluck('id');
+
+        $this->assertFalse($ids->contains($oldSong->id));
+    }
+
+    #[Test]
+    public function year_range_excludes_songs_with_zero_usage(): void
+    {
+        $song = Song::factory()->create(['title' => 'Zero Usage This Year']);
+
+        $ids = $this->service->query('year')->pluck('id');
+
+        $this->assertFalse($ids->contains($song->id));
+    }
+
+    #[Test]
+    public function year_range_includes_songs_sung_this_year(): void
+    {
+        $song = Song::factory()->create(['title' => 'This Year Song']);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => now()->format('Y-01-20'),
+            'service' => SermonService::MORNING,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $song->id,
+        ]);
+
+        $ids = $this->service->query('year')->pluck('id');
+
+        $this->assertTrue($ids->contains($song->id));
+    }
+
+    #[Test]
+    public function year_range_counts_only_this_years_usage(): void
+    {
+        $song = Song::factory()->create(['title' => 'Dual Year Song']);
+
+        foreach ([now()->format('Y-03-01'), '2025-03-01'] as $date) {
+            $churchService = ChurchService::factory()->create([
+                'date' => $date,
+                'service' => SermonService::MORNING,
+            ]);
+
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $churchService->id,
+                'type' => 'songs',
+                'song_id' => $song->id,
+            ]);
+        }
+
+        $result = $this->service->query('year')->firstWhere('id', $song->id);
+
+        $this->assertNotNull($result);
+        $this->assertSame(1, (int) $result->usage_count);
+        $this->assertSame(now()->format('Y-03-01'), (string) $result->last_sung_date);
+    }
+
+    // ── livestream policy ─────────────────────────────────────────────────
+
+    #[Test]
+    public function livestreamed_service_only_counts_confirmed_section_matches(): void
+    {
+        $countedSong = Song::factory()->create(['title' => 'Confirmed Match Song']);
+        $oosOnlySong = Song::factory()->create(['title' => 'OOS Only Song']);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-02-08',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $countedItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $countedSong->id,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $oosOnlySong->id,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'status' => ProcessingStatus::Completed,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $countedItem->id,
+            'section_type' => ServiceSectionType::SONG,
+            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'metadata' => ['oos_alignment' => []],
+        ]);
+
+        $ids = $this->service->query('all')->pluck('id');
+
+        $this->assertTrue($ids->contains($countedSong->id));
+
+        $result = $this->service->query('all')->firstWhere('id', $countedSong->id);
+        $this->assertSame(1, (int) $result->usage_count);
+
+        $oosResult = $this->service->query('all')->firstWhere('id', $oosOnlySong->id);
+        $this->assertSame(0, (int) $oosResult->usage_count);
+    }
+
+    // ── normalizeRange ────────────────────────────────────────────────────
+
+    #[Test]
+    public function normalize_range_returns_year_for_year_input(): void
+    {
+        $this->assertSame('year', $this->service->normalizeRange('year'));
+    }
+
+    #[Test]
+    public function normalize_range_returns_all_for_unknown_input(): void
+    {
+        $this->assertSame('all', $this->service->normalizeRange('weekly'));
+        $this->assertSame('all', $this->service->normalizeRange(null));
+        $this->assertSame('all', $this->service->normalizeRange(''));
+    }
+}
