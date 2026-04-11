@@ -31,7 +31,7 @@
                 'startDate' => $event->start_datetime->toIso8601String(),
                 'location' => [
                     '@type' => 'Place',
-                    'name' => $event->location ?? ($event->meeting?->location ?? 'Crockenhill Baptist Church'),
+                    'name' => $event->location ?? ($meeting->location ?? 'Crockenhill Baptist Church'),
                     'address' => [
                         '@type' => 'PostalAddress',
                         'streetAddress' => config('organization.address.street'),
