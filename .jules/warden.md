@@ -19,3 +19,8 @@
 **Learning:** Found that the `meetings` table allowed a meeting to be marked as recurring (`is_recurring = true`) without a mandatory `frequency`, leading to potential logic errors during next-occurrence calculations. This dependency was only partially enforced in some UI-layer validation but missing in others.
 
 **Action:** Enforce cross-column dependencies using database-level `CHECK` constraints (`is_recurring = 0 OR frequency IS NOT NULL`). Synchronize this rule across all validation entry points (FormRequests and Livewire Forms). When testing data integrity, add new dedicated test files to avoid modifying or deleting existing coverage, and ensure tests target both the database level (using raw DB inserts) and the application level (using Validator).
+
+## 2026-04-09 - Scripture Passage Integrity and Media Analysis Fortification
+**Learning:** Identified that the `scripture_passages` table lacked performance-enhancing indexes and explicit column length constraints, despite being used for caching external API content. Also reinforced that when adding `validationRules()` to models, it's critical not to delete existing application logic like `isStale()` which is essential for cache management.
+
+**Action:** Always include indexes on columns used frequently for lookups (`bible_id`, `normalized_reference`) or filtering (`fetched_at`). When modifying models to add safety nets, perform a diff to ensure no existing methods are accidentally removed.

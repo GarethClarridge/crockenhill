@@ -9,6 +9,8 @@ use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 /**
  * @phpstan-type EnrichmentSummary array{
@@ -284,16 +286,31 @@ class ScriptureOperatorService
             return 'failed';
         }
 
+        $passageData = [
+            'bible_id' => $bibleId,
+            'normalized_reference' => $normalizedReference,
+            'api_passage_id' => $result->passageId,
+            'display_reference' => $result->displayReference,
+            'html_content' => $sanitizedHtml,
+            'copyright' => $result->copyright,
+            'fums_token' => $result->fumsToken,
+            'fetched_at' => now(),
+        ];
+
+        try {
+            $this->validatePassageData($passageData);
+        } catch (ValidationException $e) {
+            Log::error('FetchBibleTextForSermon: validation failed', [
+                'sermon_id' => $sermon->id,
+                'errors' => $e->errors(),
+            ]);
+
+            return 'failed';
+        }
+
         $passage = ScripturePassage::query()->updateOrCreate(
             ['bible_id' => $bibleId, 'normalized_reference' => $normalizedReference],
-            [
-                'api_passage_id' => $result->passageId,
-                'display_reference' => $result->displayReference,
-                'html_content' => $sanitizedHtml,
-                'copyright' => $result->copyright,
-                'fums_token' => $result->fumsToken,
-                'fetched_at' => now(),
-            ]
+            $passageData
         );
 
         $sermon->update(['scripture_passage_id' => $passage->id]);
@@ -337,14 +354,27 @@ class ScriptureOperatorService
             return 'failed';
         }
 
-        $passage->update([
+        $refreshData = [
             'api_passage_id' => $result->passageId,
             'display_reference' => $result->displayReference,
             'html_content' => $sanitizedHtml,
             'copyright' => $result->copyright,
             'fums_token' => $result->fumsToken,
             'fetched_at' => now(),
-        ]);
+        ];
+
+        try {
+            $this->validatePassageData($refreshData);
+        } catch (ValidationException $e) {
+            Log::error('scripture:refresh-passages validation failed', [
+                'passage_id' => $passage->id,
+                'errors' => $e->errors(),
+            ]);
+
+            return 'failed';
+        }
+
+        $passage->update($refreshData);
 
         Log::info('scripture:refresh-passages passage refreshed', [
             'passage_id' => $passage->id,
@@ -353,6 +383,27 @@ class ScriptureOperatorService
         ]);
 
         return 'updated';
+    }
+
+    /**
+     * Validate scripture passage data.
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @throws ValidationException
+     */
+    private function validatePassageData(array $data): void
+    {
+        Validator::make($data, [
+            'bible_id' => ['sometimes', 'required', 'string', 'max:255'],
+            'normalized_reference' => ['sometimes', 'required', 'string', 'max:255'],
+            'api_passage_id' => ['nullable', 'string', 'max:255'],
+            'display_reference' => ['nullable', 'string', 'max:255'],
+            'fums_token' => ['nullable', 'string', 'max:255'],
+            'html_content' => ['required', 'string'],
+            'copyright' => ['required', 'string'],
+            'fetched_at' => ['required', 'date'],
+        ])->validate();
     }
 
     /**
