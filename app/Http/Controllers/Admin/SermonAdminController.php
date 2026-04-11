@@ -26,7 +26,7 @@ class SermonAdminController extends Controller
     {
         $this->authorize('delete', $sermon);
 
-        Log::warning('Sermon deleted by admin (via controller)', [
+        Log::warning('Sermon deleted by admin', [
             'admin_id' => auth()->id(),
             'sermon_id' => $sermon->id,
             'title' => $sermon->title,

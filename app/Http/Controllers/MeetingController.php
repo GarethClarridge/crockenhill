@@ -99,7 +99,7 @@ class MeetingController extends Controller
     {
         $this->authorize('delete', $meeting);
 
-        Log::warning('Meeting deleted by admin (via controller)', [
+        Log::warning('Meeting deleted by admin', [
             'admin_id' => auth()->id(),
             'meeting_id' => $meeting->id,
             'slug' => $meeting->slug,
