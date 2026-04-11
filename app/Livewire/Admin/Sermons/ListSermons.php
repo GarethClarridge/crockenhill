@@ -118,7 +118,16 @@ class ListSermons extends Component
 
         $this->authorizeAdmin();
 
+        $sermonId = $sermon->id;
+        $sermonTitle = $sermon->title;
+
         $sermon->delete();
+
+        \Illuminate\Support\Facades\Log::warning('Sermon deleted by admin', [
+            'admin_id' => auth()->id(),
+            'sermon_id' => $sermonId,
+            'sermon_title' => $sermonTitle,
+        ]);
 
         $this->success('Sermon deleted');
     }

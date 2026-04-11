@@ -68,7 +68,16 @@ class ListPreachers extends Component
 
         $this->authorizeAdmin();
 
+        $preacherId = $preacher->id;
+        $preacherName = $preacher->name;
+
         $preacher->delete();
+
+        \Illuminate\Support\Facades\Log::warning('Preacher deleted by admin', [
+            'admin_id' => auth()->id(),
+            'preacher_id' => $preacherId,
+            'preacher_name' => $preacherName,
+        ]);
 
         $this->success('Preacher deleted');
     }

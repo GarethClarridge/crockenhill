@@ -106,9 +106,22 @@ class EditPreacher extends Component
 
         $this->authorizeAdmin();
 
-        PreacherAlias::where('id', $aliasId)
+        $alias = PreacherAlias::where('id', $aliasId)
             ->where('preacher_id', $this->preacher->id)
-            ->delete();
+            ->first();
+
+        if ($alias instanceof PreacherAlias) {
+            $aliasValue = $alias->alias;
+            $alias->delete();
+
+            \Illuminate\Support\Facades\Log::warning('Preacher alias removed by admin', [
+                'admin_id' => auth()->id(),
+                'preacher_id' => $this->preacher->id,
+                'preacher_name' => $this->preacher->name,
+                'alias_id' => $aliasId,
+                'alias' => $aliasValue,
+            ]);
+        }
 
         $this->preacher->refresh();
     }
@@ -157,9 +170,20 @@ class EditPreacher extends Component
 
         $this->authorizeAdmin();
 
-        SpeakerProfile::where('id', $profileId)
+        $profile = SpeakerProfile::where('id', $profileId)
             ->where('preacher_id', $this->preacher->id)
-            ->update(['is_active' => false]);
+            ->first();
+
+        if ($profile instanceof SpeakerProfile) {
+            $profile->update(['is_active' => false]);
+
+            \Illuminate\Support\Facades\Log::warning('Speaker profile deactivated by admin', [
+                'admin_id' => auth()->id(),
+                'preacher_id' => $this->preacher->id,
+                'preacher_name' => $this->preacher->name,
+                'speaker_profile_id' => $profileId,
+            ]);
+        }
 
         $this->success('Speaker profile deactivated. This preacher will no longer be matched automatically.');
         $this->preacher->refresh();

@@ -82,7 +82,17 @@ class ListMeetings extends Component
 
         $this->authorizeAdmin();
 
+        $meetingId = $meeting->id;
+        $meetingSlug = $meeting->slug;
+
         $meeting->delete();
+
+        \Illuminate\Support\Facades\Log::warning('Meeting deleted by admin', [
+            'admin_id' => auth()->id(),
+            'meeting_id' => $meetingId,
+            'meeting_slug' => $meetingSlug,
+        ]);
+
         $this->success('Meeting deleted');
     }
 

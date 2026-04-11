@@ -148,7 +148,14 @@ class ReviewInboundEmails extends Component
             return;
         }
 
+        $subject = $inboundEmail->subject;
         $action->execute($inboundEmail, $userId);
+
+        \Illuminate\Support\Facades\Log::warning('Inbound email rejected by admin', [
+            'admin_id' => auth()->id(),
+            'inbound_email_id' => $inboundEmailId,
+            'subject' => $subject,
+        ]);
 
         $this->success('Inbound email rejected.');
     }

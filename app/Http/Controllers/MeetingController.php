@@ -98,8 +98,15 @@ class MeetingController extends Controller
     {
         $this->authorize('delete', $meeting);
 
+        $meetingId = $meeting->id;
         $meetingSlug = $meeting->slug;
         $meeting->delete();
+
+        \Illuminate\Support\Facades\Log::warning('Meeting deleted by admin', [
+            'admin_id' => auth()->id(),
+            'meeting_id' => $meetingId,
+            'meeting_slug' => $meetingSlug,
+        ]);
 
         Session::flash('message', 'Meeting "'.$meetingSlug.'" successfully deleted!');
 

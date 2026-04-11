@@ -80,7 +80,17 @@ class ListPages extends Component
 
         $this->authorizeAdmin();
 
+        $pageId = $page->id;
+        $pageHeading = $page->heading;
+
         $page->delete();
+
+        \Illuminate\Support\Facades\Log::warning('Page deleted by admin', [
+            'admin_id' => auth()->id(),
+            'page_id' => $pageId,
+            'page_heading' => $pageHeading,
+        ]);
+
         $this->success('Page deleted');
     }
 
@@ -89,7 +99,17 @@ class ListPages extends Component
 
         $this->authorizeAdmin();
 
+        $count = count($this->selected);
+        $ids = $this->selected;
+
         Page::whereIn('id', $this->selected)->delete();
+
+        \Illuminate\Support\Facades\Log::warning('Multiple pages deleted by admin', [
+            'admin_id' => auth()->id(),
+            'count' => $count,
+            'page_ids' => $ids,
+        ]);
+
         $this->selected = [];
         $this->success('Pages deleted');
     }
