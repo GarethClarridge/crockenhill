@@ -21,6 +21,7 @@ class SermonResourceTest extends TestCase
         'canonical_url' => 'https://example.com/canonical',
         'preacher_url' => 'https://example.com/preacher',
         'public_url' => 'https://example.com/public',
+        'series_url' => 'https://example.com/series',
         'thumbnail_url' => 'https://example.com/thumbnail.jpg',
         'transcript' => 'https://example.com/transcript',
         'video_url' => 'https://example.com/video.mp4',

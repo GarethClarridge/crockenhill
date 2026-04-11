@@ -253,7 +253,7 @@ class SermonViewPresenter
      */
     private function cacheKey(Sermon $sermon, string $type): string
     {
-        $timestamp = $sermon->updated_at->timestamp ?? 0;
+        $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
 
         return "{$type}_{$sermon->id}_{$timestamp}";
     }
