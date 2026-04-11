@@ -13,9 +13,14 @@ use Illuminate\Support\Str;
 class SermonViewPresenter
 {
     /**
-     * @var array<string, mixed>
+     * @var array<string, string|null>
      */
     private array $memoizedUrls = [];
+
+    /**
+     * @var array<string, string|null>
+     */
+    private array $memoizedGlobalUrls = [];
 
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
@@ -30,6 +35,7 @@ class SermonViewPresenter
     public function clearInternalCaches(): void
     {
         $this->memoizedUrls = [];
+        $this->memoizedGlobalUrls = [];
     }
 
     public function audioUrl(Sermon $sermon): ?string
@@ -92,25 +98,49 @@ class SermonViewPresenter
         return $this->memoizedUrls[$key];
     }
 
+    /**
+     * Get the preacher profile URL for a sermon.
+     *
+     * Performance Optimization: Memoizes results based on preacher ID or slug
+     * across all sermons in the request to eliminate redundant calculations
+     * and relationship checks in listing pages.
+     */
     public function preacherUrl(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'preacher');
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            $key = "preacher_{$sermon->preacherProfile->id}";
 
-        if (! array_key_exists($key, $this->memoizedUrls)) {
-            $this->memoizedUrls[$key] = (function () use ($sermon) {
-                if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-                    return '/christ/sermons/preachers/'.$sermon->preacherProfile->slug;
-                }
-
-                $preacherName = $sermon->displayPreacherName();
-
-                return filled($preacherName)
-                    ? '/christ/sermons/preachers/'.Str::slug($preacherName)
-                    : null;
-            })();
+            return $this->memoizedGlobalUrls[$key] ??= "/christ/sermons/preachers/{$sermon->preacherProfile->slug}";
         }
 
-        return $this->memoizedUrls[$key];
+        $preacherName = $sermon->displayPreacherName();
+
+        if (! filled($preacherName)) {
+            return null;
+        }
+
+        $slug = Str::slug($preacherName);
+        $key = "preacher_slug_{$slug}";
+
+        return $this->memoizedGlobalUrls[$key] ??= "/christ/sermons/preachers/{$slug}";
+    }
+
+    /**
+     * Get the sermon series URL.
+     *
+     * Performance Optimization: Memoizes results based on series slug across
+     * all sermons in the request to eliminate redundant slug calculations.
+     */
+    public function seriesUrl(Sermon $sermon): ?string
+    {
+        if (! filled($sermon->series)) {
+            return null;
+        }
+
+        $slug = Str::slug($sermon->series);
+        $key = "series_{$slug}";
+
+        return $this->memoizedGlobalUrls[$key] ??= "/christ/sermons/series/{$slug}";
     }
 
     /**
@@ -123,6 +153,7 @@ class SermonViewPresenter
      * @return array{
      *     audio_url: ?string,
      *     preacher_url: ?string,
+     *     series_url: ?string,
      *     thumbnail_url: ?string,
      *     video_url: ?string
      * }
@@ -132,6 +163,7 @@ class SermonViewPresenter
         return [
             'audio_url' => $this->audioUrl($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
+            'series_url' => $this->seriesUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'video_url' => $this->videoUrl($sermon),
         ];
@@ -144,6 +176,7 @@ class SermonViewPresenter
      *     card_thumbnail_url: ?string,
      *     preacher_url: ?string,
      *     public_url: string,
+     *     series_url: ?string,
      *     thumbnail_url: ?string,
      *     transcript: ?string,
      *     video_url: ?string
@@ -157,6 +190,7 @@ class SermonViewPresenter
             'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
             'public_url' => $this->publicUrl($sermon),
+            'series_url' => $this->seriesUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'transcript' => $this->transcriptReader->read($sermon),
             'video_url' => $this->videoUrl($sermon),
@@ -213,10 +247,13 @@ class SermonViewPresenter
 
     /**
      * Generate a cache key for the given sermon and type.
+     *
+     * Performance Optimization: Uses a raw timestamp to avoid redundant
+     * Carbon object instantiation or property access.
      */
     private function cacheKey(Sermon $sermon, string $type): string
     {
-        $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
+        $timestamp = $sermon->updated_at->timestamp ?? 0;
 
         return "{$type}_{$sermon->id}_{$timestamp}";
     }

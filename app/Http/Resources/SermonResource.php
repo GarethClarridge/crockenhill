@@ -43,7 +43,7 @@ class SermonResource extends JsonResource
             'video_url' => $sermonView['video_url'],
             'thumbnail_url' => $sermonView['thumbnail_url'],
             'thumbnail_metadata' => $this->publicThumbnailMetadata(),
-            'series_url' => $this->series_url,
+            'series_url' => $sermonView['series_url'],
             'preacher_url' => $sermonView['preacher_url'],
         ];
     }
@@ -54,6 +54,7 @@ class SermonResource extends JsonResource
      *     canonical_url: string,
      *     preacher_url: ?string,
      *     public_url: string,
+     *     series_url: ?string,
      *     thumbnail_url: ?string,
      *     transcript: ?string,
      *     video_url: ?string
@@ -72,6 +73,7 @@ class SermonResource extends JsonResource
          *     canonical_url: string,
          *     preacher_url: ?string,
          *     public_url: string,
+         *     series_url: ?string,
          *     thumbnail_url: ?string,
          *     transcript: ?string,
          *     video_url: ?string
