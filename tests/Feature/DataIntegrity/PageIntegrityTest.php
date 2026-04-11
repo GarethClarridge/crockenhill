@@ -20,21 +20,21 @@ class PageIntegrityTest extends TestCase
     public function it_allows_same_slug_in_different_areas(): void
     {
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'about',
         ]);
 
         $page2 = Page::factory()->create([
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'slug' => 'about',
         ]);
 
         $this->assertDatabaseHas('pages', [
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'slug' => 'about',
         ]);
         $this->assertDatabaseHas('pages', [
-            'area' => PageArea::COMMUNITY->value,
+            'area' => PageArea::Community->value,
             'slug' => 'about',
         ]);
     }
@@ -43,7 +43,7 @@ class PageIntegrityTest extends TestCase
     public function it_prevents_duplicate_slug_in_same_area_at_database_level(): void
     {
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'about',
         ]);
 
@@ -51,7 +51,7 @@ class PageIntegrityTest extends TestCase
 
         // Bypass Eloquent and validation to test database constraint directly
         \Illuminate\Support\Facades\DB::table('pages')->insert([
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'slug' => 'about',
             'heading' => 'Another About',
             'description' => 'Desc',
@@ -68,13 +68,13 @@ class PageIntegrityTest extends TestCase
         $admin = User::factory()->create(['is_admin' => true]);
 
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'about',
         ]);
 
         Livewire::actingAs($admin)
             ->test(CreatePage::class)
-            ->set('form.area', PageArea::CHURCH->value)
+            ->set('form.area', PageArea::Church->value)
             ->set('form.slug', 'about')
             ->set('form.heading', 'New About')
             ->set('form.description', 'Test Description')
@@ -88,13 +88,13 @@ class PageIntegrityTest extends TestCase
         $admin = User::factory()->create(['is_admin' => true]);
 
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'about',
         ]);
 
         Livewire::actingAs($admin)
             ->test(CreatePage::class)
-            ->set('form.area', PageArea::COMMUNITY->value)
+            ->set('form.area', PageArea::Community->value)
             ->set('form.slug', 'about')
             ->set('form.heading', 'Community About')
             ->set('form.description', 'Test Description')
@@ -102,7 +102,7 @@ class PageIntegrityTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('pages', [
-            'area' => PageArea::COMMUNITY->value,
+            'area' => PageArea::Community->value,
             'slug' => 'about',
         ]);
     }

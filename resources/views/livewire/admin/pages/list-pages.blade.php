@@ -90,11 +90,11 @@
                     {{-- Area --}}
                     <td class="px-4 py-3">
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ match($page->area) {
-                            \App\Enums\PageArea::CHRIST => 'bg-green-100 text-green-800',
-                            \App\Enums\PageArea::CHURCH => 'bg-blue-100 text-blue-800',
-                            \App\Enums\PageArea::COMMUNITY => 'bg-amber-100 text-amber-800',
-                            \App\Enums\PageArea::MEMBERS => 'bg-purple-100 text-purple-800',
-                            \App\Enums\PageArea::SERMONS => 'bg-rose-100 text-rose-800',
+                            \App\Enums\PageArea::Christ => 'bg-green-100 text-green-800',
+                            \App\Enums\PageArea::Church => 'bg-blue-100 text-blue-800',
+                            \App\Enums\PageArea::Community => 'bg-amber-100 text-amber-800',
+                            \App\Enums\PageArea::Members => 'bg-purple-100 text-purple-800',
+                            \App\Enums\PageArea::Sermons => 'bg-rose-100 text-rose-800',
                         } }}">
                             {{ $page->area->label() }}
                         </span>

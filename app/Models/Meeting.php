@@ -179,7 +179,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
         return $query->whereDoesntHave('page', function (Builder $query): void {
             $query
                 ->where('admin', 'yes')
-                ->orWhere('area', PageArea::MEMBERS->value);
+                ->orWhere('area', PageArea::Members->value);
         });
     }
 

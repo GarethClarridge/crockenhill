@@ -67,7 +67,7 @@ class HomepageContentTest extends TestCase
             [
                 'heading' => 'Sunday evenings',
                 'description' => 'Sunday evening service information.',
-                'area' => PageArea::COMMUNITY,
+                'area' => PageArea::Community,
                 'body' => 'Sunday evening service information.',
                 'markdown' => 'Sunday evening service information.',
                 'navigation' => true,
@@ -79,7 +79,7 @@ class HomepageContentTest extends TestCase
             [
                 'heading' => 'Bible study',
                 'description' => 'Bible study information.',
-                'area' => PageArea::COMMUNITY,
+                'area' => PageArea::Community,
                 'body' => 'Bible study information.',
                 'markdown' => 'Bible study information.',
                 'navigation' => true,

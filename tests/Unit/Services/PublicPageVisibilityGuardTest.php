@@ -37,7 +37,7 @@ class PublicPageVisibilityGuardTest extends TestCase
     #[Test]
     public function it_returns_null_for_a_public_page_accessed_by_a_guest(): void
     {
-        $page = Page::factory()->create(['area' => PageArea::CHRIST->value, 'admin' => 'no']);
+        $page = Page::factory()->create(['area' => PageArea::Christ->value, 'admin' => 'no']);
 
         $result = $this->guard->enforce($page);
 
@@ -83,7 +83,7 @@ class PublicPageVisibilityGuardTest extends TestCase
     #[Test]
     public function it_redirects_a_guest_to_login_for_a_members_area_page(): void
     {
-        $page = Page::factory()->inArea(PageArea::MEMBERS)->create(['admin' => 'no']);
+        $page = Page::factory()->inArea(PageArea::Members)->create(['admin' => 'no']);
 
         $result = $this->guard->enforce($page);
 
@@ -97,7 +97,7 @@ class PublicPageVisibilityGuardTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        $page = Page::factory()->inArea(PageArea::MEMBERS)->create(['admin' => 'no']);
+        $page = Page::factory()->inArea(PageArea::Members)->create(['admin' => 'no']);
 
         $result = $this->guard->enforce($page);
 

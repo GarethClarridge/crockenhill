@@ -25,7 +25,7 @@ class PublicPageVisibilityGuard
 
         // Members-area pages follow the same rule as the rest of the members area:
         // any authenticated account may view them.
-        if ($page->area === PageArea::MEMBERS && $user === null) {
+        if ($page->area === PageArea::Members && $user === null) {
             return redirect()->guest(route('login'));
         }
 

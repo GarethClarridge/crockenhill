@@ -27,7 +27,7 @@ class MeetingSeoTest extends TestCase
             'heading' => 'Buzz Club',
             'slug' => 'buzz-club',
             'description' => 'A fun club for kids.',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
         ]);
 
         $meeting = Meeting::factory()->create([
@@ -58,7 +58,7 @@ class MeetingSeoTest extends TestCase
         $page = Page::factory()->create([
             'heading' => 'Test Meeting',
             'slug' => 'test-meeting',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
         ]);
 
         Meeting::factory()->create([
@@ -88,7 +88,7 @@ class MeetingSeoTest extends TestCase
         $page = Page::factory()->create([
             'heading' => 'Test Meeting',
             'slug' => 'test-meeting',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
         ]);
 
         $meeting = Meeting::factory()->create([
@@ -126,7 +126,7 @@ class MeetingSeoTest extends TestCase
             'heading' => 'Buzz Club',
             'slug' => 'buzz-club',
             'description' => 'A fun club for kids.',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
         ]);
 
         $meeting = Meeting::factory()->create([
@@ -159,7 +159,7 @@ class MeetingSeoTest extends TestCase
         $page = Page::factory()->create([
             'heading' => 'One-off Event',
             'slug' => 'one-off',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
         ]);
 
         $meeting = Meeting::factory()->create([

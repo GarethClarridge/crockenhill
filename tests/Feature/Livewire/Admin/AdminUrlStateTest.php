@@ -110,31 +110,31 @@ class AdminUrlStateTest extends TestCase
         Page::factory()->create([
             'heading' => 'About Community Life',
             'description' => 'Community information',
-            'area' => PageArea::COMMUNITY->value,
+            'area' => PageArea::Community->value,
             'navigation' => false,
         ]);
 
         Page::factory()->create([
             'heading' => 'About Church Life',
             'description' => 'Church information',
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'navigation' => false,
         ]);
 
         Page::factory()->create([
             'heading' => 'About Community Events',
             'description' => 'Community events',
-            'area' => PageArea::COMMUNITY->value,
+            'area' => PageArea::Community->value,
             'navigation' => true,
         ]);
 
         Livewire::withQueryParams([
             'search' => 'About',
-            'areaFilter' => PageArea::COMMUNITY->value,
+            'areaFilter' => PageArea::Community->value,
             'navigationFilter' => '0',
         ])->test(ListPages::class)
             ->assertSet('search', 'About')
-            ->assertSet('areaFilter', PageArea::COMMUNITY->value)
+            ->assertSet('areaFilter', PageArea::Community->value)
             ->assertSet('navigationFilter', false)
             ->assertSee('About Community Life')
             ->assertDontSee('About Church Life')

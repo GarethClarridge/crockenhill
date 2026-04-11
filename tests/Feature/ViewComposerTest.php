@@ -41,7 +41,7 @@ class ViewComposerTest extends TestCase
     {
         $page = Page::factory()->create([
             'slug' => 'about-us',
-            'area' => \App\Enums\PageArea::CHURCH,
+            'area' => \App\Enums\PageArea::Church,
             'heading' => 'About Our Church',
             'description' => 'Test Description',
         ]);
@@ -97,7 +97,7 @@ class ViewComposerTest extends TestCase
     {
         Page::factory()->create([
             'slug' => 'nav-page',
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'navigation' => true,
         ]);
 
@@ -111,7 +111,7 @@ class ViewComposerTest extends TestCase
     {
         Page::factory()->create([
             'slug' => 'expanded-nav-page',
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'navigation' => true,
         ]);
 
@@ -169,29 +169,29 @@ class ViewComposerTest extends TestCase
 
         Page::factory()->create([
             'slug' => $membersSlug,
-            'area' => PageArea::MEMBERS,
+            'area' => PageArea::Members,
             'admin' => 'no',
         ]);
 
         Page::unguarded(fn () => Page::query()->updateOrCreate(
             ['slug' => 'all-sermons'],
-            ['area' => PageArea::SERMONS, 'admin' => 'no', 'heading' => 'All Sermons', 'description' => 'All sermons', 'body' => 'All sermons', 'markdown' => '', 'navigation' => false],
+            ['area' => PageArea::Sermons, 'admin' => 'no', 'heading' => 'All Sermons', 'description' => 'All sermons', 'body' => 'All sermons', 'markdown' => '', 'navigation' => false],
         ));
 
         Page::unguarded(fn () => Page::query()->updateOrCreate(
             ['slug' => 'pages'],
-            ['area' => PageArea::MEMBERS, 'admin' => 'yes', 'heading' => 'Pages', 'description' => 'Admin pages', 'body' => 'Pages', 'markdown' => '', 'navigation' => false],
+            ['area' => PageArea::Members, 'admin' => 'yes', 'heading' => 'Pages', 'description' => 'Admin pages', 'body' => 'Pages', 'markdown' => '', 'navigation' => false],
         ));
 
         $links = app(RelatedPagePresenter::class)->ordered(
-            linkArea: PageArea::MEMBERS->value,
+            linkArea: PageArea::Members->value,
             slugToExclude: 'members',
             secondSlugToExclude: 'members',
             excludeAdminPages: true,
         );
 
-        $this->assertTrue($links->contains(fn (array $link): bool => $link['slug'] === $membersSlug && $link['area'] === PageArea::MEMBERS->value));
-        $this->assertFalse($links->contains(fn (array $link): bool => $link['area'] === PageArea::SERMONS->value));
+        $this->assertTrue($links->contains(fn (array $link): bool => $link['slug'] === $membersSlug && $link['area'] === PageArea::Members->value));
+        $this->assertFalse($links->contains(fn (array $link): bool => $link['area'] === PageArea::Sermons->value));
         $this->assertFalse($links->contains(fn (array $link): bool => $link['slug'] === 'pages'));
     }
 
@@ -202,7 +202,7 @@ class ViewComposerTest extends TestCase
             ['slug' => 'sunday-evenings'],
             Page::factory()->raw([
                 'slug' => 'sunday-evenings',
-                'area' => PageArea::COMMUNITY,
+                'area' => PageArea::Community,
                 'admin' => 'no',
             ]),
         );
@@ -211,14 +211,14 @@ class ViewComposerTest extends TestCase
             ['slug' => 'bible-study'],
             Page::factory()->raw([
                 'slug' => 'bible-study',
-                'area' => PageArea::COMMUNITY,
+                'area' => PageArea::Community,
                 'admin' => 'no',
             ]),
         );
 
         Page::factory()->create([
             'slug' => 'unrelated-page',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'admin' => 'no',
         ]);
 
@@ -240,7 +240,7 @@ class ViewComposerTest extends TestCase
             'slug' => 'view-composer-sunday-evenings-card',
             'heading' => 'Sunday Evenings',
             'description' => 'An evening service.',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
         ]);
 
         $view = View::make('components.page-card', [
@@ -276,7 +276,7 @@ class ViewComposerTest extends TestCase
     public function it_renders_related_pages_in_a_centered_grid_with_footer_spacing(): void
     {
         $links = Page::factory()->count(3)->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
         ]);
 
         $view = View::make('components.related-pages', [

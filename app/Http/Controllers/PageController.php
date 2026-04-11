@@ -38,7 +38,7 @@ class PageController extends Controller
         // Fetch the landing page for this area (where slug equals area)
         $page = Page::query()->where('slug', $area)->where('area', $area)->first();
         if (! $page instanceof Page) {
-            if ($area === PageArea::MEMBERS->value && ! Auth::check()) {
+            if ($area === PageArea::Members->value && ! Auth::check()) {
                 // Even if no landing page exists, protect the members area by default
                 return redirect()->guest(route('login'));
             }

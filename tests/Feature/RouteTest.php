@@ -37,7 +37,7 @@ class RouteTest extends TestCase
     {
         // Create test pages
         $christPage = Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'test-page',
             'heading' => 'Test Page',
             'markdown' => '# Test Content',
@@ -48,7 +48,7 @@ class RouteTest extends TestCase
         ]);
 
         $churchPage = Page::factory()->create([
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'slug' => 'about-us',
             'heading' => 'About Us',
             'markdown' => '# About Us',
@@ -85,7 +85,7 @@ class RouteTest extends TestCase
     {
         // Create a page in 'christ' area
         Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'test-page',
             'heading' => 'Test Page',
             'markdown' => '# Test Content',
@@ -107,7 +107,7 @@ class RouteTest extends TestCase
     {
         // Create a page with special characters in slug
         Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'test-page-with-dashes',
             'heading' => 'Test Page With Dashes',
             'markdown' => '# Test Content',
@@ -126,7 +126,7 @@ class RouteTest extends TestCase
     {
         // Create a page with empty markdown
         Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'empty-page',
             'heading' => 'Empty Page',
             'markdown' => '',
@@ -146,7 +146,7 @@ class RouteTest extends TestCase
         $slug = 'security-script-tag-page-'.Str::lower(Str::random(8));
 
         Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => $slug,
             'heading' => 'Security Script Tag Page',
             'markdown' => '<script>alert("page-xss")</script>'."\n\n".'Safe page content.',
@@ -168,7 +168,7 @@ class RouteTest extends TestCase
         $slug = 'security-javascript-link-page-'.Str::lower(Str::random(8));
 
         Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => $slug,
             'heading' => 'Security Javascript Link Page',
             'markdown' => '[Click me](javascript:alert("page-link"))',
@@ -189,7 +189,7 @@ class RouteTest extends TestCase
     {
         // Create a page with empty description (not null since it's required)
         $page = Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'no-description',
             'heading' => 'No Description',
             'markdown' => '# Content',
@@ -219,7 +219,7 @@ class RouteTest extends TestCase
 
         // Create a page
         $page = Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'binding-test',
             'heading' => 'Binding Test',
             'markdown' => '# Test',
@@ -241,7 +241,7 @@ class RouteTest extends TestCase
     {
         // Create multiple pages in the same area
         $page1 = Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'first-page',
             'heading' => 'First Page',
             'markdown' => '# First',
@@ -251,7 +251,7 @@ class RouteTest extends TestCase
         ]);
 
         $page2 = Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'second-page',
             'heading' => 'Second Page',
             'markdown' => '# Second',
@@ -280,7 +280,7 @@ class RouteTest extends TestCase
     {
         // Create pages with unique slugs in different areas
         $christPage = Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'christ-page',
             'heading' => 'Christ Page',
             'markdown' => '# Christ',
@@ -290,7 +290,7 @@ class RouteTest extends TestCase
         ]);
 
         $churchPage = Page::factory()->create([
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'slug' => 'church-page',
             'heading' => 'Church Page',
             'markdown' => '# Church',
@@ -318,7 +318,7 @@ class RouteTest extends TestCase
     {
         // Create a test page to verify routing works correctly
         $page = Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'debug-test',
             'heading' => 'Debug Test',
             'markdown' => '# Debug',
@@ -338,21 +338,21 @@ class RouteTest extends TestCase
     {
         // Create navigation pages for each area
         $christPage = Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'nav-christ',
             'heading' => 'Nav Christ',
             'navigation' => true,
             'admin' => 'no',
         ]);
         $churchPage = Page::factory()->create([
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'slug' => 'nav-church',
             'heading' => 'Nav Church',
             'navigation' => true,
             'admin' => 'no',
         ]);
         $communityPage = Page::factory()->create([
-            'area' => PageArea::COMMUNITY->value,
+            'area' => PageArea::Community->value,
             'slug' => 'nav-community',
             'heading' => 'Nav Community',
             'navigation' => true,

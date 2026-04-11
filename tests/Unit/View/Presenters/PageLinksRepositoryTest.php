@@ -26,9 +26,9 @@ class PageLinksRepositoryTest extends TestCase
     #[Test]
     public function it_returns_ordered_links_for_an_area(): void
     {
-        Page::factory()->create(['area' => PageArea::CHURCH, 'slug' => 'beta', 'admin' => 'no']);
-        Page::factory()->create(['area' => PageArea::CHURCH, 'slug' => 'alpha', 'admin' => 'no']);
-        Page::factory()->create(['area' => PageArea::COMMUNITY, 'slug' => 'gamma', 'admin' => 'no']);
+        Page::factory()->create(['area' => PageArea::Church, 'slug' => 'beta', 'admin' => 'no']);
+        Page::factory()->create(['area' => PageArea::Church, 'slug' => 'alpha', 'admin' => 'no']);
+        Page::factory()->create(['area' => PageArea::Community, 'slug' => 'gamma', 'admin' => 'no']);
 
         $results = $this->repository->orderedLinks('church', null, null);
 
@@ -45,9 +45,9 @@ class PageLinksRepositoryTest extends TestCase
     #[Test]
     public function it_excludes_slugs_from_ordered_links(): void
     {
-        Page::factory()->create(['area' => PageArea::CHURCH, 'slug' => 'alpha', 'admin' => 'no']);
-        Page::factory()->create(['area' => PageArea::CHURCH, 'slug' => 'beta', 'admin' => 'no']);
-        Page::factory()->create(['area' => PageArea::CHURCH, 'slug' => 'gamma', 'admin' => 'no']);
+        Page::factory()->create(['area' => PageArea::Church, 'slug' => 'alpha', 'admin' => 'no']);
+        Page::factory()->create(['area' => PageArea::Church, 'slug' => 'beta', 'admin' => 'no']);
+        Page::factory()->create(['area' => PageArea::Church, 'slug' => 'gamma', 'admin' => 'no']);
 
         $results = $this->repository->orderedLinks(
             linkArea: 'church',
@@ -62,8 +62,8 @@ class PageLinksRepositoryTest extends TestCase
     #[Test]
     public function it_excludes_admin_pages_when_requested(): void
     {
-        Page::factory()->create(['area' => PageArea::CHURCH, 'slug' => 'public', 'admin' => 'no']);
-        Page::factory()->create(['area' => PageArea::CHURCH, 'slug' => 'private', 'admin' => 'yes']);
+        Page::factory()->create(['area' => PageArea::Church, 'slug' => 'public', 'admin' => 'no']);
+        Page::factory()->create(['area' => PageArea::Church, 'slug' => 'private', 'admin' => 'yes']);
 
         $results = $this->repository->orderedLinks(
             linkArea: 'church',
@@ -91,7 +91,7 @@ class PageLinksRepositoryTest extends TestCase
     #[Test]
     public function it_returns_random_links_with_limit(): void
     {
-        Page::factory()->count(10)->create(['area' => PageArea::CHURCH, 'admin' => 'no']);
+        Page::factory()->count(10)->create(['area' => PageArea::Church, 'admin' => 'no']);
 
         $results = $this->repository->randomLinks('church', null, null, false, [], 3);
 
@@ -102,7 +102,7 @@ class PageLinksRepositoryTest extends TestCase
     public function it_selects_only_required_columns_and_loads_media(): void
     {
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'test-columns',
             'admin' => 'no',
             'body' => 'Long body content that should be excluded',

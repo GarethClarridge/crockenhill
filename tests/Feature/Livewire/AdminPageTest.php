@@ -137,7 +137,7 @@ class AdminPageTest extends TestCase
         Livewire::test(CreatePage::class)
             ->set('form.heading', 'About Crockenhill')
             ->set('form.description', 'Information about our church and mission.')
-            ->set('form.area', PageArea::CHURCH->value)
+            ->set('form.area', PageArea::Church->value)
             ->set('form.admin', true)
             ->set('form.navigation', true)
             ->set('form.markdown', '# Welcome to Crockenhill')
@@ -147,7 +147,7 @@ class AdminPageTest extends TestCase
         $page = Page::query()->where('slug', 'about-crockenhill')->firstOrFail();
 
         $this->assertSame('About Crockenhill', $page->heading);
-        $this->assertSame(PageArea::CHURCH, $page->area);
+        $this->assertSame(PageArea::Church, $page->area);
         $this->assertSame('yes', $page->admin);
         $this->assertTrue($page->navigation);
         $this->assertStringContainsString('<h1>Welcome to Crockenhill</h1>', $page->body);
@@ -161,7 +161,7 @@ class AdminPageTest extends TestCase
         Livewire::test(CreatePage::class)
             ->set('form.heading', 'Welcome')
             ->set('form.description', 'Welcome page description.')
-            ->set('form.area', PageArea::CHURCH->value)
+            ->set('form.area', PageArea::Church->value)
             ->set('form.navigation', false)
             ->set('form.markdown', 'Welcome page copy')
             ->call('save')
@@ -204,7 +204,7 @@ class AdminPageTest extends TestCase
         $page = Page::factory()->create([
             'heading' => 'Existing Page',
             'slug' => 'existing-page',
-            'area' => PageArea::COMMUNITY->value,
+            'area' => PageArea::Community->value,
             'admin' => 'yes',
             'navigation' => true,
             'description' => 'Existing page description.',
@@ -214,7 +214,7 @@ class AdminPageTest extends TestCase
         Livewire::test(EditPage::class, ['page' => $page])
             ->assertSet('form.heading', 'Existing Page')
             ->assertSet('form.slug', 'existing-page')
-            ->assertSet('form.area', PageArea::COMMUNITY->value)
+            ->assertSet('form.area', PageArea::Community->value)
             ->assertSet('form.admin', true)
             ->assertSet('form.navigation', true)
             ->assertSet('form.description', 'Existing page description.')
@@ -229,7 +229,7 @@ class AdminPageTest extends TestCase
         $page = Page::factory()->create([
             'heading' => 'Old Heading',
             'slug' => 'old-heading',
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'admin' => 'no',
             'navigation' => false,
             'description' => 'Old description.',
@@ -239,7 +239,7 @@ class AdminPageTest extends TestCase
         Livewire::test(EditPage::class, ['page' => $page])
             ->set('form.heading', 'Updated Heading')
             ->set('form.slug', 'updated-heading')
-            ->set('form.area', PageArea::MEMBERS->value)
+            ->set('form.area', PageArea::Members->value)
             ->set('form.admin', true)
             ->set('form.navigation', true)
             ->set('form.description', 'Updated page description.')
@@ -251,7 +251,7 @@ class AdminPageTest extends TestCase
 
         $this->assertSame('Updated Heading', $page->heading);
         $this->assertSame('updated-heading', $page->slug);
-        $this->assertSame(PageArea::MEMBERS, $page->area);
+        $this->assertSame(PageArea::Members, $page->area);
         $this->assertSame('yes', $page->admin);
         $this->assertTrue($page->navigation);
         $this->assertSame('Updated page description.', $page->description);
@@ -284,8 +284,8 @@ class AdminPageTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $existing = Page::factory()->create(['slug' => 'existing-slug', 'area' => PageArea::CHURCH->value]);
-        $editable = Page::factory()->create(['slug' => 'editable-slug', 'area' => PageArea::CHURCH->value]);
+        $existing = Page::factory()->create(['slug' => 'existing-slug', 'area' => PageArea::Church->value]);
+        $editable = Page::factory()->create(['slug' => 'editable-slug', 'area' => PageArea::Church->value]);
 
         Livewire::test(EditPage::class, ['page' => $editable])
             ->set('form.slug', $existing->slug)

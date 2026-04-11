@@ -17,7 +17,7 @@ class PublicPageReadModelCacheTest extends TestCase
     public function public_page_read_model_cache_is_populated_and_invalidated_on_page_update(): void
     {
         $page = Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'cached-public-page',
             'heading' => 'Original heading',
             'admin' => 'no',
