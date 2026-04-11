@@ -52,14 +52,12 @@
 
         return $eventData;
     })->values()->all(),
-], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
 @endif
 @endsection
 
 @section('dynamic_content')
-
-<x-h1>Church Calendar</x-h1>
 
 <div class="prose max-w-none mb-8">
   <p>Here are all upcoming events from our church calendar. Events are automatically synchronized from our Google Calendar.</p>

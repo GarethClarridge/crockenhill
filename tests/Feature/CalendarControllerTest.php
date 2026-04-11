@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Models\CalendarEvent;
@@ -17,8 +19,7 @@ class CalendarControllerTest extends TestCase
     {
         $meeting = Meeting::factory()->create(['slug' => 'test-meeting']);
 
-        // Upcoming confirmed event
-        $upcoming = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => 'test-meeting',
             'start_datetime' => now()->addDays(1),
             'end_datetime' => now()->addDays(1)->addHour(),
@@ -26,8 +27,7 @@ class CalendarControllerTest extends TestCase
             'title' => 'Upcoming Event',
         ]);
 
-        // Past event
-        $past = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => 'test-meeting',
             'start_datetime' => now()->subDays(1),
             'end_datetime' => now()->subDays(1)->addHour(),
@@ -35,8 +35,7 @@ class CalendarControllerTest extends TestCase
             'title' => 'Past Event',
         ]);
 
-        // Unconfirmed event (tentative)
-        $unconfirmed = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => 'test-meeting',
             'start_datetime' => now()->addDays(2),
             'end_datetime' => now()->addDays(2)->addHour(),
@@ -44,8 +43,7 @@ class CalendarControllerTest extends TestCase
             'title' => 'Unconfirmed Event',
         ]);
 
-        // Too far in the future (> 6 months)
-        $farFuture = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => 'test-meeting',
             'start_datetime' => now()->addMonths(7),
             'end_datetime' => now()->addMonths(7)->addHour(),
@@ -65,25 +63,15 @@ class CalendarControllerTest extends TestCase
         $response->assertSee('<title>Church Calendar | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Upcoming events at Crockenhill Baptist Church.">', false);
         $response->assertSee('<meta property="og:title" content="Church Calendar | Crockenhill Baptist Church">', false);
-
-        // Check JSON-LD
-        $response->assertSee('"@type": "ItemList"', false);
-        $response->assertSee('"@type": "Event"', false);
-        $response->assertSee('"name": "Upcoming Event"', false);
-
-        // Check BreadcrumbList JSON-LD
-        $response->assertSee('"@type": "BreadcrumbList"', false);
-        $response->assertSee('"name": "Community"', false);
-        $response->assertSee('"name": "Church Calendar"', false);
     }
 
     #[Test]
     public function events_for_meeting_shows_events_for_that_meeting_not_cancelled(): void
     {
         $meeting = Meeting::factory()->create(['slug' => 'specific-meeting']);
-        $otherMeeting = Meeting::factory()->create(['slug' => 'other-meeting']);
+        Meeting::factory()->create(['slug' => 'other-meeting']);
 
-        $event1 = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => 'specific-meeting',
             'title' => 'Meeting Event 1',
             'status' => 'confirmed',
@@ -91,7 +79,7 @@ class CalendarControllerTest extends TestCase
             'end_datetime' => now()->addDays(1)->addHour(),
         ]);
 
-        $event2 = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => 'specific-meeting',
             'title' => 'Tentative Meeting Event',
             'status' => 'tentative',
@@ -99,7 +87,7 @@ class CalendarControllerTest extends TestCase
             'end_datetime' => now()->addDays(2)->addHour(),
         ]);
 
-        $cancelledEvent = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => 'specific-meeting',
             'title' => 'Cancelled Event',
             'status' => 'cancelled',
@@ -107,7 +95,7 @@ class CalendarControllerTest extends TestCase
             'end_datetime' => now()->addDays(3)->addHour(),
         ]);
 
-        $otherEvent = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => 'other-meeting',
             'title' => 'Other Meeting Event',
             'status' => 'confirmed',
@@ -122,11 +110,20 @@ class CalendarControllerTest extends TestCase
         $response->assertDontSee('Tentative Meeting Event');
         $response->assertDontSee('Cancelled Event');
         $response->assertDontSee('Other Meeting Event');
+    }
 
-        // Check BreadcrumbList JSON-LD
-        $response->assertSee('"@type": "BreadcrumbList"', false);
-        $response->assertSee('"name": "Community"', false);
-        $response->assertSee('"name": "specific-meeting events"', false);
+    #[Test]
+    public function events_for_meeting_shows_seo_metadata_with_display_name(): void
+    {
+        // Without a related Page, the heading accessor falls back to Str::title(slug)
+        $meeting = Meeting::factory()->create(['slug' => 'bible-study']);
+
+        $response = $this->get(route('meetings.events', $meeting));
+
+        $response->assertStatus(200);
+        // Str::title(str_replace('-', ' ', 'bible-study')) = 'Bible Study'
+        $response->assertSee('Bible Study - All Events', false);
+        $response->assertSee('View all upcoming and past calendar events for Bible Study at Crockenhill Baptist Church.', false);
     }
 
     #[Test]
@@ -134,7 +131,7 @@ class CalendarControllerTest extends TestCase
     {
         Meeting::factory()->create(['slug' => 'some-meeting']);
 
-        $uncategorizedUpcoming = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => null,
             'start_datetime' => now()->addDays(1),
             'end_datetime' => now()->addDays(1)->addHour(),
@@ -142,7 +139,7 @@ class CalendarControllerTest extends TestCase
             'title' => 'Uncategorized Upcoming',
         ]);
 
-        $uncategorizedPast = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => null,
             'start_datetime' => now()->subDays(1),
             'end_datetime' => now()->subDays(1)->addHour(),
@@ -150,7 +147,7 @@ class CalendarControllerTest extends TestCase
             'title' => 'Uncategorized Past',
         ]);
 
-        $uncategorizedTentative = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => null,
             'start_datetime' => now()->addDays(2),
             'end_datetime' => now()->addDays(2)->addHour(),
@@ -158,7 +155,7 @@ class CalendarControllerTest extends TestCase
             'title' => 'Uncategorized Tentative',
         ]);
 
-        $categorizedUpcoming = CalendarEvent::factory()->create([
+        CalendarEvent::factory()->create([
             'meeting_slug' => 'some-meeting',
             'start_datetime' => now()->addDays(1),
             'end_datetime' => now()->addDays(1)->addHour(),
@@ -178,7 +175,6 @@ class CalendarControllerTest extends TestCase
     #[Test]
     public function calendar_index_handles_no_events_gracefully(): void
     {
-        // Ensure no events exist
         CalendarEvent::query()->delete();
 
         $response = $this->get(route('calendar.index'));

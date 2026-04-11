@@ -1,8 +1,10 @@
 @extends('layouts/page')
 
-@section('dynamic_content')
+@section('title', $heading)
 
-<x-h1>Uncategorized Events</x-h1>
+@section('meta_description', $description)
+
+@section('dynamic_content')
 
 <div class="prose max-w-none mb-8">
   <p>These events from our calendar haven't been automatically categorized into a specific meeting type. They may be special events or one-off occasions.</p>
