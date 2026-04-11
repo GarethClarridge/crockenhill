@@ -99,10 +99,14 @@ class ListPages extends Component
 
         $this->authorizeAdmin();
 
-        $count = count($this->selected);
-        $ids = $this->selected;
+        if ($this->selected === []) {
+            return;
+        }
 
-        Page::whereIn('id', $this->selected)->delete();
+        $ids = $this->selected;
+        $count = count($ids);
+
+        Page::whereIn('id', $ids)->delete();
 
         \Illuminate\Support\Facades\Log::warning('Multiple pages deleted by admin', [
             'admin_id' => auth()->id(),
