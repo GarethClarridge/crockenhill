@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Services\CalendarService;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class CalendarController extends Controller
@@ -45,11 +46,13 @@ class CalendarController extends Controller
         $events = $this->calendarService->getEventsForMeeting($meeting->slug)
             ->sortBy('start_datetime');
 
+        $meetingName = $meeting->heading ?? Str::title(str_replace('-', ' ', $meeting->slug));
+
         return view('meetings.events', [
             'meeting' => $meeting,
             'events' => $events,
-            'heading' => $meeting->slug.' events',
-            'description' => "All calendar events for {$meeting->slug}.",
+            'heading' => $meetingName.' - All Events',
+            'description' => "View all upcoming and past calendar events for {$meetingName} at Crockenhill Baptist Church.",
             'content' => '',
             'area' => 'community',
             'links' => collect(),

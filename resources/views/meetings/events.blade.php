@@ -1,12 +1,71 @@
 @extends('layouts/page')
 
+@section('title', $heading)
+
+@section('meta_description', $description)
+
+@section('meta_tags')
+<x-meta-tags
+    :title="$heading"
+    :description="$description"
+/>
+<x-schema.webpage
+    :heading="$heading"
+    :description="$description"
+/>
+
+{{-- JSON-LD Events List --}}
+@if($events->isNotEmpty())
+<script type="application/ld+json">
+{!! json_encode([
+    '@context' => 'https://schema.org',
+    '@type' => 'ItemList',
+    'itemListElement' => $events->values()->map(function ($event, $index) {
+        $eventData = [
+            '@type' => 'ListItem',
+            'position' => $index + 1,
+            'item' => [
+                '@type' => 'Event',
+                'name' => $event->title,
+                'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? 'Church event at Crockenhill Baptist Church'), 150),
+                'startDate' => $event->start_datetime->toIso8601String(),
+                'location' => [
+                    '@type' => 'Place',
+                    'name' => $event->location ?? ($event->meeting?->location ?? 'Crockenhill Baptist Church'),
+                    'address' => [
+                        '@type' => 'PostalAddress',
+                        'streetAddress' => config('organization.address.street'),
+                        'addressLocality' => config('organization.address.locality'),
+                        'addressRegion' => config('organization.address.region'),
+                        'postalCode' => config('organization.address.postal_code'),
+                        'addressCountry' => config('organization.address.country'),
+                    ],
+                ],
+                'image' => asset('images/Primary.png'),
+                'organizer' => [
+                    '@type' => 'Organization',
+                    'name' => config('organization.name'),
+                    'url' => url('/'),
+                ],
+            ],
+        ];
+
+        if ($event->end_datetime) {
+            $eventData['item']['endDate'] = $event->end_datetime->toIso8601String();
+        }
+
+        return $eventData;
+    })->all(),
+], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+</script>
+@endif
+@endsection
+
 @section('dynamic_content')
 
-<x-h1>{{ $meeting->slug }} - All Events</x-h1>
-
 <div class="prose max-w-none mb-8">
-  <p>All events for <strong>{{ $meeting->slug }}</strong> from our calendar.</p>
-  <p><a href="/community/{{ $meeting->slug }}" wire:navigate class="text-blue-600 hover:underline">&larr; Back to {{ $meeting->slug }}</a></p>
+  <p>All events for <strong>{{ $meeting->heading ?? $meeting->slug }}</strong> from our calendar.</p>
+  <p><a href="/community/{{ $meeting->slug }}" wire:navigate class="text-blue-600 hover:underline">&larr; Back to {{ $meeting->heading ?? $meeting->slug }}</a></p>
 </div>
 
 @if($events->count() > 0)
