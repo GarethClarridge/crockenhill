@@ -16,6 +16,8 @@ Church
     description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical baptist church in Kent."
 />
 
+<x-breadcrumbs area="church" heading="Church" :jsonOnly="true" />
+
 <x-schema.faq :questions="[
     [
         'question' => 'When do we meet?',

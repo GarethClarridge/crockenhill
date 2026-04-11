@@ -19,6 +19,7 @@ class SermonResourceTest extends TestCase
     private array $sermonViewData = [
         'audio_url' => 'https://example.com/audio.mp3',
         'canonical_url' => 'https://example.com/canonical',
+        'formatted_duration' => '45:00',
         'preacher_url' => 'https://example.com/preacher',
         'public_url' => 'https://example.com/public',
         'thumbnail_url' => 'https://example.com/thumbnail.jpg',
