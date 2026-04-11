@@ -11,7 +11,7 @@
 ])
 
 @php
-$baseClasses = 'no-underline rounded-md focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 transition-all inline-flex items-center justify-center gap-2';
+$baseClasses = 'no-underline rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 transition-all inline-flex items-center justify-center gap-2';
 
 $sizeClasses = [
     'xs' => 'px-2 py-1 text-xs',

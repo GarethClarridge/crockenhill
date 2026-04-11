@@ -47,3 +47,7 @@
 ## 2026-04-09 - Accessible Smooth Scrolling and Navigation
 **Learning:** Large pages (like date-grouped sermon lists) benefit from "Back to top" functionality to reduce scroll fatigue. Implementing this with `scroll-behavior: smooth` provides a pleasant transition, but it MUST be wrapped in a `@media (prefers-reduced-motion: no-preference)` block to respect accessibility settings for users with motion sensitivities. Using Alpine.js to show/hide the button based on a scroll threshold (e.g., 400px) keeps the UI clean and ensures the button is only present when useful.
 **Action:** Always wrap `scroll-behavior: smooth` in a media query checking for `no-preference`. Use Alpine.js for scroll-based visibility transitions and ensure the button is fully keyboard accessible with proper ARIA labels.
+
+## 2026-04-10 - Refined Focus States and Form Accessibility Fallbacks
+**Learning:** Transitioning from 'focus:ring' to 'focus-visible:ring' in core interactive components (buttons, toggles) significantly improves UX for mouse users by removing the distracting blue outlines during clicks, while maintaining full accessibility for keyboard users. Additionally, ensuring all form components (like textarea) have an 'aria-label' fallback derived from placeholders ensures that screen reader users can understand the context of an input even when a visual label is absent.
+**Action:** Use 'focus-visible' for all focus rings. Implement 'aria-label' fallbacks in all custom form components where a visual label is optional but a placeholder is present.

@@ -4,7 +4,7 @@
 $modelName = $attributes->wire('model')->value();
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
-$textareaClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal'
+$textareaClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2'
     . ($hasError ? ' border-red-300' : ' border-gray-300');
 
 $describedBy = [];
@@ -23,10 +23,14 @@ $describedBy = implode(' ', $describedBy);
 
     <div class="relative">
         <textarea
-            @if($id) id="{{ $id }}" @endif
             x-ref="textarea"
             @input="count = $el.value.length"
-            {{ $attributes->merge(['rows' => 3, 'class' => $textareaClasses]) }}
+            {{ $attributes->merge([
+                'rows' => 3,
+                'class' => $textareaClasses,
+                'id' => $id,
+                'aria-label' => (!$label && $attributes->get('placeholder')) ? $attributes->get('placeholder') : null
+            ]) }}
             @if($maxlength) maxlength="{{ $maxlength }}" @endif
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
