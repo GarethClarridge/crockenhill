@@ -57,21 +57,38 @@ class ScripturePassageIntegrityTest extends TestCase
     }
 
     #[Test]
-    public function it_fails_validation_for_invalid_data(): void
+    public function it_returns_failed_when_api_returns_empty_copyright(): void
     {
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        // Arrange: mock the API client to return a passage with empty copyright
+        $passage = ScripturePassage::factory()->create([
+            'bible_id' => 'de4e12af7f895db2-01',
+            'normalized_reference' => 'JHN.3.16',
+        ]);
+
+        $result = new \App\Data\ApiBiblePassageResult(
+            passageId: 'JHN.3.16',
+            displayReference: 'John 3:16',
+            htmlContent: '<p>For God so loved the world...</p>',
+            copyright: '', // Empty copyright should fail validation
+            fumsToken: null,
+        );
+
+        $client = $this->createMock(\App\Services\ApiBibleClient::class);
+        $client->method('hasDailyBudget')->willReturn(true);
+        $client->method('fetchPassageById')->willReturn($result);
+
+        $sanitizer = $this->createMock(\App\Services\ScriptureHtmlSanitizer::class);
+        $sanitizer->method('sanitize')->willReturn('<p>For God so loved the world...</p>');
+
+        $this->app->instance(\App\Services\ApiBibleClient::class, $client);
+        $this->app->instance(\App\Services\ScriptureHtmlSanitizer::class, $sanitizer);
 
         $service = $this->app->make(ScriptureOperatorService::class);
-        $reflection = new \ReflectionClass($service);
-        $method = $reflection->getMethod('validatePassageData');
-        $method->setAccessible(true);
 
-        $method->invoke($service, [
-            'bible_id' => '', // Required
-            'normalized_reference' => 'JHN.3.16',
-            'html_content' => 'content',
-            'copyright' => 'copyright',
-            'fetched_at' => now(),
-        ]);
+        // Act
+        $outcome = $service->refreshPassage($passage);
+
+        // Assert: validation catches the empty copyright and returns 'failed'
+        $this->assertSame('failed', $outcome);
     }
 }

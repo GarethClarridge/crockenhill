@@ -389,13 +389,12 @@ class ScriptureOperatorService
      * Validate scripture passage data.
      *
      * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
      *
      * @throws ValidationException
      */
-    private function validatePassageData(array $data): array
+    private function validatePassageData(array $data): void
     {
-        return Validator::make($data, [
+        Validator::make($data, [
             'bible_id' => ['sometimes', 'required', 'string', 'max:255'],
             'normalized_reference' => ['sometimes', 'required', 'string', 'max:255'],
             'api_passage_id' => ['nullable', 'string', 'max:255'],
