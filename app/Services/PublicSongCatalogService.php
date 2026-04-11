@@ -90,7 +90,10 @@ class PublicSongCatalogService
 
     /**
      * Require every token to appear in at least one of: title, alternate title,
-     * author display name, CCLI number, or lyrics (fulltext).
+     * author display name, CCLI number, or lyrics (fulltext MATCH AGAINST).
+     *
+     * Each token gets its own grouped WHERE clause so all tokens must be satisfied.
+     * Lyrics are matched via MySQL full-text boolean mode to use the fulltext index.
      *
      * @param  Builder<Song>  $query
      * @param  Collection<int, non-empty-string>  $tokens
@@ -101,12 +104,16 @@ class PublicSongCatalogService
             $escaped = $this->escapeLike($token);
             $pattern = "%{$escaped}%";
 
-            $query->where(function (Builder $q) use ($pattern): void {
+            // Boolean mode token: prefix with + to require the word, wrap in double-quotes
+            // to treat it as a literal phrase rather than a full-text operator.
+            $booleanToken = '+"'.str_replace('"', '', $token).'"';
+
+            $query->where(function (Builder $q) use ($pattern, $booleanToken): void {
                 $q->where('songs.title', 'like', $pattern)
                     ->orWhere('songs.alternate_title', 'like', $pattern)
                     ->orWhere('songs.ccli_number', 'like', $pattern)
                     ->orWhereHas('authors', fn (Builder $a) => $a->where('display_name', 'like', $pattern))
-                    ->orWhere('songs.lyrics_plain', 'like', $pattern);
+                    ->orWhereRaw('MATCH(songs.lyrics_plain) AGAINST(? IN BOOLEAN MODE)', [$booleanToken]);
             });
         }
     }

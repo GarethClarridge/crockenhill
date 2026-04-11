@@ -150,4 +150,17 @@ class SongLyricSnippetBuilderTest extends TestCase
         $this->assertCount(1, $snippets);
         $this->assertStringContainsString('grace', strip_tags($snippets[0]));
     }
+
+    #[Test]
+    public function overlapping_tokens_do_not_produce_nested_mark_tags(): void
+    {
+        // 'ace' is a substring of 'grace' — sequential replacement would nest marks.
+        $lyrics = 'Amazing grace how sweet';
+        $snippets = $this->builder->buildSnippets($lyrics, $this->tokens('grace', 'ace'));
+
+        $this->assertCount(1, $snippets);
+        // Must contain exactly one <mark> open tag for the overlapping region.
+        $this->assertSame(1, substr_count($snippets[0], '<mark>'));
+        $this->assertSame(1, substr_count($snippets[0], '</mark>'));
+    }
 }

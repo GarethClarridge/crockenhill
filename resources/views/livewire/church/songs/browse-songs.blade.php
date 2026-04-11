@@ -1,6 +1,6 @@
 <div>
     <style>
-        mark { background-color: theme('colors.yellow.200'); padding: 0 0.1em; border-radius: 0.15em; font-style: normal; }
+        mark { background-color: #fef08a; padding: 0 0.1em; border-radius: 0.15em; font-style: normal; }
     </style>
     {{-- Hero / filter bar --}}
     <section class="space-y-8">

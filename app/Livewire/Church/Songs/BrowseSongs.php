@@ -48,19 +48,14 @@ class BrowseSongs extends Component
 
         if ($tokens->isNotEmpty()) {
             foreach ($songs as $song) {
-                $titleLower = mb_strtolower($song->title.' '.($song->alternate_title ?? ''));
-                $authorsLower = mb_strtolower($song->authors->pluck('display_name')->implode(' '));
-                $ccliLower = mb_strtolower($song->ccli_number ?? '');
+                if ($song->lyrics_plain === null) {
+                    continue;
+                }
 
-                // Determine whether any token is unaccounted for outside lyrics.
-                $hasNonLyricMatch = $tokens->every(function (string $token) use ($titleLower, $authorsLower, $ccliLower): bool {
-                    return str_contains($titleLower, $token)
-                        || str_contains($authorsLower, $token)
-                        || str_contains($ccliLower, $token);
-                });
-
-                // Only show snippets when the lyrics contributed to the match.
-                if (! $hasNonLyricMatch && $song->lyrics_plain !== null) {
+                // Show snippets whenever the lyrics contain a match for any token,
+                // regardless of whether the title or authors also matched.
+                // This covers lyric-only, author-only, and mixed title+lyric matches.
+                if ($snippetBuilder->hasLyricMatch($song->lyrics_plain, $tokens)) {
                     $snippets = $snippetBuilder->buildSnippets($song->lyrics_plain, $tokens);
 
                     if ($snippets !== []) {

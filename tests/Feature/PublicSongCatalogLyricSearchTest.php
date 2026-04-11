@@ -8,14 +8,18 @@ use App\Livewire\Church\Songs\BrowseSongs;
 use App\Models\Song;
 use App\Models\User;
 use App\Services\PublicSongCatalogService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PublicSongCatalogLyricSearchTest extends TestCase
 {
-    use DatabaseTransactions;
+    // RefreshDatabase is required here because InnoDB full-text indexes are only
+    // queryable via MATCH AGAINST after rows are committed — DatabaseTransactions
+    // wraps inserts in an uncommitted transaction that the FTS buffer never flushes.
+    use RefreshDatabase;
 
     private PublicSongCatalogService $service;
 
@@ -25,6 +29,15 @@ class PublicSongCatalogLyricSearchTest extends TestCase
         $this->service = app(PublicSongCatalogService::class);
     }
 
+    /**
+     * Force InnoDB to flush its full-text insert buffer so newly committed rows
+     * are immediately reachable via MATCH AGAINST queries.
+     */
+    private function flushFullTextIndex(): void
+    {
+        DB::statement('OPTIMIZE TABLE songs');
+    }
+
     // ── lyric search ──────────────────────────────────────────────────────
 
     #[Test]
@@ -32,6 +45,7 @@ class PublicSongCatalogLyricSearchTest extends TestCase
     {
         $unique = 'xyzzylyric'.uniqid();
         $song = Song::factory()->create(['lyrics_plain' => "First line\n{$unique}\nLast line"]);
+        $this->flushFullTextIndex();
 
         $ids = $this->service->query('all', $unique)->pluck('id');
 
@@ -44,6 +58,7 @@ class PublicSongCatalogLyricSearchTest extends TestCase
         $unique = 'xyzzylyric'.uniqid();
         Song::factory()->create(['lyrics_plain' => "First line\n{$unique}\nLast line"]);
         $other = Song::factory()->create(['lyrics_plain' => 'Completely different content']);
+        $this->flushFullTextIndex();
 
         $ids = $this->service->query('all', $unique)->pluck('id');
 
@@ -67,6 +82,8 @@ class PublicSongCatalogLyricSearchTest extends TestCase
             'lyrics_plain' => 'Some other lyrics without the term',
         ]);
 
+        $this->flushFullTextIndex();
+
         $ids = $this->service->query('all', $unique)->pluck('id')->values();
 
         $titlePos = $ids->search($titleSong->id);
@@ -87,6 +104,26 @@ class PublicSongCatalogLyricSearchTest extends TestCase
             'title' => 'Unrelated Title',
             'lyrics_plain' => "First line\nA line with {$unique} inside\nLast line",
         ]);
+        $this->flushFullTextIndex();
+
+        $this->actingAs(User::factory()->create());
+
+        Livewire::test(BrowseSongs::class)
+            ->set('search', $unique)
+            ->assertSee('Matching lyrics')
+            ->assertSee($unique);
+    }
+
+    #[Test]
+    public function mixed_title_and_lyric_match_still_shows_snippet_block(): void
+    {
+        $unique = 'xyzzymixed'.uniqid();
+        // Token appears in both title and lyrics — snippets must still be shown.
+        Song::factory()->create([
+            'title' => "Song about {$unique}",
+            'lyrics_plain' => "A verse mentioning {$unique} here\nAnother line",
+        ]);
+        $this->flushFullTextIndex();
 
         $this->actingAs(User::factory()->create());
 
@@ -121,6 +158,7 @@ class PublicSongCatalogLyricSearchTest extends TestCase
             'title' => 'Some Other Title',
             'lyrics_plain' => "A line with {$unique} in it",
         ]);
+        $this->flushFullTextIndex();
 
         $this->actingAs(User::factory()->create());
 

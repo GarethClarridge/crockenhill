@@ -97,20 +97,59 @@ class SongLyricSnippetBuilder
     /**
      * HTML-escape a line then wrap each matched token in <mark>.
      *
+     * Collects all match positions across all tokens in a single scan, merges
+     * overlapping ranges, then builds the output in one pass — ensuring no
+     * nested or broken <mark> tags are ever produced.
+     *
      * @param  Collection<int, non-empty-string>  $tokens
      */
     private function highlight(string $line, Collection $tokens): string
     {
         $escaped = e($line);
 
+        // Collect [start, end) byte ranges for all token matches.
+        /** @var list<array{int, int}> $ranges */
+        $ranges = [];
+
         foreach ($tokens as $token) {
-            $escaped = (string) preg_replace_callback(
-                '/'.preg_quote(e($token), '/').'/iu',
-                fn (array $m): string => '<mark>'.($m[0]).'</mark>',
-                $escaped
-            );
+            $pattern = '/'.preg_quote(e($token), '/').'/iu';
+            preg_match_all($pattern, $escaped, $matches, PREG_OFFSET_CAPTURE);
+
+            foreach ($matches[0] as [$match, $offset]) {
+                $ranges[] = [$offset, $offset + strlen($match)];
+            }
         }
 
-        return $escaped;
+        if ($ranges === []) {
+            return $escaped;
+        }
+
+        // Sort by start position, then merge overlapping/adjacent ranges.
+        usort($ranges, fn (array $a, array $b): int => $a[0] <=> $b[0]);
+
+        /** @var list<array{int, int}> $merged */
+        $merged = [];
+
+        foreach ($ranges as [$start, $end]) {
+            if ($merged !== [] && $start <= $merged[count($merged) - 1][1]) {
+                $merged[count($merged) - 1][1] = max($merged[count($merged) - 1][1], $end);
+            } else {
+                $merged[] = [$start, $end];
+            }
+        }
+
+        // Build the output string with mark tags inserted around merged ranges.
+        $result = '';
+        $cursor = 0;
+
+        foreach ($merged as [$start, $end]) {
+            $result .= substr($escaped, $cursor, $start - $cursor);
+            $result .= '<mark>'.substr($escaped, $start, $end - $start).'</mark>';
+            $cursor = $end;
+        }
+
+        $result .= substr($escaped, $cursor);
+
+        return $result;
     }
 }
