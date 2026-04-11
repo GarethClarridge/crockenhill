@@ -17,7 +17,7 @@ class PageSecurityTest extends TestCase
     public function test_admin_pages_are_restricted_to_admins(): void
     {
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'admin-only-page',
             'admin' => 'yes',
         ]);
@@ -34,7 +34,7 @@ class PageSecurityTest extends TestCase
     public function test_non_admin_pages_remain_publicly_accessible(): void
     {
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'public-page',
             'admin' => 'no',
         ]);
@@ -48,7 +48,7 @@ class PageSecurityTest extends TestCase
     public function test_members_area_pages_require_authentication(): void
     {
         Page::factory()->create([
-            'area' => PageArea::MEMBERS,
+            'area' => PageArea::Members,
             'slug' => 'members-only-page',
             'admin' => 'no',
         ]);
@@ -66,7 +66,7 @@ class PageSecurityTest extends TestCase
             [
                 'heading' => 'Members',
                 'description' => 'Members landing page',
-                'area' => PageArea::MEMBERS,
+                'area' => PageArea::Members,
                 'body' => 'Members landing page',
                 'admin' => 'yes',
                 'markdown' => '# Members',
@@ -85,7 +85,7 @@ class PageSecurityTest extends TestCase
 
     public function test_landing_page_falls_back_to_body_content_when_markdown_is_missing(): void
     {
-        $area = PageArea::SERMONS->value;
+        $area = PageArea::Sermons->value;
 
         Page::unguarded(fn (): Page => Page::query()->updateOrCreate(
             ['slug' => $area],
@@ -108,7 +108,7 @@ class PageSecurityTest extends TestCase
 
     public function test_non_members_area_without_landing_page_returns_404(): void
     {
-        Page::query()->where('area', PageArea::SERMONS)->delete();
+        Page::query()->where('area', PageArea::Sermons)->delete();
 
         $this->get('/sermons')->assertNotFound();
     }

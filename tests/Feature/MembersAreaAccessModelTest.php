@@ -40,7 +40,7 @@ class MembersAreaAccessModelTest extends TestCase
         ]);
 
         $membersPage = Page::factory()->create([
-            'area' => PageArea::MEMBERS,
+            'area' => PageArea::Members,
             'slug' => 'members-only-page',
             'admin' => 'no',
         ]);
@@ -93,7 +93,7 @@ class MembersAreaAccessModelTest extends TestCase
         ]);
 
         $membersPage = Page::factory()->create([
-            'area' => PageArea::MEMBERS,
+            'area' => PageArea::Members,
             'slug' => 'guest-blocked-members-page',
             'admin' => 'no',
         ]);

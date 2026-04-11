@@ -65,7 +65,7 @@ class PageCardService
         /**
          * Performance Optimization: Use PageRepository to fetch cached area links.
          */
-        $pages = $this->pageRepository->getAllLinksForArea(PageArea::CHURCH)
+        $pages = $this->pageRepository->getAllLinksForArea(PageArea::Church)
             ->filter(function (Page $page) {
                 return $page->slug !== 'privacy-policy'
                     && $page->slug !== 'safeguarding-policy'
@@ -85,7 +85,7 @@ class PageCardService
         /**
          * Performance Optimization: Use PageRepository to fetch cached area links.
          */
-        $pages = $this->pageRepository->getAllLinksForArea(PageArea::COMMUNITY)
+        $pages = $this->pageRepository->getAllLinksForArea(PageArea::Community)
             ->filter(function (Page $page) use ($slugs) {
                 return in_array($page->slug, $slugs, true);
             })

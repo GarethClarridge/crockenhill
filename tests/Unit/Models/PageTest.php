@@ -26,13 +26,13 @@ class PageTest extends TestCase
     {
         // Test getRouteAttribute
         $page1 = \App\Models\Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'about-us',
         ]);
         $this->assertEquals('/christ/about-us', $page1->route);
 
         $page2 = \App\Models\Page::factory()->create([
-            'area' => PageArea::COMMUNITY->value,
+            'area' => PageArea::Community->value,
             'slug' => 'events',
         ]);
         $this->assertEquals('/community/events', $page2->route);
@@ -84,17 +84,17 @@ class PageTest extends TestCase
         \App\Models\Page::query()->delete(); // Clear pages before this test
 
         // Test inArea() scope
-        $pageInChrist = \App\Models\Page::factory()->inArea(PageArea::CHRIST)->create(['navigation' => false]);
-        $pageInCommunity = \App\Models\Page::factory()->inArea(PageArea::COMMUNITY)->create(['navigation' => false]);
-        $pageInChurch = \App\Models\Page::factory()->inArea(PageArea::CHURCH)->create(['navigation' => false]);
+        $pageInChrist = \App\Models\Page::factory()->inArea(PageArea::Christ)->create(['navigation' => false]);
+        $pageInCommunity = \App\Models\Page::factory()->inArea(PageArea::Community)->create(['navigation' => false]);
+        $pageInChurch = \App\Models\Page::factory()->inArea(PageArea::Church)->create(['navigation' => false]);
 
-        $christPages = \App\Models\Page::inArea(PageArea::CHRIST)->get();
+        $christPages = \App\Models\Page::inArea(PageArea::Christ)->get();
         $this->assertCount(1, $christPages);
         $this->assertTrue($christPages->contains($pageInChrist));
         $this->assertFalse($christPages->contains($pageInCommunity));
         $this->assertFalse($christPages->contains($pageInChurch));
 
-        $communityPages = \App\Models\Page::inArea(PageArea::COMMUNITY)->get();
+        $communityPages = \App\Models\Page::inArea(PageArea::Community)->get();
         $this->assertCount(1, $communityPages);
         $this->assertTrue($communityPages->contains($pageInCommunity));
         $this->assertFalse($communityPages->contains($pageInChrist));
@@ -120,7 +120,7 @@ class PageTest extends TestCase
         // can handle string parameters without throwing type errors
 
         $page = \App\Models\Page::factory()->create([
-            'area' => PageArea::CHRIST->value,
+            'area' => PageArea::Christ->value,
             'slug' => 'test-slug',
             'heading' => 'Test Page',
             'markdown' => '# Test Content',
@@ -130,13 +130,13 @@ class PageTest extends TestCase
 
         // Test that the page can be found by area and slug
         $foundPage = Page::where('slug', 'test-slug')
-            ->where('area', PageArea::CHRIST->value)
+            ->where('area', PageArea::Christ->value)
             ->first();
 
         $this->assertNotNull($foundPage);
         $this->assertEquals($page->id, $foundPage->id);
         $this->assertEquals('Test Page', $foundPage->heading);
-        $this->assertEquals(PageArea::CHRIST, $foundPage->area);
+        $this->assertEquals(PageArea::Christ, $foundPage->area);
     }
 
     #[Test]
@@ -144,7 +144,7 @@ class PageTest extends TestCase
     {
         // Test that the show method returns the expected data structure
         $page = \App\Models\Page::factory()->create([
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'slug' => 'about',
             'heading' => 'About Us',
             'markdown' => '# About Us\n\nThis is about us.',
@@ -164,7 +164,7 @@ This is about us.';
             'content' => $html,
             'heading' => 'About Us',
             'description' => 'About our church',
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'about',
         ];
 
@@ -179,7 +179,7 @@ This is about us.';
 
         $this->assertInstanceOf(Page::class, $expectedData['page']);
         $this->assertEquals('About Us', $expectedData['heading']);
-        $this->assertEquals(PageArea::CHURCH, $expectedData['area']);
+        $this->assertEquals(PageArea::Church, $expectedData['area']);
         $this->assertEquals('about', $expectedData['slug']);
     }
 
@@ -191,7 +191,7 @@ This is about us.';
 
         // This should throw a ModelNotFoundException
         Page::where('slug', 'nonexistent')
-            ->where('area', PageArea::CHRIST->value)
+            ->where('area', PageArea::Christ->value)
             ->firstOrFail();
     }
 }

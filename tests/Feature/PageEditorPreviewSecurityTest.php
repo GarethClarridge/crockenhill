@@ -35,7 +35,7 @@ class PageEditorPreviewSecurityTest extends TestCase
         $this->actingAs($this->admin);
 
         $page = Page::factory()->create([
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'slug' => 'preview-script-tag',
             'heading' => 'Preview Script Tag',
             'markdown' => '',
@@ -59,7 +59,7 @@ class PageEditorPreviewSecurityTest extends TestCase
         $this->actingAs($this->admin);
 
         $page = Page::factory()->create([
-            'area' => PageArea::CHURCH->value,
+            'area' => PageArea::Church->value,
             'slug' => 'preview-javascript-link',
             'heading' => 'Preview Javascript Link',
             'markdown' => '',

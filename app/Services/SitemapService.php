@@ -79,7 +79,7 @@ class SitemapService
             ->add(
                 Page::query()
                     ->public()
-                    ->where('area', '!=', PageArea::MEMBERS->value)
+                    ->where('area', '!=', PageArea::Members->value)
                     ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
                     /**
                      * Performance Optimization: Only eager load 'media' (needed for images),

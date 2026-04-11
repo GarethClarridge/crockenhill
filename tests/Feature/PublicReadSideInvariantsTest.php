@@ -65,7 +65,7 @@ class PublicReadSideInvariantsTest extends TestCase
     public function meeting_linked_to_admin_page_returns_403_to_guests(): void
     {
         $adminPage = Page::factory()->create([
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'slug' => 'restricted-meeting-page',
             'admin' => 'yes',
         ]);
@@ -82,7 +82,7 @@ class PublicReadSideInvariantsTest extends TestCase
     public function meeting_linked_to_admin_page_is_accessible_to_admin_users(): void
     {
         $adminPage = Page::factory()->create([
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'slug' => 'admin-only-meeting-page',
             'admin' => 'yes',
         ]);
@@ -103,7 +103,7 @@ class PublicReadSideInvariantsTest extends TestCase
     public function meeting_linked_to_public_page_is_accessible_to_guests(): void
     {
         $publicPage = Page::factory()->create([
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'slug' => 'open-meeting-page',
             'admin' => 'no',
         ]);
@@ -139,7 +139,7 @@ class PublicReadSideInvariantsTest extends TestCase
     public function navigation_header_does_not_expose_admin_only_pages(): void
     {
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'secret-admin-nav-page',
             'heading' => 'Secret Admin Page',
             'navigation' => true,
@@ -158,7 +158,7 @@ class PublicReadSideInvariantsTest extends TestCase
     public function navigation_header_shows_public_navigation_pages(): void
     {
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'visible-nav-page',
             'heading' => 'Visible Nav Page',
             'navigation' => true,
@@ -176,7 +176,7 @@ class PublicReadSideInvariantsTest extends TestCase
     public function sitemap_does_not_include_meetings_linked_to_admin_pages(): void
     {
         $adminPage = Page::factory()->create([
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'slug' => 'restricted-community-page',
             'admin' => 'yes',
         ]);
@@ -199,7 +199,7 @@ class PublicReadSideInvariantsTest extends TestCase
     public function sitemap_does_not_include_members_area_pages(): void
     {
         Page::factory()->create([
-            'area' => PageArea::MEMBERS,
+            'area' => PageArea::Members,
             'slug' => 'members-only-page',
             'admin' => 'no',
         ]);
@@ -218,7 +218,7 @@ class PublicReadSideInvariantsTest extends TestCase
     public function sitemap_does_not_include_meetings_linked_to_members_pages(): void
     {
         $membersPage = Page::factory()->create([
-            'area' => PageArea::MEMBERS,
+            'area' => PageArea::Members,
             'slug' => 'members-meeting-page',
             'admin' => 'no',
         ]);

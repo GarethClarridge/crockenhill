@@ -34,19 +34,19 @@ class PageCardServiceTest extends TestCase
 
         Page::factory()->create([
             'slug' => 'sunday-evenings',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'admin' => 'no',
         ]);
 
         Page::factory()->create([
             'slug' => 'bible-study',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'admin' => 'no',
         ]);
 
         Page::factory()->create([
             'slug' => 'unrelated-page',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'admin' => 'no',
         ]);
 
@@ -81,7 +81,7 @@ class PageCardServiceTest extends TestCase
         $pages = [];
         foreach ($slugs as $slug) {
             $pages[] = Page::factory()->create([
-                'area' => PageArea::COMMUNITY,
+                'area' => PageArea::Community,
                 'slug' => $slug,
                 'admin' => 'no',
             ]);
@@ -89,7 +89,7 @@ class PageCardServiceTest extends TestCase
 
         Page::factory()->create([
             'slug' => 'unrelated-community',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'admin' => 'no',
         ]);
 
@@ -115,25 +115,25 @@ class PageCardServiceTest extends TestCase
 
         Page::factory()->create([
             'slug' => 'sunday-mornings',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'admin' => 'no',
         ]);
 
         Page::factory()->create([
             'slug' => 'sunday-evenings',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'admin' => 'no',
         ]);
 
         Page::factory()->create([
             'slug' => 'bible-study',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'admin' => 'no',
         ]);
 
         Page::factory()->create([
             'slug' => 'unrelated-church',
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'admin' => 'no',
         ]);
 
@@ -159,33 +159,33 @@ class PageCardServiceTest extends TestCase
         ]);
 
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'about-us',
             'admin' => 'no',
         ]);
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'leadership',
             'admin' => 'no',
         ]);
 
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'privacy-policy',
             'admin' => 'no',
         ]);
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'safeguarding-policy',
             'admin' => 'no',
         ]);
         Page::factory()->create([
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'admin-page',
             'admin' => 'yes',
         ]);
         Page::factory()->create([
-            'area' => PageArea::COMMUNITY,
+            'area' => PageArea::Community,
             'slug' => 'community-page',
             'admin' => 'no',
         ]);

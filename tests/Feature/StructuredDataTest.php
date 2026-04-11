@@ -130,7 +130,7 @@ class StructuredDataTest extends TestCase
     {
         $page = Page::factory()->create([
             'heading' => 'About Us',
-            'area' => PageArea::CHURCH,
+            'area' => PageArea::Church,
             'slug' => 'about-us',
         ]);
 
