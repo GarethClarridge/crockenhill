@@ -17,8 +17,10 @@ $describedBy = implode(' ', $describedBy);
     <div class="flex h-5 items-center">
         <input
             type="checkbox"
-            @if($id) id="{{ $id }}" @endif
-            {{ $attributes->merge(['class' => 'h-4 w-4 rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal' . ($hasError ? ' border-red-300' : '')]) }}
+            {{ $attributes->merge([
+                'class' => 'h-4 w-4 rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal focus-visible:ring-2' . ($hasError ? ' border-red-300' : ''),
+                'id' => $id
+            ]) }}
             @checked($checked)
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif

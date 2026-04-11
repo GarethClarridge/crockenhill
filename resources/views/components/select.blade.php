@@ -4,7 +4,7 @@
 $modelName = $attributes->wire('model')->value();
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
-$selectClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal'
+$selectClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2'
     . ($hasError ? ' border-red-300' : ' border-gray-300');
 
 $describedBy = [];
@@ -23,9 +23,11 @@ $describedBy = implode(' ', $describedBy);
 
     <div class="relative">
         <select
-            @if($id) id="{{ $id }}" @endif
-            {{ $attributes->merge(['class' => $selectClasses]) }}
-            @if(!$label && $placeholder) aria-label="{{ $placeholder }}" @endif
+            {{ $attributes->merge([
+                'class' => $selectClasses,
+                'id' => $id,
+                'aria-label' => (!$label && $placeholder) ? $placeholder : null
+            ]) }}
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
         >

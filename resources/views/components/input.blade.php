@@ -4,7 +4,7 @@
 $modelName = $attributes->wire('model')->value();
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
-$inputClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal'
+$inputClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2'
     . ($icon ? ' pl-10' : '')
     . ($hasError ? ' border-red-300' : ' border-gray-300')
     . ($clearable ? ' pr-10' : '');
@@ -33,14 +33,17 @@ $describedBy = implode(' ', $describedBy);
         @endif
 
         <input
-            @if($id) id="{{ $id }}" @endif
             x-ref="input"
             @input="count = $el.value.length"
             @focus="focused = true"
             @blur="focused = false"
-            {{ $attributes->merge(['type' => 'text', 'class' => $inputClasses]) }}
+            {{ $attributes->merge([
+                'type' => 'text',
+                'class' => $inputClasses,
+                'id' => $id,
+                'aria-label' => (!$label && $attributes->get('placeholder')) ? $attributes->get('placeholder') : null
+            ]) }}
             @if($maxlength) maxlength="{{ $maxlength }}" @endif
-            @if(!$label && $attributes->get('placeholder')) aria-label="{{ $attributes->get('placeholder') }}" @endif
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
             @if($clearable && $modelName)
