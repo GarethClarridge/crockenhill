@@ -10,26 +10,35 @@ use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Collection;
 
 class PublicSongCatalogService
 {
+    use EscapesLikeWildcards;
+
     public const RANGE_ALL = 'all';
 
     public const RANGE_THIS_YEAR = 'year';
 
     /**
-     * Build the base catalogue query.
+     * Build the catalogue query, optionally filtered and ordered by search.
      *
-     * Unlike PublicSongUsageService, the `all` range includes songs with zero usage.
-     * The `year` range still filters to songs with qualifying usage in the current year.
+     * When no search is active: full catalogue (all range) or qualifying-only (year range),
+     * ordered by usage count → last sung → title.
+     *
+     * When search is active: all tokens must match somewhere across title, alternate title,
+     * authors, CCLI, or lyrics. Results are ordered in two buckets — title/alternate-title
+     * matches first, then everything else — each bucket sorted by usage then date then title.
      *
      * @return Builder<Song>
      */
-    public function query(string $range = self::RANGE_ALL): Builder
+    public function query(string $range = self::RANGE_ALL, string $search = ''): Builder
     {
         $normalizedRange = $this->normalizeRange($range);
+        $tokens = $this->tokenize($search);
 
         $query = Song::query()
             ->select(['songs.id', 'songs.slug', 'songs.title', 'songs.alternate_title', 'songs.ccli_number', 'songs.lyrics_plain'])
@@ -37,15 +46,20 @@ class PublicSongCatalogService
                 'authors' => fn ($q) => $q->select(['id', 'display_name'])->orderBy('display_name'),
             ])
             ->selectSub($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('COUNT(*)'), 'usage_count')
-            ->selectSub($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('MAX(church_services.date)'), 'last_sung_date')
-            ->orderByDesc('usage_count')
-            ->orderByDesc('last_sung_date')
-            ->orderBy('songs.title');
+            ->selectSub($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('MAX(church_services.date)'), 'last_sung_date');
 
-        // For the `year` range, only include songs with qualifying usage this year.
-        // For `all`, include the full catalogue (no whereExists constraint).
         if ($normalizedRange === self::RANGE_THIS_YEAR) {
             $query->whereExists($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('1'));
+        }
+
+        if ($tokens->isNotEmpty()) {
+            $this->applyTokenFilters($query, $tokens);
+            $this->applySearchOrdering($query, $tokens);
+        } else {
+            $query
+                ->orderByDesc('usage_count')
+                ->orderByDesc('last_sung_date')
+                ->orderBy('songs.title');
         }
 
         return $query;
@@ -56,6 +70,70 @@ class PublicSongCatalogService
         return $range === self::RANGE_THIS_YEAR
             ? self::RANGE_THIS_YEAR
             : self::RANGE_ALL;
+    }
+
+    /**
+     * Split a search string into distinct lowercase tokens, stripping empty parts.
+     *
+     * @return Collection<int, non-empty-string>
+     */
+    public function tokenize(string $search): Collection
+    {
+        /** @var list<string> $parts */
+        $parts = preg_split('/\s+/', mb_strtolower(trim($search))) ?: [];
+
+        return collect($parts)
+            ->filter(fn (string $t): bool => $t !== '')
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * Require every token to appear in at least one of: title, alternate title,
+     * author display name, CCLI number, or lyrics (fulltext).
+     *
+     * @param  Builder<Song>  $query
+     * @param  Collection<int, non-empty-string>  $tokens
+     */
+    private function applyTokenFilters(Builder $query, Collection $tokens): void
+    {
+        foreach ($tokens as $token) {
+            $escaped = $this->escapeLike($token);
+            $pattern = "%{$escaped}%";
+
+            $query->where(function (Builder $q) use ($pattern): void {
+                $q->where('songs.title', 'like', $pattern)
+                    ->orWhere('songs.alternate_title', 'like', $pattern)
+                    ->orWhere('songs.ccli_number', 'like', $pattern)
+                    ->orWhereHas('authors', fn (Builder $a) => $a->where('display_name', 'like', $pattern))
+                    ->orWhere('songs.lyrics_plain', 'like', $pattern);
+            });
+        }
+    }
+
+    /**
+     * Two-bucket ordering: title/alternate-title matches (bucket 0) before all others (bucket 1),
+     * then usage count → last sung → title within each bucket.
+     *
+     * @param  Builder<Song>  $query
+     * @param  Collection<int, non-empty-string>  $tokens
+     */
+    private function applySearchOrdering(Builder $query, Collection $tokens): void
+    {
+        // Build one LIKE pattern per token for the title-match bucket check.
+        // A song goes in bucket 0 if *any* token matches in title or alternate_title.
+        $titleConditions = $tokens->map(function (string $token): array {
+            return ['pattern' => '%'.$this->escapeLike($token).'%'];
+        });
+
+        $caseParts = $titleConditions->map(fn (array $t): string => 'songs.title LIKE ? OR songs.alternate_title LIKE ?')->implode(' OR ');
+
+        $bindings = $titleConditions->flatMap(fn (array $t): array => [$t['pattern'], $t['pattern']])->all();
+
+        $query->orderByRaw("CASE WHEN ({$caseParts}) THEN 0 ELSE 1 END", $bindings)
+            ->orderByDesc('usage_count')
+            ->orderByDesc('last_sung_date')
+            ->orderBy('songs.title');
     }
 
     /**

@@ -1,4 +1,7 @@
 <div>
+    <style>
+        mark { background-color: theme('colors.yellow.200'); padding: 0 0.1em; border-radius: 0.15em; font-style: normal; }
+    </style>
     {{-- Hero / filter bar --}}
     <section class="space-y-8">
         <div class="overflow-hidden rounded-2xl border border-cbc-teal/15 bg-[linear-gradient(135deg,rgba(36,154,151,0.12)_0%,rgba(29,104,106,0.08)_50%,rgba(20,85,87,0.16)_100%)] p-8 shadow-sm">
@@ -115,6 +118,17 @@
                             <p class="mt-4 text-xs uppercase tracking-[0.2em] text-gray-500">
                                 CCLI {{ $song->ccli_number }}
                             </p>
+                        @endif
+
+                        @if (!empty($snippetsBySongId[$song->id]))
+                            <div class="mt-4 rounded-xl border border-cbc-teal/20 bg-cbc-teal/5 p-4">
+                                <p class="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-cbc-teal-dark/75">Matching lyrics</p>
+                                <ul class="space-y-1" aria-label="Matching lyric lines">
+                                    @foreach ($snippetsBySongId[$song->id] as $snippet)
+                                        <li class="text-sm text-gray-700">{!! $snippet !!}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
                         @endif
 
                         <div class="mt-6">

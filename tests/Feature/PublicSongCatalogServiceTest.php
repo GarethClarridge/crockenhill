@@ -284,4 +284,90 @@ class PublicSongCatalogServiceTest extends TestCase
         $this->assertSame('all', $this->service->normalizeRange(null));
         $this->assertSame('all', $this->service->normalizeRange(''));
     }
+
+    // ── tokenize ──────────────────────────────────────────────────────────
+
+    #[Test]
+    public function tokenize_splits_on_whitespace_and_lowercases(): void
+    {
+        $tokens = $this->service->tokenize('Amazing Grace');
+
+        $this->assertSame(['amazing', 'grace'], $tokens->all());
+    }
+
+    #[Test]
+    public function tokenize_deduplicates_tokens(): void
+    {
+        $tokens = $this->service->tokenize('grace grace GRACE');
+
+        $this->assertSame(['grace'], $tokens->all());
+    }
+
+    #[Test]
+    public function tokenize_returns_empty_collection_for_blank_string(): void
+    {
+        $this->assertTrue($this->service->tokenize('')->isEmpty());
+        $this->assertTrue($this->service->tokenize('   ')->isEmpty());
+    }
+
+    // ── search filtering ──────────────────────────────────────────────────
+
+    #[Test]
+    public function search_matches_by_title(): void
+    {
+        $song = Song::factory()->create(['title' => 'Amazing Grace']);
+        Song::factory()->create(['title' => 'How Great Thou Art']);
+
+        $ids = $this->service->query('all', 'amazing')->pluck('id');
+
+        $this->assertTrue($ids->contains($song->id));
+        $this->assertFalse($ids->contains(Song::query()->where('title', 'How Great Thou Art')->value('id')));
+    }
+
+    #[Test]
+    public function search_matches_by_alternate_title(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'A Mighty Fortress',
+            'alternate_title' => 'Ein Feste Burg',
+        ]);
+
+        $ids = $this->service->query('all', 'feste')->pluck('id');
+
+        $this->assertTrue($ids->contains($song->id));
+    }
+
+    #[Test]
+    public function search_matches_by_ccli_number(): void
+    {
+        $song = Song::factory()->create(['ccli_number' => '1234567']);
+
+        $ids = $this->service->query('all', '1234567')->pluck('id');
+
+        $this->assertTrue($ids->contains($song->id));
+    }
+
+    #[Test]
+    public function search_requires_all_tokens_to_match(): void
+    {
+        $song = Song::factory()->create(['title' => 'Amazing Grace']);
+
+        // Both tokens present in title — should match.
+        $ids = $this->service->query('all', 'amazing grace')->pluck('id');
+        $this->assertTrue($ids->contains($song->id));
+
+        // Second token not in title or anywhere else — should not match.
+        $ids = $this->service->query('all', 'amazing xyzzy_nomatch')->pluck('id');
+        $this->assertFalse($ids->contains($song->id));
+    }
+
+    #[Test]
+    public function empty_search_returns_full_catalogue(): void
+    {
+        $song = Song::factory()->create(['title' => 'Any Song']);
+
+        $ids = $this->service->query('all', '')->pluck('id');
+
+        $this->assertTrue($ids->contains($song->id));
+    }
 }

@@ -198,4 +198,20 @@ class BrowseSongsTest extends TestCase
         Livewire::test(BrowseSongs::class)
             ->assertSee('Not yet sung');
     }
+
+    // ── search results ────────────────────────────────────────────────────
+
+    #[Test]
+    public function search_filters_results_to_matching_songs(): void
+    {
+        $this->actingAs($this->user);
+
+        Song::factory()->create(['title' => 'Amazing Grace']);
+        Song::factory()->create(['title' => 'How Great Thou Art']);
+
+        Livewire::test(BrowseSongs::class)
+            ->set('search', 'Amazing')
+            ->assertSee('Amazing Grace')
+            ->assertDontSee('How Great Thou Art');
+    }
 }
