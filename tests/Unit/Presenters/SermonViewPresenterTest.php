@@ -182,4 +182,60 @@ class SermonViewPresenterTest extends TestCase
 
         $this->assertStringContainsString('/storage/sermons/test.mp4', $presented['video_url'] ?? '');
     }
+
+    #[Test]
+    public function formatted_duration_returns_null_when_duration_is_null(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => null]);
+
+        $this->assertNull($this->presenter->formattedDuration($sermon));
+    }
+
+    #[Test]
+    public function formatted_duration_returns_null_when_duration_is_zero(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => 0]);
+
+        $this->assertNull($this->presenter->formattedDuration($sermon));
+    }
+
+    #[Test]
+    public function formatted_duration_returns_null_when_duration_is_negative(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => -60]);
+
+        $this->assertNull($this->presenter->formattedDuration($sermon));
+    }
+
+    #[Test]
+    public function formatted_duration_formats_minutes_only(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => 1800]); // 30 minutes
+
+        $this->assertSame('30m', $this->presenter->formattedDuration($sermon));
+    }
+
+    #[Test]
+    public function formatted_duration_formats_hours_and_minutes(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => 5400]); // 1h 30m
+
+        $this->assertSame('1h 30m', $this->presenter->formattedDuration($sermon));
+    }
+
+    #[Test]
+    public function formatted_duration_handles_exactly_one_hour(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => 3600]); // 1h 0m
+
+        $this->assertSame('1h 0m', $this->presenter->formattedDuration($sermon));
+    }
+
+    #[Test]
+    public function formatted_duration_handles_sub_minute_duration(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => 45]); // 0m 45s → 0m
+
+        $this->assertSame('0m', $this->presenter->formattedDuration($sermon));
+    }
 }

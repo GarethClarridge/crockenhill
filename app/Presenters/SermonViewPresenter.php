@@ -37,10 +37,10 @@ class SermonViewPresenter
         $minutes = floor(($seconds % 3600) / 60);
 
         if ($hours > 0) {
-            return $hours . 'h ' . $minutes . ' mins';
+            return "{$hours}h {$minutes}m";
         }
 
-        return $minutes.' mins';
+        return "{$minutes}m";
     }
 
     /**
