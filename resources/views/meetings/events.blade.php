@@ -27,7 +27,7 @@
             'item' => [
                 '@type' => 'Event',
                 'name' => $event->title,
-                'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? 'Church event at Crockenhill Baptist Church'), 150),
+                'description' => \Illuminate\Support\Str::limit(strip_tags((string) ($event->description ?? 'Church event at Crockenhill Baptist Church')), 150),
                 'startDate' => $event->start_datetime->toIso8601String(),
                 'location' => [
                     '@type' => 'Place',
@@ -65,7 +65,7 @@
 
 <div class="prose max-w-none mb-8">
   <p>All events for <strong>{{ $meeting->heading ?? $meeting->slug }}</strong> from our calendar.</p>
-  <p><a href="/community/{{ $meeting->slug }}" wire:navigate class="text-blue-600 hover:underline">&larr; Back to {{ $meeting->heading ?? $meeting->slug }}</a></p>
+  <p><a href="{{ route('meetings.show', $meeting) }}" wire:navigate class="text-blue-600 hover:underline">&larr; Back to {{ $meeting->heading }}</a></p>
 </div>
 
 @if($events->count() > 0)
