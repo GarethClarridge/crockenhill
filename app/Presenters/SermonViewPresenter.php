@@ -127,7 +127,7 @@ class SermonViewPresenter
 
     public function preacherUrl(Sermon $sermon): ?string
     {
-        $preacherKey = (string) ($sermon->preacher_id ?? Str::slug($sermon->displayPreacherName() ?? ''));
+        $preacherKey = (string) ($sermon->preacher_id ?? Str::slug($this->displayPreacherName($sermon) ?? ''));
 
         if ($preacherKey === '') {
             return null;

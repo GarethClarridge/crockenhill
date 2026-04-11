@@ -13,6 +13,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Models\SongAuthor;
 use App\Services\PublicSongCatalogService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
@@ -343,6 +344,18 @@ class PublicSongCatalogServiceTest extends TestCase
         $song = Song::factory()->create(['ccli_number' => '1234567']);
 
         $ids = $this->service->query('all', '1234567')->pluck('id');
+
+        $this->assertTrue($ids->contains($song->id));
+    }
+
+    #[Test]
+    public function search_matches_by_author(): void
+    {
+        $author = SongAuthor::factory()->create(['display_name' => 'Charles Wesley']);
+        $song = Song::factory()->create(['title' => 'O for a Thousand Tongues']);
+        $song->authors()->attach($author->id);
+
+        $ids = $this->service->query('all', 'Wesley')->pluck('id');
 
         $this->assertTrue($ids->contains($song->id));
     }

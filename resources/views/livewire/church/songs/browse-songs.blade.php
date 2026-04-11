@@ -58,24 +58,30 @@
             </div>
         </div>
 
-        {{-- Empty state --}}
-        @if ($songs->isEmpty())
-            @if ($search !== '')
-                <x-card heading="No songs match your search">
-                    <p>Try different words, or clear the search to browse the full catalogue.</p>
-                </x-card>
-            @else
-                <x-card heading="No songs sung this year yet">
-                    <p>We do not have any worship song usage to show for this year yet. Switch to <strong>All time</strong> to browse the full catalogue.</p>
-                </x-card>
-            @endif
-        @endif
     </section>
 
-    {{-- Song grid --}}
-    @if ($songs->isNotEmpty())
-        <section class="px-6 pb-10 pt-8" wire:loading.class="opacity-60" wire:target="search, range">
-            <div class="mx-auto grid max-w-2xl grid-cols-1 gap-6 sm:max-w-5xl sm:grid-cols-2 xl:max-w-7xl xl:grid-cols-3">
+    {{-- Results area: loading wrapper covers both empty states and grid --}}
+    <div wire:loading.class="opacity-60 pointer-events-none" wire:target="search, range">
+
+        {{-- Empty state --}}
+        @if ($songs->isEmpty())
+            <section class="pt-6">
+                @if ($search !== '')
+                    <x-card heading="No songs match your search">
+                        <p>Try different words, or clear the search to browse the full catalogue.</p>
+                    </x-card>
+                @else
+                    <x-card heading="No songs sung this year yet">
+                        <p>We do not have any worship song usage to show for this year yet. Switch to <strong>All time</strong> to browse the full catalogue.</p>
+                    </x-card>
+                @endif
+            </section>
+        @endif
+
+        {{-- Song grid --}}
+        @if ($songs->isNotEmpty())
+            <section class="px-6 pb-10 pt-8">
+                <div class="mx-auto grid max-w-2xl grid-cols-1 gap-6 sm:max-w-5xl sm:grid-cols-2 xl:max-w-7xl xl:grid-cols-3">
                 @foreach ($songs as $song)
                     <article wire:key="song-{{ $song->id }}" class="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                         <div class="flex items-start justify-between gap-4">
@@ -136,13 +142,15 @@
                         </div>
                     </article>
                 @endforeach
-            </div>
-
-            @if ($songs->hasPages())
-                <div class="mx-auto mt-8 max-w-2xl">
-                    {{ $songs->links() }}
                 </div>
-            @endif
-        </section>
-    @endif
+
+                @if ($songs->hasPages())
+                    <div class="mx-auto mt-8 max-w-2xl">
+                        {{ $songs->links() }}
+                    </div>
+                @endif
+            </section>
+        @endif
+
+    </div>{{-- end wire:loading wrapper --}}
 </div>
