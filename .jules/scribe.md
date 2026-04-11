@@ -37,3 +37,7 @@
 ## 2026-04-09 - [S3 Disk Mocking Gotcha]
 **Learning:** `AwsS3V3Adapter` constructor enforces that the bucket name is a string. Setting it to `null` in `config()` during tests (even if mocking local disks) can cause a `TypeError` if the S3 disk is instantiated by Laravel's filesystem manager during a request cycle.
 **Action:** Always provide a dummy string (e.g., 'fake-bucket') for the bucket configuration when testing components that might trigger disk resolution, even if the test is intended to exercise a different disk.
+
+## 2026-05-15 - [Testing Admin Actions and Password Complexity]
+**Learning:** Admin user management tests must account for strict `Password::defaults()` (12+ chars, letters, numbers, symbols, uncompromised). Using `Log::shouldReceive` is an effective way to verify that critical administrative actions (deletions, permission changes) are being audited as required.
+**Action:** Use complex strings (e.g., `C0mplex_Passw0rd!`) for test passwords to avoid validation failures. Mock `Log` to assert that `Log::warning` is called with correct metadata for audit trails.
