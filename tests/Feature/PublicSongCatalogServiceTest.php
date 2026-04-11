@@ -142,15 +142,15 @@ class PublicSongCatalogServiceTest extends TestCase
         $this->assertLessThan($unusedPos, $lowPos);
     }
 
-    // ── year range ────────────────────────────────────────────────────────
+    // ── recent range (last 3 years) ───────────────────────────────────────
 
     #[Test]
-    public function year_range_excludes_songs_not_sung_this_year(): void
+    public function recent_range_excludes_songs_not_sung_in_last_3_years(): void
     {
         $oldSong = Song::factory()->create(['title' => 'Old Song']);
 
         $service = ChurchService::factory()->create([
-            'date' => '2024-06-01',
+            'date' => now()->subYears(4)->format('Y-m-d'),
             'service' => SermonService::MORNING,
         ]);
 
@@ -160,28 +160,28 @@ class PublicSongCatalogServiceTest extends TestCase
             'song_id' => $oldSong->id,
         ]);
 
-        $ids = $this->service->query('year')->pluck('id');
+        $ids = $this->service->query('recent')->pluck('id');
 
         $this->assertFalse($ids->contains($oldSong->id));
     }
 
     #[Test]
-    public function year_range_excludes_songs_with_zero_usage(): void
+    public function recent_range_excludes_songs_with_zero_usage(): void
     {
-        $song = Song::factory()->create(['title' => 'Zero Usage This Year']);
+        $song = Song::factory()->create(['title' => 'Zero Usage Recent']);
 
-        $ids = $this->service->query('year')->pluck('id');
+        $ids = $this->service->query('recent')->pluck('id');
 
         $this->assertFalse($ids->contains($song->id));
     }
 
     #[Test]
-    public function year_range_includes_songs_sung_this_year(): void
+    public function recent_range_includes_songs_sung_within_last_3_years(): void
     {
-        $song = Song::factory()->create(['title' => 'This Year Song']);
+        $song = Song::factory()->create(['title' => 'Recent Song']);
 
         $churchService = ChurchService::factory()->create([
-            'date' => now()->format('Y-01-20'),
+            'date' => now()->subYear()->format('Y-m-d'),
             'service' => SermonService::MORNING,
         ]);
 
@@ -191,17 +191,20 @@ class PublicSongCatalogServiceTest extends TestCase
             'song_id' => $song->id,
         ]);
 
-        $ids = $this->service->query('year')->pluck('id');
+        $ids = $this->service->query('recent')->pluck('id');
 
         $this->assertTrue($ids->contains($song->id));
     }
 
     #[Test]
-    public function year_range_counts_only_this_years_usage(): void
+    public function recent_range_counts_only_last_3_years_usage(): void
     {
-        $song = Song::factory()->create(['title' => 'Dual Year Song']);
+        $song = Song::factory()->create(['title' => 'Dual Period Song']);
 
-        foreach ([now()->format('Y-03-01'), '2025-03-01'] as $date) {
+        $recentDate = now()->subYear()->format('Y-m-d');
+        $oldDate = now()->subYears(4)->format('Y-m-d');
+
+        foreach ([$recentDate, $oldDate] as $date) {
             $churchService = ChurchService::factory()->create([
                 'date' => $date,
                 'service' => SermonService::MORNING,
@@ -214,11 +217,11 @@ class PublicSongCatalogServiceTest extends TestCase
             ]);
         }
 
-        $result = $this->service->query('year')->firstWhere('id', $song->id);
+        $result = $this->service->query('recent')->firstWhere('id', $song->id);
 
         $this->assertNotNull($result);
         $this->assertSame(1, (int) $result->usage_count);
-        $this->assertSame(now()->format('Y-03-01'), (string) $result->last_sung_date);
+        $this->assertSame($recentDate, (string) $result->last_sung_date);
     }
 
     // ── livestream policy ─────────────────────────────────────────────────
@@ -273,9 +276,9 @@ class PublicSongCatalogServiceTest extends TestCase
     // ── normalizeRange ────────────────────────────────────────────────────
 
     #[Test]
-    public function normalize_range_returns_year_for_year_input(): void
+    public function normalize_range_returns_recent_for_recent_input(): void
     {
-        $this->assertSame('year', $this->service->normalizeRange('year'));
+        $this->assertSame('recent', $this->service->normalizeRange('recent'));
     }
 
     #[Test]

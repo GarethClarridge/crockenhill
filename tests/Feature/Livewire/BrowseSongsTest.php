@@ -51,47 +51,57 @@ class BrowseSongsTest extends TestCase
     // ── default state ─────────────────────────────────────────────────────
 
     #[Test]
-    public function default_state_shows_full_catalogue_including_zero_usage_songs(): void
+    public function all_range_shows_full_catalogue_including_zero_usage_songs(): void
     {
         $this->actingAs($this->user);
 
         $unsung = Song::factory()->create(['title' => 'Never Sung Hymn']);
 
         Livewire::test(BrowseSongs::class)
+            ->set('range', PublicSongCatalogService::RANGE_ALL)
             ->assertSee('Never Sung Hymn');
     }
 
     #[Test]
-    public function default_range_is_all(): void
+    public function default_range_is_recent(): void
     {
         $this->actingAs($this->user);
 
         Livewire::test(BrowseSongs::class)
-            ->assertSet('range', PublicSongCatalogService::RANGE_ALL);
+            ->assertSet('range', PublicSongCatalogService::RANGE_RECENT);
     }
 
     // ── range filter ──────────────────────────────────────────────────────
 
     #[Test]
-    public function year_range_hides_songs_not_sung_this_year(): void
+    public function recent_range_hides_songs_not_sung_in_last_3_years(): void
     {
         $this->actingAs($this->user);
 
-        $unsung = Song::factory()->create(['title' => 'Not Sung This Year']);
+        $oldSong = Song::factory()->create(['title' => 'Not Sung Recently']);
+        $churchService = ChurchService::factory()->create([
+            'date' => now()->subYears(4)->format('Y-m-d'),
+            'service' => SermonService::MORNING,
+        ]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $oldSong->id,
+        ]);
 
         Livewire::test(BrowseSongs::class)
-            ->set('range', PublicSongCatalogService::RANGE_THIS_YEAR)
-            ->assertDontSee('Not Sung This Year');
+            ->set('range', PublicSongCatalogService::RANGE_RECENT)
+            ->assertDontSee('Not Sung Recently');
     }
 
     #[Test]
-    public function year_range_shows_songs_sung_this_year(): void
+    public function recent_range_shows_songs_sung_within_last_3_years(): void
     {
         $this->actingAs($this->user);
 
-        $song = Song::factory()->create(['title' => 'Sung This Year']);
+        $song = Song::factory()->create(['title' => 'Sung Recently']);
         $churchService = ChurchService::factory()->create([
-            'date' => now()->format('Y-01-15'),
+            'date' => now()->subYear()->format('Y-m-d'),
             'service' => SermonService::MORNING,
         ]);
         ChurchServiceItem::factory()->create([
@@ -101,8 +111,8 @@ class BrowseSongsTest extends TestCase
         ]);
 
         Livewire::test(BrowseSongs::class)
-            ->set('range', PublicSongCatalogService::RANGE_THIS_YEAR)
-            ->assertSee('Sung This Year');
+            ->set('range', PublicSongCatalogService::RANGE_RECENT)
+            ->assertSee('Sung Recently');
     }
 
     #[Test]
@@ -112,7 +122,7 @@ class BrowseSongsTest extends TestCase
 
         Livewire::test(BrowseSongs::class)
             ->set('paginators.page', 2)
-            ->set('range', PublicSongCatalogService::RANGE_THIS_YEAR)
+            ->set('range', PublicSongCatalogService::RANGE_RECENT)
             ->assertSet('paginators.page', 1);
     }
 
@@ -156,9 +166,9 @@ class BrowseSongsTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        Livewire::withQueryParams(['range' => 'year'])
+        Livewire::withQueryParams(['range' => 'recent'])
             ->test(BrowseSongs::class)
-            ->assertSet('range', 'year');
+            ->assertSet('range', 'recent');
     }
 
     // ── empty states ──────────────────────────────────────────────────────
@@ -174,16 +184,16 @@ class BrowseSongsTest extends TestCase
     }
 
     #[Test]
-    public function year_range_with_no_songs_shows_year_empty_state(): void
+    public function recent_range_with_no_songs_shows_recent_empty_state(): void
     {
         $this->actingAs($this->user);
 
-        // Delete all songs to guarantee empty year results
+        // Delete all songs to guarantee empty recent results
         Song::query()->delete();
 
         Livewire::test(BrowseSongs::class)
-            ->set('range', PublicSongCatalogService::RANGE_THIS_YEAR)
-            ->assertSee('No songs sung this year yet');
+            ->set('range', PublicSongCatalogService::RANGE_RECENT)
+            ->assertSee('No songs sung in the last 3 years');
     }
 
     // ── zero-usage copy ───────────────────────────────────────────────────
@@ -196,6 +206,7 @@ class BrowseSongsTest extends TestCase
         Song::factory()->create(['title' => 'Unsung Song']);
 
         Livewire::test(BrowseSongs::class)
+            ->set('range', PublicSongCatalogService::RANGE_ALL)
             ->assertSee('Not yet sung');
     }
 
@@ -210,6 +221,7 @@ class BrowseSongsTest extends TestCase
         Song::factory()->create(['title' => 'How Great Thou Art']);
 
         Livewire::test(BrowseSongs::class)
+            ->set('range', PublicSongCatalogService::RANGE_ALL)
             ->set('search', 'Amazing')
             ->assertSee('Amazing Grace')
             ->assertDontSee('How Great Thou Art');

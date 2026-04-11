@@ -19,8 +19,8 @@ class BrowseSongs extends Component
     #[Url(as: 'q', except: '')]
     public string $search = '';
 
-    #[Url(except: 'all')]
-    public string $range = PublicSongCatalogService::RANGE_ALL;
+    #[Url(except: 'recent')]
+    public string $range = PublicSongCatalogService::RANGE_RECENT;
 
     public function updatedSearch(): void
     {

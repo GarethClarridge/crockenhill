@@ -21,7 +21,7 @@ class PublicSongCatalogService
 
     public const RANGE_ALL = 'all';
 
-    public const RANGE_THIS_YEAR = 'year';
+    public const RANGE_RECENT = 'recent';
 
     /**
      * Build the catalogue query, optionally filtered and ordered by search.
@@ -44,11 +44,12 @@ class PublicSongCatalogService
             ->select(['songs.id', 'songs.slug', 'songs.title', 'songs.alternate_title', 'songs.ccli_number', 'songs.lyrics_plain'])
             ->with([
                 'authors' => fn ($q) => $q->select(['id', 'display_name'])->orderBy('display_name'),
+                'books' => fn ($q) => $q->select(['song_books.id', 'song_books.name'])->orderBy('song_books.name'),
             ])
             ->selectSub($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('COUNT(*)'), 'usage_count')
             ->selectSub($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('MAX(church_services.date)'), 'last_sung_date');
 
-        if ($normalizedRange === self::RANGE_THIS_YEAR) {
+        if ($normalizedRange === self::RANGE_RECENT) {
             $query->whereExists($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('1'));
         }
 
@@ -67,8 +68,8 @@ class PublicSongCatalogService
 
     public function normalizeRange(?string $range): string
     {
-        return $range === self::RANGE_THIS_YEAR
-            ? self::RANGE_THIS_YEAR
+        return $range === self::RANGE_RECENT
+            ? self::RANGE_RECENT
             : self::RANGE_ALL;
     }
 
@@ -154,8 +155,8 @@ class PublicSongCatalogService
             ->where('church_service_items.type', 'songs')
             ->whereColumn('church_service_items.song_id', 'songs.id')
             ->when(
-                $range === self::RANGE_THIS_YEAR,
-                fn (Builder $q): Builder => $q->whereYear('church_services.date', now()->year)
+                $range === self::RANGE_RECENT,
+                fn (Builder $q): Builder => $q->where('church_services.date', '>=', now()->subYears(3)->startOfDay())
             )
             ->where(function (Builder $q): void {
                 // Phase 6.1 policy: when a completed livestream processing log exists for a service,
