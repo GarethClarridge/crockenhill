@@ -11,6 +11,7 @@ use App\Services\PublicMeetingReadModelCache;
 use App\Services\PublicPageVisibilityGuard;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\View;
@@ -97,6 +98,12 @@ class MeetingController extends Controller
     public function destroy(Meeting $meeting): RedirectResponse
     {
         $this->authorize('delete', $meeting);
+
+        Log::warning('Meeting deleted by admin', [
+            'admin_id' => auth()->id(),
+            'meeting_id' => $meeting->id,
+            'slug' => $meeting->slug,
+        ]);
 
         $meetingSlug = $meeting->slug;
         $meeting->delete();

@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -94,6 +95,12 @@ class ShowChurchService extends Component
             return;
         }
 
+        Log::warning('Media processing run reclassification requested by admin', [
+            'admin_id' => auth()->id(),
+            'processing_log_id' => $processingLogId,
+            'church_service_id' => $this->churchService->id,
+        ]);
+
         // Resolve on demand because Livewire serializes component state between requests.
         app(\App\Services\ProcessingRunOrchestrator::class)->reclassify($processingLog);
 
@@ -133,6 +140,12 @@ class ShowChurchService extends Component
 
             return null;
         }
+
+        Log::warning('Media processing log deleted by admin', [
+            'admin_id' => auth()->id(),
+            'processing_log_id' => $processingLogId,
+            'church_service_id' => $this->churchService->id,
+        ]);
 
         try {
             $result = app(DeleteLivestreamUpload::class)->execute($processingLog);

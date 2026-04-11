@@ -10,6 +10,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
 use App\Traits\EscapesLikeWildcards;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -67,6 +68,12 @@ class ListPreachers extends Component
     {
 
         $this->authorizeAdmin();
+
+        Log::warning('Preacher deleted by admin', [
+            'admin_id' => auth()->id(),
+            'preacher_id' => $preacher->id,
+            'name' => $preacher->name,
+        ]);
 
         $preacher->delete();
 

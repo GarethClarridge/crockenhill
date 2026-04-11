@@ -14,6 +14,7 @@ use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -117,6 +118,12 @@ class ListSermons extends Component
     {
 
         $this->authorizeAdmin();
+
+        Log::warning('Sermon deleted by admin', [
+            'admin_id' => auth()->id(),
+            'sermon_id' => $sermon->id,
+            'title' => $sermon->title,
+        ]);
 
         $sermon->delete();
 
