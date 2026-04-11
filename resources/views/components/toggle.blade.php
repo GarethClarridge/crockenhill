@@ -19,7 +19,7 @@
             @click="checked = !checked"
             wire:loading.attr="disabled"
             wire:target="{{ $modelName }}"
-            {{ $attributes->merge(['class' => 'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed']) }}
+            {{ $attributes->merge(['class' => 'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed']) }}
             :class="checked ? 'bg-cbc-teal' : 'bg-gray-200'">
             <span :class="checked ? 'translate-x-5' : 'translate-x-0'"
                 class="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out">
@@ -38,7 +38,7 @@
             x-data="{ checked: {{ $checked ? 'true' : 'false' }} }"
             :aria-checked="checked"
             @click="checked = !checked"
-            {{ $attributes->except(['name', 'checked'])->merge(['class' => 'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed']) }}
+            {{ $attributes->except(['name', 'checked'])->merge(['class' => 'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed']) }}
             :class="checked ? 'bg-cbc-teal' : 'bg-gray-200'">
             <span :class="checked ? 'translate-x-5' : 'translate-x-0'"
                 class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>

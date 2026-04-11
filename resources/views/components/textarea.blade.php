@@ -28,6 +28,7 @@ $describedBy = implode(' ', $describedBy);
             @input="count = $el.value.length"
             {{ $attributes->merge(['rows' => 3, 'class' => $textareaClasses]) }}
             @if($maxlength) maxlength="{{ $maxlength }}" @endif
+            @if(!$label && $attributes->get('placeholder')) aria-label="{{ $attributes->get('placeholder') }}" @endif
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
         >{{ $slot }}</textarea>
