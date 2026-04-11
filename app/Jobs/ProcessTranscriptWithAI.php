@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Actions\QueueScriptureEnrichment;
@@ -33,7 +35,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        private MediaProcessingLog $processingLog,
+        private readonly MediaProcessingLog $processingLog,
     ) {}
 
     /**
