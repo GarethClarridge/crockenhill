@@ -9,10 +9,11 @@
      */
     $presenter = app(\App\Presenters\SermonViewPresenter::class);
     $sermonUrl = $presenter->canonicalUrl($sermon);
-    $cardThumbnailUrl = $presenter->cardThumbnailUrl($sermon);
+    $cardThumbnailUrl = $presenter->plainThumbnailUrl($sermon);
     $preacherName = $sermon->displayPreacherName();
     $reference = $sermon->displayReference();
     $preacherUrl = $presenter->preacherUrl($sermon);
+    $formattedDuration = $presenter->formattedDuration($sermon);
 @endphp
 
 <div class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -49,7 +50,15 @@
       @if ($sermon->service != null)
       <li class="flex items-center">
         <x-heroicon-o-clock class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
-        {{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}
+        <span class="flex-1">
+          {{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}
+        </span>
+        @if ($formattedDuration)
+          <span class="flex items-center text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 ml-2" title="Sermon duration">
+            <x-heroicon-o-play-circle class="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+            {{ $formattedDuration }}
+          </span>
+        @endif
       </li>
       @endif
       @if ($preacherName != null)

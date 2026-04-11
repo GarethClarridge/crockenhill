@@ -41,6 +41,7 @@ class SermonResource extends JsonResource
             'points' => $this->when($this->show_points, fn (): ?array => $this->points),
             'audio_url' => $sermonView['audio_url'],
             'video_url' => $sermonView['video_url'],
+            'formatted_duration' => $sermonView['formatted_duration'],
             'thumbnail_url' => $sermonView['thumbnail_url'],
             'thumbnail_metadata' => $this->publicThumbnailMetadata(),
             'series_url' => $this->series_url,
@@ -52,6 +53,7 @@ class SermonResource extends JsonResource
      * @return array{
      *     audio_url: ?string,
      *     canonical_url: string,
+     *     formatted_duration: ?string,
      *     preacher_url: ?string,
      *     public_url: string,
      *     thumbnail_url: ?string,
@@ -70,6 +72,7 @@ class SermonResource extends JsonResource
         /** @var array{
          *     audio_url: ?string,
          *     canonical_url: string,
+         *     formatted_duration: ?string,
          *     preacher_url: ?string,
          *     public_url: string,
          *     thumbnail_url: ?string,
