@@ -13,6 +13,8 @@
   description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church."
 />
 
+<x-breadcrumbs area="" heading="Christ" jsonOnly />
+
 <x-schema.faq :questions="[
     [
         'question' => 'Who is Jesus?',
