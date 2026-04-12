@@ -41,3 +41,7 @@
 ## 2026-05-15 - [Testing Admin Actions and Password Complexity]
 **Learning:** Admin user management tests must account for strict `Password::defaults()` (12+ chars, letters, numbers, symbols, uncompromised). Using `Log::shouldReceive` is an effective way to verify that critical administrative actions (deletions, permission changes) are being audited as required.
 **Action:** Use complex strings (e.g., `C0mplex_Passw0rd!`) for test passwords to avoid validation failures. Mock `Log` to assert that `Log::warning` is called with correct metadata for audit trails.
+
+## 2026-04-12 - [Sermon Model Testing Invariants]
+**Learning:** The `sermons` table has several `NOT NULL` columns with database-level defaults (`video_quality_status`, `video_visibility_override`). When writing tests, avoid passing `null` for these columns as it triggers integrity violations; use explicit enum values. Additionally, `ThumbnailMetadata` object verification requires specific keys (`id`, `timestamp`, `score`, `plain_path`) in each candidate to satisfy the `ThumbnailMetadata::candidateList()` parser.
+**Action:** Ensure sermon test factories or explicit `create()` calls provide valid enum values for status columns and properly structured arrays for metadata fields.
