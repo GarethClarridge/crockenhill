@@ -47,6 +47,7 @@ class SermonControllerTest extends TestCase
     {
         Sermon::factory()->create([
             'title' => 'Grace Alone',
+            'date' => now(),
             'content_type' => SermonContentType::Sermon,
         ]);
 
@@ -69,6 +70,7 @@ class SermonControllerTest extends TestCase
     {
         Sermon::factory()->create([
             'title' => 'All Sermons Title',
+            'date' => now(),
             'content_type' => SermonContentType::Sermon,
         ]);
 
