@@ -100,6 +100,11 @@ class AuditLoggingTest extends TestCase
         Log::spy();
         $pages = Page::factory()->count(3)->create();
         $ids = $pages->pluck('id')->all();
+        $descriptivePages = $pages->map(fn (Page $p) => [
+            'id' => $p->id,
+            'heading' => $p->heading,
+            'slug' => $p->slug,
+        ])->all();
 
         Livewire::actingAs($this->admin)
             ->test(ListPages::class)
@@ -112,7 +117,7 @@ class AuditLoggingTest extends TestCase
 
         Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Pages deleted by admin (batch)' &&
             $context['admin_id'] === $this->admin->id &&
-            $context['page_ids'] === $ids
+            $context['pages'] === $descriptivePages
         );
     }
 
