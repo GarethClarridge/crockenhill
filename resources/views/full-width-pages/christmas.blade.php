@@ -16,7 +16,7 @@
     :image="asset('/images/homepage/christmas2023.webp')"
 />
 
-<x-breadcrumbs area="" heading="Christmas" jsonOnly />
+<x-breadcrumbs area="christ" heading="Christmas" jsonOnly />
 
 @php
     $events = [
