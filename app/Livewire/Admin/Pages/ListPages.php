@@ -93,15 +93,31 @@ class ListPages extends Component
 
     public function deleteSelected(): void
     {
-
         $this->authorizeAdmin();
+
+        if (empty($this->selected)) {
+            return;
+        }
+
+        $pages = Page::whereIn('id', $this->selected)->get();
+
+        if ($pages->isEmpty()) {
+            $this->selected = [];
+
+            return;
+        }
 
         Log::warning('Pages deleted by admin (batch)', [
             'admin_id' => auth()->id(),
-            'page_ids' => $this->selected,
+            'pages' => $pages->map(fn (Page $page) => [
+                'id' => $page->id,
+                'heading' => $page->heading,
+                'slug' => $page->slug,
+            ])->all(),
         ]);
 
-        Page::whereIn('id', $this->selected)->delete();
+        $pages->each->delete();
+
         $this->selected = [];
         $this->success('Pages deleted');
     }
