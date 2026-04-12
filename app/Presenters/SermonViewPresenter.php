@@ -48,11 +48,6 @@ class SermonViewPresenter
      */
     private array $memoizedPresents = [];
 
-    /**
-     * @var array<int, int>
-     */
-    private array $memoizedTimestamps = [];
-
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
@@ -101,7 +96,6 @@ class SermonViewPresenter
         $this->memoizedReferences = [];
         $this->memoizedDurations = [];
         $this->memoizedPresents = [];
-        $this->memoizedTimestamps = [];
     }
 
     public function audioUrl(Sermon $sermon): ?string
@@ -305,7 +299,7 @@ class SermonViewPresenter
      */
     public function displayPreacherName(Sermon $sermon): ?string
     {
-        $key = (string) $sermon->id;
+        $key = $this->cacheKey($sermon, 'name');
 
         if (array_key_exists($key, $this->memoizedPreacherNames)) {
             return $this->memoizedPreacherNames[$key];
@@ -328,7 +322,7 @@ class SermonViewPresenter
      */
     public function displayReference(Sermon $sermon): ?string
     {
-        $key = (string) $sermon->id;
+        $key = $this->cacheKey($sermon, 'ref');
 
         if (array_key_exists($key, $this->memoizedReferences)) {
             return $this->memoizedReferences[$key];
@@ -407,13 +401,10 @@ class SermonViewPresenter
 
     /**
      * Generate a cache key for the given sermon and type.
-     *
-     * Performance Optimization: Memoizes sermon timestamps to avoid
-     * redundant Carbon object accesses in tight loops (e.g. sitemaps).
      */
     private function cacheKey(Sermon $sermon, string $type): string
     {
-        $timestamp = $this->memoizedTimestamps[$sermon->id] ??= ($sermon->updated_at?->getTimestamp() ?? 0);
+        $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
 
         return "{$type}_{$sermon->id}_{$timestamp}";
     }
