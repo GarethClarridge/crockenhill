@@ -13,10 +13,20 @@ class SermonSitemapPresenter
         private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
 
+    /**
+     * Convert a sermon to a sitemap tag.
+     *
+     * Performance Optimization: Replaces expensive Carbon diffInDays call with
+     * simple timestamp math to determine priority and change frequency.
+     */
     public function toSitemapTag(Sermon $sermon, ?\Carbon\CarbonInterface $now = null): Url
     {
-        $now ??= now();
-        $daysOld = (int) abs($now->diffInDays($sermon->date, false));
+        $nowTimestamp = $now?->getTimestamp() ?? time();
+        $sermonTimestamp = $sermon->date->getTimestamp();
+
+        $secondsOld = abs($nowTimestamp - $sermonTimestamp);
+        $daysOld = (int) floor($secondsOld / 86400);
+
         $priority = $daysOld < 30 ? 0.8 : 0.6;
         $changeFreq = $daysOld < 365 ? Url::CHANGE_FREQUENCY_MONTHLY : Url::CHANGE_FREQUENCY_YEARLY;
 

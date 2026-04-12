@@ -28,6 +28,26 @@ class SermonViewPresenter
      */
     private array $memoizedSeriesUrls = [];
 
+    /**
+     * @var array<int|string, ?string>
+     */
+    private array $memoizedPreacherNames = [];
+
+    /**
+     * @var array<int|string, ?string>
+     */
+    private array $memoizedReferences = [];
+
+    /**
+     * @var array<int|string, ?string>
+     */
+    private array $memoizedDurations = [];
+
+    /**
+     * @var array<string, array<string, mixed>>
+     */
+    private array $memoizedPresents = [];
+
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
@@ -36,11 +56,20 @@ class SermonViewPresenter
 
     /**
      * Get the human-friendly formatted duration of the sermon.
+     *
+     * Performance Optimization: Memoizes duration formatting results
+     * to avoid redundant calculations across multiple views and components.
      */
     public function formattedDuration(Sermon $sermon): ?string
     {
+        $key = $this->cacheKey($sermon, 'duration');
+
+        if (array_key_exists($key, $this->memoizedDurations)) {
+            return $this->memoizedDurations[$key];
+        }
+
         if ($sermon->duration === null || $sermon->duration <= 0) {
-            return null;
+            return $this->memoizedDurations[$key] = null;
         }
 
         $seconds = (int) $sermon->duration;
@@ -48,10 +77,10 @@ class SermonViewPresenter
         $minutes = floor(($seconds % 3600) / 60);
 
         if ($hours > 0) {
-            return "{$hours}h {$minutes}m";
+            return $this->memoizedDurations[$key] = "{$hours}h {$minutes}m";
         }
 
-        return "{$minutes}m";
+        return $this->memoizedDurations[$key] = "{$minutes}m";
     }
 
     /**
@@ -63,6 +92,10 @@ class SermonViewPresenter
         $this->memoizedUrls = [];
         $this->memoizedPreacherUrls = [];
         $this->memoizedSeriesUrls = [];
+        $this->memoizedPreacherNames = [];
+        $this->memoizedReferences = [];
+        $this->memoizedDurations = [];
+        $this->memoizedPresents = [];
     }
 
     public function audioUrl(Sermon $sermon): ?string
@@ -127,7 +160,9 @@ class SermonViewPresenter
 
     public function preacherUrl(Sermon $sermon): ?string
     {
-        $preacherKey = (string) ($sermon->preacher_id ?? Str::slug($this->displayPreacherName($sermon) ?? ''));
+        $preacherKey = $sermon->preacher_id !== null
+            ? "id_{$sermon->preacher_id}"
+            : (string) $this->displayPreacherName($sermon);
 
         if ($preacherKey === '') {
             return null;
@@ -182,7 +217,10 @@ class SermonViewPresenter
      */
     public function presentForApi(Sermon $sermon): array
     {
-        return [
+        $key = $this->cacheKey($sermon, 'api_present');
+
+        /** @var array{audio_url: ?string, formatted_duration: ?string, preacher_url: ?string, thumbnail_url: ?string, video_url: ?string} */
+        return $this->memoizedPresents[$key] ??= [
             'audio_url' => $this->audioUrl($sermon),
             'formatted_duration' => $this->formattedDuration($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
@@ -206,7 +244,10 @@ class SermonViewPresenter
      */
     public function present(Sermon $sermon): array
     {
-        return [
+        $key = $this->cacheKey($sermon, 'full_present');
+
+        /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, formatted_duration: ?string, preacher_url: ?string, public_url: string, thumbnail_url: ?string, transcript: ?string, video_url: ?string} */
+        return $this->memoizedPresents[$key] ??= [
             'audio_url' => $this->audioUrl($sermon),
             'canonical_url' => $this->canonicalUrl($sermon),
             'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
@@ -250,30 +291,54 @@ class SermonViewPresenter
         return $this->transcriptReader->read($sermon);
     }
 
+    /**
+     * Get the preacher name for display.
+     *
+     * Performance Optimization: Memoizes preacher name lookup to avoid
+     * redundant trim and relationship checks across multiple presenter calls.
+     */
     public function displayPreacherName(Sermon $sermon): ?string
     {
+        $key = $this->cacheKey($sermon, 'name');
+
+        if (array_key_exists($key, $this->memoizedPreacherNames)) {
+            return $this->memoizedPreacherNames[$key];
+        }
+
         $preacherName = $sermon->relationLoaded('preacherProfile')
             ? $sermon->preacherProfile?->name
             : null;
 
         $preacherName = trim((string) ($preacherName ?? $sermon->preacher));
 
-        return $preacherName !== '' ? $preacherName : null;
+        return $this->memoizedPreacherNames[$key] = ($preacherName !== '' ? $preacherName : null);
     }
 
+    /**
+     * Get the scripture reference for display.
+     *
+     * Performance Optimization: Memoizes reference lookup to avoid
+     * redundant trim and relationship checks across multiple presenter calls.
+     */
     public function displayReference(Sermon $sermon): ?string
     {
+        $key = $this->cacheKey($sermon, 'ref');
+
+        if (array_key_exists($key, $this->memoizedReferences)) {
+            return $this->memoizedReferences[$key];
+        }
+
         if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
             $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
 
             if (trim((string) $displayReference) !== '') {
-                return $displayReference;
+                return $this->memoizedReferences[$key] = $displayReference;
             }
         }
 
         $reference = trim((string) $sermon->reference);
 
-        return $reference !== '' ? $reference : null;
+        return $this->memoizedReferences[$key] = ($reference !== '' ? $reference : null);
     }
 
     public function metaDescription(Sermon $sermon): string
