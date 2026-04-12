@@ -41,6 +41,7 @@ class SitemapService
             // Static high-priority URLs
             ->add(Url::create('/')->setPriority(1.0)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
             ->add(Url::create('/christ')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
+            ->add(Url::create('/christmas')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)->addImage(asset('/images/homepage/christmas2023.webp'), 'Christmas at Crockenhill Baptist Church'))
             ->add(Url::create('/church')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
             ->add(Url::create('/community')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
             ->add(Url::create('/calendar')->setPriority(0.5)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
