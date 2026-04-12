@@ -62,7 +62,7 @@ class SermonViewPresenter
      */
     public function formattedDuration(Sermon $sermon): ?string
     {
-        $key = (string) $sermon->id;
+        $key = $this->cacheKey($sermon, 'duration');
 
         if (array_key_exists($key, $this->memoizedDurations)) {
             return $this->memoizedDurations[$key];
