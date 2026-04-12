@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\TranscriptionException;
 use App\Traits\DetectsStorageType;
+use App\Traits\HandlesTranscriptStorage;
 use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
 {
     use DetectsStorageType;
+    use HandlesTranscriptStorage;
 
     public function __construct(
         private readonly SermonProcessingLogger $logger,
@@ -383,35 +385,5 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
         if (! is_dir($directory) && ! mkdir($directory, 0755, true)) {
             throw new TranscriptionException("Failed to create directory: {$directory}");
         }
-    }
-
-    public function storeTranscript(int $sermonId, string $transcript): string
-    {
-        return $this->storageService->storeTranscript($sermonId, $transcript);
-    }
-
-    public function getTranscript(int $sermonId): ?string
-    {
-        return $this->storageService->getTranscript($sermonId);
-    }
-
-    public function transcriptExists(int $sermonId): bool
-    {
-        return $this->storageService->transcriptExists($sermonId);
-    }
-
-    public function deleteTranscript(int $sermonId): bool
-    {
-        return $this->storageService->deleteTranscript($sermonId);
-    }
-
-    public function cleanupOnFailure(int $sermonId): void
-    {
-        $this->storageService->cleanupOnFailure($sermonId);
-    }
-
-    public function getTranscriptPath(int $sermonId): string
-    {
-        return $this->storageService->getTranscriptPath($sermonId);
     }
 }

@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Services\MockTranscriptionService;
 use App\Services\SermonProcessingLogger;
+use App\Services\TranscriptStorageService;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
@@ -24,7 +25,10 @@ class MockTranscriptionServiceTest extends TestCase
 
         $this->mockLogger = Mockery::mock(SermonProcessingLogger::class);
         $this->mockLogger->shouldReceive('logProcessingStep')->withAnyArgs()->byDefault();
-        $this->transcriptionService = new MockTranscriptionService($this->mockLogger);
+        $this->transcriptionService = new MockTranscriptionService(
+            $this->mockLogger,
+            app(TranscriptStorageService::class)
+        );
     }
 
     public function test_it_returns_in_code_mock_content_for_transcription()
