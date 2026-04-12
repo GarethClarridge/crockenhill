@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
+use App\Livewire\Admin\Sermons\EditSermon;
 use App\Models\Sermon;
 use App\Models\User;
-use App\Livewire\Admin\Sermons\EditSermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
