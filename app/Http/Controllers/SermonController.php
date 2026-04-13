@@ -224,9 +224,9 @@ class SermonController extends Controller
         $sermons = $this->sermonRepository->getSermonsByService($serviceEnum);
 
         $serviceLabel = match ($serviceEnum) {
-            SermonService::MORNING => 'Sunday Morning',
-            SermonService::EVENING => 'Sunday Evening',
-            SermonService::OTHER => Str::title($service),
+            SermonService::Morning => 'Sunday Morning',
+            SermonService::Evening => 'Sunday Evening',
+            SermonService::Other => Str::title($service),
         };
 
         return view('sermons.service', [

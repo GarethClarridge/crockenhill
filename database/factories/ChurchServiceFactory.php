@@ -23,9 +23,9 @@ class ChurchServiceFactory extends Factory
         return [
             'date' => $this->faker->date(),
             'service' => $this->faker->randomElement([
-                SermonService::MORNING->value,
-                SermonService::EVENING->value,
-                SermonService::OTHER->value,
+                SermonService::Morning->value,
+                SermonService::Evening->value,
+                SermonService::Other->value,
             ]),
             'source' => 'openlp',
             'original_filename' => $this->faker->date('Y-m-d').' AM.osz',

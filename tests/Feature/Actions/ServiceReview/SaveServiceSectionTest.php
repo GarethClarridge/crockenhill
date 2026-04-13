@@ -42,7 +42,7 @@ class SaveServiceSectionTest extends TestCase
     {
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-06-01',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([

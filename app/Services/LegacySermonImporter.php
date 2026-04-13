@@ -289,9 +289,9 @@ final class LegacySermonImporter
         }
 
         return match (strtolower($raw)) {
-            'am', 'morning' => SermonService::MORNING,
-            'pm', 'evening' => SermonService::EVENING,
-            default => SermonService::OTHER,
+            'am', 'morning' => SermonService::Morning,
+            'pm', 'evening' => SermonService::Evening,
+            default => SermonService::Other,
         };
     }
 

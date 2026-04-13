@@ -32,7 +32,7 @@ class SongSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-05',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         // Two OoS items with identical titles — the first item wins the first available section.
@@ -92,7 +92,7 @@ class SongSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-12',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = Song::factory()->create(['title' => 'Be Thou My Vision']);
@@ -137,7 +137,7 @@ class SongSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-19',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = Song::factory()->create(['title' => 'How Great Thou Art']);
@@ -188,7 +188,7 @@ class SongSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-26',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         // Item with no title evidence at all — will score 0.0 against any section.
@@ -231,7 +231,7 @@ class SongSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-02',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = Song::factory()->create(['title' => 'O Praise the Name']);
@@ -284,7 +284,7 @@ class SongSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-26',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = Song::factory()->create(['title' => 'Though the Nations Rage']);

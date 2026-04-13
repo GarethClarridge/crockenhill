@@ -10,16 +10,16 @@ enum SermonService: string
 {
     use HasValues;
 
-    case MORNING = 'morning';
-    case EVENING = 'evening';
-    case OTHER = 'other';
+    case Morning = 'morning';
+    case Evening = 'evening';
+    case Other = 'other';
 
     public function label(): string
     {
         return match ($this) {
-            self::MORNING => 'Morning',
-            self::EVENING => 'Evening',
-            self::OTHER => 'Other',
+            self::Morning => 'Morning',
+            self::Evening => 'Evening',
+            self::Other => 'Other',
         };
     }
 }

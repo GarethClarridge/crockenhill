@@ -25,7 +25,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-06-07',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $firstSong = ChurchServiceItem::factory()->create([
@@ -96,7 +96,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-06-14',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $prayer = ChurchServiceItem::factory()->create([
@@ -162,7 +162,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-06-18',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $prayer = ChurchServiceItem::factory()->create([
@@ -203,7 +203,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-06-21',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = ChurchServiceItem::factory()->create([
@@ -253,7 +253,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-06-25',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -296,7 +296,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-06-28',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -344,7 +344,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-20',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $item = ChurchServiceItem::factory()->create([
@@ -389,7 +389,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-21',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $item = ChurchServiceItem::factory()->create([
@@ -430,7 +430,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-03',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $item = ChurchServiceItem::factory()->create([
@@ -471,7 +471,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-06',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
@@ -498,7 +498,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-09',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         // Item exists in OoS but has no Song record linked
@@ -540,7 +540,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-05',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'needs_review' => true,
             'import_metadata' => [
                 'review_triggers' => ['unmatched_song_sections'],
@@ -585,7 +585,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-12',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'email',
             'needs_review' => true,
             'import_metadata' => [
@@ -632,7 +632,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-19',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'manual',
             'needs_review' => true,
             'import_metadata' => [
@@ -691,7 +691,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-23',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -744,7 +744,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-24',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -794,7 +794,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-26',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -845,7 +845,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-27',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -894,7 +894,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-28',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -945,7 +945,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-29',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -998,7 +998,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-30',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = ChurchServiceItem::factory()->create([
@@ -1081,7 +1081,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-12-01',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -1144,7 +1144,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-12-02',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -1199,7 +1199,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-25',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -1275,7 +1275,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-12-07',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -1340,7 +1340,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-12-08',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -1402,7 +1402,7 @@ class OosAlignmentServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-12-09',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([

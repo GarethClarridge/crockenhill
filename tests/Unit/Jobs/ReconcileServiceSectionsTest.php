@@ -26,7 +26,7 @@ class ReconcileServiceSectionsTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-05-10',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = ChurchServiceItem::factory()->create([
@@ -47,7 +47,7 @@ class ReconcileServiceSectionsTest extends TestCase
             'current_step' => 'completed',
             'church_service_id' => null,
             'extracted_date' => '2026-05-10',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $songSegment = LivestreamSegment::factory()->song()->create([
@@ -143,14 +143,14 @@ class ReconcileServiceSectionsTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-05-17',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
             'current_step' => 'completed',
             'church_service_id' => null,
             'extracted_date' => '2026-05-17',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([

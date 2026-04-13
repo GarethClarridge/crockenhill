@@ -44,7 +44,7 @@ class DeleteLivestreamUploadTest extends TestCase
         $processingId = '11111111-1111-1111-1111-111111111111';
         $service = ChurchService::factory()->create([
             'date' => '2026-04-06',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => MediaType::Livestream->value,
             'needs_review' => true,
             'import_metadata' => [
@@ -66,7 +66,7 @@ class DeleteLivestreamUploadTest extends TestCase
         $sermon = Sermon::factory()->fromLivestream()->create([
             'livestream_processing_id' => $processingId,
             'date' => '2026-04-06',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'content_type' => SermonContentType::Sermon,
             'audio_file_path' => 'sermons/audio/'.$processingId.'_sermon.mp3',
             'video_file_path' => 'sermons/771/video.mp4',
@@ -159,7 +159,7 @@ class DeleteLivestreamUploadTest extends TestCase
         $processingId = '22222222-2222-2222-2222-222222222222';
         $service = ChurchService::factory()->create([
             'date' => '2026-04-13',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'manual',
             'needs_review' => true,
             'import_metadata' => [

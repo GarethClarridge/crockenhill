@@ -56,7 +56,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $service = ChurchService::query()->firstOrFail();
 
         $this->assertSame('2026-03-16', $service->date->toDateString());
-        $this->assertSame(SermonService::MORNING, $service->service);
+        $this->assertSame(SermonService::Morning, $service->service);
         $this->assertSame('email', $service->source);
         $this->assertFalse($service->needs_review);
         $this->assertCount(4, $service->items()->get());
@@ -147,7 +147,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $service = ChurchService::query()->with(['items.song', 'mediaProcessingLogs'])->sole();
         $songUsage = app(PublicSongUsageService::class);
 
-        $this->assertSame(SermonService::EVENING, $service->service);
+        $this->assertSame(SermonService::Evening, $service->service);
         $this->assertSame('email', $service->source);
         $this->assertCount(0, $service->mediaProcessingLogs);
         $this->assertCount(3, $service->items);

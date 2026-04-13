@@ -170,7 +170,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
     public function test_updates_position_on_reorder(): void
     {
         $churchService = ChurchService::factory()->create([
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $first = ChurchServiceItem::factory()->create([
@@ -721,7 +721,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         Event::fake();
 
         $churchService = ChurchService::factory()->create([
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'needs_review' => false,
             'import_metadata' => ['confidence_score' => 1.0],
         ]);

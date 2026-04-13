@@ -39,7 +39,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_returns_an_empty_array_for_a_service_with_no_items(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         $result = $this->service->snapshot($churchService);
 
@@ -49,7 +49,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_snapshots_a_service_item_with_all_expected_keys(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
@@ -75,7 +75,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_excludes_section_type_from_item_metadata_in_snapshot(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
@@ -93,7 +93,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_returns_null_for_metadata_when_only_section_type_was_set(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
@@ -110,7 +110,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_normalises_associative_metadata_keys_by_sorting(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
@@ -130,7 +130,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_returns_empty_diff_when_nothing_has_changed(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
@@ -150,7 +150,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_detects_an_added_item(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         $before = $this->service->snapshot($churchService->load('items'));
 
@@ -173,7 +173,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_detects_a_removed_item(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         $item = ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
@@ -198,7 +198,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_detects_an_updated_item_field(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         $item = ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
@@ -227,7 +227,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
     #[Test]
     public function it_reports_all_changed_fields_in_an_updated_item(): void
     {
-        $churchService = ChurchService::factory()->create(['service' => SermonService::MORNING]);
+        $churchService = ChurchService::factory()->create(['service' => SermonService::Morning]);
 
         $item = ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,

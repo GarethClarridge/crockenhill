@@ -248,13 +248,13 @@ class SermonRepositoryTest extends TestCase
     public function it_returns_sermons_by_service(): void
     {
         Sermon::query()->delete();
-        Sermon::factory()->create(['service' => SermonService::MORNING, 'content_type' => \App\Enums\SermonContentType::Sermon]);
-        Sermon::factory()->create(['service' => SermonService::EVENING, 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => SermonService::Morning, 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => SermonService::Evening, 'content_type' => \App\Enums\SermonContentType::Sermon]);
 
-        $result = $this->repository->getSermonsByService(SermonService::MORNING);
+        $result = $this->repository->getSermonsByService(SermonService::Morning);
 
         $this->assertCount(1, $result);
-        $this->assertEquals(SermonService::MORNING, $result->first()->service);
+        $this->assertEquals(SermonService::Morning, $result->first()->service);
     }
 
     #[Test]
@@ -265,19 +265,19 @@ class SermonRepositoryTest extends TestCase
 
         Sermon::factory()->create([
             'title' => 'Original Service Title',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'content_type' => \App\Enums\SermonContentType::Sermon,
         ]);
 
         // First call caches
-        $this->repository->getSermonsByService(SermonService::MORNING);
+        $this->repository->getSermonsByService(SermonService::Morning);
         $this->assertTrue(Cache::has('sermons_service_morning'));
 
         // Modify DB
         Sermon::query()->update(['title' => 'Updated Service Title']);
 
         // Second call should return cached data
-        $result = $this->repository->getSermonsByService(SermonService::MORNING);
+        $result = $this->repository->getSermonsByService(SermonService::Morning);
         $this->assertEquals('Original Service Title', $result->first()->title);
     }
 

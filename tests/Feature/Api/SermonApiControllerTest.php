@@ -64,12 +64,12 @@ class SermonApiControllerTest extends TestCase
     {
         Sermon::factory()->create([
             'title' => 'Morning Sermon',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'content_type' => SermonContentType::Sermon,
         ]);
         Sermon::factory()->create([
             'title' => 'Evening Sermon',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
             'content_type' => SermonContentType::Sermon,
         ]);
 

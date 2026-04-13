@@ -38,7 +38,7 @@ class ProcessingInitiatorTest extends TestCase
         $extractedDateTime = Carbon::create(2026, 2, 10, 10, 30, 0);
 
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
-        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Morning);
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
@@ -56,7 +56,7 @@ class ProcessingInitiatorTest extends TestCase
         $extractedDateTime = Carbon::create(2026, 2, 10, 18, 30, 0);
 
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
-        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::EVENING);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Evening);
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
@@ -76,7 +76,7 @@ class ProcessingInitiatorTest extends TestCase
             ->expects($this->once())
             ->method('determineServiceFromTime')
             ->with($extractedDateTime)
-            ->willReturn(SermonService::MORNING);
+            ->willReturn(SermonService::Morning);
 
         $this->initiator->initiateProcessing($file, MediaType::Video);
     }
@@ -92,7 +92,7 @@ class ProcessingInitiatorTest extends TestCase
             ->expects($this->once())
             ->method('determineServiceFromFilename')
             ->with('evening-sermon.mp4')
-            ->willReturn(SermonService::EVENING);
+            ->willReturn(SermonService::Evening);
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
@@ -111,7 +111,7 @@ class ProcessingInitiatorTest extends TestCase
             ->method('extractDateFromVideo')
             ->with($file, $clientFileDate)
             ->willReturn($extractedDateTime);
-        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Morning);
 
         $this->initiator->initiateProcessing($file, MediaType::Video, $clientFileDate);
     }
@@ -123,7 +123,7 @@ class ProcessingInitiatorTest extends TestCase
         $extractedDateTime = Carbon::create(2026, 2, 10, 10, 30, 0);
 
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
-        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Morning);
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Livestream);
 
@@ -138,7 +138,7 @@ class ProcessingInitiatorTest extends TestCase
         $extractedDateTime = Carbon::create(2026, 2, 10, 10, 30, 0);
 
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
-        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Morning);
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Livestream, null, [
             'source_file_path' => 'livestream/temp/test.mp4',
@@ -158,7 +158,7 @@ class ProcessingInitiatorTest extends TestCase
         $extractedDateTime = Carbon::create(2026, 2, 10, 10, 30, 0);
 
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
-        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Morning);
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Livestream, null, [
             'processing_metadata' => [
@@ -184,7 +184,7 @@ class ProcessingInitiatorTest extends TestCase
         $extractedDateTime = Carbon::create(2026, 2, 10, 10, 30, 0);
 
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
-        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Morning);
 
         $log1 = $this->initiator->initiateProcessing($file, MediaType::Video);
         $log2 = $this->initiator->initiateProcessing($file, MediaType::Video);
@@ -199,7 +199,7 @@ class ProcessingInitiatorTest extends TestCase
         $extractedDateTime = Carbon::create(2026, 2, 10, 10, 30, 0);
 
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
-        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Morning);
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
@@ -220,7 +220,7 @@ class ProcessingInitiatorTest extends TestCase
         $extractedDateTime = Carbon::create(2026, 2, 10, 10, 30, 0);
 
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
-        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Morning);
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 

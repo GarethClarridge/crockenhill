@@ -39,7 +39,7 @@ class StructureMergeIntegrationTest extends TestCase
     #[Test]
     public function test_openlp_import_stages_review_when_high_confidence_livestream_disagrees(): void
     {
-        $churchService = $this->createLivestreamService('2024-11-17', SermonService::MORNING, [
+        $churchService = $this->createLivestreamService('2024-11-17', SermonService::Morning, [
             ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high'],
             ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::SERMON, 'confidence' => 'high'],
         ]);
@@ -77,7 +77,7 @@ class StructureMergeIntegrationTest extends TestCase
     #[Test]
     public function test_openlp_import_auto_merges_when_low_confidence_livestream(): void
     {
-        $this->createLivestreamService('2024-11-17', SermonService::MORNING, [
+        $this->createLivestreamService('2024-11-17', SermonService::Morning, [
             ['type' => 'songs', 'title' => 'Unknown Song', 'confidence' => 'low'],
         ]);
 
@@ -130,7 +130,7 @@ class StructureMergeIntegrationTest extends TestCase
     #[Test]
     public function test_email_import_stages_review_when_high_confidence_livestream_disagrees(): void
     {
-        $churchService = $this->createLivestreamService('2026-03-22', SermonService::MORNING, [
+        $churchService = $this->createLivestreamService('2026-03-22', SermonService::Morning, [
             ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high'],
             ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::SERMON, 'confidence' => 'high'],
         ]);
@@ -141,7 +141,7 @@ class StructureMergeIntegrationTest extends TestCase
 
         $parseResult = new \App\Data\OosEmailParseResult(
             date: '2026-03-22',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [
                 ['position' => 1, 'type' => 'songs', 'title' => 'Different Song', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
                 ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => ['section_type' => ServiceSectionType::PRAYER->value]],
@@ -174,7 +174,7 @@ class StructureMergeIntegrationTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-22',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => ChurchServiceItemSource::OPENLP->value,
         ]);
 
@@ -192,7 +192,7 @@ class StructureMergeIntegrationTest extends TestCase
 
         $parseResult = new \App\Data\OosEmailParseResult(
             date: '2026-03-22',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [
                 ['position' => 1, 'type' => 'songs', 'title' => 'New Song', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
             ],
@@ -221,7 +221,7 @@ class StructureMergeIntegrationTest extends TestCase
         // 1. Project a livestream service
         $log = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-03-27',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -284,7 +284,7 @@ class StructureMergeIntegrationTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-03-27',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -331,7 +331,7 @@ class StructureMergeIntegrationTest extends TestCase
     public function test_openlp_import_keeps_livestream_source_while_merge_is_staged(): void
     {
         // Regression for fix #7: source must not jump to 'openlp' before merge is accepted
-        $churchService = $this->createLivestreamService('2024-11-17', SermonService::MORNING, [
+        $churchService = $this->createLivestreamService('2024-11-17', SermonService::Morning, [
             ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high'],
         ]);
 
@@ -362,7 +362,7 @@ class StructureMergeIntegrationTest extends TestCase
         // review exists), clearPendingMerge must not overwrite it back to false.
         $service = ChurchService::factory()->create([
             'date' => '2026-03-27',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => ChurchServiceItemSource::LIVESTREAM->value,
             'needs_review' => true,
             'import_metadata' => [

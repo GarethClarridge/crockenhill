@@ -27,7 +27,7 @@ class InboundEmailImportRaceConditionTest extends TestCase
 
         $parseResult = new OosEmailParseResult(
             date: '2025-05-11',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [],
             confidenceScore: 0.95,
             needsReview: false,

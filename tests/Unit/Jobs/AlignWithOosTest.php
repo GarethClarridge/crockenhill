@@ -26,7 +26,7 @@ class AlignWithOosTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-05',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = ChurchServiceItem::factory()->create([
@@ -38,7 +38,7 @@ class AlignWithOosTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
             'extracted_date' => '2026-07-05',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -75,7 +75,7 @@ class AlignWithOosTest extends TestCase
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
             'extracted_date' => '2026-07-12',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([

@@ -38,7 +38,7 @@ class ProjectLivestreamServiceStructureTest extends TestCase
             'processing_id' => 'test-job-001',
             'status' => ProcessingStatus::Processing,
             'extracted_date' => '2026-03-23',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([

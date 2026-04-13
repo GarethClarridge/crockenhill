@@ -46,7 +46,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-24',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'needs_review' => true,
         ]);
 
@@ -61,7 +61,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'extracted_date' => '2026-05-24',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -102,7 +102,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-25',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'needs_review' => true,
         ]);
 
@@ -124,7 +124,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'extracted_date' => '2026-05-25',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -174,7 +174,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-31',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $approveSection = ServiceSection::factory()->create([
@@ -217,7 +217,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-06-01',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -239,7 +239,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-06-07',
-            'extracted_service' => SermonService::EVENING->value,
+            'extracted_service' => SermonService::Evening->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -275,7 +275,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-06-08',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $overridePreacher = Preacher::factory()->create(['name' => 'Mary Helper']);
@@ -330,24 +330,24 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $selectedService = ChurchService::factory()->create([
             'date' => '2026-06-09',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $otherService = ChurchService::factory()->create([
             'date' => '2026-06-09',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
         ]);
 
         $selectedRun = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $selectedService->id,
             'extracted_date' => '2026-06-09',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $otherRun = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $otherService->id,
             'extracted_date' => '2026-06-09',
-            'extracted_service' => SermonService::EVENING->value,
+            'extracted_service' => SermonService::Evening->value,
         ]);
 
         $selectedFirst = ServiceSection::factory()->create([
@@ -425,13 +425,13 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-06-10',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'extracted_date' => '2026-06-10',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $eligibleSection = ServiceSection::factory()->create([
@@ -494,7 +494,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-06-14',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -519,7 +519,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-06-21',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -587,7 +587,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         ChurchService::factory()->create([
             'date' => '2026-06-28',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
             'needs_review' => true,
         ]);
 
@@ -606,7 +606,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-06',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -642,7 +642,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-07',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -678,7 +678,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-08',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $first = ServiceSection::factory()->create([
@@ -716,7 +716,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-09',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $first = ServiceSection::factory()->create([
@@ -756,7 +756,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-10',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $first = ServiceSection::factory()->create([
@@ -801,7 +801,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-11',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $first = ServiceSection::factory()->create([
@@ -845,7 +845,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-12',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
             'source_file_path' => 'temp/media-processing/source.mp4',
         ]);
 
@@ -900,7 +900,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-13',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
             'source_file_path' => 'temp/media-processing/missing-source.mp4',
         ]);
 
@@ -954,7 +954,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-14',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $first = ServiceSection::factory()->create([
@@ -1002,12 +1002,12 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $runA = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-15',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $runB = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-15',
-            'extracted_service' => SermonService::EVENING->value,
+            'extracted_service' => SermonService::Evening->value,
         ]);
 
         $first = ServiceSection::factory()->create([
@@ -1045,7 +1045,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-16',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $first = ServiceSection::factory()->create([
@@ -1080,7 +1080,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-17',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $first = ServiceSection::factory()->create([
@@ -1117,7 +1117,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-07-18',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $first = ServiceSection::factory()->create([

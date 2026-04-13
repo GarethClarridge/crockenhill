@@ -42,7 +42,7 @@ class AdminSectionPublicationQueueTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-10',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -80,7 +80,7 @@ class AdminSectionPublicationQueueTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-17',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -114,7 +114,7 @@ class AdminSectionPublicationQueueTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-18',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -149,7 +149,7 @@ class AdminSectionPublicationQueueTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-19',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([

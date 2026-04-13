@@ -26,7 +26,7 @@ class SermonSeeder extends Seeder
         $sermons = [
             [
                 'date' => '2024-12-15',
-                'service' => SermonService::MORNING->value,
+                'service' => SermonService::Morning->value,
                 'title' => 'The Birth of Our Saviour',
                 'slug' => 'the-birth-of-our-saviour',
                 'reference' => 'Luke 2:1-20',
@@ -39,7 +39,7 @@ class SermonSeeder extends Seeder
             ],
             [
                 'date' => '2024-12-08',
-                'service' => SermonService::MORNING->value,
+                'service' => SermonService::Morning->value,
                 'title' => 'Walking in the Light',
                 'slug' => 'walking-in-the-light',
                 'reference' => '1 John 1:5-10',
@@ -52,7 +52,7 @@ class SermonSeeder extends Seeder
             ],
             [
                 'date' => '2024-12-01',
-                'service' => SermonService::OTHER->value,
+                'service' => SermonService::Other->value,
                 'title' => 'Special Service Example',
                 'slug' => 'special-service-example',
                 'reference' => 'Psalm 100',
@@ -91,7 +91,7 @@ class SermonSeeder extends Seeder
         $talks = [
             [
                 'date' => '2024-12-15',
-                'service' => SermonService::MORNING->value,
+                'service' => SermonService::Morning->value,
                 'title' => "Who is Jesus? (Children's Talk)",
                 'slug' => 'childrens-talk-who-is-jesus',
                 'reference' => 'Mark 1:1-11',
@@ -103,7 +103,7 @@ class SermonSeeder extends Seeder
             ],
             [
                 'date' => '2024-12-08',
-                'service' => SermonService::MORNING->value,
+                'service' => SermonService::Morning->value,
                 'title' => "God Made the World (Children's Talk)",
                 'slug' => 'childrens-talk-god-made-the-world',
                 'reference' => 'Genesis 1:1',
@@ -115,7 +115,7 @@ class SermonSeeder extends Seeder
             ],
             [
                 'date' => '2024-12-01',
-                'service' => SermonService::MORNING->value,
+                'service' => SermonService::Morning->value,
                 'title' => "The Good Shepherd (Children's Talk)",
                 'slug' => 'childrens-talk-the-good-shepherd',
                 'reference' => 'John 10:11-18',
@@ -153,7 +153,7 @@ class SermonSeeder extends Seeder
             ['slug' => 'the-prodigal-son'],
             [
                 'date' => '2024-11-24',
-                'service' => SermonService::MORNING->value,
+                'service' => SermonService::Morning->value,
                 'title' => 'The Prodigal Son',
                 'reference' => 'Luke 15:11-32',
                 'preacher' => $preacher?->name ?? 'Mark Drury',
@@ -168,12 +168,12 @@ class SermonSeeder extends Seeder
 
         $processingLog->update(['sermon_id' => $sermon->id]);
 
-        $churchService = ChurchService::where('date', '2024-11-24')->where('service', SermonService::MORNING->value)->first();
+        $churchService = ChurchService::where('date', '2024-11-24')->where('service', SermonService::Morning->value)->first();
 
         if (! $churchService) {
             $churchService = ChurchService::create([
                 'date' => '2024-11-24',
-                'service' => SermonService::MORNING->value,
+                'service' => SermonService::Morning->value,
                 'source' => 'openlp',
                 'original_filename' => '2024-11-24 AM.osz',
                 'needs_review' => false,

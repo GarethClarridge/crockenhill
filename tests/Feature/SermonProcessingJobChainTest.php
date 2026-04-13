@@ -58,7 +58,7 @@ class SermonProcessingJobChainTest extends TestCase
         $processingId = 'test-processing-id';
         $metadata = SermonMetadata::create(
             date: Carbon::parse('2024-01-15'),
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             filename: 'stored-file.mp3',
             originalName: '2024-01-15_morning_sermon.mp3',
             duration: 3600.0,
@@ -94,7 +94,7 @@ class SermonProcessingJobChainTest extends TestCase
         $this->assertDatabaseHas('sermons', [
             'audio_file_path' => $storedFilePath,
             'date' => '2024-01-15',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'preacher' => 'Visiting Speaker',
         ]);
 
@@ -119,7 +119,7 @@ class SermonProcessingJobChainTest extends TestCase
         $processingId = 'test-processing-id';
         $metadata = SermonMetadata::create(
             date: Carbon::parse('2024-01-15'),
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             filename: 'stored-file.mp3',
             originalName: '2024-01-15_morning_sermon.mp3',
             duration: 3600.0,
@@ -525,7 +525,7 @@ class SermonProcessingJobChainTest extends TestCase
         $processingId = 'integration-test-id';
         $metadata = SermonMetadata::create(
             date: Carbon::parse('2024-01-15'),
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             filename: 'stored-file.mp3',
             originalName: '2024-01-15_morning_sermon.mp3',
             duration: 3600.0,
@@ -656,7 +656,7 @@ class SermonProcessingJobChainTest extends TestCase
         $processingId = 'db-test-id';
         $metadata = SermonMetadata::create(
             date: Carbon::parse('2024-01-15'),
-            service: SermonService::EVENING,
+            service: SermonService::Evening,
             filename: 'stored-file.mp3',
             originalName: '2024-01-15_evening_sermon.mp3',
             duration: 3600.0,
@@ -689,7 +689,7 @@ class SermonProcessingJobChainTest extends TestCase
         $this->assertDatabaseHas('sermons', [
             'audio_file_path' => $storedFilePath,
             'date' => '2024-01-15',
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
             'preacher' => 'Visiting Speaker',
         ]);
 
