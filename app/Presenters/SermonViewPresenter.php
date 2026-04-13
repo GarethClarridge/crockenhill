@@ -209,7 +209,7 @@ class SermonViewPresenter
             return null;
         }
 
-        return $this->memoizedSeriesUrls[$sermon->series] ??= route('sermons.series', ['series' => $this->slug($sermon->series)]);
+        return $this->memoizedSeriesUrls[$sermon->series] ??= route('sermons.series.show', ['series' => $this->slug($sermon->series)]);
     }
 
     /**
