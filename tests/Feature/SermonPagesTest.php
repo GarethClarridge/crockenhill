@@ -199,7 +199,7 @@ class SermonPagesTest extends TestCase
         $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
 
         $response->assertStatus(200);
-        $response->assertSee('href="/christ/sermons/preachers/test-preacher"', false);
+        $response->assertSee('href="http://localhost/christ/sermons/preachers/test-preacher"', false);
         $response->assertDontSee('/christ/sermons//christ/sermons/preachers/', false);
     }
 

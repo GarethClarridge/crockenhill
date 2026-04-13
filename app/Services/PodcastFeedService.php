@@ -157,15 +157,17 @@ class PodcastFeedService
     }
 
     /**
-     * Clear feed cache
+     * Clear feed cache, including the flexible cache created-timestamp key.
      */
     public function clearCache(?string $serviceType = null): void
     {
-        if ($serviceType) {
-            Cache::forget("podcast_feed_{$serviceType}");
-        } else {
-            Cache::forget('podcast_feed_morning');
-            Cache::forget('podcast_feed_evening');
+        $keys = $serviceType
+            ? ["podcast_feed_{$serviceType}"]
+            : ['podcast_feed_morning', 'podcast_feed_evening'];
+
+        foreach ($keys as $key) {
+            Cache::forget($key);
+            Cache::forget("illuminate:cache:flexible:created:{$key}");
         }
     }
 }

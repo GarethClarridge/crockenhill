@@ -109,8 +109,9 @@ class PublicSongCatalogLyricSearchTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         Livewire::test(BrowseSongs::class)
+            ->set('range', PublicSongCatalogService::RANGE_ALL)
             ->set('search', $unique)
-            ->assertSee('Matching lyrics')
+            ->assertSee('Matching lyric lines', false)
             ->assertSee($unique);
     }
 
@@ -128,8 +129,9 @@ class PublicSongCatalogLyricSearchTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         Livewire::test(BrowseSongs::class)
+            ->set('range', PublicSongCatalogService::RANGE_ALL)
             ->set('search', $unique)
-            ->assertSee('Matching lyrics')
+            ->assertSee('Matching lyric lines', false)
             ->assertSee($unique);
     }
 
@@ -145,9 +147,10 @@ class PublicSongCatalogLyricSearchTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         Livewire::test(BrowseSongs::class)
+            ->set('range', PublicSongCatalogService::RANGE_ALL)
             ->set('search', $unique)
             ->assertSee($unique)
-            ->assertDontSee('Matching lyrics');
+            ->assertDontSee('Matching lyric lines', false);
     }
 
     #[Test]
@@ -163,6 +166,7 @@ class PublicSongCatalogLyricSearchTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         Livewire::test(BrowseSongs::class)
+            ->set('range', PublicSongCatalogService::RANGE_ALL)
             ->set('search', $unique)
             ->assertSee('<mark>', false);
     }

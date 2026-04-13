@@ -68,7 +68,7 @@ class SermonTest extends TestCase
         $this->assertEquals($expectedSeriesUrl, $sermon->series_url);
         // If the accessor is not yet implemented, this test will guide its creation.
 
-        $expectedPreacherUrl = '/christ/sermons/preachers/'.Str::slug('John Doe'); // Corrected expected path
+        $expectedPreacherUrl = 'http://localhost/christ/sermons/preachers/'.Str::slug('John Doe');
         $this->assertEquals($expectedPreacherUrl, $sermonViewPresenter->preacherUrl($sermon));
     }
 

@@ -9,13 +9,14 @@ use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonDownloadCountVerificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_can_update_download_count_via_admin_interface(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);
@@ -33,7 +34,7 @@ class SermonDownloadCountVerificationTest extends TestCase
         $this->assertEquals(25, $sermon->fresh()->download_count);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_download_count_is_not_negative(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);

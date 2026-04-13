@@ -150,7 +150,7 @@ class PublicSongCatalogServiceTest extends TestCase
         $oldSong = Song::factory()->create(['title' => 'Old Song']);
 
         $service = ChurchService::factory()->create([
-            'date' => '2024-06-01',
+            'date' => '2022-06-01',
             'service' => SermonService::Morning,
         ]);
 

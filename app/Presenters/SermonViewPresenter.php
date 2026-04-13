@@ -183,7 +183,7 @@ class SermonViewPresenter
         if (! array_key_exists($preacherKey, $this->memoizedPreacherUrls)) {
             $this->memoizedPreacherUrls[$preacherKey] = (function () use ($sermon) {
                 if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-                    return '/christ/sermons/preachers/'.$sermon->preacherProfile->slug;
+                    return route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
                 }
 
                 $preacherName = $this->displayPreacherName($sermon);

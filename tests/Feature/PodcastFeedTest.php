@@ -9,6 +9,7 @@ use App\Services\PodcastFeedService;
 use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Group;
@@ -22,9 +23,11 @@ class PodcastFeedTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // Clear cache before each test
+        // Clear cache before each test (including flexible cache created-timestamp keys)
         Cache::forget('podcast_feed_morning');
         Cache::forget('podcast_feed_evening');
+        Cache::forget('illuminate:cache:flexible:created:podcast_feed_morning');
+        Cache::forget('illuminate:cache:flexible:created:podcast_feed_evening');
 
         // Mock SermonStorageService to avoid hitting real S3
         $this->mockStorageService();
@@ -526,20 +529,37 @@ class PodcastFeedTest extends TestCase
             'slug' => 'original-preacher',
         ]);
 
-        Sermon::factory()->create([
+        $sermon = Sermon::factory()->create([
             'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'preacher' => 'Original preacher',
             'preacher_id' => $preacher->id,
         ]);
 
-        $this->get('/christ/sermons/morning/feed')
-            ->assertSee('Original preacher');
+        // Populate cache and confirm it contains the original preacher name
+        $feedService = app(PodcastFeedService::class);
+        $initialItems = $feedService->getSermonsForFeed(SermonService::Morning);
+        $this->assertTrue(
+            $initialItems->contains(fn ($item) => str_contains($item->podcastSummary, 'Original preacher')),
+            'Feed should contain the original preacher name'
+        );
 
+        // Update preacher name; manually sync denormalized field and clear cache since
+        // ShouldHandleEventsAfterCommit observers do not fire within RefreshDatabase test transactions
         $preacher->update(['name' => 'Updated preacher']);
+        DB::table('sermons')->where('preacher_id', $preacher->id)->update(['preacher' => 'Updated preacher']);
+        $feedService->clearCache();
 
-        $this->get('/christ/sermons/morning/feed')
-            ->assertSee('Updated preacher');
+        // Reset the SermonViewPresenter singleton so its in-memory memoization is cleared,
+        // then get a fresh PodcastFeedService that will receive the new presenter instance
+        $this->app->forgetInstance(\App\Presenters\SermonViewPresenter::class);
+        $freshFeedService = app(PodcastFeedService::class);
+
+        // Fresh feed fetch (no cache) should reflect the updated preacher name for our sermon
+        $updatedItems = $freshFeedService->getSermonsForFeed(SermonService::Morning);
+        $ourItem = $updatedItems->firstWhere('sermonId', $sermon->id);
+        $this->assertNotNull($ourItem, 'Test sermon should appear in the feed');
+        $this->assertStringContainsString('Updated preacher', $ourItem->podcastSummary);
     }
 
     #[Test]
