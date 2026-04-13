@@ -44,13 +44,13 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-06-01',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'extracted_date' => '2026-06-01',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -82,13 +82,13 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-06-02',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'extracted_date' => '2026-06-02',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -119,13 +119,13 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-06-03',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'extracted_date' => '2026-06-03',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -152,24 +152,24 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $selectedService = ChurchService::factory()->create([
             'date' => '2026-06-04',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $otherService = ChurchService::factory()->create([
             'date' => '2026-06-04',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
         ]);
 
         $selectedRun = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $selectedService->id,
             'extracted_date' => '2026-06-04',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $otherRun = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $otherService->id,
             'extracted_date' => '2026-06-04',
-            'extracted_service' => SermonService::EVENING->value,
+            'extracted_service' => SermonService::Evening->value,
         ]);
 
         $selectedSection = ServiceSection::factory()->create([
@@ -209,13 +209,13 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-06-05',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'extracted_date' => '2026-06-05',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $first = ServiceSection::factory()->create([
@@ -259,7 +259,7 @@ class BatchApproveServicePublicationsTest extends TestCase
     {
         $service = ChurchService::factory()->create([
             'date' => '2026-06-06',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $result = $this->action->execute($service, $this->admin->id);
@@ -282,13 +282,13 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-06-07',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'extracted_date' => '2026-06-07',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ServiceSection::factory()->create([

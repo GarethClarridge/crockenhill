@@ -30,7 +30,7 @@ class ClassifyServiceSectionsTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-22',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -50,7 +50,7 @@ class ClassifyServiceSectionsTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'status' => 'pending',
             'extracted_date' => '2026-03-22',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         LivestreamSegment::factory()->song()->create([
@@ -92,7 +92,7 @@ class ClassifyServiceSectionsTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'status' => 'pending',
             'extracted_date' => '2026-03-29',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         LivestreamSegment::factory()->song()->create([
@@ -155,7 +155,7 @@ class ClassifyServiceSectionsTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-30',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -169,7 +169,7 @@ class ClassifyServiceSectionsTest extends TestCase
             'status' => 'completed',
             'current_step' => 'completed',
             'extracted_date' => '2026-03-30',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         LivestreamSegment::factory()->song()->create([

@@ -42,7 +42,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
                 'recipient' => 'oos@crockenhill.org',
                 'parsing' => [
                     'resolved_date' => '2026-06-01',
-                    'resolved_service' => SermonService::MORNING->value,
+                    'resolved_service' => SermonService::Morning->value,
                     'items' => [
                         [
                             'position' => 1,
@@ -70,7 +70,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
         $result = $this->action->execute($inboundEmail->id);
 
         $this->assertSame('2026-06-01', $result['date']);
-        $this->assertSame(SermonService::MORNING->value, $result['service']);
+        $this->assertSame(SermonService::Morning->value, $result['service']);
         $this->assertCount(2, $result['items']);
         $this->assertSame(ServiceSectionType::WELCOME->value, $result['items'][0]['section_type']);
         $this->assertSame('Welcome', $result['items'][0]['title']);
@@ -94,7 +94,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
                 ->with(\Mockery::on(fn ($arg) => $arg instanceof InboundEmail && $arg->id === $inboundEmail->id))
                 ->andReturn(new \App\Data\OosEmailParseResult(
                     date: '2026-06-01',
-                    service: SermonService::MORNING,
+                    service: SermonService::Morning,
                     items: [
                         [
                             'position' => 1,
@@ -117,7 +117,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
         $result = $action->execute($inboundEmail->id);
 
         $this->assertSame('2026-06-01', $result['date'] ?? null);
-        $this->assertSame(SermonService::MORNING->value, $result['service'] ?? null);
+        $this->assertSame(SermonService::Morning->value, $result['service'] ?? null);
 
         // Parser result should be stored
         $inboundEmail->refresh();
@@ -132,7 +132,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
                 'recipient' => 'oos@crockenhill.org',
                 'parsing' => [
                     'resolved_date' => '2026-06-08',
-                    'resolved_service' => SermonService::MORNING->value,
+                    'resolved_service' => SermonService::Morning->value,
                     'items' => [
                         ['position' => 1, 'type' => 'custom', 'title' => "Children's Talk", 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
                         ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
@@ -167,7 +167,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
                 'recipient' => 'oos@crockenhill.org',
                 'parsing' => [
                     'resolved_date' => '2026-06-15',
-                    'resolved_service' => SermonService::MORNING->value,
+                    'resolved_service' => SermonService::Morning->value,
                     'items' => [
                         [
                             'position' => 1,
@@ -198,7 +198,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
                 'recipient' => 'oos@crockenhill.org',
                 'parsing' => [
                     'resolved_date' => '2026-06-22',
-                    'resolved_service' => SermonService::EVENING->value,
+                    'resolved_service' => SermonService::Evening->value,
                     'items' => [
                         ['position' => 1, 'type' => 'custom', 'title' => 'Valid Item', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
                         ['position' => 2, 'type' => 'custom', 'title' => '', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
@@ -249,7 +249,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
                 'recipient' => 'oos@crockenhill.org',
                 'parsing' => [
                     'resolved_date' => '2026-06-29',
-                    'resolved_service' => SermonService::MORNING->value,
+                    'resolved_service' => SermonService::Morning->value,
                     'items' => [
                         ['position' => 1, 'type' => 'custom', 'title' => 'Item One', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
                         ['position' => 2, 'type' => 'custom', 'title' => 'Item Two', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],

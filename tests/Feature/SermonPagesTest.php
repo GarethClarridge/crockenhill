@@ -34,17 +34,17 @@ class SermonPagesTest extends TestCase
         // Create test sermons for each service type
         Sermon::factory()->create([
             'title' => 'Morning Test Sermon',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'slug' => 'morning-test-sermon',
         ]);
         Sermon::factory()->create([
             'title' => 'Evening Test Sermon',
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
             'slug' => 'evening-test-sermon',
         ]);
         Sermon::factory()->create([
             'title' => 'Other Test Sermon',
-            'service' => SermonService::OTHER->value,
+            'service' => SermonService::Other->value,
             'slug' => 'other-test-sermon',
         ]);
     }
@@ -335,7 +335,7 @@ class SermonPagesTest extends TestCase
         Sermon::factory()->create([
             'title' => 'Public Browse Sermon',
             'series' => 'Browse Series',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'preacher' => $preacher->name,
             'preacher_id' => $preacher->id,
             'content_type' => SermonContentType::Sermon,
@@ -344,7 +344,7 @@ class SermonPagesTest extends TestCase
         Sermon::factory()->create([
             'title' => "Hidden Children's Talk",
             'series' => 'Browse Series',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'preacher' => $preacher->name,
             'preacher_id' => $preacher->id,
             'content_type' => SermonContentType::ChildrensTalk,

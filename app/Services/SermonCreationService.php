@@ -238,7 +238,7 @@ class SermonCreationService
                 'extraction_method' => $processingMetadata['service_extraction_method'] ?? 'unknown',
             ]);
 
-            return SermonService::tryFrom((string) $extractedService) ?? SermonService::MORNING;
+            return SermonService::tryFrom((string) $extractedService) ?? SermonService::Morning;
         }
 
         // Strategy 2: Fall back to filename parsing
@@ -251,7 +251,7 @@ class SermonCreationService
                 'filename' => $filename,
             ]);
 
-            return SermonService::EVENING;
+            return SermonService::Evening;
         }
 
         // Check for morning service indicators (am or morning)
@@ -261,13 +261,13 @@ class SermonCreationService
                 'filename' => $filename,
             ]);
 
-            return SermonService::MORNING;
+            return SermonService::Morning;
         }
 
         // Strategy 3: Try to detect service type from time in filename
         $hour = $this->extractTimeFromFilename($filename);
         if ($hour !== null) {
-            $service = $hour < 12 ? SermonService::MORNING : SermonService::EVENING;
+            $service = $hour < 12 ? SermonService::Morning : SermonService::Evening;
             Log::info('SermonCreationService: Detected service from time in filename', [
                 'processing_id' => $processingLog->processing_id,
                 'filename' => $filename,
@@ -284,7 +284,7 @@ class SermonCreationService
             'filename' => $filename,
         ]);
 
-        return SermonService::MORNING;
+        return SermonService::Morning;
     }
 
     /**
@@ -363,7 +363,7 @@ class SermonCreationService
             } else {
                 // Fallback: simple filename parsing when no processing log
                 $serviceValue = $context['service'] ?? (str_contains(strtolower($filename), 'evening') ? 'evening' : 'morning');
-                $service = $serviceValue instanceof SermonService ? $serviceValue : (SermonService::tryFrom((string) $serviceValue) ?? SermonService::MORNING);
+                $service = $serviceValue instanceof SermonService ? $serviceValue : (SermonService::tryFrom((string) $serviceValue) ?? SermonService::Morning);
             }
 
             $serviceLabel = $service->label();

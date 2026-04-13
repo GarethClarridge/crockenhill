@@ -73,7 +73,7 @@ class AdminChurchServiceTest extends TestCase
             ->openLp()
             ->state([
                 'date' => '2026-01-12',
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
                 'original_filename' => '2026-01-12 AM.osz',
             ])
             ->create();
@@ -83,14 +83,14 @@ class AdminChurchServiceTest extends TestCase
             ->needsReview()
             ->state([
                 'date' => '2026-01-19',
-                'service' => SermonService::EVENING,
+                'service' => SermonService::Evening,
                 'original_filename' => '2026-01-19 PM.osz',
             ])
             ->create();
 
         Livewire::test(ListChurchServices::class)
             ->assertSee('Services')
-            ->set('serviceFilter', SermonService::EVENING->value)
+            ->set('serviceFilter', SermonService::Evening->value)
             ->assertSee('2026-01-19 PM.osz')
             ->assertDontSee('2026-01-12 AM.osz')
             ->set('serviceFilter', null)
@@ -150,7 +150,7 @@ class AdminChurchServiceTest extends TestCase
         $this->assertDatabaseHas('church_services', [
             'id' => $service->id,
             'date' => '2024-11-17',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'openlp',
             'original_filename' => '2024-11-17 AM.osz',
         ]);
@@ -211,7 +211,7 @@ class AdminChurchServiceTest extends TestCase
 
         $component = Livewire::test(ManageChurchService::class)
             ->set('date', '2026-05-03')
-            ->set('service', SermonService::MORNING->value)
+            ->set('service', SermonService::Morning->value)
             ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
             ->set('items.0.title', 'Welcome and Call to Worship')
             ->call('addItem')
@@ -255,7 +255,7 @@ class AdminChurchServiceTest extends TestCase
 
         Livewire::test(ManageChurchService::class)
             ->set('date', '2026-05-03')
-            ->set('service', SermonService::MORNING->value)
+            ->set('service', SermonService::Morning->value)
             ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
             ->set('items.0.title', 'Welcome and Call to Worship')
             ->call('save');
@@ -278,7 +278,7 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-10',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
             'source' => 'openlp',
             'original_filename' => '2026-05-10 PM.osz',
             'needs_review' => true,
@@ -365,7 +365,7 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-17',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'source' => 'manual',
         ]);
 
@@ -382,7 +382,7 @@ class AdminChurchServiceTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
             'extracted_date' => '2026-05-17',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         Livewire::test(ManageChurchService::class, ['churchService' => $service])
@@ -415,7 +415,7 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-24',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
             'source' => 'manual',
         ]);
 
@@ -479,12 +479,12 @@ class AdminChurchServiceTest extends TestCase
 
         ChurchService::factory()->create([
             'date' => '2026-05-17',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         Livewire::test(ManageChurchService::class)
             ->set('date', '2026-05-17')
-            ->set('service', SermonService::MORNING->value)
+            ->set('service', SermonService::Morning->value)
             ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
             ->set('items.0.title', 'Welcome')
             ->call('save')
@@ -498,7 +498,7 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-02-22',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'needs_review' => true,
             'import_metadata' => [
                 'confidence_score' => 0.4,
@@ -543,7 +543,7 @@ class AdminChurchServiceTest extends TestCase
         $service = $this->churchServiceScenario()
             ->state([
                 'date' => '2026-02-22',
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
             ])
             ->create();
 
@@ -558,7 +558,7 @@ class AdminChurchServiceTest extends TestCase
             ->as(\App\Enums\MediaType::Livestream)
             ->state([
                 'extracted_date' => '2026-02-22',
-                'extracted_service' => SermonService::MORNING,
+                'extracted_service' => SermonService::Morning,
             ])
             ->create();
 
@@ -566,7 +566,7 @@ class AdminChurchServiceTest extends TestCase
             ->as(\App\Enums\MediaType::Livestream)
             ->state([
                 'extracted_date' => '2026-02-23',
-                'extracted_service' => SermonService::MORNING,
+                'extracted_service' => SermonService::Morning,
             ])
             ->create();
 
@@ -636,12 +636,12 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-03-01',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->completed()->create([
             'extracted_date' => '2026-03-01',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         SermonProcessingStep::factory()->create([
@@ -699,12 +699,12 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-04-05',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $processingRun = MediaProcessingLog::factory()->livestream()->pending()->create([
             'extracted_date' => '2026-04-05',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
@@ -743,17 +743,17 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-04-12',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $videoRun = MediaProcessingLog::factory()->video()->create([
             'extracted_date' => '2026-04-12',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
         $mismatchedRun = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-04-19',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
@@ -775,12 +775,12 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-04-26',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $processingRun = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-04-26',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
             'source_file_path' => null,
             'status' => ProcessingStatus::Completed,
         ]);
@@ -816,7 +816,7 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-01',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -841,7 +841,7 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-08',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $item = ChurchServiceItem::factory()->create([
@@ -854,7 +854,7 @@ class AdminChurchServiceTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-08',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
         ServiceSection::factory()->create([
@@ -884,7 +884,7 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-15',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $item = ChurchServiceItem::factory()->create([
@@ -896,7 +896,7 @@ class AdminChurchServiceTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-15',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
         ServiceSection::factory()->create([
@@ -931,12 +931,12 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-22',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-22',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
         ServiceSection::factory()->create([
@@ -963,7 +963,7 @@ class AdminChurchServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-05-29',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $item = ChurchServiceItem::factory()->create([
@@ -975,7 +975,7 @@ class AdminChurchServiceTest extends TestCase
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-29',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
         ServiceSection::factory()->create([
@@ -1002,7 +1002,7 @@ class AdminChurchServiceTest extends TestCase
             ->livestream()
             ->state([
                 'date' => '2026-03-23',
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
                 'needs_review' => true,
                 'import_metadata' => [
                     'pending_structure_merge' => [
@@ -1042,7 +1042,7 @@ class AdminChurchServiceTest extends TestCase
         $service = $this->churchServiceScenario()
             ->state([
                 'date' => '2026-03-23',
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
                 'needs_review' => false,
             ])
             ->create();
@@ -1061,7 +1061,7 @@ class AdminChurchServiceTest extends TestCase
             ->livestream()
             ->state([
                 'date' => '2026-03-23',
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
                 'needs_review' => true,
                 'import_metadata' => [
                     'pending_structure_merge' => [
@@ -1121,7 +1121,7 @@ class AdminChurchServiceTest extends TestCase
             ->livestream()
             ->state([
                 'date' => '2026-03-23',
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
                 'needs_review' => true,
                 'import_metadata' => [
                     'pending_structure_merge' => [
@@ -1188,7 +1188,7 @@ class AdminChurchServiceTest extends TestCase
             ->livestream()
             ->state([
                 'date' => '2026-03-23',
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
                 'needs_review' => true,
                 'import_metadata' => [
                     'pending_structure_merge' => [

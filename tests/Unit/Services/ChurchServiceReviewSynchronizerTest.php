@@ -34,7 +34,7 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-05',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'needs_review' => false,
         ]);
 
@@ -51,7 +51,7 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-06',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'needs_review' => true,
             'import_metadata' => [],
         ]);
@@ -76,7 +76,7 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-07',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'needs_review' => false,
             'import_metadata' => [],
         ]);
@@ -103,7 +103,7 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-08',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'import_metadata' => [],
         ]);
 
@@ -121,7 +121,7 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-09',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'import_metadata' => ['review_triggers' => ['stale_trigger']],
         ]);
 
@@ -138,7 +138,7 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-10',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'email',
             'needs_review' => false,
             'import_metadata' => ['confidence_score' => 0.80],
@@ -155,7 +155,7 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-11',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'manual',
             'needs_review' => false,
             'import_metadata' => ['confidence_score' => 0.80],
@@ -174,7 +174,7 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-10-12',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'manual',
             'needs_review' => false,
             'import_metadata' => [

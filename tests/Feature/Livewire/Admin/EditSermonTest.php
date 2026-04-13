@@ -37,7 +37,7 @@ class EditSermonTest extends TestCase
             'title' => 'Original Title',
             'slug' => 'original-title',
             'date' => '2025-06-15',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'preacher' => 'John Smith',
             'reference' => 'John 3:16',
             'series' => null,
@@ -140,7 +140,7 @@ class EditSermonTest extends TestCase
             ->set('title', 'Updated Title')
             ->set('slug', 'updated-title')
             ->set('date', '2025-07-01')
-            ->set('service', SermonService::EVENING->value)
+            ->set('service', SermonService::Evening->value)
             ->set('preacherId', null)
             ->set('preacher', 'David Johnson')
             ->set('reference', 'Romans 8:28')

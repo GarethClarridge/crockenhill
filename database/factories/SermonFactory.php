@@ -16,7 +16,7 @@ class SermonFactory extends Factory
 
         return [
             'date' => $this->faker->date(),
-            'service' => $this->faker->randomElement([SermonService::MORNING->value, SermonService::EVENING->value, SermonService::OTHER->value]),
+            'service' => $this->faker->randomElement([SermonService::Morning->value, SermonService::Evening->value, SermonService::Other->value]),
             'content_type' => SermonContentType::Sermon,
             'audio_file_path' => Str::slug($title).'.mp3',
             'filetype' => 'mp3',

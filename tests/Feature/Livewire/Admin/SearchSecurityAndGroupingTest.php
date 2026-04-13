@@ -116,18 +116,18 @@ class SearchSecurityAndGroupingTest extends TestCase
 
         Sermon::factory()->create([
             'title' => 'The Grace of God',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'date' => now()->subDays(1),
         ]);
 
         Sermon::factory()->create([
             'title' => 'Evening Grace',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
             'date' => now()->subDays(2),
         ]);
 
         Livewire::test(ListSermons::class)
-            ->set('serviceFilter', SermonService::MORNING->value)
+            ->set('serviceFilter', SermonService::Morning->value)
             ->set('search', 'Grace')
             ->assertSee('The Grace of God')
             ->assertDontSee('Evening Grace');
@@ -211,14 +211,14 @@ class SearchSecurityAndGroupingTest extends TestCase
             'original_filename' => 'Match Ready',
             'needs_review' => false,
             'date' => '2026-01-01',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         ChurchService::factory()->create([
             'original_filename' => 'Match Review',
             'needs_review' => true,
             'date' => '2026-01-02',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
         ]);
 
         Livewire::test(ListChurchServices::class)

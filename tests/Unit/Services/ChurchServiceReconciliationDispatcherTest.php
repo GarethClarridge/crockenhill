@@ -26,7 +26,7 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-15',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
@@ -69,7 +69,7 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-16',
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
@@ -97,7 +97,7 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-17',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $matchedByColumns = MediaProcessingLog::factory()->livestream()->completed()->create([

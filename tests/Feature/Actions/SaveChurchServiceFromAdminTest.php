@@ -65,7 +65,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
         ];
 
         $result = $this->action->execute(
-            validated: ['date' => '2026-05-03', 'service' => SermonService::MORNING->value],
+            validated: ['date' => '2026-05-03', 'service' => SermonService::Morning->value],
             syncPayload: $payload,
             churchService: null,
             userId: $this->admin->id,
@@ -74,7 +74,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
         $this->assertInstanceOf(ChurchService::class, $result);
         $this->assertDatabaseHas('church_services', [
             'date' => '2026-05-03',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'manual',
             'needs_review' => false,
         ]);
@@ -90,7 +90,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
     {
         $service = ChurchService::factory()->create([
             'date' => '2026-05-10',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'source' => 'openlp',
             'original_filename' => '2026-05-10 AM.osz',
             'needs_review' => true,
@@ -120,7 +120,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
         ];
 
         $result = $this->action->execute(
-            validated: ['date' => '2026-05-10', 'service' => SermonService::MORNING->value],
+            validated: ['date' => '2026-05-10', 'service' => SermonService::Morning->value],
             syncPayload: $payload,
             churchService: $service,
             userId: $this->admin->id,
@@ -154,7 +154,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
         ]];
 
         $result = $this->action->execute(
-            validated: ['date' => '2026-06-01', 'service' => SermonService::MORNING->value],
+            validated: ['date' => '2026-06-01', 'service' => SermonService::Morning->value],
             syncPayload: $payload,
             churchService: null,
             userId: $this->admin->id,
@@ -175,7 +175,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-06-08',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'source' => 'manual',
         ]);
 
@@ -202,7 +202,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
         ]];
 
         $this->action->execute(
-            validated: ['date' => '2026-06-08', 'service' => SermonService::MORNING->value],
+            validated: ['date' => '2026-06-08', 'service' => SermonService::Morning->value],
             syncPayload: $payload,
             churchService: $service,
             userId: $this->admin->id,
@@ -229,7 +229,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
         ]];
 
         $this->action->execute(
-            validated: ['date' => '2026-06-15', 'service' => SermonService::MORNING->value],
+            validated: ['date' => '2026-06-15', 'service' => SermonService::Morning->value],
             syncPayload: $payload,
             churchService: null,
             userId: $this->admin->id,
@@ -254,7 +254,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
         ]];
 
         $result = $this->action->execute(
-            validated: ['date' => '2026-07-01', 'service' => SermonService::MORNING->value],
+            validated: ['date' => '2026-07-01', 'service' => SermonService::Morning->value],
             syncPayload: $payload,
             churchService: null,
             userId: $this->admin->id,

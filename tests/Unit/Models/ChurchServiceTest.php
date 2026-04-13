@@ -21,11 +21,11 @@ class ChurchServiceTest extends TestCase
     public function test_church_service_casts_service_to_sermon_service_enum(): void
     {
         $churchService = ChurchService::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $this->assertInstanceOf(SermonService::class, $churchService->service);
-        $this->assertSame(SermonService::MORNING, $churchService->service);
+        $this->assertSame(SermonService::Morning, $churchService->service);
     }
 
     #[Test]
@@ -55,14 +55,14 @@ class ChurchServiceTest extends TestCase
     {
         ChurchService::factory()->create([
             'date' => '2024-11-17',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $this->expectException(QueryException::class);
 
         ChurchService::factory()->create([
             'date' => '2024-11-17',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
     }
 

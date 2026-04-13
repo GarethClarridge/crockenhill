@@ -83,7 +83,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => ChurchServiceItemSource::OPENLP->value,
         ]);
 
@@ -209,7 +209,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => ChurchServiceItemSource::OPENLP->value,
         ]);
 
@@ -266,7 +266,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => ChurchServiceItemSource::LIVESTREAM->value,
         ]);
 

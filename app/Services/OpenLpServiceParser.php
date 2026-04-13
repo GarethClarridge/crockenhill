@@ -303,14 +303,14 @@ class OpenLpServiceParser
         $normalised = strtoupper((string) preg_replace('/[^a-zA-Z]+/', ' ', $value));
 
         if (preg_match('/\b(AM|MORNING)\b/', $normalised) === 1) {
-            return [SermonService::MORNING, true];
+            return [SermonService::Morning, true];
         }
 
         if (preg_match('/\b(PM|EVENING)\b/', $normalised) === 1) {
-            return [SermonService::EVENING, true];
+            return [SermonService::Evening, true];
         }
 
-        return [SermonService::OTHER, false];
+        return [SermonService::Other, false];
     }
 
     private function normaliseDate(string $date): ?string

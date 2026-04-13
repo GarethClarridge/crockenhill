@@ -35,7 +35,7 @@ class InboundEmailImportServiceTest extends TestCase
 
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [
                 ['position' => 1, 'type' => 'songs', 'title' => 'In Christ Alone', 'source_title' => null, 'openlp_search_title' => 'in christ alone@', 'metadata' => null],
             ],
@@ -52,7 +52,7 @@ class InboundEmailImportServiceTest extends TestCase
 
         $this->assertNotNull($restored);
         $this->assertSame('2025-03-09', $restored->date);
-        $this->assertSame(SermonService::MORNING, $restored->service);
+        $this->assertSame(SermonService::Morning, $restored->service);
         $this->assertCount(1, $restored->items);
         $this->assertSame('In Christ Alone', $restored->items[0]['title']);
         $this->assertSame(0.92, $restored->confidenceScore);
@@ -112,7 +112,7 @@ class InboundEmailImportServiceTest extends TestCase
 
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [
                 ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
             ],
@@ -129,7 +129,7 @@ class InboundEmailImportServiceTest extends TestCase
             'service' => 'morning',
         ]);
         $this->assertSame('2025-03-09', (string) $churchService->date->toDateString());
-        $this->assertSame(SermonService::MORNING, $churchService->service);
+        $this->assertSame(SermonService::Morning, $churchService->service);
         $this->assertCount(1, $churchService->items);
     }
 
@@ -140,7 +140,7 @@ class InboundEmailImportServiceTest extends TestCase
 
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [],
             confidenceScore: 0.5,
             needsReview: true,
@@ -161,7 +161,7 @@ class InboundEmailImportServiceTest extends TestCase
 
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [],
             confidenceScore: 0.5,
             needsReview: true,
@@ -183,7 +183,7 @@ class InboundEmailImportServiceTest extends TestCase
 
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [],
             confidenceScore: 0.9,
             needsReview: false,
@@ -204,7 +204,7 @@ class InboundEmailImportServiceTest extends TestCase
 
         $parseResult = new OosEmailParseResult(
             date: null,
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [],
             confidenceScore: 0.0,
             needsReview: true,

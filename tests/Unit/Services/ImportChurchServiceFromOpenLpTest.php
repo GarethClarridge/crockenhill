@@ -54,7 +54,7 @@ class ImportChurchServiceFromOpenLpTest extends TestCase
 
         $this->assertTrue($result->wasCreated);
         $this->assertSame('2024-11-17', $result->churchService->date->toDateString());
-        $this->assertSame(SermonService::MORNING, $result->churchService->service);
+        $this->assertSame(SermonService::Morning, $result->churchService->service);
         $this->assertCount(2, $result->churchService->items);
         $this->assertSame('upload_filename', $result->parseResult->importMetadata['parse_method'] ?? null);
         $this->assertSame(1, $result->linkResult['matched']);

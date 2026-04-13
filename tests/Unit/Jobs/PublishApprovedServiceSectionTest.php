@@ -41,7 +41,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-10',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -108,7 +108,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-17',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -151,7 +151,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-24',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $section = ServiceSection::factory()->create([
@@ -235,7 +235,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-31',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
             'original_filename' => '2026-05-31-morning-service.mp4',
         ]);
         $preacher = Preacher::factory()->create(['name' => 'Mary Helper']);
@@ -301,7 +301,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-06-07',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
             'original_filename' => '2026-06-07-morning-service.mp4',
         ]);
 

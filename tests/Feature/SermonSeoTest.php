@@ -128,7 +128,7 @@ class SermonSeoTest extends TestCase
     public function service_sermons_page_has_item_list_structured_data_and_breadcrumbs()
     {
         Sermon::factory()->count(2)->create([
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'content_type' => SermonContentType::Sermon,
         ]);
 

@@ -73,12 +73,12 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
         $this->assertDatabaseCount('church_services', 2);
         $this->assertDatabaseHas('church_services', [
             'date' => '2024-11-17',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'original_filename' => '2024-11-17 AM.osz',
         ]);
         $this->assertDatabaseHas('church_services', [
             'date' => '2024-11-17',
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
             'original_filename' => '2024-11-17 PM.osz',
         ]);
     }
@@ -101,7 +101,7 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
 
         $this->assertDatabaseHas('church_services', [
             'date' => '2023-01-01',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'original_filename' => '01-Jan-23 AM.osz',
         ]);
     }

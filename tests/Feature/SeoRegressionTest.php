@@ -43,12 +43,12 @@ class SeoRegressionTest extends TestCase
     {
         Sermon::factory()->create([
             'title' => 'Morning Sermon',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'date' => '2026-03-01',
         ]);
         Sermon::factory()->create([
             'title' => 'Evening Sermon',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
             'date' => '2026-03-01',
         ]);
 
@@ -74,12 +74,12 @@ class SeoRegressionTest extends TestCase
     {
         Sermon::factory()->create([
             'title' => 'Morning Sermon',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'date' => '2026-03-02',
         ]);
         Sermon::factory()->create([
             'title' => 'Evening Sermon',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
             'date' => '2026-03-02',
         ]);
 
@@ -105,7 +105,7 @@ class SeoRegressionTest extends TestCase
     {
         Sermon::factory()->create([
             'title' => 'Other Sermon',
-            'service' => SermonService::OTHER,
+            'service' => SermonService::Other,
             'date' => '2026-03-03',
         ]);
 

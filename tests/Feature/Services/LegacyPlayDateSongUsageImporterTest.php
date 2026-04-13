@@ -58,7 +58,7 @@ INSERT INTO `play_date` VALUES (2,'102','2024-03-24','p','');
 
         $this->assertDatabaseHas('church_services', [
             'date' => '2024-03-24',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'review_state' => ChurchServiceReviewState::REVIEWED->value,
         ]);
 
@@ -89,7 +89,7 @@ INSERT INTO `play_date` VALUES (2,'102','2024-03-24','p','');
         // Check that the service and item were not persisted after roll back
         $this->assertDatabaseMissing('church_services', [
             'date' => '2024-03-24',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
     }
 
@@ -131,7 +131,7 @@ INSERT INTO `play_date` VALUES (2,'102','2024-03-24','p','');
         Song::factory()->create(['id' => 101]);
         ChurchService::factory()->create([
             'date' => '2024-03-24',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $sqlContent = "INSERT INTO `play_date` VALUES (1,'101','2024-03-24','a','');";
@@ -149,7 +149,7 @@ INSERT INTO `play_date` VALUES (2,'102','2024-03-24','p','');
         $song = Song::factory()->create(['id' => 101]);
         $service = ChurchService::factory()->create([
             'date' => '2024-03-24',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
         ChurchServiceItem::factory()->create([
             'church_service_id' => $service->id,
@@ -172,7 +172,7 @@ INSERT INTO `play_date` VALUES (2,'102','2024-03-24','p','');
         $song = Song::factory()->create(['id' => 101]);
         $service = ChurchService::factory()->create([
             'date' => '2024-03-24',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
         ChurchServiceItem::factory()->create([
             'church_service_id' => $service->id,

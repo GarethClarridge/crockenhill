@@ -89,7 +89,7 @@ class ImportLegacySermonBatchCommandTest extends TestCase
         $this->assertSame(MediaType::Audio, $log->processing_type);
         $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('2024-03-10', $log->extracted_date?->toDateString());
-        $this->assertSame(SermonService::MORNING, $log->extracted_service);
+        $this->assertSame(SermonService::Morning, $log->extracted_service);
         $this->assertSame(2700.0, $log->duration);
         $this->assertNotNull($log->file_hash);
         $this->assertNotNull($log->file_size);
@@ -275,7 +275,7 @@ class ImportLegacySermonBatchCommandTest extends TestCase
         $log = MediaProcessingLog::query()->first();
         $this->assertNotNull($log);
         $this->assertSame('Evening Talk', $log->processing_metadata?->id3Metadata?->title);
-        $this->assertSame(SermonService::EVENING, $log->extracted_service);
+        $this->assertSame(SermonService::Evening, $log->extracted_service);
     }
 
     /**

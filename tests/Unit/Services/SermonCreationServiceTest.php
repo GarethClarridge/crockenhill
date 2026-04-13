@@ -112,10 +112,10 @@ class SermonCreationServiceTest extends TestCase
         ]);
 
         $service = $this->service->extractServiceType($log, '2024-03-15-evening-sermon.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
 
         $service = $this->service->extractServiceType($log, '2024-03-15-EVENING-sermon.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
     }
 
     #[Test]
@@ -126,10 +126,10 @@ class SermonCreationServiceTest extends TestCase
         ]);
 
         $service = $this->service->extractServiceType($log, '2024-03-15-morning-sermon.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
 
         $service = $this->service->extractServiceType($log, '2024-03-15-MORNING-sermon.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
     }
 
     #[Test]
@@ -140,10 +140,10 @@ class SermonCreationServiceTest extends TestCase
         ]);
 
         $service = $this->service->extractServiceType($log, '2024-10-19-pm.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
 
         $service = $this->service->extractServiceType($log, '2024-10-19_pm.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
     }
 
     #[Test]
@@ -154,10 +154,10 @@ class SermonCreationServiceTest extends TestCase
         ]);
 
         $service = $this->service->extractServiceType($log, '2024-10-19-am.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
 
         $service = $this->service->extractServiceType($log, '2024-10-19_am.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
     }
 
     #[Test]
@@ -169,19 +169,19 @@ class SermonCreationServiceTest extends TestCase
 
         // Test various time formats that indicate evening (>= 12:00)
         $service = $this->service->extractServiceType($log, '2024-10-19-18:00.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
 
         $service = $this->service->extractServiceType($log, '2024-10-19-1830.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
 
         $service = $this->service->extractServiceType($log, '2024-10-19-14:30.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
 
         $service = $this->service->extractServiceType($log, '2024-10-19_18-30.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
 
         $service = $this->service->extractServiceType($log, 'sermon-12:00.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
     }
 
     #[Test]
@@ -193,19 +193,19 @@ class SermonCreationServiceTest extends TestCase
 
         // Test various time formats that indicate morning (< 12:00)
         $service = $this->service->extractServiceType($log, '2024-10-19-10:00.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
 
         $service = $this->service->extractServiceType($log, '2024-10-19-1030.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
 
         $service = $this->service->extractServiceType($log, '2024-10-19-09:30.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
 
         $service = $this->service->extractServiceType($log, '2024-10-19_08-30.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
 
         $service = $this->service->extractServiceType($log, 'sermon-06:00.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
     }
 
     #[Test]
@@ -217,10 +217,10 @@ class SermonCreationServiceTest extends TestCase
 
         // These should default to morning because the date is not a valid time
         $service = $this->service->extractServiceType($log, '2024-10-19.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
 
         $service = $this->service->extractServiceType($log, '19-10-2024.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
     }
 
     #[Test]
@@ -232,15 +232,15 @@ class SermonCreationServiceTest extends TestCase
 
         // Even with evening time, "am" marker should take priority
         $service = $this->service->extractServiceType($log, '2024-10-19-18:00-am.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
 
         // Even with morning time, "pm" marker should take priority
         $service = $this->service->extractServiceType($log, '2024-10-19-10:00-pm.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
 
         // "evening" keyword should take priority
         $service = $this->service->extractServiceType($log, '2024-10-19-10:00-evening.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
     }
 
     #[Test]
@@ -251,7 +251,7 @@ class SermonCreationServiceTest extends TestCase
         ]);
 
         $service = $this->service->extractServiceType($log, '2024-03-15-sermon.mp3');
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $service);
     }
 
     #[Test]
@@ -267,7 +267,7 @@ class SermonCreationServiceTest extends TestCase
 
         // Even though filename says "morning", metadata should win
         $service = $this->service->extractServiceType($log, '2024-03-15-morning-sermon.mp3');
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $service);
     }
 
     #[Test]
@@ -347,7 +347,7 @@ class SermonCreationServiceTest extends TestCase
             [
                 'filename' => '2024-03-15.mp3',
                 'processing_log' => $log,
-                'service' => \App\Enums\SermonService::MORNING,
+                'service' => \App\Enums\SermonService::Morning,
             ]
         );
 
@@ -393,7 +393,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('The Power of Prayer', $sermon->title);
         $this->assertEquals('audio/test.mp3', $sermon->audio_file_path);
         $this->assertEquals('2024-03-15', $sermon->date->format('Y-m-d'));
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $sermon->service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $sermon->service);
         $this->assertEquals('Prayer Series', $sermon->series);
         $this->assertEquals('Matthew 6:5-15', $sermon->reference);
         $this->assertEquals(SermonSourceType::AudioUpload, $sermon->source_type);
@@ -422,7 +422,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('Faith and Works', $sermon->title);
         $this->assertEquals('audio/test.mp3', $sermon->audio_file_path);
         $this->assertEquals('video/test.mp4', $sermon->video_file_path);
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $sermon->service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $sermon->service);
         $this->assertEquals(SermonSourceType::VideoUpload, $sermon->source_type);
     }
 
@@ -452,7 +452,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('audio/livestream-segment.mp3', $sermon->audio_file_path);
         $this->assertEquals(SermonSourceType::Livestream, $sermon->source_type);
         $this->assertEquals('test-processing-id', $sermon->livestream_processing_id);
-        $this->assertEquals(\App\Enums\SermonService::MORNING, $sermon->service);
+        $this->assertEquals(\App\Enums\SermonService::Morning, $sermon->service);
     }
 
     #[Test]
@@ -583,12 +583,12 @@ class SermonCreationServiceTest extends TestCase
             audioFilePath: 'audio/test.mp3',
             originalFilename: '2024-03-15-morning-sermon.mp3',
             sourceType: SermonSourceType::AudioUpload,
-            service: \App\Enums\SermonService::EVENING,
+            service: \App\Enums\SermonService::Evening,
         );
 
         $sermon = $this->service->createSermon($log, $options);
 
-        $this->assertEquals(\App\Enums\SermonService::EVENING, $sermon->service);
+        $this->assertEquals(\App\Enums\SermonService::Evening, $sermon->service);
     }
 
     #[Test]

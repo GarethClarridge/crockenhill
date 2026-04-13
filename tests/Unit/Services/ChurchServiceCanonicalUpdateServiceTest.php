@@ -38,7 +38,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         Event::fake();
 
         $churchService = ChurchService::factory()->create([
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'needs_review' => false,
             'import_metadata' => ['confidence_score' => 1.0],
         ]);
@@ -73,7 +73,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         Event::fake();
 
         $churchService = ChurchService::factory()->create([
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'needs_review' => false,
             'import_metadata' => ['confidence_score' => 1.0],
         ]);
@@ -121,7 +121,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         Event::fake();
 
         $churchService = ChurchService::factory()->create([
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'needs_review' => false,
             'import_metadata' => [
                 'confidence_score' => 1.0,
@@ -163,7 +163,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         Event::fake();
 
         $churchService = ChurchService::factory()->create([
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'needs_review' => false,
             'import_metadata' => ['confidence_score' => 1.0],
         ]);
@@ -203,7 +203,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         Event::fake();
 
         $churchService = ChurchService::factory()->create([
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'needs_review' => false,
             'import_metadata' => ['confidence_score' => 1.0],
         ]);

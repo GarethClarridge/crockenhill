@@ -32,7 +32,7 @@ class StructuralSectionAlignerTest extends TestCase
     {
         return ChurchService::factory()->create([
             'date' => '2026-06-07',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
     }
 

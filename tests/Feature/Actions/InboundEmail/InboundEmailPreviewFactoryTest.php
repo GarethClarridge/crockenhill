@@ -36,7 +36,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-08',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                 ],
@@ -93,7 +93,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['type' => 'sermon', 'title' => 'A Sermon'],
                 ],
@@ -112,7 +112,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [],
             ),
         ]);
@@ -129,7 +129,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [['type' => 'sermon', 'title' => 'A Sermon']],
             ),
         ]);
@@ -178,7 +178,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-29',
-                    resolvedService: SermonService::MORNING->value,
+                    resolvedService: SermonService::Morning->value,
                     items: [],
                 ),
                 ['failure' => ['message' => 'Parser crashed']],
@@ -198,7 +198,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-29',
-                    resolvedService: SermonService::MORNING->value,
+                    resolvedService: SermonService::Morning->value,
                     items: [],
                 ),
                 ['reparsed_at' => '2026-03-12T11:30:00+00:00'],

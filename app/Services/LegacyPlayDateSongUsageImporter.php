@@ -149,8 +149,8 @@ class LegacyPlayDateSongUsageImporter
     private function serviceFromLegacySlot(string $slot): SermonService
     {
         return match ($slot) {
-            'a' => SermonService::MORNING,
-            'p' => SermonService::EVENING,
+            'a' => SermonService::Morning,
+            'p' => SermonService::Evening,
             default => throw new RuntimeException('Unsupported legacy play_date slot: '.$slot),
         };
     }

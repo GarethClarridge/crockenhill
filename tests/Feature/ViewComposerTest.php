@@ -20,12 +20,12 @@ class ViewComposerTest extends TestCase
     public function it_populates_footer_with_latest_sermons(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'date' => now()->subDay(),
             'title' => 'Latest Morning',
         ]);
         Sermon::factory()->create([
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
             'date' => now()->subDay(),
             'title' => 'Latest Evening',
         ]);
@@ -259,7 +259,7 @@ class ViewComposerTest extends TestCase
             'title' => 'Rendered Sermon',
             'slug' => 'rendered-sermon',
             'date' => now(),
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $view = View::make('components.sermon-list', [

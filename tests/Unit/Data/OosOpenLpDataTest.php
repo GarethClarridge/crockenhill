@@ -52,7 +52,7 @@ class OosOpenLpDataTest extends TestCase
     {
         $result = new OosEmailParseResult(
             date: '2024-03-10',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [['position' => 1, 'type' => 'song', 'title' => 'How Great Thou Art', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
             confidenceScore: 0.88,
             needsReview: false,
@@ -61,7 +61,7 @@ class OosOpenLpDataTest extends TestCase
         );
 
         $this->assertSame('2024-03-10', $result->date);
-        $this->assertSame(SermonService::MORNING, $result->service);
+        $this->assertSame(SermonService::Morning, $result->service);
         $this->assertCount(1, $result->items);
         $this->assertSame(0.88, $result->confidenceScore);
         $this->assertFalse($result->needsReview);
@@ -93,14 +93,14 @@ class OosOpenLpDataTest extends TestCase
     {
         $result = new OpenLpParseResult(
             date: '2024-06-02',
-            service: SermonService::EVENING,
+            service: SermonService::Evening,
             items: [['position' => 1, 'type' => 'sermon', 'title' => 'The Gospel', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null]],
             needsReview: false,
             importMetadata: ['file' => 'service.osz'],
         );
 
         $this->assertSame('2024-06-02', $result->date);
-        $this->assertSame(SermonService::EVENING, $result->service);
+        $this->assertSame(SermonService::Evening, $result->service);
         $this->assertCount(1, $result->items);
         $this->assertFalse($result->needsReview);
         $this->assertSame(['file' => 'service.osz'], $result->importMetadata);
@@ -114,7 +114,7 @@ class OosOpenLpDataTest extends TestCase
         $churchService = ChurchService::factory()->create();
         $parseResult = new OpenLpParseResult(
             date: '2024-06-02',
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             items: [],
             needsReview: false,
             importMetadata: [],
