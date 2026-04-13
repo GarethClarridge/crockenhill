@@ -35,6 +35,7 @@ Route::view('/christmas', 'full-width-pages.christmas')->name('christmas');
 
 // Full width pages
 Route::view('/christ', 'full-width-pages.christ')->name('christ');
+Route::view('/christ/free-bibles', 'full-width-pages.free-bibles')->name('christ.free-bibles');
 Route::get('/christ/childrens-corner', [ChildrensCornerController::class, 'index'])->middleware('childrens-corner.access')->name('childrens-corner.index');
 Route::get('/christ/childrens-corner/{sermon:slug}', [ChildrensCornerController::class, 'show'])->middleware('childrens-corner.access')->name('childrens-corner.show');
 Route::view('/church', 'full-width-pages.church')->name('church');

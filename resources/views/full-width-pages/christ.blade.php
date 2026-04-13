@@ -30,7 +30,7 @@
     ],
     [
         'question' => 'Where can I find out more?',
-        'answer' => 'You can come along, get in touch with our pastor, or start reading Mark\'s gospel in the Bible to decide for yourself who Jesus is. If you need a Bible get in touch - we\'d be happy to provide one',
+        'answer' => 'You can come along, get in touch with our pastor, or start reading Mark\'s gospel in the Bible to decide for yourself who Jesus is. If you need a Bible, we\'d love to give you one free — visit our Free Bibles page.',
     ],
 ]" />
 @stop
@@ -74,6 +74,9 @@
     </x-button>
     <x-button link="#where-can-i-find-out-more">
       Where can I find out more?
+    </x-button>
+    <x-button link="#get-a-free-bible">
+      Get a free Bible
     </x-button>
   </x-button-grid>
 
@@ -218,10 +221,28 @@
       yourself what you think. We'd recommend starting with
       <a href="https://www.biblegateway.com/passage/?search=Mark+1&version=NIVUK">
         Mark's gospel on BibleGateway
-      </a>. If you don't have a Bible and would like one, do get in
-      touch and we'd be happy to provide one.
+      </a>. If you don't have a Bible and would like one, see below.
     </p>
   </x-text>
+
+  <x-h2 id="get-a-free-bible">
+    Get a free Bible
+  </x-h2>
+
+  <x-text>
+    <p>
+      If you live in the Crockenhill or Chelsfield area and would like
+      a free Bible, we'd love to give you one — no strings attached.
+    </p>
+  </x-text>
+
+  <div class="mx-auto w-full max-w-[34rem] px-6 text-center">
+    <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
+      <x-button link="/christ/free-bibles" wire:navigate variant="featureOutline" size="lg" class="w-full rounded-[11px]">
+        Request a free Bible
+      </x-button>
+    </div>
+  </div>
 
 </main>
 

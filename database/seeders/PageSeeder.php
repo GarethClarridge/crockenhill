@@ -426,6 +426,19 @@ class PageSeeder extends Seeder
                 'markdown' => 'lorem ipsum',
                 'navigation' => true,
             ],
+            [
+                'id' => 131,
+                'slug' => 'free-bibles',
+                'heading' => 'Free Bibles',
+                'description' => 'Would you like a free Bible? We\'d love to give you one — no strings attached — for anyone in the Crockenhill or Chelsfield area.',
+                'area' => 'christ',
+                'body' => 'lorem ipsum',
+                'admin' => 'no',
+                'created_at' => '2026-04-13 00:00:00',
+                'updated_at' => '2026-04-13 00:00:00',
+                'markdown' => 'lorem ipsum',
+                'navigation' => true,
+            ],
         ];
 
         foreach ($pages as $page) {
