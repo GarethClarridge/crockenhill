@@ -49,10 +49,40 @@ class Preacher extends Model implements Sitemapable
         'is_active',
     ];
 
+    /**
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
             'is_active' => 'boolean',
+        ];
+    }
+
+    /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(?self $preacher = null): array
+    {
+        $nameRule = ['required', 'string', 'max:255'];
+        $slugRule = ['required', 'string', 'max:255'];
+
+        $uniqueName = \Illuminate\Validation\Rule::unique('preachers', 'name');
+        $uniqueSlug = \Illuminate\Validation\Rule::unique('preachers', 'slug');
+
+        if ($preacher) {
+            $uniqueName->ignore($preacher->id);
+            $uniqueSlug->ignore($preacher->id);
+        }
+
+        $nameRule[] = $uniqueName;
+        $slugRule[] = $uniqueSlug;
+
+        return [
+            'name' => $nameRule,
+            'slug' => $slugRule,
+            'image_path' => ['nullable', 'string', 'max:255'],
         ];
     }
 
