@@ -43,7 +43,7 @@ class OpenLpServiceParserTest extends TestCase
         $result = $this->parser->parse($upload);
 
         $this->assertSame('2024-11-17', $result->date);
-        $this->assertSame(SermonService::MORNING, $result->service);
+        $this->assertSame(SermonService::Morning, $result->service);
         $this->assertCount(2, $result->items);
         $this->assertFalse($result->needsReview);
     }
@@ -60,7 +60,7 @@ class OpenLpServiceParserTest extends TestCase
         $result = $this->parser->parse($upload);
 
         $this->assertSame('2024-11-17', $result->date);
-        $this->assertSame(SermonService::MORNING, $result->service);
+        $this->assertSame(SermonService::Morning, $result->service);
     }
 
     #[Test]
@@ -75,7 +75,7 @@ class OpenLpServiceParserTest extends TestCase
         $result = $this->parser->parse($upload);
 
         $this->assertSame('2024-11-17', $result->date);
-        $this->assertSame(SermonService::EVENING, $result->service);
+        $this->assertSame(SermonService::Evening, $result->service);
     }
 
     #[Test]
@@ -90,7 +90,7 @@ class OpenLpServiceParserTest extends TestCase
         $result = $this->parser->parse($upload);
 
         $this->assertSame('2023-01-01', $result->date);
-        $this->assertSame(SermonService::MORNING, $result->service);
+        $this->assertSame(SermonService::Morning, $result->service);
     }
 
     #[Test]
@@ -105,7 +105,7 @@ class OpenLpServiceParserTest extends TestCase
         $result = $this->parser->parse($upload);
 
         $this->assertSame('2024-05-26', $result->date);
-        $this->assertSame(SermonService::OTHER, $result->service);
+        $this->assertSame(SermonService::Other, $result->service);
     }
 
     #[Test]
@@ -120,7 +120,7 @@ class OpenLpServiceParserTest extends TestCase
         $result = $this->parser->parse($upload);
 
         $this->assertSame('2024-01-07', $result->date);
-        $this->assertSame(SermonService::OTHER, $result->service);
+        $this->assertSame(SermonService::Other, $result->service);
     }
 
     #[Test]
@@ -255,7 +255,7 @@ class OpenLpServiceParserTest extends TestCase
         $result = $this->parser->parse($upload);
 
         $this->assertSame('2024-11-17', $result->date);
-        $this->assertSame(SermonService::EVENING, $result->service);
+        $this->assertSame(SermonService::Evening, $result->service);
         $this->assertSame('embedded_filename', $result->importMetadata['parse_method']);
     }
 
@@ -270,7 +270,7 @@ class OpenLpServiceParserTest extends TestCase
 
         $result = $this->parser->parse($upload);
 
-        $this->assertSame(SermonService::MORNING, $result->service);
+        $this->assertSame(SermonService::Morning, $result->service);
         $this->assertTrue($result->importMetadata['filename_mismatch']);
         $this->assertLessThan(1.0, $result->importMetadata['confidence_score']);
         $this->assertTrue($result->needsReview);

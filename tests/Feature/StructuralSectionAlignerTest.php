@@ -29,7 +29,7 @@ class StructuralSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-09',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $prayerItem = ChurchServiceItem::factory()->create([
@@ -93,7 +93,7 @@ class StructuralSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-16',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         // OoS has: SERMON item first, then PRAYER item
@@ -145,7 +145,7 @@ class StructuralSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-23',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $bibleItem = ChurchServiceItem::factory()->create([
@@ -190,7 +190,7 @@ class StructuralSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-30',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $readingItem = ChurchServiceItem::factory()->create([
@@ -233,7 +233,7 @@ class StructuralSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-12-07',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $readingItem = ChurchServiceItem::factory()->create([
@@ -274,7 +274,7 @@ class StructuralSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-12-14',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $prayerItem = ChurchServiceItem::factory()->create([
@@ -317,7 +317,7 @@ class StructuralSectionAlignerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-12-21',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $item = ChurchServiceItem::factory()->create([

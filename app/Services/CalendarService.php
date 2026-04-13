@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\CalendarEvent;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
 
 class CalendarService
 {
@@ -86,6 +87,13 @@ class CalendarService
         $event->update([
             'meeting_slug' => $meetingSlug,
             'is_categorized_automatically' => false,
+        ]);
+
+        Log::warning('Calendar event manually categorized', [
+            'admin_id' => auth()->id(),
+            'event_id' => $event->id,
+            'event_title' => $event->title,
+            'meeting_slug' => $meetingSlug,
         ]);
 
         $googleSynced = $event->google_event_id !== null

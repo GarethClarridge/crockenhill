@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Security;
 
+use App\Enums\CalendarEventStatus;
 use App\Enums\InboundEmailStatus;
+use App\Livewire\Admin\CalendarEvents\EditCalendarEvent;
+use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
 use App\Livewire\Admin\Meetings\ListMeetings;
 use App\Livewire\Admin\Pages\ListPages;
@@ -19,6 +22,7 @@ use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\User;
+use App\Services\GoogleCalendarSyncService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Log;
 use Livewire\Livewire;
@@ -100,6 +104,11 @@ class AuditLoggingTest extends TestCase
         Log::spy();
         $pages = Page::factory()->count(3)->create();
         $ids = $pages->pluck('id')->all();
+        $descriptivePages = $pages->map(fn (Page $p) => [
+            'id' => $p->id,
+            'heading' => $p->heading,
+            'slug' => $p->slug,
+        ])->all();
 
         Livewire::actingAs($this->admin)
             ->test(ListPages::class)
@@ -112,7 +121,7 @@ class AuditLoggingTest extends TestCase
 
         Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Pages deleted by admin (batch)' &&
             $context['admin_id'] === $this->admin->id &&
-            $context['page_ids'] === $ids
+            $context['pages'] === $descriptivePages
         );
     }
 
@@ -217,6 +226,81 @@ class AuditLoggingTest extends TestCase
             $context['admin_id'] === $this->admin->id &&
             $context['preacher_id'] === $preacher->id &&
             $context['profile_id'] === $profile->id
+        );
+    }
+
+    #[Test]
+    public function it_logs_calendar_event_categorization_via_livewire_list(): void
+    {
+        Log::spy();
+        Meeting::factory()->create(['slug' => 'new-meeting-slug']);
+        $event = \App\Models\CalendarEvent::factory()->create(['title' => 'Event Title']);
+
+        Livewire::actingAs($this->admin)
+            ->test(ListCalendarEvents::class)
+            ->call('categorize', $event->id, 'new-meeting-slug');
+
+        $this->assertEquals('new-meeting-slug', $event->fresh()->meeting_slug);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Calendar event categorized via list view' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['event_id'] === $event->id &&
+            $context['event_title'] === 'Event Title' &&
+            $context['meeting_slug'] === 'new-meeting-slug'
+        );
+    }
+
+    #[Test]
+    public function it_logs_calendar_event_categorization_via_livewire_edit(): void
+    {
+        Log::spy();
+        Meeting::factory()->create(['slug' => 'old-slug']);
+        Meeting::factory()->create(['slug' => 'new-slug']);
+        $event = \App\Models\CalendarEvent::factory()->create([
+            'title' => 'Event Title',
+            'meeting_slug' => 'old-slug',
+            'status' => CalendarEventStatus::CONFIRMED,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(EditCalendarEvent::class, ['calendarEvent' => $event])
+            ->set('meetingSlug', 'new-slug')
+            ->call('save');
+
+        $this->assertEquals('new-slug', $event->fresh()->meeting_slug);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Calendar event categorization changed via edit form' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['event_id'] === $event->id &&
+            $context['event_title'] === 'Event Title' &&
+            $context['old_meeting_slug'] === 'old-slug' &&
+            $context['new_meeting_slug'] === 'new-slug'
+        );
+    }
+
+    #[Test]
+    public function it_logs_calendar_event_categorization_via_service(): void
+    {
+        Log::spy();
+
+        // Mock GoogleCalendarSyncService to avoid calling Google Calendar API
+        $this->mock(GoogleCalendarSyncService::class, function ($mock) {
+            $mock->shouldReceive('syncCategorizationToGoogle')->andReturn(true);
+        });
+
+        Meeting::factory()->create(['slug' => 'service-slug']);
+        $event = \App\Models\CalendarEvent::factory()->create(['title' => 'Service Event']);
+
+        $this->actingAs($this->admin);
+        app(\App\Services\CalendarService::class)->manuallyCategorizeEvent($event->id, 'service-slug');
+
+        $this->assertEquals('service-slug', $event->fresh()->meeting_slug);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Calendar event manually categorized' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['event_id'] === $event->id &&
+            $context['event_title'] === 'Service Event' &&
+            $context['meeting_slug'] === 'service-slug'
         );
     }
 

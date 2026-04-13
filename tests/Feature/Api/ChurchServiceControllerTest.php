@@ -51,7 +51,7 @@ class ChurchServiceControllerTest extends TestCase
 
         $this->assertDatabaseHas('church_services', [
             'date' => '2024-11-17',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'openlp',
         ]);
         $this->assertDatabaseCount('church_service_items', 2);
@@ -176,7 +176,7 @@ class ChurchServiceControllerTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2024-11-17',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'source' => 'email',
             'needs_review' => false,
             'import_metadata' => [
@@ -229,7 +229,7 @@ class ChurchServiceControllerTest extends TestCase
     {
         $service = ChurchService::factory()->create([
             'date' => '2024-11-17',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'source' => 'email',
             'needs_review' => true,
             'import_metadata' => [
@@ -299,7 +299,7 @@ class ChurchServiceControllerTest extends TestCase
 
         MediaProcessingLog::factory()->livestream()->completed()->create([
             'extracted_date' => '2024-11-17',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $upload = $this->validOpenLpUpload();
@@ -373,7 +373,7 @@ class ChurchServiceControllerTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2024-11-17',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         ChurchServiceItem::factory()->count(2)->create([
@@ -465,7 +465,7 @@ class ChurchServiceControllerTest extends TestCase
         // at the outer transaction level) and returns a successful response, not a 500.
         ChurchService::factory()->create([
             'date' => '2024-11-17',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $raced = false;

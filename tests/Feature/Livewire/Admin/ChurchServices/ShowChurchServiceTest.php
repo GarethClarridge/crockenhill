@@ -55,7 +55,7 @@ class ShowChurchServiceTest extends TestCase
         config(['queue.default' => 'sync']);
 
         $serviceDate = '2026-01-15';
-        $serviceType = SermonService::MORNING;
+        $serviceType = SermonService::Morning;
 
         $churchService = ChurchService::factory()->create([
             'date' => $serviceDate,
@@ -95,7 +95,7 @@ class ShowChurchServiceTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-04-20',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'livestream',
             'needs_review' => true,
             'import_metadata' => [
@@ -110,7 +110,7 @@ class ShowChurchServiceTest extends TestCase
             'status' => ProcessingStatus::Completed,
             'church_service_id' => null,
             'extracted_date' => '2026-04-20',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $sermon = Sermon::factory()->fromLivestream()->create([
@@ -154,7 +154,7 @@ class ShowChurchServiceTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-04-27',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'livestream',
             'import_metadata' => [
                 'livestream_projection' => [
@@ -183,7 +183,7 @@ class ShowChurchServiceTest extends TestCase
             'processing_metadata' => [
                 'repair' => [
                     'original_extracted_date' => '2026-04-27',
-                    'original_extracted_service' => SermonService::MORNING->value,
+                    'original_extracted_service' => SermonService::Morning->value,
                 ],
             ],
         ]);

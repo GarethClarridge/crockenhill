@@ -63,7 +63,7 @@ class ImportLegacySongUsageCommandTest extends TestCase
 
         $morningService = ChurchService::query()
             ->where('date', '2013-04-28')
-            ->where('service', SermonService::MORNING->value)
+            ->where('service', SermonService::Morning->value)
             ->firstOrFail();
 
         $this->assertSame('legacy_play_date', $morningService->source);
@@ -86,7 +86,7 @@ class ImportLegacySongUsageCommandTest extends TestCase
 
         $eveningService = ChurchService::query()
             ->where('date', '2013-04-28')
-            ->where('service', SermonService::EVENING->value)
+            ->where('service', SermonService::Evening->value)
             ->firstOrFail();
 
         $this->assertDatabaseHas('church_service_items', [
@@ -126,7 +126,7 @@ class ImportLegacySongUsageCommandTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2013-04-28',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'email',
         ]);
 

@@ -241,10 +241,10 @@ class MetadataExtractionService
         $hour = $time->hour;
 
         if ($hour >= 6 && $hour < 14) {
-            return SermonService::MORNING;
+            return SermonService::Morning;
         }
 
-        return SermonService::EVENING;
+        return SermonService::Evening;
     }
 
     public function determineServiceFromFilename(string $filename): SermonService
@@ -261,9 +261,9 @@ class MetadataExtractionService
             if ($hour >= 0 && $hour <= 23 && $minute >= 0 && $minute <= 59) {
                 // Use the same 2 PM (14:00) cutoff
                 if ($hour < 14) {
-                    return SermonService::MORNING;
+                    return SermonService::Morning;
                 } else {
-                    return SermonService::EVENING;
+                    return SermonService::Evening;
                 }
             }
         }
@@ -277,7 +277,7 @@ class MetadataExtractionService
             preg_match('/10[:\-\s]?30/', $lowerFilename) ||
             preg_match('/11[:\-\s]?00/', $lowerFilename)
         ) {
-            return SermonService::MORNING;
+            return SermonService::Morning;
         }
 
         // Evening patterns
@@ -291,10 +291,10 @@ class MetadataExtractionService
             preg_match('/18[:\-\s]?30/', $lowerFilename) ||
             preg_match('/19[:\-\s]?00/', $lowerFilename)
         ) {
-            return SermonService::EVENING;
+            return SermonService::Evening;
         }
 
-        return SermonService::MORNING;
+        return SermonService::Morning;
     }
 
     public function isValidDate(int $year, int $month, int $day): bool

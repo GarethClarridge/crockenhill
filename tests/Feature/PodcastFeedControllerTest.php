@@ -40,7 +40,7 @@ class PodcastFeedControllerTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Morning Message',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'content_type' => SermonContentType::Sermon,
         ]);
 

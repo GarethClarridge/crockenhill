@@ -207,7 +207,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($morningTimes as $time) {
             $result = $this->service->determineServiceFromTime($time);
-            $this->assertEquals(SermonService::MORNING, $result, "Failed for time: {$time->format('H:i')}");
+            $this->assertEquals(SermonService::Morning, $result, "Failed for time: {$time->format('H:i')}");
         }
 
         // Evening times (2 PM onwards and before 6 AM)
@@ -222,7 +222,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($eveningTimes as $time) {
             $result = $this->service->determineServiceFromTime($time);
-            $this->assertEquals(SermonService::EVENING, $result, "Failed for time: {$time->format('H:i')}");
+            $this->assertEquals(SermonService::Evening, $result, "Failed for time: {$time->format('H:i')}");
         }
     }
 
@@ -242,7 +242,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($morningFilenames as $filename) {
             $result = $this->service->determineServiceFromFilename($filename);
-            $this->assertEquals(SermonService::MORNING, $result, "Failed for filename: {$filename}");
+            $this->assertEquals(SermonService::Morning, $result, "Failed for filename: {$filename}");
         }
 
         // Evening patterns
@@ -257,7 +257,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($eveningFilenames as $filename) {
             $result = $this->service->determineServiceFromFilename($filename);
-            $this->assertEquals(SermonService::EVENING, $result, "Failed for filename: {$filename}");
+            $this->assertEquals(SermonService::Evening, $result, "Failed for filename: {$filename}");
         }
     }
 
@@ -274,7 +274,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($morningFilenames as $filename => $description) {
             $result = $this->service->determineServiceFromFilename($filename);
-            $this->assertEquals(SermonService::MORNING, $result, "Failed for {$description}: {$filename}");
+            $this->assertEquals(SermonService::Morning, $result, "Failed for {$description}: {$filename}");
         }
 
         // Evening times (14:00 and after)
@@ -288,7 +288,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($eveningFilenames as $filename => $description) {
             $result = $this->service->determineServiceFromFilename($filename);
-            $this->assertEquals(SermonService::EVENING, $result, "Failed for {$description}: {$filename}");
+            $this->assertEquals(SermonService::Evening, $result, "Failed for {$description}: {$filename}");
         }
     }
 
@@ -305,7 +305,7 @@ class MetadataExtractionServiceTest extends TestCase
         foreach ($invalidTimes as $filename) {
             // Should default to morning since no other patterns match
             $result = $this->service->determineServiceFromFilename($filename);
-            $this->assertEquals(SermonService::MORNING, $result, "Failed for invalid time: {$filename}");
+            $this->assertEquals(SermonService::Morning, $result, "Failed for invalid time: {$filename}");
         }
     }
 
@@ -321,7 +321,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($neutralFilenames as $filename) {
             $result = $this->service->determineServiceFromFilename($filename);
-            $this->assertEquals(SermonService::MORNING, $result, "Failed for filename: {$filename}");
+            $this->assertEquals(SermonService::Morning, $result, "Failed for filename: {$filename}");
         }
     }
 
@@ -330,9 +330,9 @@ class MetadataExtractionServiceTest extends TestCase
     {
         // These should not match AM/PM patterns
         $testCases = [
-            'example.mp3' => SermonService::MORNING, // 'am' in 'example' shouldn't match
-            'spam_filter.mp3' => SermonService::MORNING, // 'am' in 'spam' shouldn't match
-            'team_meeting.mp3' => SermonService::MORNING, // 'am' in 'team' shouldn't match
+            'example.mp3' => SermonService::Morning, // 'am' in 'example' shouldn't match
+            'spam_filter.mp3' => SermonService::Morning, // 'am' in 'spam' shouldn't match
+            'team_meeting.mp3' => SermonService::Morning, // 'am' in 'team' shouldn't match
         ];
 
         foreach ($testCases as $filename => $expected) {
@@ -350,7 +350,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         $this->assertInstanceOf(SermonMetadata::class, $result);
         $this->assertEquals('2024-01-15', $result->date->format('Y-m-d'));
-        $this->assertEquals(SermonService::MORNING, $result->service);
+        $this->assertEquals(SermonService::Morning, $result->service);
         $this->assertEquals('2024-01-15_morning_sermon.mp3', $result->filename);
         $this->assertEquals('2024-01-15_morning_sermon.mp3', $result->originalName);
     }
@@ -385,15 +385,15 @@ class MetadataExtractionServiceTest extends TestCase
         $complexFilenames = [
             'CBC_2024-01-15_10.30am_John_3.16-21.mp3' => [
                 'date' => '2024-01-15',
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
             ],
             '15.01.2024_evening_service_Romans_8.mp3' => [
                 'date' => '2024-01-15',
-                'service' => SermonService::EVENING,
+                'service' => SermonService::Evening,
             ],
             'Sermon_20240630_PM_1_John_2.1-6.mp3' => [
                 'date' => '2024-06-30',
-                'service' => SermonService::EVENING,
+                'service' => SermonService::Evening,
             ],
         ];
 

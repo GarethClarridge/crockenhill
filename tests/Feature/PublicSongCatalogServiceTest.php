@@ -50,7 +50,7 @@ class PublicSongCatalogServiceTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-01-15',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -72,7 +72,7 @@ class PublicSongCatalogServiceTest extends TestCase
         foreach (['2026-01-05', '2026-02-10'] as $date) {
             $churchService = ChurchService::factory()->create([
                 'date' => $date,
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
             ]);
 
             ChurchServiceItem::factory()->create([
@@ -111,7 +111,7 @@ class PublicSongCatalogServiceTest extends TestCase
         foreach (['2026-01-01', '2026-01-08'] as $date) {
             $churchService = ChurchService::factory()->create([
                 'date' => $date,
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
             ]);
 
             ChurchServiceItem::factory()->create([
@@ -123,7 +123,7 @@ class PublicSongCatalogServiceTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-01-15',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -150,8 +150,8 @@ class PublicSongCatalogServiceTest extends TestCase
         $oldSong = Song::factory()->create(['title' => 'Old Song']);
 
         $service = ChurchService::factory()->create([
-            'date' => now()->subYears(4)->format('Y-m-d'),
-            'service' => SermonService::MORNING,
+            'date' => '2024-06-01',
+            'service' => SermonService::Morning,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -181,8 +181,8 @@ class PublicSongCatalogServiceTest extends TestCase
         $song = Song::factory()->create(['title' => 'Recent Song']);
 
         $churchService = ChurchService::factory()->create([
-            'date' => now()->subYear()->format('Y-m-d'),
-            'service' => SermonService::MORNING,
+            'date' => now()->format('Y-01-20'),
+            'service' => SermonService::Morning,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -207,7 +207,7 @@ class PublicSongCatalogServiceTest extends TestCase
         foreach ([$recentDate, $oldDate] as $date) {
             $churchService = ChurchService::factory()->create([
                 'date' => $date,
-                'service' => SermonService::MORNING,
+                'service' => SermonService::Morning,
             ]);
 
             ChurchServiceItem::factory()->create([
@@ -234,7 +234,7 @@ class PublicSongCatalogServiceTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-02-08',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $countedItem = ChurchServiceItem::factory()->create([

@@ -101,8 +101,8 @@ class BrowseSongsTest extends TestCase
 
         $song = Song::factory()->create(['title' => 'Sung Recently']);
         $churchService = ChurchService::factory()->create([
-            'date' => now()->subYear()->format('Y-m-d'),
-            'service' => SermonService::MORNING,
+            'date' => now()->format('Y-01-15'),
+            'service' => SermonService::Morning,
         ]);
         ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,

@@ -22,7 +22,7 @@ class SermonMetadataDataTest extends TestCase
 
         $metadata = SermonMetadata::create(
             date: $date,
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             filename: 'hashed-file.mp3',
             originalName: '2024-03-10_sermon.mp3',
             duration: 3600.0,
@@ -32,7 +32,7 @@ class SermonMetadataDataTest extends TestCase
         );
 
         $this->assertTrue($date->isSameDay($metadata->date));
-        $this->assertSame(SermonService::MORNING, $metadata->service);
+        $this->assertSame(SermonService::Morning, $metadata->service);
         $this->assertSame('hashed-file.mp3', $metadata->filename);
         $this->assertSame('2024-03-10_sermon.mp3', $metadata->originalName);
         $this->assertSame(3600.0, $metadata->duration);
@@ -46,7 +46,7 @@ class SermonMetadataDataTest extends TestCase
     {
         $metadata = SermonMetadata::create(
             date: Carbon::today(),
-            service: SermonService::EVENING,
+            service: SermonService::Evening,
             filename: 'hashed.mp3',
             originalName: 'sermon.mp3',
         );
@@ -65,7 +65,7 @@ class SermonMetadataDataTest extends TestCase
     {
         $metadata = SermonMetadata::create(
             date: Carbon::today(),
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             filename: 'hashed.mp3',
             originalName: $filename,
         );
@@ -97,7 +97,7 @@ class SermonMetadataDataTest extends TestCase
     {
         $original = SermonMetadata::create(
             date: Carbon::parse('2024-01-01'),
-            service: SermonService::MORNING,
+            service: SermonService::Morning,
             filename: 'hash.mp3',
             originalName: 'old-name.mp3',
             duration: 1800.0,
@@ -111,6 +111,6 @@ class SermonMetadataDataTest extends TestCase
         // Other fields preserved
         $this->assertSame('hash.mp3', $updated->filename);
         $this->assertSame(1800.0, $updated->duration);
-        $this->assertSame(SermonService::MORNING, $updated->service);
+        $this->assertSame(SermonService::Morning, $updated->service);
     }
 }

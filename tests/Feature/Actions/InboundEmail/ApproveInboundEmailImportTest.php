@@ -71,7 +71,7 @@ class ApproveInboundEmailImportTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                     ['position' => 2, 'type' => 'custom', 'title' => 'Sermon', 'metadata' => ['email_type' => 'sermon']],

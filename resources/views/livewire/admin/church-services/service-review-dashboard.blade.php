@@ -46,9 +46,9 @@
                         <div class="flex flex-wrap items-center gap-2">
                             <h2 class="font-display text-2xl text-gray-900">{{ $group['date_label'] }}</h2>
                             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ match($group['service_enum']) {
-                                \App\Enums\SermonService::MORNING => 'bg-green-100 text-green-800',
-                                \App\Enums\SermonService::EVENING => 'bg-amber-100 text-amber-800',
-                                \App\Enums\SermonService::OTHER => 'bg-slate-100 text-slate-800',
+                                \App\Enums\SermonService::Morning => 'bg-green-100 text-green-800',
+                                \App\Enums\SermonService::Evening => 'bg-amber-100 text-amber-800',
+                                \App\Enums\SermonService::Other => 'bg-slate-100 text-slate-800',
                                 default => 'bg-gray-100 text-gray-700',
                             } }}">
                                 {{ $group['service_label'] }}

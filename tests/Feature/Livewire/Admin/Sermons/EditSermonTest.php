@@ -169,7 +169,7 @@ class EditSermonTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Original Title',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
             'date' => '2025-01-01',
         ]);
 
@@ -178,14 +178,14 @@ class EditSermonTest extends TestCase
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
             ->set('title', 'Brand New Title')
             ->set('date', '2025-02-01')
-            ->set('service', SermonService::EVENING->value)
+            ->set('service', SermonService::Evening->value)
             ->call('save')
             ->assertDispatched('notify');
 
         $sermon->refresh();
         $this->assertEquals('Brand New Title', $sermon->title);
         $this->assertEquals('2025-02-01', $sermon->date->format('Y-m-d'));
-        $this->assertEquals(SermonService::EVENING, $sermon->service);
+        $this->assertEquals(SermonService::Evening, $sermon->service);
     }
 
     #[Test]

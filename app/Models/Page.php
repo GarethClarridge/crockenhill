@@ -74,12 +74,42 @@ class Page extends Model implements HasMedia, Sitemapable
 
     /**
      * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
             'navigation' => 'boolean',
             'area' => PageArea::class,
+            'sort_order' => 'integer',
+        ];
+    }
+
+    /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(?self $page = null, ?string $area = null): array
+    {
+        $slugRule = ['required', 'string', 'max:255', 'alpha_dash'];
+
+        $uniqueRule = \Illuminate\Validation\Rule::unique('pages', 'slug');
+        if ($page) {
+            $uniqueRule->ignore($page->id);
+        }
+        if ($area) {
+            $uniqueRule->where('area', $area);
+        }
+
+        $slugRule[] = $uniqueRule;
+
+        return [
+            'heading' => ['required', 'string', 'max:255'],
+            'slug' => $slugRule,
+            'area' => ['required', 'string', 'in:'.implode(',', PageArea::values())],
+            'description' => ['required', 'string', 'max:155'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
         ];
     }
 

@@ -366,7 +366,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
             'source_file_path' => 'temp/source-video.mp4',
             'processing_id' => 'speech-classification-handoff',
             'extracted_date' => '2026-03-29',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         Storage::disk('local')->put('temp/source-video.mp4', 'video');

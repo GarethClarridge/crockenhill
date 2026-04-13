@@ -146,7 +146,7 @@ class OosEmailParserService
         foreach (['subject' => $subject, 'body' => $body] as $source => $text) {
             if (preg_match('/\bmorning\b/i', $text) === 1 || preg_match('/(?:^|[\s(\[])(AM)(?:$|[\s)\]])/u', $text) === 1) {
                 return [
-                    'service' => SermonService::MORNING,
+                    'service' => SermonService::Morning,
                     'confidence' => $source === 'subject' ? 1.0 : 0.95,
                     'method' => "{$source}_keyword",
                 ];
@@ -154,7 +154,7 @@ class OosEmailParserService
 
             if (preg_match('/\bevening\b/i', $text) === 1 || preg_match('/(?:^|[\s(\[])(PM)(?:$|[\s)\]])/u', $text) === 1) {
                 return [
-                    'service' => SermonService::EVENING,
+                    'service' => SermonService::Evening,
                     'confidence' => $source === 'subject' ? 1.0 : 0.95,
                     'method' => "{$source}_keyword",
                 ];
@@ -164,7 +164,7 @@ class OosEmailParserService
                 $meridiem = strtolower($matches[3]);
 
                 return [
-                    'service' => $meridiem === 'am' ? SermonService::MORNING : SermonService::EVENING,
+                    'service' => $meridiem === 'am' ? SermonService::Morning : SermonService::Evening,
                     'confidence' => $source === 'subject' ? 0.82 : 0.78,
                     'method' => "{$source}_time_hint",
                 ];

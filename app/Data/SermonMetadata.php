@@ -100,16 +100,16 @@ class SermonMetadata extends Data
             if ($filePath && file_exists($filePath)) {
                 $createdTimestamp = filectime($filePath);
                 if ($createdTimestamp === false) {
-                    return SermonService::MORNING;
+                    return SermonService::Morning;
                 }
 
                 $creationTime = Carbon::createFromTimestamp($createdTimestamp);
 
                 // If created before 2 PM, assume morning service
                 if ($creationTime->hour < 14) {
-                    return SermonService::MORNING;
+                    return SermonService::Morning;
                 } else {
-                    return SermonService::EVENING;
+                    return SermonService::Evening;
                 }
             }
         } catch (\Exception $e) {
@@ -117,7 +117,7 @@ class SermonMetadata extends Data
         }
 
         // Default to morning service
-        return SermonService::MORNING;
+        return SermonService::Morning;
     }
 
     /**

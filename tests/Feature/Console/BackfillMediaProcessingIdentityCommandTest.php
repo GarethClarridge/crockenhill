@@ -22,7 +22,7 @@ class BackfillMediaProcessingIdentityCommandTest extends TestCase
             'extracted_service' => null,
             'processing_metadata' => [
                 'extracted_date' => '2026-01-12',
-                'extracted_service' => SermonService::MORNING->value,
+                'extracted_service' => SermonService::Morning->value,
             ],
         ]);
 
@@ -46,7 +46,7 @@ class BackfillMediaProcessingIdentityCommandTest extends TestCase
             'extracted_service' => null,
             'processing_metadata' => [
                 'extracted_date' => '2026-01-19',
-                'extracted_service' => SermonService::MORNING->value,
+                'extracted_service' => SermonService::Morning->value,
             ],
         ]);
 
@@ -55,7 +55,7 @@ class BackfillMediaProcessingIdentityCommandTest extends TestCase
             'extracted_service' => null,
             'processing_metadata' => [
                 'extracted_date' => '2026-02-02',
-                'extracted_service' => SermonService::EVENING->value,
+                'extracted_service' => SermonService::Evening->value,
             ],
         ]);
 
@@ -75,10 +75,10 @@ class BackfillMediaProcessingIdentityCommandTest extends TestCase
         $invalidMetadata->refresh();
 
         $this->assertSame('2026-01-19', $fullyMissing->extracted_date?->toDateString());
-        $this->assertSame(SermonService::MORNING, $fullyMissing->extracted_service);
+        $this->assertSame(SermonService::Morning, $fullyMissing->extracted_service);
 
         $this->assertSame('2026-01-26', $partiallyMissing->extracted_date?->toDateString());
-        $this->assertSame(SermonService::EVENING, $partiallyMissing->extracted_service);
+        $this->assertSame(SermonService::Evening, $partiallyMissing->extracted_service);
 
         $this->assertNull($invalidMetadata->extracted_date);
         $this->assertNull($invalidMetadata->extracted_service);
@@ -92,7 +92,7 @@ class BackfillMediaProcessingIdentityCommandTest extends TestCase
             'extracted_service' => null,
             'processing_metadata' => [
                 'extracted_date' => '2026-02-09',
-                'extracted_service' => SermonService::MORNING->value,
+                'extracted_service' => SermonService::Morning->value,
             ],
         ]);
 
@@ -104,6 +104,6 @@ class BackfillMediaProcessingIdentityCommandTest extends TestCase
         $processingLog->refresh();
 
         $this->assertSame('2026-02-09', $processingLog->extracted_date?->toDateString());
-        $this->assertSame(SermonService::MORNING, $processingLog->extracted_service);
+        $this->assertSame(SermonService::Morning, $processingLog->extracted_service);
     }
 }

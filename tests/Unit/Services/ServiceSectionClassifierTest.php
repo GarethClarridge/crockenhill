@@ -34,7 +34,7 @@ class ServiceSectionClassifierTest extends TestCase
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-03-01',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $introSpeech = LivestreamSegment::factory()->speech()->create([
@@ -99,7 +99,7 @@ class ServiceSectionClassifierTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-08',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $songOne = ChurchServiceItem::factory()->create([
@@ -125,7 +125,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-03-08',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $segmentOne = LivestreamSegment::factory()->song()->create([
@@ -185,7 +185,7 @@ class ServiceSectionClassifierTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-10',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $item = ChurchServiceItem::factory()->create([
@@ -198,7 +198,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-03-10',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $segment = LivestreamSegment::factory()->speech()->create([
@@ -223,7 +223,7 @@ class ServiceSectionClassifierTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-15',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -242,7 +242,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-03-15',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $speechOnlySegment = LivestreamSegment::factory()->speech()->create([
@@ -270,7 +270,7 @@ class ServiceSectionClassifierTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-22',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -289,7 +289,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-03-22',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         LivestreamSegment::factory()->song()->create([
@@ -323,7 +323,7 @@ class ServiceSectionClassifierTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-29',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -342,7 +342,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-03-29',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         LivestreamSegment::factory()->song()->create([
@@ -376,7 +376,7 @@ class ServiceSectionClassifierTest extends TestCase
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-04-05',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         LivestreamSegment::factory()->speech()->create([
@@ -413,7 +413,7 @@ class ServiceSectionClassifierTest extends TestCase
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-04-12',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         LivestreamSegment::factory()->speech()->create([
@@ -450,7 +450,7 @@ class ServiceSectionClassifierTest extends TestCase
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-04-19',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         // 22 minutes - only one exceeds 20 min threshold

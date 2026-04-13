@@ -66,7 +66,7 @@ class AdminUrlStateTest extends TestCase
 
         Sermon::factory()->withDate(now()->subMonths(18))->create([
             'title' => 'Grace for Today',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'preacher' => $preacher->name,
             'preacher_id' => $preacher->id,
             'series' => 'Grace Series',
@@ -76,7 +76,7 @@ class AdminUrlStateTest extends TestCase
 
         Sermon::factory()->withDate(now()->subWeeks(2))->create([
             'title' => 'Hope for Tomorrow',
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
             'series' => 'Hope Series',
             'needs_preacher_review' => false,
             'video_file_path' => null,
@@ -84,7 +84,7 @@ class AdminUrlStateTest extends TestCase
 
         Livewire::withQueryParams([
             'search' => 'Grace',
-            'serviceFilter' => SermonService::MORNING->value,
+            'serviceFilter' => SermonService::Morning->value,
             'preacherFilter' => (string) $preacher->id,
             'seriesFilter' => 'Grace Series',
             'hasVideoFilter' => '1',
@@ -92,7 +92,7 @@ class AdminUrlStateTest extends TestCase
             'last12Months' => '0',
         ])->test(ListSermons::class)
             ->assertSet('search', 'Grace')
-            ->assertSet('serviceFilter', SermonService::MORNING->value)
+            ->assertSet('serviceFilter', SermonService::Morning->value)
             ->assertSet('preacherFilter', $preacher->id)
             ->assertSet('seriesFilter', 'Grace Series')
             ->assertSet('hasVideoFilter', true)
@@ -291,25 +291,25 @@ class AdminUrlStateTest extends TestCase
 
         ChurchService::factory()->create([
             'date' => '2026-01-19',
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
             'original_filename' => '2026-01-19 PM.osz',
             'needs_review' => true,
         ]);
 
         ChurchService::factory()->create([
             'date' => '2026-01-12',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'original_filename' => '2026-01-12 AM.osz',
             'needs_review' => false,
         ]);
 
         Livewire::withQueryParams([
             'search' => '2026-01-19',
-            'serviceFilter' => SermonService::EVENING->value,
+            'serviceFilter' => SermonService::Evening->value,
             'needsReviewFilter' => '1',
         ])->test(ListChurchServices::class)
             ->assertSet('search', '2026-01-19')
-            ->assertSet('serviceFilter', SermonService::EVENING->value)
+            ->assertSet('serviceFilter', SermonService::Evening->value)
             ->assertSet('needsReviewFilter', true)
             ->assertSee('2026-01-19 PM.osz')
             ->assertDontSee('2026-01-12 AM.osz');
@@ -322,12 +322,12 @@ class AdminUrlStateTest extends TestCase
 
         $eveningService = ChurchService::factory()->create([
             'date' => '2026-02-08',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
         ]);
 
         $morningService = ChurchService::factory()->create([
             'date' => '2026-03-08',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $songA = Song::factory()->create([
@@ -360,12 +360,12 @@ class AdminUrlStateTest extends TestCase
 
         Livewire::withQueryParams([
             'search' => 'Writer Two',
-            'serviceFilter' => SermonService::EVENING->value,
+            'serviceFilter' => SermonService::Evening->value,
             'dateFrom' => '2026-02-01',
             'dateTo' => '2026-02-28',
         ])->test(ListSongs::class)
             ->assertSet('search', 'Writer Two')
-            ->assertSet('serviceFilter', SermonService::EVENING->value)
+            ->assertSet('serviceFilter', SermonService::Evening->value)
             ->assertSet('dateFrom', '2026-02-01')
             ->assertSet('dateTo', '2026-02-28')
             ->assertSee('Song B')
@@ -443,7 +443,7 @@ class AdminUrlStateTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-07-06',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                     ['type' => 'songs', 'title' => 'Opening Hymn', 'metadata' => null],
@@ -456,7 +456,7 @@ class AdminUrlStateTest extends TestCase
         ])->test(ManageChurchService::class)
             ->assertSet('inboundEmailId', $email->id)
             ->assertSet('date', '2026-07-06')
-            ->assertSet('service', SermonService::MORNING->value)
+            ->assertSet('service', SermonService::Morning->value)
             ->assertSet('items.0.title', 'Welcome')
             ->assertSet('items.1.title', 'Opening Hymn');
     }

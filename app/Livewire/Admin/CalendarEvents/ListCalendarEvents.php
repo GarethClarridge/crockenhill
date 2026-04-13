@@ -10,6 +10,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Traits\EscapesLikeWildcards;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -55,10 +56,22 @@ class ListCalendarEvents extends Component
 
         $this->authorizeAdmin();
 
-        CalendarEvent::find($eventId)?->update([
-            'meeting_slug' => $meetingSlug,
-            'is_categorized_automatically' => false,
-        ]);
+        $event = CalendarEvent::find($eventId);
+
+        if ($event) {
+            $event->update([
+                'meeting_slug' => $meetingSlug,
+                'is_categorized_automatically' => false,
+            ]);
+
+            Log::warning('Calendar event categorized via list view', [
+                'admin_id' => auth()->id(),
+                'event_id' => $event->id,
+                'event_title' => $event->title,
+                'meeting_slug' => $meetingSlug,
+            ]);
+        }
+
         $this->success('Event categorized');
     }
 

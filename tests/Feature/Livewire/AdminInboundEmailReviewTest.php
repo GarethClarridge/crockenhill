@@ -45,7 +45,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-08',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                     ['type' => 'songs', 'title' => 'Living Hope', 'metadata' => null],
@@ -59,7 +59,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-15',
-                    resolvedService: SermonService::EVENING->value,
+                    resolvedService: SermonService::Evening->value,
                     items: [],
                 ),
                 [
@@ -96,7 +96,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-08',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                 ],
@@ -133,7 +133,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-08',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                 ],
@@ -195,7 +195,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $service = ChurchService::query()
             ->where('date', '2026-06-22')
-            ->where('service', SermonService::MORNING->value)
+            ->where('service', SermonService::Morning->value)
             ->sole();
 
         $component->assertRedirect(route('admin.services.show', $service));
@@ -221,7 +221,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                     ['position' => 2, 'type' => 'custom', 'title' => 'Sermon', 'metadata' => ['email_type' => 'sermon']],
@@ -234,7 +234,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $service = ChurchService::query()
             ->where('date', '2026-06-29')
-            ->where('service', SermonService::MORNING->value)
+            ->where('service', SermonService::Morning->value)
             ->sole();
 
         $component->assertRedirect(route('admin.services.show', $service));
@@ -266,7 +266,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-22',
-                    resolvedService: SermonService::MORNING->value,
+                    resolvedService: SermonService::Morning->value,
                     items: [
                         ['position' => 1, 'type' => 'custom', 'title' => 'Old Welcome', 'metadata' => ['email_type' => 'welcome']],
                     ],
@@ -322,7 +322,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-07-06',
-                    resolvedService: SermonService::MORNING->value,
+                    resolvedService: SermonService::Morning->value,
                     items: [],
                 ),
                 [
@@ -364,7 +364,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                 ],
@@ -413,7 +413,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                 ],
@@ -434,7 +434,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-07-06',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                     ['type' => 'custom', 'title' => 'Opening Prayer', 'metadata' => ['email_type' => 'prayer']],
@@ -444,14 +444,14 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $component = Livewire::test(ManageChurchService::class, ['inboundEmailId' => $email->id])
             ->assertSet('date', '2026-07-06')
-            ->assertSet('service', SermonService::MORNING->value)
+            ->assertSet('service', SermonService::Morning->value)
             ->assertSet('items.0.title', 'Welcome')
             ->assertSet('items.1.title', 'Opening Prayer')
             ->call('save');
 
         $service = ChurchService::query()
             ->where('date', '2026-07-06')
-            ->where('service', SermonService::MORNING->value)
+            ->where('service', SermonService::Morning->value)
             ->sole();
 
         $component->assertRedirect(route('admin.services.show', $service));

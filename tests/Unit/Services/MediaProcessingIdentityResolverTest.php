@@ -26,7 +26,7 @@ class MediaProcessingIdentityResolverTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->make([
             'extracted_date' => '2024-03-20',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
             'processing_metadata' => [
                 'extracted_date' => '2024-01-01',
                 'extracted_service' => 'evening',
@@ -37,7 +37,7 @@ class MediaProcessingIdentityResolverTest extends TestCase
 
         $this->assertNotNull($identity);
         $this->assertEquals('2024-03-20', $identity['date']);
-        $this->assertEquals(SermonService::MORNING, $identity['service']);
+        $this->assertEquals(SermonService::Morning, $identity['service']);
     }
 
     #[Test]
@@ -56,7 +56,7 @@ class MediaProcessingIdentityResolverTest extends TestCase
 
         $this->assertNotNull($identity);
         $this->assertEquals('2024-03-20', $identity['date']);
-        $this->assertEquals(SermonService::MORNING, $identity['service']);
+        $this->assertEquals(SermonService::Morning, $identity['service']);
     }
 
     #[Test]
@@ -90,8 +90,8 @@ class MediaProcessingIdentityResolverTest extends TestCase
     #[Test]
     public function it_parses_valid_services(): void
     {
-        $this->assertEquals(SermonService::MORNING, $this->resolver->parseService('morning'));
-        $this->assertEquals(SermonService::EVENING, $this->resolver->parseService('evening'));
+        $this->assertEquals(SermonService::Morning, $this->resolver->parseService('morning'));
+        $this->assertEquals(SermonService::Evening, $this->resolver->parseService('evening'));
     }
 
     #[Test]
@@ -107,12 +107,12 @@ class MediaProcessingIdentityResolverTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->make([
             'extracted_date' => '2024-03-20',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
-        $this->assertTrue($this->resolver->matchesService($log, '2024-03-20', SermonService::MORNING));
-        $this->assertFalse($this->resolver->matchesService($log, '2024-03-21', SermonService::MORNING));
-        $this->assertFalse($this->resolver->matchesService($log, '2024-03-20', SermonService::EVENING));
+        $this->assertTrue($this->resolver->matchesService($log, '2024-03-20', SermonService::Morning));
+        $this->assertFalse($this->resolver->matchesService($log, '2024-03-21', SermonService::Morning));
+        $this->assertFalse($this->resolver->matchesService($log, '2024-03-20', SermonService::Evening));
     }
 
     #[Test]
@@ -120,16 +120,16 @@ class MediaProcessingIdentityResolverTest extends TestCase
     {
         $matchingLog = MediaProcessingLog::factory()->create([
             'extracted_date' => '2024-03-20',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
         MediaProcessingLog::factory()->create([
             'extracted_date' => '2024-03-21',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
         ]);
 
         $results = MediaProcessingLog::query()
-            ->tap(fn ($q) => $this->resolver->scopeMatchesIdentity($q, '2024-03-20', SermonService::MORNING))
+            ->tap(fn ($q) => $this->resolver->scopeMatchesIdentity($q, '2024-03-20', SermonService::Morning))
             ->get();
 
         $this->assertCount(1, $results);
@@ -158,7 +158,7 @@ class MediaProcessingIdentityResolverTest extends TestCase
         ]);
 
         $results = MediaProcessingLog::query()
-            ->tap(fn ($q) => $this->resolver->scopeMatchesIdentity($q, '2024-03-20', SermonService::MORNING))
+            ->tap(fn ($q) => $this->resolver->scopeMatchesIdentity($q, '2024-03-20', SermonService::Morning))
             ->get();
 
         $this->assertCount(1, $results);
@@ -171,7 +171,7 @@ class MediaProcessingIdentityResolverTest extends TestCase
         // Log where column matches but metadata doesn't - should match because columns are checked first
         $log1 = MediaProcessingLog::factory()->create([
             'extracted_date' => '2024-03-20',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
             'processing_metadata' => [
                 'extracted_date' => '2024-01-01',
                 'extracted_service' => 'evening',
@@ -186,7 +186,7 @@ class MediaProcessingIdentityResolverTest extends TestCase
 
         $log2 = MediaProcessingLog::factory()->create([
             'extracted_date' => '2024-03-21',
-            'extracted_service' => SermonService::MORNING,
+            'extracted_service' => SermonService::Morning,
             'processing_metadata' => [
                 'extracted_date' => '2024-03-20',
                 'extracted_service' => 'morning',
@@ -194,7 +194,7 @@ class MediaProcessingIdentityResolverTest extends TestCase
         ]);
 
         $results = MediaProcessingLog::query()
-            ->tap(fn ($q) => $this->resolver->scopeMatchesIdentity($q, '2024-03-20', SermonService::MORNING))
+            ->tap(fn ($q) => $this->resolver->scopeMatchesIdentity($q, '2024-03-20', SermonService::Morning))
             ->get();
 
         $this->assertCount(1, $results);

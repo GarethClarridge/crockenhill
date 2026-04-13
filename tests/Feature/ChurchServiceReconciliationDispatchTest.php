@@ -24,12 +24,12 @@ class ChurchServiceReconciliationDispatchTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
             'extracted_date' => '2026-04-19',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-04-19',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         Queue::assertPushed(
@@ -44,18 +44,18 @@ class ChurchServiceReconciliationDispatchTest extends TestCase
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
             'extracted_date' => '2026-04-26',
-            'extracted_service' => SermonService::EVENING->value,
+            'extracted_service' => SermonService::Evening->value,
         ]);
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-04-26',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         Queue::fake();
 
         $churchService->update([
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
         ]);
 
         Queue::assertPushed(
@@ -70,12 +70,12 @@ class ChurchServiceReconciliationDispatchTest extends TestCase
     {
         MediaProcessingLog::factory()->livestream()->completed()->create([
             'extracted_date' => '2026-04-26',
-            'extracted_service' => SermonService::EVENING->value,
+            'extracted_service' => SermonService::Evening->value,
         ]);
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-04-26',
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
         ]);
 
         Queue::fake();
@@ -95,12 +95,12 @@ class ChurchServiceReconciliationDispatchTest extends TestCase
         MediaProcessingLog::factory()->livestream()->create([
             'status' => 'processing',
             'extracted_date' => '2026-05-03',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         ChurchService::factory()->create([
             'date' => '2026-05-03',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         Queue::assertNothingPushed();
@@ -111,12 +111,12 @@ class ChurchServiceReconciliationDispatchTest extends TestCase
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
             'extracted_date' => '2026-05-10',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-05-04',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         Queue::fake();

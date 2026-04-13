@@ -75,7 +75,7 @@ class PodcastFeedTest extends TestCase
     public function morning_feed_returns_valid_rss(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'duration' => 2700, // 45 minutes
         ]);
@@ -94,7 +94,7 @@ class PodcastFeedTest extends TestCase
     public function evening_feed_returns_valid_rss(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
             'audio_file_path' => 'test.mp3',
         ]);
 
@@ -125,7 +125,7 @@ class PodcastFeedTest extends TestCase
     {
         // Create sermon without audio by inserting directly with null
         $noAudioSermon = Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'placeholder.mp3', // Will be set to empty string below
             'title' => 'No Audio Sermon',
         ]);
@@ -133,7 +133,7 @@ class PodcastFeedTest extends TestCase
         \DB::table('sermons')->where('id', $noAudioSermon->id)->update(['audio_file_path' => '']);
 
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'has-audio.mp3',
             'title' => 'Has Audio Sermon',
         ]);
@@ -149,7 +149,7 @@ class PodcastFeedTest extends TestCase
     public function feed_excludes_sermons_with_empty_audio_path(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => '',
             'title' => 'Empty Audio Path Sermon',
         ]);
@@ -164,13 +164,13 @@ class PodcastFeedTest extends TestCase
     public function feed_only_includes_correct_service_type(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'morning.mp3',
             'title' => 'Morning Service Sermon',
         ]);
 
         Sermon::factory()->create([
-            'service' => SermonService::EVENING->value,
+            'service' => SermonService::Evening->value,
             'audio_file_path' => 'evening.mp3',
             'title' => 'Evening Service Sermon',
         ]);
@@ -195,7 +195,7 @@ class PodcastFeedTest extends TestCase
     public function feed_formats_duration_correctly(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'duration' => 2700, // 45 minutes = 00:45:00
         ]);
@@ -210,7 +210,7 @@ class PodcastFeedTest extends TestCase
     public function feed_formats_long_duration_correctly(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'duration' => 5432, // 1:30:32
         ]);
@@ -225,7 +225,7 @@ class PodcastFeedTest extends TestCase
     public function feed_handles_null_duration(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'duration' => null,
         ]);
@@ -240,7 +240,7 @@ class PodcastFeedTest extends TestCase
     public function feed_includes_canonical_url(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'slug' => 'test-sermon',
             'date' => '2024-06-15',
@@ -256,7 +256,7 @@ class PodcastFeedTest extends TestCase
     public function feed_includes_podcast_summary(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'reference' => 'John 3:16',
             'preacher' => 'Mark Drury',
@@ -273,7 +273,7 @@ class PodcastFeedTest extends TestCase
     public function feed_includes_rfc2822_pub_date(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'date' => '2024-06-15',
         ]);
@@ -289,7 +289,7 @@ class PodcastFeedTest extends TestCase
     public function feed_includes_guid_with_prefix(): void
     {
         $sermon = Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
         ]);
 
@@ -303,7 +303,7 @@ class PodcastFeedTest extends TestCase
     public function feed_includes_itunes_metadata(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
         ]);
 
@@ -324,7 +324,7 @@ class PodcastFeedTest extends TestCase
     public function feed_includes_atom_self_link(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
         ]);
 
@@ -339,14 +339,14 @@ class PodcastFeedTest extends TestCase
     public function feed_orders_sermons_by_date_descending(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'old.mp3',
             'title' => 'Old Sermon',
             'date' => '2024-01-01',
         ]);
 
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'new.mp3',
             'title' => 'New Sermon',
             'date' => '2024-06-01',
@@ -370,7 +370,7 @@ class PodcastFeedTest extends TestCase
 
         for ($i = 1; $i <= 10; $i++) {
             Sermon::factory()->create([
-                'service' => SermonService::MORNING->value,
+                'service' => SermonService::Morning->value,
                 'audio_file_path' => "sermon-{$i}.mp3",
                 'title' => "Sermon Number {$i}",
                 'date' => now()->subDays($i),
@@ -392,7 +392,7 @@ class PodcastFeedTest extends TestCase
     public function feed_is_valid_xml(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
         ]);
 
@@ -436,7 +436,7 @@ class PodcastFeedTest extends TestCase
         $this->mockStorageServiceWithCallCounts(publicUrlCalls: 1, fileSizeCalls: 1);
 
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'title' => 'Cached Sermon',
         ]);
@@ -452,7 +452,7 @@ class PodcastFeedTest extends TestCase
     public function feed_cache_is_invalidated_when_sermon_is_created(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'title' => 'Cached Sermon',
         ]);
@@ -464,7 +464,7 @@ class PodcastFeedTest extends TestCase
 
         // Create another sermon
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'new.mp3',
             'title' => 'New Sermon After Cache',
         ]);
@@ -480,7 +480,7 @@ class PodcastFeedTest extends TestCase
     public function feed_cache_is_invalidated_when_sermon_is_updated(): void
     {
         $sermon = Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'title' => 'Original Sermon Title',
         ]);
@@ -502,7 +502,7 @@ class PodcastFeedTest extends TestCase
     public function feed_cache_is_invalidated_when_sermon_is_deleted(): void
     {
         $sermon = Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'title' => 'Sermon To Delete',
         ]);
@@ -527,7 +527,7 @@ class PodcastFeedTest extends TestCase
         ]);
 
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
             'preacher' => 'Original preacher',
             'preacher_id' => $preacher->id,
@@ -592,7 +592,7 @@ class PodcastFeedTest extends TestCase
         $this->withoutMiddleware();
 
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
         ]);
 
@@ -626,7 +626,7 @@ class PodcastFeedTest extends TestCase
     public function feed_includes_enclosure_with_file_size(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
         ]);
 
@@ -643,7 +643,7 @@ class PodcastFeedTest extends TestCase
     public function feed_includes_episode_image(): void
     {
         Sermon::factory()->create([
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'audio_file_path' => 'test.mp3',
         ]);
 

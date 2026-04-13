@@ -14,6 +14,7 @@
     $reference = $presenter->displayReference($sermon);
     $preacherUrl = $presenter->preacherUrl($sermon);
     $formattedDuration = $presenter->formattedDuration($sermon);
+    $seriesUrl = $presenter->seriesUrl($sermon);
 @endphp
 
 <div class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -74,7 +75,7 @@
       @if ($sermon->series != null)
       <li class="flex items-center">
         <x-heroicon-o-tag class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
-        <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->series }}</a>
+        <a href="{{ $seriesUrl }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->series }}</a>
       </li>
       @endif
       @if ($reference != null)

@@ -188,6 +188,9 @@ $hasPublicVideo = filled($sermonView['video_url']);
           x-transition:enter="transition ease-out duration-200"
           x-transition:enter-start="opacity-0 -translate-y-1"
           x-transition:enter-end="opacity-100 translate-y-0"
+          x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 translate-y-0"
+          x-transition:leave-end="opacity-0 -translate-y-1"
           class="p-6 max-h-96 overflow-y-auto">
           <div class="prose prose-gray max-w-none text-gray-700">
             {!! Str::markdown($sermonView['transcript'], [
@@ -255,13 +258,13 @@ $hasPublicVideo = filled($sermonView['video_url']);
           </div>
           @endif
 
-          @if ($sermon->series != null)
+          @if ($sermon->series != null && $sermonViewPresenter->seriesUrl($sermon))
           <div class="flex items-center gap-3">
             <x-heroicon-o-tag class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
             <div>
               <dt class="sr-only">Series</dt>
               <dd class="text-gray-900 font-medium">
-                <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->series }}</a>
+                <a href="{{ $sermonViewPresenter->seriesUrl($sermon) }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->series }}</a>
               </dd>
             </div>
           </div>
@@ -312,7 +315,10 @@ $hasPublicVideo = filled($sermonView['video_url']);
           x-cloak
           x-transition:enter="transition ease-out duration-200"
           x-transition:enter-start="opacity-0 -translate-y-1"
-          x-transition:enter-end="opacity-100 translate-y-0">
+          x-transition:enter-end="opacity-100 translate-y-0"
+          x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 translate-y-0"
+          x-transition:leave-end="opacity-0 -translate-y-1">
           @if ($sermon->scripturePassage)
           <div class="p-6">
             <div

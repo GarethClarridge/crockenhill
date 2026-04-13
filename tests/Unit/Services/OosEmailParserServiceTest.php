@@ -53,7 +53,7 @@ class OosEmailParserServiceTest extends TestCase
 
         $this->assertSame("Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32", $extractor->capturedBody);
         $this->assertSame('2026-03-16', $result->date);
-        $this->assertSame(SermonService::MORNING, $result->service);
+        $this->assertSame(SermonService::Morning, $result->service);
         $this->assertTrue($result->shouldImport);
         $this->assertFalse($result->needsReview);
         $this->assertGreaterThanOrEqual(0.90, $result->confidenceScore);
@@ -88,7 +88,7 @@ class OosEmailParserServiceTest extends TestCase
         $result = $parser->parse($email);
 
         $this->assertSame('2026-03-16', $result->date);
-        $this->assertSame(SermonService::MORNING, $result->service);
+        $this->assertSame(SermonService::Morning, $result->service);
         $this->assertTrue($result->shouldImport);
         $this->assertTrue($result->needsReview);
         $this->assertGreaterThanOrEqual(0.75, $result->confidenceScore);
@@ -235,6 +235,6 @@ class OosEmailParserServiceTest extends TestCase
 
         $result = $parser->parse($email);
 
-        $this->assertSame(SermonService::EVENING, $result->service);
+        $this->assertSame(SermonService::Evening, $result->service);
     }
 }

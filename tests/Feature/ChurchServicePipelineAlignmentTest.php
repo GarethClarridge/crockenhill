@@ -32,7 +32,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
             'extracted_date' => '2026-08-02',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         LivestreamSegment::factory()->song()->create([
@@ -74,7 +74,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-08-09',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = ChurchServiceItem::factory()->create([
@@ -86,7 +86,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
             'extracted_date' => '2026-08-09',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
         ]);
 
         LivestreamSegment::factory()->song()->create([
@@ -123,7 +123,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
             'church_service_id' => null,
             'extracted_date' => '2026-08-16',
-            'extracted_service' => SermonService::MORNING->value,
+            'extracted_service' => SermonService::Morning->value,
             'current_step' => 'completed',
         ]);
 
@@ -142,7 +142,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-08-16',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
         ]);
 
         $song = ChurchServiceItem::factory()->create([

@@ -495,9 +495,9 @@ class ServiceReviewDashboardQuery
     private function serviceSort(?SermonService $service): int
     {
         return match ($service) {
-            SermonService::MORNING => 1,
-            SermonService::EVENING => 2,
-            SermonService::OTHER => 3,
+            SermonService::Morning => 1,
+            SermonService::Evening => 2,
+            SermonService::Other => 3,
             default => 9,
         };
     }

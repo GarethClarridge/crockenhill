@@ -43,11 +43,11 @@ class AdminSongCatalogTest extends TestCase
 
         $morningService = ChurchService::factory()->create([
             'date' => '2026-02-01',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
         $eveningService = ChurchService::factory()->create([
             'date' => '2026-02-08',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
         ]);
 
         $songA = Song::factory()->create([
@@ -93,7 +93,7 @@ class AdminSongCatalogTest extends TestCase
             ->assertSee('Song B')
             ->assertDontSee('Song A')
             ->set('search', '')
-            ->set('serviceFilter', SermonService::MORNING->value)
+            ->set('serviceFilter', SermonService::Morning->value)
             ->assertViewHas('songs', function ($songs) use ($songA, $songB): bool {
                 $collection = $songs->getCollection()->keyBy('id');
 
@@ -138,7 +138,7 @@ class AdminSongCatalogTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'date' => '2026-03-10',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $song = Song::factory()->create([

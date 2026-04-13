@@ -41,7 +41,7 @@ class ReparseInboundEmailTest extends TestCase
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-22',
-                    resolvedService: SermonService::MORNING->value,
+                    resolvedService: SermonService::Morning->value,
                     items: [
                         ['position' => 1, 'type' => 'custom', 'title' => 'Old Welcome', 'metadata' => ['email_type' => 'welcome']],
                     ],
@@ -86,7 +86,7 @@ class ReparseInboundEmailTest extends TestCase
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-07-06',
-                    resolvedService: SermonService::MORNING->value,
+                    resolvedService: SermonService::Morning->value,
                     items: [],
                     needsReview: true,
                     shouldImport: false,
@@ -121,7 +121,7 @@ class ReparseInboundEmailTest extends TestCase
             'status' => InboundEmailStatus::PENDING->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
-                resolvedService: SermonService::MORNING->value,
+                resolvedService: SermonService::Morning->value,
                 items: [
                     ['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
                 ],

@@ -90,7 +90,7 @@ class PublicSongDetailTest extends TestCase
 
         $nonLivestreamedService = ChurchService::factory()->create([
             'date' => '2026-02-16',
-            'service' => SermonService::EVENING,
+            'service' => SermonService::Evening,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -103,7 +103,7 @@ class PublicSongDetailTest extends TestCase
 
         $livestreamedService = ChurchService::factory()->create([
             'date' => '2026-02-09',
-            'service' => SermonService::MORNING,
+            'service' => SermonService::Morning,
         ]);
 
         $detectedItem = ChurchServiceItem::factory()->create([

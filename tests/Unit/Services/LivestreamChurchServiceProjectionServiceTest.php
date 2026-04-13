@@ -34,7 +34,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_creates_new_service_and_items_when_no_matching_service_exists(): void
     {
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'Amazing Grace', 'confidence' => 0.95],
@@ -52,7 +52,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $this->assertNotNull($churchService);
         $this->assertSame('2026-03-23', $churchService->date->toDateString());
-        $this->assertSame(SermonService::MORNING, $churchService->service);
+        $this->assertSame(SermonService::Morning, $churchService->service);
         $this->assertSame(ChurchServiceItemSource::LIVESTREAM->value, $churchService->source);
 
         $items = $churchService->items()->orderBy('position')->get();
@@ -71,7 +71,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_links_sections_back_to_projected_items(): void
     {
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $sections = $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'Song A', 'confidence' => 0.9],
@@ -99,7 +99,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => ChurchServiceItemSource::LIVESTREAM->value,
         ]);
 
@@ -110,7 +110,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
             'title' => 'Old Song',
         ]);
 
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'New Song', 'confidence' => 0.9],
@@ -135,7 +135,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'openlp',
         ]);
 
@@ -147,7 +147,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
             'source' => ChurchServiceItemSource::OPENLP->value,
         ]);
 
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'Livestream Song', 'confidence' => 0.9],
@@ -190,7 +190,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_skips_when_no_sections_exist(): void
     {
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $result = $this->service->project($log);
 
@@ -201,7 +201,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_skips_when_all_sections_are_filtered_out(): void
     {
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
@@ -220,7 +220,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_sets_needs_review_when_sections_have_low_confidence(): void
     {
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'Song', 'confidence' => 0.9],
@@ -238,7 +238,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_sets_needs_review_when_sections_flagged_for_manual_review(): void
     {
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
@@ -261,7 +261,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_stores_projection_metadata_on_service(): void
     {
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'Song', 'confidence' => 0.9],
@@ -279,7 +279,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_stores_projection_metadata_on_items(): void
     {
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'Song', 'confidence' => 0.9],
@@ -298,7 +298,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_does_not_create_duplicate_service_on_rerun(): void
     {
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'Song A', 'confidence' => 0.9],
@@ -320,7 +320,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         $serviceCount = ChurchService::query()
             ->whereDate('date', '2026-03-23')
-            ->where('service', SermonService::MORNING->value)
+            ->where('service', SermonService::Morning->value)
             ->count();
 
         $this->assertSame(1, $serviceCount);
@@ -331,7 +331,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
-            'service' => SermonService::MORNING->value,
+            'service' => SermonService::Morning->value,
             'source' => 'openlp',
         ]);
 
@@ -340,7 +340,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
             'source' => ChurchServiceItemSource::OPENLP->value,
         ]);
 
-        $log = $this->createProcessingLog('2026-03-23', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'Song', 'confidence' => 0.9],
@@ -359,7 +359,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     {
         // Regression for fix #3: an OTHER-type section with low confidence that was
         // excluded by the mapper must not trigger needs_review on the projected service.
-        $log = $this->createProcessingLog('2026-03-27', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-27', SermonService::Morning);
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
@@ -394,7 +394,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     #[Test]
     public function test_stores_confidence_summary_on_service_projection_metadata(): void
     {
-        $log = $this->createProcessingLog('2026-03-27', SermonService::MORNING);
+        $log = $this->createProcessingLog('2026-03-27', SermonService::Morning);
 
         $this->createSections($log, [
             ['type' => ServiceSectionType::SONG, 'title' => 'Song A', 'confidence' => 0.95],
