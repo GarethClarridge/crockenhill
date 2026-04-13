@@ -31,14 +31,13 @@ return new class extends Migration
         // 2. Data Cleanup: Normalize area values to lowercase and ensure they are valid
         $validAreas = PageArea::values();
 
-        foreach (DB::table('pages')->select('area')->distinct()->pluck('area') as $area) {
-            $normalized = strtolower(trim((string) $area));
-            if (! in_array($normalized, $validAreas, true)) {
-                $normalized = PageArea::Church->value;
-            }
+        DB::table('pages')->update([
+            'area' => DB::raw('LOWER(TRIM(area))'),
+        ]);
 
-            DB::table('pages')->where('area', $area)->update(['area' => $normalized]);
-        }
+        DB::table('pages')
+            ->whereNotIn('area', $validAreas)
+            ->update(['area' => PageArea::Church->value]);
 
         // 3. Formalize area as ENUM and add CHECK constraint for sort_order
         $isMysql = DB::getDriverName() === 'mysql';
