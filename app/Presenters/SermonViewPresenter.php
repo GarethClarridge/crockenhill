@@ -48,6 +48,16 @@ class SermonViewPresenter
      */
     private array $memoizedPresents = [];
 
+    /**
+     * @var array<int|string, int>
+     */
+    private array $memoizedTimestamps = [];
+
+    /**
+     * @var array<string, string>
+     */
+    private array $memoizedSlugs = [];
+
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
@@ -96,6 +106,8 @@ class SermonViewPresenter
         $this->memoizedReferences = [];
         $this->memoizedDurations = [];
         $this->memoizedPresents = [];
+        $this->memoizedTimestamps = [];
+        $this->memoizedSlugs = [];
     }
 
     public function audioUrl(Sermon $sermon): ?string
@@ -177,7 +189,7 @@ class SermonViewPresenter
                 $preacherName = $this->displayPreacherName($sermon);
 
                 return filled($preacherName)
-                    ? '/christ/sermons/preachers/'.Str::slug($preacherName)
+                    ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
                     : null;
             })();
         }
@@ -197,7 +209,7 @@ class SermonViewPresenter
             return null;
         }
 
-        return $this->memoizedSeriesUrls[$sermon->series] ??= '/christ/sermons/series/'.Str::slug($sermon->series);
+        return $this->memoizedSeriesUrls[$sermon->series] ??= route('sermons.series.show', ['series' => $this->slug($sermon->series)]);
     }
 
     /**
@@ -400,11 +412,30 @@ class SermonViewPresenter
     }
 
     /**
+     * Internal helper to generate slugs with request-level memoization.
+     *
+     * Performance Optimization: Avoids redundant Str::slug() calls which
+     * can be expensive when processing hundreds of strings in a listing.
+     */
+    private function slug(string $value): string
+    {
+        return $this->memoizedSlugs[$value] ??= Str::slug($value);
+    }
+
+    /**
      * Generate a cache key for the given sermon and type.
+     *
+     * Performance Optimization: Memoizes the sermon's updated_at timestamp
+     * within the request to avoid redundant Carbon object method calls when
+     * generating keys for different sermon attributes.
      */
     private function cacheKey(Sermon $sermon, string $type): string
     {
-        $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
+        if (! array_key_exists($sermon->id, $this->memoizedTimestamps)) {
+            $this->memoizedTimestamps[$sermon->id] = $sermon->updated_at?->getTimestamp() ?? 0;
+        }
+
+        $timestamp = $this->memoizedTimestamps[$sermon->id];
 
         return "{$type}_{$sermon->id}_{$timestamp}";
     }
