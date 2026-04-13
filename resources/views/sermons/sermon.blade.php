@@ -255,13 +255,13 @@ $hasPublicVideo = filled($sermonView['video_url']);
           </div>
           @endif
 
-          @if ($sermon->series != null)
+          @if ($sermon->series != null && $sermonViewPresenter->seriesUrl($sermon))
           <div class="flex items-center gap-3">
             <x-heroicon-o-tag class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
             <div>
               <dt class="sr-only">Series</dt>
               <dd class="text-gray-900 font-medium">
-                <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->series }}</a>
+                <a href="{{ $sermonViewPresenter->seriesUrl($sermon) }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->series }}</a>
               </dd>
             </div>
           </div>
