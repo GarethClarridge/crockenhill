@@ -9,6 +9,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -75,6 +76,8 @@ class EditCalendarEvent extends Component
 
         $validated = $this->validate();
 
+        $oldMeetingSlug = $this->calendarEvent->meeting_slug;
+
         $this->calendarEvent->update([
             'title' => $validated['title'],
             'description' => $validated['description'],
@@ -86,6 +89,16 @@ class EditCalendarEvent extends Component
             'status' => $validated['status'],
             'is_categorized_automatically' => false,
         ]);
+
+        if ($oldMeetingSlug !== $validated['meetingSlug']) {
+            Log::warning('Calendar event categorization changed via edit form', [
+                'admin_id' => auth()->id(),
+                'event_id' => $this->calendarEvent->id,
+                'event_title' => $this->calendarEvent->title,
+                'old_meeting_slug' => $oldMeetingSlug,
+                'new_meeting_slug' => $validated['meetingSlug'],
+            ]);
+        }
 
         $this->success('Calendar event updated');
     }
