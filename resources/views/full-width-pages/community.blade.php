@@ -9,13 +9,31 @@ Community
 @section('meta_tags')
 <x-meta-tags
   title="Community"
-  description="Join our community activities at Crockenhill Baptist Church. Meet local people, activities for children, and opportunities to learn about Jesus in Kent." />
+  description="Join our community activities at Crockenhill Baptist Church. Meet local people, activities for children, and opportunities to learn about Jesus in Kent."
+  :image="asset('/images/homepage/may2024wide.webp')"
+  image-alt="Crockenhill Baptist Church members outside the church building" />
 <x-schema.webpage
   heading="Community"
   description="Join our community activities at Crockenhill Baptist Church. Meet local people, activities for children, and opportunities to learn about Jesus in Kent."
+  :image="asset('/images/homepage/may2024wide.webp')"
 />
 
 <x-breadcrumbs area="community" heading="Community" jsonOnly />
+
+<x-schema.faq :questions="[
+    [
+        'question' => 'How can I meet local people in Crockenhill?',
+        'answer' => 'We host several regular activities open to everyone in the community, including our weekly Coffee Cup on Thursday mornings, Baby Talk for parents and toddlers on Monday mornings, and our Sunday morning services at 10:30am.',
+    ],
+    [
+        'question' => 'What activities are available for children?',
+        'answer' => 'We have groups for all ages, including Baby Talk (parents and toddlers), Family Talk (monthly Sunday afternoon activity), and Buzz Club (our weekly group for primary school children on Friday evenings).',
+    ],
+    [
+        'question' => 'How can I find out more about Jesus?',
+        'answer' => 'You are welcome to join us on Sunday mornings at 10:30am, or you might be interested in our Christianity Explored course, which is a relaxed way to find out more about the good news of Jesus Christ.',
+    ],
+]" />
 @stop
 
 @section('content')
