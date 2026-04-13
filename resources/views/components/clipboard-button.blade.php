@@ -40,8 +40,33 @@ $copiedIconComponent = 'heroicon-o-' . $copiedIcon;
     :title="copied ? {{ \Illuminate\Support\Js::from($copiedLabel) }} : {{ \Illuminate\Support\Js::from($title) }}"
     x-cloak
 >
-    <x-dynamic-component :component="$iconComponent" x-show="!copied" class="w-4 h-4" aria-hidden="true" />
-    <x-dynamic-component :component="$copiedIconComponent" x-show="copied" class="w-4 h-4 text-cbc-teal" aria-hidden="true" x-cloak />
+    <div class="relative h-4 w-4 shrink-0">
+        <x-dynamic-component
+            :component="$iconComponent"
+            x-show="!copied"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 scale-90"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-90"
+            class="absolute inset-0 h-4 w-4"
+            aria-hidden="true"
+        />
+        <x-dynamic-component
+            :component="$copiedIconComponent"
+            x-show="copied"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 scale-90"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-90"
+            class="absolute inset-0 h-4 w-4 text-cbc-teal"
+            aria-hidden="true"
+            x-cloak
+        />
+    </div>
 
     <span @if($hideLabel) x-bind:class="{ 'sr-only': !copied }" @endif
           x-text="copied ? {{ \Illuminate\Support\Js::from($copiedLabel) }} : {{ \Illuminate\Support\Js::from($label) }}"

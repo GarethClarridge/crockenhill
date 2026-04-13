@@ -188,6 +188,9 @@ $hasPublicVideo = filled($sermonView['video_url']);
           x-transition:enter="transition ease-out duration-200"
           x-transition:enter-start="opacity-0 -translate-y-1"
           x-transition:enter-end="opacity-100 translate-y-0"
+          x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 translate-y-0"
+          x-transition:leave-end="opacity-0 -translate-y-1"
           class="p-6 max-h-96 overflow-y-auto">
           <div class="prose prose-gray max-w-none text-gray-700">
             {!! Str::markdown($sermonView['transcript'], [
@@ -312,7 +315,10 @@ $hasPublicVideo = filled($sermonView['video_url']);
           x-cloak
           x-transition:enter="transition ease-out duration-200"
           x-transition:enter-start="opacity-0 -translate-y-1"
-          x-transition:enter-end="opacity-100 translate-y-0">
+          x-transition:enter-end="opacity-100 translate-y-0"
+          x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 translate-y-0"
+          x-transition:leave-end="opacity-0 -translate-y-1">
           @if ($sermon->scripturePassage)
           <div class="p-6">
             <div
