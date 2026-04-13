@@ -44,14 +44,30 @@ class CalendarEvent extends Model
 
     /**
      * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
             'start_datetime' => 'datetime',
             'end_datetime' => 'datetime',
             'status' => \App\Enums\CalendarEventStatus::class,
             'is_categorized_automatically' => 'boolean',
+        ];
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'title' => ['required', 'string', 'max:255'],
+            'speaker' => ['nullable', 'string', 'max:255'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'status' => ['required', 'string', 'in:'.implode(',', \App\Enums\CalendarEventStatus::values())],
         ];
     }
 

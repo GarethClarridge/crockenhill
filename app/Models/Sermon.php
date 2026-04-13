@@ -165,10 +165,13 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
             'date' => 'date',
             'points' => 'array',
             'service' => SermonService::class,
@@ -187,6 +190,34 @@ class Sermon extends Model implements Sitemapable
             'preacher_confidence' => 'float',
             'needs_preacher_review' => 'boolean',
             'download_count' => 'integer',
+            'preacher_id' => 'integer',
+            'scripture_passage_id' => 'integer',
+            'duration' => 'float',
+        ];
+    }
+
+    /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(?self $sermon = null): array
+    {
+        $slugRule = ['required', 'string', 'max:255'];
+        $uniqueSlug = \Illuminate\Validation\Rule::unique('sermons', 'slug');
+        if ($sermon) {
+            $uniqueSlug->ignore($sermon->id);
+        }
+        $slugRule[] = $uniqueSlug;
+
+        return [
+            'title' => ['required', 'string', 'max:255'],
+            'slug' => $slugRule,
+            'series' => ['nullable', 'string', 'max:255'],
+            'reference' => ['nullable', 'string', 'max:255'],
+            'preacher' => ['required', 'string', 'max:255'],
+            'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
+            'scripture_passage_id' => ['nullable', 'integer', 'exists:scripture_passages,id'],
+            'download_count' => ['nullable', 'integer', 'min:0'],
+            'duration' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

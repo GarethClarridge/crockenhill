@@ -88,10 +88,14 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
     /**
      * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
+            'page_id' => 'integer',
             'pictures' => 'boolean',
             'meeting_date' => 'datetime',
             'is_recurring' => 'boolean',
@@ -99,6 +103,36 @@ class Meeting extends Model implements HasMedia, Sitemapable
             'end_time' => 'datetime:H:i:s',
             'type' => MeetingType::class,
             'frequency' => MeetingFrequency::class,
+        ];
+    }
+
+    /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(?self $meeting = null): array
+    {
+        $slugRule = ['required', 'string', 'max:255'];
+        $uniqueSlug = \Illuminate\Validation\Rule::unique('meetings', 'slug');
+        if ($meeting) {
+            $uniqueSlug->ignore($meeting->id);
+        }
+        $slugRule[] = $uniqueSlug;
+
+        $pageIdRule = ['nullable', 'integer', 'exists:pages,id'];
+        $uniquePageId = \Illuminate\Validation\Rule::unique('meetings', 'page_id');
+        if ($meeting) {
+            $uniquePageId->ignore($meeting->id);
+        }
+        $pageIdRule[] = $uniquePageId;
+
+        return [
+            'slug' => $slugRule,
+            'day' => ['required', 'string', 'max:255'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'who' => ['required', 'string', 'max:255'],
+            'leaders_phone' => ['nullable', 'string', 'max:255'],
+            'leaders_email' => ['nullable', 'email', 'max:255'],
+            'page_id' => $pageIdRule,
         ];
     }
 
