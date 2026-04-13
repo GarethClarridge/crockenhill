@@ -65,15 +65,24 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::getDriverName() === 'mysql') {
-            DB::statement(sprintf('ALTER TABLE pages DROP CHECK %s', self::SORT_ORDER_CHECK));
+            try {
+                DB::statement(sprintf('ALTER TABLE pages DROP CHECK %s', self::SORT_ORDER_CHECK));
+            } catch (\Exception) {
+                // Ignore if constraint doesn't exist
+            }
         }
 
         Schema::table('pages', function (Blueprint $table) {
             $table->string('area', 50)->nullable(false)->change();
 
-            if (Schema::hasColumn('pages', 'sort_order')) {
-                $table->dropColumn('sort_order');
-            }
+            /**
+             * Safety: Avoid dropping sort_order on rollback.
+             *
+             * Since this migration is defensive about adding the column in up(),
+             * we remain defensive in down(). We do not drop the column because
+             * it might have existed before this migration was run, and dropping
+             * it would be destructive to data this migration didn't own.
+             */
         });
     }
 };
