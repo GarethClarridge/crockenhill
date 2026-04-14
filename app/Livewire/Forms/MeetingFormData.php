@@ -85,7 +85,7 @@ class MeetingFormData extends Form
             'meetingDate' => 'nullable|date_format:Y-m-d',
             'isRecurring' => 'boolean',
             'frequency' => ['nullable', 'required_if:isRecurring,true', Rule::enum(MeetingFrequency::class)],
-            'pageId' => $modelRules['page_id'],
+            'pageId' => ['nullable', 'integer', 'exists:pages,id', Rule::unique('meetings', 'page_id')->ignore($this->meeting)],
         ];
     }
 

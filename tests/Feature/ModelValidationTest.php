@@ -22,6 +22,11 @@ class ModelValidationTest extends TestCase
     {
         $rules = Sermon::validationRules();
 
+        $this->assertArrayHasKey('slug', $rules);
+        $this->assertContains('required', $rules['slug']);
+        $this->assertContains('max:255', $rules['slug']);
+        $this->assertContains('alpha_dash', $rules['slug']);
+
         $this->assertArrayHasKey('audio_file_path', $rules);
         $this->assertContains('nullable', $rules['audio_file_path']);
         $this->assertContains('max:255', $rules['audio_file_path']);
@@ -102,6 +107,27 @@ class ModelValidationTest extends TestCase
         ]);
         $validator = Validator::make($data, $rules);
         $this->assertFalse($validator->fails(), print_r($validator->errors()->all(), true));
+    }
+
+    /**
+     * Test that Meeting validation rules are robust and actually work.
+     */
+    public function test_meeting_validation_rules_are_robust(): void
+    {
+        $rules = \App\Models\Meeting::validationRules();
+
+        $this->assertArrayHasKey('slug', $rules);
+        $this->assertContains('required', $rules['slug']);
+        $this->assertContains('max:255', $rules['slug']);
+        $this->assertContains('alpha_dash', $rules['slug']);
+
+        $this->assertArrayHasKey('type', $rules);
+        $this->assertContains('required', $rules['type']);
+        $this->assertTrue($this->hasEnumRule($rules['type'], \App\Enums\MeetingType::class));
+
+        $this->assertArrayHasKey('frequency', $rules);
+        $this->assertContains('nullable', $rules['frequency']);
+        $this->assertTrue($this->hasEnumRule($rules['frequency'], \App\Enums\MeetingFrequency::class));
     }
 
     /**

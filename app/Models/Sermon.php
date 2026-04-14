@@ -201,7 +201,7 @@ class Sermon extends Model implements Sitemapable
      */
     public static function validationRules(?self $sermon = null): array
     {
-        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
+        $slugRule = ['required', 'string', 'max:255', 'alpha_dash'];
         $uniqueSlug = \Illuminate\Validation\Rule::unique('sermons', 'slug');
         if ($sermon) {
             $uniqueSlug->ignore($sermon->id);
