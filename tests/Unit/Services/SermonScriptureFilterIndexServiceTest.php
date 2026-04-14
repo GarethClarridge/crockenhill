@@ -101,4 +101,19 @@ class SermonScriptureFilterIndexServiceTest extends TestCase
 
         $this->assertDatabaseCount('sermon_scripture_filters', 0);
     }
+
+    #[Test]
+    public function precomputed_entries_do_not_bypass_the_content_type_guard(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'reference' => 'John 3:16',
+        ]);
+
+        $this->service->syncForSermon($sermon, [
+            ['bible_book' => 'John', 'bible_chapter' => 3],
+        ]);
+
+        $this->assertDatabaseCount('sermon_scripture_filters', 0);
+    }
 }

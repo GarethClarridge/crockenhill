@@ -57,12 +57,14 @@ class SermonScriptureFilterIndexService
      */
     public function syncForSermon(Sermon $sermon, ?array $entries = null): void
     {
-        if ($entries === null) {
-            $entries = [];
+        if ($sermon->content_type !== SermonContentType::Sermon) {
+            $this->replaceEntriesForSermon($sermon, []);
 
-            if ($sermon->content_type === SermonContentType::Sermon) {
-                $entries = $this->entriesForReference($sermon->reference);
-            }
+            return;
+        }
+
+        if ($entries === null) {
+            $entries = $this->entriesForReference($sermon->reference);
         }
 
         $this->replaceEntriesForSermon($sermon, $entries);
@@ -71,7 +73,7 @@ class SermonScriptureFilterIndexService
     /**
      * @param  array<int, array{bible_book: string, bible_chapter: int}>  $entries
      */
-    public function replaceEntriesForSermon(Sermon $sermon, array $entries): void
+    private function replaceEntriesForSermon(Sermon $sermon, array $entries): void
     {
         $sermon->scriptureFilters()->delete();
 

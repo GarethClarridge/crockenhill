@@ -20,6 +20,12 @@ class BibleCanonTest extends TestCase
     }
 
     #[Test]
+    public function it_is_registered_as_a_singleton(): void
+    {
+        $this->assertSame($this->bibleCanon, app(BibleCanon::class));
+    }
+
+    #[Test]
     public function it_returns_all_66_books_in_canonical_order(): void
     {
         $books = $this->bibleCanon->allBooks();

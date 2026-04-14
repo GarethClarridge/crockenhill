@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Support\BibleCanon;
 use App\Support\ParallelTestingProcessLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -26,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Services\PublicMeetingReadModelCache::class);
         $this->app->singleton(\App\Presenters\SermonSitemapPresenter::class);
         $this->app->singleton(\App\Presenters\PageSitemapPresenter::class);
+        $this->app->singleton(BibleCanon::class);
     }
 
     public function boot(): void

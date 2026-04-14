@@ -81,7 +81,7 @@ class SyncSermonScriptureFilters extends Command
 
             if ($sermon->content_type !== SermonContentType::Sermon || $reference === '') {
                 if (! $dryRun) {
-                    $indexService->replaceEntriesForSermon($sermon, []);
+                    $indexService->syncForSermon($sermon, []);
                 }
 
                 $counts['cleared']++;
@@ -94,7 +94,7 @@ class SyncSermonScriptureFilters extends Command
 
             if ($entries === []) {
                 if (! $dryRun) {
-                    $indexService->replaceEntriesForSermon($sermon, []);
+                    $indexService->syncForSermon($sermon, []);
                 }
 
                 $counts['unparseable']++;
