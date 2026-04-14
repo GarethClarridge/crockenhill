@@ -103,6 +103,6 @@ class CalendarEvent extends Model
      */
     public function scopeConfirmed(Builder $query): Builder
     {
-        return $query->where('status', 'confirmed');
+        return $query->where('status', \App\Enums\CalendarEventStatus::Confirmed);
     }
 }

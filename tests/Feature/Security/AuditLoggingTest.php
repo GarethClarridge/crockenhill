@@ -259,7 +259,7 @@ class AuditLoggingTest extends TestCase
         $event = \App\Models\CalendarEvent::factory()->create([
             'title' => 'Event Title',
             'meeting_slug' => 'old-slug',
-            'status' => CalendarEventStatus::CONFIRMED,
+            'status' => CalendarEventStatus::Confirmed,
         ]);
 
         Livewire::actingAs($this->admin)
