@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Sermons;
 
+use App\Enums\SermonContentType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
@@ -180,10 +181,9 @@ class BrowseSermons extends Component
     private function scriptureFilterOptionQuery(): Builder
     {
         return SermonScriptureFilter::query()
-            ->whereHas('sermon', function (Builder $builder): void {
-                $builder->whereSermon()
-                    ->when($this->preacherFilter, fn (Builder $query): Builder => $query->where('preacher_id', $this->preacherFilter))
-                    ->when($this->seriesFilter, fn (Builder $query): Builder => $query->where('series', $this->seriesFilter));
-            });
+            ->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+            ->where('sermons.content_type', SermonContentType::Sermon->value)
+            ->when($this->preacherFilter, fn (Builder $query): Builder => $query->where('sermons.preacher_id', $this->preacherFilter))
+            ->when($this->seriesFilter, fn (Builder $query): Builder => $query->where('sermons.series', $this->seriesFilter));
     }
 }

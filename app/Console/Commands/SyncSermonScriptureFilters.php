@@ -72,6 +72,7 @@ class SyncSermonScriptureFilters extends Command
         foreach ($sermons as $sermon) {
             if ($onlyMissing && (int) $sermon->scripture_filters_count > 0) {
                 $counts['skipped']++;
+                $this->writeVerboseStatus('skipped', $sermon, 'already indexed');
 
                 continue;
             }
@@ -80,10 +81,11 @@ class SyncSermonScriptureFilters extends Command
 
             if ($sermon->content_type !== SermonContentType::Sermon || $reference === '') {
                 if (! $dryRun) {
-                    $sermon->scriptureFilters()->delete();
+                    $indexService->replaceEntriesForSermon($sermon, []);
                 }
 
                 $counts['cleared']++;
+                $this->writeVerboseStatus('cleared', $sermon, $reference === '' ? 'no reference' : 'non-public content');
 
                 continue;
             }
@@ -92,19 +94,21 @@ class SyncSermonScriptureFilters extends Command
 
             if ($entries === []) {
                 if (! $dryRun) {
-                    $sermon->scriptureFilters()->delete();
+                    $indexService->replaceEntriesForSermon($sermon, []);
                 }
 
                 $counts['unparseable']++;
+                $this->writeVerboseStatus('unparseable', $sermon, $reference);
 
                 continue;
             }
 
             if (! $dryRun) {
-                $indexService->syncForSermon($sermon);
+                $indexService->syncForSermon($sermon, $entries);
             }
 
             $counts['indexed']++;
+            $this->writeVerboseStatus('indexed', $sermon, sprintf('%s (%d entries)', $reference, count($entries)));
         }
 
         $this->info(sprintf(
@@ -116,5 +120,14 @@ class SyncSermonScriptureFilters extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    private function writeVerboseStatus(string $status, Sermon $sermon, string $detail): void
+    {
+        if (! $this->output->isVerbose()) {
+            return;
+        }
+
+        $this->line(sprintf('  [%s] sermon %d: %s', $status, $sermon->id, $detail));
     }
 }

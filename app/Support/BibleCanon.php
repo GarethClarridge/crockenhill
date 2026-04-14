@@ -20,6 +20,11 @@ class BibleCanon
      */
     private array $books;
 
+    /**
+     * @var array<string, int>
+     */
+    private array $bookNumbersByName;
+
     public function __construct()
     {
         $structure = require base_path('vendor/techwilk/bible-verse-parser/data/bibleStructure.php');
@@ -32,12 +37,14 @@ class BibleCanon
 
         $this->structure = [];
         $this->books = [];
+        $this->bookNumbersByName = [];
 
         foreach ($structure as $bookNumber => $bookData) {
             $this->guardBookStructure((int) $bookNumber, $bookData);
 
             /** @var array{name: string, abbreviations: array<int, string>, chapterStructure: array<int, int>} $bookData */
             $this->structure[(int) $bookNumber] = $bookData;
+            $this->bookNumbersByName[$bookData['name']] = (int) $bookNumber;
             $this->books[] = [
                 'number' => (int) $bookNumber,
                 'name' => $bookData['name'],
@@ -158,13 +165,7 @@ class BibleCanon
 
     private function bookNumberFor(string $bookName): ?int
     {
-        foreach ($this->structure as $bookNumber => $bookData) {
-            if ($bookData['name'] === $bookName) {
-                return $bookNumber;
-            }
-        }
-
-        return null;
+        return $this->bookNumbersByName[$bookName] ?? null;
     }
 
     private function bookNameForNumber(int $bookNumber): string

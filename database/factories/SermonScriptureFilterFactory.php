@@ -21,7 +21,7 @@ class SermonScriptureFilterFactory extends Factory
     public function definition(): array
     {
         return [
-            'sermon_id' => Sermon::factory(),
+            'sermon_id' => Sermon::factory()->state(['reference' => null]),
             'bible_book' => 'John',
             'bible_chapter' => 3,
         ];
