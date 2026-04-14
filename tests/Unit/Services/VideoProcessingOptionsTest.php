@@ -113,13 +113,15 @@ class VideoProcessingOptionsTest extends TestCase
     public function validation_rules_prohibit_auto_trim_for_non_video(): void
     {
         $rules = VideoProcessingOptions::validationRules(MediaType::Audio);
-        $this->assertArrayHasKey('auto_trim', $rules);
-        $this->assertArrayHasKey('video_processing_mode', $rules);
 
-        // We check if it contains a ProhibitedIf rule.
-        // It's hard to inspect the exact closure, but we can verify it's an array of rules.
-        $this->assertIsArray($rules['auto_trim']);
-        $this->assertIsArray($rules['video_processing_mode']);
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            ['auto_trim' => true, 'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM],
+            $rules
+        );
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('auto_trim', $validator->errors()->toArray());
+        $this->assertArrayHasKey('video_processing_mode', $validator->errors()->toArray());
     }
 
     #[Test]
@@ -128,10 +130,13 @@ class VideoProcessingOptionsTest extends TestCase
         Config::set('media-processing.video_auto_trim.enabled', true);
 
         $rules = VideoProcessingOptions::validationRules(MediaType::Video);
-        $this->assertIsArray($rules['auto_trim']);
 
-        $rules = VideoProcessingOptions::validationRules(MediaType::Video->value);
-        $this->assertIsArray($rules['auto_trim']);
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            ['auto_trim' => true, 'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM],
+            $rules
+        );
+
+        $this->assertFalse($validator->fails());
     }
 
     #[Test]
@@ -140,6 +145,13 @@ class VideoProcessingOptionsTest extends TestCase
         Config::set('media-processing.video_auto_trim.enabled', false);
 
         $rules = VideoProcessingOptions::validationRules(MediaType::Video);
-        $this->assertIsArray($rules['auto_trim']);
+
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            ['auto_trim' => true],
+            $rules
+        );
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('auto_trim', $validator->errors()->toArray());
     }
 }
