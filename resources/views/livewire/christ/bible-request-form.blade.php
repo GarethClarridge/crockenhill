@@ -44,7 +44,7 @@
                 maxlength="1000"
             />
 
-            <x-form-button variant="primary" size="lg" class="w-full" wire:click="submit">
+            <x-form-button variant="primary" size="lg" class="w-full">
                 Request a free Bible
             </x-form-button>
         </form>
