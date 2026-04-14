@@ -8,6 +8,7 @@ use App\Livewire\Christ\BibleRequestForm;
 use App\Mail\BibleRequest;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -15,6 +16,12 @@ use Tests\TestCase;
 class BibleRequestFormTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        RateLimiter::clear('bible-request|127.0.0.1');
+    }
 
     // ── page rendering ────────────────────────────────────────────────────
 
@@ -126,5 +133,83 @@ class BibleRequestFormTest extends TestCase
             ->call('submit')
             ->assertSet('name', '')
             ->assertSet('address', '');
+    }
+
+    // ── honeypot ──────────────────────────────────────────────────────────
+
+    #[Test]
+    public function submission_with_honeypot_filled_silently_succeeds_without_sending_email(): void
+    {
+        Mail::fake();
+
+        Livewire::test(BibleRequestForm::class)
+            ->set('name', 'Bot McBotface')
+            ->set('address', '1 Spam Street')
+            ->set('website', 'http://spam.example.com')
+            ->call('submit')
+            ->assertSet('submitted', true);
+
+        Mail::assertNotSent(BibleRequest::class);
+    }
+
+    #[Test]
+    public function honeypot_field_is_cleared_after_bot_submission(): void
+    {
+        Mail::fake();
+
+        Livewire::test(BibleRequestForm::class)
+            ->set('name', 'Bot')
+            ->set('address', '1 Spam Street')
+            ->set('website', 'http://spam.example.com')
+            ->call('submit')
+            ->assertSet('website', '');
+    }
+
+    // ── rate limiting ─────────────────────────────────────────────────────
+
+    #[Test]
+    public function submit_is_rate_limited_after_three_attempts(): void
+    {
+        Mail::fake();
+
+        $component = Livewire::test(BibleRequestForm::class);
+
+        for ($i = 0; $i < 3; $i++) {
+            $component
+                ->set('name', 'Jane Smith')
+                ->set('address', '1 High Street')
+                ->call('submit');
+            // Reset submitted flag between attempts so we can call submit again
+            $component->set('submitted', false);
+        }
+
+        // Fourth attempt should be rate limited
+        $component
+            ->set('name', 'Jane Smith')
+            ->set('address', '1 High Street')
+            ->call('submit')
+            ->assertSet('submitted', false)
+            ->assertSet('rateLimitError', fn (string $error) => str_contains($error, 'Too many requests'));
+
+        Mail::assertSent(BibleRequest::class, 3);
+    }
+
+    #[Test]
+    public function rate_limit_does_not_send_email_when_exceeded(): void
+    {
+        Mail::fake();
+
+        // Exhaust the rate limit
+        for ($i = 0; $i < 3; $i++) {
+            RateLimiter::hit('bible-request|127.0.0.1', 3600);
+        }
+
+        Livewire::test(BibleRequestForm::class)
+            ->set('name', 'Jane Smith')
+            ->set('address', '1 High Street')
+            ->call('submit')
+            ->assertSet('submitted', false);
+
+        Mail::assertNotSent(BibleRequest::class);
     }
 }
