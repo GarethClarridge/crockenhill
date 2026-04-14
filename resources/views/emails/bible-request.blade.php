@@ -15,8 +15,8 @@ Someone has requested a free Bible through the website.
 **Phone:** {{ $phone }}
 @endif
 
-@if($message ?? null)
-**Note from requester:** {{ $message }}
+@if($note ?? null)
+**Note from requester:** {{ $note }}
 @endif
 
 Thanks,<br>

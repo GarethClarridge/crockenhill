@@ -27,7 +27,7 @@ class BibleRequestForm extends Component
     public string $phone = '';
 
     #[Validate('nullable|string|max:1000')]
-    public string $message = '';
+    public string $note = '';
 
     /** Honeypot field — must remain empty. Bots typically fill hidden fields. */
     public string $website = '';
@@ -41,7 +41,7 @@ class BibleRequestForm extends Component
         // Honeypot: if filled, this is almost certainly a bot.
         // Silently succeed so the bot receives no feedback that it was detected.
         if ($this->website !== '') {
-            $this->reset(['name', 'address', 'email', 'phone', 'message', 'website']);
+            $this->reset(['name', 'address', 'email', 'phone', 'note', 'website']);
             $this->submitted = true;
 
             return;
@@ -58,7 +58,7 @@ class BibleRequestForm extends Component
         Mail::to(config('organization.email_public'))
             ->send(new BibleRequest($validated));
 
-        $this->reset(['name', 'address', 'email', 'phone', 'message']);
+        $this->reset(['name', 'address', 'email', 'phone', 'note']);
         $this->submitted = true;
     }
 

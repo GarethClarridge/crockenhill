@@ -49,7 +49,7 @@
 
             <x-textarea
                 label="Anything else? (optional)"
-                wire:model="message"
+                wire:model="note"
                 rows="3"
                 maxlength="1000"
             />

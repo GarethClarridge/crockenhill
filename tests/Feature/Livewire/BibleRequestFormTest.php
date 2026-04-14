@@ -120,7 +120,7 @@ class BibleRequestFormTest extends TestCase
             ->set('address', '2 Church Road, Chelsfield, BR6 7SZ')
             ->set('email', 'john@example.com')
             ->set('phone', '01689 123456')
-            ->set('message', 'Please can I have a large-print Bible?')
+            ->set('note', 'Please can I have a large-print Bible?')
             ->call('submit')
             ->assertSet('submitted', true);
 
