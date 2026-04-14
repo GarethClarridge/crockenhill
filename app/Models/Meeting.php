@@ -431,6 +431,11 @@ class Meeting extends Model implements HasMedia, Sitemapable
             $url->setLastModificationDate($this->updated_at);
         }
 
+        $photo = $this->photos->first();
+        if ($photo) {
+            $url->addImage($photo['url'], $this->heading);
+        }
+
         return $url;
     }
 

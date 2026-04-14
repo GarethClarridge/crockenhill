@@ -2,15 +2,18 @@
 
 @section('title', 'Christ')
 
-@section('meta_description', 'Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church.')
+@section('meta_description', 'Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Explore the good news of Christianity at Crockenhill Baptist Church.')
 
 @section('meta_tags')
 <x-meta-tags
   title="Christ"
-  description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church." />
+  description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Explore the good news of Christianity at Crockenhill Baptist Church."
+  :image="asset('/images/homepage/may2024wide.webp')"
+  image-alt="Crockenhill Baptist Church members outside the church building" />
 <x-schema.webpage
   heading="Christ"
-  description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church."
+  description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Explore the good news of Christianity at Crockenhill Baptist Church."
+  :image="asset('/images/homepage/may2024wide.webp')"
 />
 
 <x-breadcrumbs area="christ" heading="Christ" jsonOnly />
