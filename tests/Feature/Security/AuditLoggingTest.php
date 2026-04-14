@@ -11,7 +11,14 @@ use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
 use App\Livewire\Admin\Meetings\ListMeetings;
 use App\Livewire\Admin\Pages\ListPages;
+use App\Livewire\Admin\Meetings\CreateMeeting;
+use App\Livewire\Admin\Meetings\EditMeeting;
+use App\Livewire\Admin\Pages\CreatePage;
+use App\Livewire\Admin\Pages\EditPage;
+use App\Livewire\Admin\Preachers\CreatePreacher;
 use App\Livewire\Admin\Preachers\EditPreacher;
+use App\Livewire\Admin\Sermons\EditSermon;
+use App\Livewire\Admin\Users\CreateUser;
 use App\Livewire\Admin\Preachers\ListPreachers;
 use App\Livewire\Admin\Sermons\ListSermons;
 use App\Models\InboundEmail;
@@ -323,6 +330,185 @@ class AuditLoggingTest extends TestCase
         Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Inbound email rejected by admin' &&
             $context['inbound_email_id'] === $email->id &&
             $context['subject'] === 'Suspicious Email'
+        );
+    }
+
+    #[Test]
+    public function it_logs_preacher_creation(): void
+    {
+        Log::spy();
+
+        Livewire::actingAs($this->admin)
+            ->test(CreatePreacher::class)
+            ->set('name', 'New Preacher')
+            ->set('slug', 'new-preacher')
+            ->call('save');
+
+        $this->assertDatabaseHas('preachers', ['name' => 'New Preacher']);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool =>
+            $message === 'New preacher created by admin' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['name'] === 'New Preacher' &&
+            $context['slug'] === 'new-preacher'
+        );
+    }
+
+    #[Test]
+    public function it_logs_preacher_update(): void
+    {
+        Log::spy();
+        $preacher = Preacher::factory()->create(['name' => 'Old Name', 'slug' => 'old-slug']);
+
+        Livewire::actingAs($this->admin)
+            ->test(EditPreacher::class, ['preacher' => $preacher])
+            ->set('name', 'New Name')
+            ->set('slug', 'new-name')
+            ->call('save');
+
+        $this->assertSame('New Name', $preacher->fresh()->name);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool =>
+            $message === 'Preacher updated by admin' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['preacher_id'] === $preacher->id &&
+            $context['name'] === 'New Name' &&
+            $context['slug'] === 'new-name'
+        );
+    }
+
+    #[Test]
+    public function it_logs_meeting_creation(): void
+    {
+        Log::spy();
+
+        Livewire::actingAs($this->admin)
+            ->test(CreateMeeting::class)
+            ->set('form.slug', 'new-meeting')
+            ->set('form.day', 'Monday')
+            ->set('form.who', 'Everyone')
+            ->set('form.type', 'SundayAndBibleStudies')
+            ->call('save');
+
+        $this->assertDatabaseHas('meetings', ['slug' => 'new-meeting']);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool =>
+            $message === 'New meeting created by admin' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['slug'] === 'new-meeting'
+        );
+    }
+
+    #[Test]
+    public function it_logs_meeting_update(): void
+    {
+        Log::spy();
+        $meeting = Meeting::factory()->create(['slug' => 'old-meeting']);
+
+        Livewire::actingAs($this->admin)
+            ->test(EditMeeting::class, ['meeting' => $meeting])
+            ->set('form.slug', 'new-meeting')
+            ->call('save');
+
+        $this->assertSame('new-meeting', $meeting->fresh()->slug);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool =>
+            $message === 'Meeting updated by admin' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['meeting_id'] === $meeting->id &&
+            $context['slug'] === 'new-meeting'
+        );
+    }
+
+    #[Test]
+    public function it_logs_sermon_update(): void
+    {
+        Log::spy();
+        $sermon = Sermon::factory()->create(['title' => 'Old Title', 'slug' => 'old-title']);
+
+        Livewire::actingAs($this->admin)
+            ->test(EditSermon::class, ['sermon' => $sermon])
+            ->set('title', 'New Title')
+            ->set('slug', 'new-title')
+            ->call('save');
+
+        $this->assertSame('New Title', $sermon->fresh()->title);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool =>
+            $message === 'Sermon updated by admin' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['sermon_id'] === $sermon->id &&
+            $context['title'] === 'New Title' &&
+            $context['slug'] === 'new-title'
+        );
+    }
+
+    #[Test]
+    public function it_logs_page_creation(): void
+    {
+        Log::spy();
+
+        Livewire::actingAs($this->admin)
+            ->test(CreatePage::class)
+            ->set('form.heading', 'New Page')
+            ->set('form.slug', 'new-page')
+            ->set('form.description', 'Description')
+            ->call('save');
+
+        $this->assertDatabaseHas('pages', ['slug' => 'new-page']);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool =>
+            $message === 'New page created by admin' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['heading'] === 'New Page' &&
+            $context['slug'] === 'new-page'
+        );
+    }
+
+    #[Test]
+    public function it_logs_page_update(): void
+    {
+        Log::spy();
+        $page = Page::factory()->create(['heading' => 'Old Heading', 'slug' => 'old-slug']);
+
+        Livewire::actingAs($this->admin)
+            ->test(EditPage::class, ['page' => $page])
+            ->set('form.heading', 'New Heading')
+            ->set('form.slug', 'new-heading')
+            ->call('save');
+
+        $this->assertSame('New Heading', $page->fresh()->heading);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool =>
+            $message === 'Page updated by admin' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['page_id'] === $page->id &&
+            $context['heading'] === 'New Heading' &&
+            $context['slug'] === 'new-heading'
+        );
+    }
+
+    #[Test]
+    public function it_logs_user_creation(): void
+    {
+        Log::spy();
+        $securePassword = 'Abc.123.def.456.!!!';
+
+        Livewire::actingAs($this->admin)
+            ->test(CreateUser::class)
+            ->set('name', 'New User')
+            ->set('email', 'newuser@example.com')
+            ->set('password', $securePassword)
+            ->set('passwordConfirmation', $securePassword)
+            ->set('sendVerification', false)
+            ->call('save');
+
+        $this->assertDatabaseHas('users', ['email' => 'newuser@example.com']);
+
+        Log::assertLogged('warning', fn (string $message, array $context): bool =>
+            $message === 'New user created by admin' &&
+            $context['admin_id'] === $this->admin->id &&
+            $context['target_user_email'] === 'newuser@example.com'
         );
     }
 }
