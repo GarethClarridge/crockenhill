@@ -12,6 +12,8 @@ return new class extends Migration
 {
     private const SORT_ORDER_CHECK = 'pages_sort_order_check';
 
+    private const ZERO_TIMESTAMP = '0000-00-00 00:00:00';
+
     /**
      * Run the migrations.
      */
@@ -38,6 +40,8 @@ return new class extends Migration
         DB::table('pages')
             ->whereNotIn('area', $validAreas)
             ->update(['area' => PageArea::Church->value]);
+
+        $this->normalizeLegacyZeroTimestamps();
 
         // 3. Formalize area as ENUM and add CHECK constraint for sort_order
         $isMysql = DB::getDriverName() === 'mysql';
@@ -83,5 +87,24 @@ return new class extends Migration
              * it would be destructive to data this migration didn't own.
              */
         });
+    }
+
+    private function normalizeLegacyZeroTimestamps(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
+        // Older local databases can contain zero-date page timestamps, which MySQL strict
+        // mode rejects when the area column change rebuilds the table.
+        DB::statement(sprintf(
+            "UPDATE pages SET created_at = CURRENT_TIMESTAMP WHERE CAST(created_at AS CHAR(19)) = '%s'",
+            self::ZERO_TIMESTAMP
+        ));
+
+        DB::statement(sprintf(
+            "UPDATE pages SET updated_at = CURRENT_TIMESTAMP WHERE CAST(updated_at AS CHAR(19)) = '%s'",
+            self::ZERO_TIMESTAMP
+        ));
     }
 };
