@@ -30,7 +30,7 @@
     ],
     [
         'question' => 'Where can I find out more?',
-        'answer' => 'You can come along, get in touch with our pastor, or start reading Mark\'s gospel in the Bible to decide for yourself who Jesus is. If you need a Bible, we\'d love to give you one free — visit our Free Bibles page.',
+        'answer' => 'You can come along, get in touch with our pastor, or start reading Mark\'s gospel in the Bible to decide for yourself who Jesus is. If you need a Bible, we\'d love to give you one free — visit our Free Bible page.',
     ],
 ]" />
 @stop
@@ -238,7 +238,7 @@
 
   <div class="mx-auto w-full max-w-[34rem] px-6 text-center">
     <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
-      <x-button link="/christ/free-bibles" wire:navigate variant="featureOutline" size="lg" class="w-full rounded-[11px]">
+      <x-button link="/christ/free-bible" wire:navigate variant="featureOutline" size="lg" class="w-full rounded-[11px]">
         Request a free Bible
       </x-button>
     </div>

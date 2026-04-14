@@ -25,7 +25,7 @@ class BibleRequestFormTest extends TestCase
         RateLimiter::clear('bible-request|127.0.0.1');
 
         Page::factory()->create([
-            'slug' => 'free-bibles',
+            'slug' => 'free-bible',
             'heading' => 'Free Bibles',
             'area' => PageArea::Christ->value,
         ]);
@@ -36,15 +36,15 @@ class BibleRequestFormTest extends TestCase
     #[Test]
     public function free_bibles_page_is_publicly_accessible(): void
     {
-        $this->get('/christ/free-bibles')
+        $this->get('/christ/free-bible')
             ->assertOk()
-            ->assertSee('Free Bibles');
+            ->assertSee('Free Bible');
     }
 
     #[Test]
     public function free_bibles_page_renders_the_livewire_component(): void
     {
-        $this->get('/christ/free-bibles')
+        $this->get('/christ/free-bible')
             ->assertOk()
             ->assertSeeLivewire(BibleRequestForm::class);
     }

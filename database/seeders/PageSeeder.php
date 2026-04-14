@@ -428,8 +428,8 @@ class PageSeeder extends Seeder
             ],
             [
                 'id' => 131,
-                'slug' => 'free-bibles',
-                'heading' => 'Free Bibles',
+                'slug' => 'free-bible',
+                'heading' => 'Free Bible',
                 'description' => 'Would you like a free Bible? We\'d love to give you one — no strings attached — for anyone in the Crockenhill or Chelsfield area.',
                 'area' => 'christ',
                 'body' => 'lorem ipsum',
