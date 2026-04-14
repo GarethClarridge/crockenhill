@@ -9,7 +9,6 @@ use App\Models\Page;
 use App\Services\SafeMarkdownRenderer;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Livewire\Form;
 
 class PageFormData extends Form
@@ -50,22 +49,17 @@ class PageFormData extends Form
      */
     protected function rules(): array
     {
+        $modelRules = Page::validationRules($this->page, $this->area);
+
         return [
-            'heading' => 'required|string|max:255',
-            'slug' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('pages', 'slug')
-                    ->where('area', $this->area)
-                    ->ignore($this->page),
-            ],
-            'area' => ['required', 'string', 'in:'.implode(',', PageArea::values())],
+            'heading' => $modelRules['heading'],
+            'slug' => $modelRules['slug'],
+            'area' => $modelRules['area'],
             'admin' => 'boolean',
             'navigation' => 'boolean',
             'description' => 'required|string|max:500',
             'markdown' => 'nullable|string',
+            'sort_order' => $modelRules['sort_order'],
         ];
     }
 

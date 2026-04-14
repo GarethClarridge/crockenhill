@@ -530,6 +530,7 @@ class MediaProcessingLog extends Model
             'processing_type' => ['required', \Illuminate\Validation\Rule::enum(\App\Enums\MediaType::class)],
             'status' => ['required', \Illuminate\Validation\Rule::enum(ProcessingStatus::class)],
             'original_filename' => ['required', 'string', 'max:255'],
+            'file_hash' => ['nullable', 'string', 'max:64'],
             'file_size' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],
             'sermon_start_time' => ['nullable', 'numeric', 'min:0'],

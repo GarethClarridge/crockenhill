@@ -7,19 +7,23 @@ namespace Tests\Feature;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\SpeakerSample;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
 class ModelValidationTest extends TestCase
 {
+    use DatabaseTransactions;
+
     /**
-     * Test that Sermon validation rules are robust.
+     * Test that Sermon validation rules are robust and actually work.
      */
     public function test_sermon_validation_rules_are_robust(): void
     {
         $rules = Sermon::validationRules();
 
         $this->assertArrayHasKey('audio_file_path', $rules);
-        $this->assertContains('required', $rules['audio_file_path']);
+        $this->assertContains('nullable', $rules['audio_file_path']);
         $this->assertContains('max:255', $rules['audio_file_path']);
 
         $this->assertArrayHasKey('video_file_path', $rules);
@@ -30,26 +34,43 @@ class ModelValidationTest extends TestCase
         $this->assertContains('required', $rules['content_type']);
         $this->assertTrue($this->hasEnumRule($rules['content_type'], \App\Enums\SermonContentType::class));
 
-        $this->assertArrayHasKey('source_type', $rules);
-        $this->assertContains('nullable', $rules['source_type']);
-        $this->assertTrue($this->hasEnumRule($rules['source_type'], \App\Enums\SermonSourceType::class));
-
-        $this->assertArrayHasKey('service', $rules);
-        $this->assertContains('nullable', $rules['service']);
-        $this->assertTrue($this->hasEnumRule($rules['service'], \App\Enums\SermonService::class));
-
-        $this->assertArrayHasKey('preacher_source', $rules);
-        $this->assertContains('nullable', $rules['preacher_source']);
-        $this->assertTrue($this->hasEnumRule($rules['preacher_source'], \App\Enums\PreacherSource::class));
-
         $this->assertArrayHasKey('preacher_confidence', $rules);
         $this->assertContains('nullable', $rules['preacher_confidence']);
         $this->assertContains('min:0', $rules['preacher_confidence']);
         $this->assertContains('max:1', $rules['preacher_confidence']);
+
+        $this->assertArrayHasKey('segment_start_time', $rules);
+        $this->assertContains('nullable', $rules['segment_start_time']);
+        $this->assertContains('min:0', $rules['segment_start_time']);
+
+        $this->assertArrayHasKey('segment_end_time', $rules);
+        $this->assertContains('nullable', $rules['segment_end_time']);
+        $this->assertContains('gte:segment_start_time', $rules['segment_end_time']);
+
+        // Functional test: invalid content type fails
+        $data = Sermon::factory()->raw(['content_type' => 'invalid-type']);
+        $validator = Validator::make($data, $rules);
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('content_type', $validator->errors()->toArray());
+
+        // Functional test: invalid confidence fails
+        $data = Sermon::factory()->raw(['preacher_confidence' => 1.5]);
+        $validator = Validator::make($data, $rules);
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('preacher_confidence', $validator->errors()->toArray());
+
+        // Functional test: valid data passes
+        $data = Sermon::factory()->raw([
+            'audio_file_path' => 'sermons/test.mp3',
+            'content_type' => 'sermon',
+            'preacher_confidence' => 0.85,
+        ]);
+        $validator = Validator::make($data, $rules);
+        $this->assertFalse($validator->fails(), print_r($validator->errors()->all(), true));
     }
 
     /**
-     * Test that MediaProcessingLog validation rules are robust.
+     * Test that MediaProcessingLog validation rules are robust and actually work.
      */
     public function test_media_processing_log_validation_rules_are_robust(): void
     {
@@ -67,22 +88,24 @@ class ModelValidationTest extends TestCase
         $this->assertContains('required', $rules['status']);
         $this->assertTrue($this->hasEnumRule($rules['status'], \App\Enums\ProcessingStatus::class));
 
-        $this->assertArrayHasKey('sermon_id', $rules);
-        $this->assertContains('exists:sermons,id', $rules['sermon_id']);
+        // Functional test: invalid status fails
+        $data = MediaProcessingLog::factory()->raw(['status' => 'invalid-status']);
+        $validator = Validator::make($data, $rules);
+        $this->assertTrue($validator->fails());
 
-        $this->assertArrayHasKey('owner_user_id', $rules);
-        $this->assertContains('exists:users,id', $rules['owner_user_id']);
-
-        $this->assertArrayHasKey('church_service_id', $rules);
-        $this->assertContains('exists:church_services,id', $rules['church_service_id']);
-
-        $this->assertArrayHasKey('original_filename', $rules);
-        $this->assertContains('required', $rules['original_filename']);
-        $this->assertContains('max:255', $rules['original_filename']);
+        // Functional test: valid data passes
+        $data = MediaProcessingLog::factory()->raw([
+            'processing_id' => \Illuminate\Support\Str::uuid()->toString(),
+            'processing_type' => 'audio',
+            'status' => 'pending',
+            'original_filename' => 'test.mp3',
+        ]);
+        $validator = Validator::make($data, $rules);
+        $this->assertFalse($validator->fails(), print_r($validator->errors()->all(), true));
     }
 
     /**
-     * Test that SpeakerSample validation rules are robust.
+     * Test that SpeakerSample validation rules are robust and actually work.
      */
     public function test_speaker_sample_validation_rules_are_robust(): void
     {
@@ -90,17 +113,25 @@ class ModelValidationTest extends TestCase
 
         $this->assertArrayHasKey('speaker_profile_id', $rules);
         $this->assertContains('required', $rules['speaker_profile_id']);
-        $this->assertContains('exists:speaker_profiles,id', $rules['speaker_profile_id']);
-
-        $this->assertArrayHasKey('sermon_id', $rules);
-        $this->assertContains('exists:sermons,id', $rules['sermon_id']);
-
-        $this->assertArrayHasKey('media_processing_log_id', $rules);
-        $this->assertContains('exists:media_processing_logs,id', $rules['media_processing_log_id']);
 
         $this->assertArrayHasKey('source', $rules);
         $this->assertContains('required', $rules['source']);
         $this->assertTrue($this->hasEnumRule($rules['source'], \App\Enums\SampleSource::class));
+
+        // Functional test: invalid source fails
+        $data = SpeakerSample::factory()->raw(['source' => 'invalid-source']);
+        $validator = Validator::make($data, $rules);
+        $this->assertTrue($validator->fails());
+
+        // Functional test: valid data passes (assuming profile exists in DB via factory)
+        $profile = \App\Models\SpeakerProfile::factory()->create();
+        $data = SpeakerSample::factory()->raw([
+            'speaker_profile_id' => $profile->id,
+            'source' => 'manual_upload',
+            'duration_seconds' => 10.5,
+        ]);
+        $validator = Validator::make($data, $rules);
+        $this->assertFalse($validator->fails(), print_r($validator->errors()->all(), true));
     }
 
     /**

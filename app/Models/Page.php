@@ -107,7 +107,7 @@ class Page extends Model implements HasMedia, Sitemapable
         return [
             'heading' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
-            'area' => ['required', 'string', 'in:'.implode(',', PageArea::values())],
+            'area' => ['required', \Illuminate\Validation\Rule::enum(PageArea::class)],
             'description' => ['required', 'string', 'max:155'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ];

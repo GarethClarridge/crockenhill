@@ -29,9 +29,9 @@ class SermonIndexRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:255'],
-            'service' => ['nullable', 'string', 'max:50'],
+            'service' => ['nullable', 'string', \Illuminate\Validation\Rule::enum(\App\Enums\SermonService::class)],
             'preacher' => ['nullable', 'string', 'max:255'],
-            'preacher_id' => ['nullable', 'integer'],
+            'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
             'series' => ['nullable', 'string', 'max:255'],
             'sort' => ['nullable', 'string', 'in:date,title,preacher,series,service'],
             'order' => ['nullable', 'string', 'in:asc,desc'],

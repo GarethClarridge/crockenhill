@@ -222,6 +222,8 @@ class Sermon extends Model implements Sitemapable
             'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
             'preacher_source' => ['nullable', \Illuminate\Validation\Rule::enum(PreacherSource::class)],
             'preacher_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'segment_start_time' => ['nullable', 'numeric', 'min:0'],
+            'segment_end_time' => ['nullable', 'numeric', 'min:0', 'gte:segment_start_time'],
             'scripture_passage_id' => ['nullable', 'integer', 'exists:scripture_passages,id'],
             'download_count' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],
