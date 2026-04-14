@@ -35,7 +35,7 @@ $describedBy = implode(' ', $describedBy);
                 <option value="">{{ $placeholder }}</option>
             @endif
             @foreach($options as $option)
-                <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
+                <option value="{{ $option['id'] }}" @disabled(($option['disabled'] ?? false) === true)>{{ $option['name'] }}</option>
             @endforeach
         </select>
 

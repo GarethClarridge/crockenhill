@@ -93,6 +93,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ThumbnailCandidate|null $selected_thumbnail_candidate
  * @property-read ServiceSection|null $publishedServiceSection
  * @property-read MediaProcessingLog|null $latestProcessingLog
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, SermonScriptureFilter> $scriptureFilters
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
  * @method static Builder|Sermon newModelQuery()
@@ -384,6 +385,14 @@ class Sermon extends Model implements Sitemapable
     public function preacherProfile(): BelongsTo
     {
         return $this->belongsTo(Preacher::class, 'preacher_id');
+    }
+
+    /**
+     * @return HasMany<SermonScriptureFilter, $this>
+     */
+    public function scriptureFilters(): HasMany
+    {
+        return $this->hasMany(SermonScriptureFilter::class);
     }
 
     /**

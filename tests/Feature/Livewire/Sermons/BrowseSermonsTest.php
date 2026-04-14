@@ -1,0 +1,259 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Livewire\Sermons;
+
+use App\Livewire\Sermons\BrowseSermons;
+use App\Models\Preacher;
+use App\Models\Sermon;
+use App\Services\SermonScriptureFilterIndexService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class BrowseSermonsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private SermonScriptureFilterIndexService $indexService;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->indexService = app(SermonScriptureFilterIndexService::class);
+    }
+
+    #[Test]
+    public function no_filters_show_grouped_browse_results(): void
+    {
+        Sermon::factory()->create([
+            'title' => 'April Sermon',
+            'date' => '2026-04-13',
+        ]);
+        Sermon::factory()->create([
+            'title' => 'March Sermon',
+            'date' => '2026-03-30',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->assertSee('Browse by scripture, preacher, or series')
+            ->assertSee('April Sermon')
+            ->assertSee('March Sermon')
+            ->assertSee('Monday 13th April')
+            ->assertSee('Monday 30th March');
+    }
+
+    #[Test]
+    public function book_filter_returns_matching_sermons(): void
+    {
+        $john = $this->createIndexedSermon([
+            'title' => 'John Sermon',
+            'reference' => 'John 3:16',
+        ]);
+        $romans = $this->createIndexedSermon([
+            'title' => 'Romans Sermon',
+            'reference' => 'Romans 8:1-4',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->set('bookFilter', 'John')
+            ->assertSee('John Sermon')
+            ->assertDontSee('Romans Sermon');
+    }
+
+    #[Test]
+    public function book_and_chapter_filter_returns_matching_sermons(): void
+    {
+        $this->createIndexedSermon([
+            'title' => 'John 3 Sermon',
+            'reference' => 'John 3:16',
+        ]);
+        $this->createIndexedSermon([
+            'title' => 'John 4 Sermon',
+            'reference' => 'John 4:1-8',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->set('bookFilter', 'John')
+            ->set('chapterFilter', 3)
+            ->assertSee('John 3 Sermon')
+            ->assertDontSee('John 4 Sermon');
+    }
+
+    #[Test]
+    public function preacher_and_series_filters_return_matching_sermons(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Peter Test', 'slug' => 'peter-test']);
+        $this->createIndexedSermon([
+            'title' => 'Matching Sermon',
+            'reference' => 'Acts 2:1-4',
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+            'series' => 'Acts Series',
+        ]);
+        $this->createIndexedSermon([
+            'title' => 'Different Series Sermon',
+            'reference' => 'Acts 3:1-6',
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+            'series' => 'Different Series',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->set('preacherFilter', $preacher->id)
+            ->set('seriesFilter', 'Acts Series')
+            ->assertSee('Matching Sermon')
+            ->assertDontSee('Different Series Sermon');
+    }
+
+    #[Test]
+    public function combined_filters_return_their_intersection(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Paul Test', 'slug' => 'paul-test']);
+
+        $this->createIndexedSermon([
+            'title' => 'Intersection Sermon',
+            'reference' => 'Romans 8:1-4',
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+            'series' => 'Romans Series',
+        ]);
+        $this->createIndexedSermon([
+            'title' => 'Wrong Chapter Sermon',
+            'reference' => 'Romans 12:1-2',
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+            'series' => 'Romans Series',
+        ]);
+        $this->createIndexedSermon([
+            'title' => 'Wrong Preacher Sermon',
+            'reference' => 'Romans 8:5-8',
+            'series' => 'Romans Series',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->set('bookFilter', 'Romans')
+            ->set('chapterFilter', 8)
+            ->set('preacherFilter', $preacher->id)
+            ->set('seriesFilter', 'Romans Series')
+            ->assertSee('Intersection Sermon')
+            ->assertDontSee('Wrong Chapter Sermon')
+            ->assertDontSee('Wrong Preacher Sermon');
+    }
+
+    #[Test]
+    public function changing_book_resets_the_chapter_filter(): void
+    {
+        Livewire::test(BrowseSermons::class)
+            ->set('bookFilter', 'John')
+            ->set('chapterFilter', 3)
+            ->set('bookFilter', 'Romans')
+            ->assertSet('chapterFilter', null);
+    }
+
+    #[Test]
+    public function clear_filters_resets_everything_and_returns_to_grouped_mode(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Clear Test', 'slug' => 'clear-test']);
+        $this->createIndexedSermon([
+            'title' => 'Archive Sermon',
+            'reference' => 'John 3:16',
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+            'series' => 'Clear Series',
+            'date' => '2026-04-13',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->set('bookFilter', 'John')
+            ->set('chapterFilter', 3)
+            ->set('preacherFilter', $preacher->id)
+            ->set('seriesFilter', 'Clear Series')
+            ->call('clearFilters')
+            ->assertSet('bookFilter', null)
+            ->assertSet('chapterFilter', null)
+            ->assertSet('preacherFilter', null)
+            ->assertSet('seriesFilter', null)
+            ->assertSee('Monday 13th April');
+    }
+
+    #[Test]
+    public function url_state_round_trips_correctly(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Url Test', 'slug' => 'url-test']);
+        $this->createIndexedSermon([
+            'title' => 'URL Sermon',
+            'reference' => 'John 3:16',
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+            'series' => 'URL Series',
+        ]);
+
+        Livewire::withQueryParams([
+            'book' => 'John',
+            'chapter' => '3',
+            'preacher' => (string) $preacher->id,
+            'series' => 'URL Series',
+        ])->test(BrowseSermons::class)
+            ->assertSet('bookFilter', 'John')
+            ->assertSet('chapterFilter', 3)
+            ->assertSet('preacherFilter', $preacher->id)
+            ->assertSet('seriesFilter', 'URL Series')
+            ->assertSee('URL Sermon');
+    }
+
+    #[Test]
+    public function disabled_book_options_render(): void
+    {
+        $this->createIndexedSermon([
+            'title' => 'John Only Sermon',
+            'reference' => 'John 3:16',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->assertSee('option value="Genesis" disabled>Genesis</option>', false)
+            ->assertSee('option value="John"', false)
+            ->assertDontSee('option value="John" disabled', false);
+    }
+
+    #[Test]
+    public function disabled_chapter_options_render(): void
+    {
+        $this->createIndexedSermon([
+            'title' => 'John Only Sermon',
+            'reference' => 'John 3:16',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->set('bookFilter', 'John')
+            ->assertSee('option value="3"', false)
+            ->assertDontSee('option value="3" disabled', false)
+            ->assertSee('option value="4" disabled', false);
+    }
+
+    #[Test]
+    public function empty_state_renders_when_no_sermons_match(): void
+    {
+        $this->createIndexedSermon([
+            'title' => 'Romans Sermon',
+            'reference' => 'Romans 8:1-4',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->set('bookFilter', 'John')
+            ->assertSee('No sermons match these filters')
+            ->assertSee('Clear filters')
+            ->assertDontSee('Romans Sermon');
+    }
+
+    private function createIndexedSermon(array $attributes): Sermon
+    {
+        $sermon = Sermon::factory()->create($attributes);
+
+        $this->indexService->syncForSermon($sermon);
+
+        return $sermon->fresh();
+    }
+}

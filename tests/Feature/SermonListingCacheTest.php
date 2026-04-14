@@ -35,6 +35,16 @@ class SermonListingCacheTest extends TestCase
     }
 
     #[Test]
+    public function filtered_all_sermons_page_still_caches_the_canonical_listing(): void
+    {
+        Cache::forget('all_sermons');
+
+        $this->get('/christ/sermons/all?book=John&chapter=3');
+
+        $this->assertTrue(Cache::has('all_sermons'));
+    }
+
+    #[Test]
     public function series_page_caches_sermons(): void
     {
         $sermon = Sermon::factory()->create(['series' => 'Genesis']);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
+use App\Livewire\Sermons\BrowseSermons;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Carbon\Carbon;
@@ -63,6 +64,7 @@ class SermonControllerTest extends TestCase
     {
         $response = $this->get('/christ/sermons/all');
         $response->assertStatus(200);
+        $response->assertSeeLivewire(BrowseSermons::class);
     }
 
     #[Test]

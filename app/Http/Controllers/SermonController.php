@@ -55,12 +55,13 @@ class SermonController extends Controller
     public function all(): View
     {
         /**
-         * Performance Optimization: Use Repository to fetch cached full sermon listing.
+         * Performance Optimization: Keep the cached full sermon listing for the
+         * canonical unfiltered JSON-LD ItemList even though the visible browse UI
+         * now lives inside a Livewire component.
          */
         $sermons = $this->sermonRepository->getAllSermons();
 
         return view('sermons.all', [
-            'sermons' => $sermons,
             'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
             'heading' => 'All Sermons',
             'description' => 'Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.',

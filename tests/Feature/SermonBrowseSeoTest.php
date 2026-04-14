@@ -20,6 +20,15 @@ class SermonBrowseSeoTest extends TestCase
         $response->assertSee('<meta name="description" content="Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.">', false);
     }
 
+    public function test_filtered_all_sermons_page_keeps_the_canonical_unfiltered_seo_data(): void
+    {
+        $response = $this->get('/christ/sermons/all?book=John&chapter=3');
+
+        $response->assertStatus(200);
+        $response->assertSee('<title>All Sermons | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<meta name="description" content="Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.">', false);
+    }
+
     public function test_preacher_sermons_page_has_correct_seo_data(): void
     {
         $preacher = Preacher::query()->firstOrCreate(

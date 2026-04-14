@@ -148,6 +148,7 @@ class SermonPagesTest extends TestCase
     {
         $response = $this->get('/christ/sermons/all');
         $response->assertStatus(200);
+        $response->assertSee('Browse by scripture, preacher, or series');
         $response->assertSee('Morning Test Sermon');
         $response->assertSee('Evening Test Sermon');
         $response->assertSee('Other Test Sermon');
@@ -157,6 +158,19 @@ class SermonPagesTest extends TestCase
     public function grouped_sermon_lists_render_date_heading_above_cards_grid(): void
     {
         $response = $this->get('/christ/sermons');
+
+        $response->assertStatus(200);
+        $response->assertSeeInOrder([
+            '<h2 id=',
+            'text-3xl sm:text-4xl',
+            '<div class="grid items-start justify-center gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]">',
+        ], false);
+    }
+
+    #[Test]
+    public function all_sermons_page_preserves_the_grouped_browse_markup_when_unfiltered(): void
+    {
+        $response = $this->get('/christ/sermons/all');
 
         $response->assertStatus(200);
         $response->assertSeeInOrder([
