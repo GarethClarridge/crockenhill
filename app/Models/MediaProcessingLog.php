@@ -521,17 +521,24 @@ class MediaProcessingLog extends Model
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<string|mixed>>
      */
     public static function validationRules(): array
     {
         return [
+            'processing_id' => ['required', 'string', 'size:36'],
+            'processing_type' => ['required', \Illuminate\Validation\Rule::enum(\App\Enums\MediaType::class)],
+            'status' => ['required', \Illuminate\Validation\Rule::enum(ProcessingStatus::class)],
+            'original_filename' => ['required', 'string', 'max:255'],
             'file_size' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],
             'sermon_start_time' => ['nullable', 'numeric', 'min:0'],
             'sermon_end_time' => ['nullable', 'numeric', 'min:0', 'gte:sermon_start_time'],
             'visual_sample_count' => ['nullable', 'integer', 'min:0'],
             'visual_processing_time' => ['nullable', 'numeric', 'min:0'],
+            'sermon_id' => ['nullable', 'integer', 'exists:sermons,id'],
+            'owner_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'church_service_id' => ['nullable', 'integer', 'exists:church_services,id'],
         ];
     }
 
