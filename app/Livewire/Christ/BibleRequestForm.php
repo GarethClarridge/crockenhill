@@ -21,13 +21,13 @@ class BibleRequestForm extends Component
     public string $address = '';
 
     #[Validate('nullable|email|max:255')]
-    public string $email = '';
+    public ?string $email = null;
 
     #[Validate('nullable|string|max:30')]
-    public string $phone = '';
+    public ?string $phone = null;
 
     #[Validate('nullable|string|max:1000')]
-    public string $note = '';
+    public ?string $note = null;
 
     /** Honeypot field — must remain empty. Bots typically fill hidden fields. */
     public string $website = '';
@@ -50,6 +50,12 @@ class BibleRequestForm extends Component
         if ($this->isRateLimited()) {
             return;
         }
+
+        // Normalize optional fields: wire:model sends '' when cleared, but
+        // Laravel's nullable rule only skips validation for null, not ''.
+        $this->email = $this->email !== '' ? $this->email : null;
+        $this->phone = $this->phone !== '' ? $this->phone : null;
+        $this->note = $this->note !== '' ? $this->note : null;
 
         $validated = $this->validate();
 

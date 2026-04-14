@@ -71,6 +71,20 @@ class BibleRequestFormTest extends TestCase
     }
 
     #[Test]
+    public function empty_string_email_does_not_trigger_email_validation_error(): void
+    {
+        Mail::fake();
+
+        Livewire::test(BibleRequestForm::class)
+            ->set('name', 'Jane Smith')
+            ->set('address', '1 High Street, Crockenhill, BR8 8JS')
+            ->set('email', '')
+            ->call('submit')
+            ->assertHasNoErrors(['email'])
+            ->assertSet('submitted', true);
+    }
+
+    #[Test]
     public function name_is_required(): void
     {
         Livewire::test(BibleRequestForm::class)
