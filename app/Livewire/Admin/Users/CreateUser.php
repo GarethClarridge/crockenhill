@@ -73,13 +73,12 @@ class CreateUser extends Component
         $user->email_verified_at = $this->sendVerification ? null : now();
         $user->save();
 
-        if ($user->is_admin) {
-            Log::warning('New admin user created', [
-                'admin_id' => auth()->id(),
-                'target_user_id' => $user->id,
-                'target_user_email' => $user->email,
-            ]);
-        }
+        Log::warning('New user created by admin', [
+            'admin_id' => auth()->id(),
+            'target_user_id' => $user->id,
+            'target_user_email' => $user->email,
+            'is_admin' => $user->is_admin,
+        ]);
 
         if ($this->sendVerification) {
             $user->sendEmailVerificationNotification();

@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\Preachers;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -54,11 +55,18 @@ class CreatePreacher extends Component
 
         $validated = $this->validate();
 
-        Preacher::create([
+        $preacher = Preacher::create([
             'name' => $validated['name'],
             'slug' => $validated['slug'],
             'bio' => $validated['bio'],
             'is_active' => $validated['isActive'],
+        ]);
+
+        Log::warning('New preacher created by admin', [
+            'admin_id' => auth()->id(),
+            'preacher_id' => $preacher->id,
+            'name' => $preacher->name,
+            'slug' => $preacher->slug,
         ]);
 
         $this->success('Preacher created', redirectTo: route('admin.preachers.index'));

@@ -8,6 +8,7 @@ use App\Livewire\Forms\MeetingFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithPageOptions;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -28,7 +29,13 @@ class CreateMeeting extends Component
     {
         $this->authorizeAdmin();
 
-        $this->form->store();
+        $meeting = $this->form->store();
+
+        Log::warning('New meeting created by admin', [
+            'admin_id' => auth()->id(),
+            'meeting_id' => $meeting->id,
+            'slug' => $meeting->slug,
+        ]);
 
         $this->success('Meeting created', redirectTo: route('admin.meetings.index'));
     }

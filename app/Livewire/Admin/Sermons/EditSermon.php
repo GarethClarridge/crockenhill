@@ -17,6 +17,7 @@ use App\Services\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
 use App\Services\SermonStorageService;
 use App\Services\ThumbnailGenerationService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -216,6 +217,13 @@ class EditSermon extends Component
         ];
 
         $this->sermon->update($updateData);
+
+        Log::warning('Sermon updated by admin', [
+            'admin_id' => auth()->id(),
+            'sermon_id' => $this->sermon->id,
+            'title' => $this->sermon->fresh()?->title ?? $this->sermon->title,
+            'slug' => $this->sermon->fresh()?->slug ?? $this->sermon->slug,
+        ]);
 
         // Dispatch enrichment after saving if reference was set or changed
         if ($referenceChanged && ! empty($newReference)) {
