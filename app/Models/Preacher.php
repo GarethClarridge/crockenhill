@@ -202,6 +202,10 @@ class Preacher extends Model implements Sitemapable
             }
         }
 
+        if ($this->profile_image_url) {
+            $url->addImage($this->profile_image_url, "Preacher: {$this->name}");
+        }
+
         return $url;
     }
 }

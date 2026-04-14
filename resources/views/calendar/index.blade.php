@@ -8,6 +8,8 @@
 <x-meta-tags
     title="Church Calendar"
     description="Upcoming events at Crockenhill Baptist Church."
+    :image="asset('/images/homepage/may2024wide.webp')"
+    image-alt="Crockenhill Baptist Church members outside the church building"
 />
 
 {{-- JSON-LD Events --}}
