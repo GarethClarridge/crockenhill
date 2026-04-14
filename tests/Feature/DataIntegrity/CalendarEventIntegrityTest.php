@@ -18,11 +18,11 @@ class CalendarEventIntegrityTest extends TestCase
     #[Test]
     public function it_allows_valid_status_values(): void
     {
-        $event = CalendarEvent::factory()->create(['status' => CalendarEventStatus::CONFIRMED]);
-        $this->assertEquals(CalendarEventStatus::CONFIRMED, $event->fresh()->status);
+        $event = CalendarEvent::factory()->create(['status' => CalendarEventStatus::Confirmed]);
+        $this->assertEquals(CalendarEventStatus::Confirmed, $event->fresh()->status);
 
-        $event->update(['status' => CalendarEventStatus::PENDING]);
-        $this->assertEquals(CalendarEventStatus::PENDING, $event->fresh()->status);
+        $event->update(['status' => CalendarEventStatus::Pending]);
+        $this->assertEquals(CalendarEventStatus::Pending, $event->fresh()->status);
     }
 
     #[Test]

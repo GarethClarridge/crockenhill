@@ -28,7 +28,7 @@ class CalendarEventFactory extends Factory
             'location' => $this->faker->city(),
             'start_datetime' => $start,
             'end_datetime' => $end,
-            'status' => 'confirmed',
+            'status' => \App\Enums\CalendarEventStatus::Confirmed,
             'is_categorized_automatically' => false,
         ];
     }
@@ -39,7 +39,7 @@ class CalendarEventFactory extends Factory
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'pending',
+            'status' => \App\Enums\CalendarEventStatus::Pending,
         ]);
     }
 
