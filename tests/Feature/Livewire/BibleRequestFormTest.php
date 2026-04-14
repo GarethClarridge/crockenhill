@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire;
 
+use App\Enums\PageArea;
 use App\Livewire\Christ\BibleRequestForm;
 use App\Mail\BibleRequest;
+use App\Models\Page;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
@@ -21,6 +23,12 @@ class BibleRequestFormTest extends TestCase
     {
         parent::setUp();
         RateLimiter::clear('bible-request|127.0.0.1');
+
+        Page::factory()->create([
+            'slug' => 'free-bibles',
+            'heading' => 'Free Bibles',
+            'area' => PageArea::Christ->value,
+        ]);
     }
 
     // ── page rendering ────────────────────────────────────────────────────

@@ -76,7 +76,7 @@ class PageController extends Controller
             return $redirect;
         }
 
-        return response()->view('layouts/page', $this->publicPageReadModelCache->get($page)->toViewData(
+        return response()->view($this->resolveView($area, $slug), $this->publicPageReadModelCache->get($page)->toViewData(
             links: $this->relatedPagePresenter->random(
                 linkArea: $page->area->value,
                 slugToExclude: $page->slug,
@@ -86,5 +86,17 @@ class PageController extends Controller
             ),
             page: $page,
         ));
+    }
+
+    /**
+     * Resolves the view for a page, allowing per-slug child views to override
+     * the default layout. If a view exists at pages.{area}.{slug} it will be
+     * used; otherwise the standard layouts/page template is returned.
+     */
+    private function resolveView(string $area, string $slug): string
+    {
+        $override = "pages.{$area}.{$slug}";
+
+        return view()->exists($override) ? $override : 'layouts/page';
     }
 }
