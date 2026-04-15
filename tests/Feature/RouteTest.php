@@ -399,7 +399,10 @@ class RouteTest extends TestCase
 
         $content = (string) $response->getContent();
 
-        $buttonStart = strpos($content, 'aria-label="Navigation"');
+        $buttonStart = strpos($content, ':aria-label="expanded ? \'Close navigation\' : \'Open navigation\'"');
+        if ($buttonStart === false) {
+            $buttonStart = strpos($content, 'aria-label="Navigation"');
+        }
         $this->assertNotFalse($buttonStart, 'Hamburger nav button is missing from the header');
 
         $buttonTagStart = strrpos(substr($content, 0, $buttonStart), '<button');
