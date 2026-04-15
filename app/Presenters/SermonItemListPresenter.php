@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use App\Models\Sermon;
+use Carbon\CarbonInterval;
 use Illuminate\Support\Collection;
 
 class SermonItemListPresenter
@@ -34,6 +35,10 @@ class SermonItemListPresenter
             'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
                 $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
                 $publicUrl = $this->sermonViewPresenter->publicUrl($sermon);
+                $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
+                $audioUrl = $this->sermonViewPresenter->audioUrl($sermon);
+                $datePublished = $sermon->date->toIso8601String();
+                $duration = $sermon->duration ? CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
 
                 $item = [
                     '@type' => 'Article',
@@ -41,7 +46,7 @@ class SermonItemListPresenter
                     'name' => $sermon->title,
                     'url' => $publicUrl,
                     'description' => $sermon->meta_description,
-                    'datePublished' => $sermon->date->toIso8601String(),
+                    'datePublished' => $datePublished,
                     'inLanguage' => 'en-GB',
                     'contentLocation' => [
                         '@type' => 'Place',
@@ -66,6 +71,36 @@ class SermonItemListPresenter
                     ],
                     'image' => $thumbnailUrl ?: $logoUrl,
                 ];
+
+                if ($videoUrl) {
+                    $item['video'] = [
+                        '@type' => 'VideoObject',
+                        'name' => $sermon->title,
+                        'description' => $sermon->meta_description,
+                        'thumbnailUrl' => $thumbnailUrl ?: $logoUrl,
+                        'uploadDate' => $datePublished,
+                        'contentUrl' => $videoUrl,
+                    ];
+
+                    if ($duration) {
+                        $item['video']['duration'] = $duration;
+                    }
+                }
+
+                if ($audioUrl) {
+                    $item['audio'] = [
+                        '@type' => 'AudioObject',
+                        'name' => $sermon->title,
+                        'contentUrl' => $audioUrl,
+                        'description' => $sermon->meta_description,
+                        'encodingFormat' => 'audio/mpeg',
+                        'uploadDate' => $datePublished,
+                    ];
+
+                    if ($duration) {
+                        $item['audio']['duration'] = $duration;
+                    }
+                }
 
                 return [
                     '@type' => 'ListItem',

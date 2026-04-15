@@ -13,9 +13,8 @@
     :heading="$heading"
     :description="$description"
 />
-@if(in_array($service, ['morning', 'evening']))
-<link rel="alternate" type="application/rss+xml" title="{{ $heading }} Podcast" href="{{ route('podcast.feed', $service) }}">
-@endif
+<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="{{ route('podcast.feed', 'morning') }}">
+<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="{{ route('podcast.feed', 'evening') }}">
 
 {{-- JSON-LD Sermon List --}}
 <script type="application/ld+json">
