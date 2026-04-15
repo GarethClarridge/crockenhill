@@ -69,6 +69,13 @@ class SermonAdminController extends Controller
                 : $this->mediaProcessor->process($type, $file, options: $options);
 
             if ($result->success) {
+                Log::warning('Media processing initiated by admin', [
+                    'admin_id' => auth()->id(),
+                    'type' => $type,
+                    'filename' => $file->getClientOriginalName(),
+                    'processing_id' => $result->processingId,
+                ]);
+
                 return redirect()
                     ->route('sermons.index')
                     ->with('message', "Processing started for \"{$file->getClientOriginalName()}\". Processing ID: {$result->processingId}");

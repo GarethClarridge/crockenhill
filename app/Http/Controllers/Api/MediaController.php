@@ -42,7 +42,7 @@ class MediaController extends Controller
         try {
             $file = $request->file('file');
 
-            Log::warning('Media upload initiated', [
+            Log::warning('Media upload initiated via API', [
                 'type' => $type,
                 'user_id' => $request->user()?->id,
                 'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
@@ -181,7 +181,7 @@ class MediaController extends Controller
         try {
             $action->execute($processingId, (int) $request->input('segment_id'), $user);
 
-            Log::warning('Media segment confirmed via API', [
+            Log::warning('Sermon segment confirmed via API', [
                 'processing_id' => $processingId,
                 'segment_id' => $request->input('segment_id'),
                 'user_id' => $user->id,

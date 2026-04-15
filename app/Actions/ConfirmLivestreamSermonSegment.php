@@ -63,6 +63,13 @@ class ConfirmLivestreamSermonSegment
             $this->processingRunTransitions->confirmSermonSegment($log, $segmentId, $user->id);
             $log->refresh();
 
+            \Illuminate\Support\Facades\Log::warning('Livestream sermon segment confirmed by admin', [
+                'admin_id' => $user->id,
+                'processing_id' => $processingId,
+                'segment_id' => $segmentId,
+                'original_filename' => $log->original_filename,
+            ]);
+
             return $log;
         });
 

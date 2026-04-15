@@ -85,6 +85,13 @@ class ImportChurchServiceFromOpenLp
             $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
         }
 
+        \Illuminate\Support\Facades\Log::warning('Church service imported from OpenLP (existing)', [
+            'admin_id' => auth()->id(),
+            'church_service_id' => $existingService->id,
+            'filename' => $uploadedFile->getClientOriginalName(),
+            'was_merged' => $mergeResult->wasMerged,
+        ]);
+
         return new OpenLpImportResult(
             churchService: $mergeResult->churchService,
             parseResult: $parsed,
@@ -148,6 +155,12 @@ class ImportChurchServiceFromOpenLp
             ChurchServiceItemSource::OPENLP,
             $syncResult,
         );
+
+        \Illuminate\Support\Facades\Log::warning('Church service imported from OpenLP (new)', [
+            'admin_id' => auth()->id(),
+            'church_service_id' => $churchService->id,
+            'filename' => $uploadedFile->getClientOriginalName(),
+        ]);
 
         return new OpenLpImportResult(
             churchService: $churchService,
