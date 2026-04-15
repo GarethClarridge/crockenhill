@@ -51,7 +51,7 @@ class EditPreacher extends Component
     {
         return [
             'name' => 'required|string|max:255|unique:preachers,name,'.$this->preacher->id,
-            'slug' => 'required|string|max:255|unique:preachers,slug,'.$this->preacher->id,
+            'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:preachers,slug,'.$this->preacher->id],
             'bio' => 'nullable|string',
             'isActive' => 'boolean',
             'newAlias' => 'nullable|string|max:255',
