@@ -10,6 +10,8 @@ use Illuminate\Support\Collection;
 
 class SermonItemListPresenter
 {
+    private const DEFAULT_AUDIO_MIME_TYPE = 'audio/mpeg';
+
     public function __construct(
         private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
@@ -32,83 +34,89 @@ class SermonItemListPresenter
             '@context' => 'https://schema.org',
             '@type' => 'ItemList',
             'numberOfItems' => $flatSermons->count(),
-            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
-                $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
-                $publicUrl = $this->sermonViewPresenter->publicUrl($sermon);
-                $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
-                $audioUrl = $this->sermonViewPresenter->audioUrl($sermon);
-                $metaDescription = $this->sermonViewPresenter->metaDescription($sermon);
-                $datePublished = $sermon->date->toIso8601String();
-                $duration = $sermon->duration ? CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
-
-                $item = [
-                    '@type' => 'Article',
-                    'headline' => $sermon->title,
-                    'name' => $sermon->title,
-                    'url' => $publicUrl,
-                    'description' => $metaDescription,
-                    'datePublished' => $datePublished,
-                    'inLanguage' => 'en-GB',
-                    'contentLocation' => [
-                        '@type' => 'Place',
-                        'name' => $orgName,
-                    ],
-                    'author' => [
-                        '@type' => 'Person',
-                        'name' => $this->sermonViewPresenter->displayPreacherName($sermon),
-                        'url' => $this->sermonViewPresenter->preacherUrl($sermon),
-                    ],
-                    'publisher' => [
-                        '@type' => 'Organization',
-                        'name' => $orgName,
-                        'logo' => [
-                            '@type' => 'ImageObject',
-                            'url' => $logoUrl,
-                        ],
-                    ],
-                    'mainEntityOfPage' => [
-                        '@type' => 'WebPage',
-                        '@id' => $publicUrl,
-                    ],
-                    'image' => $thumbnailUrl ?: $logoUrl,
-                ];
-
-                if ($videoUrl) {
-                    $item['video'] = [
-                        '@type' => 'VideoObject',
-                        'name' => $sermon->title,
-                        'description' => $metaDescription,
-                        'thumbnailUrl' => $thumbnailUrl ?: $logoUrl,
-                        'uploadDate' => $datePublished,
-                        'contentUrl' => $videoUrl,
-                    ];
-
-                    if ($duration) {
-                        $item['video']['duration'] = $duration;
-                    }
-                }
-
-                if ($audioUrl) {
-                    $item['audio'] = [
-                        '@type' => 'AudioObject',
-                        'name' => $sermon->title,
-                        'contentUrl' => $audioUrl,
-                        'description' => $metaDescription,
-                        'encodingFormat' => 'audio/mpeg',
-                        'uploadDate' => $datePublished,
-                    ];
-
-                    if ($duration) {
-                        $item['audio']['duration'] = $duration;
-                    }
-                }
-
-                return [
-                    '@type' => 'ListItem',
-                    'position' => $index + 1,
-                    'item' => $item,
-                ];
-            })->all(),
+            'itemListElement' => $flatSermons->values()->map(fn (Sermon $sermon, int $index): array => [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'item' => $this->serializeSermon($sermon, $orgName, $logoUrl),
+            ])->all(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeSermon(Sermon $sermon, string $orgName, string $logoUrl): array
+    {
+        $view = $this->sermonViewPresenter->present($sermon);
+        $canonicalUrl = $view['canonical_url'];
+        $thumbnailUrl = $view['thumbnail_url'] ?: $logoUrl;
+        $metaDescription = $this->sermonViewPresenter->metaDescription($sermon);
+        $datePublished = $sermon->date->toIso8601String();
+        $duration = $sermon->duration ? CarbonInterval::seconds((int) $sermon->duration)->cascade()->spec() : null;
+
+        $item = [
+            '@type' => 'Article',
+            'headline' => $sermon->title,
+            'name' => $sermon->title,
+            'url' => $canonicalUrl,
+            'description' => $metaDescription,
+            'datePublished' => $datePublished,
+            'inLanguage' => 'en-GB',
+            'contentLocation' => [
+                '@type' => 'Place',
+                'name' => $orgName,
+            ],
+            'author' => [
+                '@type' => 'Person',
+                'name' => $this->sermonViewPresenter->displayPreacherName($sermon),
+                'url' => $view['preacher_url'],
+            ],
+            'publisher' => [
+                '@type' => 'Organization',
+                'name' => $orgName,
+                '@id' => url('/'),
+                'logo' => [
+                    '@type' => 'ImageObject',
+                    'url' => $logoUrl,
+                ],
+            ],
+            'mainEntityOfPage' => [
+                '@type' => 'WebPage',
+                '@id' => $canonicalUrl,
+            ],
+            'image' => $thumbnailUrl,
+        ];
+
+        if ($view['video_url'] !== null) {
+            $item['video'] = [
+                '@type' => 'VideoObject',
+                'name' => $sermon->title,
+                'description' => $metaDescription,
+                'thumbnailUrl' => $thumbnailUrl,
+                'uploadDate' => $datePublished,
+                'contentUrl' => $view['video_url'],
+            ];
+
+            if ($duration !== null) {
+                $item['video']['duration'] = $duration;
+            }
+        }
+
+        if ($view['audio_url'] !== null) {
+            $item['audio'] = [
+                '@type' => 'AudioObject',
+                'name' => $sermon->title,
+                'contentUrl' => $view['audio_url'],
+                'description' => $metaDescription,
+                'encodingFormat' => self::DEFAULT_AUDIO_MIME_TYPE,
+                'uploadDate' => $datePublished,
+            ];
+
+            if ($duration !== null) {
+                $item['audio']['duration'] = $duration;
+            }
+        }
+
+        return $item;
     }
 }
