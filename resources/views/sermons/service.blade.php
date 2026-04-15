@@ -13,8 +13,12 @@
     :heading="$heading"
     :description="$description"
 />
+@if($service === 'morning' || $service === 'other')
 <link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="{{ route('podcast.feed', 'morning') }}">
+@endif
+@if($service === 'evening' || $service === 'other')
 <link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="{{ route('podcast.feed', 'evening') }}">
+@endif
 
 {{-- JSON-LD Sermon List --}}
 <script type="application/ld+json">

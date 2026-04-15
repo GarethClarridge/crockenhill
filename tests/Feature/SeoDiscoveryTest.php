@@ -39,8 +39,14 @@ class SeoDiscoveryTest extends TestCase
             $response = $this->get($url);
             $response->assertStatus(200);
             $response->assertSee('type="application/rss+xml"', false);
-            $response->assertSee('title="Sunday Morning Sermons"', false);
-            $response->assertSee('title="Sunday Evening Sermons"', false);
+
+            if ($url !== '/christ/sermons/evening') {
+                $response->assertSee('title="Sunday Morning Sermons"', false);
+            }
+
+            if ($url !== '/christ/sermons/morning') {
+                $response->assertSee('title="Sunday Evening Sermons"', false);
+            }
         }
     }
 

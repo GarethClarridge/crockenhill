@@ -27,18 +27,17 @@ class SermonItemListPresenter
 
         $orgName = (string) config('organization.name');
         $logoUrl = asset('images/Primary.png');
-        $presenter = $this->sermonViewPresenter;
 
         return [
             '@context' => 'https://schema.org',
             '@type' => 'ItemList',
             'numberOfItems' => $flatSermons->count(),
-            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl, $presenter) {
-                $thumbnailUrl = $presenter->thumbnailUrl($sermon);
-                $publicUrl = $presenter->publicUrl($sermon);
-                $videoUrl = $presenter->videoUrl($sermon);
-                $audioUrl = $presenter->audioUrl($sermon);
-                $metaDescription = $presenter->metaDescription($sermon);
+            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
+                $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
+                $publicUrl = $this->sermonViewPresenter->publicUrl($sermon);
+                $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
+                $audioUrl = $this->sermonViewPresenter->audioUrl($sermon);
+                $metaDescription = $this->sermonViewPresenter->metaDescription($sermon);
                 $datePublished = $sermon->date->toIso8601String();
                 $duration = $sermon->duration ? CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
 
@@ -56,8 +55,8 @@ class SermonItemListPresenter
                     ],
                     'author' => [
                         '@type' => 'Person',
-                        'name' => $presenter->displayPreacherName($sermon),
-                        'url' => $presenter->preacherUrl($sermon),
+                        'name' => $this->sermonViewPresenter->displayPreacherName($sermon),
+                        'url' => $this->sermonViewPresenter->preacherUrl($sermon),
                     ],
                     'publisher' => [
                         '@type' => 'Organization',
