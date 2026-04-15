@@ -92,7 +92,7 @@ class Page extends Model implements HasMedia, Sitemapable
      */
     public static function validationRules(?self $page = null, ?string $area = null): array
     {
-        $slugRule = ['required', 'string', 'max:255', 'alpha_dash'];
+        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
 
         $uniqueRule = \Illuminate\Validation\Rule::unique('pages', 'slug');
         if ($page) {

@@ -90,7 +90,7 @@ class EditSermon extends Component
     {
         return [
             'title' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:sermons,slug,'.$this->sermon->id,
+            'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:sermons,slug,'.$this->sermon->id],
             'date' => 'required|date',
             'service' => ['required', Rule::enum(SermonService::class)],
             'preacher' => 'required|string|max:255',

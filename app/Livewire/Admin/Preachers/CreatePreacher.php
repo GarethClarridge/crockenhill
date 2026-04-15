@@ -31,7 +31,7 @@ class CreatePreacher extends Component
     {
         return [
             'name' => 'required|string|max:255|unique:preachers,name',
-            'slug' => 'required|string|max:255|unique:preachers,slug',
+            'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:preachers,slug'],
             'bio' => 'nullable|string',
             'isActive' => 'boolean',
         ];

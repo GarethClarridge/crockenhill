@@ -108,6 +108,7 @@ class UpdateSermonRequestTest extends TestCase
             'all_valid_data_with_points' => [
                 'data' => [
                     'title' => 'Valid Title',
+                    'slug' => 'valid-title',
                     'date' => '2024-01-01',
                     'service' => 'morning',
                     'series' => 'Valid Series',
@@ -120,6 +121,7 @@ class UpdateSermonRequestTest extends TestCase
             'all_valid_data_null_points_series_ref' => [
                 'data' => [
                     'title' => 'Valid Title',
+                    'slug' => 'valid-title',
                     'date' => '2024-01-01',
                     'service' => 'evening',
                     'series' => null,
@@ -145,15 +147,20 @@ class UpdateSermonRequestTest extends TestCase
             // Points validation
             'points_invalid_json' => [['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => $invalidJsonPoints], false, ['points' => 'valid JSON structure']],
             'points_valid_empty_json_array' => [ // Empty array is valid JSON
-                'data' => ['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => '[]'],
+                'data' => ['title' => 'VT', 'slug' => 'vt', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => '[]'],
                 'shouldPass' => true,
             ],
             'points_empty_string_is_treated_as_null_and_passes' => [ // Renamed and expectation changed
                 // Assuming ConvertEmptyStringsToNull middleware is active, '' becomes null, and nullable|json passes.
-                'data' => ['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => ''],
+                'data' => ['title' => 'VT', 'slug' => 'vt', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => ''],
                 'shouldPass' => true,
                 'expectedErrors' => [], // No errors expected if it passes
             ],
+
+            // Slug validation
+            'slug_missing' => [['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP'], false, ['slug' => 'required']],
+            'slug_invalid_format' => [['title' => 'VT', 'slug' => 'invalid slug', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP'], false, ['slug' => 'format is invalid']],
+            'slug_too_long' => [['title' => 'VT', 'slug' => str_repeat('a', 256), 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP'], false, ['slug' => '255 characters']],
 
             // Series validation (nullable, so only check max length if provided)
             'series_too_long' => [['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'series' => str_repeat('b', 256), 'preacher' => 'VP'], false, ['series' => '255 characters']],

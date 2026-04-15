@@ -27,8 +27,12 @@ class UpdateSermonRequest extends FormRequest
      */
     public function rules(): array
     {
+        $sermon = $this->route('sermon');
+        $sermonId = $sermon instanceof Sermon ? $sermon->id : $sermon;
+
         return [
             'title' => 'required|string|max:255',
+            'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('sermons', 'slug')->ignore($sermonId)],
             // 'file' is not included here; file updates are typically handled separately or not at all in this form.
             // If file updates were allowed, it would be 'nullable|file|mimes:mp3|max:51200'.
             'date' => 'required|date_format:Y-m-d',
