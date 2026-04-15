@@ -54,6 +54,16 @@ class SermonViewPresenter
     private array $memoizedTimestamps = [];
 
     /**
+     * @var array<int|string, string>
+     */
+    private array $memoizedSermonKeys = [];
+
+    /**
+     * @var array<int, string>
+     */
+    private array $memoizedHumanDates = [];
+
+    /**
      * @var array<string, string>
      */
     private array $memoizedSlugs = [];
@@ -94,6 +104,20 @@ class SermonViewPresenter
     }
 
     /**
+     * Get the human-friendly date of the sermon.
+     *
+     * Performance Optimization: Memoizes date formatting results by timestamp
+     * to avoid redundant object calls and string formatting across multiple
+     * sermons sharing the same date in a listing.
+     */
+    public function humanDate(Sermon $sermon): string
+    {
+        $timestamp = $sermon->date->getTimestamp();
+
+        return $this->memoizedHumanDates[$timestamp] ??= $sermon->date->format('F j, Y');
+    }
+
+    /**
      * Clear the internal URL cache.
      * Useful for long-running processes or tests.
      */
@@ -107,6 +131,8 @@ class SermonViewPresenter
         $this->memoizedDurations = [];
         $this->memoizedPresents = [];
         $this->memoizedTimestamps = [];
+        $this->memoizedSermonKeys = [];
+        $this->memoizedHumanDates = [];
         $this->memoizedSlugs = [];
     }
 
@@ -215,14 +241,18 @@ class SermonViewPresenter
     /**
      * Present a lightweight subset of sermon view data for use in API resources.
      *
-     * Performance Optimization: Only returns fields required by the public API,
-     * avoiding expensive operations like reading full transcripts from cache or storage
-     * and generating non-API URLs (like canonical URLs).
+     * Performance Optimization: Consolidates all required display fields into a
+     * single array to eliminate redundant presenter method calls and container
+     * lookups during API resource transformation.
      *
      * @return array{
      *     audio_url: ?string,
+     *     display_reference: ?string,
      *     formatted_duration: ?string,
+     *     human_date: string,
+     *     preacher_name: ?string,
      *     preacher_url: ?string,
+     *     series_url: ?string,
      *     thumbnail_url: ?string,
      *     video_url: ?string
      * }
@@ -231,11 +261,15 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'api_present');
 
-        /** @var array{audio_url: ?string, formatted_duration: ?string, preacher_url: ?string, thumbnail_url: ?string, video_url: ?string} */
+        /** @var array{audio_url: ?string, display_reference: ?string, formatted_duration: ?string, human_date: string, preacher_name: ?string, preacher_url: ?string, series_url: ?string, thumbnail_url: ?string, video_url: ?string} */
         return $this->memoizedPresents[$key] ??= [
             'audio_url' => $this->audioUrl($sermon),
+            'display_reference' => $this->displayReference($sermon),
             'formatted_duration' => $this->formattedDuration($sermon),
+            'human_date' => $this->humanDate($sermon),
+            'preacher_name' => $this->displayPreacherName($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
+            'series_url' => $this->seriesUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'video_url' => $this->videoUrl($sermon),
         ];
@@ -246,9 +280,13 @@ class SermonViewPresenter
      *     audio_url: ?string,
      *     canonical_url: string,
      *     card_thumbnail_url: ?string,
+     *     display_reference: ?string,
      *     formatted_duration: ?string,
+     *     human_date: string,
+     *     preacher_name: ?string,
      *     preacher_url: ?string,
      *     public_url: string,
+     *     series_url: ?string,
      *     thumbnail_url: ?string,
      *     transcript: ?string,
      *     video_url: ?string
@@ -258,14 +296,18 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'full_present');
 
-        /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, formatted_duration: ?string, preacher_url: ?string, public_url: string, thumbnail_url: ?string, transcript: ?string, video_url: ?string} */
+        /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, formatted_duration: ?string, human_date: string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, transcript: ?string, video_url: ?string} */
         return $this->memoizedPresents[$key] ??= [
             'audio_url' => $this->audioUrl($sermon),
             'canonical_url' => $this->canonicalUrl($sermon),
             'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
+            'display_reference' => $this->displayReference($sermon),
             'formatted_duration' => $this->formattedDuration($sermon),
+            'human_date' => $this->humanDate($sermon),
+            'preacher_name' => $this->displayPreacherName($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
             'public_url' => $this->publicUrl($sermon),
+            'series_url' => $this->seriesUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'transcript' => $this->transcriptReader->read($sermon),
             'video_url' => $this->videoUrl($sermon),
@@ -306,51 +348,64 @@ class SermonViewPresenter
     /**
      * Get the preacher name for display.
      *
-     * Performance Optimization: Memoizes preacher name lookup to avoid
-     * redundant trim and relationship checks across multiple presenter calls.
+     * Performance Optimization: Memoizes preacher name lookup by identity
+     * (profile ID or name string) instead of sermon ID. This avoids redundant
+     * lookups across multiple sermons in a listing by the same preacher.
      */
     public function displayPreacherName(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'name');
+        $identityKey = $sermon->preacher_id !== null
+            ? "id_{$sermon->preacher_id}"
+            : (string) $sermon->preacher;
 
-        if (array_key_exists($key, $this->memoizedPreacherNames)) {
-            return $this->memoizedPreacherNames[$key];
+        if ($identityKey === '') {
+            return null;
         }
 
-        $preacherName = $sermon->relationLoaded('preacherProfile')
-            ? $sermon->preacherProfile?->name
-            : null;
+        if (array_key_exists($identityKey, $this->memoizedPreacherNames)) {
+            return $this->memoizedPreacherNames[$identityKey];
+        }
 
-        $preacherName = trim((string) ($preacherName ?? $sermon->preacher));
+        $preacherName = ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null)
+            ? $sermon->preacherProfile->name
+            : trim((string) $sermon->preacher);
 
-        return $this->memoizedPreacherNames[$key] = ($preacherName !== '' ? $preacherName : null);
+        return $this->memoizedPreacherNames[$identityKey] = ($preacherName !== '' ? $preacherName : null);
     }
 
     /**
      * Get the scripture reference for display.
      *
-     * Performance Optimization: Memoizes reference lookup to avoid
-     * redundant trim and relationship checks across multiple presenter calls.
+     * Performance Optimization: Memoizes reference lookup by identity
+     * (passage ID or reference string) instead of sermon ID. This avoids
+     * redundant lookups across multiple sermons in a listing using the
+     * same bible passage.
      */
     public function displayReference(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'ref');
+        $identityKey = $sermon->scripture_passage_id !== null
+            ? "id_{$sermon->scripture_passage_id}"
+            : (string) $sermon->reference;
 
-        if (array_key_exists($key, $this->memoizedReferences)) {
-            return $this->memoizedReferences[$key];
+        if ($identityKey === '') {
+            return null;
+        }
+
+        if (array_key_exists($identityKey, $this->memoizedReferences)) {
+            return $this->memoizedReferences[$identityKey];
         }
 
         if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
             $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
 
             if (trim((string) $displayReference) !== '') {
-                return $this->memoizedReferences[$key] = $displayReference;
+                return $this->memoizedReferences[$identityKey] = $displayReference;
             }
         }
 
         $reference = trim((string) $sermon->reference);
 
-        return $this->memoizedReferences[$key] = ($reference !== '' ? $reference : null);
+        return $this->memoizedReferences[$identityKey] = ($reference !== '' ? $reference : null);
     }
 
     public function metaDescription(Sermon $sermon): string
@@ -425,18 +480,20 @@ class SermonViewPresenter
     /**
      * Generate a cache key for the given sermon and type.
      *
-     * Performance Optimization: Memoizes the sermon's updated_at timestamp
-     * within the request to avoid redundant Carbon object method calls when
-     * generating keys for different sermon attributes.
+     * Performance Optimization: Memoizes the sermon's combined ID and timestamp
+     * within the request to avoid redundant string concatenations and Carbon
+     * object method calls when generating keys for multiple sermon attributes.
      */
     private function cacheKey(Sermon $sermon, string $type): string
     {
-        if (! array_key_exists($sermon->id, $this->memoizedTimestamps)) {
-            $this->memoizedTimestamps[$sermon->id] = $sermon->updated_at?->getTimestamp() ?? 0;
+        if (! array_key_exists($sermon->id, $this->memoizedSermonKeys)) {
+            if (! array_key_exists($sermon->id, $this->memoizedTimestamps)) {
+                $this->memoizedTimestamps[$sermon->id] = $sermon->updated_at?->getTimestamp() ?? 0;
+            }
+
+            $this->memoizedSermonKeys[$sermon->id] = "{$sermon->id}_{$this->memoizedTimestamps[$sermon->id]}";
         }
 
-        $timestamp = $this->memoizedTimestamps[$sermon->id];
-
-        return "{$type}_{$sermon->id}_{$timestamp}";
+        return "{$type}_{$this->memoizedSermonKeys[$sermon->id]}";
     }
 }

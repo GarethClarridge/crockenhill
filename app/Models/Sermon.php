@@ -227,7 +227,7 @@ class Sermon extends Model implements Sitemapable
     protected function humanDate(): Attribute
     {
         return Attribute::make(
-            get: fn (): string => $this->date->format('F j, Y')
+            get: fn (): string => app(\App\Presenters\SermonViewPresenter::class)->humanDate($this)
         )->shouldCache();
     }
 
@@ -285,7 +285,7 @@ class Sermon extends Model implements Sitemapable
     protected function seriesUrl(): Attribute
     {
         return Attribute::make(
-            get: fn (): ?string => $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null
+            get: fn (): ?string => app(\App\Presenters\SermonViewPresenter::class)->seriesUrl($this)
         )->shouldCache();
     }
 
