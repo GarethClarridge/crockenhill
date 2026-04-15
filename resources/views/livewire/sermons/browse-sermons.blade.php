@@ -1,27 +1,47 @@
 <div class="pb-12">
-    <section class="mx-auto max-w-7xl px-6">
-        <div class="overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm">
-            <div class="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                <div class="space-y-2">
-                    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-cbc-teal-dark">Sermon Browse</p>
-                    <div class="space-y-2">
-                        <h2 class="font-display text-3xl text-gray-900 sm:text-4xl">Browse by scripture, preacher, or series</h2>
-                        <p class="max-w-3xl text-base text-gray-600">
-                            Keep browsing by date, or narrow the list to a particular Bible book, chapter, preacher, or sermon series.
-                        </p>
-                    </div>
-                </div>
+    <section class="px-6" x-data="{ expanded: @js($hasActiveFilters) }">
+        <div class="mx-auto max-w-2xl lg:max-w-5xl xl:max-w-7xl">
+            <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+                <x-form-button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    class="w-full justify-center sm:w-auto"
+                    @click="expanded = !expanded"
+                    ::aria-expanded="expanded.toString()"
+                    aria-controls="sermon-filters"
+                >
+                    <span class="inline-flex items-center gap-2">
+                        <x-heroicon-o-adjustments-horizontal class="h-4 w-4" aria-hidden="true" />
+                        <span x-text="expanded ? 'Hide filters' : 'Filter sermons'">Filter sermons</span>
+                        <x-heroicon-o-chevron-down class="h-4 w-4 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" aria-hidden="true" />
+                    </span>
+                </x-form-button>
 
                 @if ($hasActiveFilters)
-                    <div class="flex justify-start lg:justify-end">
-                        <x-form-button type="button" variant="outline" size="sm" icon="x-mark" wire:click="clearFilters">
-                            Clear filters
-                        </x-form-button>
+                    <div class="flex flex-wrap items-center justify-center gap-2">
+                        <span class="text-sm text-gray-500">Filtered by</span>
+
+                        @foreach ($activeFilterLabels as $activeFilterLabel)
+                            <x-badge variant="teal">{{ $activeFilterLabel }}</x-badge>
+                        @endforeach
                     </div>
+
+                    <x-form-button type="button" variant="ghost" size="sm" icon="x-mark" wire:click="clearFilters">
+                        Clear filters
+                    </x-form-button>
                 @endif
             </div>
+        </div>
 
-            <div class="grid gap-4 border-t border-gray-200 p-6 md:grid-cols-2 xl:grid-cols-4">
+        <div
+            id="sermon-filters"
+            x-show="expanded"
+            x-cloak
+            x-collapse
+            class="mx-auto mt-4 max-w-2xl rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:max-w-5xl xl:max-w-7xl"
+        >
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <x-select
                     label="Book"
                     wire:model.live="bookFilter"

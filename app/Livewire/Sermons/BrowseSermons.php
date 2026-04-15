@@ -88,6 +88,14 @@ class BrowseSermons extends Component
     public function render(SermonRepository $sermonRepository, BibleCanon $bibleCanon): View
     {
         $hasActiveFilters = $this->hasActiveFilters();
+        $preacherOptions = Preacher::getForPublicList()
+            ->map(fn (Preacher $preacher): array => ['id' => $preacher->id, 'name' => $preacher->name])
+            ->values()
+            ->all();
+        $seriesOptions = collect($sermonRepository->getSeriesForDisplay())
+            ->map(fn (string $series): array => ['id' => $series, 'name' => $series])
+            ->values()
+            ->all();
 
         /** @var Collection<int, Sermon>|Collection<string, Collection<int, Sermon>>|null $sermons */
         $sermons = $hasActiveFilters
@@ -99,14 +107,9 @@ class BrowseSermons extends Component
             'chapterOptions' => $this->bookFilter === null
                 ? []
                 : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters()),
-            'preacherOptions' => Preacher::getForPublicList()
-                ->map(fn (Preacher $preacher): array => ['id' => $preacher->id, 'name' => $preacher->name])
-                ->values()
-                ->all(),
-            'seriesOptions' => collect($sermonRepository->getSeriesForDisplay())
-                ->map(fn (string $series): array => ['id' => $series, 'name' => $series])
-                ->values()
-                ->all(),
+            'preacherOptions' => $preacherOptions,
+            'seriesOptions' => $seriesOptions,
+            'activeFilterLabels' => $this->activeFilterLabels($preacherOptions, $seriesOptions),
             'sermons' => $sermons,
             'hasActiveFilters' => $hasActiveFilters,
         ]);
@@ -185,5 +188,47 @@ class BrowseSermons extends Component
             ->where('sermons.content_type', SermonContentType::Sermon->value)
             ->when($this->preacherFilter, fn (Builder $query): Builder => $query->where('sermons.preacher_id', $this->preacherFilter))
             ->when($this->seriesFilter, fn (Builder $query): Builder => $query->where('sermons.series', $this->seriesFilter));
+    }
+
+    /**
+     * @param  array<int, array{id:int, name:string}>  $preacherOptions
+     * @param  array<int, array{id:string, name:string}>  $seriesOptions
+     * @return array<int, string>
+     */
+    private function activeFilterLabels(array $preacherOptions, array $seriesOptions): array
+    {
+        $labels = [];
+
+        if ($this->bookFilter !== null) {
+            $labels[] = $this->chapterFilter !== null
+                ? $this->bookFilter.' '.$this->chapterFilter
+                : $this->bookFilter;
+        }
+
+        if ($this->preacherFilter !== null) {
+            $labels[] = $this->findOptionName($preacherOptions, $this->preacherFilter) ?? 'Selected preacher';
+        }
+
+        if ($this->seriesFilter !== null) {
+            $labels[] = $this->findOptionName($seriesOptions, $this->seriesFilter) ?? $this->seriesFilter;
+        }
+
+        return $labels;
+    }
+
+    /**
+     * @param  array<int, array{id:int|string, name:string}>  $options
+     */
+    private function findOptionName(array $options, int|string $id): ?string
+    {
+        foreach ($options as $option) {
+            if ((string) $option['id'] !== (string) $id) {
+                continue;
+            }
+
+            return $option['name'];
+        }
+
+        return null;
     }
 }

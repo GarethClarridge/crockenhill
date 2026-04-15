@@ -38,7 +38,8 @@ class BrowseSermonsTest extends TestCase
         ]);
 
         Livewire::test(BrowseSermons::class)
-            ->assertSee('Browse by scripture, preacher, or series')
+            ->assertSee('Filter sermons')
+            ->assertDontSee('Browse by scripture, preacher, or series')
             ->assertSee('April Sermon')
             ->assertSee('March Sermon')
             ->assertSee('Monday 13th April')
@@ -106,6 +107,29 @@ class BrowseSermonsTest extends TestCase
             ->set('seriesFilter', 'Acts Series')
             ->assertSee('Matching Sermon')
             ->assertDontSee('Different Series Sermon');
+    }
+
+    #[Test]
+    public function active_filters_are_summarised_in_the_filter_bar(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Peter Test', 'slug' => 'peter-test-summary']);
+        $this->createIndexedSermon([
+            'title' => 'Summary Sermon',
+            'reference' => 'Acts 2:1-4',
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+            'series' => 'Acts Series',
+        ]);
+
+        Livewire::test(BrowseSermons::class)
+            ->set('bookFilter', 'Acts')
+            ->set('chapterFilter', 2)
+            ->set('preacherFilter', $preacher->id)
+            ->set('seriesFilter', 'Acts Series')
+            ->assertSee('Filtered by')
+            ->assertSee('Acts 2')
+            ->assertSee('Peter Test')
+            ->assertSee('Acts Series');
     }
 
     #[Test]
