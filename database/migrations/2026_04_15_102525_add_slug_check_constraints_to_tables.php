@@ -9,7 +9,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    private const SLUG_CHECK_PATTERN = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
+    /**
+     * Case-sensitive regex pattern for strict kebab-case slugs.
+     * Pattern: lowercase alphanumeric only, hyphens allowed in middle.
+     */
+    private const SLUG_CHECK_PATTERN = '^[a-z0-9]+(?:-[a-z0-9]+)*$';
 
     /**
      * Run the migrations.
@@ -25,8 +29,10 @@ return new class extends Migration
         foreach ($tables as $table) {
             if (Schema::hasTable($table)) {
                 $constraintName = "{$table}_slug_format_check";
+
+                // We use REGEXP_LIKE with 'c' match parameter for case-sensitive matching in MySQL 8+
                 DB::statement(sprintf(
-                    "ALTER TABLE %s ADD CONSTRAINT %s CHECK (slug REGEXP '%s')",
+                    "ALTER TABLE %s ADD CONSTRAINT %s CHECK (REGEXP_LIKE(slug, '%s', 'c'))",
                     $table,
                     $constraintName,
                     self::SLUG_CHECK_PATTERN
@@ -50,7 +56,7 @@ return new class extends Migration
             if (Schema::hasTable($table)) {
                 $constraintName = "{$table}_slug_format_check";
                 DB::statement(sprintf(
-                    "ALTER TABLE %s DROP CHECK %s",
+                    'ALTER TABLE %s DROP CHECK %s',
                     $table,
                     $constraintName
                 ));

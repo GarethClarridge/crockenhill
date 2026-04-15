@@ -8,7 +8,6 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
@@ -42,7 +41,7 @@ class SlugIntegrityTest extends TestCase
     }
 
     #[Test]
-    public function it_validates_meeting_slug_with_alpha_dash(): void
+    public function it_validates_meeting_slug_format(): void
     {
         $rules = Meeting::validationRules();
 
@@ -51,7 +50,7 @@ class SlugIntegrityTest extends TestCase
     }
 
     #[Test]
-    public function it_validates_page_slug_with_alpha_dash(): void
+    public function it_validates_page_slug_format(): void
     {
         $rules = Page::validationRules();
 
@@ -62,40 +61,56 @@ class SlugIntegrityTest extends TestCase
     #[Test]
     public function database_rejects_invalid_sermon_slug(): void
     {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Database integrity tests require MySQL');
+        }
+
         $this->expectException(\Illuminate\Database\QueryException::class);
 
         Sermon::factory()->create([
-            'slug' => 'invalid slug'
+            'slug' => 'invalid slug',
         ]);
     }
 
     #[Test]
     public function database_rejects_invalid_preacher_slug(): void
     {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Database integrity tests require MySQL');
+        }
+
         $this->expectException(\Illuminate\Database\QueryException::class);
 
         Preacher::factory()->create([
-            'slug' => 'invalid slug'
+            'slug' => 'invalid slug',
         ]);
     }
 
     #[Test]
     public function database_rejects_invalid_meeting_slug(): void
     {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Database integrity tests require MySQL');
+        }
+
         $this->expectException(\Illuminate\Database\QueryException::class);
 
         Meeting::factory()->create([
-            'slug' => 'invalid slug'
+            'slug' => 'invalid slug',
         ]);
     }
 
     #[Test]
     public function database_rejects_invalid_page_slug(): void
     {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Database integrity tests require MySQL');
+        }
+
         $this->expectException(\Illuminate\Database\QueryException::class);
 
         Page::factory()->create([
-            'slug' => 'invalid slug'
+            'slug' => 'invalid slug',
         ]);
     }
 }
