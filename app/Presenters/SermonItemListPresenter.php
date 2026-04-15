@@ -27,16 +27,18 @@ class SermonItemListPresenter
 
         $orgName = (string) config('organization.name');
         $logoUrl = asset('images/Primary.png');
+        $presenter = $this->sermonViewPresenter;
 
         return [
             '@context' => 'https://schema.org',
             '@type' => 'ItemList',
             'numberOfItems' => $flatSermons->count(),
-            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
-                $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
-                $publicUrl = $this->sermonViewPresenter->publicUrl($sermon);
-                $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
-                $audioUrl = $this->sermonViewPresenter->audioUrl($sermon);
+            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl, $presenter) {
+                $thumbnailUrl = $presenter->thumbnailUrl($sermon);
+                $publicUrl = $presenter->publicUrl($sermon);
+                $videoUrl = $presenter->videoUrl($sermon);
+                $audioUrl = $presenter->audioUrl($sermon);
+                $metaDescription = $presenter->metaDescription($sermon);
                 $datePublished = $sermon->date->toIso8601String();
                 $duration = $sermon->duration ? CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
 
@@ -45,7 +47,7 @@ class SermonItemListPresenter
                     'headline' => $sermon->title,
                     'name' => $sermon->title,
                     'url' => $publicUrl,
-                    'description' => $sermon->meta_description,
+                    'description' => $metaDescription,
                     'datePublished' => $datePublished,
                     'inLanguage' => 'en-GB',
                     'contentLocation' => [
@@ -54,8 +56,8 @@ class SermonItemListPresenter
                     ],
                     'author' => [
                         '@type' => 'Person',
-                        'name' => $this->sermonViewPresenter->displayPreacherName($sermon),
-                        'url' => $this->sermonViewPresenter->preacherUrl($sermon),
+                        'name' => $presenter->displayPreacherName($sermon),
+                        'url' => $presenter->preacherUrl($sermon),
                     ],
                     'publisher' => [
                         '@type' => 'Organization',
@@ -76,7 +78,7 @@ class SermonItemListPresenter
                     $item['video'] = [
                         '@type' => 'VideoObject',
                         'name' => $sermon->title,
-                        'description' => $sermon->meta_description,
+                        'description' => $metaDescription,
                         'thumbnailUrl' => $thumbnailUrl ?: $logoUrl,
                         'uploadDate' => $datePublished,
                         'contentUrl' => $videoUrl,
@@ -92,7 +94,7 @@ class SermonItemListPresenter
                         '@type' => 'AudioObject',
                         'name' => $sermon->title,
                         'contentUrl' => $audioUrl,
-                        'description' => $sermon->meta_description,
+                        'description' => $metaDescription,
                         'encodingFormat' => 'audio/mpeg',
                         'uploadDate' => $datePublished,
                     ];
