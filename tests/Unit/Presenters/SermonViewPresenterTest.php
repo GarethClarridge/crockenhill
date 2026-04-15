@@ -238,4 +238,122 @@ class SermonViewPresenterTest extends TestCase
 
         $this->assertSame('0m', $this->presenter->formattedDuration($sermon));
     }
+
+    #[Test]
+    public function meta_description_returns_explicit_attribute_when_set(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'meta_description' => 'Custom meta description.',
+        ]);
+
+        $this->assertSame('Custom meta description.', $this->presenter->metaDescription($sermon));
+    }
+
+    #[Test]
+    public function meta_description_generates_default_from_title_preacher_and_date(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'title' => 'The Prodigal Son',
+            'preacher' => 'John Smith',
+            'date' => '2024-03-10',
+        ]);
+
+        $description = $this->presenter->metaDescription($sermon);
+
+        $this->assertStringContainsString("Listen to 'The Prodigal Son' by John Smith", $description);
+        $this->assertStringContainsString('preached on March 10, 2024', $description);
+    }
+
+    #[Test]
+    public function meta_description_includes_scripture_reference_and_series(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'title' => 'The Prodigal Son',
+            'preacher' => 'John Smith',
+            'date' => '2024-03-10',
+            'reference' => 'Luke 15:11-32',
+            'series' => 'Parables of Jesus',
+        ]);
+
+        $description = $this->presenter->metaDescription($sermon);
+
+        $this->assertStringContainsString(' - Luke 15:11-32', $description);
+        $this->assertStringContainsString('(Part of the Parables of Jesus series)', $description);
+    }
+
+    #[Test]
+    public function meta_description_includes_summary_when_enabled_and_strips_tags(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'title' => 'The Prodigal Son',
+            'preacher' => 'John Smith',
+            'date' => '2024-03-10',
+            'reference' => null,
+            'series' => null,
+            'show_summary' => true,
+            'summary' => '<p>This is a <strong>great</strong> sermon summary.</p>',
+        ]);
+
+        $description = $this->presenter->metaDescription($sermon);
+
+        $this->assertStringContainsString('This is a great sermon summary.', $description);
+        $this->assertStringNotContainsString('<p>', $description);
+    }
+
+    #[Test]
+    public function meta_description_ignores_summary_when_disabled(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'title' => 'The Prodigal Son',
+            'preacher' => 'John Smith',
+            'date' => '2024-03-10',
+            'reference' => null,
+            'series' => null,
+            'show_summary' => false,
+            'summary' => 'This summary should be ignored.',
+        ]);
+
+        $description = $this->presenter->metaDescription($sermon);
+
+        $this->assertStringNotContainsString('This summary should be ignored.', $description);
+    }
+
+    #[Test]
+    public function meta_description_enforces_limit_with_truncation(): void
+    {
+        $longTitle = str_repeat('Very Long Sermon Title ', 10);
+        $sermon = Sermon::factory()->make([
+            'title' => $longTitle,
+            'preacher' => 'John Smith',
+            'date' => '2024-03-10',
+            'reference' => null,
+            'series' => null,
+        ]);
+
+        $description = $this->presenter->metaDescription($sermon);
+
+        // Str::limit(s, 155) appends '...' making it 158 chars if limit is reached.
+        $this->assertLessThanOrEqual(158, strlen($description));
+        $this->assertStringEndsWith('...', $description);
+    }
+
+    #[Test]
+    public function meta_description_truncates_summary_to_fit(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'title' => 'The Prodigal Son',
+            'preacher' => 'John Smith',
+            'date' => '2024-03-10',
+            'reference' => null,
+            'series' => null,
+            'show_summary' => true,
+            'summary' => str_repeat('This is a very long summary that should definitely be truncated to ensure the total length remains within expected limits. ', 10),
+        ]);
+
+        $description = $this->presenter->metaDescription($sermon);
+
+        $this->assertLessThanOrEqual(158, strlen($description));
+        $this->assertStringContainsString("Listen to 'The Prodigal Son' by John Smith", $description);
+        $this->assertStringEndsWith('...', $description);
+    }
 }

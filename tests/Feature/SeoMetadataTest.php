@@ -18,7 +18,7 @@ class SeoMetadataTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('<title>Christ | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church.">', false);
+        $response->assertSee('<meta name="description" content="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Explore the good news of Christianity at Crockenhill Baptist Church.">', false);
         $response->assertSee('<meta property="og:title" content="Christ | Crockenhill Baptist Church">', false);
     }
 
