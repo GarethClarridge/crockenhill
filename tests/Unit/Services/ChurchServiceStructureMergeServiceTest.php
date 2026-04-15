@@ -42,7 +42,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             ['position' => 2, 'type' => 'custom', 'title' => 'Reading', 'section_type' => ServiceSectionType::BIBLE_READING->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
 
         $this->assertTrue($result->wasMerged);
         $this->assertFalse($result->wasStaged);
@@ -62,7 +62,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
 
         $this->assertFalse($result->wasMerged);
         $this->assertTrue($result->wasStaged);
@@ -84,7 +84,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
             'service' => SermonService::Morning->value,
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -92,14 +92,14 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             'position' => 1,
             'type' => 'songs',
             'title' => 'OpenLP Song',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
         $incomingItems = [
             ['position' => 1, 'type' => 'songs', 'title' => 'Livestream Song', 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => ['livestream_projection' => ['confidence_level' => 'high', 'processing_id' => 'test', 'service_section_id' => 1, 'source_segment_ids' => []]]],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::LIVESTREAM);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::Livestream);
 
         $this->assertTrue($result->wasMerged);
         $this->assertFalse($result->wasStaged);
@@ -116,7 +116,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             ['position' => 1, 'type' => 'songs', 'title' => 'Song B', 'source_title' => null, 'openlp_search_title' => 'song b@', 'song_id' => null, 'metadata' => null],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
 
         $this->assertTrue($result->wasMerged);
 
@@ -136,7 +136,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
 
         $this->assertTrue($result->wasStaged);
 
@@ -154,7 +154,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => null, 'openlp_search_title' => 'amazing grace@', 'song_id' => null, 'metadata' => null],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
 
         $this->assertTrue($result->wasMerged);
         $this->assertFalse($result->wasStaged);
@@ -175,7 +175,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             ['position' => 2, 'type' => 'custom', 'title' => 'Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
 
         $this->assertTrue($result->wasStaged);
 
@@ -198,7 +198,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             ['position' => 1, 'type' => 'songs', 'title' => 'Amazing Grace', 'source_title' => 'Amazing Grace (My Chains Are Gone)', 'openlp_search_title' => 'amazing grace@', 'song_id' => $song->id, 'metadata' => null],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
 
         $this->assertTrue($result->wasMerged);
         $this->assertFalse($result->wasStaged);
@@ -210,7 +210,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
             'service' => SermonService::Morning->value,
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -218,14 +218,14 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             'position' => 1,
             'type' => 'songs',
             'title' => 'Old Song',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
         $incomingItems = [
             ['position' => 1, 'type' => 'songs', 'title' => 'New Song', 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::EMAIL);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::Email);
 
         $this->assertTrue($result->wasMerged);
         $this->assertFalse($result->wasStaged);
@@ -244,7 +244,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             ['position' => 2, 'type' => 'custom', 'title' => 'Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
-        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
 
         $this->assertTrue($result->wasStaged);
 
@@ -267,7 +267,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
             'service' => SermonService::Morning->value,
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
         ]);
 
         foreach ($items as $index => $item) {

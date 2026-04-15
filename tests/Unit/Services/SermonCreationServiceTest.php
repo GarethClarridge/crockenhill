@@ -274,7 +274,7 @@ class SermonCreationServiceTest extends TestCase
     public function it_generates_title_from_ai_analysis(): void
     {
         $title = $this->service->generateTitle(
-            TitleGenerationStrategy::AI_WITH_FALLBACK,
+            TitleGenerationStrategy::AiWithFallback,
             [
                 'ai_analysis' => ['title' => 'The Grace of God'],
                 'filename' => '2024-03-15-sermon.mp3',
@@ -290,7 +290,7 @@ class SermonCreationServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
 
         $title = $this->service->generateTitle(
-            TitleGenerationStrategy::AI_WITH_FALLBACK,
+            TitleGenerationStrategy::AiWithFallback,
             [
                 'ai_analysis' => [],
                 'filename' => '2024-03-15-faith-and-works.mp3',
@@ -307,7 +307,7 @@ class SermonCreationServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
 
         $title = $this->service->generateTitle(
-            TitleGenerationStrategy::FILENAME_ONLY,
+            TitleGenerationStrategy::FilenameOnly,
             [
                 'filename' => '2024-03-15-the-power-of-prayer.mp3',
                 'processing_log' => $log,
@@ -323,7 +323,7 @@ class SermonCreationServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
 
         $title = $this->service->generateTitle(
-            TitleGenerationStrategy::FILENAME_ONLY,
+            TitleGenerationStrategy::FilenameOnly,
             [
                 'filename' => '2024-03-15-sermon-message-am-test-topic.mp3',
                 'processing_log' => $log,
@@ -343,7 +343,7 @@ class SermonCreationServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
 
         $title = $this->service->generateTitle(
-            TitleGenerationStrategy::FILENAME_ONLY,
+            TitleGenerationStrategy::FilenameOnly,
             [
                 'filename' => '2024-03-15.mp3',
                 'processing_log' => $log,
@@ -358,7 +358,7 @@ class SermonCreationServiceTest extends TestCase
     public function it_uses_custom_title_when_strategy_is_custom(): void
     {
         $title = $this->service->generateTitle(
-            TitleGenerationStrategy::CUSTOM,
+            TitleGenerationStrategy::Custom,
             [
                 'custom_title' => 'My Custom Sermon Title',
                 'filename' => '2024-03-15-ignored.mp3',
@@ -473,7 +473,7 @@ class SermonCreationServiceTest extends TestCase
         $sermon = $this->service->createSermon($log, $options);
 
         $this->assertEquals('John Smith', $sermon->preacher);
-        $this->assertEquals(\App\Enums\PreacherSource::ID3, $sermon->preacher_source);
+        $this->assertEquals(\App\Enums\PreacherSource::Id3, $sermon->preacher_source);
         $this->assertFalse($sermon->needs_preacher_review);
         $this->assertNotNull($sermon->preacher_id);
     }
@@ -495,7 +495,7 @@ class SermonCreationServiceTest extends TestCase
         $sermon = $this->service->createSermon($log, $options);
 
         $this->assertEquals('Visiting Speaker', $sermon->preacher);
-        $this->assertEquals(\App\Enums\PreacherSource::DEFAULT, $sermon->preacher_source);
+        $this->assertEquals(\App\Enums\PreacherSource::Default, $sermon->preacher_source);
         $this->assertTrue($sermon->needs_preacher_review);
         $this->assertNotNull($sermon->preacher_id);
     }
@@ -518,7 +518,7 @@ class SermonCreationServiceTest extends TestCase
         $sermon = $this->service->createSermon($log, $options);
 
         $this->assertEquals('Visiting Speaker', $sermon->preacher);
-        $this->assertEquals(\App\Enums\PreacherSource::DEFAULT, $sermon->preacher_source);
+        $this->assertEquals(\App\Enums\PreacherSource::Default, $sermon->preacher_source);
         $this->assertTrue($sermon->needs_preacher_review);
         $this->assertNotNull($sermon->preacher_id);
     }
@@ -539,7 +539,7 @@ class SermonCreationServiceTest extends TestCase
             sourceType: SermonSourceType::Livestream,
             preacher: $preacher->name,
             preacherId: $preacher->id,
-            preacherSource: \App\Enums\PreacherSource::MANUAL,
+            preacherSource: \App\Enums\PreacherSource::Manual,
             needsPreacherReview: false,
         );
 
@@ -547,7 +547,7 @@ class SermonCreationServiceTest extends TestCase
 
         $this->assertEquals($preacher->id, $sermon->preacher_id);
         $this->assertEquals($preacher->name, $sermon->preacher);
-        $this->assertEquals(\App\Enums\PreacherSource::MANUAL, $sermon->preacher_source);
+        $this->assertEquals(\App\Enums\PreacherSource::Manual, $sermon->preacher_source);
         $this->assertFalse($sermon->needs_preacher_review);
     }
 
@@ -595,7 +595,7 @@ class SermonCreationServiceTest extends TestCase
     public function it_passes_ai_title_through_without_truncating(): void
     {
         $title = $this->service->generateTitle(
-            TitleGenerationStrategy::AI_WITH_FALLBACK,
+            TitleGenerationStrategy::AiWithFallback,
             [
                 'ai_analysis' => ['title' => 'A perfectly valid sermon title from AI'],
                 'filename' => '2024-03-15-sermon.mp3',

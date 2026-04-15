@@ -88,7 +88,7 @@ class ServiceSectionSchemaTest extends TestCase
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => $churchServiceItem->id,
             'section_type' => ServiceSectionType::SONG->value,
-            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'status' => ServiceSectionStatus::Identified->value,
         ]);
 
         $churchServiceItem->forceDelete();
@@ -245,7 +245,7 @@ class ServiceSectionSchemaTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'status' => ServiceSectionStatus::SKIPPED->value,
+            'status' => ServiceSectionStatus::Skipped->value,
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
             'extracted_video_path' => 'sermons/sections/12/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-12.mp3',

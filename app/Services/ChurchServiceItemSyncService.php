@@ -25,7 +25,7 @@ class ChurchServiceItemSyncService
     public function sync(
         ChurchService $churchService,
         array $incomingItems,
-        ChurchServiceItemSource|string $incomingSource = ChurchServiceItemSource::OPENLP,
+        ChurchServiceItemSource|string $incomingSource = ChurchServiceItemSource::OpenLp,
         array $options = [],
     ): array {
         $incomingSource = $this->normaliseSource($incomingSource);
@@ -410,11 +410,11 @@ class ChurchServiceItemSyncService
             return $replaceMode;
         }
 
-        if ($incomingSource === ChurchServiceItemSource::OPENLP && $existingSource->isHumanProvided()) {
+        if ($incomingSource === ChurchServiceItemSource::OpenLp && $existingSource->isHumanProvided()) {
             return false;
         }
 
-        if ($incomingSource->isHumanProvided() && $existingSource === ChurchServiceItemSource::OPENLP) {
+        if ($incomingSource->isHumanProvided() && $existingSource === ChurchServiceItemSource::OpenLp) {
             return true;
         }
 
@@ -480,11 +480,11 @@ class ChurchServiceItemSyncService
 
         $existingSource = $this->sourceForExistingItem($existingItem);
 
-        if ($existingSource->isHumanProvided() && $incomingSource === ChurchServiceItemSource::OPENLP) {
+        if ($existingSource->isHumanProvided() && $incomingSource === ChurchServiceItemSource::OpenLp) {
             return $existingItem->source_title ?? $incomingItem['source_title'];
         }
 
-        if ($existingSource === ChurchServiceItemSource::OPENLP && $incomingSource->isHumanProvided()) {
+        if ($existingSource === ChurchServiceItemSource::OpenLp && $incomingSource->isHumanProvided()) {
             return $incomingItem['source_title'] ?? $existingItem->source_title;
         }
 
@@ -534,7 +534,7 @@ class ChurchServiceItemSyncService
 
         if (
             $this->isSongType($existingItem->type)
-            && $incomingSource === ChurchServiceItemSource::OPENLP
+            && $incomingSource === ChurchServiceItemSource::OpenLp
             && $existingSource->isHumanProvided()
         ) {
             return $this->mergeMetadata($existingMetadata, $incomingMetadata);
@@ -543,7 +543,7 @@ class ChurchServiceItemSyncService
         if (
             $this->isSongType($existingItem->type)
             && $incomingSource->isHumanProvided()
-            && $existingSource === ChurchServiceItemSource::OPENLP
+            && $existingSource === ChurchServiceItemSource::OpenLp
         ) {
             return $this->mergeMetadata($incomingMetadata, $existingMetadata);
         }
@@ -608,7 +608,7 @@ class ChurchServiceItemSyncService
     ): bool {
         return $this->isSongType($existingItem->type)
             && $incomingSource->isHumanProvided()
-            && $this->sourceForExistingItem($existingItem) === ChurchServiceItemSource::OPENLP;
+            && $this->sourceForExistingItem($existingItem) === ChurchServiceItemSource::OpenLp;
     }
 
     private function sourcesShareMergeAuthority(
@@ -621,7 +621,7 @@ class ChurchServiceItemSyncService
 
     private function sourceForExistingItem(ChurchServiceItem $existingItem): ChurchServiceItemSource
     {
-        return $existingItem->source ?? ChurchServiceItemSource::OPENLP;
+        return $existingItem->source ?? ChurchServiceItemSource::OpenLp;
     }
 
     private function isSongType(string $type): bool

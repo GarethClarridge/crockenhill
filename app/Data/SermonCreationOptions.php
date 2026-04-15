@@ -34,7 +34,7 @@ class SermonCreationOptions
         public SermonContentType $contentType = SermonContentType::Sermon,
 
         // Title generation strategy
-        public TitleGenerationStrategy $titleStrategy = TitleGenerationStrategy::AI_WITH_FALLBACK,
+        public TitleGenerationStrategy $titleStrategy = TitleGenerationStrategy::AiWithFallback,
 
         // Override defaults
         public ?string $preacher = null,
@@ -67,7 +67,7 @@ class SermonCreationOptions
             sourceType: SermonSourceType::AudioUpload,
             transcriptFilePath: $log->transcript_file_path,
             aiAnalysis: $aiAnalysis,
-            titleStrategy: TitleGenerationStrategy::AI_WITH_FALLBACK,
+            titleStrategy: TitleGenerationStrategy::AiWithFallback,
             duration: $log->duration,
         );
     }
@@ -86,7 +86,7 @@ class SermonCreationOptions
             videoFilePath: $log->video_file_path,
             transcriptFilePath: $log->transcript_file_path,
             aiAnalysis: $aiAnalysis,
-            titleStrategy: TitleGenerationStrategy::AI_WITH_FALLBACK,
+            titleStrategy: TitleGenerationStrategy::AiWithFallback,
             duration: $log->duration,
         );
     }
@@ -106,7 +106,7 @@ class SermonCreationOptions
             livestreamProcessingId: $metadata['livestream_processing_id'] ?? $log->processing_id,
             segmentStartTime: $metadata['segment_start_time'] ?? null,
             segmentEndTime: $metadata['segment_end_time'] ?? null,
-            titleStrategy: TitleGenerationStrategy::FILENAME_ONLY,
+            titleStrategy: TitleGenerationStrategy::FilenameOnly,
         );
     }
 
@@ -129,7 +129,7 @@ class SermonCreationOptions
             contentType: $section->section_type === ServiceSectionType::CHILDRENS_TALK
                 ? SermonContentType::ChildrensTalk
                 : SermonContentType::Sermon,
-            titleStrategy: TitleGenerationStrategy::FILENAME_ONLY,
+            titleStrategy: TitleGenerationStrategy::FilenameOnly,
             preacher: $speaker['preacher_name'] ?? null,
             preacherId: $speaker['preacher_id'] ?? null,
             preacherSource: isset($speaker['source']) ? PreacherSource::tryFrom((string) $speaker['source']) : null,

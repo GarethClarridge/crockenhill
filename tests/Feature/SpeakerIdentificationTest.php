@@ -276,7 +276,7 @@ class SpeakerIdentificationTest extends TestCase
         config(['media-processing.speaker_identification.enabled' => true]);
 
         $sermon = Sermon::factory()->create([
-            'preacher_source' => PreacherSource::ID3->value,
+            'preacher_source' => PreacherSource::Id3->value,
         ]);
 
         $log = MediaProcessingLog::factory()->audio()->pending()->create(['sermon_id' => $sermon->id]);
@@ -299,7 +299,7 @@ class SpeakerIdentificationTest extends TestCase
         ]);
 
         $sermon = Sermon::factory()->create([
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'duration' => 20.0,
         ]);
 
@@ -320,7 +320,7 @@ class SpeakerIdentificationTest extends TestCase
         config(['media-processing.speaker_identification.enabled' => true]);
 
         $sermon = Sermon::factory()->create([
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'duration' => 300.0,
         ]);
 
@@ -356,7 +356,7 @@ class SpeakerIdentificationTest extends TestCase
         ]);
         $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
         $sermon = Sermon::factory()->create([
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'preacher_confidence' => null,
             'needs_preacher_review' => true,
             'duration' => 300.0,
@@ -379,7 +379,7 @@ class SpeakerIdentificationTest extends TestCase
         $sermon->refresh();
 
         $this->assertEquals($preacher->id, $sermon->preacher_id);
-        $this->assertEquals(PreacherSource::SPEAKER_MODEL, $sermon->preacher_source);
+        $this->assertEquals(PreacherSource::SpeakerModel, $sermon->preacher_source);
         $this->assertEquals(0.90, $sermon->preacher_confidence);
         $this->assertFalse($sermon->needs_preacher_review);
         $this->assertEquals('Mark Drury Enforce Test', $sermon->preacher);
@@ -406,7 +406,7 @@ class SpeakerIdentificationTest extends TestCase
         $sermon = Sermon::factory()->create([
             'preacher_id' => $visitingPreacher->id,
             'preacher' => 'Visiting Speaker Shadow Mode',
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'duration' => 300.0,
         ]);
 
@@ -427,7 +427,7 @@ class SpeakerIdentificationTest extends TestCase
         // Preacher assignment unchanged in shadow mode
         $this->assertEquals($visitingPreacher->id, $sermon->preacher_id);
         $this->assertEquals('Visiting Speaker Shadow Mode', $sermon->preacher);
-        $this->assertEquals(PreacherSource::DEFAULT, $sermon->preacher_source);
+        $this->assertEquals(PreacherSource::Default, $sermon->preacher_source);
         // Confidence is stored for observability
         $this->assertEquals(0.88, $sermon->preacher_confidence);
     }
@@ -444,7 +444,7 @@ class SpeakerIdentificationTest extends TestCase
         SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
 
         $sermon = Sermon::factory()->create([
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'preacher_id' => $preacher->id,
             'duration' => 300.0,
         ]);
@@ -469,7 +469,7 @@ class SpeakerIdentificationTest extends TestCase
         // No match in enforce mode falls back to Visiting Speaker and review queue.
         $this->assertNotEquals($originalPreacherId, $sermon->preacher_id);
         $this->assertEquals('Visiting Speaker', $sermon->preacher);
-        $this->assertEquals(PreacherSource::DEFAULT, $sermon->preacher_source);
+        $this->assertEquals(PreacherSource::Default, $sermon->preacher_source);
         $this->assertEquals(0.60, $sermon->preacher_confidence);
         $this->assertTrue($sermon->needs_preacher_review);
 
@@ -494,7 +494,7 @@ class SpeakerIdentificationTest extends TestCase
         $sermon = Sermon::factory()->create([
             'preacher_id' => $preacher->id,
             'preacher' => $preacher->name,
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'duration' => 300.0,
             'needs_preacher_review' => true,
         ]);
@@ -515,7 +515,7 @@ class SpeakerIdentificationTest extends TestCase
         $log->refresh();
 
         $this->assertEquals($preacher->id, $sermon->preacher_id);
-        $this->assertEquals(PreacherSource::DEFAULT, $sermon->preacher_source);
+        $this->assertEquals(PreacherSource::Default, $sermon->preacher_source);
         $this->assertEquals('error', $log->processing_metadata['speaker_identification']['outcome'] ?? null);
     }
 
@@ -537,7 +537,7 @@ class SpeakerIdentificationTest extends TestCase
         ]);
 
         $sermon = Sermon::factory()->create([
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'duration' => 300.0,
         ]);
 
@@ -570,7 +570,7 @@ class SpeakerIdentificationTest extends TestCase
         SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
 
         $sermon = Sermon::factory()->create([
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'duration' => 300.0,
         ]);
 
@@ -605,7 +605,7 @@ class SpeakerIdentificationTest extends TestCase
         SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
 
         $sermon = Sermon::factory()->create([
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'duration' => 300.0,
         ]);
 
@@ -634,7 +634,7 @@ class SpeakerIdentificationTest extends TestCase
         SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
 
         $sermon = Sermon::factory()->create([
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'duration' => 300.0,
         ]);
 

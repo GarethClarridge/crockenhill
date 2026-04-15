@@ -24,14 +24,14 @@ class ServiceSectionTest extends TestCase
     {
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SERMON->value,
-            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'status' => ServiceSectionStatus::Identified->value,
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
         ]);
 
         $this->assertInstanceOf(ServiceSectionType::class, $section->section_type);
         $this->assertSame(ServiceSectionType::SERMON, $section->section_type);
         $this->assertInstanceOf(ServiceSectionStatus::class, $section->status);
-        $this->assertSame(ServiceSectionStatus::IDENTIFIED, $section->status);
+        $this->assertSame(ServiceSectionStatus::Identified, $section->status);
         $this->assertInstanceOf(ServiceSectionPublicationStatus::class, $section->publication_status);
         $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
     }

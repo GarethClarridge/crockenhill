@@ -212,7 +212,7 @@ class ResolvePendingStructureMergeTest extends TestCase
         $service = ChurchService::factory()->create([
             'date' => '2026-03-23',
             'service' => SermonService::Morning->value,
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
             'needs_review' => true,
             'import_metadata' => array_merge($extraMetadata, [
                 'pending_structure_merge' => [

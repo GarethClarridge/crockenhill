@@ -138,7 +138,7 @@ class SermonCreationService
             return [
                 'preacher_name' => $preacherModel->name,
                 'preacher_model' => $preacherModel,
-                'preacher_source' => $options->preacherSource ?? PreacherSource::MANUAL,
+                'preacher_source' => $options->preacherSource ?? PreacherSource::Manual,
                 'preacher_confidence' => $options->preacherConfidence,
                 'needs_review' => $options->needsPreacherReview ?? false,
             ];
@@ -146,14 +146,14 @@ class SermonCreationService
 
         $id3Preacher = $this->normalizePreacherInput($options->id3Preacher);
         $preacherName = $id3Preacher ?? 'Visiting Speaker';
-        $preacherSource = $id3Preacher !== null ? PreacherSource::ID3 : PreacherSource::DEFAULT;
+        $preacherSource = $id3Preacher !== null ? PreacherSource::Id3 : PreacherSource::Default;
 
         return [
             'preacher_name' => $preacherName,
             'preacher_model' => $this->preacherResolutionService->resolve($preacherName),
             'preacher_source' => $preacherSource,
             'preacher_confidence' => null,
-            'needs_review' => $preacherSource === PreacherSource::DEFAULT,
+            'needs_review' => $preacherSource === PreacherSource::Default,
         ];
     }
 
@@ -297,9 +297,9 @@ class SermonCreationService
         array $context
     ): string {
         return match ($strategy) {
-            TitleGenerationStrategy::AI_WITH_FALLBACK => $this->generateTitleAiWithFallback($context),
-            TitleGenerationStrategy::FILENAME_ONLY => $this->generateTitleFromFilename($context),
-            TitleGenerationStrategy::CUSTOM => $context['custom_title'] ?? $this->generateTitleFromFilename($context),
+            TitleGenerationStrategy::AiWithFallback => $this->generateTitleAiWithFallback($context),
+            TitleGenerationStrategy::FilenameOnly => $this->generateTitleFromFilename($context),
+            TitleGenerationStrategy::Custom => $context['custom_title'] ?? $this->generateTitleFromFilename($context),
         };
     }
 

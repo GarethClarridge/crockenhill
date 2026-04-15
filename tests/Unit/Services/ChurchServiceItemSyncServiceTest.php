@@ -38,14 +38,14 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song One', 'Song One', 'song one@'),
             $this->incomingItem(2, 'bibles', 'Luke 15:1-32', 'Luke 15 full title', null),
-        ], ChurchServiceItemSource::OPENLP);
+        ], ChurchServiceItemSource::OpenLp);
 
         $this->assertDatabaseCount('church_service_items', 2);
 
         $churchService->refresh()->load('items');
         $this->assertCount(2, $churchService->items);
         $this->assertSame(
-            [ChurchServiceItemSource::OPENLP, ChurchServiceItemSource::OPENLP],
+            [ChurchServiceItemSource::OpenLp, ChurchServiceItemSource::OpenLp],
             $churchService->items->pluck('source')->all()
         );
     }
@@ -76,7 +76,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song B (Updated)', 'Song B', 'song b@'),
             $this->incomingItem(2, 'songs', 'Song A (Updated)', 'Song A', 'song a@'),
-        ], ChurchServiceItemSource::OPENLP);
+        ], ChurchServiceItemSource::OpenLp);
 
         $itemA->refresh();
         $itemB->refresh();
@@ -96,7 +96,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'source' => ChurchServiceItemSource::MANUAL->value,
+            'source' => ChurchServiceItemSource::Manual->value,
             'title' => 'Reading',
             'source_title' => null,
             'openlp_search_title' => null,
@@ -104,7 +104,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Prayer', null, null),
-        ], ChurchServiceItemSource::MANUAL);
+        ], ChurchServiceItemSource::Manual);
 
         $existing->refresh();
 
@@ -126,7 +126,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
                 openLpSearchTitle: null,
                 sectionType: ServiceSectionType::WELCOME->value,
             ),
-        ], ChurchServiceItemSource::MANUAL);
+        ], ChurchServiceItemSource::Manual);
 
         /** @var ChurchServiceItem $item */
         $item = $churchService->fresh('items')?->items->sole();
@@ -160,7 +160,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song One', 'Song One', 'song one@'),
-        ], ChurchServiceItemSource::OPENLP);
+        ], ChurchServiceItemSource::OpenLp);
 
         $this->assertNull($kept->fresh()?->deleted_at);
         $this->assertSoftDeleted('church_service_items', ['id' => $stale->id]);
@@ -177,7 +177,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'source' => ChurchServiceItemSource::MANUAL->value,
+            'source' => ChurchServiceItemSource::Manual->value,
             'title' => 'Reading',
             'source_title' => 'Reading',
             'openlp_search_title' => null,
@@ -187,7 +187,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 2,
             'type' => 'custom',
-            'source' => ChurchServiceItemSource::MANUAL->value,
+            'source' => ChurchServiceItemSource::Manual->value,
             'title' => 'Prayer',
             'source_title' => 'Prayer',
             'openlp_search_title' => null,
@@ -196,7 +196,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Prayer', 'Prayer', null),
             $this->incomingItem(2, 'custom', 'Reading', 'Reading', null),
-        ], ChurchServiceItemSource::MANUAL);
+        ], ChurchServiceItemSource::Manual);
 
         $this->assertSame(2, $first->fresh()?->position);
         $this->assertSame(1, $second->fresh()?->position);
@@ -217,7 +217,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
                     // missing type should throw after first write attempt
                     'title' => 'Invalid Item',
                 ],
-            ], ChurchServiceItemSource::OPENLP);
+            ], ChurchServiceItemSource::OpenLp);
         } finally {
             $this->assertDatabaseCount('church_service_items', 0);
         }
@@ -240,7 +240,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song One (Restored)', 'Song One', 'song one@'),
-        ], ChurchServiceItemSource::OPENLP);
+        ], ChurchServiceItemSource::OpenLp);
 
         $refreshed = ChurchServiceItem::withTrashed()->findOrFail($trashedItem->id);
 
@@ -257,7 +257,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'bibles',
-            'source' => ChurchServiceItemSource::MANUAL->value,
+            'source' => ChurchServiceItemSource::Manual->value,
             'title' => 'Luke 15:1-32',
             'source_title' => 'Luke 15:1-32 (NIV)',
             'openlp_search_title' => null,
@@ -265,7 +265,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->service->sync($churchService, [
             $this->incomingItem(2, 'bibles', 'Luke 15:1-32 (Updated)', 'Luke 15:1-32 (NIV)', null),
-        ], ChurchServiceItemSource::MANUAL);
+        ], ChurchServiceItemSource::Manual);
 
         $existing->refresh();
 
@@ -304,7 +304,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song B (Moved)', 'Song B', 'song b@'),
             $this->incomingItem(2, 'songs', 'Song A (Moved)', 'Song A', 'song a@'),
-        ], ChurchServiceItemSource::OPENLP);
+        ], ChurchServiceItemSource::OpenLp);
 
         $itemAtPos1->refresh();
         $itemAtPos2->refresh();
@@ -324,7 +324,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'source' => ChurchServiceItemSource::MANUAL->value,
+            'source' => ChurchServiceItemSource::Manual->value,
             'title' => 'Reading',
             'source_title' => 'Reading',
             'openlp_search_title' => null,
@@ -335,7 +335,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Reading (First)', 'Reading', null),
             $this->incomingItem(2, 'custom', 'Reading (Second)', 'Reading', null),
-        ], ChurchServiceItemSource::MANUAL);
+        ], ChurchServiceItemSource::Manual);
 
         $existing->refresh();
 
@@ -367,7 +367,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'title' => 'Luke 15:1-32',
         ]);
 
-        $this->service->sync($churchService, [], ChurchServiceItemSource::OPENLP);
+        $this->service->sync($churchService, [], ChurchServiceItemSource::OpenLp);
 
         $this->assertSoftDeleted('church_service_items', ['id' => $itemA->id]);
         $this->assertSoftDeleted('church_service_items', ['id' => $itemB->id]);
@@ -383,7 +383,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song One', 'Song One', 'song one@'),
             $this->incomingItem(1, 'bibles', 'Luke 15:1-32', 'Luke 15 full title', null),
-        ], ChurchServiceItemSource::OPENLP);
+        ], ChurchServiceItemSource::OpenLp);
     }
 
     #[Test]
@@ -399,7 +399,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'source' => ChurchServiceItemSource::EMAIL->value,
+            'source' => ChurchServiceItemSource::Email->value,
             'title' => 'Opening Prayer',
             'source_title' => 'Opening Prayer',
             'metadata' => ['speaker' => 'Leader'],
@@ -409,7 +409,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 2,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::EMAIL->value,
+            'source' => ChurchServiceItemSource::Email->value,
             'title' => 'Amazing Grace',
             'source_title' => 'Amazing Grace',
             'openlp_search_title' => null,
@@ -427,16 +427,16 @@ class ChurchServiceItemSyncServiceTest extends TestCase
                 ['authors' => 'John Newton'],
                 $song->id,
             ),
-        ], ChurchServiceItemSource::OPENLP);
+        ], ChurchServiceItemSource::OpenLp);
 
         $prayer->refresh();
         $emailSong->refresh();
 
         $this->assertNull($prayer->deleted_at);
-        $this->assertSame(ChurchServiceItemSource::EMAIL, $prayer->source);
+        $this->assertSame(ChurchServiceItemSource::Email, $prayer->source);
         $this->assertSame(1, $prayer->position);
 
-        $this->assertSame(ChurchServiceItemSource::EMAIL, $emailSong->source);
+        $this->assertSame(ChurchServiceItemSource::Email, $emailSong->source);
         $this->assertSame(2, $emailSong->position);
         $this->assertSame('amazing grace@', $emailSong->openlp_search_title);
         $this->assertSame($song->id, $emailSong->song_id);
@@ -459,7 +459,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => 'Amazing Grace',
             'source_title' => 'Amazing Grace',
             'openlp_search_title' => 'amazing grace@',
@@ -476,12 +476,12 @@ class ChurchServiceItemSyncServiceTest extends TestCase
                 null,
                 ['speaker' => 'Leader'],
             ),
-        ], ChurchServiceItemSource::EMAIL);
+        ], ChurchServiceItemSource::Email);
 
         $openLpSong->refresh();
 
         $this->assertNull($openLpSong->deleted_at);
-        $this->assertSame(ChurchServiceItemSource::OPENLP, $openLpSong->source);
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $openLpSong->source);
         $this->assertSame('amazing grace@', $openLpSong->openlp_search_title);
         $this->assertSame($song->id, $openLpSong->song_id);
         $this->assertSame('John Newton', $openLpSong->metadata['authors']);
@@ -491,7 +491,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             ->where('type', 'custom')
             ->firstOrFail();
 
-        $this->assertSame(ChurchServiceItemSource::EMAIL, $prayer->source);
+        $this->assertSame(ChurchServiceItemSource::Email, $prayer->source);
         $this->assertSame('Opening Prayer', $prayer->title);
         $this->assertSame(['speaker' => 'Leader'], $prayer->metadata);
         $this->assertCount(2, $churchService->items()->get());
@@ -508,7 +508,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::EMAIL->value,
+            'source' => ChurchServiceItemSource::Email->value,
             'title' => 'Opening Song',
             'source_title' => 'Opening Song',
         ]);
@@ -517,7 +517,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 2,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::MANUAL->value,
+            'source' => ChurchServiceItemSource::Manual->value,
             'title' => 'Closing Song',
             'source_title' => 'Closing Song',
             'openlp_search_title' => null,
@@ -526,7 +526,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $result = $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Opening Song', 'Opening Song', 'opening song@'),
-        ], ChurchServiceItemSource::OPENLP);
+        ], ChurchServiceItemSource::OpenLp);
 
         $matchedSong->refresh();
         $preservedSong->refresh();
@@ -534,18 +534,18 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->assertNull($matchedSong->deleted_at);
         $this->assertSame('opening song@', $matchedSong->openlp_search_title);
         $this->assertNull($preservedSong->deleted_at);
-        $this->assertSame(ChurchServiceItemSource::MANUAL, $preservedSong->source);
+        $this->assertSame(ChurchServiceItemSource::Manual, $preservedSong->source);
         $this->assertSame('Closing Song', $preservedSong->title);
         $this->assertSame([
             [
                 'type' => 'preserved_existing_song',
-                'incoming_source' => ChurchServiceItemSource::OPENLP->value,
+                'incoming_source' => ChurchServiceItemSource::OpenLp->value,
                 'existing_item' => [
                     'id' => $preservedSong->id,
                     'position' => 2,
                     'type' => 'songs',
                     'section_type' => ServiceSectionType::SONG->value,
-                    'source' => ChurchServiceItemSource::MANUAL->value,
+                    'source' => ChurchServiceItemSource::Manual->value,
                     'title' => 'Closing Song',
                     'source_title' => 'Closing Song',
                     'openlp_search_title' => null,
@@ -564,12 +564,12 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Amazing Grace', 'Amazing Grace', null),
             $this->incomingItem(2, 'custom', 'Sermon', 'Sermon', null),
-        ], ChurchServiceItemSource::LIVESTREAM);
+        ], ChurchServiceItemSource::Livestream);
 
         $items = $churchService->fresh('items')?->items;
         $this->assertCount(2, $items);
         $this->assertSame(
-            [ChurchServiceItemSource::LIVESTREAM, ChurchServiceItemSource::LIVESTREAM],
+            [ChurchServiceItemSource::Livestream, ChurchServiceItemSource::Livestream],
             $items->pluck('source')->all()
         );
     }
@@ -585,7 +585,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         /** @var ChurchServiceItem $item */
         $item = $churchService->fresh('items')?->items->sole();
-        $this->assertSame(ChurchServiceItemSource::LIVESTREAM, $item->source);
+        $this->assertSame(ChurchServiceItemSource::Livestream, $item->source);
     }
 
     #[Test]
@@ -597,7 +597,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => 'Notices',
             'source_title' => 'Notices',
         ]);
@@ -605,11 +605,11 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         // Livestream syncs with no matching item — OPENLP item should be preserved
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Welcome', 'Welcome', null),
-        ], ChurchServiceItemSource::LIVESTREAM);
+        ], ChurchServiceItemSource::Livestream);
 
         $openlpItem->refresh();
         $this->assertNull($openlpItem->deleted_at);
-        $this->assertSame(ChurchServiceItemSource::OPENLP, $openlpItem->source);
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $openlpItem->source);
         $this->assertDatabaseCount('church_service_items', 2);
     }
 
@@ -622,7 +622,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'source' => ChurchServiceItemSource::MANUAL->value,
+            'source' => ChurchServiceItemSource::Manual->value,
             'title' => 'Opening Prayer',
             'source_title' => 'Opening Prayer',
         ]);
@@ -630,11 +630,11 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         // Livestream syncs — should preserve human-authored items
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Welcome', 'Welcome', null),
-        ], ChurchServiceItemSource::LIVESTREAM);
+        ], ChurchServiceItemSource::Livestream);
 
         $humanItem->refresh();
         $this->assertNull($humanItem->deleted_at);
-        $this->assertSame(ChurchServiceItemSource::MANUAL, $humanItem->source);
+        $this->assertSame(ChurchServiceItemSource::Manual, $humanItem->source);
     }
 
     #[Test]
@@ -653,7 +653,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         // Manual edit syncs — should soft-delete unmatched livestream non-song items
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Opening Prayer', 'Opening Prayer', null),
-        ], ChurchServiceItemSource::MANUAL);
+        ], ChurchServiceItemSource::Manual);
 
         $this->assertSoftDeleted('church_service_items', ['id' => $livestreamItem->id]);
     }
@@ -674,11 +674,11 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         // Manual edit syncs — unmatched livestream songs should be preserved (not replace_mode)
         $result = $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Opening Prayer', 'Opening Prayer', null),
-        ], ChurchServiceItemSource::MANUAL);
+        ], ChurchServiceItemSource::Manual);
 
         $livestreamSong->refresh();
         $this->assertNull($livestreamSong->deleted_at);
-        $this->assertSame(ChurchServiceItemSource::LIVESTREAM, $livestreamSong->source);
+        $this->assertSame(ChurchServiceItemSource::Livestream, $livestreamSong->source);
 
         $this->assertCount(1, collect($result['conflicts'])->where('type', 'preserved_existing_song'));
     }
@@ -707,12 +707,12 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         // Livestream re-sync — should replace all previous livestream items (same source = merge authority)
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'New Song', 'New Song', null),
-        ], ChurchServiceItemSource::LIVESTREAM);
+        ], ChurchServiceItemSource::Livestream);
 
         $activeItems = $churchService->items()->get();
         $this->assertCount(1, $activeItems);
         $this->assertSame('New Song', $activeItems->first()->title);
-        $this->assertSame(ChurchServiceItemSource::LIVESTREAM, $activeItems->first()->source);
+        $this->assertSame(ChurchServiceItemSource::Livestream, $activeItems->first()->source);
     }
 
     #[Test]
@@ -739,7 +739,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $item->update(['title' => 'Detected Welcome (updated)']);
 
         $updateService = app(\App\Services\ChurchServiceCanonicalUpdateService::class);
-        $result = $updateService->finalize($churchService, $before, ChurchServiceItemSource::LIVESTREAM);
+        $result = $updateService->finalize($churchService, $before, ChurchServiceItemSource::Livestream);
         $result->refresh();
 
         $this->assertSame('livestream', $result->import_metadata['canonical_conflict']['incoming_source']);

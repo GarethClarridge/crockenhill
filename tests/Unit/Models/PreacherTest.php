@@ -226,11 +226,11 @@ class PreacherTest extends TestCase
         $sermon = Sermon::factory()->create([
             'preacher' => 'Mark Jones',
             'preacher_id' => $preacher->id,
-            'preacher_source' => PreacherSource::MANUAL->value,
+            'preacher_source' => PreacherSource::Manual->value,
         ]);
 
         $this->assertEquals('Mark Jones', $sermon->preacherProfile->name);
-        $this->assertEquals(PreacherSource::MANUAL, $sermon->preacher_source);
+        $this->assertEquals(PreacherSource::Manual, $sermon->preacher_source);
     }
 
     #[Test]

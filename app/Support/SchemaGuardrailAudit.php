@@ -225,7 +225,7 @@ class SchemaGuardrailAudit
                             ->orWhereNull('extracted_at');
                     });
                 })->orWhere(function ($query): void {
-                    $query->where('status', ServiceSectionStatus::SKIPPED->value)
+                    $query->where('status', ServiceSectionStatus::Skipped->value)
                         ->where('publication_status', '!=', ServiceSectionPublicationStatus::NOT_APPLICABLE->value);
                 });
             })

@@ -94,7 +94,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
             }
 
             // Gate 3: Skip if preacher already identified from ID3 tags
-            if ($sermon->preacher_source === PreacherSource::ID3) {
+            if ($sermon->preacher_source === PreacherSource::Id3) {
                 $this->storeDecision('skipped_id3', 'Preacher assigned from ID3 tag');
                 $this->logStepComplete('identifying_speaker', 'Skipped: ID3 preacher present');
 
@@ -264,7 +264,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
         $sermon->update([
             'preacher_id' => $result->matchedPreacherId,
             'preacher' => $result->matchedPreacherName,
-            'preacher_source' => PreacherSource::SPEAKER_MODEL->value,
+            'preacher_source' => PreacherSource::SpeakerModel->value,
             'preacher_confidence' => $result->topScore,
             'needs_preacher_review' => false,
         ]);
@@ -288,7 +288,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
         $sermon->update([
             'preacher_id' => $fallbackPreacher->id,
             'preacher' => $fallbackPreacher->name,
-            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_source' => PreacherSource::Default->value,
             'preacher_confidence' => $result->topScore,
             'needs_preacher_review' => true,
         ]);

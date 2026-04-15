@@ -133,7 +133,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $this->extractCandidateMediaIfNeeded($section, $handler, $videoExtractor, $storageHelper);
             $handler->afterExtraction($section);
 
-            $eligibleByStatus = $section->status === ServiceSectionStatus::IDENTIFIED && ! $section->needs_manual_review;
+            $eligibleByStatus = $section->status === ServiceSectionStatus::Identified && ! $section->needs_manual_review;
 
             if (! $eligibleByStatus) {
                 if (

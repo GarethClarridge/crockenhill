@@ -63,7 +63,7 @@ class ImportChurchServiceFromOpenLp
         $mergeResult = $this->mergeService->merge(
             $existingService,
             $parsed->items,
-            ChurchServiceItemSource::OPENLP,
+            ChurchServiceItemSource::OpenLp,
         );
 
         $linkResult = [
@@ -79,7 +79,7 @@ class ImportChurchServiceFromOpenLp
         if ($mergeResult->wasMerged) {
             // Only update source to openlp once items have actually been applied.
             $mergeResult->churchService->forceFill([
-                'source' => ChurchServiceItemSource::OPENLP->value,
+                'source' => ChurchServiceItemSource::OpenLp->value,
             ])->saveQuietly();
 
             $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
@@ -122,14 +122,14 @@ class ImportChurchServiceFromOpenLp
                 $existingMetadata = $churchService->import_metadata?->toArray() ?? [];
 
                 $churchService->fill([
-                    'source' => ChurchServiceItemSource::OPENLP->value,
+                    'source' => ChurchServiceItemSource::OpenLp->value,
                     'original_filename' => $uploadedFile->getClientOriginalName(),
                     'needs_review' => $parsed->needsReview,
                     'import_metadata' => array_replace_recursive($existingMetadata, $parsed->importMetadata),
                 ]);
                 $churchService->save();
 
-                $syncResult = $this->itemSyncService->sync($churchService, $parsed->items, ChurchServiceItemSource::OPENLP);
+                $syncResult = $this->itemSyncService->sync($churchService, $parsed->items, ChurchServiceItemSource::OpenLp);
                 $linkResult = $this->songLinker->linkForService($churchService);
 
                 return $churchService;
@@ -145,7 +145,7 @@ class ImportChurchServiceFromOpenLp
         $churchService = $this->canonicalUpdateService->finalize(
             $churchService,
             $beforeSnapshot,
-            ChurchServiceItemSource::OPENLP,
+            ChurchServiceItemSource::OpenLp,
             $syncResult,
         );
 

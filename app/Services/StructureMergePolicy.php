@@ -21,7 +21,7 @@ class StructureMergePolicy
         ChurchService $churchService,
         ChurchServiceItemSource $incomingSource,
     ): bool {
-        if ($incomingSource === ChurchServiceItemSource::LIVESTREAM) {
+        if ($incomingSource === ChurchServiceItemSource::Livestream) {
             return false;
         }
 
@@ -158,7 +158,7 @@ class StructureMergePolicy
     private function hasHighConfidenceLivestreamItems(ChurchService $churchService): bool
     {
         return $churchService->items()
-            ->where('source', ChurchServiceItemSource::LIVESTREAM->value)
+            ->where('source', ChurchServiceItemSource::Livestream->value)
             ->get()
             ->contains(fn (ChurchServiceItem $item): bool => $this->itemConfidenceLevel($this->itemToSnapshot($item)) === 'high');
     }

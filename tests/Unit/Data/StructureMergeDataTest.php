@@ -134,7 +134,7 @@ class StructureMergeDataTest extends TestCase
 
         $result = new StructureMergeResult(
             churchService: $churchService,
-            incomingSource: ChurchServiceItemSource::OPENLP,
+            incomingSource: ChurchServiceItemSource::OpenLp,
             wasMerged: true,
             wasStaged: false,
             syncResult: ['conflicts' => []],
@@ -143,7 +143,7 @@ class StructureMergeDataTest extends TestCase
         );
 
         $this->assertSame($churchService->id, $result->churchService->id);
-        $this->assertSame(ChurchServiceItemSource::OPENLP, $result->incomingSource);
+        $this->assertSame(ChurchServiceItemSource::OpenLp, $result->incomingSource);
         $this->assertTrue($result->wasMerged);
         $this->assertFalse($result->wasStaged);
         $this->assertFalse($result->hasConflicts());
@@ -156,7 +156,7 @@ class StructureMergeDataTest extends TestCase
 
         $result = new StructureMergeResult(
             churchService: $churchService,
-            incomingSource: ChurchServiceItemSource::EMAIL,
+            incomingSource: ChurchServiceItemSource::Email,
             wasMerged: false,
             wasStaged: true,
             stagedConflicts: [['type' => 'order_mismatch']],

@@ -46,7 +46,7 @@ class SermonIdentitySyncService
         $query->update([
             'preacher_id' => $preacher->id,
             'preacher' => $preacher->name,
-            'preacher_source' => PreacherSource::MANUAL->value,
+            'preacher_source' => PreacherSource::Manual->value,
             'needs_preacher_review' => false,
         ]);
     }

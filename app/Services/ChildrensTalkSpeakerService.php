@@ -84,7 +84,7 @@ class ChildrensTalkSpeakerService
                 $reviewed = [
                     'preacher_id' => $preacher->id,
                     'preacher_name' => $preacher->name,
-                    'source' => PreacherSource::MANUAL->value,
+                    'source' => PreacherSource::Manual->value,
                     'confidence' => $speakerMetadata['predicted']['confidence'] ?? null,
                     'review_mode' => 'manual_override',
                     'reviewed_at' => now()->toIso8601String(),
@@ -95,7 +95,7 @@ class ChildrensTalkSpeakerService
             $reviewed = [
                 'preacher_id' => null,
                 'preacher_name' => $normalizedName,
-                'source' => PreacherSource::MANUAL->value,
+                'source' => PreacherSource::Manual->value,
                 'confidence' => null,
                 'review_mode' => 'manual_free_text',
                 'reviewed_at' => now()->toIso8601String(),
@@ -177,7 +177,7 @@ class ChildrensTalkSpeakerService
                 'second_confidence' => $result->secondScore,
                 'margin' => $result->margin,
                 'matched_profile_id' => $result->matchedProfileId,
-                'source' => PreacherSource::SPEAKER_MODEL->value,
+                'source' => PreacherSource::SpeakerModel->value,
             ]);
         }
 
@@ -188,7 +188,7 @@ class ChildrensTalkSpeakerService
             'confidence' => $result->topScore,
             'second_confidence' => $result->secondScore,
             'margin' => $result->margin,
-            'source' => PreacherSource::SPEAKER_MODEL->value,
+            'source' => PreacherSource::SpeakerModel->value,
         ]);
     }
 
@@ -294,7 +294,7 @@ class ChildrensTalkSpeakerService
             'second_confidence' => null,
             'margin' => null,
             'matched_profile_id' => null,
-            'source' => PreacherSource::SPEAKER_MODEL->value,
+            'source' => PreacherSource::SpeakerModel->value,
             'decided_at' => now()->toIso8601String(),
         ];
     }

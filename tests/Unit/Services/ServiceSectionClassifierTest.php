@@ -164,7 +164,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $this->assertNull($result['sections'][0]['church_service_item_id']);
         $this->assertSame(ServiceSectionType::SONG->value, $result['sections'][0]['section_type']);
-        $this->assertSame(ServiceSectionStatus::IDENTIFIED->value, $result['sections'][0]['status']);
+        $this->assertSame(ServiceSectionStatus::Identified->value, $result['sections'][0]['status']);
         $this->assertTrue($result['sections'][0]['needs_manual_review']);
         $this->assertSame([$segmentOne->id], $result['sections'][0]['source_segment_ids']);
         $this->assertSame('low', $result['sections'][0]['metadata']['confidence_level']);
@@ -258,7 +258,7 @@ class ServiceSectionClassifierTest extends TestCase
         $this->assertCount(1, $result['sections']);
 
         $firstSection = $result['sections'][0];
-        $this->assertSame(ServiceSectionStatus::IDENTIFIED->value, $firstSection['status']);
+        $this->assertSame(ServiceSectionStatus::Identified->value, $firstSection['status']);
         $this->assertTrue($firstSection['needs_manual_review']);
         $this->assertSame([$speechOnlySegment->id], $firstSection['source_segment_ids']);
         $this->assertSame('low', $firstSection['metadata']['confidence_level']);

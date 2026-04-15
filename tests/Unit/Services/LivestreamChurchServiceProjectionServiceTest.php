@@ -53,13 +53,13 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertNotNull($churchService);
         $this->assertSame('2026-03-23', $churchService->date->toDateString());
         $this->assertSame(SermonService::Morning, $churchService->service);
-        $this->assertSame(ChurchServiceItemSource::LIVESTREAM->value, $churchService->source);
+        $this->assertSame(ChurchServiceItemSource::Livestream->value, $churchService->source);
 
         $items = $churchService->items()->orderBy('position')->get();
 
         $this->assertCount(3, $items);
         $this->assertSame('Amazing Grace', $items[0]->title);
-        $this->assertSame(ChurchServiceItemSource::LIVESTREAM, $items[0]->source);
+        $this->assertSame(ChurchServiceItemSource::Livestream, $items[0]->source);
         $this->assertSame('songs', $items[0]->type);
         $this->assertSame('The Prodigal Son', $items[1]->title);
         $this->assertSame('Closing Prayer', $items[2]->title);
@@ -100,7 +100,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-23',
             'service' => SermonService::Morning->value,
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
         ]);
 
         ChurchServiceItem::factory()->livestream()->create([
@@ -144,7 +144,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
             'position' => 1,
             'type' => 'songs',
             'title' => 'OpenLP Song',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
@@ -337,7 +337,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
 
         ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);

@@ -47,14 +47,14 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => 'Great is thy faithfulness',
         ]);
 
         $canonicalState = app(ChurchServiceCanonicalStateService::class);
         $before = $canonicalState->snapshot($churchService->load('items'));
 
-        $result = $this->service->finalize($churchService, $before, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->finalize($churchService, $before, ChurchServiceItemSource::OpenLp);
 
         $result->refresh();
 
@@ -82,7 +82,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => 'Before the throne',
         ]);
 
@@ -92,7 +92,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         // Mutate the item after taking the snapshot
         $item->update(['title' => 'Before the throne of God above']);
 
-        $result = $this->service->finalize($churchService, $before, ChurchServiceItemSource::EMAIL);
+        $result = $this->service->finalize($churchService, $before, ChurchServiceItemSource::Email);
 
         $result->refresh();
 
@@ -136,7 +136,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::EMAIL->value,
+            'source' => ChurchServiceItemSource::Email->value,
             'title' => 'Amazing grace',
         ]);
 
@@ -145,7 +145,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
 
         $itemToUpdate->update(['title' => 'Amazing Grace (How sweet the sound)']);
 
-        $result = $this->service->finalize($churchService, $before, ChurchServiceItemSource::OPENLP);
+        $result = $this->service->finalize($churchService, $before, ChurchServiceItemSource::OpenLp);
 
         $result->refresh();
 
@@ -172,7 +172,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => 'Be thou my vision',
         ]);
 
@@ -183,7 +183,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $result = $this->service->finalize(
             $churchService,
             $before,
-            ChurchServiceItemSource::OPENLP,
+            ChurchServiceItemSource::OpenLp,
             ['conflicts' => [['field' => 'title', 'conflict' => 'duplicate']]]
         );
 
@@ -212,7 +212,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => 'How great thou art',
         ]);
 

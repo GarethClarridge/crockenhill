@@ -78,7 +78,7 @@ class ChurchServiceItemFactory extends Factory
             },
             'type' => $this->faker->randomElement(['songs', 'bibles', 'presentations', 'custom']),
             'section_type' => null,
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => $this->faker->sentence(3),
             'source_title' => $this->faker->optional()->sentence(4),
             'openlp_search_title' => $this->faker->optional()->slug(),
@@ -93,7 +93,7 @@ class ChurchServiceItemFactory extends Factory
     public function livestream(): static
     {
         return $this->state(fn (): array => [
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
             'openlp_search_title' => null,
         ]);
     }

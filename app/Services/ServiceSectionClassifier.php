@@ -219,7 +219,7 @@ class ServiceSectionClassifier
             'end_time' => (float) $segment->end_time,
             'duration' => (float) $segment->duration,
             'confidence' => ServiceSectionConfidence::scoreForLevel($confidenceLevel),
-            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => $needsManualReview,
             'source_segment_ids' => [$segment->id],
             'metadata' => $metadata,

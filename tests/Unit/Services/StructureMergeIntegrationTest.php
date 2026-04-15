@@ -175,7 +175,7 @@ class StructureMergeIntegrationTest extends TestCase
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-22',
             'service' => SermonService::Morning->value,
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -183,7 +183,7 @@ class StructureMergeIntegrationTest extends TestCase
             'position' => 1,
             'type' => 'songs',
             'title' => 'Old Song',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
         $inboundEmail = InboundEmail::factory()->create([
@@ -238,7 +238,7 @@ class StructureMergeIntegrationTest extends TestCase
 
         $this->assertTrue($projectionResult['projected']);
         $churchService = ChurchService::query()->findOrFail($projectionResult['church_service_id']);
-        $this->assertSame(ChurchServiceItemSource::LIVESTREAM->value, $churchService->source);
+        $this->assertSame(ChurchServiceItemSource::Livestream->value, $churchService->source);
 
         // 2. OpenLP import arrives — disagrees with high-confidence projected item
         $upload = OpenLpArchiveFactory::makeUpload(
@@ -255,7 +255,7 @@ class StructureMergeIntegrationTest extends TestCase
 
         // Service source must remain 'livestream' while merge is staged
         $churchService->refresh();
-        $this->assertSame(ChurchServiceItemSource::LIVESTREAM->value, $churchService->source, 'Source must not change to openlp while merge is staged');
+        $this->assertSame(ChurchServiceItemSource::Livestream->value, $churchService->source, 'Source must not change to openlp while merge is staged');
         $this->assertTrue($churchService->needs_review);
         $this->assertArrayHasKey('pending_structure_merge', $churchService->import_metadata?->toArray() ?? []);
 
@@ -271,7 +271,7 @@ class StructureMergeIntegrationTest extends TestCase
         $this->assertTrue($resolution->applied);
 
         $fresh = $resolution->churchService;
-        $this->assertSame(ChurchServiceItemSource::OPENLP->value, $fresh->source, 'Source must be openlp after accepting incoming');
+        $this->assertSame(ChurchServiceItemSource::OpenLp->value, $fresh->source, 'Source must be openlp after accepting incoming');
         $this->assertFalse($fresh->needs_review);
         $this->assertArrayNotHasKey('pending_structure_merge', $fresh->import_metadata?->toArray() ?? []);
 
@@ -320,7 +320,7 @@ class StructureMergeIntegrationTest extends TestCase
 
         $fresh = $resolution->churchService;
         // Source stays livestream when incoming items are rejected
-        $this->assertSame(ChurchServiceItemSource::LIVESTREAM->value, $fresh->source, 'Source must remain livestream when keeping current items');
+        $this->assertSame(ChurchServiceItemSource::Livestream->value, $fresh->source, 'Source must remain livestream when keeping current items');
         $this->assertFalse($fresh->needs_review);
 
         $finalItems = $fresh->items()->orderBy('position')->get();
@@ -349,7 +349,7 @@ class StructureMergeIntegrationTest extends TestCase
 
         $fresh = $result->churchService->fresh();
         $this->assertSame(
-            ChurchServiceItemSource::LIVESTREAM->value,
+            ChurchServiceItemSource::Livestream->value,
             $fresh->source,
             'Service source must remain livestream when a merge is staged, not yet accepted'
         );
@@ -363,7 +363,7 @@ class StructureMergeIntegrationTest extends TestCase
         $service = ChurchService::factory()->create([
             'date' => '2026-03-27',
             'service' => SermonService::Morning->value,
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
             'needs_review' => true,
             'import_metadata' => [
                 // Simulate a previously-reviewed service so finalize will reopen review
@@ -411,7 +411,7 @@ class StructureMergeIntegrationTest extends TestCase
         $churchService = ChurchService::factory()->create([
             'date' => $date,
             'service' => $sermonService->value,
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
         ]);
 
         foreach ($items as $index => $item) {

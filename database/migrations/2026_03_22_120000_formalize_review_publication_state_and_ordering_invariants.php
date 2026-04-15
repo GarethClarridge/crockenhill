@@ -251,7 +251,7 @@ return new class extends Migration
 
                     $updates = [];
 
-                    if ($status === ServiceSectionStatus::SKIPPED->value && $publicationStatus !== ServiceSectionPublicationStatus::NOT_APPLICABLE->value) {
+                    if ($status === ServiceSectionStatus::Skipped->value && $publicationStatus !== ServiceSectionPublicationStatus::NOT_APPLICABLE->value) {
                         $publicationStatus = ServiceSectionPublicationStatus::NOT_APPLICABLE->value;
                         $updates['publication_status'] = $publicationStatus;
                     }

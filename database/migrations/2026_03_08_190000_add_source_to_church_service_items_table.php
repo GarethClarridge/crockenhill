@@ -23,7 +23,7 @@ return new class extends Migration
         });
 
         DB::table('church_service_items')->update([
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
     }
 

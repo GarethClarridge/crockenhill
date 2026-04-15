@@ -200,7 +200,7 @@ class EditSermon extends Component
             'service' => $validated['service'],
             'preacher' => $preacher ? $preacher->name : $validated['preacher'],
             'preacher_id' => $preacher?->id,
-            'preacher_source' => $preacher ? PreacherSource::MANUAL->value : $validated['preacherSource'],
+            'preacher_source' => $preacher ? PreacherSource::Manual->value : $validated['preacherSource'],
             'preacher_confidence' => $validated['preacherConfidence'],
             'duration' => $validated['duration'],
             'segment_start_time' => $validated['segmentStartTime'],

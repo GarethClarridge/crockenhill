@@ -35,12 +35,12 @@ class PreacherCutoverCommandTest extends TestCase
         $namedSermon->refresh();
 
         $this->assertEquals('Visiting Speaker', $blankNameSermon->preacher);
-        $this->assertEquals(PreacherSource::DEFAULT, $blankNameSermon->preacher_source);
+        $this->assertEquals(PreacherSource::Default, $blankNameSermon->preacher_source);
         $this->assertTrue($blankNameSermon->needs_preacher_review);
         $this->assertNotNull($blankNameSermon->preacher_id);
 
         $this->assertNotNull($namedSermon->preacher_id);
-        $this->assertEquals(PreacherSource::MANUAL, $namedSermon->preacher_source);
+        $this->assertEquals(PreacherSource::Manual, $namedSermon->preacher_source);
         $this->assertFalse($namedSermon->needs_preacher_review);
 
         $canonicalPreacher = Preacher::where('slug', 'john-smith')->first();
