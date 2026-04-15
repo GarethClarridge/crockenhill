@@ -144,40 +144,38 @@ class SermonPagesTest extends TestCase
     }
 
     #[Test]
-    public function sermon_all_page_renders(): void
+    public function sermon_all_page_redirects_to_the_canonical_archive(): void
     {
         $response = $this->get('/christ/sermons/all');
-        $response->assertStatus(200);
-        $response->assertSee('Browse by scripture, preacher, or series');
-        $response->assertSee('Morning Test Sermon');
-        $response->assertSee('Evening Test Sermon');
-        $response->assertSee('Other Test Sermon');
+        $response->assertRedirect('/christ/sermons');
+        $response->assertStatus(301);
     }
 
     #[Test]
-    public function grouped_sermon_lists_render_date_heading_above_cards_grid(): void
+    public function canonical_archive_renders_a_flat_sermon_cards_grid(): void
     {
         $response = $this->get('/christ/sermons');
 
         $response->assertStatus(200);
-        $response->assertSeeInOrder([
-            '<h2 id=',
-            'text-3xl sm:text-4xl',
-            '<div class="grid items-start justify-center gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]">',
-        ], false);
+        $response->assertSee('<div class="mx-auto mt-6 mb-6 grid max-w-2xl items-start justify-center gap-4 px-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))] lg:max-w-5xl xl:max-w-7xl">', false);
+        $response->assertDontSee('<h2 id=', false);
     }
 
     #[Test]
-    public function all_sermons_page_preserves_the_grouped_browse_markup_when_unfiltered(): void
+    public function sermon_archive_shows_the_same_flat_grid_when_filtered(): void
     {
-        $response = $this->get('/christ/sermons/all');
+        $preacher = Preacher::factory()->create(['name' => 'Archive Filter Preacher', 'slug' => 'archive-filter-preacher']);
+        Sermon::factory()->create([
+            'title' => 'Filtered Archive Sermon',
+            'preacher' => $preacher->name,
+            'preacher_id' => $preacher->id,
+        ]);
+
+        $response = $this->get('/christ/sermons?preacher='.$preacher->id);
 
         $response->assertStatus(200);
-        $response->assertSeeInOrder([
-            '<h2 id=',
-            'text-3xl sm:text-4xl',
-            '<div class="grid items-start justify-center gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]">',
-        ], false);
+        $response->assertSee('<div class="mx-auto mt-6 mb-6 grid max-w-2xl items-start justify-center gap-4 px-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))] lg:max-w-5xl xl:max-w-7xl">', false);
+        $response->assertDontSee('<h2 id=', false);
     }
 
     #[Test]
@@ -370,9 +368,8 @@ class SermonPagesTest extends TestCase
             ->assertDontSee("Hidden Children's Talk");
 
         $this->get('/christ/sermons/all')
-            ->assertStatus(200)
-            ->assertSee('Public Browse Sermon')
-            ->assertDontSee("Hidden Children's Talk");
+            ->assertRedirect('/christ/sermons')
+            ->assertStatus(301);
 
         $this->get('/christ/sermons/morning')
             ->assertStatus(200)

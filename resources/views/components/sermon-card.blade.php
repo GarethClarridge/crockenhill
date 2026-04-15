@@ -17,11 +17,22 @@
     $seriesUrl = $presenter->seriesUrl($sermon);
 @endphp
 
-<div class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
+<div data-sermon-card class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
 
   @if($thumbnailUrl)
-    <a href="{{ $sermonUrl }}" wire:navigate class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200">
-      <img src="{{ $thumbnailUrl }}" alt="Sermon: {{ $sermon->title }}" class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115" loading="lazy">
+    <a
+      href="{{ $sermonUrl }}"
+      wire:navigate
+      data-sermon-card-thumbnail
+      class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200"
+    >
+      <img
+        src="{{ $thumbnailUrl }}"
+        alt="Sermon: {{ $sermon->title }}"
+        class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115"
+        loading="lazy"
+        onerror="this.onerror=null; const card = this.closest('[data-sermon-card]'); card?.querySelector('[data-sermon-card-thumbnail]')?.remove(); card?.querySelector('[data-sermon-card-title-fallback]')?.classList.remove('hidden');"
+      >
       <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent"></div>
       @if (($sermon->title != null))
         <h4 class="absolute inset-x-5 top-1/2 -translate-y-1/2 text-center font-display text-2xl leading-[0.95] text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.45)] sm:text-3xl">
@@ -34,6 +45,12 @@
   <div class="flex flex-col flex-1 p-6">
     @if (($sermon->title != null) && ! $thumbnailUrl)
       <a class="group" href="{{ $sermonUrl }}" wire:navigate>
+        <h4 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
+          {{$sermon->title}}
+        </h4>
+      </a>
+    @elseif ($sermon->title != null)
+      <a class="group hidden" href="{{ $sermonUrl }}" wire:navigate data-sermon-card-title-fallback>
         <h4 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h4>

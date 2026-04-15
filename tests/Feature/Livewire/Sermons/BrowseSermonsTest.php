@@ -26,7 +26,7 @@ class BrowseSermonsTest extends TestCase
     }
 
     #[Test]
-    public function no_filters_show_grouped_browse_results(): void
+    public function no_filters_show_flat_paginated_browse_results(): void
     {
         Sermon::factory()->create([
             'title' => 'April Sermon',
@@ -39,11 +39,11 @@ class BrowseSermonsTest extends TestCase
 
         Livewire::test(BrowseSermons::class)
             ->assertSee('Filter sermons')
-            ->assertDontSee('Browse by scripture, preacher, or series')
             ->assertSee('April Sermon')
             ->assertSee('March Sermon')
-            ->assertSee('Monday 13th April')
-            ->assertSee('Monday 30th March');
+            ->assertSee('13 April 2026')
+            ->assertSee('30 March 2026')
+            ->assertDontSee('Monday 13th April');
     }
 
     #[Test]
@@ -178,7 +178,7 @@ class BrowseSermonsTest extends TestCase
     }
 
     #[Test]
-    public function clear_filters_resets_everything_and_returns_to_grouped_mode(): void
+    public function clear_filters_resets_everything_and_returns_to_flat_archive_mode(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'Clear Test', 'slug' => 'clear-test']);
         $this->createIndexedSermon([
@@ -200,7 +200,8 @@ class BrowseSermonsTest extends TestCase
             ->assertSet('chapterFilter', null)
             ->assertSet('preacherFilter', null)
             ->assertSet('seriesFilter', null)
-            ->assertSee('Monday 13th April');
+            ->assertSee('Archive Sermon')
+            ->assertDontSee('Monday 13th April');
     }
 
     #[Test]

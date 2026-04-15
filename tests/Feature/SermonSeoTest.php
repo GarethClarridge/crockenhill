@@ -43,24 +43,12 @@ class SermonSeoTest extends TestCase
     }
 
     #[Test]
-    public function all_sermons_page_has_item_list_structured_data_and_correct_title()
+    public function legacy_all_sermons_route_redirects_to_the_canonical_archive()
     {
-        // Create some sermons to populate the index
-        $preacher = Preacher::factory()->create(['name' => 'Jane Doe']);
-        Sermon::factory()->count(3)->create([
-            'preacher' => 'Jane Doe',
-            'preacher_id' => $preacher->id,
-            'content_type' => SermonContentType::Sermon,
-        ]);
-
         $response = $this->get(route('sermons.all'));
 
-        $response->assertStatus(200);
-        $response->assertSee('All Sermons | Crockenhill Baptist Church');
-        $response->assertSee('"@type": "ItemList"', false);
-        $response->assertSee('"numberOfItems": 3', false);
-        $response->assertSee('"@type": "Article"', false);
-        $response->assertSee('Jane Doe');
+        $response->assertRedirect(route('sermons.index'));
+        $response->assertStatus(301);
     }
 
     #[Test]

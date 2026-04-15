@@ -36,7 +36,7 @@ class SermonThumbnailUXTest extends TestCase
         Storage::disk('public')->put('thumbnails/test-plain.jpg', 'fake content');
         Storage::disk('public')->put('thumbnails/test-card.jpg', 'fake content');
 
-        $response = $this->get('/christ/sermons/all');
+        $response = $this->get('/christ/sermons');
         $response->assertStatus(200);
         $response->assertSee(app(\App\Presenters\SermonViewPresenter::class)->plainThumbnailUrl($sermon), false);
         $response->assertDontSee(app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon), false);
@@ -56,9 +56,30 @@ class SermonThumbnailUXTest extends TestCase
 
         Storage::disk('public')->put('thumbnails/overlay-only.jpg', 'fake content');
 
-        $response = $this->get('/christ/sermons/all');
+        $response = $this->get('/christ/sermons');
         $response->assertStatus(200);
         $response->assertDontSee('/thumbnail/card', false);
+    }
+
+    public function test_sermon_card_includes_a_fallback_title_when_thumbnail_file_is_missing(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'title' => 'Missing Thumbnail Sermon',
+            'slug' => 'missing-thumbnail-sermon',
+            'thumbnail_file_path' => 'thumbnails/missing-overlay.jpg',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/missing-plain.jpg',
+            ],
+            'date' => '2026-02-19',
+        ]);
+
+        $response = $this->get('/christ/sermons');
+
+        $response->assertStatus(200);
+        $response->assertSee(app(\App\Presenters\SermonViewPresenter::class)->plainThumbnailUrl($sermon), false);
+        $response->assertSee('data-sermon-card-thumbnail', false);
+        $response->assertSee('data-sermon-card-title-fallback', false);
+        $response->assertSee("onerror=\"this.onerror=null; const card = this.closest('[data-sermon-card]'); card?.querySelector('[data-sermon-card-thumbnail]')?.remove(); card?.querySelector('[data-sermon-card-title-fallback]')?.classList.remove('hidden');\"", false);
     }
 
     public function test_sermon_card_does_not_render_livestream_badge(): void
@@ -69,7 +90,7 @@ class SermonThumbnailUXTest extends TestCase
             'date' => '2026-02-19',
         ]);
 
-        $response = $this->get('/christ/sermons/all');
+        $response = $this->get('/christ/sermons');
         $response->assertStatus(200);
         $response->assertDontSee('animate-pulse');
     }

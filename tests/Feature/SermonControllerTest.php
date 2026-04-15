@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
-use App\Livewire\Sermons\BrowseSermons;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Carbon\Carbon;
@@ -44,7 +43,7 @@ class SermonControllerTest extends TestCase
     }
 
     #[Test]
-    public function sermon_index_shows_recent_sermons(): void
+    public function sermon_index_shows_archive_sermons(): void
     {
         Sermon::factory()->create([
             'title' => 'Grace Alone',
@@ -60,25 +59,19 @@ class SermonControllerTest extends TestCase
     // ── all ────────────────────────────────────────────────────────────────
 
     #[Test]
-    public function sermon_all_returns_200(): void
+    public function sermon_all_redirects_to_the_canonical_archive(): void
     {
         $response = $this->get('/christ/sermons/all');
-        $response->assertStatus(200);
-        $response->assertSeeLivewire(BrowseSermons::class);
+        $response->assertRedirect('/christ/sermons');
+        $response->assertStatus(301);
     }
 
     #[Test]
-    public function sermon_all_lists_sermons(): void
+    public function sermon_all_redirect_preserves_the_query_string(): void
     {
-        Sermon::factory()->create([
-            'title' => 'All Sermons Title',
-            'date' => now(),
-            'content_type' => SermonContentType::Sermon,
-        ]);
-
-        $response = $this->get('/christ/sermons/all');
-        $response->assertStatus(200);
-        $response->assertSee('All Sermons Title');
+        $response = $this->get('/christ/sermons/all?book=John&chapter=3&page=2');
+        $response->assertRedirect('/christ/sermons?book=John&chapter=3&page=2');
+        $response->assertStatus(301);
     }
 
     // ── showDated ─────────────────────────────────────────────────────────

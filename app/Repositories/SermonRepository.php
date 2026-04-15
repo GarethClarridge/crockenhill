@@ -32,6 +32,37 @@ class SermonRepository
     }
 
     /**
+     * Build the ordered public sermon query for the canonical archive page.
+     *
+     * @return Builder<Sermon>
+     */
+    public function publicBrowseQuery(
+        ?string $book = null,
+        ?int $chapter = null,
+        ?int $preacherId = null,
+        ?string $series = null,
+    ): Builder {
+        $query = $this->publicSermonQuery()
+            ->when($preacherId, fn (Builder $builder): Builder => $builder->where('preacher_id', $preacherId))
+            ->when($series, fn (Builder $builder): Builder => $builder->where('series', $series));
+
+        if ($book !== null) {
+            $query->whereHas('scriptureFilters', function (Builder $builder) use ($book, $chapter): void {
+                $builder->where('bible_book', $book);
+
+                if ($chapter !== null) {
+                    $builder->where('bible_chapter', $chapter);
+                }
+            });
+        }
+
+        return $query
+            ->orderBy('date', 'desc')
+            ->orderBy('service', 'asc')
+            ->orderBy('id', 'desc');
+    }
+
+    /**
      * Get the latest sermons grouped by date.
      *
      * @return Collection<string, Collection<int, Sermon>>

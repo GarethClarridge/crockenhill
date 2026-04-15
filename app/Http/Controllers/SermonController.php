@@ -18,6 +18,7 @@ use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -36,39 +37,29 @@ class SermonController extends Controller
      */
     public function index(): View
     {
-        /**
-         * Performance Optimization: Use Repository to fetch cached sermon listing.
-         */
-        $latest_sermons = $this->sermonRepository->getLatestSermons();
+        $filters = $this->archiveFilters(request());
+        $sermons = $this->sermonRepository->publicBrowseQuery(
+            book: $filters['book'],
+            chapter: $filters['chapter'],
+            preacherId: $filters['preacher'],
+            series: $filters['series'],
+        )
+            ->paginate(24);
 
         return view('sermons.index', [
-            'latest_sermons' => $latest_sermons,
-            'json_ld_data' => $this->itemListPresenter->toItemList($latest_sermons),
+            'json_ld_data' => $this->itemListPresenter->toItemList($sermons->getCollection()),
             'heading' => 'Sermons',
-            'description' => 'Listen to recent sermons from Crockenhill Baptist Church. Worshipping God, strengthening believers, and proclaiming Jesus Christ.',
+            'description' => 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.',
+            'canonical_url' => $this->archiveCanonicalUrl(request(), $filters),
             'area' => 'christ',
             'links' => $this->sermonLinks('sermons'),
             'slug' => 'sermons',
         ]);
     }
 
-    public function all(): View
+    public function all(Request $request): RedirectResponse
     {
-        /**
-         * Performance Optimization: Keep the cached full sermon listing for the
-         * canonical unfiltered JSON-LD ItemList even though the visible browse UI
-         * now lives inside a Livewire component.
-         */
-        $sermons = $this->sermonRepository->getAllSermons();
-
-        return view('sermons.all', [
-            'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
-            'heading' => 'All Sermons',
-            'description' => 'Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.',
-            'area' => 'christ',
-            'links' => $this->sermonLinks('all'),
-            'slug' => 'all',
-        ]);
+        return redirect()->to(route('sermons.index', $request->query()), 301);
     }
 
     /**
@@ -128,6 +119,40 @@ class SermonController extends Controller
             'area' => 'christ',
             'links' => $this->sermonLinks($sermon->slug, ['homepage']),
         ]);
+    }
+
+    /**
+     * @return array{book:?string, chapter:?int, preacher:?int, series:?string}
+     */
+    private function archiveFilters(Request $request): array
+    {
+        $book = $request->filled('book') ? trim((string) $request->string('book')) : null;
+        $series = $request->filled('series') ? trim((string) $request->string('series')) : null;
+
+        return [
+            'book' => $book !== '' ? $book : null,
+            'chapter' => $request->filled('chapter') ? $request->integer('chapter') : null,
+            'preacher' => $request->filled('preacher') ? $request->integer('preacher') : null,
+            'series' => $series !== '' ? $series : null,
+        ];
+    }
+
+    /**
+     * @param  array{book:?string, chapter:?int, preacher:?int, series:?string}  $filters
+     */
+    private function archiveCanonicalUrl(Request $request, array $filters): string
+    {
+        if (collect($filters)->filter()->isNotEmpty()) {
+            return route('sermons.index');
+        }
+
+        $page = $request->integer('page', 1);
+
+        if ($page > 1) {
+            return route('sermons.index', ['page' => $page]);
+        }
+
+        return route('sermons.index');
     }
 
     public function preachers(PreacherItemListPresenter $itemListPresenter): View

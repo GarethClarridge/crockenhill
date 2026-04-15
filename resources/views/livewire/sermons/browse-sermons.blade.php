@@ -86,32 +86,28 @@
         Updating sermon results…
     </div>
 
-    <div wire:loading.class="pointer-events-none opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter">
-        @if ($hasActiveFilters)
-            @php
-                /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
-            @endphp
+    <div id="sermon-results" wire:loading.class="pointer-events-none opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter">
+        @php
+            /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
+        @endphp
 
-            @if ($sermons->total() > 0)
-                <div class="mx-auto mt-6 max-w-7xl px-6 text-sm text-gray-600">
-                    {{ $sermons->total() }} sermon{{ $sermons->total() === 1 ? '' : 's' }} found
-                </div>
-
-                <div class="mx-auto mt-4 mb-6 grid max-w-2xl items-start justify-center gap-2 px-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))] lg:max-w-5xl xl:max-w-7xl">
-                    @foreach ($sermons as $sermon)
-                        <div wire:key="filtered-sermon-{{ $sermon->id }}">
-                            <x-sermon-card :sermon="$sermon" />
-                        </div>
-                    @endforeach
-                </div>
-
-                @if ($sermons->hasPages())
-                    <div class="mx-auto mt-8 max-w-2xl px-6">
-                        {{ $sermons->links() }}
+        @if ($sermons->total() > 0)
+            <div class="mx-auto mt-6 mb-6 grid max-w-2xl items-start justify-center gap-4 px-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))] lg:max-w-5xl xl:max-w-7xl">
+                @foreach ($sermons as $sermon)
+                    <div wire:key="sermon-{{ $sermon->id }}">
+                        <x-sermon-card :sermon="$sermon" />
                     </div>
-                @endif
-            @else
-                <section class="mx-auto mt-8 max-w-2xl px-6">
+                @endforeach
+            </div>
+
+            @if ($sermons->hasPages())
+                <div class="mx-auto mt-8 max-w-2xl px-6">
+                    {{ $sermons->links(data: ['scrollTo' => '#sermon-results']) }}
+                </div>
+            @endif
+        @else
+            <section class="mx-auto mt-8 max-w-2xl px-6">
+                @if ($hasActiveFilters)
                     <x-card heading="No sermons match these filters">
                         <p class="text-gray-600">
                             Try another book, chapter, preacher, or series, or clear the filters to return to the full sermon archive.
@@ -123,20 +119,14 @@
                             </x-form-button>
                         </div>
                     </x-card>
-                </section>
-            @endif
-        @else
-            @if ($sermons->isNotEmpty())
-                <x-sermon-list :sermons="$sermons" :groupedByDate="true" />
-            @else
-                <section class="mx-auto mt-8 max-w-2xl px-6">
+                @else
                     <x-card heading="No sermons published yet">
                         <p class="text-gray-600">
                             Sermons will appear here once they have been added to the public archive.
                         </p>
                     </x-card>
-                </section>
-            @endif
+                @endif
+            </section>
         @endif
     </div>
 </div>

@@ -15,36 +15,6 @@ class SermonListingCacheTest extends TestCase
     protected $seed = true;
 
     #[Test]
-    public function index_page_caches_latest_sermons(): void
-    {
-        Cache::forget('latest_sermons');
-        $this->assertFalse(Cache::has('latest_sermons'));
-
-        $this->get('/christ/sermons');
-        $this->assertTrue(Cache::has('latest_sermons'));
-    }
-
-    #[Test]
-    public function all_sermons_page_caches_sermons(): void
-    {
-        Cache::forget('all_sermons');
-        $this->assertFalse(Cache::has('all_sermons'));
-
-        $this->get('/christ/sermons/all');
-        $this->assertTrue(Cache::has('all_sermons'));
-    }
-
-    #[Test]
-    public function filtered_all_sermons_page_still_caches_the_canonical_listing(): void
-    {
-        Cache::forget('all_sermons');
-
-        $this->get('/christ/sermons/all?book=John&chapter=3');
-
-        $this->assertTrue(Cache::has('all_sermons'));
-    }
-
-    #[Test]
     public function series_page_caches_sermons(): void
     {
         $sermon = Sermon::factory()->create(['series' => 'Genesis']);
@@ -62,21 +32,6 @@ class SermonListingCacheTest extends TestCase
 
         $this->get('/christ/sermons/morning');
         $this->assertTrue(Cache::has('sermons_service_morning'));
-    }
-
-    #[Test]
-    public function caches_are_invalidated_when_sermon_is_created(): void
-    {
-        $this->get('/christ/sermons');
-        $this->get('/christ/sermons/all');
-
-        $this->assertTrue(Cache::has('latest_sermons'));
-        $this->assertTrue(Cache::has('all_sermons'));
-
-        Sermon::factory()->create();
-
-        $this->assertFalse(Cache::has('latest_sermons'));
-        $this->assertFalse(Cache::has('all_sermons'));
     }
 
     #[Test]

@@ -105,7 +105,7 @@
 
             @if($status === 'completed')
                 <a href="/christ/sermons" wire:navigate class="rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700">
-                    View All Sermons
+                    Browse Sermons
                 </a>
             @endif
         </div>

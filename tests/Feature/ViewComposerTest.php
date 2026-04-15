@@ -292,11 +292,11 @@ class ViewComposerTest extends TestCase
     public function it_renders_public_cta_with_gradient_border_and_centered_button(): void
     {
         $view = View::make('components.public-cta', [
-            'link' => '/christ/sermons/all',
-            'label' => 'Find older sermons',
+            'link' => '/christ/sermons',
+            'label' => 'Browse sermons',
         ])->render();
 
-        $this->assertStringContainsString('Find older sermons', $view);
+        $this->assertStringContainsString('Browse sermons', $view);
         $this->assertStringContainsString('shadow-[0_10px_24px_rgba(20,85,87,0.18)]', $view);
         $this->assertStringContainsString('rounded-[11px]', $view);
     }

@@ -6,11 +6,11 @@ namespace App\Livewire\Sermons;
 
 use App\Enums\SermonContentType;
 use App\Models\Preacher;
-use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use App\Repositories\SermonRepository;
 use App\Support\BibleCanon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -97,10 +97,13 @@ class BrowseSermons extends Component
             ->values()
             ->all();
 
-        /** @var Collection<int, Sermon>|Collection<string, Collection<int, Sermon>>|null $sermons */
-        $sermons = $hasActiveFilters
-            ? $this->filteredQuery($sermonRepository)->paginate(24)
-            : $sermonRepository->getAllSermons();
+        /** @var LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
+        $sermons = $sermonRepository->publicBrowseQuery(
+            book: $this->bookFilter,
+            chapter: $this->chapterFilter,
+            preacherId: $this->preacherFilter,
+            series: $this->seriesFilter,
+        )->paginate(24);
 
         return view('livewire.sermons.browse-sermons', [
             'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks()),
@@ -121,33 +124,6 @@ class BrowseSermons extends Component
             || $this->chapterFilter !== null
             || $this->preacherFilter !== null
             || $this->seriesFilter !== null;
-    }
-
-    /**
-     * @return Builder<Sermon>
-     */
-    private function filteredQuery(SermonRepository $sermonRepository): Builder
-    {
-        $query = $sermonRepository->publicSermonQuery()
-            ->when($this->preacherFilter, fn (Builder $builder): Builder => $builder->where('preacher_id', $this->preacherFilter))
-            ->when($this->seriesFilter, fn (Builder $builder): Builder => $builder->where('series', $this->seriesFilter));
-
-        if ($this->bookFilter !== null) {
-            $bookFilter = $this->bookFilter;
-            $chapterFilter = $this->chapterFilter;
-
-            $query->whereHas('scriptureFilters', function (Builder $builder) use ($bookFilter, $chapterFilter): void {
-                $builder->where('bible_book', $bookFilter);
-
-                if ($chapterFilter !== null) {
-                    $builder->where('bible_chapter', $chapterFilter);
-                }
-            });
-        }
-
-        return $query
-            ->orderBy('date', 'desc')
-            ->orderBy('service', 'asc');
     }
 
     /**

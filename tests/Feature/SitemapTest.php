@@ -61,7 +61,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('<loc>http://localhost/community</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/calendar</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/christ/sermons</loc>', $content);
-        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/all</loc>', $content);
+        $this->assertStringNotContainsString('<loc>http://localhost/christ/sermons/all</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/christ/sermons/preachers</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/christ/sermons/series</loc>', $content);
     }

@@ -11,22 +11,32 @@ class SermonBrowseSeoTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_all_sermons_page_has_correct_seo_data(): void
+    public function test_sermons_archive_page_has_correct_seo_data(): void
     {
-        $response = $this->get('/christ/sermons/all');
+        $response = $this->get('/christ/sermons');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>All Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.">', false);
+        $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<meta name="description" content="Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.">', false);
+        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons">', false);
     }
 
-    public function test_filtered_all_sermons_page_keeps_the_canonical_unfiltered_seo_data(): void
+    public function test_filtered_sermons_archive_keeps_the_canonical_unfiltered_seo_data(): void
     {
-        $response = $this->get('/christ/sermons/all?book=John&chapter=3');
+        $response = $this->get('/christ/sermons?book=John&chapter=3');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>All Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.">', false);
+        $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<meta name="description" content="Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.">', false);
+        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons">', false);
+    }
+
+    public function test_paginated_unfiltered_archive_keeps_its_page_canonical_url(): void
+    {
+        $response = $this->get('/christ/sermons?page=2');
+
+        $response->assertStatus(200);
+        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons?page=2">', false);
     }
 
     public function test_preacher_sermons_page_has_correct_seo_data(): void

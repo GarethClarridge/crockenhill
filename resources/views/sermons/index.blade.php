@@ -8,6 +8,7 @@
 <x-meta-tags
     :title="$heading"
     :description="$description"
+    :canonical="$canonical_url"
 />
 <x-schema.webpage
     :heading="$heading"
@@ -33,16 +34,6 @@
 @stop
 
 @section('full_width_content')
-
-<x-sermon-list :sermons="$latest_sermons" :groupedByDate="true" />
-
-<div class="mt-8">
-  <x-public-cta
-    link="/christ/sermons/all"
-    label="Find older sermons"
-    ariaLabel="Find older sermons"
-  />
-</div>
-
+<livewire:sermons.browse-sermons />
 
 @stop
