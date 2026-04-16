@@ -58,7 +58,7 @@
                         ? route('childrens-corner.show', ['sermon' => $sermon->slug])
                         : route('sermons.show', ['sermon' => $sermon->slug]);
                 @endphp
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-50 {{ $sermon->needs_preacher_review ? 'border-l-4 border-amber-400 bg-amber-50/30' : '' }}">
                     {{-- Title --}}
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ Str::limit($sermon->title, 50) }}</p>
@@ -87,7 +87,11 @@
                     </td>
                     {{-- Preacher --}}
                     <td class="px-4 py-3">
-                        <span class="text-sm">{{ $sermonViewPresenter->displayPreacherName($sermon) }}</span>
+                        @if($preacherName = $sermonViewPresenter->displayPreacherName($sermon))
+                            <span class="text-sm">{{ $preacherName }}</span>
+                        @else
+                            <span class="text-sm text-gray-300">-</span>
+                        @endif
                         @if($sermon->needs_preacher_review)
                             <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Review</span>
                         @endif
