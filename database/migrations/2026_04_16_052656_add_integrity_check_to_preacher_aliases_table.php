@@ -25,7 +25,8 @@ return new class extends Migration
 
         // 2. Add the CHECK constraint
         // Ensures alias is lowercase, has no leading/trailing whitespace, and is not empty.
-        DB::statement("ALTER TABLE preacher_aliases ADD CONSTRAINT preacher_aliases_alias_format_check CHECK (alias = LOWER(TRIM(alias)) AND alias != '')");
+        // We use BINARY to ensure the check is case-sensitive even on case-insensitive collations.
+        DB::statement("ALTER TABLE preacher_aliases ADD CONSTRAINT preacher_aliases_alias_format_check CHECK (BINARY alias = LOWER(TRIM(alias)) AND alias != '')");
     }
 
     /**
