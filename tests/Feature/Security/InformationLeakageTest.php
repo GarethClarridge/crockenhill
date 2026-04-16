@@ -37,6 +37,12 @@ class InformationLeakageTest extends TestCase
             $mock->shouldReceive('rulesForType')
                 ->andReturn(['file' => 'required|file']);
 
+            $mock->shouldReceive('maxFileSizeForDisplay')
+                ->andReturn('100MB');
+
+            $mock->shouldReceive('allowedExtensionsForDisplay')
+                ->andReturn('MP3, WAV, M4A');
+
             $mock->shouldReceive('validateUploadedFile')
                 ->andThrow(new \RuntimeException('Sensitive DB Error: table "users" not found at /var/www/html/database/schema.sql'));
         });
@@ -65,6 +71,12 @@ class InformationLeakageTest extends TestCase
         $this->mock(\App\Services\MediaValidationService::class, function ($mock) {
             $mock->shouldReceive('rulesForType')
                 ->andReturn(['file' => 'required|file']);
+
+            $mock->shouldReceive('maxFileSizeForDisplay')
+                ->andReturn('100MB');
+
+            $mock->shouldReceive('allowedExtensionsForDisplay')
+                ->andReturn('MP3, WAV, M4A');
 
             $mock->shouldReceive('validateUploadedFile')
                 ->andThrow(new InvalidFileException(['File is too large']));
