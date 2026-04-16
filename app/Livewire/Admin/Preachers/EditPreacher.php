@@ -77,11 +77,12 @@ class EditPreacher extends Component
             'is_active' => $validated['isActive'],
         ]);
 
+        $fresh = $this->preacher->fresh();
         Log::warning('Preacher updated by admin', [
             'admin_id' => auth()->id(),
             'preacher_id' => $this->preacher->id,
-            'name' => $this->preacher->fresh()?->name ?? $this->preacher->name,
-            'slug' => $this->preacher->fresh()?->slug ?? $this->preacher->slug,
+            'name' => ($fresh instanceof Preacher ? $fresh->name : $this->preacher->name),
+            'slug' => ($fresh instanceof Preacher ? $fresh->slug : $this->preacher->slug),
         ]);
 
         $this->success('Preacher updated');
@@ -92,18 +93,18 @@ class EditPreacher extends Component
 
         $this->authorizeAdmin();
 
-        $this->validateOnly('newAlias');
+        $this->newAlias = strtolower(trim($this->newAlias));
 
-        $alias = strtolower(trim($this->newAlias));
+        $this->validate([
+            'newAlias' => PreacherAlias::validationRules()['alias'],
+        ], [
+            'newAlias.unique' => 'This alias already exists.',
+        ]);
 
-        if ($alias === '') {
-            return;
-        }
-
-        PreacherAlias::firstOrCreate(
-            ['alias' => $alias],
-            ['preacher_id' => $this->preacher->id]
-        );
+        PreacherAlias::create([
+            'alias' => $this->newAlias,
+            'preacher_id' => $this->preacher->id,
+        ]);
 
         $this->newAlias = '';
         $this->preacher->refresh();

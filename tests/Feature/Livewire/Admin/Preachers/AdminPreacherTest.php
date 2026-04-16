@@ -32,6 +32,25 @@ class AdminPreacherTest extends TestCase
     }
 
     #[Test]
+    public function it_validates_alias_uniqueness_after_normalization_in_edit_component(): void
+    {
+        $preacher1 = Preacher::factory()->create();
+        $preacher2 = Preacher::factory()->create();
+
+        PreacherAlias::create([
+            'preacher_id' => $preacher1->id,
+            'alias' => 'normalized-alias',
+        ]);
+
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher2])
+            ->set('newAlias', '  NORMALIZED-ALIAS  ')
+            ->call('addAlias')
+            ->assertHasErrors(['newAlias' => 'unique']);
+    }
+
+    #[Test]
     public function list_preachers_component_renders_successfully_for_admin(): void
     {
         $this->actingAs($this->admin);
@@ -207,6 +226,38 @@ class AdminPreacherTest extends TestCase
             ->call('removeAlias', $alias->id);
 
         $this->assertModelMissing($alias);
+    }
+
+    #[Test]
+    public function it_validates_alias_uniqueness_in_edit_component(): void
+    {
+        $preacher1 = Preacher::factory()->create();
+        $preacher2 = Preacher::factory()->create();
+
+        PreacherAlias::create([
+            'preacher_id' => $preacher1->id,
+            'alias' => 'duplicate-alias',
+        ]);
+
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher2])
+            ->set('newAlias', 'duplicate-alias')
+            ->call('addAlias')
+            ->assertHasErrors(['newAlias' => 'unique']);
+    }
+
+    #[Test]
+    public function it_validates_alias_max_length_in_edit_component(): void
+    {
+        $preacher = Preacher::factory()->create();
+
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher])
+            ->set('newAlias', str_repeat('a', 256))
+            ->call('addAlias')
+            ->assertHasErrors(['newAlias' => 'max']);
     }
 
     #[Test]
