@@ -221,8 +221,8 @@ class EditSermon extends Component
         Log::warning('Sermon updated by admin', [
             'admin_id' => auth()->id(),
             'sermon_id' => $this->sermon->id,
-            'title' => $this->sermon->fresh()?->title ?? $this->sermon->title,
-            'slug' => $this->sermon->fresh()?->slug ?? $this->sermon->slug,
+            'title' => ($fresh = $this->sermon->fresh()) instanceof Sermon ? $fresh->title : $this->sermon->title,
+            'slug' => ($fresh instanceof Sermon ? $fresh->slug : $this->sermon->slug),
         ]);
 
         // Dispatch enrichment after saving if reference was set or changed

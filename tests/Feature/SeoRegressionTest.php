@@ -94,14 +94,18 @@ class SeoRegressionTest extends TestCase
             $response->assertSee("<title>{$label} Services | Crockenhill Baptist Church</title>", false);
             $response->assertSee('<meta name="description" content="'.$description.'">', false);
             $response->assertSee(
-                '<link rel="alternate" type="application/rss+xml" title="'.$label.' Services Podcast" href="'.route('podcast.feed', $service).'">',
+                '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">',
+                false
+            );
+            $response->assertSee(
+                '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="'.route('podcast.feed', 'evening').'">',
                 false
             );
         }
     }
 
     #[Test]
-    public function other_service_page_does_not_render_a_podcast_discovery_link(): void
+    public function other_service_page_includes_podcast_discovery_links(): void
     {
         Sermon::factory()->create([
             'title' => 'Other Sermon',
@@ -117,6 +121,13 @@ class SeoRegressionTest extends TestCase
             '<meta name="description" content="Listen to recent Other sermons from Crockenhill Baptist Church.">',
             false
         );
-        $response->assertDontSee('rel="alternate" type="application/rss+xml"', false);
+        $response->assertSee(
+            '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">',
+            false
+        );
+        $response->assertSee(
+            '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="'.route('podcast.feed', 'evening').'">',
+            false
+        );
     }
 }

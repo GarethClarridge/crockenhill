@@ -16,6 +16,7 @@
     :description="$description"
     :image="asset('/images/headings/large/sermons.webp')"
 />
+<x-podcast-discovery />
 
 {{-- JSON-LD Sermon List --}}
 <script type="application/ld+json">

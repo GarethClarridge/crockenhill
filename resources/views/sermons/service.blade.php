@@ -13,9 +13,7 @@
     :heading="$heading"
     :description="$description"
 />
-@if(in_array($service, ['morning', 'evening']))
-<link rel="alternate" type="application/rss+xml" title="{{ $heading }} Podcast" href="{{ route('podcast.feed', $service) }}">
-@endif
+<x-podcast-discovery />
 
 {{-- JSON-LD Sermon List --}}
 <script type="application/ld+json">

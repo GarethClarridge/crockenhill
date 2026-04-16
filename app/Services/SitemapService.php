@@ -78,7 +78,19 @@ class SitemapService
             ->add(Url::create('/christ/sermons/series')
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sermon Series'));
+                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sermon Series'))
+            ->add(Url::create('/christ/sermons/morning')
+                ->setPriority(0.7)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sunday Morning Services'))
+            ->add(Url::create('/christ/sermons/evening')
+                ->setPriority(0.7)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sunday Evening Services'))
+            ->add(Url::create('/christ/sermons/other')
+                ->setPriority(0.7)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/headings/large/sermons.webp'), 'Other Services'));
 
         if ($this->exposurePolicy->childrensTalksArePublic()) {
             $sitemap->add(

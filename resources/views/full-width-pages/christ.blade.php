@@ -15,6 +15,7 @@
   description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Explore the good news of Christianity at Crockenhill Baptist Church."
   :image="asset('/images/homepage/may2024wide.webp')"
 />
+<x-podcast-discovery />
 
 <x-breadcrumbs area="christ" heading="Christ" jsonOnly />
 

@@ -10,6 +10,7 @@
     :description="$description"
     :image="$preacher->profile_image_url"
 />
+<x-podcast-discovery />
 <x-schema.webpage
     :heading="$heading"
     :description="$description"

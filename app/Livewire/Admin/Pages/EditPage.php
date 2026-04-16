@@ -37,8 +37,8 @@ class EditPage extends Component
         Log::warning('Page updated by admin', [
             'admin_id' => auth()->id(),
             'page_id' => $this->page->id,
-            'heading' => $this->page->fresh()?->heading ?? $this->page->heading,
-            'slug' => $this->page->fresh()?->slug ?? $this->page->slug,
+            'heading' => ($fresh = $this->page->fresh()) instanceof Page ? $fresh->heading : $this->page->heading,
+            'slug' => ($fresh instanceof Page ? $fresh->slug : $this->page->slug),
         ]);
 
         $this->success('Page updated');

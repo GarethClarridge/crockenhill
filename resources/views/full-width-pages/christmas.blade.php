@@ -10,6 +10,7 @@
     description="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events."
     :image="asset('/images/homepage/christmas2023.webp')"
 />
+<x-podcast-discovery />
 <x-schema.webpage
     heading="Christmas"
     description="Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events."

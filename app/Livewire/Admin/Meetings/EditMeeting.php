@@ -40,7 +40,7 @@ class EditMeeting extends Component
         Log::warning('Meeting updated by admin', [
             'admin_id' => auth()->id(),
             'meeting_id' => $this->meeting->id,
-            'slug' => $this->meeting->fresh()?->slug ?? $this->meeting->slug,
+            'slug' => ($fresh = $this->meeting->fresh()) instanceof Meeting ? $fresh->slug : $this->meeting->slug,
         ]);
 
         $this->success('Meeting updated');

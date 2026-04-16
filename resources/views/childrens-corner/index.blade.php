@@ -6,6 +6,7 @@
 
 @section('meta_tags')
     <x-meta-tags :title="$heading" :description="$description" />
+    <x-podcast-discovery />
 
     {{-- JSON-LD ItemList --}}
     @if (isset($json_ld_data))

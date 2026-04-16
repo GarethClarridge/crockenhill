@@ -384,7 +384,19 @@ class SitemapTest extends TestCase
         // Should still contain static URLs
         $this->assertStringContainsString('<loc>http://localhost</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/christ</loc>', $content);
+    }
 
+    #[Test]
+    public function sitemap_contains_service_filter_urls(): void
+    {
+        Cache::forget('sitemap');
+
+        $response = $this->get('/sitemap.xml');
+        $content = $response->getContent();
+
+        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/morning</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/evening</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/other</loc>', $content);
     }
 
     #[Test]

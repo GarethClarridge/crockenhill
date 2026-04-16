@@ -9,6 +9,7 @@
     :title="$heading"
     :description="$description"
 />
+<x-podcast-discovery />
 <x-schema.webpage
     :heading="$heading"
     :description="$description"

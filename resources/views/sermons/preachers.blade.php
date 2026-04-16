@@ -16,6 +16,7 @@
     :description="$description"
     :image="asset('/images/headings/large/sermons.webp')"
 />
+<x-podcast-discovery />
 
 {{-- JSON-LD Preachers List --}}
 @if(isset($json_ld_data))
