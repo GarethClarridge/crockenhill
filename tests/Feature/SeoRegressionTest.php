@@ -60,11 +60,11 @@ class SeoRegressionTest extends TestCase
         $response->assertSee('<meta name="description" content="'.$description.'">', false);
         $response->assertSee('<meta property="og:description" content="'.$description.'">', false);
         $response->assertSee(
-            '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">',
+            '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Services Podcast" href="'.route('podcast.feed', 'morning').'">',
             false
         );
         $response->assertSee(
-            '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="'.route('podcast.feed', 'evening').'">',
+            '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Services Podcast" href="'.route('podcast.feed', 'evening').'">',
             false
         );
     }
@@ -94,11 +94,11 @@ class SeoRegressionTest extends TestCase
             $response->assertSee("<title>{$label} Services | Crockenhill Baptist Church</title>", false);
             $response->assertSee('<meta name="description" content="'.$description.'">', false);
             $response->assertSee(
-                '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">',
+                '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Services Podcast" href="'.route('podcast.feed', 'morning').'">',
                 false
             );
             $response->assertSee(
-                '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="'.route('podcast.feed', 'evening').'">',
+                '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Services Podcast" href="'.route('podcast.feed', 'evening').'">',
                 false
             );
         }
@@ -122,11 +122,11 @@ class SeoRegressionTest extends TestCase
             false
         );
         $response->assertSee(
-            '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">',
+            '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Services Podcast" href="'.route('podcast.feed', 'morning').'">',
             false
         );
         $response->assertSee(
-            '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="'.route('podcast.feed', 'evening').'">',
+            '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Services Podcast" href="'.route('podcast.feed', 'evening').'">',
             false
         );
     }

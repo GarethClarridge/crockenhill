@@ -98,7 +98,7 @@ class PodcastDiscoveryTest extends TestCase
 
     private function assertPodcastDiscoveryLinksPresent($response): void
     {
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="http://localhost/christ/sermons/morning/feed">', false);
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="http://localhost/christ/sermons/evening/feed">', false);
+        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Morning Services Podcast" href="http://localhost/christ/sermons/morning/feed">', false);
+        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Evening Services Podcast" href="http://localhost/christ/sermons/evening/feed">', false);
     }
 }
