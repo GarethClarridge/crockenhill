@@ -14,11 +14,14 @@ use App\Http\Requests\ProcessMediaRequest;
 use App\Http\Requests\RetryMediaProcessingRequest;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoProcessingOptions;
+use App\Traits\SanitizesLogData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
 class MediaController extends Controller
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly UnifiedMediaProcessor $mediaProcessor,
     ) {}
@@ -251,16 +254,6 @@ class MediaController extends Controller
             '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
             $processingId
         );
-    }
-
-    /**
-     * Sanitize user-controlled strings before writing to logs.
-     */
-    private function sanitizeForLog(string $value): string
-    {
-        $withoutControlChars = str_replace(["\r", "\n", "\t"], ' ', $value);
-
-        return trim((string) preg_replace('/\s+/', ' ', $withoutControlChars));
     }
 
     /**

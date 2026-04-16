@@ -7,12 +7,15 @@ namespace App\Services;
 use App\Data\OpenLpImportResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
+use App\Traits\SanitizesLogData;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class ImportChurchServiceFromOpenLp
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly OpenLpServiceParser $parser,
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
@@ -88,7 +91,7 @@ class ImportChurchServiceFromOpenLp
         \Illuminate\Support\Facades\Log::warning('Church service imported from OpenLP (existing)', [
             'admin_id' => auth()->id(),
             'church_service_id' => $existingService->id,
-            'filename' => $uploadedFile->getClientOriginalName(),
+            'filename' => $this->sanitizeForLog($uploadedFile->getClientOriginalName()),
             'was_merged' => $mergeResult->wasMerged,
         ]);
 
@@ -159,7 +162,7 @@ class ImportChurchServiceFromOpenLp
         \Illuminate\Support\Facades\Log::warning('Church service imported from OpenLP (new)', [
             'admin_id' => auth()->id(),
             'church_service_id' => $churchService->id,
-            'filename' => $uploadedFile->getClientOriginalName(),
+            'filename' => $this->sanitizeForLog($uploadedFile->getClientOriginalName()),
         ]);
 
         return new OpenLpImportResult(

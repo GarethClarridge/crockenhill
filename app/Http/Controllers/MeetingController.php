@@ -88,7 +88,7 @@ class MeetingController extends Controller
         Log::warning('Meeting updated by admin', [
             'admin_id' => auth()->id(),
             'meeting_id' => $meeting->id,
-            'slug' => $fresh instanceof Meeting ? $fresh->slug : $meeting->slug,
+            'slug' => $fresh instanceof \App\Models\Meeting ? $fresh->slug : $meeting->slug,
         ]);
 
         $backUrl = Session::get('backUrl');
