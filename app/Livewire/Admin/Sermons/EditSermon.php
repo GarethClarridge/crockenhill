@@ -228,7 +228,11 @@ class EditSermon extends Component
 
         // Dispatch enrichment after saving if reference was set or changed
         if ($referenceChanged && ! empty($newReference)) {
+<<<<<<< HEAD
             app(QueueScriptureEnrichment::class)->dispatch($fresh instanceof Sermon ? $fresh : $this->sermon);
+=======
+            app(QueueScriptureEnrichment::class)->dispatch($fresh ?? $this->sermon);
+>>>>>>> 09f2c1cb0 (refactor(enums): convert enum keys to TitleCase and fix audit logging)
         }
 
         $this->success('Sermon updated');
