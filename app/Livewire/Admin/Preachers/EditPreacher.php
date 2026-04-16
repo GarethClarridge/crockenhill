@@ -77,11 +77,12 @@ class EditPreacher extends Component
             'is_active' => $validated['isActive'],
         ]);
 
+        $fresh = $this->preacher->fresh();
         Log::warning('Preacher updated by admin', [
             'admin_id' => auth()->id(),
             'preacher_id' => $this->preacher->id,
-            'name' => $this->preacher->fresh()?->name ?? $this->preacher->name,
-            'slug' => $this->preacher->fresh()?->slug ?? $this->preacher->slug,
+            'name' => ($fresh instanceof Preacher ? $fresh->name : $this->preacher->name),
+            'slug' => ($fresh instanceof Preacher ? $fresh->slug : $this->preacher->slug),
         ]);
 
         $this->success('Preacher updated');
