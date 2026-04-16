@@ -432,11 +432,16 @@ class PageSeeder extends Seeder
                 'heading' => 'Free Bible',
                 'description' => 'Would you like a free Bible? We\'d love to give you one — no strings attached — for anyone in the Crockenhill or Chelsfield area.',
                 'area' => 'christ',
-                'body' => 'lorem ipsum',
+                // Body is intentionally blank: this page renders its content through the
+                // bespoke view at resources/views/pages/christ/free-bible.blade.php, which
+                // injects a Livewire form via @section('dynamic_content'). Any body copy
+                // here would appear above that form. If the slug or area is changed in
+                // the admin the view override will silently stop working — keep them in sync.
+                'body' => '',
                 'admin' => 'no',
                 'created_at' => '2026-04-13 00:00:00',
                 'updated_at' => '2026-04-13 00:00:00',
-                'markdown' => 'lorem ipsum',
+                'markdown' => '',
                 'navigation' => true,
             ],
         ];
