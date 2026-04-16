@@ -5,33 +5,29 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
-use App\Enums\ApiTokenAbility;
 use App\Enums\MediaType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CancelMediaProcessingRequest;
+use App\Http\Requests\ConfirmMediaSegmentRequest;
 use App\Http\Requests\MediaStatusRequest;
-use App\Services\MediaValidationService;
+use App\Http\Requests\ProcessMediaRequest;
+use App\Http\Requests\RetryMediaProcessingRequest;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoProcessingOptions;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class MediaController extends Controller
 {
     public function __construct(
         private readonly UnifiedMediaProcessor $mediaProcessor,
-        private readonly MediaValidationService $validation,
     ) {}
 
     /**
      * Upload and process media file - handles all types (audio, video, livestream)
      */
-    public function upload(Request $request, string $type): JsonResponse
+    public function upload(ProcessMediaRequest $request, string $type): JsonResponse
     {
-        if (($abilityResponse = $this->ensureMediaProcessAbility($request)) !== null) {
-            return $abilityResponse;
-        }
-
         $mediaType = MediaType::tryFrom($type);
         if ($mediaType === null) {
             return response()->json([
@@ -41,7 +37,7 @@ class MediaController extends Controller
             ], 400);
         }
 
-        $validated = $request->validate($this->uploadRules($mediaType));
+        $validated = $request->validated();
 
         try {
             $file = $request->file('file');
@@ -84,10 +80,6 @@ class MediaController extends Controller
      */
     public function status(MediaStatusRequest $request, string $processingId): JsonResponse
     {
-        if (($abilityResponse = $this->ensureMediaProcessAbility($request)) !== null) {
-            return $abilityResponse;
-        }
-
         // Validate processing ID format
         if (! $this->isValidProcessingId($processingId)) {
             return response()->json([
@@ -138,12 +130,8 @@ class MediaController extends Controller
     /**
      * Cancel processing
      */
-    public function cancel(Request $request, string $processingId): JsonResponse
+    public function cancel(CancelMediaProcessingRequest $request, string $processingId): JsonResponse
     {
-        if (($abilityResponse = $this->ensureMediaProcessAbility($request)) !== null) {
-            return $abilityResponse;
-        }
-
         // Validate processing ID format
         if (! $this->isValidProcessingId($processingId)) {
             return response()->json([
@@ -164,20 +152,14 @@ class MediaController extends Controller
     /**
      * Confirm a sermon segment for a livestream run awaiting manual review
      */
-    public function confirmSegment(Request $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
+    public function confirmSegment(ConfirmMediaSegmentRequest $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
     {
-        if (($abilityResponse = $this->ensureMediaProcessAbility($request)) !== null) {
-            return $abilityResponse;
-        }
-
         if (! $this->isValidProcessingId($processingId)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid processing ID format',
             ], 400);
         }
-
-        $request->validate(['segment_id' => ['required', 'integer', 'min:1']]);
 
         /** @var \App\Models\User $user */
         $user = $request->user();
@@ -206,12 +188,8 @@ class MediaController extends Controller
     /**
      * Retry processing
      */
-    public function retry(Request $request, string $processingId): JsonResponse
+    public function retry(RetryMediaProcessingRequest $request, string $processingId): JsonResponse
     {
-        if (($abilityResponse = $this->ensureMediaProcessAbility($request)) !== null) {
-            return $abilityResponse;
-        }
-
         // Validate processing ID format
         if (! $this->isValidProcessingId($processingId)) {
             return response()->json([
@@ -248,32 +226,6 @@ class MediaController extends Controller
         $withoutControlChars = str_replace(["\r", "\n", "\t"], ' ', $value);
 
         return trim((string) preg_replace('/\s+/', ' ', $withoutControlChars));
-    }
-
-    private function ensureMediaProcessAbility(Request $request): ?JsonResponse
-    {
-        if ($request->bearerToken() === null) {
-            return null;
-        }
-
-        if ($request->user()?->tokenCan(ApiTokenAbility::MEDIA_PROCESS->value)) {
-            return null;
-        }
-
-        return response()->json([
-            'message' => 'Missing required token ability: '.ApiTokenAbility::MEDIA_PROCESS->value,
-        ], 403);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function uploadRules(MediaType $mediaType): array
-    {
-        return array_merge(
-            $this->validation->rulesForType($mediaType),
-            VideoProcessingOptions::validationRules($mediaType)
-        );
     }
 
     /**
