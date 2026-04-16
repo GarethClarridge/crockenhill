@@ -29,6 +29,34 @@ class PreacherAlias extends Model
     ];
 
     /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'id' => 'integer',
+            'preacher_id' => 'integer',
+        ];
+    }
+
+    /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(?self $alias = null): array
+    {
+        $uniqueAlias = \Illuminate\Validation\Rule::unique('preacher_aliases', 'alias');
+
+        if ($alias) {
+            $uniqueAlias->ignore($alias->id);
+        }
+
+        return [
+            'preacher_id' => ['required', 'integer', 'exists:preachers,id'],
+            'alias' => ['required', 'string', 'max:255', $uniqueAlias],
+        ];
+    }
+
+    /**
      * @return BelongsTo<Preacher, $this>
      */
     public function preacher(): BelongsTo

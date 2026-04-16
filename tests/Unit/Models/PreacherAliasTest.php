@@ -73,4 +73,50 @@ class PreacherAliasTest extends TestCase
         $this->assertEquals($preacher->id, $retrieved->preacher_id);
         $this->assertEquals('Alternative Name', $retrieved->alias);
     }
+
+    #[Test]
+    public function it_casts_id_and_preacher_id_to_integers(): void
+    {
+        $preacher = Preacher::factory()->create();
+        $alias = PreacherAlias::create([
+            'preacher_id' => (string) $preacher->id,
+            'alias' => 'String ID Test',
+        ]);
+
+        $this->assertIsInt($alias->id);
+        $this->assertIsInt($alias->preacher_id);
+    }
+
+    #[Test]
+    public function validation_rules_require_valid_preacher_id(): void
+    {
+        $rules = PreacherAlias::validationRules();
+
+        $this->assertContains('required', $rules['preacher_id']);
+        $this->assertContains('integer', $rules['preacher_id']);
+        $this->assertContains('exists:preachers,id', $rules['preacher_id']);
+    }
+
+    #[Test]
+    public function validation_rules_require_unique_alias(): void
+    {
+        $preacher = Preacher::factory()->create();
+        PreacherAlias::create([
+            'preacher_id' => $preacher->id,
+            'alias' => 'unique-alias',
+        ]);
+
+        $rules = PreacherAlias::validationRules();
+        $this->assertContains('required', $rules['alias']);
+
+        // Check for unique rule presence - specific implementation details might vary based on how Laravel constructs the rule object
+        $foundUnique = false;
+        foreach ($rules['alias'] as $rule) {
+            if ($rule instanceof \Illuminate\Validation\Rules\Unique) {
+                $foundUnique = true;
+                break;
+            }
+        }
+        $this->assertTrue($foundUnique, 'Unique rule should be present in alias validation rules');
+    }
 }
