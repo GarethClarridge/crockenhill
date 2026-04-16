@@ -353,45 +353,51 @@ class SermonViewPresenter
         return $this->memoizedReferences[$key] = ($reference !== '' ? $reference : null);
     }
 
+    /**
+     * Generate the SEO meta description for a sermon.
+     *
+     * Performance Optimization: Minimizes string operations and avoids redundant
+     * Str::length calls by consolidating the assembly logic.
+     */
     public function metaDescription(Sermon $sermon): string
     {
-        if (! empty($sermon->getAttributes()['meta_description'] ?? null)) {
-            return $sermon->getAttributes()['meta_description'];
+        $attributes = $sermon->getAttributes();
+        if (! empty($attributes['meta_description'])) {
+            return (string) $attributes['meta_description'];
         }
 
         $preacherName = $this->displayPreacherName($sermon) ?? 'Unknown preacher';
-        $description = "Listen to '{$sermon->title}' by {$preacherName}";
-        $description .= " preached on {$sermon->human_date}";
+        $base = "Listen to '{$sermon->title}' by {$preacherName} preached on {$sermon->human_date}";
 
-        if ($this->displayReference($sermon)) {
-            $description .= ' - '.$this->displayReference($sermon);
+        if ($reference = $this->displayReference($sermon)) {
+            $base .= " - {$reference}";
         }
 
-        $summary = null;
-        if ($sermon->show_summary && $sermon->summary) {
-            $summary = trim(strip_tags($sermon->summary));
+        if ($sermon->series) {
+            $base .= " (Part of the {$sermon->series} series)";
         }
 
-        $seriesSuffix = $sermon->series ? " (Part of the {$sermon->series} series)" : '';
-
-        if ($summary === null || $summary === '') {
-            return Str::limit($description.$seriesSuffix, 155);
+        if (! $sermon->show_summary || ! $sermon->summary) {
+            return Str::limit($base, 155);
         }
 
-        $descriptionWithSeries = $description.$seriesSuffix;
-        $separator = '. ';
-
-        if (Str::length($descriptionWithSeries.$separator.$summary) <= 155) {
-            return $descriptionWithSeries.$separator.$summary;
+        $summary = trim(strip_tags((string) $sermon->summary));
+        if ($summary === '') {
+            return Str::limit($base, 155);
         }
 
-        $remainingSummaryLength = 155 - Str::length($description) - Str::length($separator);
-
-        if ($remainingSummaryLength > 0) {
-            return $description.$separator.Str::limit($summary, $remainingSummaryLength);
+        $full = "{$base}. {$summary}";
+        if (Str::length($full) <= 155) {
+            return $full;
         }
 
-        return Str::limit($descriptionWithSeries, 155);
+        $remaining = 155 - Str::length($base) - 2; // 2 for ". "
+
+        if ($remaining > 0) {
+            return $base.'. '.Str::limit($summary, $remaining);
+        }
+
+        return Str::limit($base, 155);
     }
 
     public function videoUrl(Sermon $sermon): ?string
