@@ -21,16 +21,15 @@ class SermonResource extends JsonResource
     public function toArray(Request $request): array
     {
         $sermonView = $this->sermonView();
-        $presenter = app(SermonViewPresenter::class);
 
         return [
             'id' => $this->id,
             'title' => $this->title,
             'slug' => $this->slug,
             'date' => $this->date->format('Y-m-d'),
-            'human_date' => $this->human_date,
+            'human_date' => $sermonView['human_date'],
             'service' => $this->service,
-            'preacher' => $presenter->displayPreacherName($this->resource),
+            'preacher' => $sermonView['preacher_name'],
             'preacher_id' => $this->preacher_id,
             'preacher_details' => $this->whenLoaded('preacherProfile', fn () => $this->preacherProfile ? [
                 'id' => $this->preacherProfile->id,
@@ -39,14 +38,14 @@ class SermonResource extends JsonResource
                 'image_url' => $this->preacherProfile->profile_image_url,
             ] : null),
             'series' => $this->series,
-            'reference' => $presenter->displayReference($this->resource),
+            'reference' => $sermonView['display_reference'],
             'points' => $this->when($this->show_points, fn (): ?array => $this->points),
             'audio_url' => $sermonView['audio_url'],
             'video_url' => $sermonView['video_url'],
             'formatted_duration' => $sermonView['formatted_duration'],
             'thumbnail_url' => $sermonView['thumbnail_url'],
             'thumbnail_metadata' => $this->publicThumbnailMetadata(),
-            'series_url' => $this->series_url,
+            'series_url' => $sermonView['series_url'],
             'preacher_url' => $sermonView['preacher_url'],
         ];
     }
@@ -55,9 +54,14 @@ class SermonResource extends JsonResource
      * @return array{
      *     audio_url: ?string,
      *     canonical_url: string,
+     *     card_thumbnail_url: ?string,
+     *     display_reference: ?string,
      *     formatted_duration: ?string,
+     *     human_date: string,
+     *     preacher_name: ?string,
      *     preacher_url: ?string,
      *     public_url: string,
+     *     series_url: ?string,
      *     thumbnail_url: ?string,
      *     transcript: ?string,
      *     video_url: ?string
