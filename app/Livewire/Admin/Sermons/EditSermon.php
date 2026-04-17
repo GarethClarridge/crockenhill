@@ -17,6 +17,7 @@ use App\Services\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
 use App\Services\SermonStorageService;
 use App\Services\ThumbnailGenerationService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -89,7 +90,7 @@ class EditSermon extends Component
     {
         return [
             'title' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:sermons,slug,'.$this->sermon->id,
+            'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:sermons,slug,'.$this->sermon->id],
             'date' => 'required|date',
             'service' => ['required', Rule::enum(SermonService::class)],
             'preacher' => 'required|string|max:255',
@@ -217,9 +218,17 @@ class EditSermon extends Component
 
         $this->sermon->update($updateData);
 
+        $fresh = $this->sermon->fresh();
+        Log::warning('Sermon updated by admin', [
+            'admin_id' => auth()->id(),
+            'sermon_id' => $this->sermon->id,
+            'title' => ($fresh instanceof Sermon ? $fresh->title : $this->sermon->title),
+            'slug' => ($fresh instanceof Sermon ? $fresh->slug : $this->sermon->slug),
+        ]);
+
         // Dispatch enrichment after saving if reference was set or changed
         if ($referenceChanged && ! empty($newReference)) {
-            app(QueueScriptureEnrichment::class)->dispatch($this->sermon->fresh() ?? $this->sermon);
+            app(QueueScriptureEnrichment::class)->dispatch($fresh instanceof Sermon ? $fresh : $this->sermon);
         }
 
         $this->success('Sermon updated');

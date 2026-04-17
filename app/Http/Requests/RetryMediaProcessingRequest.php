@@ -4,19 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\ApiTokenAbility;
 use Illuminate\Foundation\Http\FormRequest;
 
-class MediaStatusRequest extends FormRequest
+class RetryMediaProcessingRequest extends FormRequest
 {
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('include_logs')) {
-            $this->merge([
-                'include_logs' => $this->normalizeBoolean($this->input('include_logs')),
-            ]);
-        }
-    }
-
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -32,7 +24,7 @@ class MediaStatusRequest extends FormRequest
 
         // When using a bearer token (e.g., from a separate uploader tool),
         // we must also verify the granular token ability.
-        if ($this->bearerToken() !== null && ! $user->tokenCan(\App\Enums\ApiTokenAbility::MEDIA_PROCESS->value)) {
+        if ($this->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::MEDIA_PROCESS->value)) {
             return false;
         }
 
@@ -46,22 +38,6 @@ class MediaStatusRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'include_logs' => ['nullable', 'boolean'],
-            'log_limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-        ];
-    }
-
-    private function normalizeBoolean(mixed $value): mixed
-    {
-        if (! is_string($value)) {
-            return $value;
-        }
-
-        return match (strtolower($value)) {
-            'true' => true,
-            'false' => false,
-            default => $value,
-        };
+        return [];
     }
 }

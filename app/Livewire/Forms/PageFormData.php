@@ -56,7 +56,7 @@ class PageFormData extends Form
                 'required',
                 'string',
                 'max:255',
-                'alpha_dash',
+                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
                 Rule::unique('pages', 'slug')
                     ->where('area', $this->area)
                     ->ignore($this->page),

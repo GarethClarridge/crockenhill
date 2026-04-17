@@ -9,6 +9,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithPageOptions;
 use App\Models\Meeting;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -35,6 +36,13 @@ class EditMeeting extends Component
         $this->authorizeAdmin();
 
         $this->form->update();
+
+        $fresh = $this->meeting->fresh();
+        Log::warning('Meeting updated by admin', [
+            'admin_id' => auth()->id(),
+            'meeting_id' => $this->meeting->id,
+            'slug' => ($fresh instanceof Meeting ? $fresh->slug : $this->meeting->slug),
+        ]);
 
         $this->success('Meeting updated');
     }

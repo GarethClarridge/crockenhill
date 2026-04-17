@@ -19,12 +19,24 @@ class ProcessMediaRequest extends FormRequest
 
     /**
      * Determine if the user is authorized to make this request.
+     *
+     * Provides Defense in Depth alongside the media.process middleware.
      */
     public function authorize(): bool
     {
         $user = $this->user();
 
-        return $user?->can('create', \App\Models\Sermon::class) ?? false;
+        if ($user?->canAccessAdmin() !== true) {
+            return false;
+        }
+
+        // When using a bearer token (e.g., from a separate uploader tool),
+        // we must also verify the granular token ability.
+        if ($this->bearerToken() !== null && ! $user->tokenCan(\App\Enums\ApiTokenAbility::MEDIA_PROCESS->value)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -34,7 +46,7 @@ class ProcessMediaRequest extends FormRequest
      */
     public function rules(): array
     {
-        $type = $this->input('type');
+        $type = $this->route('type') ?? $this->input('type');
         $mediaType = is_string($type) ? MediaType::tryFrom($type) : null;
         $validation = $this->validationService();
 
@@ -44,7 +56,7 @@ class ProcessMediaRequest extends FormRequest
 
         return [
             ...$fileRules,
-            'type' => ['required', Rule::enum(MediaType::class)],
+            'type' => [$this->route('type') ? 'nullable' : 'required', Rule::enum(MediaType::class)],
             ...VideoProcessingOptions::validationRules($mediaType),
         ];
     }

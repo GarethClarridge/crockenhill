@@ -22,7 +22,7 @@ return new class extends Migration
                 $table->string('status', 255)->default('confirmed')->change();
             } else {
                 $table->enum('status', CalendarEventStatus::values())
-                    ->default(CalendarEventStatus::CONFIRMED->value)
+                    ->default(CalendarEventStatus::Confirmed->value)
                     ->change();
 
                 // MySQL 8.0.16+ supports CHECK constraints.

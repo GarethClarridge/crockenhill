@@ -66,7 +66,7 @@ class Preacher extends Model implements Sitemapable
     public static function validationRules(?self $preacher = null): array
     {
         $nameRule = ['required', 'string', 'max:255'];
-        $slugRule = ['required', 'string', 'max:255'];
+        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
 
         $uniqueName = \Illuminate\Validation\Rule::unique('preachers', 'name');
         $uniqueSlug = \Illuminate\Validation\Rule::unique('preachers', 'slug');
@@ -200,6 +200,10 @@ class Preacher extends Model implements Sitemapable
             if ($updatedAt->year > 0) {
                 $url->setLastModificationDate($updatedAt);
             }
+        }
+
+        if ($this->profile_image_url) {
+            $url->addImage($this->profile_image_url, "Preacher: {$this->name}");
         }
 
         return $url;

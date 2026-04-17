@@ -39,15 +39,42 @@ class SitemapService
 
         $sitemap = Sitemap::create()
             // Static high-priority URLs
-            ->add(Url::create('/')->setPriority(1.0)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/christ')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/christmas')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)->addImage(asset('/images/homepage/christmas2023.webp'), 'Christmas at Crockenhill Baptist Church'))
-            ->add(Url::create('/church')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/community')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/calendar')->setPriority(0.5)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/christ/sermons')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY))
-            ->add(Url::create('/christ/sermons/preachers')->setPriority(0.7)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/christ/sermons/series')->setPriority(0.7)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY));
+            ->add(Url::create('/')
+                ->setPriority(1.0)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/homepage/may2024wide.webp'), 'Crockenhill Baptist Church'))
+            ->add(Url::create('/christ')
+                ->setPriority(0.9)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/homepage/may2024wide.webp'), 'Learn about Jesus Christ at Crockenhill Baptist Church'))
+            ->add(Url::create('/christmas')
+                ->setPriority(0.8)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
+                ->addImage(asset('/images/homepage/christmas2023.webp'), 'Christmas at Crockenhill Baptist Church'))
+            ->add(Url::create('/church')
+                ->setPriority(0.9)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/homepage/may2024wide.webp'), 'About Crockenhill Baptist Church'))
+            ->add(Url::create('/community')
+                ->setPriority(0.9)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/homepage/may2024wide.webp'), 'Community activities at Crockenhill Baptist Church'))
+            ->add(Url::create('/calendar')
+                ->setPriority(0.5)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/homepage/may2024wide.webp'), 'Church Calendar'))
+            ->add(Url::create('/christ/sermons')
+                ->setPriority(0.8)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
+                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sermons at Crockenhill Baptist Church'))
+            ->add(Url::create('/christ/sermons/preachers')
+                ->setPriority(0.7)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/headings/large/sermons.webp'), 'Preachers at Crockenhill Baptist Church'))
+            ->add(Url::create('/christ/sermons/series')
+                ->setPriority(0.7)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sermon Series'));
 
         if ($this->exposurePolicy->childrensTalksArePublic()) {
             $sitemap->add(
@@ -96,12 +123,13 @@ class SitemapService
                      * to reduce memory usage.
                      */
                     ->select(['id', 'slug', 'updated_at', 'page_id'])
+                    ->with(['media', 'page:id,heading'])
                     ->publiclyAccessible()
                     ->lazy()
             )
             ->add(
                 Preacher::active()
-                    ->select(['id', 'slug', 'updated_at'])
+                    ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
                     ->lazy()
             );
 

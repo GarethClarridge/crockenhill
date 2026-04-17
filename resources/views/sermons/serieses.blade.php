@@ -8,10 +8,13 @@
 <x-meta-tags
     :title="$heading"
     :description="$description"
+    :image="asset('/images/headings/large/sermons.webp')"
+    image-alt="Sermon Series at Crockenhill Baptist Church"
 />
 <x-schema.webpage
     :heading="$heading"
     :description="$description"
+    :image="asset('/images/headings/large/sermons.webp')"
 />
 
 {{-- JSON-LD Series List --}}

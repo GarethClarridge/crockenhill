@@ -74,7 +74,7 @@ class MeetingFormData extends Form
                 'required',
                 'string',
                 'max:255',
-                'alpha_dash',
+                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
                 Rule::unique('meetings', 'slug')->ignore($this->meeting),
             ],
             'type' => ['required', 'string', 'in:'.implode(',', MeetingType::values())],

@@ -202,7 +202,7 @@ class Sermon extends Model implements Sitemapable
      */
     public static function validationRules(?self $sermon = null): array
     {
-        $slugRule = ['required', 'string', 'max:255'];
+        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
         $uniqueSlug = \Illuminate\Validation\Rule::unique('sermons', 'slug');
         if ($sermon) {
             $uniqueSlug->ignore($sermon->id);
@@ -228,7 +228,7 @@ class Sermon extends Model implements Sitemapable
     protected function humanDate(): Attribute
     {
         return Attribute::make(
-            get: fn (): string => $this->date->format('F j, Y')
+            get: fn (): string => app(\App\Presenters\SermonViewPresenter::class)->humanDate($this)
         )->shouldCache();
     }
 
@@ -286,7 +286,7 @@ class Sermon extends Model implements Sitemapable
     protected function seriesUrl(): Attribute
     {
         return Attribute::make(
-            get: fn (): ?string => $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null
+            get: fn (): ?string => app(\App\Presenters\SermonViewPresenter::class)->seriesUrl($this)
         )->shouldCache();
     }
 

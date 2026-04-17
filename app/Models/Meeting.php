@@ -111,7 +111,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public static function validationRules(?self $meeting = null): array
     {
-        $slugRule = ['required', 'string', 'max:255'];
+        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
         $uniqueSlug = \Illuminate\Validation\Rule::unique('meetings', 'slug');
         if ($meeting) {
             $uniqueSlug->ignore($meeting->id);
@@ -429,6 +429,11 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
         if ($this->updated_at) {
             $url->setLastModificationDate($this->updated_at);
+        }
+
+        $photo = $this->photos->first();
+        if ($photo) {
+            $url->addImage($photo['url'], $this->heading);
         }
 
         return $url;

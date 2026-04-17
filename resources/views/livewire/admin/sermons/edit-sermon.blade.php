@@ -41,6 +41,7 @@
         <x-button :link="$publicUrl" variant="ghost" icon="eye" inline>
             View Public
         </x-button>
+        <x-clipboard-button :content="$publicUrl" label="Copy Link" title="Copy public link to clipboard" class="text-gray-500 hover:text-gray-700" />
         <x-button link="{{ route('admin.sermons.index') }}" variant="outline" inline>
             Cancel
         </x-button>

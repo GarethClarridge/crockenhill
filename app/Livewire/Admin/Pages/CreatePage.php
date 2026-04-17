@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\Pages;
 use App\Livewire\Forms\PageFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -25,7 +26,14 @@ class CreatePage extends Component
     {
         $this->authorizeAdmin();
 
-        $this->form->store();
+        $page = $this->form->store();
+
+        Log::warning('New page created by admin', [
+            'admin_id' => auth()->id(),
+            'page_id' => $page->id,
+            'heading' => $page->heading,
+            'slug' => $page->slug,
+        ]);
 
         $this->success('Page created', redirectTo: route('admin.pages.index'));
     }
