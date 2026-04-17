@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources;
 
-use App\Presenters\SermonViewPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Arr;
@@ -54,7 +55,6 @@ class SermonResource extends JsonResource
      * @return array{
      *     audio_url: ?string,
      *     canonical_url: string,
-     *     card_thumbnail_url: ?string,
      *     display_reference: ?string,
      *     formatted_duration: ?string,
      *     human_date: string,
@@ -78,9 +78,13 @@ class SermonResource extends JsonResource
         /** @var array{
          *     audio_url: ?string,
          *     canonical_url: string,
+         *     display_reference: ?string,
          *     formatted_duration: ?string,
+         *     human_date: string,
+         *     preacher_name: ?string,
          *     preacher_url: ?string,
          *     public_url: string,
+         *     series_url: ?string,
          *     thumbnail_url: ?string,
          *     transcript: ?string,
          *     video_url: ?string
