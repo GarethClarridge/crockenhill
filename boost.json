@@ -1,14 +1,21 @@
 {
     "agents": [
-        "claude_code",
-        "codex"
+        "codex",
+        "claude_code"
     ],
     "guidelines": true,
     "herd_mcp": false,
     "mcp": true,
+    "packages": [
+        "spatie/guidelines-skills"
+    ],
     "sail": true,
     "skills": [
         "livewire-development",
-        "tailwindcss-development"
+        "tailwindcss-development",
+        "spatie-javascript",
+        "spatie-laravel-php",
+        "spatie-security",
+        "spatie-version-control"
     ]
 }
