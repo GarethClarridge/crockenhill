@@ -23,7 +23,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -212,10 +211,17 @@ class Sermon extends Model implements Sitemapable
         return [
             'title' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
+            'audio_file_path' => ['required', 'string', 'max:255'],
+            'video_file_path' => ['nullable', 'string', 'max:500'],
+            'date' => ['required', 'date'],
+            'service' => ['nullable', \Illuminate\Validation\Rule::enum(SermonService::class)],
+            'content_type' => ['required', \Illuminate\Validation\Rule::enum(SermonContentType::class)],
+            'source_type' => ['required', \Illuminate\Validation\Rule::enum(SermonSourceType::class)],
             'series' => ['nullable', 'string', 'max:255'],
             'reference' => ['nullable', 'string', 'max:255'],
             'preacher' => ['required', 'string', 'max:255'],
             'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
+            'preacher_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'scripture_passage_id' => ['nullable', 'integer', 'exists:scripture_passages,id'],
             'download_count' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],
