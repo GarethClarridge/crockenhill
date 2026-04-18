@@ -27,12 +27,13 @@ class ForgotPassword extends Component
 
     public function sendResetLink(): void
     {
-        $this->validate();
         $this->error = '';
 
         if ($this->isRateLimited()) {
             return;
         }
+
+        $this->validate();
 
         RateLimiter::hit($this->throttleKey());
 
