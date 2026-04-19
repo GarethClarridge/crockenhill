@@ -37,15 +37,17 @@ class Login extends Component
 
     public function login(): Redirector|RedirectResponse|null
     {
-        $validated = $this->validate();
-        $email = (string) $validated['email'];
-        $password = (string) $validated['password'];
-        $remember = (bool) ($validated['remember'] ?? false);
         $this->error = '';
+        $email = is_string($this->email) ? $this->email : '';
 
         if ($this->isRateLimited($email)) {
             return null;
         }
+
+        $validated = $this->validate();
+        $email = (string) $validated['email'];
+        $password = (string) $validated['password'];
+        $remember = (bool) ($validated['remember'] ?? false);
 
         $credentials = [
             'email' => $email,
