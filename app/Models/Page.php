@@ -297,27 +297,11 @@ class Page extends Model implements HasMedia, Sitemapable
 
     /**
      * Convert the page to a sitemap tag.
-     */
-    /**
+     *
      * @return Url|string|array<string, mixed>
      */
     public function toSitemapTag(): Url|string|array
     {
-        if (! is_string($this->route) || $this->route === '') {
-            return [];
-        }
-
-        $url = Url::create($this->route)
-            ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
-            ->setPriority(0.7);
-
-        if ($this->updated_at) {
-            $updatedAt = $this->updated_at;
-            if ($updatedAt->year > 0) {
-                $url->setLastModificationDate($updatedAt);
-            }
-        }
-
-        return $url;
+        return app(\App\Presenters\PageSitemapPresenter::class)->toSitemapTag($this);
     }
 }

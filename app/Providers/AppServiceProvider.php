@@ -27,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Services\PublicMeetingReadModelCache::class);
         $this->app->singleton(\App\Presenters\SermonSitemapPresenter::class);
         $this->app->singleton(\App\Presenters\PageSitemapPresenter::class);
+        $this->app->singleton(\App\Presenters\MeetingSitemapPresenter::class);
+        $this->app->singleton(\App\Presenters\PreacherSitemapPresenter::class);
         $this->app->singleton(BibleCanon::class);
     }
 
