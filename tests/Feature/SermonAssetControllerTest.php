@@ -31,6 +31,26 @@ class SermonAssetControllerTest extends TestCase
     }
 
     #[Test]
+    public function authenticated_user_can_access_non_public_childrens_talk_thumbnail(): void
+    {
+        Storage::fake('public');
+        config(['sermons.childrens_talks.public' => false]);
+
+        $user = \App\Models\User::factory()->create();
+        $sermon = Sermon::factory()->create([
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'thumbnail_file_path' => 'thumbnails/childrens-talk.webp',
+        ]);
+
+        Storage::disk('public')->put('thumbnails/childrens-talk.webp', 'fake thumb');
+
+        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/thumbnail");
+
+        $response->assertRedirect();
+        $this->assertStringContainsString('childrens-talk.webp', $response->headers->get('Location'));
+    }
+
+    #[Test]
     public function it_returns_404_when_audio_file_does_not_exist(): void
     {
         Storage::fake('public');
@@ -229,5 +249,147 @@ class SermonAssetControllerTest extends TestCase
 
         $this->get("/christ/sermons/{$sermon->slug}/thumbnail")
             ->assertStatus(429);
+    }
+
+    #[Test]
+    public function guest_is_redirected_when_accessing_non_public_childrens_talk_audio(): void
+    {
+        config(['sermons.childrens_talks.public' => false]);
+
+        $sermon = Sermon::factory()->create([
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'sermons/childrens-talk.mp3',
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+
+        $response->assertRedirect(route('login'));
+    }
+
+    #[Test]
+    public function guest_is_redirected_when_accessing_non_public_childrens_talk_thumbnail(): void
+    {
+        config(['sermons.childrens_talks.public' => false]);
+
+        $sermon = Sermon::factory()->create([
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'thumbnail_file_path' => 'thumbnails/childrens-talk.webp',
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+
+        $response->assertRedirect(route('login'));
+    }
+
+    #[Test]
+    public function guest_is_redirected_when_accessing_non_public_childrens_talk_card_thumbnail(): void
+    {
+        config(['sermons.childrens_talks.public' => false]);
+
+        $sermon = Sermon::factory()->create([
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'thumbnail_metadata' => [
+                'card_thumbnail_path' => 'thumbnails/card.webp',
+            ],
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+
+        $response->assertRedirect(route('login'));
+    }
+
+    #[Test]
+    public function authenticated_user_can_access_non_public_childrens_talk_audio(): void
+    {
+        Storage::fake('public');
+        config(['sermons.childrens_talks.public' => false]);
+
+        $user = \App\Models\User::factory()->create();
+        $sermon = Sermon::factory()->create([
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'sermons/childrens-talk.mp3',
+        ]);
+
+        Storage::disk('public')->put('sermons/childrens-talk.mp3', 'fake audio');
+
+        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/audio");
+
+        $response->assertRedirect();
+        $this->assertStringContainsString('childrens-talk.mp3', $response->headers->get('Location'));
+    }
+
+    #[Test]
+    public function guest_can_access_public_childrens_talk_audio(): void
+    {
+        Storage::fake('public');
+        config(['sermons.childrens_talks.public' => true]);
+
+        $sermon = Sermon::factory()->create([
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'sermons/childrens-talk.mp3',
+        ]);
+
+        Storage::disk('public')->put('sermons/childrens-talk.mp3', 'fake audio');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+
+        $response->assertRedirect();
+        $this->assertStringContainsString('childrens-talk.mp3', $response->headers->get('Location'));
+    }
+
+    #[Test]
+    public function it_serves_private_audio_file_as_binary_response(): void
+    {
+        Storage::fake('local');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'private-sermon',
+            'audio_file_path' => 'private/sermons/test-audio.mp3',
+        ]);
+
+        Storage::disk('local')->put('private/sermons/test-audio.mp3', 'fake private audio content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'audio/mpeg');
+    }
+
+    #[Test]
+    public function it_serves_private_thumbnail_file_as_binary_response(): void
+    {
+        Storage::fake('local');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'private-thumb-sermon',
+            'thumbnail_file_path' => 'private/thumbnails/test-thumb.png',
+        ]);
+
+        Storage::disk('local')->put('private/thumbnails/test-thumb.png', 'fake private png content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'image/png');
+    }
+
+    #[Test]
+    public function it_serves_private_card_thumbnail_file_as_binary_response(): void
+    {
+        Storage::fake('local');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'private-card-thumb-sermon',
+            'thumbnail_metadata' => [
+                'card_thumbnail_path' => 'private/thumbnails/card.webp',
+            ],
+        ]);
+
+        Storage::disk('local')->put('private/thumbnails/card.webp', 'fake private webp content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'image/webp');
     }
 }
