@@ -52,11 +52,13 @@ class Register extends Component
 
     public function register(): Redirector|RedirectResponse|null
     {
-        $this->validate();
+        $this->error = '';
 
         if ($this->isRateLimited()) {
             return null;
         }
+
+        $this->validate();
 
         RateLimiter::hit($this->throttleKey());
 

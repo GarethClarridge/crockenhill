@@ -59,11 +59,13 @@ class ResetPassword extends Component
 
     public function resetPassword(): Redirector|RedirectResponse|null
     {
-        $this->validate();
+        $this->error = '';
 
         if ($this->isRateLimited()) {
             return null;
         }
+
+        $this->validate();
 
         $data = [
             'token' => $this->token,
