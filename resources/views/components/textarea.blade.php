@@ -10,6 +10,7 @@ $textareaClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cb
 $describedBy = [];
 if ($hint) $describedBy[] = $id . '-hint';
 if ($hasError) $describedBy[] = $id . '-error';
+if ($maxlength) $describedBy[] = $id . '-counter';
 $describedBy = implode(' ', $describedBy);
 @endphp
 
@@ -52,7 +53,7 @@ $describedBy = implode(' ', $describedBy);
                 <p @if($id) id="{{ $id }}-hint" @endif class="text-sm text-gray-500">{{ $hint }}</p>
             @endif
             @if($maxlength)
-                <p class="text-xs tabular-nums ml-auto transition-colors duration-200"
+                <p @if($id) id="{{ $id }}-counter" @endif class="text-xs tabular-nums ml-auto transition-colors duration-200"
                    :class="{
                        'text-red-600 font-bold': limit && count >= limit,
                        'text-amber-600 font-medium': limit && count >= (limit * 0.9) && count < limit,
