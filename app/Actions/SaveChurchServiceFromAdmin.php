@@ -79,6 +79,14 @@ class SaveChurchServiceFromAdmin
             $syncResult,
         );
 
+        \Illuminate\Support\Facades\Log::warning('Church service saved by admin', [
+            'admin_id' => $userId,
+            'church_service_id' => $churchService->id,
+            'date' => $churchService->date->toDateString(),
+            'service' => $churchService->service->value,
+            'item_count' => count($syncPayload),
+        ]);
+
         if ($inboundEmailId !== null) {
             $inboundEmail = InboundEmail::query()->find($inboundEmailId);
 

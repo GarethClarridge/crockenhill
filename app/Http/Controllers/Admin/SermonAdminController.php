@@ -9,12 +9,15 @@ use App\Http\Requests\ProcessMediaRequest;
 use App\Models\Sermon;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoProcessingOptions;
+use App\Traits\SanitizesLogData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class SermonAdminController extends Controller
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly UnifiedMediaProcessor $mediaProcessor,
     ) {}
@@ -69,6 +72,13 @@ class SermonAdminController extends Controller
                 : $this->mediaProcessor->process($type, $file, options: $options);
 
             if ($result->success) {
+                Log::warning('Media processing initiated by admin', [
+                    'admin_id' => auth()->id(),
+                    'type' => $type,
+                    'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                    'processing_id' => $result->processingId,
+                ]);
+
                 return redirect()
                     ->route('sermons.index')
                     ->with('message', "Processing started for \"{$file->getClientOriginalName()}\". Processing ID: {$result->processingId}");

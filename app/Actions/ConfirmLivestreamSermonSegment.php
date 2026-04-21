@@ -9,10 +9,13 @@ use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\VideoStorageService;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\DB;
 
 class ConfirmLivestreamSermonSegment
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
         private readonly VideoStorageService $videoStorageService,
@@ -62,6 +65,13 @@ class ConfirmLivestreamSermonSegment
 
             $this->processingRunTransitions->confirmSermonSegment($log, $segmentId, $user->id);
             $log->refresh();
+
+            \Illuminate\Support\Facades\Log::warning('Livestream sermon segment confirmed by admin', [
+                'admin_id' => $user->id,
+                'processing_id' => $processingId,
+                'segment_id' => $segmentId,
+                'original_filename' => $this->sanitizeForLog((string) $log->original_filename),
+            ]);
 
             return $log;
         });
