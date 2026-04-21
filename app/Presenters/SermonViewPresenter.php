@@ -142,7 +142,7 @@ class SermonViewPresenter
 
         if (! array_key_exists($key, $this->memoizedUrls)) {
             $this->memoizedUrls[$key] = filled($sermon->audio_file_path)
-                ? $this->storageService->getPublicUrl($sermon)
+                ? $this->storageService->getAudioDeliveryUrl($sermon)
                 : null;
         }
 
@@ -168,7 +168,7 @@ class SermonViewPresenter
                     return null;
                 }
 
-                return $this->storageService->getCardThumbnailUrl($sermon);
+                return $this->storageService->getCardThumbnailDeliveryUrl($sermon);
             })();
         }
 
@@ -333,7 +333,7 @@ class SermonViewPresenter
                     return null;
                 }
 
-                return $this->storageService->getThumbnailUrl($sermon);
+                return $this->storageService->getThumbnailDeliveryUrl($sermon);
             })();
         }
 
@@ -465,7 +465,7 @@ class SermonViewPresenter
                     return null;
                 }
 
-                return $this->storageService->getVideoUrl($sermon);
+                return $this->storageService->getVideoDeliveryUrl($sermon);
             })();
         }
 

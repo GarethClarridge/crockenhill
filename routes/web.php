@@ -82,6 +82,10 @@ Route::group(['prefix' => 'christ/sermons'], function () {
         ->middleware('throttle:media-audio')
         ->name('sermons.audio');
 
+    Route::get('/{sermon:slug}/video', [SermonAssetController::class, 'serveVideo'])
+        ->middleware('throttle:media-audio')
+        ->name('sermons.video');
+
     // Thumbnail serving route
     Route::get('/{sermon:slug}/thumbnail', [SermonAssetController::class, 'serveThumbnail'])
         ->middleware('throttle:media-thumbnail')

@@ -44,6 +44,22 @@ class SermonAssetAuthorizationTest extends TestCase
     }
 
     #[Test]
+    public function guest_is_redirected_when_accessing_private_childrens_talk_video(): void
+    {
+        Config::set('sermons.childrens_talks.public', false);
+
+        $talk = Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'video_file_path' => 'sermons/talk-video.mp4',
+        ]);
+        Storage::disk('public')->put('sermons/talk-video.mp4', 'fake video');
+
+        $response = $this->get(route('sermons.video', $talk));
+
+        $response->assertRedirect(route('login'));
+    }
+
+    #[Test]
     public function guest_is_redirected_when_accessing_private_childrens_talk_thumbnail(): void
     {
         Config::set('sermons.childrens_talks.public', false);
@@ -109,6 +125,22 @@ class SermonAssetAuthorizationTest extends TestCase
         $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($talk));
     }
 
+    #[Test]
+    public function guest_can_access_childrens_talk_video_when_public(): void
+    {
+        Config::set('sermons.childrens_talks.public', true);
+
+        $talk = Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'video_file_path' => 'sermons/public-talk-video.mp4',
+        ]);
+        Storage::disk('public')->put('sermons/public-talk-video.mp4', 'fake video');
+
+        $response = $this->get(route('sermons.video', $talk));
+
+        $response->assertRedirect(app(SermonStorageService::class)->getVideoUrl($talk));
+    }
+
     // ── Authenticated Access (Even When Not Public) ─────────────────────────
 
     #[Test]
@@ -126,6 +158,23 @@ class SermonAssetAuthorizationTest extends TestCase
         $response = $this->actingAs($user)->get(route('sermons.audio', $talk));
 
         $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($talk));
+    }
+
+    #[Test]
+    public function authenticated_user_can_access_private_childrens_talk_video(): void
+    {
+        Config::set('sermons.childrens_talks.public', false);
+        $user = User::factory()->create();
+
+        $talk = Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'video_file_path' => 'sermons/user-talk-video.mp4',
+        ]);
+        Storage::disk('public')->put('sermons/user-talk-video.mp4', 'fake video');
+
+        $response = $this->actingAs($user)->get(route('sermons.video', $talk));
+
+        $response->assertRedirect(app(SermonStorageService::class)->getVideoUrl($talk));
     }
 
     // ── Regular Sermon Access ──────────────────────────────────────────────

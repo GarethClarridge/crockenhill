@@ -26,19 +26,16 @@ class SermonAssetController extends Controller
      */
     public function serveAudio(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        // Security check: Authorize access to Children's Talk assets
-        if ($sermon->content_type === SermonContentType::ChildrensTalk && ! $this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
-            return redirect()->guest(route('login'));
+        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
         }
 
         if (! $sermon->audio_file_path) {
             abort(404, 'Audio file not found.');
         }
 
-        // Security check: Prevent path traversal
-        if (str_contains($sermon->audio_file_path, '..')) {
-            abort(404, 'Invalid audio file path.');
-        }
+        $this->abortOnUnsafePath($sermon->audio_file_path, 'audio');
 
         $storageService = $this->storageService;
         $fileInfo = $storageService->getSermonFileInfo($sermon);
@@ -61,24 +58,56 @@ class SermonAssetController extends Controller
         ]);
     }
 
+    public function serveVideo(Sermon $sermon): BinaryFileResponse|RedirectResponse
+    {
+        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
+        }
+
+        if (! $sermon->video_file_path) {
+            abort(404, 'Video file not found.');
+        }
+
+        $this->abortOnUnsafePath($sermon->video_file_path, 'video');
+
+        $disk = str_starts_with($sermon->video_file_path, 'private/')
+            ? 'local'
+            : config('media-processing.storage.sermon_disk', 'public');
+
+        if (! Storage::disk($disk)->exists($sermon->video_file_path)) {
+            abort(404, 'Video file not found.');
+        }
+
+        if (! str_starts_with($sermon->video_file_path, 'private/')) {
+            return redirect()->to((string) $this->storageService->getVideoUrl($sermon));
+        }
+
+        $path = Storage::disk($disk)->path($sermon->video_file_path);
+        $name = basename($sermon->video_file_path);
+
+        return response()->file($path, [
+            'Content-Type' => $this->videoContentType($name),
+            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
     /**
      * Serve thumbnail image for a sermon
      */
     public function serveThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        // Security check: Authorize access to Children's Talk assets
-        if ($sermon->content_type === SermonContentType::ChildrensTalk && ! $this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
-            return redirect()->guest(route('login'));
+        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
         }
 
         if (! $sermon->thumbnail_file_path) {
             abort(404, 'Thumbnail not found.');
         }
 
-        // Security check: Prevent path traversal
-        if (str_contains($sermon->thumbnail_file_path, '..')) {
-            abort(404, 'Invalid thumbnail file path.');
-        }
+        $this->abortOnUnsafePath($sermon->thumbnail_file_path, 'thumbnail');
 
         $disk = str_starts_with($sermon->thumbnail_file_path, 'private/')
             ? 'local'
@@ -100,9 +129,9 @@ class SermonAssetController extends Controller
      */
     public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        // Security check: Authorize access to Children's Talk assets
-        if ($sermon->content_type === SermonContentType::ChildrensTalk && ! $this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
-            return redirect()->guest(route('login'));
+        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
         }
 
         $cardThumbnailPath = $sermon->card_thumbnail_file_path;
@@ -111,10 +140,7 @@ class SermonAssetController extends Controller
             abort(404, 'Card thumbnail not found.');
         }
 
-        // Security check: Prevent path traversal
-        if (str_contains($cardThumbnailPath, '..')) {
-            abort(404, 'Invalid thumbnail file path.');
-        }
+        $this->abortOnUnsafePath($cardThumbnailPath, 'thumbnail');
 
         $disk = str_starts_with($cardThumbnailPath, 'private/')
             ? 'local'
@@ -124,9 +150,12 @@ class SermonAssetController extends Controller
             abort(404, 'Thumbnail file not found.');
         }
 
-        $cardThumbnailUrl = $this->storageService->getCardThumbnailUrl($sermon);
-        if ($cardThumbnailUrl !== null && ! str_starts_with($cardThumbnailPath, 'private/')) {
-            return redirect()->to($cardThumbnailUrl);
+        if (! str_starts_with($cardThumbnailPath, 'private/')) {
+            $cardThumbnailUrl = $this->storageService->getCardThumbnailUrl($sermon);
+
+            if ($cardThumbnailUrl !== null) {
+                return redirect()->to($cardThumbnailUrl);
+            }
         }
 
         return $this->serveStoredThumbnail($cardThumbnailPath);
@@ -134,10 +163,7 @@ class SermonAssetController extends Controller
 
     private function serveStoredThumbnail(string $thumbnailPath): BinaryFileResponse
     {
-        // Security check: Prevent path traversal
-        if (str_contains($thumbnailPath, '..')) {
-            abort(404, 'Invalid thumbnail file path.');
-        }
+        $this->abortOnUnsafePath($thumbnailPath, 'thumbnail');
 
         $disk = str_starts_with($thumbnailPath, 'private/')
             ? 'local'
@@ -164,5 +190,37 @@ class SermonAssetController extends Controller
             'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
             'Cache-Control' => 'no-store',
         ]);
+    }
+
+    private function authorizeChildrensTalkAssetAccess(Sermon $sermon): ?RedirectResponse
+    {
+        if ($sermon->content_type !== SermonContentType::ChildrensTalk) {
+            return null;
+        }
+
+        if ($this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
+            return null;
+        }
+
+        return redirect()->guest(route('login'));
+    }
+
+    private function abortOnUnsafePath(string $path, string $type): void
+    {
+        if (str_contains($path, '..')) {
+            abort(404, "Invalid {$type} file path.");
+        }
+    }
+
+    private function videoContentType(string $name): string
+    {
+        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'mp4' => 'video/mp4',
+            'webm' => 'video/webm',
+            'mov' => 'video/quicktime',
+            default => 'video/mp4',
+        };
     }
 }

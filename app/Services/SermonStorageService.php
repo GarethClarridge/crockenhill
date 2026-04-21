@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Sermon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use LogicException;
 
 class SermonStorageService
 {
@@ -124,6 +125,7 @@ class SermonStorageService
         }
 
         $this->validatePath($sermon->video_file_path, 'video file');
+        $this->ensurePubliclyResolvable($sermon->video_file_path, 'video');
 
         return $this->resolvePublicUrl(
             $this->sermonDisk,
@@ -141,6 +143,8 @@ class SermonStorageService
             return null;
         }
 
+        $this->ensurePubliclyResolvable($sermon->thumbnail_file_path, 'thumbnail');
+
         return $this->resolvePublicUrl(
             $this->resolveThumbnailDisk($sermon->thumbnail_file_path),
             $sermon->thumbnail_file_path,
@@ -156,6 +160,8 @@ class SermonStorageService
             return null;
         }
 
+        $this->ensurePubliclyResolvable($cardThumbnailPath, 'card thumbnail');
+
         return $this->resolvePublicUrl(
             $this->resolveThumbnailDisk($cardThumbnailPath),
             $cardThumbnailPath,
@@ -170,6 +176,8 @@ class SermonStorageService
         if (! is_string($plainThumbnailPath) || $plainThumbnailPath === '') {
             return null;
         }
+
+        $this->ensurePubliclyResolvable($plainThumbnailPath, 'plain thumbnail');
 
         return $this->resolvePublicUrl(
             $this->resolveThumbnailDisk($plainThumbnailPath),
@@ -224,8 +232,75 @@ class SermonStorageService
     public function getPublicUrl(Sermon $sermon): string
     {
         $info = $this->getSermonFileInfo($sermon);
+        $this->ensurePubliclyResolvable($info['path'], 'audio');
 
         return $this->resolvePublicUrl($info['disk'], $info['path'], $this->audioVersion($sermon));
+    }
+
+    public function getAudioDeliveryUrl(Sermon $sermon): ?string
+    {
+        if (! filled($sermon->audio_file_path)) {
+            return null;
+        }
+
+        $info = $this->getSermonFileInfo($sermon);
+
+        if ($this->requiresGuardedDelivery($info['path'])) {
+            return route('sermons.audio', ['sermon' => $sermon->slug]);
+        }
+
+        return $this->getPublicUrl($sermon);
+    }
+
+    public function getVideoDeliveryUrl(Sermon $sermon): ?string
+    {
+        $videoPath = $sermon->video_file_path;
+
+        if (! is_string($videoPath) || $videoPath === '') {
+            return null;
+        }
+
+        $this->validatePath($videoPath, 'video file');
+
+        if ($this->requiresGuardedDelivery($videoPath)) {
+            return route('sermons.video', ['sermon' => $sermon->slug]);
+        }
+
+        return $this->getVideoUrl($sermon);
+    }
+
+    public function getThumbnailDeliveryUrl(Sermon $sermon): ?string
+    {
+        $thumbnailPath = $sermon->thumbnail_file_path;
+
+        if (! is_string($thumbnailPath) || $thumbnailPath === '') {
+            return null;
+        }
+
+        $this->validatePath($thumbnailPath, 'thumbnail');
+
+        if ($this->requiresGuardedDelivery($thumbnailPath)) {
+            return route('sermons.thumbnail', ['sermon' => $sermon->slug]);
+        }
+
+        return $this->getThumbnailUrl($sermon);
+    }
+
+    public function getCardThumbnailDeliveryUrl(Sermon $sermon): ?string
+    {
+        $cardThumbnailPath = $sermon->card_thumbnail_file_path;
+
+        if (! is_string($cardThumbnailPath) || $cardThumbnailPath === '') {
+            return null;
+        }
+
+        $this->validatePath($cardThumbnailPath, 'card thumbnail');
+
+        if ($this->requiresGuardedDelivery($cardThumbnailPath)) {
+            return route('sermons.thumbnail.card', ['sermon' => $sermon->slug]);
+        }
+
+        return $this->getCardThumbnailUrl($sermon);
     }
 
     /**
@@ -465,5 +540,17 @@ class SermonStorageService
         if (is_string($path) && str_contains($path, '..')) {
             throw new \InvalidArgumentException("Invalid {$type} path: Path traversal detected.");
         }
+    }
+
+    private function ensurePubliclyResolvable(string $path, string $type): void
+    {
+        if ($this->requiresGuardedDelivery($path)) {
+            throw new LogicException("Private {$type} assets must be served through guarded sermon asset routes.");
+        }
+    }
+
+    private function requiresGuardedDelivery(string $path): bool
+    {
+        return str_starts_with($path, 'private/');
     }
 }

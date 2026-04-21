@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Presenters;
 
+use App\Enums\SermonContentType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\Preacher;
@@ -181,6 +182,29 @@ class SermonViewPresenterTest extends TestCase
         $presented = $this->presenter->present($sermon);
 
         $this->assertStringContainsString('/storage/sermons/test.mp4', $presented['video_url'] ?? '');
+    }
+
+    #[Test]
+    public function it_uses_guarded_routes_for_private_childrens_talk_media(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'private-childrens-talk',
+            'content_type' => SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'private/sermons/audio/private-childrens-talk.mp3',
+            'video_file_path' => 'private/sermons/video/private-childrens-talk.mp4',
+            'thumbnail_file_path' => 'private/thumbnails/private-childrens-talk.jpg',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'private/thumbnails/private-childrens-talk-plain.jpg',
+                'card_thumbnail_path' => 'private/thumbnails/private-childrens-talk-card.jpg',
+            ],
+        ]);
+
+        $presented = $this->presenter->present($sermon);
+
+        $this->assertSame(route('sermons.audio', ['sermon' => $sermon->slug]), $presented['audio_url']);
+        $this->assertSame(route('sermons.video', ['sermon' => $sermon->slug]), $presented['video_url']);
+        $this->assertSame(route('sermons.thumbnail', ['sermon' => $sermon->slug]), $presented['thumbnail_url']);
+        $this->assertSame(route('sermons.thumbnail.card', ['sermon' => $sermon->slug]), $presented['card_thumbnail_url']);
     }
 
     #[Test]

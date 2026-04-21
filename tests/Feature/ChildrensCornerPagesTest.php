@@ -10,12 +10,20 @@ use App\Models\Sermon;
 use App\Models\User;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChildrensCornerPagesTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('local');
+    }
 
     #[Test]
     public function guests_are_redirected_to_login(): void
@@ -114,6 +122,51 @@ class ChildrensCornerPagesTest extends TestCase
         $response->assertDontSee('Video available');
         $response->assertDontSee('<video', false);
         $response->assertSee('Listen');
+    }
+
+    #[Test]
+    public function detail_page_uses_guarded_routes_for_private_media_assets(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $talk = Sermon::factory()->create([
+            'title' => 'Private Media Little Listeners',
+            'slug' => 'private-media-little-listeners',
+            'content_type' => SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'private/sermons/audio/private-media-little-listeners.mp3',
+            'video_file_path' => 'private/sermons/video/private-media-little-listeners.mp4',
+            'thumbnail_file_path' => 'private/thumbnails/private-media-little-listeners.jpg',
+        ]);
+
+        $response = $this->get(route('childrens-corner.show', $talk));
+
+        $response->assertOk();
+        $response->assertSee(route('sermons.audio', $talk), false);
+        $response->assertSee(route('sermons.video', $talk), false);
+        $response->assertSee(route('sermons.thumbnail', $talk), false);
+        $response->assertDontSee('/storage/private/', false);
+    }
+
+    #[Test]
+    public function listing_uses_guarded_card_thumbnail_route_for_private_media_assets(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $talk = Sermon::factory()->create([
+            'title' => 'Private Card Little Listeners',
+            'slug' => 'private-card-little-listeners',
+            'content_type' => SermonContentType::ChildrensTalk,
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'private/thumbnails/private-card-little-listeners-plain.jpg',
+                'card_thumbnail_path' => 'private/thumbnails/private-card-little-listeners.jpg',
+            ],
+        ]);
+
+        $response = $this->get(route('childrens-corner.index'));
+
+        $response->assertOk();
+        $response->assertSee(route('sermons.thumbnail.card', $talk), false);
+        $response->assertDontSee('/storage/private/', false);
     }
 
     #[Test]

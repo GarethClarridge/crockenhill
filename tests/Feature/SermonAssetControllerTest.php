@@ -84,6 +84,23 @@ class SermonAssetControllerTest extends TestCase
     }
 
     #[Test]
+    public function it_serves_video_for_a_sermon(): void
+    {
+        Storage::fake('public');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'test-video-sermon',
+            'video_file_path' => 'sermons/test-video.mp4',
+        ]);
+
+        Storage::disk('public')->put('sermons/test-video.mp4', 'fake video content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getVideoUrl($sermon));
+    }
+
+    #[Test]
     public function it_returns_404_when_thumbnail_file_does_not_exist(): void
     {
         Storage::fake('public');
@@ -282,6 +299,21 @@ class SermonAssetControllerTest extends TestCase
     }
 
     #[Test]
+    public function guest_is_redirected_when_accessing_non_public_childrens_talk_video(): void
+    {
+        config(['sermons.childrens_talks.public' => false]);
+
+        $sermon = Sermon::factory()->create([
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'video_file_path' => 'sermons/childrens-talk.mp4',
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+
+        $response->assertRedirect(route('login'));
+    }
+
+    #[Test]
     public function guest_is_redirected_when_accessing_non_public_childrens_talk_card_thumbnail(): void
     {
         config(['sermons.childrens_talks.public' => false]);
@@ -338,6 +370,25 @@ class SermonAssetControllerTest extends TestCase
     }
 
     #[Test]
+    public function guest_can_access_public_childrens_talk_video(): void
+    {
+        Storage::fake('public');
+        config(['sermons.childrens_talks.public' => true]);
+
+        $sermon = Sermon::factory()->create([
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'video_file_path' => 'sermons/childrens-talk.mp4',
+        ]);
+
+        Storage::disk('public')->put('sermons/childrens-talk.mp4', 'fake video');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+
+        $response->assertRedirect();
+        $this->assertStringContainsString('childrens-talk.mp4', $response->headers->get('Location'));
+    }
+
+    #[Test]
     public function it_serves_private_audio_file_as_binary_response(): void
     {
         Storage::fake('local');
@@ -353,6 +404,25 @@ class SermonAssetControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'audio/mpeg');
+    }
+
+    #[Test]
+    public function it_serves_private_video_file_as_binary_response(): void
+    {
+        Storage::fake('local');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'private-video-sermon',
+            'video_file_path' => 'private/sermons/test-video.mp4',
+        ]);
+
+        Storage::disk('local')->put('private/sermons/test-video.mp4', 'fake private video content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'video/mp4');
+        $response->assertHeaderContains('Cache-Control', 'no-store');
     }
 
     #[Test]
