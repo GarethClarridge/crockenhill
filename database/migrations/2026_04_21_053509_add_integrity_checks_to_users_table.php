@@ -20,17 +20,7 @@ return new class extends Migration
             return;
         }
 
-        // 1. Data Cleanup: Normalize existing data before adding constraints
-        DB::table('users')->update([
-            'name' => DB::raw('TRIM(name)'),
-            'email' => DB::raw('LOWER(TRIM(email))'),
-        ]);
-
-        // Remove any records with empty names/emails if they exist (they shouldn't in production, but good for safety)
-        // Actually, better to just let it fail if there is bad data that can't be automatically fixed,
-        // but here we can at least ensure they aren't just whitespace.
-
-        // 2. Add CHECK constraints
+        // 1. Add CHECK constraints
         // BINARY is used to ensure case-sensitive comparison for the trim check.
         DB::statement(sprintf(
             "ALTER TABLE users ADD CONSTRAINT %s CHECK (BINARY name = TRIM(name) AND name != '')",
