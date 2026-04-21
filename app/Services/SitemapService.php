@@ -9,7 +9,9 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Presenters\MeetingSitemapPresenter;
 use App\Presenters\PageSitemapPresenter;
+use App\Presenters\PreacherSitemapPresenter;
 use App\Presenters\SermonSitemapPresenter;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Str;
@@ -23,6 +25,8 @@ class SitemapService
         private readonly SermonRepository $sermonRepository,
         private readonly PageSitemapPresenter $pageSitemapPresenter,
         private readonly SermonSitemapPresenter $sermonSitemapPresenter,
+        private readonly MeetingSitemapPresenter $meetingSitemapPresenter,
+        private readonly PreacherSitemapPresenter $preacherSitemapPresenter,
     ) {}
 
     /**
@@ -126,11 +130,13 @@ class SitemapService
                     ->with(['media', 'page:id,heading'])
                     ->publiclyAccessible()
                     ->lazy()
+                    ->map(fn (Meeting $meeting): Url|string|array => $this->meetingSitemapPresenter->toSitemapTag($meeting))
             )
             ->add(
                 Preacher::active()
                     ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
                     ->lazy()
+                    ->map(fn (Preacher $preacher): Url|string|array => $this->preacherSitemapPresenter->toSitemapTag($preacher))
             );
 
         // Add Sermon Series

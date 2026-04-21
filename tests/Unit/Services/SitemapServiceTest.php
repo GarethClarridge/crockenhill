@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Presenters\MeetingSitemapPresenter;
 use App\Presenters\PageSitemapPresenter;
+use App\Presenters\PreacherSitemapPresenter;
 use App\Presenters\SermonSitemapPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
@@ -25,12 +27,16 @@ class SitemapServiceTest extends TestCase
         $sermonRepository = $this->createMock(SermonRepository::class);
         $pageSitemapPresenter = $this->createMock(PageSitemapPresenter::class);
         $sermonSitemapPresenter = $this->createMock(SermonSitemapPresenter::class);
+        $meetingSitemapPresenter = $this->createMock(MeetingSitemapPresenter::class);
+        $preacherSitemapPresenter = $this->createMock(PreacherSitemapPresenter::class);
 
         $this->service = new SitemapService(
             $exposurePolicy,
             $sermonRepository,
             $pageSitemapPresenter,
-            $sermonSitemapPresenter
+            $sermonSitemapPresenter,
+            $meetingSitemapPresenter,
+            $preacherSitemapPresenter
         );
     }
 

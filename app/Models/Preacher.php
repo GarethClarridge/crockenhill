@@ -191,21 +191,6 @@ class Preacher extends Model implements Sitemapable
      */
     public function toSitemapTag(): Url|string|array
     {
-        $url = Url::create("/christ/sermons/preachers/{$this->slug}")
-            ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
-            ->setPriority(0.6);
-
-        if ($this->updated_at) {
-            $updatedAt = $this->updated_at;
-            if ($updatedAt->year > 0) {
-                $url->setLastModificationDate($updatedAt);
-            }
-        }
-
-        if ($this->profile_image_url) {
-            $url->addImage($this->profile_image_url, "Preacher: {$this->name}");
-        }
-
-        return $url;
+        return app(\App\Presenters\PreacherSitemapPresenter::class)->toSitemapTag($this);
     }
 }

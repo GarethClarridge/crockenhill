@@ -417,26 +417,12 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
     /**
      * Convert the meeting to a sitemap tag.
-     */
-    /**
+     *
      * @return Url|string|array<string, mixed>
      */
     public function toSitemapTag(): Url|string|array
     {
-        $url = Url::create("/community/{$this->slug}")
-            ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
-            ->setPriority(0.6);
-
-        if ($this->updated_at) {
-            $url->setLastModificationDate($this->updated_at);
-        }
-
-        $photo = $this->photos->first();
-        if ($photo) {
-            $url->addImage($photo['url'], $this->heading);
-        }
-
-        return $url;
+        return app(\App\Presenters\MeetingSitemapPresenter::class)->toSitemapTag($this);
     }
 
     /**
