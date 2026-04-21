@@ -284,42 +284,45 @@ Primary review coverage:
 
 - JSON Metadata Contracts And Model / Data-Integrity Boundary Review
 
-### 6. Move ordering and concurrency invariants into the database
+### 6. Finish application handling around the existing ordering invariant
 
 Why this is next:
 
-- The app already knows the canonical ordering rules.
-- The database still does not enforce them under concurrent writes or future write paths.
-- This is a smaller, high-leverage integrity fix.
+- The database now enforces active-row ordering uniqueness, which is the right invariant.
+- The remaining gap is how write paths behave when that invariant is hit under concurrent or unexpected writes.
+- This is now a smaller follow-up focused on predictable recovery and operator-facing behavior.
 
 Backlog:
 
-- Add an active-row uniqueness guarantee for church service item ordering, not just an index plus PHP resequencing.
-- Keep the sync service's resequencing logic as convenience and recovery logic rather than the sole invariant.
-- Add tests for duplicate position rejection and concurrent-write safety.
+- Keep the database-level active-row uniqueness guarantee as the sole ordering authority rather than adding a competing invariant layer.
+- Audit church-service write paths and make constraint violations resolve consistently, either by retry-with-resequence or by surfacing a clear application error.
+- Keep the sync service's resequencing logic as convenience and recovery logic rather than silent conflict masking.
+- Add focused tests that exercise duplicate-position rejection and the chosen recovery path when the database constraint is hit.
 
 Design decisions required before implementation:
 
-- What is the uniqueness mechanism? Options include: a partial unique index (e.g., `UNIQUE(church_service_id, position) WHERE deleted_at IS NULL`), a database check constraint, or an application-level transaction with gap-lock. A partial unique index is the simplest and most reliable for PostgreSQL/MySQL 8+.
-- How should the application handle constraint violations? A retry-with-resequence, or a user-facing error?
+- Should constraint violations trigger a retry-with-resequence, or a user-facing error?
+- Are there any remaining write paths outside the main sync flow that need explicit transaction or exception handling around the existing unique index?
 
 Primary review coverage:
 
 - Architectural Boundary Review
 
-### 7. Finish the media API HTTP boundary refactor
+### 7. Tighten the remaining media API HTTP boundary cleanup
 
 Why this is next:
 
-- The orchestration layer improved, but the controller boundary is still inconsistent.
-- Validation and authorization are still split across routes, controller methods, helper methods, and one existing request class.
+- The dedicated request classes are now in place, which removed the largest boundary gap.
+- The remaining drift is in duplicated validation and authorization decisions across routes, request classes, and controller helpers.
+- This is now a smaller coherence pass so the boundary stays clear as the media-processing contract evolves.
 
 Backlog:
 
-- Introduce dedicated Form Requests for upload, cancel, retry, and confirm-segment endpoints.
-- Keep the unified controller surface, but collapse duplicate ability checks so route middleware and request authorization tell one story.
+- Keep the dedicated Form Requests already in place for upload, status, cancel, retry, and confirm-segment endpoints.
+- Centralise `processingId` format validation so the controller does not hand-roll the same guard across status, cancel, retry, and confirm-segment actions.
+- Keep the unified controller surface, but collapse duplicate ability and authorization checks so route middleware and request authorization tell one story.
 - Reuse or align existing upload validation rules so admin and API entrypoints do not drift.
-- Add endpoint-level request and authorization tests around the new request classes.
+- Add or update endpoint-level request and authorization tests around the boundary rules that remain.
 
 Primary review coverage:
 
@@ -507,8 +510,8 @@ Items are listed in recommended sequence. Dependency annotations show hard prere
 3. Scoped, atomic upload idempotency. *(No dependencies on items 1-2.)*
 4. Destructive upload ownership cleanup. *(Depends on: item 3 — needs the scoped dedupe key to define ownership provenance.)*
 5. Media-processing identity and observability normalisation, including pipeline/phase registry sync. *(Depends on: item 4 — ownership model must be stable before identity normalisation. Shares JSON promotion strategy with item 6.)*
-6. Church-service JSON promotion and ordering invariants. *(Depends on: item 5 — shared JSON promotion compatibility windows should not overlap. Prerequisite for items 8-9.)*
-7. Media API request-boundary cleanup. *(Depends on: items 3-5 — the API boundary should reflect the final dedupe and identity contracts.)*
+6. Church-service JSON promotion and ordering-conflict handling around the existing unique constraint. *(Depends on: item 5 — shared JSON promotion compatibility windows should not overlap. Prerequisite for items 8-9.)*
+7. Remaining media API request-boundary cleanup. *(Depends on: items 3-5 — the API boundary should reflect the final dedupe and identity contracts.)*
 8. Admin Livewire responsibility split for sermon, church-service, review, and calendar flows. *(Depends on: items 2 and 6 — needs stable auth enforcement and promoted church-service contracts.)*
 9. Shared frontend interaction ownership cleanup. *(Depends on: item 8 — component boundaries must be stable before fixing cross-component event ownership.)*
 10. Public read-side performance improvements. *(No hard dependencies, but benefits from items 5-6 landing first so query paths are stable.)*

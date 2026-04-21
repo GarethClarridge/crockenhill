@@ -29,8 +29,13 @@ class SermonListingNPlusOneTest extends TestCase
     #[Test]
     public function repository_query_results_include_all_required_columns_for_meta_description(): void
     {
-        // Create 1 sermon with a summary and show_summary = true
+        // Create a sermon with short title/preacher/no series/no reference to
+        // guarantee the 155-char meta description limit leaves room for the summary.
         $created = Sermon::factory()->create([
+            'title' => 'Test Sermon',
+            'preacher' => 'Test Preacher',
+            'series' => null,
+            'reference' => null,
             'meta_description' => null,
             'summary' => 'Some unique summary for this test.',
             'show_summary' => true,

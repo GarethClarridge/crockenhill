@@ -9,12 +9,12 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
-use Illuminate\Foundation\Testing\DatabaseTruncation;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class SpeakerProfilesBootstrapCommandTest extends TestCase
 {
-    use DatabaseTruncation;
+    use RefreshDatabase;
 
     public function test_bootstrap_creates_profile_and_backfill_samples(): void
     {
