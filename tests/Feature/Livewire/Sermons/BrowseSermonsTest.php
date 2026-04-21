@@ -39,11 +39,33 @@ class BrowseSermonsTest extends TestCase
 
         Livewire::test(BrowseSermons::class)
             ->assertSee('Filter sermons')
+            ->assertSee('Showing')
+            ->assertSee('2')
+            ->assertSee('sermons')
             ->assertSee('April Sermon')
             ->assertSee('March Sermon')
             ->assertSee('13 April 2026')
             ->assertSee('30 March 2026')
             ->assertDontSee('Monday 13th April');
+    }
+
+    #[Test]
+    public function results_count_updates_with_pagination(): void
+    {
+        Sermon::factory()->count(25)->create();
+
+        Livewire::test(BrowseSermons::class)
+            ->assertSee('Showing')
+            ->assertSee('1')
+            ->assertSee('24')
+            ->assertSee('25')
+            ->assertSee('sermons')
+            ->call('gotoPage', 2)
+            ->assertSee('Showing')
+            ->assertSee('25')
+            ->assertSee('of')
+            ->assertSee('25')
+            ->assertSee('sermons');
     }
 
     #[Test]

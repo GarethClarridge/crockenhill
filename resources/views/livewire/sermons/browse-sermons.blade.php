@@ -78,8 +78,8 @@
         </div>
     </section>
 
-    <div wire:loading.flex wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter" class="mx-auto mt-4 max-w-7xl items-center gap-2 px-6 text-sm text-gray-500">
-        <svg class="h-4 w-4 animate-spin text-cbc-teal" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <div wire:loading.flex wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter" class="mx-auto mt-4 max-w-7xl items-center gap-2 px-6 text-sm text-gray-500" role="status">
+        <svg class="h-4 w-4 animate-spin text-cbc-teal" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
@@ -92,6 +92,14 @@
         @endphp
 
         @if ($sermons->total() > 0)
+            <div class="mx-auto mt-4 max-w-7xl px-6 text-sm text-gray-500" aria-live="polite">
+                @if ($sermons->hasPages())
+                    Showing <span class="font-medium text-gray-700">{{ $sermons->firstItem() }}</span> to <span class="font-medium text-gray-700">{{ $sermons->lastItem() }}</span> of <span class="font-medium text-gray-700">{{ $sermons->total() }}</span> sermons
+                @else
+                    Showing <span class="font-medium text-gray-700">{{ $sermons->total() }}</span> {{ Str::plural('sermon', $sermons->total()) }}
+                @endif
+            </div>
+
             <div class="mx-auto mt-6 mb-6 grid max-w-2xl items-start justify-center gap-4 px-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))] lg:max-w-5xl xl:max-w-7xl">
                 @foreach ($sermons as $sermon)
                     <div wire:key="sermon-{{ $sermon->id }}">
