@@ -99,7 +99,7 @@ class SchemaGuardrailAudit
      */
     public function speakerSampleDuplicates(): array
     {
-        return SpeakerSample::query()
+        return DB::table('speaker_samples')
             ->whereNotNull('sermon_id')
             ->selectRaw('speaker_profile_id, sermon_id, source, COUNT(*) as duplicate_count')
             ->groupBy('speaker_profile_id', 'sermon_id', 'source')
@@ -108,11 +108,11 @@ class SchemaGuardrailAudit
             ->orderBy('sermon_id')
             ->orderBy('source')
             ->get()
-            ->map(fn (SpeakerSample $row): array => [
+            ->map(fn (object $row): array => [
                 'speaker_profile_id' => (int) $row->speaker_profile_id,
                 'sermon_id' => (int) $row->sermon_id,
-                'source' => (string) $row->source->value,
-                'duplicate_count' => (int) $row->getAttribute('duplicate_count'),
+                'source' => (string) $row->source,
+                'duplicate_count' => (int) $row->duplicate_count,
             ])
             ->all();
     }
