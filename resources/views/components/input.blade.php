@@ -4,10 +4,14 @@
 $modelName = $attributes->wire('model')->value();
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
+
+$type = $attributes->get('type', 'text');
+$isPassword = $type === 'password';
+
 $inputClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2'
     . ($icon ? ' pl-10' : '')
     . ($hasError ? ' border-red-300' : ' border-gray-300')
-    . ($clearable ? ' pr-10' : '');
+    . ($clearable || $isPassword ? ' pr-10' : '');
 
 $describedBy = [];
 if ($hint) $describedBy[] = $id . '-hint';
@@ -15,7 +19,7 @@ if ($hasError) $describedBy[] = $id . '-error';
 $describedBy = implode(' ', $describedBy);
 @endphp
 
-<div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }}, focused: false }"
+<div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }}, focused: false, showPassword: false }"
      x-init="count = $refs.input.value.length; @if($autofocus) $nextTick(() => $refs.input.focus()) @endif"
      @if($shortcut === 'slash') @keydown.window.slash="if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) && !document.activeElement.isContentEditable) { $event.preventDefault(); $refs.input.focus(); }" @endif>
     @if($label)
@@ -43,6 +47,9 @@ $describedBy = implode(' ', $describedBy);
                 'id' => $id,
                 'aria-label' => (!$label && $attributes->get('placeholder')) ? $attributes->get('placeholder') : null
             ]) }}
+            @if($isPassword)
+                :type="showPassword ? 'text' : 'password'"
+            @endif
             @if($maxlength) maxlength="{{ $maxlength }}" @endif
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
@@ -71,6 +78,18 @@ $describedBy = implode(' ', $describedBy);
                 x-transition
                 wire:loading.remove wire:target="{{ $modelName }}">
                 <x-heroicon-o-x-mark class="h-4 w-4" />
+            </button>
+        @endif
+
+        @if($isPassword)
+            <button type="button"
+                @click="showPassword = !showPassword"
+                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                :title="showPassword ? 'Hide password' : 'Show password'"
+                x-cloak>
+                <x-heroicon-o-eye x-show="!showPassword" class="h-5 w-5" />
+                <x-heroicon-o-eye-slash x-show="showPassword" class="h-5 w-5" />
             </button>
         @endif
 
