@@ -53,11 +53,11 @@ class Register extends Component
 
     public function register(): Redirector|RedirectResponse|null
     {
-        $emailString = is_array($this->email) ? '' : (string) $this->email;
+        $emailString = $this->email;
 
         // Security: Validate input length before normalization to prevent DoS on string operations.
-        if (strlen($emailString) > 255) {
-            $this->validateOnly('email');
+        if (strlen($emailString) > 255 || strlen($this->name) > 255) {
+            $this->validate();
 
             return null;
         }

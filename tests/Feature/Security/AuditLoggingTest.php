@@ -9,18 +9,18 @@ use App\Enums\InboundEmailStatus;
 use App\Livewire\Admin\CalendarEvents\EditCalendarEvent;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
-use App\Livewire\Admin\Meetings\ListMeetings;
-use App\Livewire\Admin\Pages\ListPages;
 use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Livewire\Admin\Meetings\EditMeeting;
+use App\Livewire\Admin\Meetings\ListMeetings;
 use App\Livewire\Admin\Pages\CreatePage;
 use App\Livewire\Admin\Pages\EditPage;
+use App\Livewire\Admin\Pages\ListPages;
 use App\Livewire\Admin\Preachers\CreatePreacher;
 use App\Livewire\Admin\Preachers\EditPreacher;
-use App\Livewire\Admin\Sermons\EditSermon;
-use App\Livewire\Admin\Users\CreateUser;
 use App\Livewire\Admin\Preachers\ListPreachers;
+use App\Livewire\Admin\Sermons\EditSermon;
 use App\Livewire\Admin\Sermons\ListSermons;
+use App\Livewire\Admin\Users\CreateUser;
 use App\Models\InboundEmail;
 use App\Models\Meeting;
 use App\Models\Page;
@@ -346,8 +346,7 @@ class AuditLoggingTest extends TestCase
 
         $this->assertDatabaseHas('preachers', ['name' => 'New Preacher']);
 
-        Log::assertLogged('warning', fn (string $message, array $context): bool =>
-            $message === 'New preacher created by admin' &&
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'New preacher created by admin' &&
             $context['admin_id'] === $this->admin->id &&
             $context['name'] === 'New Preacher' &&
             $context['slug'] === 'new-preacher'
@@ -368,8 +367,7 @@ class AuditLoggingTest extends TestCase
 
         $this->assertSame('New Name', $preacher->fresh()->name);
 
-        Log::assertLogged('warning', fn (string $message, array $context): bool =>
-            $message === 'Preacher updated by admin' &&
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Preacher updated by admin' &&
             $context['admin_id'] === $this->admin->id &&
             $context['preacher_id'] === $preacher->id &&
             $context['name'] === 'New Name' &&
@@ -392,8 +390,7 @@ class AuditLoggingTest extends TestCase
 
         $this->assertDatabaseHas('meetings', ['slug' => 'new-meeting']);
 
-        Log::assertLogged('warning', fn (string $message, array $context): bool =>
-            $message === 'New meeting created by admin' &&
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'New meeting created by admin' &&
             $context['admin_id'] === $this->admin->id &&
             $context['slug'] === 'new-meeting'
         );
@@ -412,8 +409,7 @@ class AuditLoggingTest extends TestCase
 
         $this->assertSame('new-meeting', $meeting->fresh()->slug);
 
-        Log::assertLogged('warning', fn (string $message, array $context): bool =>
-            $message === 'Meeting updated by admin' &&
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Meeting updated by admin' &&
             $context['admin_id'] === $this->admin->id &&
             $context['meeting_id'] === $meeting->id &&
             $context['slug'] === 'new-meeting'
@@ -434,8 +430,7 @@ class AuditLoggingTest extends TestCase
 
         $this->assertSame('New Title', $sermon->fresh()->title);
 
-        Log::assertLogged('warning', fn (string $message, array $context): bool =>
-            $message === 'Sermon updated by admin' &&
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Sermon updated by admin' &&
             $context['admin_id'] === $this->admin->id &&
             $context['sermon_id'] === $sermon->id &&
             $context['title'] === 'New Title' &&
@@ -457,8 +452,7 @@ class AuditLoggingTest extends TestCase
 
         $this->assertDatabaseHas('pages', ['slug' => 'new-page']);
 
-        Log::assertLogged('warning', fn (string $message, array $context): bool =>
-            $message === 'New page created by admin' &&
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'New page created by admin' &&
             $context['admin_id'] === $this->admin->id &&
             $context['heading'] === 'New Page' &&
             $context['slug'] === 'new-page'
@@ -479,8 +473,7 @@ class AuditLoggingTest extends TestCase
 
         $this->assertSame('New Heading', $page->fresh()->heading);
 
-        Log::assertLogged('warning', fn (string $message, array $context): bool =>
-            $message === 'Page updated by admin' &&
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Page updated by admin' &&
             $context['admin_id'] === $this->admin->id &&
             $context['page_id'] === $page->id &&
             $context['heading'] === 'New Heading' &&
@@ -505,8 +498,7 @@ class AuditLoggingTest extends TestCase
 
         $this->assertDatabaseHas('users', ['email' => 'newuser@example.com']);
 
-        Log::assertLogged('warning', fn (string $message, array $context): bool =>
-            $message === 'New user created by admin' &&
+        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'New user created by admin' &&
             $context['admin_id'] === $this->admin->id &&
             $context['target_user_email'] === 'newuser@example.com'
         );

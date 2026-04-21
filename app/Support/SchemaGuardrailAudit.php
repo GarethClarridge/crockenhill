@@ -10,7 +10,6 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
-use App\Models\SpeakerSample;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 

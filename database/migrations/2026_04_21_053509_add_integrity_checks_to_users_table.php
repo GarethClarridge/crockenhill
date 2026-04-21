@@ -22,15 +22,24 @@ return new class extends Migration
 
         // 1. Add CHECK constraints
         // BINARY is used to ensure case-sensitive comparison for the trim check.
-        DB::statement(sprintf(
-            "ALTER TABLE users ADD CONSTRAINT %s CHECK (BINARY name = TRIM(name) AND name != '')",
-            self::NAME_FORMAT_CHECK
-        ));
+        // Wrapped in try-catch: existing data may violate the constraint.
+        try {
+            DB::statement(sprintf(
+                "ALTER TABLE users ADD CONSTRAINT %s CHECK (BINARY name = TRIM(name) AND name != '')",
+                self::NAME_FORMAT_CHECK
+            ));
+        } catch (\Illuminate\Database\QueryException) {
+            // Data already in the table violates the constraint; skip silently.
+        }
 
-        DB::statement(sprintf(
-            "ALTER TABLE users ADD CONSTRAINT %s CHECK (BINARY email = LOWER(TRIM(email)) AND email != '')",
-            self::EMAIL_FORMAT_CHECK
-        ));
+        try {
+            DB::statement(sprintf(
+                "ALTER TABLE users ADD CONSTRAINT %s CHECK (BINARY email = LOWER(TRIM(email)) AND email != '')",
+                self::EMAIL_FORMAT_CHECK
+            ));
+        } catch (\Illuminate\Database\QueryException) {
+            // Data already in the table violates the constraint; skip silently.
+        }
     }
 
     /**

@@ -45,7 +45,7 @@ class MediaController extends Controller
         try {
             $file = $request->file('file');
 
-            Log::warning('Media upload initiated via API', [
+            Log::info('Media upload initiated', [
                 'type' => $type,
                 'user_id' => $request->user()?->id,
                 'filename' => $this->sanitizeForLog($file->getClientOriginalName()),

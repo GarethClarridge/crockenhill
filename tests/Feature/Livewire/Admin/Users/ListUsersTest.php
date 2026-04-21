@@ -190,7 +190,7 @@ class ListUsersTest extends TestCase
 
         Log::shouldReceive('warning')
             ->once()
-            ->with('User admin status toggled', \Mockery::on(function ($args) use ($user) {
+            ->with('User admin status toggled', \Mockery::on(function ($args) {
                 return $args['new_is_admin'] === false;
             }));
 

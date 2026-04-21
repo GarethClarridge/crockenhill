@@ -49,7 +49,7 @@ class SermonAudioServingTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'audio_file_path' => '',
+            'audio_file_path' => null,
         ]);
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");

@@ -29,6 +29,8 @@ class PageFormData extends Form
 
     public string $markdown = '';
 
+    public ?int $sortOrder = null;
+
     public function setPage(Page $page): void
     {
         $this->page = $page;
@@ -41,6 +43,7 @@ class PageFormData extends Form
             'navigation' => $page->navigation,
             'description' => $page->description,
             'markdown' => $page->markdown ?? '',
+            'sortOrder' => $page->sort_order,
         ]);
     }
 
@@ -59,7 +62,7 @@ class PageFormData extends Form
             'navigation' => 'boolean',
             'description' => 'required|string|max:500',
             'markdown' => 'nullable|string',
-            'sort_order' => $modelRules['sort_order'],
+            'sortOrder' => $modelRules['sort_order'],
         ];
     }
 
@@ -113,6 +116,9 @@ class PageFormData extends Form
     protected function pagePayload(array $validated): array
     {
         $validated = Arr::except($validated, ['admin']);
+
+        $validated = array_merge($validated, ['sort_order' => $validated['sortOrder'] ?? null]);
+        unset($validated['sortOrder']);
 
         return [
             ...$validated,

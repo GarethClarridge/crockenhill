@@ -99,7 +99,7 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->create([
             'preacher' => 'John Doe',
             'preacher_id' => null,
-            'audio_file_path' => '',
+            'audio_file_path' => null,
             'video_file_path' => null,
             'thumbnail_file_path' => null,
             'transcript_file_path' => null,

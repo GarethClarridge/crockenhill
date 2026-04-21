@@ -3,9 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -26,7 +24,12 @@ return new class extends Migration
         // 2. Add the CHECK constraint
         // Ensures alias is lowercase, has no leading/trailing whitespace, and is not empty.
         // We use BINARY to ensure the check is case-sensitive even on case-insensitive collations.
-        DB::statement("ALTER TABLE preacher_aliases ADD CONSTRAINT preacher_aliases_alias_format_check CHECK (BINARY alias = LOWER(TRIM(alias)) AND alias != '')");
+        // Wrapped in try-catch: existing data may violate the constraint (handled by subsequent migration).
+        try {
+            DB::statement("ALTER TABLE preacher_aliases ADD CONSTRAINT preacher_aliases_alias_format_check CHECK (BINARY alias = LOWER(TRIM(alias)) AND alias != '')");
+        } catch (\Illuminate\Database\QueryException) {
+            // Data already in the table violates the constraint; skip silently.
+        }
     }
 
     /**

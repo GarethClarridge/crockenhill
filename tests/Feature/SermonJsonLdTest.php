@@ -80,7 +80,7 @@ class SermonJsonLdTest extends TestCase
             'date' => '2024-03-21',
             'duration' => null,
             'transcript_file_path' => null,
-            'audio_file_path' => '', // Changed from null to empty string to satisfy constraint
+            'audio_file_path' => null,
             'video_file_path' => null,
         ]);
 

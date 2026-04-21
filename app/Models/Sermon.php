@@ -46,7 +46,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property Carbon $date
  * @property ?SermonService $service
  * @property SermonContentType $content_type
- * @property string $audio_file_path
+ * @property ?string $audio_file_path
  * @property string $filetype
  * @property string $title
  * @property string $slug
@@ -201,7 +201,7 @@ class Sermon extends Model implements Sitemapable
      */
     public static function validationRules(?self $sermon = null): array
     {
-        $slugRule = ['required', 'string', 'max:255', 'alpha_dash'];
+        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
         $uniqueSlug = \Illuminate\Validation\Rule::unique('sermons', 'slug');
         if ($sermon) {
             $uniqueSlug->ignore($sermon->id);
@@ -211,7 +211,7 @@ class Sermon extends Model implements Sitemapable
         return [
             'title' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
-            'audio_file_path' => ['sometimes', 'required', 'string', 'max:255'],
+            'audio_file_path' => ['nullable', 'string', 'max:255'],
             'video_file_path' => ['nullable', 'string', 'max:500'],
             'content_type' => ['required', \Illuminate\Validation\Rule::enum(SermonContentType::class)],
             'source_type' => ['nullable', \Illuminate\Validation\Rule::enum(SermonSourceType::class)],

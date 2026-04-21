@@ -71,7 +71,7 @@ class PodcastFeedServiceTest extends TestCase
         ]);
         Sermon::factory()->create([
             'service' => 'morning',
-            'audio_file_path' => '',
+            'audio_file_path' => null,
         ]);
 
         $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');

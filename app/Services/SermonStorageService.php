@@ -65,23 +65,24 @@ class SermonStorageService
      */
     public function getSermonFileInfo(Sermon $sermon): array
     {
-        $this->validatePath($sermon->audio_file_path, 'audio file');
+        $audioPath = $sermon->audio_file_path ?? '';
+        $this->validatePath($audioPath, 'audio file');
 
         // Private files stored on the local disk (unreachable via the public/storage symlink)
-        if (str_starts_with($sermon->audio_file_path, 'private/')) {
+        if (str_starts_with($audioPath, 'private/')) {
             return [
                 'type' => 'private',
                 'disk' => 'local',
-                'path' => $sermon->audio_file_path,
-                'original_path' => $sermon->audio_file_path,
+                'path' => $audioPath,
+                'original_path' => $audioPath,
             ];
         }
 
         // Determine which storage pattern this sermon uses
-        if ($sermon->filetype && ! str_contains($sermon->audio_file_path, '/')) {
+        if ($sermon->filetype && ! str_contains($audioPath, '/')) {
             // Legacy pattern
             // Check if filename already has extension to avoid double extensions
-            $filename = $sermon->audio_file_path;
+            $filename = $audioPath;
             if (! str_ends_with($filename, ".{$sermon->filetype}")) {
                 $filename .= ".{$sermon->filetype}";
             }
@@ -94,13 +95,13 @@ class SermonStorageService
             ];
         }
 
-        if (str_contains($sermon->audio_file_path, '/')) {
+        if (str_contains($audioPath, '/')) {
             // Newer Laravel storage pattern
             return [
                 'type' => 'storage',
                 'disk' => $this->sermonDisk,
-                'path' => $sermon->audio_file_path,
-                'original_path' => $sermon->audio_file_path,
+                'path' => $audioPath,
+                'original_path' => $audioPath,
             ];
         }
 
@@ -108,8 +109,8 @@ class SermonStorageService
         return [
             'type' => 'processing',
             'disk' => $this->sermonDisk,
-            'path' => $sermon->audio_file_path,
-            'original_path' => $sermon->audio_file_path,
+            'path' => $audioPath,
+            'original_path' => $audioPath,
         ];
     }
 

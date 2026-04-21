@@ -159,5 +159,4 @@ class GetMediaProcessingStatusTest extends TestCase
         $this->assertNotNull($service->find($ownedLog->processing_id));
         $this->assertNull($service->find($hiddenLog->processing_id));
     }
-
 }

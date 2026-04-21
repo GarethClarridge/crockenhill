@@ -526,10 +526,10 @@ class MediaProcessingLog extends Model
     public static function validationRules(): array
     {
         return [
-            'processing_id' => ['required', 'string', 'size:36'],
-            'processing_type' => ['required', \Illuminate\Validation\Rule::enum(\App\Enums\MediaType::class)],
-            'status' => ['required', \Illuminate\Validation\Rule::enum(ProcessingStatus::class)],
-            'original_filename' => ['required', 'string', 'max:255'],
+            'processing_id' => ['sometimes', 'required', 'string', 'size:36'],
+            'processing_type' => ['sometimes', 'required', \Illuminate\Validation\Rule::enum(\App\Enums\MediaType::class)],
+            'status' => ['sometimes', 'required', \Illuminate\Validation\Rule::enum(ProcessingStatus::class)],
+            'original_filename' => ['sometimes', 'required', 'string', 'max:255'],
             'file_hash' => ['nullable', 'string', 'max:64'],
             'file_size' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],

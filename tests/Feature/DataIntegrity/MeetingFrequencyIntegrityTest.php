@@ -84,7 +84,7 @@ class MeetingFrequencyIntegrityTest extends TestCase
             ->set('form.isRecurring', true)
             ->set('form.frequency', 'invalid-frequency')
             ->call('save')
-            ->assertHasErrors(['form.frequency' => 'in']);
+            ->assertHasErrors(['form.frequency' => 'The selected frequency is invalid.']);
     }
 
     #[Test]

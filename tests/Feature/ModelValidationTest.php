@@ -25,7 +25,7 @@ class ModelValidationTest extends TestCase
         $this->assertArrayHasKey('slug', $rules);
         $this->assertContains('required', $rules['slug']);
         $this->assertContains('max:255', $rules['slug']);
-        $this->assertContains('alpha_dash', $rules['slug']);
+        $this->assertContains('regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $rules['slug']);
 
         $this->assertArrayHasKey('audio_file_path', $rules);
         $this->assertContains('nullable', $rules['audio_file_path']);
@@ -119,7 +119,7 @@ class ModelValidationTest extends TestCase
         $this->assertArrayHasKey('slug', $rules);
         $this->assertContains('required', $rules['slug']);
         $this->assertContains('max:255', $rules['slug']);
-        $this->assertContains('alpha_dash', $rules['slug']);
+        $this->assertContains('regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $rules['slug']);
 
         $this->assertArrayHasKey('type', $rules);
         $this->assertContains('required', $rules['type']);

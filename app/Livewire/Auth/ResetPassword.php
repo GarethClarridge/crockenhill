@@ -59,7 +59,7 @@ class ResetPassword extends Component
 
     public function resetPassword(): Redirector|RedirectResponse|null
     {
-        $emailString = is_array($this->email) ? '' : (string) $this->email;
+        $emailString = $this->email;
 
         // Security: Validate input length before normalization to prevent DoS on string operations.
         if (strlen($emailString) > 255) {

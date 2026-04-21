@@ -187,7 +187,7 @@ class PageSeoTest extends TestCase
     #[Test]
     public function it_returns_null_route_when_slug_is_empty(): void
     {
-        $page = Page::factory()->create([
+        $page = Page::factory()->make([
             'slug' => '',
             'area' => 'church',
         ]);
@@ -200,7 +200,7 @@ class PageSeoTest extends TestCase
     #[Test]
     public function it_trims_slashes_from_area_and_slug_in_route(): void
     {
-        $page = Page::factory()->create([
+        $page = Page::factory()->make([
             'slug' => '/sunday-mornings/',
             'area' => 'church',
         ]);

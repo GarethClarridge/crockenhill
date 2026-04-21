@@ -24,9 +24,8 @@ class SermonIndexRequestTest extends TestCase
     {
         $data = [
             'search' => 'Grace',
-            'service' => 'Morning',
+            'service' => 'morning',
             'preacher' => 'John Doe',
-            'preacher_id' => 1,
             'series' => 'Romans',
             'sort' => 'date',
             'order' => 'desc',

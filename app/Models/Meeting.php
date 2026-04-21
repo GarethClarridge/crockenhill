@@ -111,7 +111,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public static function validationRules(?self $meeting = null): array
     {
-        $slugRule = ['required', 'string', 'max:255', 'alpha_dash'];
+        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
         $uniqueSlug = \Illuminate\Validation\Rule::unique('meetings', 'slug');
         if ($meeting) {
             $uniqueSlug->ignore($meeting->id);

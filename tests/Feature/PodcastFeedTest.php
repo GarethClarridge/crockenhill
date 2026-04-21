@@ -129,11 +129,9 @@ class PodcastFeedTest extends TestCase
         // Create sermon without audio by inserting directly with null
         $noAudioSermon = Sermon::factory()->create([
             'service' => SermonService::Morning->value,
-            'audio_file_path' => 'placeholder.mp3', // Will be set to empty string below
+            'audio_file_path' => null,
             'title' => 'No Audio Sermon',
         ]);
-        // Update to empty string to simulate sermon without audio
-        \DB::table('sermons')->where('id', $noAudioSermon->id)->update(['audio_file_path' => '']);
 
         Sermon::factory()->create([
             'service' => SermonService::Morning->value,
@@ -153,7 +151,7 @@ class PodcastFeedTest extends TestCase
     {
         Sermon::factory()->create([
             'service' => SermonService::Morning->value,
-            'audio_file_path' => '',
+            'audio_file_path' => null,
             'title' => 'Empty Audio Path Sermon',
         ]);
 

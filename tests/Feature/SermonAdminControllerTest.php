@@ -179,7 +179,6 @@ class SermonAdminControllerTest extends TestCase
         $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
     }
 
-
     #[Test]
     public function legacy_post_update_route_is_removed(): void
     {

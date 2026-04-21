@@ -17,7 +17,6 @@ class CalendarEventFactory extends Factory
     public function definition(): array
     {
         $start = $this->faker->dateTimeBetween('+1 day', '+30 days');
-        $end = (clone $start)->modify('+'.rand(0, 180).' minutes');
 
         return [
             'google_event_id' => $this->faker->uuid(),
@@ -27,10 +26,19 @@ class CalendarEventFactory extends Factory
             'speaker' => $this->faker->name(),
             'location' => $this->faker->city(),
             'start_datetime' => $start,
-            'end_datetime' => $end,
+            'end_datetime' => (clone $start)->modify('+'.rand(0, 180).' minutes'),
             'status' => \App\Enums\CalendarEventStatus::Confirmed,
             'is_categorized_automatically' => false,
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterMaking(function (\App\Models\CalendarEvent $event): void {
+            if ($event->end_datetime < $event->start_datetime) {
+                $event->end_datetime = $event->start_datetime->copy()->addHour();
+            }
+        });
     }
 
     /**
