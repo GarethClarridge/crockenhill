@@ -52,6 +52,26 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
+     * @return \Illuminate\Database\Eloquent\Casts\Attribute<string, string>
+     */
+    protected function name(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
+            set: fn (string $value) => trim($value),
+        );
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Casts\Attribute<string, string>
+     */
+    protected function email(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
+            set: fn (string $value) => strtolower(trim($value)),
+        );
+    }
+
+    /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>
@@ -70,6 +90,26 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'is_admin' => 'boolean',
             'password' => 'hashed',
+        ];
+    }
+
+    /**
+     * @return array<string, list<string|\Illuminate\Validation\Rules\Unique>>
+     */
+    public static function validationRules(?self $user = null): array
+    {
+        $emailRule = ['required', 'email', 'lowercase', 'max:255'];
+        $uniqueEmail = \Illuminate\Validation\Rule::unique('users', 'email');
+
+        if ($user) {
+            $uniqueEmail->ignore($user->id);
+        }
+
+        $emailRule[] = $uniqueEmail;
+
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => $emailRule,
         ];
     }
 

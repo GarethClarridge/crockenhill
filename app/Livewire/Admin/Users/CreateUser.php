@@ -40,19 +40,20 @@ class CreateUser extends Component
      */
     protected function rules(): array
     {
-        return [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => [
-                'required',
-                'string',
-                'same:passwordConfirmation',
-                Password::defaults(),
-            ],
-            'passwordConfirmation' => 'required',
-            'isAdmin' => 'boolean',
-            'sendVerification' => 'boolean',
-        ];
+        return array_merge(
+            User::validationRules(),
+            [
+                'password' => [
+                    'required',
+                    'string',
+                    'same:passwordConfirmation',
+                    Password::defaults(),
+                ],
+                'passwordConfirmation' => 'required',
+                'isAdmin' => 'boolean',
+                'sendVerification' => 'boolean',
+            ]
+        );
     }
 
     public function save(): void
