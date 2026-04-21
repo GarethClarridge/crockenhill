@@ -8,8 +8,8 @@ use App\Contracts\ProvidesSafeMessage;
 use App\Data\SermonMetadata;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
-use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -63,17 +63,24 @@ class UnifiedMediaProcessor
         }
 
         $fileHash = $this->computeFileHash($file);
-        $duplicate = $this->findActiveDuplicate($fileHash);
+        $videoMode = VideoProcessingOptions::resolveMode($options);
+        $dedupKey = $fileHash !== null ? $this->buildDedupKey($fileHash, $mediaType, $videoMode) : null;
+
+        $duplicate = $this->findActiveDuplicate($dedupKey);
 
         if ($duplicate !== null) {
             return $duplicate;
         }
 
-        return match ($mediaType) {
-            MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash),
-            MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options),
-            MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash),
-        };
+        try {
+            return match ($mediaType) {
+                MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey),
+                MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey),
+                MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey),
+            };
+        } catch (UniqueConstraintViolationException) {
+            return $this->reuseRacedDuplicate($dedupKey);
+        }
     }
 
     public function getStatus(string $processingId): StandardProcessingResponse
@@ -138,7 +145,7 @@ class UnifiedMediaProcessor
      * Process an audio file through the complete automation pipeline.
      * Uses ProcessingInitiator for shared log-creation boundary (same as video/livestream).
      */
-    private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash): ProcessingResult
+    private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash, ?string $dedupKey): ProcessingResult
     {
         try {
             Log::info('Starting audio processing', [
@@ -162,6 +169,7 @@ class UnifiedMediaProcessor
                 [
                     'source_file_path' => $storedFilePath,
                     'file_hash' => $fileHash,
+                    'dedup_key' => $dedupKey,
                 ],
                 preExtractedMetadata: [
                     'id3_metadata' => $id3Metadata,
@@ -186,6 +194,8 @@ class UnifiedMediaProcessor
                 statusUrl: route('api.media.processing.status', ['processingId' => $processingLog->processing_id])
             );
 
+        } catch (UniqueConstraintViolationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to initiate audio processing', [
                 'original_filename' => $file->getClientOriginalName(),
@@ -233,24 +243,19 @@ class UnifiedMediaProcessor
         return $hash !== false ? $hash : null;
     }
 
-    /**
-     * Look up an in-progress log with a matching hash.
-     *
-     * Note: there is a narrow TOCTOU window between this check and the subsequent
-     * log creation. Two concurrent uploads of identical files could both pass and
-     * each create their own log. The consequence is a duplicate processing run —
-     * not data corruption — and the window is narrow enough to be an accepted risk.
-     */
-    private function findActiveDuplicate(?string $fileHash): ?ProcessingResult
+    private function buildDedupKey(string $fileHash, MediaType $mediaType, string $videoMode): string
     {
-        if ($fileHash === null) {
+        return MediaProcessingLog::makeDedupKey($fileHash, $mediaType, $videoMode);
+    }
+
+    private function findActiveDuplicate(?string $dedupKey): ?ProcessingResult
+    {
+        if ($dedupKey === null) {
             return null;
         }
 
         $existingLog = MediaProcessingLog::query()
-            ->where('file_hash', $fileHash)
-            ->whereIn('status', [ProcessingStatus::Pending->value, ProcessingStatus::Processing->value])
-            ->latest()
+            ->where('dedup_key', $dedupKey)
             ->first();
 
         if ($existingLog === null) {
@@ -258,7 +263,7 @@ class UnifiedMediaProcessor
         }
 
         Log::info('Duplicate upload detected, reusing existing processing run', [
-            'file_hash' => $fileHash,
+            'dedup_key' => $dedupKey,
             'existing_processing_id' => $existingLog->processing_id,
             'processing_type' => $existingLog->processing_type->value,
         ]);
@@ -267,6 +272,32 @@ class UnifiedMediaProcessor
             processingId: $existingLog->processing_id,
             message: 'Duplicate upload detected. Returning existing processing run.',
             statusUrl: route('api.media.processing.status', ['processingId' => $existingLog->processing_id])
+        );
+    }
+
+    private function reuseRacedDuplicate(?string $dedupKey): ProcessingResult
+    {
+        if ($dedupKey !== null) {
+            $racedLog = MediaProcessingLog::query()->where('dedup_key', $dedupKey)->first();
+
+            if ($racedLog !== null) {
+                Log::info('Concurrent duplicate resolved via constraint violation, reusing raced run', [
+                    'dedup_key' => $dedupKey,
+                    'existing_processing_id' => $racedLog->processing_id,
+                ]);
+
+                return ProcessingResult::success(
+                    processingId: $racedLog->processing_id,
+                    message: 'Duplicate upload detected. Returning existing processing run.',
+                    statusUrl: route('api.media.processing.status', ['processingId' => $racedLog->processing_id])
+                );
+            }
+        }
+
+        return ProcessingResult::failure(
+            processingId: 'race-'.Str::uuid(),
+            message: 'An internal error occurred while initiating processing.',
+            errorCode: 'PROCESSING_INITIATION_FAILED'
         );
     }
 
@@ -281,7 +312,8 @@ class UnifiedMediaProcessor
         UploadedFile $file,
         ?string $clientFileDate,
         ?string $fileHash,
-        array $options = []
+        array $options = [],
+        ?string $dedupKey = null
     ): ProcessingResult {
         try {
             // Store video file temporarily before processing (preserves file timestamps for metadata extraction)
@@ -296,6 +328,7 @@ class UnifiedMediaProcessor
                 [
                     'source_file_path' => $tempPath,
                     'file_hash' => $fileHash,
+                    'dedup_key' => $dedupKey,
                     'processing_metadata' => [
                         'video_processing_mode' => $videoProcessingMode,
                         'trim_requested' => $videoProcessingMode === MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
@@ -311,6 +344,8 @@ class UnifiedMediaProcessor
                 statusUrl: route('api.media.processing.status', ['processingId' => $processingLog->processing_id])
             );
 
+        } catch (UniqueConstraintViolationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to initiate video processing', [
                 'original_filename' => $file->getClientOriginalName(),

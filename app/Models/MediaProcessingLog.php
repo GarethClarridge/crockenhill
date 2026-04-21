@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $error_message
  * @property string $original_filename
  * @property string|null $file_hash
+ * @property string|null $dedup_key
  * @property int|null $file_size
  * @property float|null $duration
  * @property \Illuminate\Support\Carbon|null $extracted_date
@@ -85,6 +86,7 @@ class MediaProcessingLog extends Model
         // File info
         'original_filename',
         'file_hash',
+        'dedup_key',
         'file_size',
         'duration',
         'extracted_date',
@@ -443,6 +445,20 @@ class MediaProcessingLog extends Model
     public function canUseManualSermonReview(): bool
     {
         return $this->usesSegmentationPipeline();
+    }
+
+    public static function makeDedupKey(string $fileHash, MediaType $mediaType, string $videoMode): string
+    {
+        return "{$fileHash}:{$mediaType->value}:{$videoMode}";
+    }
+
+    public function buildDedupKey(): ?string
+    {
+        if ($this->file_hash === null) {
+            return null;
+        }
+
+        return self::makeDedupKey($this->file_hash, $this->processing_type, $this->videoProcessingMode());
     }
 
     public function processingPipelineProfile(): string

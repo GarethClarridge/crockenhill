@@ -70,6 +70,7 @@ class ProcessingRunFailureHandler
         $processingLog->update([
             'status' => ProcessingStatus::Failed,
             'error_message' => "Audio processing failed: {$message}",
+            'dedup_key' => null,
         ]);
     }
 
@@ -78,6 +79,7 @@ class ProcessingRunFailureHandler
         $processingLog->update([
             'status' => ProcessingStatus::Failed,
             'error_message' => "Video processing failed: {$message}",
+            'dedup_key' => null,
         ]);
     }
 

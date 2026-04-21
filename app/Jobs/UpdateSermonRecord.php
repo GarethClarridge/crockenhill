@@ -229,6 +229,7 @@ class UpdateSermonRecord implements ShouldQueue
                         'status' => ProcessingStatus::Completed,
                         'current_step' => 'completed_with_basic_data',
                         'error_message' => 'AI processing failed, used basic data: '.$exception->getMessage(),
+                        'dedup_key' => null,
                     ]);
                 }
 

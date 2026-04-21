@@ -41,6 +41,7 @@ class MediaProcessingRunTransitionService
             'current_step' => $step ?? 'completed',
             'completed_at' => now(),
             'error_message' => $errorMessage,
+            'dedup_key' => null,
         ]);
     }
 
@@ -51,6 +52,7 @@ class MediaProcessingRunTransitionService
             'current_step' => $step ?? $processingLog->current_step,
             'error_message' => $errorMessage,
             'completed_at' => now(),
+            'dedup_key' => null,
         ]);
     }
 
@@ -63,6 +65,7 @@ class MediaProcessingRunTransitionService
             'current_step' => 'cancelled',
             'error_message' => $message ?? 'Processing cancelled by user',
             'completed_at' => now(),
+            'dedup_key' => null,
         ]);
     }
 
@@ -93,6 +96,7 @@ class MediaProcessingRunTransitionService
             'current_step' => 'manual_review_required',
             'error_message' => $reasonMessage,
             'processing_metadata' => $metadata,
+            'dedup_key' => null,
         ]);
     }
 
@@ -135,6 +139,7 @@ class MediaProcessingRunTransitionService
             'error_message' => null,
             'started_at' => null,
             'completed_at' => null,
+            'dedup_key' => $processingLog->buildDedupKey(),
         ]);
     }
 
