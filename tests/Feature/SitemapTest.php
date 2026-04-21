@@ -388,6 +388,19 @@ class SitemapTest extends TestCase
     }
 
     #[Test]
+    public function sitemap_includes_sermon_service_filter_pages(): void
+    {
+        Cache::forget('sitemap');
+
+        $response = $this->get('/sitemap.xml');
+        $content = $response->getContent();
+
+        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/morning</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/evening</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/other</loc>', $content);
+    }
+
+    #[Test]
     public function old_sermons_have_yearly_change_frequency(): void
     {
         // Create an old sermon (> 365 days) - use 2 years to be safe
