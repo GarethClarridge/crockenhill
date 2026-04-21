@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -19,18 +20,15 @@ return new class extends Migration
             return;
         }
 
-        // Data Cleanup: Normalize invalid data before adding constraints
-        // Trim existing paths
-        DB::table('sermons')
-            ->whereRaw('TRIM(audio_file_path) != audio_file_path')
-            ->update(['audio_file_path' => DB::raw('TRIM(audio_file_path)')]);
-
         if (DB::getDriverName() === 'mysql') {
-            // Constraint: Not empty and trimmed (TRIM matches original)
-            DB::statement(sprintf(
-                "ALTER TABLE sermons ADD CONSTRAINT %s CHECK (audio_file_path != '' AND BINARY audio_file_path = TRIM(audio_file_path))",
-                self::CONSTRAINT_NAME
-            ));
+            Schema::table('sermons', function (Blueprint $table) {
+                // Constraint: Not empty and trimmed (TRIM matches original)
+                // Use native Laravel 12 check() method
+                $table->check(
+                    "audio_file_path != '' AND BINARY audio_file_path = TRIM(audio_file_path)",
+                    self::CONSTRAINT_NAME
+                );
+            });
         }
     }
 
@@ -39,8 +37,13 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (DB::getDriverName() === 'mysql') {
-            DB::statement(sprintf('ALTER TABLE sermons DROP CHECK %s', self::CONSTRAINT_NAME));
+        if (DB::getDriverName() === 'mysql' && Schema::hasTable('sermons')) {
+            // MySQL 8.0.16+ doesn't support DROP CHECK IF EXISTS
+            // We can wrap it in a try-catch or check existence manually if needed,
+            // but for a single targeted migration, standard dropCheck is usually fine.
+            Schema::table('sermons', function (Blueprint $table) {
+                $table->dropCheck(self::CONSTRAINT_NAME);
+            });
         }
     }
 };
