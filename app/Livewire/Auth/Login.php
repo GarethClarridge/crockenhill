@@ -38,9 +38,8 @@ class Login extends Component
     public function login(): Redirector|RedirectResponse|null
     {
         $this->error = '';
-        $email = is_string($this->email) ? $this->email : '';
 
-        if ($this->isRateLimited($email)) {
+        if ($this->isRateLimited($this->email)) {
             return null;
         }
 
@@ -72,7 +71,7 @@ class Login extends Component
         return view('livewire.auth.login');
     }
 
-    private function isRateLimited(string $email): bool
+    private function isRateLimited(mixed $email): bool
     {
         if (! RateLimiter::tooManyAttempts($this->throttleKey($email), 5)) {
             return false;
@@ -89,8 +88,10 @@ class Login extends Component
         return true;
     }
 
-    private function throttleKey(string $email): string
+    private function throttleKey(mixed $email): string
     {
-        return Str::transliterate('login|'.Str::lower($email).'|'.request()->ip());
+        $identifier = is_string($email) ? Str::lower($email) : 'invalid';
+
+        return Str::transliterate('login|'.Str::limit($identifier, 300).'|'.request()->ip());
     }
 }

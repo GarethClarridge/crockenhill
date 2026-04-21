@@ -27,12 +27,13 @@ class ForgotPassword extends Component
 
     public function sendResetLink(): void
     {
+        $this->error = '';
+
         if ($this->isRateLimited()) {
             return;
         }
 
         $this->validate();
-        $this->error = '';
 
         RateLimiter::hit($this->throttleKey());
 
@@ -59,7 +60,9 @@ class ForgotPassword extends Component
 
     protected function throttleKey(): string
     {
-        return Str::transliterate('forgot|'.Str::lower($this->email).'|'.request()->ip());
+        $identifier = is_string($this->email) ? Str::lower($this->email) : 'invalid';
+
+        return Str::transliterate('forgot|'.Str::limit($identifier, 300).'|'.request()->ip());
     }
 
     public function render(): View

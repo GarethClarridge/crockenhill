@@ -52,6 +52,8 @@ class Register extends Component
 
     public function register(): Redirector|RedirectResponse|null
     {
+        $this->error = '';
+
         if ($this->isRateLimited()) {
             return null;
         }

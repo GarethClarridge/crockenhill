@@ -59,6 +59,8 @@ class ResetPassword extends Component
 
     public function resetPassword(): Redirector|RedirectResponse|null
     {
+        $this->error = '';
+
         if ($this->isRateLimited()) {
             return null;
         }
@@ -111,7 +113,9 @@ class ResetPassword extends Component
 
     protected function throttleKey(): string
     {
-        return Str::transliterate('reset|'.Str::lower($this->email).'|'.request()->ip());
+        $identifier = is_string($this->email) ? Str::lower($this->email) : 'invalid';
+
+        return Str::transliterate('reset|'.Str::limit($identifier, 300).'|'.request()->ip());
     }
 
     public function render(): View
