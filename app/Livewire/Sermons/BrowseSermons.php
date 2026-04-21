@@ -13,10 +13,22 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+/**
+ * @property-read array<int, array{id: string, name: string, disabled: bool}> $bookOptions
+ * @property-read array<int, array{id: int, name: string, disabled: bool}> $chapterOptions
+ * @property-read array<int, array{id: int, name: string}> $preacherOptions
+ * @property-read array<int, array{id: string, name: string}> $seriesOptions
+ * @property-read array<int, string> $activeFilterLabels
+ * @property-read LengthAwarePaginator<int, \App\Models\Sermon> $sermons
+ * @property-read bool $hasActiveFilters
+ * @property-read Collection<int, string> $enabledBooks
+ * @property-read Collection<int, int> $enabledChapters
+ */
 class BrowseSermons extends Component
 {
     use WithPagination;
@@ -85,40 +97,99 @@ class BrowseSermons extends Component
         $this->resetPage();
     }
 
-    public function render(SermonRepository $sermonRepository, BibleCanon $bibleCanon): View
+    public function render(): View
     {
-        $hasActiveFilters = $this->hasActiveFilters();
-        $preacherOptions = Preacher::getForPublicList()
+        return view('livewire.sermons.browse-sermons');
+    }
+
+    /**
+     * @return array<int, array{id: string, name: string, disabled: bool}>
+     */
+    #[Computed]
+    public function bookOptions(): array
+    {
+        return app(BibleCanon::class)->bookOptions($this->enabledBooks);
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string, disabled: bool}>
+     */
+    #[Computed]
+    public function chapterOptions(): array
+    {
+        if ($this->bookFilter === null) {
+            return [];
+        }
+
+        return app(BibleCanon::class)->chapterOptions($this->bookFilter, $this->enabledChapters);
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string}>
+     */
+    #[Computed]
+    public function preacherOptions(): array
+    {
+        return Preacher::getForPublicList()
             ->map(fn (Preacher $preacher): array => ['id' => $preacher->id, 'name' => $preacher->name])
             ->values()
             ->all();
-        $seriesOptions = collect($sermonRepository->getSeriesForDisplay())
+    }
+
+    /**
+     * @return array<int, array{id: string, name: string}>
+     */
+    #[Computed]
+    public function seriesOptions(): array
+    {
+        return collect(app(SermonRepository::class)->getSeriesForDisplay())
             ->map(fn (string $series): array => ['id' => $series, 'name' => $series])
             ->values()
             ->all();
+    }
 
-        /** @var LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
-        $sermons = $sermonRepository->publicBrowseQuery(
+    /**
+     * @return array<int, string>
+     */
+    #[Computed]
+    public function activeFilterLabels(): array
+    {
+        $labels = [];
+
+        if ($this->bookFilter !== null) {
+            $labels[] = $this->chapterFilter !== null
+                ? $this->bookFilter.' '.$this->chapterFilter
+                : $this->bookFilter;
+        }
+
+        if ($this->preacherFilter !== null) {
+            $labels[] = $this->findOptionName($this->preacherOptions, $this->preacherFilter) ?? 'Selected preacher';
+        }
+
+        if ($this->seriesFilter !== null) {
+            $labels[] = $this->findOptionName($this->seriesOptions, $this->seriesFilter) ?? $this->seriesFilter;
+        }
+
+        return $labels;
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, \App\Models\Sermon>
+     */
+    #[Computed]
+    public function sermons(): LengthAwarePaginator
+    {
+        /** @var LengthAwarePaginator<int, \App\Models\Sermon> */
+        return app(SermonRepository::class)->publicBrowseQuery(
             book: $this->bookFilter,
             chapter: $this->chapterFilter,
             preacherId: $this->preacherFilter,
             series: $this->seriesFilter,
         )->paginate(24);
-
-        return view('livewire.sermons.browse-sermons', [
-            'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks()),
-            'chapterOptions' => $this->bookFilter === null
-                ? []
-                : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters()),
-            'preacherOptions' => $preacherOptions,
-            'seriesOptions' => $seriesOptions,
-            'activeFilterLabels' => $this->activeFilterLabels($preacherOptions, $seriesOptions),
-            'sermons' => $sermons,
-            'hasActiveFilters' => $hasActiveFilters,
-        ]);
     }
 
-    private function hasActiveFilters(): bool
+    #[Computed]
+    public function hasActiveFilters(): bool
     {
         return $this->bookFilter !== null
             || $this->chapterFilter !== null
@@ -129,7 +200,8 @@ class BrowseSermons extends Component
     /**
      * @return Collection<int, string>
      */
-    private function enabledBooks(): Collection
+    #[Computed]
+    public function enabledBooks(): Collection
     {
         return $this->scriptureFilterOptionQuery()
             ->select('bible_book')
@@ -140,7 +212,8 @@ class BrowseSermons extends Component
     /**
      * @return Collection<int, int>
      */
-    private function enabledChapters(): Collection
+    #[Computed]
+    public function enabledChapters(): Collection
     {
         if ($this->bookFilter === null) {
             return collect();
@@ -164,32 +237,6 @@ class BrowseSermons extends Component
             ->where('sermons.content_type', SermonContentType::Sermon->value)
             ->when($this->preacherFilter, fn (Builder $query): Builder => $query->where('sermons.preacher_id', $this->preacherFilter))
             ->when($this->seriesFilter, fn (Builder $query): Builder => $query->where('sermons.series', $this->seriesFilter));
-    }
-
-    /**
-     * @param  array<int, array{id:int, name:string}>  $preacherOptions
-     * @param  array<int, array{id:string, name:string}>  $seriesOptions
-     * @return array<int, string>
-     */
-    private function activeFilterLabels(array $preacherOptions, array $seriesOptions): array
-    {
-        $labels = [];
-
-        if ($this->bookFilter !== null) {
-            $labels[] = $this->chapterFilter !== null
-                ? $this->bookFilter.' '.$this->chapterFilter
-                : $this->bookFilter;
-        }
-
-        if ($this->preacherFilter !== null) {
-            $labels[] = $this->findOptionName($preacherOptions, $this->preacherFilter) ?? 'Selected preacher';
-        }
-
-        if ($this->seriesFilter !== null) {
-            $labels[] = $this->findOptionName($seriesOptions, $this->seriesFilter) ?? $this->seriesFilter;
-        }
-
-        return $labels;
     }
 
     /**

@@ -52,7 +52,7 @@ class SeoRegressionTest extends TestCase
             'date' => '2026-03-01',
         ]);
 
-        $description = 'Listen to recent sermons from Crockenhill Baptist Church. Worshipping God, strengthening believers, and proclaiming Jesus Christ.';
+        $description = 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.';
         $response = $this->get(route('sermons.index'));
 
         $response->assertOk();

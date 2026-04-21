@@ -1,5 +1,5 @@
 <div class="pb-12">
-    <section class="px-6" x-data="{ expanded: @js($hasActiveFilters) }">
+    <section class="px-6" x-data="{ expanded: @js($this->hasActiveFilters) }">
         <div class="mx-auto max-w-2xl lg:max-w-5xl xl:max-w-7xl">
             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
                 <x-form-button
@@ -18,11 +18,11 @@
                     </span>
                 </x-form-button>
 
-                @if ($hasActiveFilters)
+                @if ($this->hasActiveFilters)
                     <div class="flex flex-wrap items-center justify-center gap-2">
                         <span class="text-sm text-gray-500">Filtered by</span>
 
-                        @foreach ($activeFilterLabels as $activeFilterLabel)
+                        @foreach ($this->activeFilterLabels as $activeFilterLabel)
                             <x-badge variant="teal">{{ $activeFilterLabel }}</x-badge>
                         @endforeach
                     </div>
@@ -46,7 +46,7 @@
                     label="Book"
                     wire:model.live="bookFilter"
                     placeholder="All books"
-                    :options="$bookOptions"
+                    :options="$this->bookOptions"
                     class="w-full"
                 />
 
@@ -54,7 +54,7 @@
                     label="Chapter"
                     wire:model.live="chapterFilter"
                     placeholder="{{ $bookFilter === null ? 'Choose a book first' : 'All chapters' }}"
-                    :options="$chapterOptions"
+                    :options="$this->chapterOptions"
                     :disabled="$bookFilter === null"
                     class="w-full"
                 />
@@ -63,7 +63,7 @@
                     label="Preacher"
                     wire:model.live="preacherFilter"
                     placeholder="All preachers"
-                    :options="$preacherOptions"
+                    :options="$this->preacherOptions"
                     class="w-full"
                 />
 
@@ -71,7 +71,7 @@
                     label="Series"
                     wire:model.live="seriesFilter"
                     placeholder="All series"
-                    :options="$seriesOptions"
+                    :options="$this->seriesOptions"
                     class="w-full"
                 />
             </div>
@@ -89,6 +89,7 @@
     <div id="sermon-results" wire:loading.class="pointer-events-none opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter">
         @php
             /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
+            $sermons = $this->sermons;
         @endphp
 
         @if ($sermons->total() > 0)
@@ -107,7 +108,7 @@
             @endif
         @else
             <section class="mx-auto mt-8 max-w-2xl px-6">
-                @if ($hasActiveFilters)
+                @if ($this->hasActiveFilters)
                     <x-card heading="No sermons match these filters">
                         <p class="text-gray-600">
                             Try another book, chapter, preacher, or series, or clear the filters to return to the full sermon archive.
