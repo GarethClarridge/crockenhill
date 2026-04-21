@@ -18,8 +18,8 @@ return new class extends Migration
 
         // Add the CHECK constraint
         // Ensures audio_file_path is not empty and has no leading/trailing whitespace.
-        // NOTE: We are NOT performing data cleanup here to comply with safety guidelines.
-        DB::statement("ALTER TABLE sermons ADD CONSTRAINT sermons_audio_file_path_format_check CHECK (audio_file_path = TRIM(audio_file_path) AND audio_file_path != '')");
+        // We use BINARY to ensure the check is exact and avoids collation-related matching.
+        DB::statement("ALTER TABLE sermons ADD CONSTRAINT sermons_audio_file_path_format_check CHECK (BINARY audio_file_path = TRIM(audio_file_path) AND audio_file_path != '')");
     }
 
     /**
