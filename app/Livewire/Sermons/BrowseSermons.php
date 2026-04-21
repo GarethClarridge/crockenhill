@@ -13,10 +13,17 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+/**
+ * @property-read Collection<int, string> $enabledBooks
+ * @property-read Collection<int, int> $enabledChapters
+ * @property-read array<int, array{id:int, name:string}> $preacherOptions
+ * @property-read array<int, array{id:string, name:string}> $seriesOptions
+ */
 class BrowseSermons extends Component
 {
     use WithPagination;
@@ -88,14 +95,6 @@ class BrowseSermons extends Component
     public function render(SermonRepository $sermonRepository, BibleCanon $bibleCanon): View
     {
         $hasActiveFilters = $this->hasActiveFilters();
-        $preacherOptions = Preacher::getForPublicList()
-            ->map(fn (Preacher $preacher): array => ['id' => $preacher->id, 'name' => $preacher->name])
-            ->values()
-            ->all();
-        $seriesOptions = collect($sermonRepository->getSeriesForDisplay())
-            ->map(fn (string $series): array => ['id' => $series, 'name' => $series])
-            ->values()
-            ->all();
 
         /** @var LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
         $sermons = $sermonRepository->publicBrowseQuery(
@@ -106,13 +105,13 @@ class BrowseSermons extends Component
         )->paginate(24);
 
         return view('livewire.sermons.browse-sermons', [
-            'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks()),
+            'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks),
             'chapterOptions' => $this->bookFilter === null
                 ? []
-                : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters()),
-            'preacherOptions' => $preacherOptions,
-            'seriesOptions' => $seriesOptions,
-            'activeFilterLabels' => $this->activeFilterLabels($preacherOptions, $seriesOptions),
+                : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters),
+            'preacherOptions' => $this->preacherOptions,
+            'seriesOptions' => $this->seriesOptions,
+            'activeFilterLabels' => $this->activeFilterLabels($this->preacherOptions, $this->seriesOptions),
             'sermons' => $sermons,
             'hasActiveFilters' => $hasActiveFilters,
         ]);
@@ -129,7 +128,8 @@ class BrowseSermons extends Component
     /**
      * @return Collection<int, string>
      */
-    private function enabledBooks(): Collection
+    #[Computed]
+    public function enabledBooks(): Collection
     {
         return $this->scriptureFilterOptionQuery()
             ->select('bible_book')
@@ -140,7 +140,8 @@ class BrowseSermons extends Component
     /**
      * @return Collection<int, int>
      */
-    private function enabledChapters(): Collection
+    #[Computed]
+    public function enabledChapters(): Collection
     {
         if ($this->bookFilter === null) {
             return collect();
@@ -152,6 +153,30 @@ class BrowseSermons extends Component
             ->distinct()
             ->orderBy('bible_chapter')
             ->pluck('bible_chapter');
+    }
+
+    /**
+     * @return array<int, array{id:int, name:string}>
+     */
+    #[Computed]
+    public function preacherOptions(): array
+    {
+        return Preacher::getForPublicList()
+            ->map(fn (Preacher $preacher): array => ['id' => $preacher->id, 'name' => $preacher->name])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{id:string, name:string}>
+     */
+    #[Computed]
+    public function seriesOptions(): array
+    {
+        return collect(app(SermonRepository::class)->getSeriesForDisplay())
+            ->map(fn (string $series): array => ['id' => $series, 'name' => $series])
+            ->values()
+            ->all();
     }
 
     /**
