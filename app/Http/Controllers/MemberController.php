@@ -13,7 +13,7 @@ class MemberController extends Controller
 {
     public function __invoke(): View
     {
-        $isAdmin = auth()->user()?->is_admin === true;
+        $isAdmin = auth()->user()?->canAccessAdmin() === true;
 
         $pendingInboundEmailCount = $isAdmin
             ? InboundEmail::query()

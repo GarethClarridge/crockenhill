@@ -92,9 +92,23 @@ class PublicPageVisibilityGuardTest extends TestCase
     }
 
     #[Test]
-    public function it_returns_null_when_an_authenticated_user_accesses_a_members_page(): void
+    public function it_redirects_an_unverified_user_to_verification_notice_for_a_members_page(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email_verified_at' => null]);
+        $this->actingAs($user);
+
+        $page = Page::factory()->inArea(PageArea::Members)->create(['admin' => 'no']);
+
+        $result = $this->guard->enforce($page);
+
+        $this->assertInstanceOf(RedirectResponse::class, $result);
+        $this->assertStringContainsString('verify-email', $result->getTargetUrl());
+    }
+
+    #[Test]
+    public function it_returns_null_when_a_verified_user_accesses_a_members_page(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
         $this->actingAs($user);
 
         $page = Page::factory()->inArea(PageArea::Members)->create(['admin' => 'no']);

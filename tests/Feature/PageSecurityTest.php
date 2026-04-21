@@ -45,7 +45,7 @@ class PageSecurityTest extends TestCase
         $this->actingAs($user)->get('/church/public-page')->assertStatus(200);
     }
 
-    public function test_members_area_pages_require_authentication(): void
+    public function test_members_area_pages_require_authenticated_and_verified_email(): void
     {
         Page::factory()->create([
             'area' => PageArea::Members,
@@ -55,8 +55,11 @@ class PageSecurityTest extends TestCase
 
         $this->get('/members/members-only-page')->assertRedirect('/login');
 
-        $user = User::factory()->create(['is_admin' => false]);
-        $this->actingAs($user)->get('/members/members-only-page')->assertStatus(200);
+        $unverified = User::factory()->create(['is_admin' => false, 'email_verified_at' => null]);
+        $this->actingAs($unverified)->get('/members/members-only-page')->assertRedirect(route('verification.notice'));
+
+        $verified = User::factory()->create(['is_admin' => false, 'email_verified_at' => now()]);
+        $this->actingAs($verified)->get('/members/members-only-page')->assertStatus(200);
     }
 
     public function test_admin_landing_pages_are_restricted_to_admins(): void
@@ -111,5 +114,38 @@ class PageSecurityTest extends TestCase
         Page::query()->where('area', PageArea::Sermons)->delete();
 
         $this->get('/sermons')->assertNotFound();
+    }
+
+    public function test_admin_pages_require_verified_admin_not_just_is_admin_flag(): void
+    {
+        Page::factory()->create([
+            'area' => PageArea::Church,
+            'slug' => 'verified-admin-only-page',
+            'admin' => 'yes',
+        ]);
+
+        $unverifiedAdmin = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => null,
+        ]);
+        $this->actingAs($unverifiedAdmin)
+            ->get('/church/verified-admin-only-page')
+            ->assertStatus(403);
+
+        $verifiedNonAdmin = User::factory()->create([
+            'is_admin' => false,
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($verifiedNonAdmin)
+            ->get('/church/verified-admin-only-page')
+            ->assertStatus(403);
+
+        $verifiedAdmin = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($verifiedAdmin)
+            ->get('/church/verified-admin-only-page')
+            ->assertStatus(200);
     }
 }

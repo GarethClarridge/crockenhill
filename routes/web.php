@@ -185,12 +185,12 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/users/{user}/edit', App\Livewire\Admin\Users\EditUser::class)->name('users.edit');
 });
 
-// "Members only" currently means "has a user account", not "verified/invited member".
-Route::middleware('auth')->prefix('church/members')->group(function () {
+// "Members only" = authenticated + verified email.
+Route::middleware(['auth', 'verified'])->prefix('church/members')->group(function () {
     Route::get('', MemberController::class)->name('memberHome');
 });
 
-Route::middleware('auth')->prefix('church/songs')->name('church.songs.')->group(function () {
+Route::middleware(['auth', 'verified'])->prefix('church/songs')->name('church.songs.')->group(function () {
     Route::get('', [PublicSongListController::class, 'index'])->name('index');
     Route::get('{song:slug}', [PublicSongListController::class, 'show'])->name('show');
 });

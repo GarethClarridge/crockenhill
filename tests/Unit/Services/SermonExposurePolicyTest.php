@@ -41,20 +41,23 @@ class SermonExposurePolicyTest extends TestCase
     #[Test]
     public function can_access_childrens_corner_logic(): void
     {
-        $admin = User::factory()->create(['is_admin' => true]);
-        $user = User::factory()->create(['is_admin' => false]);
+        $verifiedAdmin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
+        $verifiedUser = User::factory()->create(['is_admin' => false, 'email_verified_at' => now()]);
+        $unverifiedUser = User::factory()->create(['is_admin' => false, 'email_verified_at' => null]);
 
         // When public is true, everyone can access
         Config::set('sermons.childrens_talks.public', true);
         $this->assertTrue($this->policy->canAccessChildrensCorner(null));
-        $this->assertTrue($this->policy->canAccessChildrensCorner($user));
-        $this->assertTrue($this->policy->canAccessChildrensCorner($admin));
+        $this->assertTrue($this->policy->canAccessChildrensCorner($verifiedUser));
+        $this->assertTrue($this->policy->canAccessChildrensCorner($unverifiedUser));
+        $this->assertTrue($this->policy->canAccessChildrensCorner($verifiedAdmin));
 
-        // When public is false, only authenticated users can access
+        // When public is false, only authenticated + verified users can access
         Config::set('sermons.childrens_talks.public', false);
         $this->assertFalse($this->policy->canAccessChildrensCorner(null));
-        $this->assertTrue($this->policy->canAccessChildrensCorner($user));
-        $this->assertTrue($this->policy->canAccessChildrensCorner($admin));
+        $this->assertTrue($this->policy->canAccessChildrensCorner($verifiedUser));
+        $this->assertFalse($this->policy->canAccessChildrensCorner($unverifiedUser));
+        $this->assertTrue($this->policy->canAccessChildrensCorner($verifiedAdmin));
     }
 
     #[Test]

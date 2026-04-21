@@ -19,14 +19,19 @@ class PublicPageVisibilityGuard
 
         $user = Auth::user();
 
-        if ($page->admin === 'yes' && ($user === null || ! $user->is_admin)) {
+        if ($page->admin === 'yes' && ($user === null || ! $user->canAccessAdmin())) {
             abort(403, 'Unauthorized action.');
         }
 
-        // Members-area pages follow the same rule as the rest of the members area:
-        // any authenticated account may view them.
-        if ($page->area === PageArea::Members && $user === null) {
-            return redirect()->guest(route('login'));
+        // Members-area pages require authenticated + verified email, matching the route middleware.
+        if ($page->area === PageArea::Members) {
+            if ($user === null) {
+                return redirect()->guest(route('login'));
+            }
+
+            if (! $user->hasVerifiedEmail()) {
+                return redirect()->guest(route('verification.notice'));
+            }
         }
 
         return null;

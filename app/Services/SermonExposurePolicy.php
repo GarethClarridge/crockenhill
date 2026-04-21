@@ -8,6 +8,7 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\Sermon;
+use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 class SermonExposurePolicy
@@ -40,9 +41,9 @@ class SermonExposurePolicy
 
     public function canAccessChildrensCorner(?Authenticatable $user): bool
     {
-        // This matches the current members-area policy: any authenticated account
-        // may access non-public Children's Corner content.
-        return $this->childrensTalksArePublic() || $user !== null;
+        // Non-public Children's Corner content requires authenticated + verified email,
+        // consistent with the members-area boundary.
+        return $this->childrensTalksArePublic() || ($user instanceof User && $user->hasVerifiedEmail());
     }
 
     public function isChildrensTalk(Sermon $sermon): bool

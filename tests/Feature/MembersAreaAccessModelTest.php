@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\PageArea;
 use App\Enums\SermonContentType;
 use App\Livewire\Auth\Register as RegisterComponent;
-use App\Models\Page;
 use App\Models\Sermon;
 use App\Models\Song;
 use App\Models\User;
@@ -23,7 +21,7 @@ class MembersAreaAccessModelTest extends TestCase
     use DatabaseTransactions;
 
     #[Test]
-    public function self_registered_unverified_user_can_access_account_only_surfaces(): void
+    public function self_registered_unverified_user_cannot_access_members_or_songs_routes(): void
     {
         Notification::fake();
         config()->set('sermons.childrens_talks.public', false);
@@ -37,12 +35,6 @@ class MembersAreaAccessModelTest extends TestCase
             'title' => 'Members Talk',
             'slug' => 'members-talk',
             'content_type' => SermonContentType::ChildrensTalk,
-        ]);
-
-        $membersPage = Page::factory()->create([
-            'area' => PageArea::Members,
-            'slug' => 'members-only-page',
-            'admin' => 'no',
         ]);
 
         Livewire::test(RegisterComponent::class)
@@ -68,12 +60,51 @@ class MembersAreaAccessModelTest extends TestCase
 
         Notification::assertSentTo($user, VerifyEmailNotification::class);
 
+        $this->get(route('memberHome'))->assertRedirect(route('verification.notice'));
+        $this->get(route('church.songs.index'))->assertRedirect(route('verification.notice'));
+        $this->get(route('church.songs.show', $song))->assertRedirect(route('verification.notice'));
+        $this->get(route('childrens-corner.index'))->assertRedirect(route('login'));
+        $this->get(route('childrens-corner.show', $talk))->assertRedirect(route('login'));
+    }
+
+    #[Test]
+    public function verified_member_can_access_members_and_songs_routes(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'Verified Member Song',
+            'slug' => 'verified-member-song',
+        ]);
+
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'is_admin' => false,
+        ]);
+
+        $this->actingAs($user);
+
         $this->get(route('memberHome'))->assertOk();
         $this->get(route('church.songs.index'))->assertOk();
         $this->get(route('church.songs.show', $song))->assertOk();
-        $this->get(route('pages.showPublic', ['area' => 'members', 'slug' => $membersPage->slug]))->assertOk();
-        $this->get(route('childrens-corner.index'))->assertOk();
-        $this->get(route('childrens-corner.show', $talk))->assertOk();
+    }
+
+    #[Test]
+    public function unverified_authenticated_user_is_redirected_to_verification_notice(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'Unverified Block Song',
+            'slug' => 'unverified-block-song',
+        ]);
+
+        $user = User::factory()->create([
+            'email_verified_at' => null,
+            'is_admin' => false,
+        ]);
+
+        $this->actingAs($user);
+
+        $this->get(route('memberHome'))->assertRedirect(route('verification.notice'));
+        $this->get(route('church.songs.index'))->assertRedirect(route('verification.notice'));
+        $this->get(route('church.songs.show', $song))->assertRedirect(route('verification.notice'));
     }
 
     #[Test]
@@ -92,16 +123,9 @@ class MembersAreaAccessModelTest extends TestCase
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
 
-        $membersPage = Page::factory()->create([
-            'area' => PageArea::Members,
-            'slug' => 'guest-blocked-members-page',
-            'admin' => 'no',
-        ]);
-
         $this->get(route('memberHome'))->assertRedirect('/login');
         $this->get(route('church.songs.index'))->assertRedirect('/login');
         $this->get(route('church.songs.show', $song))->assertRedirect('/login');
-        $this->get(route('pages.showPublic', ['area' => 'members', 'slug' => $membersPage->slug]))->assertRedirect('/login');
         $this->get(route('childrens-corner.index'))->assertRedirect('/login');
         $this->get(route('childrens-corner.show', $talk))->assertRedirect('/login');
     }

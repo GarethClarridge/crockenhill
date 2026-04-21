@@ -87,6 +87,22 @@ class ChildrensCornerControllerTest extends TestCase
         $response->assertSee('A Childrens Talk Title');
     }
 
+    #[Test]
+    public function unverified_user_is_redirected_to_verification_notice(): void
+    {
+        config(['sermons.childrens_talks.public' => false]);
+
+        $user = User::factory()->create(['email_verified_at' => null]);
+
+        $talk = Sermon::factory()->create([
+            'slug' => 'unverified-talk',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $this->actingAs($user)->get('/christ/childrens-corner')->assertRedirect(route('login'));
+        $this->actingAs($user)->get('/christ/childrens-corner/unverified-talk')->assertRedirect(route('login'));
+    }
+
     // ── public access when talks are enabled ──────────────────────────────
 
     #[Test]
