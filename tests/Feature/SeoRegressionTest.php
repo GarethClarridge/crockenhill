@@ -101,7 +101,7 @@ class SeoRegressionTest extends TestCase
     }
 
     #[Test]
-    public function other_service_page_renders_podcast_discovery_links(): void
+    public function other_service_page_does_not_render_a_podcast_discovery_link(): void
     {
         Sermon::factory()->create([
             'title' => 'Other Sermon',
@@ -117,8 +117,6 @@ class SeoRegressionTest extends TestCase
             '<meta name="description" content="Listen to recent Other sermons from Crockenhill Baptist Church.">',
             false
         );
-        $response->assertSee('rel="alternate" type="application/rss+xml"', false);
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">', false);
-        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="'.route('podcast.feed', 'evening').'">', false);
+        $response->assertDontSee('rel="alternate" type="application/rss+xml"', false);
     }
 }
