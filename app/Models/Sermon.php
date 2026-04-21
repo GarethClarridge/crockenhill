@@ -23,7 +23,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -197,9 +196,7 @@ class Sermon extends Model implements Sitemapable
         ];
     }
 
-    /**
-     * @return array<string, list<string|mixed>>
-     */
+    /** @return array<string, list<string|mixed>> */
     public static function validationRules(?self $sermon = null): array
     {
         $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
@@ -212,6 +209,10 @@ class Sermon extends Model implements Sitemapable
         return [
             'title' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
+            'audio_file_path' => ['required', 'string', 'max:255'],
+            'date' => ['required', 'date'],
+            'service' => ['required', \Illuminate\Validation\Rule::enum(SermonService::class)],
+            'content_type' => ['required', \Illuminate\Validation\Rule::enum(SermonContentType::class)],
             'series' => ['nullable', 'string', 'max:255'],
             'reference' => ['nullable', 'string', 'max:255'],
             'preacher' => ['required', 'string', 'max:255'],

@@ -162,4 +162,63 @@ class SermonIntegrityTest extends TestCase
         $this->assertArrayHasKey('preacher_confidence', $validator->errors()->toArray());
         $this->assertArrayHasKey('segment_start_time', $validator->errors()->toArray());
     }
+
+    #[Test]
+    public function it_rejects_empty_audio_file_path_at_database_level(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Database-level CHECK constraints are only implemented for MySQL in this project.');
+        }
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('sermons_audio_file_path_not_empty_check');
+
+        $data = Sermon::factory()->make()->toArray();
+        $data['points'] = json_encode($data['points']);
+        $data['audio_file_path'] = '';
+        $data['slug'] = 'db-integrity-test-empty-path';
+        $data['date'] = now()->format('Y-m-d');
+
+        DB::table('sermons')->insert($data);
+    }
+
+    #[Test]
+    public function it_rejects_empty_title_at_database_level(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Database-level CHECK constraints are only implemented for MySQL in this project.');
+        }
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('sermons_title_not_empty_check');
+
+        $data = Sermon::factory()->make()->toArray();
+        $data['points'] = json_encode($data['points']);
+        $data['title'] = '';
+        $data['slug'] = 'db-integrity-test-empty-title';
+        $data['date'] = now()->format('Y-m-d');
+
+        DB::table('sermons')->insert($data);
+    }
+
+    #[Test]
+    public function it_validates_required_fields_in_model(): void
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make([
+            'title' => '',
+            'audio_file_path' => '',
+            'date' => '',
+            'service' => 'invalid',
+            'content_type' => 'invalid',
+        ], Sermon::validationRules());
+
+        $this->assertTrue($validator->fails());
+        $errors = $validator->errors()->toArray();
+
+        $this->assertArrayHasKey('title', $errors);
+        $this->assertArrayHasKey('audio_file_path', $errors);
+        $this->assertArrayHasKey('date', $errors);
+        $this->assertArrayHasKey('service', $errors);
+        $this->assertArrayHasKey('content_type', $errors);
+    }
 }
