@@ -98,13 +98,10 @@ class UpdateMeetingRequestTest extends TestCase
         }
 
         $this->request->setRouteResolver(function () use ($meeting) {
-            $route = $this->getMockBuilder(\Illuminate\Routing\Route::class)
-                ->disableOriginalConstructor()
-                ->getMock();
-            $route->method('parameter')->with('meeting')->willReturn($meeting);
-            $route->method('parameters')->willReturn($meeting ? ['meeting' => $meeting] : []);
-
-            return $route;
+            return \Mockery::mock(\Illuminate\Routing\Route::class, [
+                'parameter' => $meeting,
+                'parameters' => $meeting ? ['meeting' => $meeting] : [],
+            ]);
         });
 
         $validator = Validator::make($data, $this->request->rules());
@@ -272,12 +269,9 @@ class UpdateMeetingRequestTest extends TestCase
         ];
 
         $this->request->setRouteResolver(function () use ($meeting) {
-            $route = $this->getMockBuilder(\Illuminate\Routing\Route::class)
-                ->disableOriginalConstructor()
-                ->getMock();
-            $route->method('parameter')->with('meeting')->willReturn($meeting);
-
-            return $route;
+            return \Mockery::mock(\Illuminate\Routing\Route::class, [
+                'parameter' => $meeting,
+            ]);
         });
 
         $validator = Validator::make($data, $this->request->rules());
@@ -328,12 +322,9 @@ class UpdateMeetingRequestTest extends TestCase
         $currentMeeting->update(['page_id' => $page->id]);
 
         $this->request->setRouteResolver(function () use ($currentMeeting) {
-            $route = $this->getMockBuilder(\Illuminate\Routing\Route::class)
-                ->disableOriginalConstructor()
-                ->getMock();
-            $route->method('parameter')->with('meeting')->willReturn($currentMeeting);
-
-            return $route;
+            return \Mockery::mock(\Illuminate\Routing\Route::class, [
+                'parameter' => $currentMeeting,
+            ]);
         });
 
         $validator = Validator::make($data, $this->request->rules());
