@@ -71,6 +71,15 @@ class RateLimitServiceProvider extends ServiceProvider
             ];
         });
 
+        RateLimiter::for('media-video', function (Request $request): array {
+            $key = $request->user()?->id ?: $request->ip();
+
+            return [
+                Limit::perMinute(5)->by($key),
+                Limit::perHour(30)->by($key),
+            ];
+        });
+
         RateLimiter::for('media-thumbnail', function (Request $request): array {
             $key = $request->user()?->id ?: $request->ip();
 

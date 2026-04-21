@@ -51,7 +51,7 @@ class PodcastFeedServiceTest extends TestCase
             'audio_file_path' => 'sermons/test.mp3',
         ]);
 
-        $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
         config(['podcast.cache.enabled' => false]);
@@ -74,7 +74,7 @@ class PodcastFeedServiceTest extends TestCase
             'audio_file_path' => null,
         ]);
 
-        $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
         config(['podcast.cache.enabled' => false]);
@@ -100,7 +100,7 @@ class PodcastFeedServiceTest extends TestCase
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
 
-        $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
         config(['podcast.cache.enabled' => false]);
@@ -119,7 +119,7 @@ class PodcastFeedServiceTest extends TestCase
             'audio_file_path' => 'sermons/test.mp3',
         ]);
 
-        $this->storageService->method('getPublicUrl')->willReturn('https://cdn.example.com/sermon.mp3');
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://cdn.example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(5242880);
 
         config(['podcast.cache.enabled' => false]);
@@ -139,7 +139,7 @@ class PodcastFeedServiceTest extends TestCase
             'audio_file_path' => 'sermons/test.mp3',
         ]);
 
-        $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(null);
 
         config(['podcast.cache.enabled' => false]);
@@ -147,6 +147,25 @@ class PodcastFeedServiceTest extends TestCase
         $sermons = $this->service->getSermonsForFeed(SermonService::Morning);
 
         $this->assertEquals(0, $sermons->first()->enclosureLength);
+    }
+
+    #[Test]
+    public function it_uses_guarded_audio_delivery_url_for_enclosure(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'service' => 'morning',
+            'audio_file_path' => 'sermons/test.mp3',
+        ]);
+
+        $expectedUrl = route('sermons.audio', $sermon);
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn($expectedUrl);
+        $this->storageService->method('getFileSize')->willReturn(1024);
+
+        config(['podcast.cache.enabled' => false]);
+
+        $sermons = $this->service->getSermonsForFeed(SermonService::Morning);
+
+        $this->assertSame($expectedUrl, $sermons->first()->enclosureUrl);
     }
 
     #[Test]
@@ -206,7 +225,7 @@ class PodcastFeedServiceTest extends TestCase
             'audio_file_path' => 'sermons/test.mp3',
         ]);
 
-        $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
         $this->assertFalse(Cache::has('podcast_feed_morning'));
@@ -243,7 +262,7 @@ class PodcastFeedServiceTest extends TestCase
     #[Test]
     public function it_returns_empty_collection_when_no_sermons_exist(): void
     {
-        $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(0);
 
         config(['podcast.cache.enabled' => false]);
@@ -263,7 +282,7 @@ class PodcastFeedServiceTest extends TestCase
             'audio_file_path' => 'sermons/test.mp3',
         ]);
 
-        $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
         $sermons = $this->service->getSermonsForFeed(SermonService::Morning);

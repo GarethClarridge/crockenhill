@@ -82,8 +82,10 @@ Route::group(['prefix' => 'christ/sermons'], function () {
         ->middleware('throttle:media-audio')
         ->name('sermons.audio');
 
+    // No auth middleware: access control is enforced inside SermonAssetController
+    // via canAccessChildrensCorner(), which also handles the public-release toggle.
     Route::get('/{sermon:slug}/video', [SermonAssetController::class, 'serveVideo'])
-        ->middleware('throttle:media-audio')
+        ->middleware('throttle:media-video')
         ->name('sermons.video');
 
     // Thumbnail serving route

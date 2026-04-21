@@ -78,7 +78,7 @@ class PodcastFeedService
         return new PodcastFeedItemReadModel(
             canonicalUrl: $this->sermonViewPresenter->canonicalUrl($sermon),
             enclosureLength: $this->storageService->getFileSize($sermon) ?? 0,
-            enclosureUrl: $this->storageService->getPublicUrl($sermon),
+            enclosureUrl: (string) $this->storageService->getAudioDeliveryUrl($sermon),
             episodeImageUrl: $this->sermonViewPresenter->thumbnailUrl($sermon),
             itunesDuration: $this->formatItunesDuration((int) ($sermon->duration ?? 0)),
             podcastSummary: $this->buildPodcastSummary($sermon),

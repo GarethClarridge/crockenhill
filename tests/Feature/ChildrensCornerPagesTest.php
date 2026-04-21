@@ -170,6 +170,27 @@ class ChildrensCornerPagesTest extends TestCase
     }
 
     #[Test]
+    public function listing_uses_guarded_thumbnail_route_for_private_plain_thumbnail(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $talk = Sermon::factory()->create([
+            'title' => 'Private Plain Little Listeners',
+            'slug' => 'private-plain-little-listeners',
+            'content_type' => SermonContentType::ChildrensTalk,
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'private/thumbnails/private-plain-little-listeners.jpg',
+            ],
+        ]);
+
+        $response = $this->get(route('childrens-corner.index'));
+
+        $response->assertOk();
+        $response->assertSee(route('sermons.thumbnail', $talk), false);
+        $response->assertDontSee('/storage/private/', false);
+    }
+
+    #[Test]
     public function guests_can_access_childrens_corner_when_public_release_is_enabled(): void
     {
         config(['sermons.childrens_talks.public' => true]);

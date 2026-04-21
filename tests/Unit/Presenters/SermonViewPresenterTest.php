@@ -205,6 +205,7 @@ class SermonViewPresenterTest extends TestCase
         $this->assertSame(route('sermons.video', ['sermon' => $sermon->slug]), $presented['video_url']);
         $this->assertSame(route('sermons.thumbnail', ['sermon' => $sermon->slug]), $presented['thumbnail_url']);
         $this->assertSame(route('sermons.thumbnail.card', ['sermon' => $sermon->slug]), $presented['card_thumbnail_url']);
+        $this->assertSame(route('sermons.thumbnail', ['sermon' => $sermon->slug]), $this->presenter->plainThumbnailUrl($sermon));
     }
 
     #[Test]

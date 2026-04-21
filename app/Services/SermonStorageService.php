@@ -303,6 +303,23 @@ class SermonStorageService
         return $this->getCardThumbnailUrl($sermon);
     }
 
+    public function getPlainThumbnailDeliveryUrl(Sermon $sermon): ?string
+    {
+        $plainThumbnailPath = $sermon->plain_thumbnail_file_path;
+
+        if (! is_string($plainThumbnailPath) || $plainThumbnailPath === '') {
+            return null;
+        }
+
+        $this->validatePath($plainThumbnailPath, 'plain thumbnail');
+
+        if ($this->requiresGuardedDelivery($plainThumbnailPath)) {
+            return route('sermons.thumbnail', ['sermon' => $sermon->slug]);
+        }
+
+        return $this->getPlainThumbnailUrl($sermon);
+    }
+
     /**
      * Check if a sermon file exists
      */

@@ -36,7 +36,7 @@ class PodcastFeedTest extends TestCase
     protected function mockStorageService(): MockInterface
     {
         $mock = Mockery::mock(SermonStorageService::class);
-        $mock->shouldReceive('getPublicUrl')
+        $mock->shouldReceive('getAudioDeliveryUrl')
             ->andReturnUsing(fn (Sermon $sermon) => "https://example.com/sermons/{$sermon->audio_file_path}");
         $mock->shouldReceive('getFileSize')
             ->andReturn(10485760); // 10MB default
@@ -52,11 +52,11 @@ class PodcastFeedTest extends TestCase
         return $mock;
     }
 
-    protected function mockStorageServiceWithCallCounts(int $publicUrlCalls, int $fileSizeCalls): void
+    protected function mockStorageServiceWithCallCounts(int $audioDeliveryUrlCalls, int $fileSizeCalls): void
     {
         $mock = Mockery::mock(SermonStorageService::class);
-        $mock->shouldReceive('getPublicUrl')
-            ->times($publicUrlCalls)
+        $mock->shouldReceive('getAudioDeliveryUrl')
+            ->times($audioDeliveryUrlCalls)
             ->andReturnUsing(fn (Sermon $sermon) => "https://example.com/sermons/{$sermon->audio_file_path}");
         $mock->shouldReceive('getFileSize')
             ->times($fileSizeCalls)
@@ -434,7 +434,7 @@ class PodcastFeedTest extends TestCase
     #[Test]
     public function feed_uses_cache_when_underlying_data_does_not_change(): void
     {
-        $this->mockStorageServiceWithCallCounts(publicUrlCalls: 1, fileSizeCalls: 1);
+        $this->mockStorageServiceWithCallCounts(audioDeliveryUrlCalls: 1, fileSizeCalls: 1);
 
         Sermon::factory()->create([
             'service' => SermonService::Morning->value,

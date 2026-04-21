@@ -189,7 +189,7 @@ class SermonViewPresenter
                     return null;
                 }
 
-                return $this->storageService->getPlainThumbnailUrl($sermon);
+                return $this->storageService->getPlainThumbnailDeliveryUrl($sermon);
             })();
         }
 

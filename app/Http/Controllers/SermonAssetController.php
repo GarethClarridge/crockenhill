@@ -80,7 +80,7 @@ class SermonAssetController extends Controller
         }
 
         if (! str_starts_with($sermon->video_file_path, 'private/')) {
-            return redirect()->to((string) $this->storageService->getVideoUrl($sermon));
+            return redirect()->to((string) $this->storageService->getVideoDeliveryUrl($sermon));
         }
 
         $path = Storage::disk($disk)->path($sermon->video_file_path);
@@ -163,8 +163,6 @@ class SermonAssetController extends Controller
 
     private function serveStoredThumbnail(string $thumbnailPath): BinaryFileResponse
     {
-        $this->abortOnUnsafePath($thumbnailPath, 'thumbnail');
-
         $disk = str_starts_with($thumbnailPath, 'private/')
             ? 'local'
             : config('thumbnail-generation.storage.disk', 'public');
