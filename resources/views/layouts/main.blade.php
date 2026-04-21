@@ -37,8 +37,6 @@
     <link rel="canonical" href="{{ url()->current() }}">
   @endif
 
-  <x-podcast-discovery />
-
   {{-- Preload hints for critical resources --}}
   <link rel="preload" as="image" href="/svg/pattern.svg">
   @yield('preload')

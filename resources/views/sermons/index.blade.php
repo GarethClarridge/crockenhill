@@ -17,6 +17,8 @@
     :description="$description"
     :image="asset('/images/headings/large/sermons.webp')"
 />
+<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="{{ route('podcast.feed', 'morning') }}">
+<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="{{ route('podcast.feed', 'evening') }}">
 
 {{-- JSON-LD Sermon List --}}
 <script type="application/ld+json">
