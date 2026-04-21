@@ -20,16 +20,10 @@ return new class extends Migration
         }
 
         // Data Cleanup: Normalize invalid data before adding constraints
-        // 1. Trim existing paths
+        // Trim existing paths
         DB::table('sermons')
             ->whereRaw('TRIM(audio_file_path) != audio_file_path')
             ->update(['audio_file_path' => DB::raw('TRIM(audio_file_path)')]);
-
-        // 2. Set a placeholder for empty paths (if any) to satisfy the constraint
-        // Note: The column is NOT NULL, but could be an empty string.
-        DB::table('sermons')
-            ->where('audio_file_path', '')
-            ->update(['audio_file_path' => 'pending-audio-path']);
 
         if (DB::getDriverName() === 'mysql') {
             // Constraint: Not empty and trimmed (TRIM matches original)

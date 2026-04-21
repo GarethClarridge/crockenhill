@@ -26,6 +26,7 @@ class DatabaseIntegrityTest extends TestCase
         $sermonData = Sermon::factory()->raw([
             'preacher_id' => $preacher->id,
             'audio_file_path' => '',
+            'points' => null, // Ensure points is not an array if it causes issues with DB::table insert
         ]);
 
         $this->expectException(\Illuminate\Database\QueryException::class);
@@ -45,6 +46,7 @@ class DatabaseIntegrityTest extends TestCase
         $sermonData = Sermon::factory()->raw([
             'preacher_id' => $preacher->id,
             'audio_file_path' => ' path/with/spaces ',
+            'points' => null,
         ]);
 
         $this->expectException(\Illuminate\Database\QueryException::class);
@@ -60,6 +62,7 @@ class DatabaseIntegrityTest extends TestCase
         $sermonData = Sermon::factory()->raw([
             'preacher_id' => $preacher->id,
             'audio_file_path' => 'valid/path/audio.mp3',
+            'points' => null,
         ]);
 
         DB::table('sermons')->insert($sermonData);
