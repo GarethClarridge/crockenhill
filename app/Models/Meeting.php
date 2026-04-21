@@ -111,7 +111,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public static function validationRules(?self $meeting = null): array
     {
-        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
+        $slugRule = ['required', 'string', 'max:255', 'alpha_dash'];
         $uniqueSlug = \Illuminate\Validation\Rule::unique('meetings', 'slug');
         if ($meeting) {
             $uniqueSlug->ignore($meeting->id);
@@ -127,11 +127,14 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
         return [
             'slug' => $slugRule,
+            'type' => ['required', \Illuminate\Validation\Rule::enum(MeetingType::class)],
             'day' => ['required', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
             'who' => ['required', 'string', 'max:255'],
             'leaders_phone' => ['nullable', 'string', 'max:255'],
             'leaders_email' => ['nullable', 'email', 'max:255'],
+            'is_recurring' => ['nullable', 'boolean'],
+            'frequency' => ['nullable', 'required_if:is_recurring,true', \Illuminate\Validation\Rule::enum(MeetingFrequency::class)],
             'page_id' => $pageIdRule,
         ];
     }

@@ -201,7 +201,7 @@ class Sermon extends Model implements Sitemapable
      */
     public static function validationRules(?self $sermon = null): array
     {
-        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
+        $slugRule = ['required', 'string', 'max:255', 'alpha_dash'];
         $uniqueSlug = \Illuminate\Validation\Rule::unique('sermons', 'slug');
         if ($sermon) {
             $uniqueSlug->ignore($sermon->id);
@@ -212,10 +212,18 @@ class Sermon extends Model implements Sitemapable
             'title' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
             'audio_file_path' => ['sometimes', 'required', 'string', 'max:255'],
+            'video_file_path' => ['nullable', 'string', 'max:500'],
+            'content_type' => ['required', \Illuminate\Validation\Rule::enum(SermonContentType::class)],
+            'source_type' => ['nullable', \Illuminate\Validation\Rule::enum(SermonSourceType::class)],
+            'service' => ['nullable', \Illuminate\Validation\Rule::enum(SermonService::class)],
             'series' => ['nullable', 'string', 'max:255'],
             'reference' => ['nullable', 'string', 'max:255'],
             'preacher' => ['required', 'string', 'max:255'],
             'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
+            'preacher_source' => ['nullable', \Illuminate\Validation\Rule::enum(PreacherSource::class)],
+            'preacher_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'segment_start_time' => ['nullable', 'numeric', 'min:0'],
+            'segment_end_time' => ['nullable', 'numeric', 'min:0', 'gte:segment_start_time'],
             'scripture_passage_id' => ['nullable', 'integer', 'exists:scripture_passages,id'],
             'download_count' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],

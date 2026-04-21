@@ -5,9 +5,8 @@ namespace App\Http\Requests;
 use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Models\Meeting;
-use Illuminate\Foundation\Http\FormRequest; // Required for policy check
-use Illuminate\Validation\Rule; // Renamed to avoid conflict
-use Illuminate\Validation\Rules\Enum as EnumRule; // Added Enum import
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateMeetingRequest extends FormRequest
 {
@@ -33,33 +32,24 @@ class UpdateMeetingRequest extends FormRequest
      */
     public function rules(): array
     {
-        $meetingId = $this->route('meeting') instanceof Meeting ? $this->route('meeting')->id : $this->route('meeting');
+        $meeting = $this->route('meeting');
+        $modelRules = Meeting::validationRules($meeting instanceof Meeting ? $meeting : null);
 
         return [
-            'slug' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('meetings', 'slug')->ignore($meetingId),
-            ],
-            'type' => ['required', new EnumRule(MeetingType::class)],
-            'day' => 'required|string|max:255',
-            'location' => 'nullable|string|max:255',
-            'who' => 'required|string|max:255',
+            'slug' => $modelRules['slug'],
+            'type' => ['required', Rule::enum(MeetingType::class)],
+            'day' => $modelRules['day'],
+            'location' => $modelRules['location'],
+            'who' => $modelRules['who'],
             'pictures' => 'required|boolean',
             'start_time' => 'nullable|date_format:H:i:s,H:i',
             'end_time' => 'nullable|date_format:H:i:s,H:i|after_or_equal:start_time',
-            'leaders_phone' => 'nullable|string|max:255',
-            'leaders_email' => 'nullable|email|max:255',
+            'leaders_phone' => $modelRules['leaders_phone'],
+            'leaders_email' => $modelRules['leaders_email'],
             'meeting_date' => 'nullable|date_format:Y-m-d',
             'is_recurring' => 'nullable|boolean',
-            'frequency' => ['nullable', 'required_if:is_recurring,true', new EnumRule(MeetingFrequency::class)],
-            'page_id' => [
-                'nullable',
-                'exists:pages,id',
-                Rule::unique('meetings', 'page_id')->ignore($meetingId),
-            ],
+            'frequency' => ['nullable', 'required_if:is_recurring,true', Rule::enum(MeetingFrequency::class)],
+            'page_id' => $modelRules['page_id'],
         ];
     }
 }

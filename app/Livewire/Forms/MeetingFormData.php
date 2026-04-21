@@ -69,31 +69,23 @@ class MeetingFormData extends Form
      */
     protected function rules(): array
     {
+        $modelRules = Meeting::validationRules($this->meeting);
+
         return [
-            'slug' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('meetings', 'slug')->ignore($this->meeting),
-            ],
-            'type' => ['required', 'string', 'in:'.implode(',', MeetingType::values())],
+            'slug' => $modelRules['slug'],
+            'type' => ['required', Rule::enum(MeetingType::class)],
             'startTime' => 'nullable|date_format:H:i:s,H:i',
             'endTime' => 'nullable|date_format:H:i:s,H:i|after_or_equal:startTime',
-            'day' => 'required|string|max:255',
-            'location' => 'nullable|string|max:255',
-            'who' => 'required|string|max:255',
+            'day' => $modelRules['day'],
+            'location' => $modelRules['location'],
+            'who' => $modelRules['who'],
             'pictures' => 'boolean',
-            'leadersPhone' => 'nullable|string|max:255',
-            'leadersEmail' => 'nullable|email|max:255',
+            'leadersPhone' => $modelRules['leaders_phone'],
+            'leadersEmail' => $modelRules['leaders_email'],
             'meetingDate' => 'nullable|date_format:Y-m-d',
             'isRecurring' => 'boolean',
-            'frequency' => ['nullable', 'required_if:isRecurring,true', 'in:'.implode(',', MeetingFrequency::values())],
-            'pageId' => [
-                'nullable',
-                'exists:pages,id',
-                Rule::unique('meetings', 'page_id')->ignore($this->meeting),
-            ],
+            'frequency' => ['nullable', 'required_if:isRecurring,true', Rule::enum(MeetingFrequency::class)],
+            'pageId' => ['nullable', 'integer', 'exists:pages,id', Rule::unique('meetings', 'page_id')->ignore($this->meeting)],
         ];
     }
 

@@ -19,7 +19,6 @@ use App\Services\SermonStorageService;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -88,21 +87,23 @@ class EditSermon extends Component
      */
     protected function rules(): array
     {
+        $modelRules = Sermon::validationRules($this->sermon);
+
         return [
-            'title' => 'required|string|max:255',
-            'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:sermons,slug,'.$this->sermon->id],
+            'title' => $modelRules['title'],
+            'slug' => $modelRules['slug'],
             'date' => 'required|date',
-            'service' => ['required', Rule::enum(SermonService::class)],
-            'preacher' => 'required|string|max:255',
-            'preacherId' => 'nullable|integer|exists:preachers,id',
-            'preacherSource' => ['nullable', Rule::enum(PreacherSource::class)],
-            'preacherConfidence' => 'nullable|numeric|min:0|max:1',
-            'duration' => 'nullable|numeric|min:0',
-            'segmentStartTime' => 'nullable|numeric|min:0',
-            'segmentEndTime' => 'nullable|numeric|min:0|gte:segmentStartTime',
-            'downloadCount' => ['nullable', 'integer', 'min:0'],
-            'reference' => 'nullable|string|max:255',
-            'series' => 'nullable|string|max:255',
+            'service' => $modelRules['service'],
+            'preacher' => $modelRules['preacher'],
+            'preacherId' => $modelRules['preacher_id'],
+            'preacherSource' => $modelRules['preacher_source'],
+            'preacherConfidence' => $modelRules['preacher_confidence'],
+            'duration' => $modelRules['duration'],
+            'segmentStartTime' => ['nullable', 'numeric', 'min:0'],
+            'segmentEndTime' => ['nullable', 'numeric', 'min:0', 'gte:segmentStartTime'],
+            'downloadCount' => $modelRules['download_count'],
+            'reference' => $modelRules['reference'],
+            'series' => $modelRules['series'],
             'summary' => 'nullable|string|max:1000',
             'points' => 'array',
             'showSummary' => 'boolean',

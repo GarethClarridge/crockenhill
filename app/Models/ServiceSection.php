@@ -277,20 +277,20 @@ class ServiceSection extends Model
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<string|mixed>>
      */
     public static function validationRules(): array
     {
         return [
-            'section_type' => ['required', 'string', 'in:'.implode(',', ServiceSectionType::values())],
+            'section_type' => ['required', \Illuminate\Validation\Rule::enum(ServiceSectionType::class)],
             'section_order' => ['required', 'integer', 'min:0'],
             'start_time' => ['required', 'numeric', 'min:0'],
             'end_time' => ['required', 'numeric', 'min:0', 'gt:start_time'],
             'duration' => ['required', 'numeric', 'min:0'],
-            'status' => ['required', 'string', 'in:'.implode(',', ServiceSectionStatus::values())],
+            'status' => ['required', \Illuminate\Validation\Rule::enum(ServiceSectionStatus::class)],
             'confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
-            'song_match_type' => ['nullable', 'string', 'in:'.implode(',', ServiceSectionSongMatchType::values())],
-            'publication_status' => ['required', 'string', 'in:'.implode(',', ServiceSectionPublicationStatus::values())],
+            'song_match_type' => ['nullable', \Illuminate\Validation\Rule::enum(ServiceSectionSongMatchType::class)],
+            'publication_status' => ['required', \Illuminate\Validation\Rule::enum(ServiceSectionPublicationStatus::class)],
         ];
     }
 
