@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    private const AUDIO_FILE_PATH_NOT_EMPTY_CHECK = 'sermons_audio_file_path_not_empty_check';
-
     private const TITLE_NOT_EMPTY_CHECK = 'sermons_title_not_empty_check';
 
     /**
@@ -25,16 +23,8 @@ return new class extends Migration
             return;
         }
 
-        // Add CHECK constraints to ensure mandatory fields are not empty.
-        // These columns are already NOT NULL, but this prevents empty strings.
-
-        if (! $this->constraintExists('sermons', self::AUDIO_FILE_PATH_NOT_EMPTY_CHECK)) {
-            DB::statement(sprintf(
-                "ALTER TABLE sermons ADD CONSTRAINT %s CHECK (audio_file_path != '')",
-                self::AUDIO_FILE_PATH_NOT_EMPTY_CHECK
-            ));
-        }
-
+        // Add CHECK constraint to ensure title is not empty.
+        // The column is already NOT NULL, but this prevents empty strings.
         if (! $this->constraintExists('sermons', self::TITLE_NOT_EMPTY_CHECK)) {
             DB::statement(sprintf(
                 "ALTER TABLE sermons ADD CONSTRAINT %s CHECK (title != '')",
@@ -50,10 +40,6 @@ return new class extends Migration
     {
         if (DB::getDriverName() !== 'mysql') {
             return;
-        }
-
-        if ($this->constraintExists('sermons', self::AUDIO_FILE_PATH_NOT_EMPTY_CHECK)) {
-            DB::statement(sprintf('ALTER TABLE sermons DROP CHECK %s', self::AUDIO_FILE_PATH_NOT_EMPTY_CHECK));
         }
 
         if ($this->constraintExists('sermons', self::TITLE_NOT_EMPTY_CHECK)) {
