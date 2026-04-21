@@ -36,11 +36,12 @@ class EditUser extends Component
      */
     protected function rules(): array
     {
-        $rules = [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,'.$this->user->id,
-            'isAdmin' => 'boolean',
-        ];
+        $rules = array_merge(
+            User::validationRules($this->user),
+            [
+                'isAdmin' => 'boolean',
+            ]
+        );
 
         if ($this->changePassword) {
             $rules['password'] = [

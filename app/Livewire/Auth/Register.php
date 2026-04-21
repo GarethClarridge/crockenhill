@@ -24,24 +24,25 @@ class Register extends Component
     public string $email = '';
 
     /**
-     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password|null>>
+     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password|\Illuminate\Validation\Rules\Unique|null>>
      *
      * Security: Explicit length constraints are enforced on sensitive fields to provide
      * Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
      */
     public function rules(): array
     {
-        return [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users'],
-            'password' => [
-                'required',
-                'string',
-                'max:100', // Defense in Depth against DoS
-                'confirmed',
-                Password::defaults(),
-            ],
-        ];
+        return array_merge(
+            User::validationRules(),
+            [
+                'password' => [
+                    'required',
+                    'string',
+                    'max:100', // Defense in Depth against DoS
+                    'confirmed',
+                    Password::defaults(),
+                ],
+            ]
+        );
     }
 
     public string $password = '';
