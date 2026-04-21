@@ -23,7 +23,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -212,6 +211,7 @@ class Sermon extends Model implements Sitemapable
         return [
             'title' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
+            'audio_file_path' => ['sometimes', 'required', 'string', 'max:255'],
             'series' => ['nullable', 'string', 'max:255'],
             'reference' => ['nullable', 'string', 'max:255'],
             'preacher' => ['required', 'string', 'max:255'],
