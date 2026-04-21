@@ -9,7 +9,7 @@ class ProcessingReport
     /**
      * @param  array<string, mixed>  $data
      */
-    public function __construct(public array $data) {}
+    public function __construct(public readonly array $data) {}
 
     /**
      * @return array<string, mixed>

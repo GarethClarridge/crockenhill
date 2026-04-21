@@ -9,7 +9,7 @@ use App\Models\CalendarEvent;
 readonly class CalendarCategorizationResult
 {
     public function __construct(
-        public CalendarEvent $event,
-        public bool $googleSynced,
+        public readonly CalendarEvent $event,
+        public readonly bool $googleSynced,
     ) {}
 }
