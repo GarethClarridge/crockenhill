@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Auth;
 
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PasswordVisibilityToggleTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function login_page_has_password_visibility_toggle(): void
     {
         $response = $this->get(route('login'));
@@ -21,7 +22,7 @@ class PasswordVisibilityToggleTest extends TestCase
         $response->assertSee('svg');
     }
 
-    /** @test */
+    #[Test]
     public function register_page_has_password_visibility_toggles(): void
     {
         $response = $this->get(route('register'));
@@ -31,7 +32,7 @@ class PasswordVisibilityToggleTest extends TestCase
         $this->assertEquals(2, substr_count($response->getContent(), 'showPassword = !showPassword'));
     }
 
-    /** @test */
+    #[Test]
     public function reset_password_page_has_password_visibility_toggles(): void
     {
         // We need a token for the reset password route
