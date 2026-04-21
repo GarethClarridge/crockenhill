@@ -41,7 +41,7 @@
         srcset="{{ asset('/images/homepage/may2024wide.webp') }}">
       <img
         src="{{ asset('/images/homepage/may2024wide.webp') }}"
-        alt=""
+        alt="Crockenhill Baptist Church members outside the church building"
         class="h-full w-full object-cover md:object-right"
         width="1200"
         height="450"
