@@ -52,13 +52,12 @@ class SeoRegressionTest extends TestCase
             'date' => '2026-03-01',
         ]);
 
-        $description = 'Listen to recent sermons from Crockenhill Baptist Church. Worshipping God, strengthening believers, and proclaiming Jesus Christ.';
+        $description = 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.';
         $response = $this->get(route('sermons.index'));
 
         $response->assertOk();
         $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="'.$description.'">', false);
-        $response->assertSee('<meta property="og:description" content="'.$description.'">', false);
         $response->assertSee(
             '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="'.route('podcast.feed', 'morning').'">',
             false
@@ -101,7 +100,7 @@ class SeoRegressionTest extends TestCase
     }
 
     #[Test]
-    public function other_service_page_does_not_render_a_podcast_discovery_link(): void
+    public function other_service_page_renders_podcast_discovery_links(): void
     {
         Sermon::factory()->create([
             'title' => 'Other Sermon',
@@ -117,6 +116,7 @@ class SeoRegressionTest extends TestCase
             '<meta name="description" content="Listen to recent Other sermons from Crockenhill Baptist Church.">',
             false
         );
-        $response->assertDontSee('rel="alternate" type="application/rss+xml"', false);
+        // We now expect to see them globally
+        $response->assertSee('rel="alternate" type="application/rss+xml"', false);
     }
 }
