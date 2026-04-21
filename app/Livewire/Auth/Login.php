@@ -41,6 +41,13 @@ class Login extends Component
 
         $emailString = is_array($this->email) ? '' : (string) $this->email;
 
+        // Security: Validate input length before normalization to prevent DoS on string operations.
+        if (strlen($emailString) > 255) {
+            $this->validateOnly('email');
+
+            return null;
+        }
+
         if ($this->isRateLimited($emailString)) {
             return null;
         }
