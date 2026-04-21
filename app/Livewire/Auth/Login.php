@@ -37,29 +37,38 @@ class Login extends Component
 
     public function login(): Redirector|RedirectResponse|null
     {
-        $validated = $this->validate();
-        $email = (string) $validated['email'];
-        $password = (string) $validated['password'];
-        $remember = (bool) ($validated['remember'] ?? false);
         $this->error = '';
 
-        if ($this->isRateLimited($email)) {
+        $emailString = is_array($this->email) ? '' : (string) $this->email;
+
+        // Security: Validate input length before normalization to prevent DoS on string operations.
+        if (strlen($emailString) > 255) {
+            $this->validateOnly('email');
+
             return null;
         }
 
+        if ($this->isRateLimited($emailString)) {
+            return null;
+        }
+
+        $validated = $this->validate();
+
         $credentials = [
-            'email' => $email,
-            'password' => $password,
+            'email' => (string) $validated['email'],
+            'password' => (string) $validated['password'],
         ];
 
+        $remember = (bool) ($validated['remember'] ?? false);
+
         if (Auth::attempt($credentials, $remember)) {
-            RateLimiter::clear($this->throttleKey($email));
+            RateLimiter::clear($this->throttleKey($credentials['email']));
             Session::regenerate();
 
             return redirect()->intended('/church/members');
         }
 
-        RateLimiter::hit($this->throttleKey($email));
+        RateLimiter::hit($this->throttleKey($credentials['email']));
         $this->error = trans('auth.failed');
 
         return null;
