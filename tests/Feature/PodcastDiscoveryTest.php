@@ -79,12 +79,30 @@ class PodcastDiscoveryTest extends TestCase
         $this->assertPodcastDiscoveryLinksPresent($response);
     }
 
-    public function test_service_page_has_podcast_discovery_links(): void
+    public function test_morning_service_page_has_only_morning_podcast_discovery_link(): void
     {
         $response = $this->get('/christ/sermons/morning');
 
         $response->assertStatus(200);
-        $this->assertPodcastDiscoveryLinksPresent($response);
+        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Morning Services Podcast" href="http://localhost/christ/sermons/morning/feed">', false);
+        $response->assertDontSee('<link rel="alternate" type="application/rss+xml" title="Sunday Evening Services Podcast" href="http://localhost/christ/sermons/evening/feed">', false);
+    }
+
+    public function test_evening_service_page_has_only_evening_podcast_discovery_link(): void
+    {
+        $response = $this->get('/christ/sermons/evening');
+
+        $response->assertStatus(200);
+        $response->assertSee('<link rel="alternate" type="application/rss+xml" title="Sunday Evening Services Podcast" href="http://localhost/christ/sermons/evening/feed">', false);
+        $response->assertDontSee('<link rel="alternate" type="application/rss+xml" title="Sunday Morning Services Podcast" href="http://localhost/christ/sermons/morning/feed">', false);
+    }
+
+    public function test_other_service_page_has_no_podcast_discovery_links(): void
+    {
+        $response = $this->get('/christ/sermons/other');
+
+        $response->assertStatus(200);
+        $response->assertDontSee('rel="alternate" type="application/rss+xml"', false);
     }
 
     public function test_childrens_corner_index_has_podcast_discovery_links(): void

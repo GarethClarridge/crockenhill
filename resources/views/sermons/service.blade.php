@@ -13,7 +13,7 @@
     :heading="$heading"
     :description="$description"
 />
-<x-podcast-discovery />
+<x-podcast-discovery :$service />
 
 {{-- JSON-LD Sermon List --}}
 <script type="application/ld+json">

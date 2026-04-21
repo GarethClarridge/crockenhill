@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonService;
+use Illuminate\Support\Str;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -94,18 +95,18 @@ class SeoRegressionTest extends TestCase
             $response->assertSee("<title>{$label} Services | Crockenhill Baptist Church</title>", false);
             $response->assertSee('<meta name="description" content="'.$description.'">', false);
             $response->assertSee(
-                '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Services Podcast" href="'.route('podcast.feed', 'morning').'">',
+                '<link rel="alternate" type="application/rss+xml" title="Sunday '.Str::title($service).' Services Podcast" href="'.route('podcast.feed', $service).'">',
                 false
             );
-            $response->assertSee(
-                '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Services Podcast" href="'.route('podcast.feed', 'evening').'">',
+            $response->assertDontSee(
+                '<link rel="alternate" type="application/rss+xml" title="Sunday '.Str::title($service === 'morning' ? 'evening' : 'morning').' Services Podcast"',
                 false
             );
         }
     }
 
     #[Test]
-    public function other_service_page_includes_podcast_discovery_links(): void
+    public function other_service_page_does_not_render_podcast_discovery_links(): void
     {
         Sermon::factory()->create([
             'title' => 'Other Sermon',
@@ -121,13 +122,6 @@ class SeoRegressionTest extends TestCase
             '<meta name="description" content="Listen to recent Other sermons from Crockenhill Baptist Church.">',
             false
         );
-        $response->assertSee(
-            '<link rel="alternate" type="application/rss+xml" title="Sunday Morning Services Podcast" href="'.route('podcast.feed', 'morning').'">',
-            false
-        );
-        $response->assertSee(
-            '<link rel="alternate" type="application/rss+xml" title="Sunday Evening Services Podcast" href="'.route('podcast.feed', 'evening').'">',
-            false
-        );
+        $response->assertDontSee('rel="alternate" type="application/rss+xml"', false);
     }
 }
