@@ -58,11 +58,18 @@ class ForgotPassword extends Component
         return true;
     }
 
+    /**
+     * Get the rate limiting throttle key for the password reset request.
+     *
+     * Security: Str::limit is applied to the email identifier to provide Defense in Depth
+     * against potential Cache Key Injection or Denial of Service (DoS) attacks targeting
+     * the cache storage by providing extremely long keys.
+     */
     protected function throttleKey(): string
     {
-        $identifier = is_string($this->email) ? Str::lower($this->email) : 'invalid';
+        $email = is_string($this->email) ? $this->email : 'invalid';
 
-        return Str::transliterate('forgot|'.Str::limit($identifier, 300).'|'.request()->ip());
+        return Str::transliterate('forgot|'.Str::lower(Str::limit($email, 255)).'|'.request()->ip());
     }
 
     public function render(): View

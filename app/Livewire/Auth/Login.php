@@ -38,8 +38,9 @@ class Login extends Component
     public function login(): Redirector|RedirectResponse|null
     {
         $this->error = '';
+        $email = is_string($this->email) ? $this->email : 'invalid';
 
-        if ($this->isRateLimited($this->email)) {
+        if ($this->isRateLimited($email)) {
             return null;
         }
 
@@ -71,7 +72,7 @@ class Login extends Component
         return view('livewire.auth.login');
     }
 
-    private function isRateLimited(mixed $email): bool
+    private function isRateLimited(string $email): bool
     {
         if (! RateLimiter::tooManyAttempts($this->throttleKey($email), 5)) {
             return false;
@@ -88,10 +89,15 @@ class Login extends Component
         return true;
     }
 
-    private function throttleKey(mixed $email): string
+    /**
+     * Get the rate limiting throttle key for the login attempt.
+     *
+     * Security: Str::limit is applied to the email identifier to provide Defense in Depth
+     * against potential Cache Key Injection or Denial of Service (DoS) attacks targeting
+     * the cache storage by providing extremely long keys.
+     */
+    private function throttleKey(string $email): string
     {
-        $identifier = is_string($email) ? Str::lower($email) : 'invalid';
-
-        return Str::transliterate('login|'.Str::limit($identifier, 300).'|'.request()->ip());
+        return Str::transliterate('login|'.Str::lower(Str::limit($email, 255)).'|'.request()->ip());
     }
 }
