@@ -77,6 +77,7 @@
   {{-- Livewire Styles --}}
   @livewireStyles
 
+  <x-podcast-discovery />
 </head>
 
 <body class="bg-slate-200">
