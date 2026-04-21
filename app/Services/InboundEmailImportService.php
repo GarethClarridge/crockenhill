@@ -177,13 +177,13 @@ class InboundEmailImportService
         $mergeResult = $this->mergeService->merge(
             $existingService,
             $parseResult->items,
-            ChurchServiceItemSource::EMAIL,
+            ChurchServiceItemSource::Email,
         );
 
         if ($mergeResult->wasMerged) {
             // Only update source to email once items have actually been applied.
             $mergeResult->churchService->forceFill([
-                'source' => ChurchServiceItemSource::EMAIL->value,
+                'source' => ChurchServiceItemSource::Email->value,
             ])->saveQuietly();
 
             $this->songLinker->linkForService($mergeResult->churchService);
@@ -225,13 +225,13 @@ class InboundEmailImportService
             $existingMetadata = $churchService->import_metadata?->toArray() ?? [];
 
             $churchService->fill([
-                'source' => ChurchServiceItemSource::EMAIL->value,
+                'source' => ChurchServiceItemSource::Email->value,
                 'needs_review' => $reviewedByUserId === null ? $parseResult->needsReview : false,
                 'import_metadata' => array_replace_recursive($existingMetadata, $importMetadata),
             ]);
             $churchService->save();
 
-            $syncResult = $this->itemSyncService->sync($churchService, $parseResult->items, ChurchServiceItemSource::EMAIL);
+            $syncResult = $this->itemSyncService->sync($churchService, $parseResult->items, ChurchServiceItemSource::Email);
             $this->songLinker->linkForService($churchService);
 
             /** @var ChurchService $freshChurchService */
@@ -251,7 +251,7 @@ class InboundEmailImportService
         return $this->canonicalUpdateService->finalize(
             $churchService,
             $beforeSnapshot,
-            ChurchServiceItemSource::EMAIL,
+            ChurchServiceItemSource::Email,
             $syncResult,
         );
     }

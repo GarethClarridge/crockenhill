@@ -91,7 +91,7 @@ class LivestreamChurchServiceProjectionService
                 $churchService = ChurchService::query()->create([
                     'date' => $identity['date'],
                     'service' => $identity['service']->value,
-                    'source' => ChurchServiceItemSource::LIVESTREAM->value,
+                    'source' => ChurchServiceItemSource::Livestream->value,
                     'needs_review' => false,
                     'import_metadata' => [
                         'livestream_projection' => $projectionMetadata,
@@ -114,7 +114,7 @@ class LivestreamChurchServiceProjectionService
             $syncResult = $this->itemSyncService->sync(
                 $churchService,
                 $itemPayloads,
-                ChurchServiceItemSource::LIVESTREAM,
+                ChurchServiceItemSource::Livestream,
             );
 
             $freshService = $churchService->fresh() ?? $churchService;
@@ -146,7 +146,7 @@ class LivestreamChurchServiceProjectionService
         $churchService = $this->canonicalUpdateService->finalize(
             $churchService,
             $beforeSnapshot,
-            ChurchServiceItemSource::LIVESTREAM,
+            ChurchServiceItemSource::Livestream,
             $result['sync_result'],
         );
 
@@ -192,7 +192,7 @@ class LivestreamChurchServiceProjectionService
     {
         return $churchService->items()
             ->where(function ($query): void {
-                $query->where('source', '!=', ChurchServiceItemSource::LIVESTREAM->value)
+                $query->where('source', '!=', ChurchServiceItemSource::Livestream->value)
                     ->orWhereNull('source');
             })
             ->exists();

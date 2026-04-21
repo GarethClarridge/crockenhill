@@ -43,7 +43,7 @@ class SermonCreationOptionsTest extends TestCase
                     'reviewed' => [
                         'preacher_id' => $preacher->id,
                         'preacher_name' => $preacher->name,
-                        'source' => PreacherSource::MANUAL->value,
+                        'source' => PreacherSource::Manual->value,
                         'confidence' => null,
                     ],
                 ],
@@ -66,7 +66,7 @@ class SermonCreationOptionsTest extends TestCase
         $this->assertSame(SermonContentType::ChildrensTalk, $options->contentType);
         $this->assertSame($preacher->id, $options->preacherId);
         $this->assertSame($preacher->name, $options->preacher);
-        $this->assertSame(PreacherSource::MANUAL, $options->preacherSource);
+        $this->assertSame(PreacherSource::Manual, $options->preacherSource);
         $this->assertSame(120.0, $options->segmentStartTime);
         $this->assertSame(480.0, $options->segmentEndTime);
     }

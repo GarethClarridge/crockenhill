@@ -32,7 +32,7 @@ class ChurchServiceItemTest extends TestCase
         $this->assertIsInt($item->position);
         $this->assertSame(5, $item->position);
         $this->assertInstanceOf(ChurchServiceItemSource::class, $item->source);
-        $this->assertSame(ChurchServiceItemSource::EMAIL, $item->source);
+        $this->assertSame(ChurchServiceItemSource::Email, $item->source);
         $this->assertIsInt($item->song_id);
         $this->assertSame($song->id, $item->song_id);
         $this->assertIsArray($item->metadata);

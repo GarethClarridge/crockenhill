@@ -52,7 +52,7 @@ class SaveChurchServiceFromAdmin
             $model->fill([
                 'date' => $validated['date'],
                 'service' => $validated['service'],
-                'source' => ChurchServiceItemSource::MANUAL->value,
+                'source' => ChurchServiceItemSource::Manual->value,
                 'needs_review' => false,
                 'import_metadata' => array_replace_recursive($existingMetadata, [
                     'manual_edit' => [
@@ -64,7 +64,7 @@ class SaveChurchServiceFromAdmin
             ]);
             $model->save();
 
-            $syncResult = $this->itemSyncService->sync($model, $syncPayload, ChurchServiceItemSource::MANUAL);
+            $syncResult = $this->itemSyncService->sync($model, $syncPayload, ChurchServiceItemSource::Manual);
             $this->songLinker->linkForService($model);
 
             return [$model->fresh(['items']) ?? $model, $syncResult];
@@ -75,7 +75,7 @@ class SaveChurchServiceFromAdmin
         $churchService = $this->canonicalUpdateService->finalize(
             $churchService,
             $beforeSnapshot,
-            ChurchServiceItemSource::MANUAL,
+            ChurchServiceItemSource::Manual,
             $syncResult,
         );
 

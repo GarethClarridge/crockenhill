@@ -10,14 +10,14 @@ enum ServiceSectionStatus: string
 {
     use HasValues;
 
-    case IDENTIFIED = 'identified';
-    case SKIPPED = 'skipped';
+    case Identified = 'identified';
+    case Skipped = 'skipped';
 
     public function label(): string
     {
         return match ($this) {
-            self::IDENTIFIED => 'Identified',
-            self::SKIPPED => 'Skipped',
+            self::Identified => 'Identified',
+            self::Skipped => 'Skipped',
         };
     }
 }

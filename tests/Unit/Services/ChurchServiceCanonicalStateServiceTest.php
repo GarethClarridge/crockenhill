@@ -55,7 +55,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => 'Great is thy faithfulness',
         ]);
 

@@ -6,7 +6,7 @@ namespace App\Enums;
 
 enum TitleGenerationStrategy: string
 {
-    case AI_WITH_FALLBACK = 'ai_with_fallback';
-    case FILENAME_ONLY = 'filename_only';
-    case CUSTOM = 'custom';
+    case AiWithFallback = 'ai_with_fallback';
+    case FilenameOnly = 'filename_only';
+    case Custom = 'custom';
 }

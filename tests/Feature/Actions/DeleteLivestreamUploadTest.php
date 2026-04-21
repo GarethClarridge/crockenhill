@@ -99,7 +99,7 @@ class DeleteLivestreamUploadTest extends TestCase
         ChurchServiceItem::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'position' => 1,
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
             'title' => 'Children\'s Talk',
             'metadata' => [
                 'livestream_projection' => [
@@ -172,14 +172,14 @@ class DeleteLivestreamUploadTest extends TestCase
         $manualItem = ChurchServiceItem::factory()->create([
             'church_service_id' => $service->id,
             'position' => 1,
-            'source' => ChurchServiceItemSource::MANUAL->value,
+            'source' => ChurchServiceItemSource::Manual->value,
             'title' => 'Welcome',
         ]);
 
         $runItem = ChurchServiceItem::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'position' => 2,
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
             'title' => 'Sermon',
             'metadata' => [
                 'livestream_projection' => [

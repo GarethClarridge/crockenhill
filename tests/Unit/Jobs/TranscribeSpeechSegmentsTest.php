@@ -60,7 +60,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
             'start_time' => 30.0,
             'end_time' => 95.0,
             'duration' => 65.0,
-            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'status' => ServiceSectionStatus::Identified->value,
             'metadata' => [
                 'confidence_level' => 'low',
                 'classification_mode' => 'audio_only',
@@ -398,7 +398,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
 
         $this->assertCount(2, $sections);
         $this->assertTrue($sections->every(
-            fn (ServiceSection $section): bool => $section->status === ServiceSectionStatus::IDENTIFIED
+            fn (ServiceSection $section): bool => $section->status === ServiceSectionStatus::Identified
         ));
 
         $otherSection = $sections->firstWhere('section_type', ServiceSectionType::OTHER);

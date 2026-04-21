@@ -581,7 +581,7 @@ class AdminChurchServiceTest extends TestCase
                 'start_time' => 120.0,
                 'end_time' => 360.0,
                 'duration' => 240.0,
-                'status' => ServiceSectionStatus::IDENTIFIED,
+                'status' => ServiceSectionStatus::Identified,
                 'source_segment_ids' => [3],
                 'metadata' => [
                     'confidence_level' => 'low',
@@ -601,7 +601,7 @@ class AdminChurchServiceTest extends TestCase
                 'start_time' => 0.0,
                 'end_time' => 120.0,
                 'duration' => 120.0,
-                'status' => ServiceSectionStatus::IDENTIFIED,
+                'status' => ServiceSectionStatus::Identified,
                 'source_segment_ids' => [1],
                 'metadata' => [
                     'confidence_level' => 'high',
@@ -824,7 +824,7 @@ class AdminChurchServiceTest extends TestCase
             'position' => 1,
             'type' => 'custom',
             'title' => 'Opening Prayer',
-            'source' => \App\Enums\ChurchServiceItemSource::EMAIL,
+            'source' => \App\Enums\ChurchServiceItemSource::Email,
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
@@ -849,7 +849,7 @@ class AdminChurchServiceTest extends TestCase
             'position' => 1,
             'type' => 'custom',
             'title' => 'Notices',
-            'source' => \App\Enums\ChurchServiceItemSource::OPENLP,
+            'source' => \App\Enums\ChurchServiceItemSource::OpenLp,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->create([

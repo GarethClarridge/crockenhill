@@ -112,7 +112,7 @@ class AdminSermonTest extends TestCase
 
         $sermon = Sermon::factory()->create([
             'needs_preacher_review' => true,
-            'preacher_source' => PreacherSource::DEFAULT,
+            'preacher_source' => PreacherSource::Default,
             'preacher_confidence' => null,
             'show_summary' => true,
             'show_points' => true,
@@ -130,7 +130,7 @@ class AdminSermonTest extends TestCase
 
         $sermon = Sermon::factory()->create([
             'needs_preacher_review' => true,
-            'preacher_source' => PreacherSource::SPEAKER_MODEL,
+            'preacher_source' => PreacherSource::SpeakerModel,
             'preacher_confidence' => 0.73,
             'show_summary' => true,
             'show_points' => true,
@@ -165,7 +165,7 @@ class AdminSermonTest extends TestCase
         $preacher = Preacher::factory()->create(['name' => 'John Doe']);
         $sermon = Sermon::factory()->create([
             'needs_preacher_review' => true,
-            'preacher_source' => PreacherSource::DEFAULT,
+            'preacher_source' => PreacherSource::Default,
             'show_summary' => true,
             'show_points' => true,
         ]);

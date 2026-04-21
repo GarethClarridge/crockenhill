@@ -146,7 +146,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 
     private function shouldClassify(ServiceSection $section): bool
     {
-        if ($section->status !== ServiceSectionStatus::IDENTIFIED) {
+        if ($section->status !== ServiceSectionStatus::Identified) {
             return false;
         }
 
@@ -248,7 +248,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
                 is_numeric($classifiedSection['confidence'] ?? null) ? (float) $classifiedSection['confidence'] : null,
                 $metadata
             ),
-            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => $needsManualReview,
             'source_segment_ids' => $this->normaliseSourceSegmentIds($originalSection->source_segment_ids),
             'metadata' => $metadata,

@@ -172,7 +172,7 @@ class EditSermonTest extends TestCase
 
         $this->sermon->refresh();
         $this->assertEquals($preacher->id, $this->sermon->preacher_id);
-        $this->assertEquals(\App\Enums\PreacherSource::MANUAL, $this->sermon->preacher_source);
+        $this->assertEquals(\App\Enums\PreacherSource::Manual, $this->sermon->preacher_source);
         $this->assertFalse($this->sermon->needs_preacher_review);
     }
 

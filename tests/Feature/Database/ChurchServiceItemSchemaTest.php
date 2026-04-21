@@ -27,7 +27,7 @@ class ChurchServiceItemSchemaTest extends TestCase
     public function add_source_migration_backfills_existing_items_as_openlp(): void
     {
         $item = ChurchServiceItem::factory()->create([
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
         ]);
 
         Schema::table('church_service_items', function (Blueprint $table): void {
@@ -41,7 +41,7 @@ class ChurchServiceItemSchemaTest extends TestCase
             ->where('id', $item->id)
             ->value('source');
 
-        $this->assertSame(ChurchServiceItemSource::OPENLP->value, $source);
+        $this->assertSame(ChurchServiceItemSource::OpenLp->value, $source);
     }
 
     #[Test]
@@ -53,7 +53,7 @@ class ChurchServiceItemSchemaTest extends TestCase
             ->where('id', $item->id)
             ->value('source');
 
-        $this->assertSame(ChurchServiceItemSource::LIVESTREAM->value, $source);
+        $this->assertSame(ChurchServiceItemSource::Livestream->value, $source);
     }
 
     #[Test]
@@ -70,7 +70,7 @@ class ChurchServiceItemSchemaTest extends TestCase
             'position' => 1,
             'type' => 'custom',
             'section_type' => null,
-            'source' => ChurchServiceItemSource::OPENLP->value,
+            'source' => ChurchServiceItemSource::OpenLp->value,
             'title' => 'Duplicate position',
             'source_title' => null,
             'openlp_search_title' => null,

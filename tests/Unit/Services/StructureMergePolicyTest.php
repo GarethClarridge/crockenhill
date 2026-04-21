@@ -48,7 +48,7 @@ class StructureMergePolicyTest extends TestCase
             $this->songIncoming('Amazing Grace', 3, 'amazing grace@'),
         ];
 
-        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OPENLP);
+        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OpenLp);
 
         $this->assertSame([0, 1, 2], $result['auto_merge'], 'All three items should auto-merge after identity matching resolves the reorder');
         $this->assertEmpty($result['review_required']);
@@ -68,7 +68,7 @@ class StructureMergePolicyTest extends TestCase
             $this->songIncoming('Come Thou Fount', 2, 'come thou fount@'),
         ];
 
-        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OPENLP);
+        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OpenLp);
 
         $this->assertSame([0, 1], $result['auto_merge']);
         $this->assertEmpty($result['review_required']);
@@ -88,7 +88,7 @@ class StructureMergePolicyTest extends TestCase
             $this->songIncoming('Amazing Grace', 2, 'amazing grace@'),
         ];
 
-        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OPENLP);
+        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OpenLp);
 
         // Both matched (one each), none unmatched
         $this->assertCount(2, array_merge($result['auto_merge'], $result['review_required']));
@@ -111,7 +111,7 @@ class StructureMergePolicyTest extends TestCase
             $this->songIncoming('Amazing Grace', 1, 'amazing grace@'),
         ];
 
-        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OPENLP);
+        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OpenLp);
 
         // isEnrichmentOnly fires (blank existing title) → auto_merge
         $this->assertSame([0], $result['auto_merge']);
@@ -133,7 +133,7 @@ class StructureMergePolicyTest extends TestCase
             $this->songIncoming('How Great Thou Art', 1, 'how great thou art@'),
         ];
 
-        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OPENLP);
+        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OpenLp);
 
         $this->assertEmpty($result['auto_merge']);
         $this->assertSame([0], $result['review_required']);
@@ -157,7 +157,7 @@ class StructureMergePolicyTest extends TestCase
             $this->customIncoming('Intercession', 2, 'prayer'),    // different title → position match → isAutoMergeSafe fails
         ];
 
-        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OPENLP);
+        $result = $this->policy->classifyIncomingItems($existing, $incoming, ChurchServiceItemSource::OpenLp);
 
         $this->assertSame([0], $result['auto_merge'], 'Opening Prayer unchanged should auto-merge');
         $this->assertSame([1], $result['review_required'], 'Changed prayer should require review');
@@ -178,7 +178,7 @@ class StructureMergePolicyTest extends TestCase
             'position' => $position,
             'type' => 'songs',
             'section_type' => 'song',
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
             'title' => $title,
             'source_title' => null,
             'openlp_search_title' => $openlpSearchTitle,
@@ -204,7 +204,7 @@ class StructureMergePolicyTest extends TestCase
             'position' => $position,
             'type' => 'custom',
             'section_type' => $sectionType,
-            'source' => ChurchServiceItemSource::LIVESTREAM->value,
+            'source' => ChurchServiceItemSource::Livestream->value,
             'title' => $title,
             'source_title' => null,
             'openlp_search_title' => null,

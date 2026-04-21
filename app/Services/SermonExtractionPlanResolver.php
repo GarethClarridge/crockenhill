@@ -205,7 +205,7 @@ class SermonExtractionPlanResolver
         $section = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
             ->where('section_type', $type->value)
-            ->where('status', ServiceSectionStatus::IDENTIFIED->value)
+            ->where('status', ServiceSectionStatus::Identified->value)
             ->where('needs_manual_review', false)
             ->where('metadata->confidence_level', 'high')
             ->whereColumn('end_time', '>', 'start_time')

@@ -10,18 +10,18 @@ enum PreacherSource: string
 {
     use HasValues;
 
-    case ID3 = 'id3';
-    case SPEAKER_MODEL = 'speaker_model';
-    case MANUAL = 'manual';
-    case DEFAULT = 'default';
+    case Id3 = 'id3';
+    case SpeakerModel = 'speaker_model';
+    case Manual = 'manual';
+    case Default = 'default';
 
     public function label(): string
     {
         return match ($this) {
-            self::ID3 => 'ID3 Tag',
-            self::SPEAKER_MODEL => 'Speaker Model',
-            self::MANUAL => 'Manual',
-            self::DEFAULT => 'Default',
+            self::Id3 => 'ID3 Tag',
+            self::SpeakerModel => 'Speaker Model',
+            self::Manual => 'Manual',
+            self::Default => 'Default',
         };
     }
 }

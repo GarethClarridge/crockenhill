@@ -79,7 +79,7 @@ class IdentifySpeakerTest extends TestCase
     {
         Config::set('media-processing.speaker_identification.enabled', true);
 
-        $sermon = Sermon::factory()->create(['preacher_source' => PreacherSource::ID3]);
+        $sermon = Sermon::factory()->create(['preacher_source' => PreacherSource::Id3]);
         $log = MediaProcessingLog::factory()->create(['sermon_id' => $sermon->id]);
 
         Log::shouldReceive('info')->zeroOrMoreTimes();

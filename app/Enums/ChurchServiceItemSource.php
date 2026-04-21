@@ -10,21 +10,21 @@ enum ChurchServiceItemSource: string
 {
     use HasValues;
 
-    case EMAIL = 'email';
-    case OPENLP = 'openlp';
-    case MANUAL = 'manual';
-    case LIVESTREAM = 'livestream';
+    case Email = 'email';
+    case OpenLp = 'openlp';
+    case Manual = 'manual';
+    case Livestream = 'livestream';
 
     public function isHumanProvided(): bool
     {
         return match ($this) {
-            self::EMAIL, self::MANUAL => true,
-            self::OPENLP, self::LIVESTREAM => false,
+            self::Email, self::Manual => true,
+            self::OpenLp, self::Livestream => false,
         };
     }
 
     public function isDetected(): bool
     {
-        return $this === self::LIVESTREAM;
+        return $this === self::Livestream;
     }
 }

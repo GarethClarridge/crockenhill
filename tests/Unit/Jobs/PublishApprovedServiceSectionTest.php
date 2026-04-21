@@ -255,7 +255,7 @@ class PublishApprovedServiceSectionTest extends TestCase
                     'reviewed' => [
                         'preacher_id' => $preacher->id,
                         'preacher_name' => $preacher->name,
-                        'source' => PreacherSource::MANUAL->value,
+                        'source' => PreacherSource::Manual->value,
                         'confidence' => null,
                     ],
                 ],

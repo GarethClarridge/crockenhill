@@ -93,7 +93,7 @@ class PreacherCutoverService
                     $sermon->update([
                         'preacher' => 'Visiting Speaker',
                         'preacher_id' => $visitingSpeaker?->id,
-                        'preacher_source' => PreacherSource::DEFAULT->value,
+                        'preacher_source' => PreacherSource::Default->value,
                         'needs_preacher_review' => true,
                     ]);
                 }
@@ -115,7 +115,7 @@ class PreacherCutoverService
 
                 $sermon->update([
                     'preacher_id' => $preacher->id,
-                    'preacher_source' => PreacherSource::MANUAL->value,
+                    'preacher_source' => PreacherSource::Manual->value,
                     'needs_preacher_review' => false,
                 ]);
             }

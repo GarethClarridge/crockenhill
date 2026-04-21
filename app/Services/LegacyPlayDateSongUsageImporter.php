@@ -329,7 +329,7 @@ class LegacyPlayDateSongUsageImporter
                     'position' => $nextPosition,
                     'type' => 'songs',
                     'section_type' => ServiceSectionType::SONG->value,
-                    'source' => ChurchServiceItemSource::MANUAL->value,
+                    'source' => ChurchServiceItemSource::Manual->value,
                     'title' => $song->title,
                     'source_title' => $song->title,
                     'openlp_search_title' => null,

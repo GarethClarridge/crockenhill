@@ -59,7 +59,7 @@ class ChurchServiceSongLinkerTest extends TestCase
 
         $item = ChurchServiceItem::factory()->create([
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::EMAIL->value,
+            'source' => ChurchServiceItemSource::Email->value,
             'source_title' => 'Before the throne of God above',
             'openlp_search_title' => null,
             'song_id' => null,
@@ -84,7 +84,7 @@ class ChurchServiceSongLinkerTest extends TestCase
 
         $item = ChurchServiceItem::factory()->create([
             'type' => 'songs',
-            'source' => ChurchServiceItemSource::MANUAL->value,
+            'source' => ChurchServiceItemSource::Manual->value,
             'title' => 'Blessed Assurance',
             'source_title' => 'Blessed Assurance',
             'openlp_search_title' => null,

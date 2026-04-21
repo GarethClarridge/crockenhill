@@ -41,9 +41,9 @@ class PreacherCutoverServiceTest extends TestCase
         $this->assertSame(2, $result['summary']['sermons_linked']);
         $this->assertSame(1, $result['summary']['sermons_defaulted']);
         $this->assertSame('Visiting Speaker', $blankSermon->preacher);
-        $this->assertSame(PreacherSource::DEFAULT, $blankSermon->preacher_source);
+        $this->assertSame(PreacherSource::Default, $blankSermon->preacher_source);
         $this->assertTrue($blankSermon->needs_preacher_review);
-        $this->assertSame(PreacherSource::MANUAL, $namedSermon->preacher_source);
+        $this->assertSame(PreacherSource::Manual, $namedSermon->preacher_source);
         $this->assertFalse($namedSermon->needs_preacher_review);
         $this->assertNotNull($namedSermon->preacher_id);
 

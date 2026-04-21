@@ -76,7 +76,7 @@
                                 <x-heroicon-o-exclamation-triangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                                 <div class="text-sm text-amber-800">
                                     <p class="font-medium mb-1">{{ $isChildrensTalk ? 'Speaker review required' : 'Preacher review required' }}</p>
-                                    @if($sermon->preacher_source === \App\Enums\PreacherSource::SPEAKER_MODEL && $sermon->preacher_confidence !== null)
+                                    @if($sermon->preacher_source === \App\Enums\PreacherSource::SpeakerModel && $sermon->preacher_confidence !== null)
                                         <p>The AI identified a {{ $isChildrensTalk ? 'speaker' : 'preacher' }} with {{ round($sermon->preacher_confidence * 100) }}% confidence. Please verify and confirm or correct the assignment below.</p>
                                     @else
                                         <p>

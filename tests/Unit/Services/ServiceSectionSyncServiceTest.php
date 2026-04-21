@@ -352,7 +352,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             'start_time' => $startTime,
             'end_time' => $endTime,
             'duration' => $duration,
-            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => $needsManualReview,
             'source_segment_ids' => [1],
             'metadata' => [

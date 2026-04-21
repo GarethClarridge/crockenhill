@@ -62,7 +62,7 @@ class ResolvePendingStructureMerge
         string $incomingSourceValue,
         int $userId,
     ): StructureMergeResolution {
-        $incomingSource = ChurchServiceItemSource::tryFrom($incomingSourceValue) ?? ChurchServiceItemSource::MANUAL;
+        $incomingSource = ChurchServiceItemSource::tryFrom($incomingSourceValue) ?? ChurchServiceItemSource::Manual;
 
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
 

@@ -365,7 +365,7 @@ class ServiceRecordTimelineTest extends TestCase
     {
         $run = MediaProcessingLog::factory()->livestream()->create();
         $item = ChurchServiceItem::factory()->create([
-            'source' => ChurchServiceItemSource::EMAIL,
+            'source' => ChurchServiceItemSource::Email,
             'position' => 1,
         ]);
 
@@ -380,7 +380,7 @@ class ServiceRecordTimelineTest extends TestCase
 
         $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
 
-        $this->assertSame(ChurchServiceItemSource::EMAIL, $rows[0]['item_source']);
+        $this->assertSame(ChurchServiceItemSource::Email, $rows[0]['item_source']);
     }
 
     #[Test]
