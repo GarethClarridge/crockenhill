@@ -423,7 +423,8 @@ class SermonViewPresenter
      *
      * Performance Optimization: Memoizes generated meta descriptions to avoid
      * redundant assembly logic for the same sermon within a single request.
-     * Uses getRawOriginal to efficiently check for stored descriptions.
+     * Checks for existing database-stored descriptions before falling back
+     * to dynamic generation.
      */
     public function metaDescription(Sermon $sermon): string
     {
@@ -434,7 +435,7 @@ class SermonViewPresenter
         }
 
         $attributes = $sermon->getAttributes();
-        if (! empty($attributes['meta_description'])) {
+        if (filled($attributes['meta_description'] ?? null)) {
             return $this->memoizedMetaDescriptions[$key] = (string) $attributes['meta_description'];
         }
 
@@ -506,18 +507,21 @@ class SermonViewPresenter
      * Performance Optimization: Memoizes the sermon's combined ID and timestamp
      * within the request to avoid redundant string concatenations and Carbon
      * object method calls when generating keys for multiple sermon attributes.
-     * Uses isset() for faster lookup performance compared to array_key_exists().
+     * Uses isset() for faster lookup performance and handles unpersisted models
+     * by falling back to object hashes.
      */
     private function cacheKey(Sermon $sermon, string $type): string
     {
-        if (! isset($this->memoizedSermonKeys[$sermon->id])) {
-            if (! isset($this->memoizedTimestamps[$sermon->id])) {
-                $this->memoizedTimestamps[$sermon->id] = $sermon->updated_at?->getTimestamp() ?? 0;
+        $id = $sermon->id ?? 'u'.spl_object_id($sermon);
+
+        if (! isset($this->memoizedSermonKeys[$id])) {
+            if (! isset($this->memoizedTimestamps[$id])) {
+                $this->memoizedTimestamps[$id] = $sermon->updated_at?->getTimestamp() ?? 0;
             }
 
-            $this->memoizedSermonKeys[$sermon->id] = "{$sermon->id}_{$this->memoizedTimestamps[$sermon->id]}";
+            $this->memoizedSermonKeys[$id] = "{$id}_{$this->memoizedTimestamps[$id]}";
         }
 
-        return "{$type}_{$this->memoizedSermonKeys[$sermon->id]}";
+        return "{$type}_{$this->memoizedSermonKeys[$id]}";
     }
 }
