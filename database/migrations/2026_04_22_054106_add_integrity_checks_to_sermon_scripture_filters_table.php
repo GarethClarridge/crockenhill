@@ -16,12 +16,23 @@ return new class extends Migration
             return;
         }
 
-        // 1. Ensure existing data is normalized
+        // 1. Clean up potential duplicates that would be created by trimming bible_book
+        // before we attempt the bulk update, to avoid unique constraint violations.
+        DB::statement('
+            DELETE f1 FROM sermon_scripture_filters f1
+            INNER JOIN sermon_scripture_filters f2
+            ON f1.sermon_id = f2.sermon_id
+            AND f1.bible_chapter = f2.bible_chapter
+            AND TRIM(f1.bible_book) = TRIM(f2.bible_book)
+            WHERE f1.id > f2.id
+        ');
+
+        // 2. Ensure existing data is normalized
         DB::table('sermon_scripture_filters')->update([
             'bible_book' => DB::raw('TRIM(bible_book)'),
         ]);
 
-        // 2. Add the CHECK constraints
+        // 3. Add the CHECK constraints
         // bible_book: no leading/trailing whitespace and not empty.
         // We use BINARY to ensure the check is case-sensitive even on case-insensitive collations.
         // bible_chapter: must be greater than 0.
