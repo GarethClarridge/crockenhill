@@ -14,6 +14,8 @@ class SermonScriptureFilterMigrationTest extends TestCase
 {
     use DatabaseTransactions;
 
+    private const INTEGRITY_MIGRATION = '2026_04_22_054106_add_integrity_checks_to_sermon_scripture_filters_table.php';
+
     #[Test]
     public function migration_handles_potential_duplicate_collisions_during_normalization(): void
     {
@@ -21,13 +23,11 @@ class SermonScriptureFilterMigrationTest extends TestCase
             $this->markTestSkipped('Migration collision logic is MySQL-specific.');
         }
 
-        // 1. Rollback the migration to set up the collision state
-        $this->artisan('migrate:rollback', ['--step' => 1]);
+        $this->rollbackIntegrityMigration();
 
         try {
             $sermon = Sermon::factory()->create();
 
-            // 2. Insert records that will collide when TRIM() is applied
             DB::table('sermon_scripture_filters')->insert([
                 [
                     'sermon_id' => $sermon->id,
@@ -45,20 +45,17 @@ class SermonScriptureFilterMigrationTest extends TestCase
                 ],
             ]);
 
-            // 3. Run the migration and ensure it succeeds
-            $this->artisan('migrate');
+            $this->runIntegrityMigration();
 
-            // 4. Verify that the collision was handled (one record should be deleted)
             $count = DB::table('sermon_scripture_filters')
                 ->where('sermon_id', $sermon->id)
                 ->where('bible_book', 'John')
                 ->where('bible_chapter', 1)
                 ->count();
 
-            $this->assertEquals(1, $count);
-
+            $this->assertSame(1, $count);
         } finally {
-            // Ensure we are in a consistent state for other tests
+            $this->runIntegrityMigration();
         }
     }
 
@@ -69,26 +66,23 @@ class SermonScriptureFilterMigrationTest extends TestCase
             $this->markTestSkipped('Migration integrity cleanup logic is MySQL-specific.');
         }
 
-        // 1. Rollback the migration
-        $this->artisan('migrate:rollback', ['--step' => 1]);
+        $this->rollbackIntegrityMigration();
 
         try {
             $sermon = Sermon::factory()->create();
-            // Clear any filters created by observers to have a clean slate
             DB::table('sermon_scripture_filters')->where('sermon_id', $sermon->id)->delete();
 
-            // 2. Insert invalid records
             DB::table('sermon_scripture_filters')->insert([
                 [
                     'sermon_id' => $sermon->id,
-                    'bible_book' => '', // Empty book
+                    'bible_book' => '',
                     'bible_chapter' => 1,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ],
                 [
                     'sermon_id' => $sermon->id,
-                    'bible_book' => ' ', // Whitespace book
+                    'bible_book' => ' ',
                     'bible_chapter' => 2,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -96,24 +90,42 @@ class SermonScriptureFilterMigrationTest extends TestCase
                 [
                     'sermon_id' => $sermon->id,
                     'bible_book' => 'John',
-                    'bible_chapter' => 0, // Invalid chapter
+                    'bible_chapter' => 0,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ],
             ]);
 
-            // 3. Run the migration and ensure it succeeds
-            $this->artisan('migrate');
+            $this->runIntegrityMigration();
 
-            // 4. Verify that invalid records were deleted
             $count = DB::table('sermon_scripture_filters')
                 ->where('sermon_id', $sermon->id)
                 ->count();
 
-            $this->assertEquals(0, $count);
-
+            $this->assertSame(0, $count);
         } finally {
-            // Ensure we are in a consistent state for other tests
+            $this->runIntegrityMigration();
         }
+    }
+
+    private function rollbackIntegrityMigration(): void
+    {
+        $this->artisan('migrate:rollback', [
+            '--path' => [$this->integrityMigrationPath()],
+            '--realpath' => true,
+        ])->assertExitCode(0);
+    }
+
+    private function runIntegrityMigration(): void
+    {
+        $this->artisan('migrate', [
+            '--path' => [$this->integrityMigrationPath()],
+            '--realpath' => true,
+        ])->assertExitCode(0);
+    }
+
+    private function integrityMigrationPath(): string
+    {
+        return database_path('migrations/'.self::INTEGRITY_MIGRATION);
     }
 }
