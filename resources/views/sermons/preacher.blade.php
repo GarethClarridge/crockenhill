@@ -13,6 +13,7 @@
 <x-schema.webpage
     :heading="$heading"
     :description="$description"
+    :image="$preacher->profile_image_url"
 />
 
 <x-schema.person :$preacher />

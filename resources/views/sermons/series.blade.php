@@ -12,6 +12,7 @@
 <x-schema.webpage
     :heading="$heading"
     :description="$description"
+    :image="asset('/images/headings/large/sermons.webp')"
 />
 
 {{-- JSON-LD Sermon List --}}

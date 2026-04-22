@@ -1,7 +1,7 @@
 @extends('layouts.page')
 
 @section('title')
-{{ $heading }} | {{ $meeting->day }}{{ $meeting->start_time ? ' ' . $meeting->start_time->format('g:ia') : '' }} | Crockenhill Baptist Church
+{{ $heading }} | {{ $meeting->day }}{{ $meeting->start_time ? ' ' . $meeting->start_time->format('g:ia') : '' }}
 @stop
 
 @section('meta_description')
