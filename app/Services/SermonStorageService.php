@@ -139,51 +139,17 @@ class SermonStorageService
      */
     public function getThumbnailUrl(Sermon $sermon): ?string
     {
-        if (! $sermon->thumbnail_file_path) {
-            return null;
-        }
-
-        $this->ensurePubliclyResolvable($sermon->thumbnail_file_path, 'thumbnail');
-
-        return $this->resolvePublicUrl(
-            $this->resolveThumbnailDisk($sermon->thumbnail_file_path),
-            $sermon->thumbnail_file_path,
-            $this->thumbnailVersion($sermon, $sermon->thumbnail_file_path),
-        );
+        return $this->resolveThumbnailUrl($sermon, $sermon->thumbnail_file_path, 'thumbnail');
     }
 
     public function getCardThumbnailUrl(Sermon $sermon): ?string
     {
-        $cardThumbnailPath = $sermon->card_thumbnail_file_path;
-
-        if (! is_string($cardThumbnailPath) || $cardThumbnailPath === '') {
-            return null;
-        }
-
-        $this->ensurePubliclyResolvable($cardThumbnailPath, 'card thumbnail');
-
-        return $this->resolvePublicUrl(
-            $this->resolveThumbnailDisk($cardThumbnailPath),
-            $cardThumbnailPath,
-            $this->thumbnailVersion($sermon, $cardThumbnailPath),
-        );
+        return $this->resolveThumbnailUrl($sermon, $sermon->card_thumbnail_file_path, 'card thumbnail');
     }
 
     public function getPlainThumbnailUrl(Sermon $sermon): ?string
     {
-        $plainThumbnailPath = $sermon->plain_thumbnail_file_path;
-
-        if (! is_string($plainThumbnailPath) || $plainThumbnailPath === '') {
-            return null;
-        }
-
-        $this->ensurePubliclyResolvable($plainThumbnailPath, 'plain thumbnail');
-
-        return $this->resolvePublicUrl(
-            $this->resolveThumbnailDisk($plainThumbnailPath),
-            $plainThumbnailPath,
-            $this->thumbnailVersion($sermon, $plainThumbnailPath),
-        );
+        return $this->resolveThumbnailUrl($sermon, $sermon->plain_thumbnail_file_path, 'plain thumbnail');
     }
 
     public function getThumbnailCandidatePath(Sermon $sermon, string $candidateId, string $variant): ?string
@@ -271,53 +237,32 @@ class SermonStorageService
 
     public function getThumbnailDeliveryUrl(Sermon $sermon): ?string
     {
-        $thumbnailPath = $sermon->thumbnail_file_path;
-
-        if (! is_string($thumbnailPath) || $thumbnailPath === '') {
-            return null;
-        }
-
-        $this->validatePath($thumbnailPath, 'thumbnail');
-
-        if ($this->requiresGuardedDelivery($thumbnailPath)) {
-            return route('sermons.thumbnail', ['sermon' => $sermon->slug]);
-        }
-
-        return $this->getThumbnailUrl($sermon);
+        return $this->resolveThumbnailDeliveryUrl(
+            $sermon,
+            $sermon->thumbnail_file_path,
+            'thumbnail',
+            'sermons.thumbnail'
+        );
     }
 
     public function getCardThumbnailDeliveryUrl(Sermon $sermon): ?string
     {
-        $cardThumbnailPath = $sermon->card_thumbnail_file_path;
-
-        if (! is_string($cardThumbnailPath) || $cardThumbnailPath === '') {
-            return null;
-        }
-
-        $this->validatePath($cardThumbnailPath, 'card thumbnail');
-
-        if ($this->requiresGuardedDelivery($cardThumbnailPath)) {
-            return route('sermons.thumbnail.card', ['sermon' => $sermon->slug]);
-        }
-
-        return $this->getCardThumbnailUrl($sermon);
+        return $this->resolveThumbnailDeliveryUrl(
+            $sermon,
+            $sermon->card_thumbnail_file_path,
+            'card thumbnail',
+            'sermons.thumbnail.card'
+        );
     }
 
     public function getPlainThumbnailDeliveryUrl(Sermon $sermon): ?string
     {
-        $plainThumbnailPath = $sermon->plain_thumbnail_file_path;
-
-        if (! is_string($plainThumbnailPath) || $plainThumbnailPath === '') {
-            return null;
-        }
-
-        $this->validatePath($plainThumbnailPath, 'plain thumbnail');
-
-        if ($this->requiresGuardedDelivery($plainThumbnailPath)) {
-            return route('sermons.thumbnail', ['sermon' => $sermon->slug]);
-        }
-
-        return $this->getPlainThumbnailUrl($sermon);
+        return $this->resolveThumbnailDeliveryUrl(
+            $sermon,
+            $sermon->plain_thumbnail_file_path,
+            'plain thumbnail',
+            'sermons.thumbnail'
+        );
     }
 
     /**
@@ -470,6 +415,41 @@ class SermonStorageService
         $separator = str_contains($url, '?') ? '&' : '?';
 
         return "{$url}{$separator}v={$version}";
+    }
+
+    private function resolveThumbnailUrl(Sermon $sermon, mixed $path, string $type): ?string
+    {
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        $this->ensurePubliclyResolvable($path, $type);
+
+        return $this->resolvePublicUrl(
+            $this->resolveThumbnailDisk($path),
+            $path,
+            $this->thumbnailVersion($sermon, $path),
+        );
+    }
+
+    private function resolveThumbnailDeliveryUrl(Sermon $sermon, mixed $path, string $type, string $routeName): ?string
+    {
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        $this->validatePath($path, $type);
+
+        if ($this->requiresGuardedDelivery($path)) {
+            return route($routeName, ['sermon' => $sermon->slug]);
+        }
+
+        return match ($type) {
+            'thumbnail' => $this->getThumbnailUrl($sermon),
+            'card thumbnail' => $this->getCardThumbnailUrl($sermon),
+            'plain thumbnail' => $this->getPlainThumbnailUrl($sermon),
+            default => throw new \InvalidArgumentException("Unsupported thumbnail type: {$type}"),
+        };
     }
 
     private function audioVersion(Sermon $sermon): string
