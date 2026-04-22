@@ -58,8 +58,62 @@ class SermonScriptureFilterMigrationTest extends TestCase
             $this->assertEquals(1, $count);
 
         } finally {
-            // Ensure we are in a consistent state for other tests if something fails
-            // (though DatabaseTransactions should handle the data, the migration state needs care)
+            // Ensure we are in a consistent state for other tests
+        }
+    }
+
+    #[Test]
+    public function migration_cleans_up_invalid_data_before_adding_constraints(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Migration integrity cleanup logic is MySQL-specific.');
+        }
+
+        // 1. Rollback the migration
+        $this->artisan('migrate:rollback', ['--step' => 1]);
+
+        try {
+            $sermon = Sermon::factory()->create();
+            // Clear any filters created by observers to have a clean slate
+            DB::table('sermon_scripture_filters')->where('sermon_id', $sermon->id)->delete();
+
+            // 2. Insert invalid records
+            DB::table('sermon_scripture_filters')->insert([
+                [
+                    'sermon_id' => $sermon->id,
+                    'bible_book' => '', // Empty book
+                    'bible_chapter' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'sermon_id' => $sermon->id,
+                    'bible_book' => ' ', // Whitespace book
+                    'bible_chapter' => 2,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'sermon_id' => $sermon->id,
+                    'bible_book' => 'John',
+                    'bible_chapter' => 0, // Invalid chapter
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ]);
+
+            // 3. Run the migration and ensure it succeeds
+            $this->artisan('migrate');
+
+            // 4. Verify that invalid records were deleted
+            $count = DB::table('sermon_scripture_filters')
+                ->where('sermon_id', $sermon->id)
+                ->count();
+
+            $this->assertEquals(0, $count);
+
+        } finally {
+            // Ensure we are in a consistent state for other tests
         }
     }
 }
