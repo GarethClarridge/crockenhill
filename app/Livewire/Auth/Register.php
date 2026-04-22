@@ -78,6 +78,12 @@ class Register extends Component
 
         // "Members only" currently means "has a user account", so registration signs
         // the user in immediately and verification remains a separate concern.
+        \Illuminate\Support\Facades\Log::info('New user registered', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'ip' => request()->ip(),
+        ]);
+
         Auth::login($user);
         Session::regenerate();
         $user->sendEmailVerificationNotification();
