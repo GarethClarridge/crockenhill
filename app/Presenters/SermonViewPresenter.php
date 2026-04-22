@@ -68,6 +68,11 @@ class SermonViewPresenter
      */
     private array $memoizedSlugs = [];
 
+    /**
+     * @var array<string, string>
+     */
+    private array $memoizedMetaDescriptions = [];
+
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
@@ -134,6 +139,7 @@ class SermonViewPresenter
         $this->memoizedSermonKeys = [];
         $this->memoizedHumanDates = [];
         $this->memoizedSlugs = [];
+        $this->memoizedMetaDescriptions = [];
     }
 
     public function audioUrl(Sermon $sermon): ?string
@@ -198,21 +204,25 @@ class SermonViewPresenter
 
     public function preacherUrl(Sermon $sermon): ?string
     {
-        $preacherKey = $sermon->preacher_id !== null
-            ? "id_{$sermon->preacher_id}"
-            : (string) $this->displayPreacherName($sermon);
+        $preacherName = null;
+        if ($sermon->preacher_id !== null) {
+            $preacherKey = "id_{$sermon->preacher_id}";
+        } else {
+            $preacherName = $this->displayPreacherName($sermon);
+            $preacherKey = (string) $preacherName;
+        }
 
         if ($preacherKey === '') {
             return null;
         }
 
-        if (! array_key_exists($preacherKey, $this->memoizedPreacherUrls)) {
-            $this->memoizedPreacherUrls[$preacherKey] = (function () use ($sermon) {
+        if (! isset($this->memoizedPreacherUrls[$preacherKey])) {
+            $this->memoizedPreacherUrls[$preacherKey] = (function () use ($sermon, $preacherName) {
                 if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
                     return route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
                 }
 
-                $preacherName = $this->displayPreacherName($sermon);
+                $preacherName ??= $this->displayPreacherName($sermon);
 
                 return filled($preacherName)
                     ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
@@ -411,14 +421,21 @@ class SermonViewPresenter
     /**
      * Generate the SEO meta description for a sermon.
      *
-     * Performance Optimization: Minimizes string operations and avoids redundant
-     * Str::length calls by consolidating the assembly logic.
+     * Performance Optimization: Memoizes generated meta descriptions to avoid
+     * redundant assembly logic for the same sermon within a single request.
+     * Uses getRawOriginal to efficiently check for stored descriptions.
      */
     public function metaDescription(Sermon $sermon): string
     {
+        $key = $this->cacheKey($sermon, 'meta_desc');
+
+        if (isset($this->memoizedMetaDescriptions[$key])) {
+            return $this->memoizedMetaDescriptions[$key];
+        }
+
         $attributes = $sermon->getAttributes();
         if (! empty($attributes['meta_description'])) {
-            return (string) $attributes['meta_description'];
+            return $this->memoizedMetaDescriptions[$key] = (string) $attributes['meta_description'];
         }
 
         $preacherName = $this->displayPreacherName($sermon) ?? 'Unknown preacher';
@@ -449,10 +466,10 @@ class SermonViewPresenter
         $remaining = 155 - Str::length($base) - 2; // 2 for ". "
 
         if ($remaining > 0) {
-            return $base.'. '.Str::limit($summary, $remaining);
+            return $this->memoizedMetaDescriptions[$key] = $base.'. '.Str::limit($summary, $remaining);
         }
 
-        return Str::limit($base, 155);
+        return $this->memoizedMetaDescriptions[$key] = Str::limit($base, 155);
     }
 
     public function videoUrl(Sermon $sermon): ?string
@@ -489,11 +506,12 @@ class SermonViewPresenter
      * Performance Optimization: Memoizes the sermon's combined ID and timestamp
      * within the request to avoid redundant string concatenations and Carbon
      * object method calls when generating keys for multiple sermon attributes.
+     * Uses isset() for faster lookup performance compared to array_key_exists().
      */
     private function cacheKey(Sermon $sermon, string $type): string
     {
-        if (! array_key_exists($sermon->id, $this->memoizedSermonKeys)) {
-            if (! array_key_exists($sermon->id, $this->memoizedTimestamps)) {
+        if (! isset($this->memoizedSermonKeys[$sermon->id])) {
+            if (! isset($this->memoizedTimestamps[$sermon->id])) {
                 $this->memoizedTimestamps[$sermon->id] = $sermon->updated_at?->getTimestamp() ?? 0;
             }
 

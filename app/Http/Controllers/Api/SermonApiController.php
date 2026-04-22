@@ -45,7 +45,7 @@ class SermonApiController extends Controller
                 'preacher_source', 'preacher_confidence', 'needs_preacher_review',
                 'series', 'reference', 'scripture_passage_id', 'duration', 'points', 'show_summary', 'show_points', 'audio_file_path', 'video_file_path',
                 'video_quality_status', 'video_visibility_override', 'filetype', 'thumbnail_file_path',
-                'thumbnail_metadata',
+                'thumbnail_metadata', 'updated_at', 'meta_description',
             ])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
