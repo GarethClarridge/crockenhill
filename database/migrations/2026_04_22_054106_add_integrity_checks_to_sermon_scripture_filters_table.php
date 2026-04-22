@@ -23,8 +23,9 @@ return new class extends Migration
 
         // 2. Add the CHECK constraints
         // bible_book: no leading/trailing whitespace and not empty.
+        // We use BINARY to ensure the check is case-sensitive even on case-insensitive collations.
         // bible_chapter: must be greater than 0.
-        DB::statement("ALTER TABLE sermon_scripture_filters ADD CONSTRAINT sermon_scripture_filters_bible_book_format_check CHECK (CAST(bible_book AS CHAR CHARSET BINARY) = TRIM(bible_book) AND bible_book != '')");
+        DB::statement("ALTER TABLE sermon_scripture_filters ADD CONSTRAINT sermon_scripture_filters_bible_book_format_check CHECK (BINARY bible_book = TRIM(bible_book) AND bible_book != '')");
         DB::statement('ALTER TABLE sermon_scripture_filters ADD CONSTRAINT sermon_scripture_filters_bible_chapter_check CHECK (bible_chapter > 0)');
     }
 
