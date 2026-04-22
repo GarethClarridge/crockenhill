@@ -39,7 +39,7 @@ class SecurityHeaders
 
         // Security Header: Permissions Policy
         // Restricts sensitive browser features that this application does not use
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+        $response->headers->set('Permissions-Policy', 'accelerometer=(), ambient-light-sensor=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
 
         // Security Header: Content Security Policy (CSP)
         // Provides an additional layer of security by restricting where resources can be loaded from.

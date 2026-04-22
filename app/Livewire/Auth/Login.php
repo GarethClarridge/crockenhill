@@ -62,6 +62,16 @@ class Login extends Component
         $remember = (bool) ($validated['remember'] ?? false);
 
         if (Auth::attempt($credentials, $remember)) {
+            $user = Auth::user();
+
+            if ($user instanceof \App\Models\User && $user->is_admin) {
+                \Illuminate\Support\Facades\Log::warning('Admin logged in', [
+                    'admin_id' => $user->id,
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                ]);
+            }
+
             RateLimiter::clear($this->throttleKey($credentials['email']));
             Session::regenerate();
 

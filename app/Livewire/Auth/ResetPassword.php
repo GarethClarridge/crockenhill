@@ -84,6 +84,15 @@ class ResetPassword extends Component
         $status = Password::reset($data, function (User $user, string $password): void {
             $user->password = Hash::make($password);
             $user->save();
+
+            if ($user->is_admin) {
+                \Illuminate\Support\Facades\Log::warning('Admin password reset', [
+                    'admin_id' => $user->id,
+                    'email' => $user->email,
+                    'ip' => request()->ip(),
+                ]);
+            }
+
             Auth::login($user);
             Session::regenerate();
         });
