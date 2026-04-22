@@ -271,7 +271,10 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $this->action->execute($section1, $section2, $this->admin->id);
 
         Bus::assertDispatched(PrepareSectionPublicationCandidates::class, function ($job) use ($log) {
-            return $job->processingLog->id === $log->id;
+            $reflection = new \ReflectionClass($job);
+            $property = $reflection->getProperty('processingLog');
+
+            return $property->getValue($job)->id === $log->id;
         });
     }
 

@@ -38,7 +38,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
     public int $timeout = 1800;
 
     public function __construct(
-        public MediaProcessingLog $processingLog
+        private MediaProcessingLog $processingLog
     ) {}
 
     /**
