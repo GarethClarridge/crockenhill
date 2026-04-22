@@ -47,6 +47,18 @@ class SermonScriptureFilter extends Model
     }
 
     /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'sermon_id' => ['required', 'integer', 'exists:sermons,id'],
+            'bible_book' => ['required', 'string', 'max:50'],
+            'bible_chapter' => ['required', 'integer', 'min:1'],
+        ];
+    }
+
+    /**
      * @return BelongsTo<Sermon, $this>
      */
     public function sermon(): BelongsTo
