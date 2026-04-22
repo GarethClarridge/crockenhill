@@ -83,7 +83,9 @@ class SermonStorageService
     public function getSermonFileInfo(Sermon $sermon): array
     {
         $audioPath = $sermon->audio_file_path ?? '';
-        $cacheKey = "{$sermon->id}_{$audioPath}";
+        // Key by ID (if persisted) or object hash (if unsaved), plus path and filetype
+        // to ensure uniqueness and handle state changes within the request.
+        $cacheKey = ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
 
         if (isset($this->memoizedFileInfo[$cacheKey])) {
             return $this->memoizedFileInfo[$cacheKey];
@@ -389,6 +391,15 @@ class SermonStorageService
     {
         if ($sermon) {
             Cache::forget($this->fileMetadataCacheKey($sermon));
+
+            // Also clear request-level memoization for this sermon
+            $audioPath = $sermon->audio_file_path ?? '';
+            $cacheKey = ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
+            unset($this->memoizedFileInfo[$cacheKey]);
+
+            if ($sermon->thumbnail_file_path) {
+                unset($this->memoizedThumbnailDisks[$sermon->thumbnail_file_path]);
+            }
 
             return;
         }
