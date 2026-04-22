@@ -31,6 +31,16 @@ class SermonStorageService
      */
     private array $memoizedDiskUrls = [];
 
+    /**
+     * @var array<string, array{type: string, disk: string, path: string, original_path: string}>
+     */
+    private array $memoizedFileInfo = [];
+
+    /**
+     * @var array<string, string>
+     */
+    private array $memoizedThumbnailDisks = [];
+
     public function __construct()
     {
         $this->refreshConfig();
@@ -46,6 +56,8 @@ class SermonStorageService
         $this->clearCachedMetadata();
         $this->memoizedVersions = [];
         $this->memoizedDiskUrls = [];
+        $this->memoizedFileInfo = [];
+        $this->memoizedThumbnailDisks = [];
     }
 
     /**
@@ -62,11 +74,23 @@ class SermonStorageService
     /**
      * Get file information for a sermon based on its storage pattern
      *
+     * Performance Optimization: Memoizes file information lookups within the request
+     * to avoid redundant path validation and storage pattern logic when resolving
+     * multiple URLs (e.g., audio, public, delivery) for the same sermon.
+     *
      * @return array{type: string, disk: string, path: string, original_path: string}
      */
     public function getSermonFileInfo(Sermon $sermon): array
     {
         $audioPath = $sermon->audio_file_path ?? '';
+        // Key by ID (if persisted) or object hash (if unsaved), plus path and filetype
+        // to ensure uniqueness and handle state changes within the request.
+        $cacheKey = ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
+
+        if (isset($this->memoizedFileInfo[$cacheKey])) {
+            return $this->memoizedFileInfo[$cacheKey];
+        }
+
         $this->validatePath($audioPath, 'audio file');
 
         // Private files stored on the local disk (unreachable via the public/storage symlink)
@@ -98,7 +122,7 @@ class SermonStorageService
 
         if (str_contains($audioPath, '/')) {
             // Newer Laravel storage pattern
-            return [
+            return $this->memoizedFileInfo[$cacheKey] = [
                 'type' => 'storage',
                 'disk' => $this->sermonDisk,
                 'path' => $audioPath,
@@ -107,7 +131,7 @@ class SermonStorageService
         }
 
         // Current media processing pattern
-        return [
+        return $this->memoizedFileInfo[$cacheKey] = [
             'type' => 'processing',
             'disk' => $this->sermonDisk,
             'path' => $audioPath,
@@ -183,11 +207,22 @@ class SermonStorageService
         ]);
     }
 
+    /**
+     * Resolve the storage disk for a thumbnail path.
+     *
+     * Performance Optimization: Memoizes disk resolution within the request
+     * to avoid redundant path validation and string checks when resolving
+     * multiple thumbnail variants for the same sermon listing.
+     */
     public function resolveThumbnailDisk(string $thumbnailPath): string
     {
+        if (isset($this->memoizedThumbnailDisks[$thumbnailPath])) {
+            return $this->memoizedThumbnailDisks[$thumbnailPath];
+        }
+
         $this->validatePath($thumbnailPath, 'thumbnail');
 
-        return str_starts_with($thumbnailPath, 'private/')
+        return $this->memoizedThumbnailDisks[$thumbnailPath] = str_starts_with($thumbnailPath, 'private/')
             ? 'local'
             : $this->thumbnailDisk;
     }
@@ -301,6 +336,15 @@ class SermonStorageService
     {
         if ($sermon) {
             Cache::forget($this->fileMetadataCacheKey($sermon));
+
+            // Also clear request-level memoization for this sermon
+            $audioPath = $sermon->audio_file_path ?? '';
+            $cacheKey = ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
+            unset($this->memoizedFileInfo[$cacheKey]);
+
+            if ($sermon->thumbnail_file_path) {
+                unset($this->memoizedThumbnailDisks[$sermon->thumbnail_file_path]);
+            }
 
             return;
         }
