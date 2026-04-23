@@ -210,8 +210,8 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         $component = Livewire::test(ManageChurchService::class)
-            ->set('date', '2026-05-03')
-            ->set('service', SermonService::Morning->value)
+            ->set('form.date', '2026-05-03')
+            ->set('form.service', SermonService::Morning->value)
             ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
             ->set('items.0.title', 'Welcome and Call to Worship')
             ->call('addItem')
@@ -254,8 +254,8 @@ class AdminChurchServiceTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(ManageChurchService::class)
-            ->set('date', '2026-05-03')
-            ->set('service', SermonService::Morning->value)
+            ->set('form.date', '2026-05-03')
+            ->set('form.service', SermonService::Morning->value)
             ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
             ->set('items.0.title', 'Welcome and Call to Worship')
             ->call('save');
@@ -483,12 +483,12 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ManageChurchService::class)
-            ->set('date', '2026-05-17')
-            ->set('service', SermonService::Morning->value)
+            ->set('form.date', '2026-05-17')
+            ->set('form.service', SermonService::Morning->value)
             ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
             ->set('items.0.title', 'Welcome')
             ->call('save')
-            ->assertHasErrors(['date' => ['unique']]);
+            ->assertHasErrors(['form.date' => ['unique']]);
     }
 
     #[Test]

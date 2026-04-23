@@ -46,6 +46,10 @@ class AuditLoggingTest extends TestCase
     {
         parent::setUp();
         $this->admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
+
+        $this->mock(GoogleCalendarSyncService::class, function ($mock) {
+            $mock->shouldReceive('syncCategorizationToGoogle')->andReturn(true);
+        });
     }
 
     #[Test]
@@ -424,8 +428,8 @@ class AuditLoggingTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(EditSermon::class, ['sermon' => $sermon])
-            ->set('title', 'New Title')
-            ->set('slug', 'new-title')
+            ->set('form.title', 'New Title')
+            ->set('form.slug', 'new-title')
             ->call('save');
 
         $this->assertSame('New Title', $sermon->fresh()->title);

@@ -4,21 +4,16 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Sermons;
 
-use App\Actions\QueueScriptureEnrichment;
-use App\Enums\PreacherSource;
+use App\Actions\SaveSermonDetails;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Jobs\AssessSermonVideoQuality;
+use App\Livewire\Forms\SermonFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
-use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Services\PreacherResolutionService;
-use App\Services\SermonIdentitySyncService;
 use App\Services\SermonStorageService;
 use App\Services\ThumbnailGenerationService;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -29,44 +24,9 @@ class EditSermon extends Component
 {
     use WithAdminAuthorization, WithNotifications;
 
+    public SermonFormData $form;
+
     public Sermon $sermon;
-
-    public string $title = '';
-
-    public string $slug = '';
-
-    public string $date = '';
-
-    public string $service = '';
-
-    public string $preacher = '';
-
-    public ?int $preacherId = null;
-
-    public ?string $preacherSource = null;
-
-    public ?float $preacherConfidence = null;
-
-    public ?float $duration = null;
-
-    public ?float $segmentStartTime = null;
-
-    public ?float $segmentEndTime = null;
-
-    public ?int $downloadCount = null;
-
-    public ?string $reference = null;
-
-    public ?string $series = null;
-
-    public ?string $summary = null;
-
-    /** @var array<int, string> */
-    public array $points = [];
-
-    public bool $showSummary = true;
-
-    public bool $showPoints = true;
 
     public bool $isChildrensTalk = false;
 
@@ -80,157 +40,36 @@ class EditSermon extends Component
 
     public ?string $selectedThumbnailCandidateId = null;
 
-    public string $lastGeneratedSlug = '';
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function rules(): array
-    {
-        $modelRules = Sermon::validationRules($this->sermon);
-
-        return [
-            'title' => $modelRules['title'],
-            'slug' => $modelRules['slug'],
-            'date' => 'required|date',
-            'service' => $modelRules['service'],
-            'preacher' => $modelRules['preacher'],
-            'preacherId' => $modelRules['preacher_id'],
-            'preacherSource' => $modelRules['preacher_source'],
-            'preacherConfidence' => $modelRules['preacher_confidence'],
-            'duration' => $modelRules['duration'],
-            'segmentStartTime' => ['nullable', 'numeric', 'min:0'],
-            'segmentEndTime' => ['nullable', 'numeric', 'min:0', 'gte:segmentStartTime'],
-            'downloadCount' => $modelRules['download_count'],
-            'reference' => $modelRules['reference'],
-            'series' => $modelRules['series'],
-            'summary' => 'nullable|string|max:1000',
-            'points' => 'array',
-            'showSummary' => 'boolean',
-            'showPoints' => 'boolean',
-        ];
-    }
-
     public function mount(Sermon $sermon): void
     {
         $this->authorizeAdmin();
 
-        $sermon->loadMissing('preacherProfile', 'scripturePassage');
-
-        $service = $sermon->service;
-        if (! $service instanceof SermonService) {
-            throw new \UnexpectedValueException('Sermon service is required.');
-        }
-
         $this->sermon = $sermon;
+        $this->form->setSermon($sermon);
+
         $this->isChildrensTalk = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk;
         $this->contentTypeLabel = $sermon->content_type->label();
-        $this->preacherOptions = Preacher::active()->orderBy('name')->pluck('name', 'id');
-        $this->title = $sermon->title;
-        $this->slug = $sermon->slug;
-        $this->date = $sermon->date->format('Y-m-d');
-        $this->service = $service->value;
-        $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
-        $this->preacher = $sermonViewPresenter->displayPreacherName($sermon) ?? '';
-        $this->preacherId = $sermon->preacher_id;
-        $this->preacherSource = $sermon->preacher_source?->value;
-        $this->preacherConfidence = $sermon->preacher_confidence;
-        $this->duration = $sermon->duration;
-        $this->segmentStartTime = $sermon->segment_start_time;
-        $this->segmentEndTime = $sermon->segment_end_time;
-        $this->downloadCount = $sermon->download_count;
-        $this->reference = $sermonViewPresenter->displayReference($sermon);
-        $this->series = $sermon->series;
-        $this->summary = $sermon->summary;
-        $this->points = $sermon->points ?? [];
-        $this->showSummary = $sermon->show_summary;
-        $this->showPoints = $sermon->show_points;
-        $this->lastGeneratedSlug = (string) Str::slug($this->title);
+        $this->preacherOptions = \App\Models\Preacher::active()->orderBy('name')->pluck('name', 'id');
         $this->loadThumbnailCandidates();
-    }
-
-    public function updatedTitle(): void
-    {
-        $generatedSlug = (string) Str::slug($this->title);
-
-        if ($this->slug === '' || $this->slug === $this->lastGeneratedSlug) {
-            $this->slug = $generatedSlug;
-        }
-
-        $this->lastGeneratedSlug = $generatedSlug;
     }
 
     public function addPoint(): void
     {
-        $this->points[] = '';
+        $this->form->addPoint();
     }
 
     public function removePoint(int $index): void
     {
-        unset($this->points[$index]);
-        $this->points = array_values($this->points);
+        $this->form->removePoint($index);
     }
 
     public function save(): void
     {
         $this->authorizeAdmin();
 
-        $validated = $this->validate();
+        $validated = $this->form->validate();
 
-        if ($validated['preacherId']) {
-            $preacher = Preacher::find($validated['preacherId']);
-        } else {
-            $preacher = app(PreacherResolutionService::class)->resolve($validated['preacher']);
-        }
-
-        if (! ($preacher instanceof Preacher)) {
-            $preacher = null;
-        }
-
-        $referenceChanged = $this->sermon->reference !== $validated['reference'];
-        $newReference = $validated['reference'];
-        $scripturePassage = app(SermonIdentitySyncService::class)->findExistingScripturePassage($newReference);
-        $scripturePassageId = ($referenceChanged || $this->sermon->scripture_passage_id === null)
-            ? $scripturePassage?->id
-            : $this->sermon->scripture_passage_id;
-
-        $updateData = [
-            'title' => $validated['title'],
-            'slug' => $validated['slug'],
-            'date' => $validated['date'],
-            'service' => $validated['service'],
-            'preacher' => $preacher ? $preacher->name : $validated['preacher'],
-            'preacher_id' => $preacher?->id,
-            'preacher_source' => $preacher ? PreacherSource::Manual->value : $validated['preacherSource'],
-            'preacher_confidence' => $validated['preacherConfidence'],
-            'duration' => $validated['duration'],
-            'segment_start_time' => $validated['segmentStartTime'],
-            'segment_end_time' => $validated['segmentEndTime'],
-            'download_count' => $validated['downloadCount'] ?? 0,
-            'needs_preacher_review' => false,
-            'reference' => $newReference,
-            'scripture_passage_id' => $scripturePassageId,
-            'series' => $validated['series'],
-            'summary' => $validated['summary'],
-            'points' => array_filter($this->points),
-            'show_summary' => $validated['showSummary'],
-            'show_points' => $validated['showPoints'],
-        ];
-
-        $this->sermon->update($updateData);
-
-        $fresh = $this->sermon->fresh();
-        Log::warning('Sermon updated by admin', [
-            'admin_id' => auth()->id(),
-            'sermon_id' => $this->sermon->id,
-            'title' => ($fresh instanceof Sermon ? $fresh->title : $this->sermon->title),
-            'slug' => ($fresh instanceof Sermon ? $fresh->slug : $this->sermon->slug),
-        ]);
-
-        // Dispatch enrichment after saving if reference was set or changed
-        if ($referenceChanged && ! empty($newReference)) {
-            app(QueueScriptureEnrichment::class)->dispatch($fresh instanceof Sermon ? $fresh : $this->sermon);
-        }
+        app(SaveSermonDetails::class)->execute($this->sermon, $validated);
 
         $this->success('Sermon updated');
     }
@@ -338,6 +177,7 @@ class EditSermon extends Component
         return view('livewire.admin.sermons.edit-sermon', [
             'services' => SermonService::cases(),
             'preachers' => $this->preacherOptions,
+            'points' => $this->form->points,
         ])->layout('layouts.admin', ['title' => 'Edit: '.$this->sermon->title, 'heading' => 'Edit '.$this->contentTypeLabel]);
     }
 

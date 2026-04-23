@@ -29,28 +29,36 @@ class EditSermonTest extends TestCase
     }
 
     #[Test]
-    public function it_updates_slug_automatically_when_title_changes(): void
+    public function it_can_update_title_and_custom_slug(): void
     {
         $sermon = Sermon::factory()->create(['title' => 'Original Title', 'slug' => 'original-title']);
 
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('title', 'New Updated Title')
-            ->assertSet('slug', 'new-updated-title');
+            ->set('form.title', 'New Updated Title')
+            ->set('form.slug', 'custom-slug-override')
+            ->call('save');
+
+        $sermon->refresh();
+        $this->assertEquals('New Updated Title', $sermon->title);
+        $this->assertEquals('custom-slug-override', $sermon->slug);
     }
 
     #[Test]
-    public function it_does_not_update_slug_automatically_if_manually_overridden(): void
+    public function it_preserves_custom_slug_on_save(): void
     {
         $sermon = Sermon::factory()->create(['title' => 'Original Title', 'slug' => 'original-title']);
 
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('slug', 'custom-seo-slug')
-            ->set('title', 'New Updated Title')
-            ->assertSet('slug', 'custom-seo-slug');
+            ->set('form.slug', 'custom-seo-slug')
+            ->set('form.title', 'New Updated Title')
+            ->call('save');
+
+        $sermon->refresh();
+        $this->assertEquals('custom-seo-slug', $sermon->slug);
     }
 
     #[Test]
@@ -85,12 +93,12 @@ class EditSermonTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->assertSet('points', ['Point 1'])
+            ->assertSet('form.points', ['Point 1'])
             ->call('addPoint')
-            ->assertSet('points', ['Point 1', ''])
-            ->set('points.1', 'New Point')
+            ->assertSet('form.points', ['Point 1', ''])
+            ->set('form.points.1', 'New Point')
             ->call('removePoint', 0)
-            ->assertSet('points', ['New Point']);
+            ->assertSet('form.points', ['New Point']);
     }
 
     #[Test]
@@ -101,17 +109,17 @@ class EditSermonTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('title', '')
-            ->set('preacherConfidence', 1.5) // Max 1
-            ->set('duration', -10) // Min 0
-            ->set('segmentStartTime', 100)
-            ->set('segmentEndTime', 50) // Must be >= segmentStartTime
+            ->set('form.title', '')
+            ->set('form.preacherConfidence', 1.5) // Max 1
+            ->set('form.duration', -10) // Min 0
+            ->set('form.segmentStartTime', 100)
+            ->set('form.segmentEndTime', 50) // Must be >= segmentStartTime
             ->call('save')
             ->assertHasErrors([
-                'title' => 'required',
-                'preacherConfidence' => 'max',
-                'duration' => 'min',
-                'segmentEndTime' => 'gte',
+                'form.title' => 'required',
+                'form.preacherConfidence' => 'max',
+                'form.duration' => 'min',
+                'form.segmentEndTime' => 'gte',
             ]);
     }
 
@@ -128,7 +136,7 @@ class EditSermonTest extends TestCase
         });
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('reference', 'Romans 8:28')
+            ->set('form.reference', 'Romans 8:28')
             ->call('save')
             ->assertDispatched('notify');
     }
@@ -146,7 +154,7 @@ class EditSermonTest extends TestCase
         });
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('reference', 'John 3:16')
+            ->set('form.reference', 'John 3:16')
             ->call('save')
             ->assertDispatched('notify');
     }
@@ -176,9 +184,9 @@ class EditSermonTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('title', 'Brand New Title')
-            ->set('date', '2025-02-01')
-            ->set('service', SermonService::Evening->value)
+            ->set('form.title', 'Brand New Title')
+            ->set('form.date', '2025-02-01')
+            ->set('form.service', SermonService::Evening->value)
             ->call('save')
             ->assertDispatched('notify');
 
@@ -197,8 +205,8 @@ class EditSermonTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('preacher', 'New Resolved Preacher')
-            ->set('preacherId', null)
+            ->set('form.preacher', 'New Resolved Preacher')
+            ->set('form.preacherId', null)
             ->call('save');
 
         $sermon->refresh();

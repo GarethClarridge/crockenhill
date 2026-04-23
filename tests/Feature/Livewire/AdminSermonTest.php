@@ -171,7 +171,7 @@ class AdminSermonTest extends TestCase
         ]);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('preacherId', $preacher->id)
+            ->set('form.preacherId', $preacher->id)
             ->call('save');
 
         $this->assertFalse($sermon->fresh()->needs_preacher_review);

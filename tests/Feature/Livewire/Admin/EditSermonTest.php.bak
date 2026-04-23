@@ -58,10 +58,10 @@ class EditSermonTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
-            ->assertSet('form.title', 'Original Title')
-            ->assertSet('form.slug', 'original-title')
-            ->assertSet('form.preacher', 'John Smith')
-            ->assertSet('form.reference', 'John 3:16')
+            ->assertSet('title', 'Original Title')
+            ->assertSet('slug', 'original-title')
+            ->assertSet('preacher', 'John Smith')
+            ->assertSet('reference', 'John 3:16')
             ->assertStatus(200);
     }
 
@@ -70,15 +70,24 @@ class EditSermonTest extends TestCase
     // -------------------------------------------------------------------------
 
     #[Test]
-    public function slug_can_be_updated_via_form(): void
+    public function slug_is_auto_updated_when_title_changes(): void
     {
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
-            ->set('form.slug', 'custom-seo-slug')
-            ->call('save');
+            ->set('title', 'My New Sermon Title')
+            ->assertSet('slug', 'my-new-sermon-title');
+    }
 
-        $this->assertEquals('custom-seo-slug', $this->sermon->fresh()->slug);
+    #[Test]
+    public function slug_is_not_auto_updated_if_manually_overridden(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->set('slug', 'custom-seo-slug')
+            ->set('title', 'Another Title Change')
+            ->assertSet('slug', 'custom-seo-slug');
     }
 
     #[Test]
@@ -128,13 +137,13 @@ class EditSermonTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
-            ->set('form.title', 'Updated Title')
-            ->set('form.slug', 'updated-title')
-            ->set('form.date', '2025-07-01')
-            ->set('form.service', SermonService::Evening->value)
-            ->set('form.preacherId', null)
-            ->set('form.preacher', 'David Johnson')
-            ->set('form.reference', 'Romans 8:28')
+            ->set('title', 'Updated Title')
+            ->set('slug', 'updated-title')
+            ->set('date', '2025-07-01')
+            ->set('service', SermonService::Evening->value)
+            ->set('preacherId', null)
+            ->set('preacher', 'David Johnson')
+            ->set('reference', 'Romans 8:28')
             ->call('save')
             ->assertDispatched('notify', type: 'success', message: 'Sermon updated');
 
@@ -156,8 +165,8 @@ class EditSermonTest extends TestCase
         ]);
 
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
-            ->set('form.preacherId', $preacher->id)
-            ->set('form.preacher', $preacher->name)
+            ->set('preacherId', $preacher->id)
+            ->set('preacher', $preacher->name)
             ->call('save')
             ->assertDispatched('notify', type: 'success', message: 'Sermon updated');
 
@@ -428,7 +437,7 @@ class EditSermonTest extends TestCase
 
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
             ->call('addPoint')
-            ->assertCount('form.points', 1);
+            ->assertCount('points', 1);
     }
 
     #[Test]
@@ -439,9 +448,9 @@ class EditSermonTest extends TestCase
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
             ->call('addPoint')
             ->call('addPoint')
-            ->assertCount('form.points', 2)
+            ->assertCount('points', 2)
             ->call('removePoint', 0)
-            ->assertCount('form.points', 1);
+            ->assertCount('points', 1);
     }
 
     // -------------------------------------------------------------------------
@@ -454,12 +463,12 @@ class EditSermonTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
-            ->set('form.title', '')
-            ->set('form.slug', '')
-            ->set('form.date', '')
-            ->set('form.preacher', '')
+            ->set('title', '')
+            ->set('slug', '')
+            ->set('date', '')
+            ->set('preacher', '')
             ->call('save')
-            ->assertHasErrors(['form.title', 'form.slug', 'form.date', 'form.preacher']);
+            ->assertHasErrors(['title', 'slug', 'date', 'preacher']);
     }
 
     #[Test]
@@ -470,9 +479,9 @@ class EditSermonTest extends TestCase
         $other = Sermon::factory()->create(['slug' => 'taken-slug']);
 
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
-            ->set('form.slug', 'taken-slug')
+            ->set('slug', 'taken-slug')
             ->call('save')
-            ->assertHasErrors(['form.slug']);
+            ->assertHasErrors(['slug']);
     }
 
     #[Test]
@@ -482,7 +491,7 @@ class EditSermonTest extends TestCase
 
         // The unique rule should exclude the current sermon's own ID
         Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
-            ->set('form.slug', 'original-title')
+            ->set('slug', 'original-title')
             ->call('save')
             ->assertHasNoErrors(['slug']);
     }

@@ -205,9 +205,9 @@ class SermonIdentityAuthorityTest extends TestCase
         ]);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('preacherId', null)
-            ->set('preacher', '  Mark   Drury   Identity   Test  ')
-            ->set('reference', 'John 3:16')
+            ->set('form.preacherId', null)
+            ->set('form.preacher', '  Mark   Drury   Identity   Test  ')
+            ->set('form.reference', 'John 3:16')
             ->call('save')
             ->assertDispatched('notify', type: 'success', message: 'Sermon updated');
 

@@ -37,7 +37,7 @@ class SermonScriptureEnrichmentTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('reference', 'Romans 8:28')
+            ->set('form.reference', 'Romans 8:28')
             ->call('save');
 
         Queue::assertPushed(FetchBibleTextForSermon::class);
@@ -50,7 +50,7 @@ class SermonScriptureEnrichmentTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('reference', 'John 3:16') // same value
+            ->set('form.reference', 'John 3:16') // same value
             ->call('save');
 
         Queue::assertNotPushed(FetchBibleTextForSermon::class);
@@ -69,7 +69,7 @@ class SermonScriptureEnrichmentTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('reference', 'Romans 8:28')
+            ->set('form.reference', 'Romans 8:28')
             ->call('save');
 
         $this->assertNull($sermon->fresh()->scripture_passage_id);
@@ -88,7 +88,7 @@ class SermonScriptureEnrichmentTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
-            ->set('reference', null)
+            ->set('form.reference', null)
             ->call('save');
 
         $this->assertNull($sermon->fresh()->scripture_passage_id);

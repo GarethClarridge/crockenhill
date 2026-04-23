@@ -132,15 +132,15 @@ class SermonIntegrityTest extends TestCase
     {
         Livewire::actingAs($this->admin)
             ->test(EditSermon::class, ['sermon' => $this->sermon])
-            ->set('preacherConfidence', 1.5)
+            ->set('form.preacherConfidence', 1.5)
             ->call('save')
-            ->assertHasErrors(['preacherConfidence' => 'max']);
+            ->assertHasErrors(['form.preacherConfidence' => 'max']);
 
         Livewire::actingAs($this->admin)
             ->test(EditSermon::class, ['sermon' => $this->sermon])
-            ->set('preacherConfidence', -0.1)
+            ->set('form.preacherConfidence', -0.1)
             ->call('save')
-            ->assertHasErrors(['preacherConfidence' => 'min']);
+            ->assertHasErrors(['form.preacherConfidence' => 'min']);
     }
 
     #[Test]

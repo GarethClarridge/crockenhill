@@ -73,6 +73,9 @@ class ServiceReviewDashboard extends Component
 
         $this->authorizeAdmin();
         $this->abortIfDisabled();
+
+        $groups = $this->dashboardQuery->reviewGroups();
+        $this->seedSectionEdits($groups);
     }
 
     public function saveSection(int $sectionId): void
@@ -226,7 +229,6 @@ class ServiceReviewDashboard extends Component
     public function render(): View
     {
         $groups = $this->dashboardQuery->reviewGroups();
-        $this->seedSectionEdits($groups);
 
         return view('livewire.admin.church-services.service-review-dashboard', [
             'groups' => $groups,

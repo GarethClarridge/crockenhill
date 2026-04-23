@@ -6,8 +6,8 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Actions\PrefillChurchServiceFromInboundEmail;
 use App\Actions\SaveChurchServiceFromAdmin;
-use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
+use App\Livewire\Forms\ChurchServiceFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -27,11 +28,9 @@ class ManageChurchService extends Component
     use WithAdminAuthorization;
     use WithNotifications;
 
+    public ChurchServiceFormData $form;
+
     public ?ChurchService $churchService = null;
-
-    public string $date = '';
-
-    public string $service = '';
 
     #[Url(except: null)]
     public ?int $inboundEmailId = null;
@@ -56,8 +55,7 @@ class ManageChurchService extends Component
                 ->findOrFail($this->churchService->getKey());
             $this->churchService = $churchService;
 
-            $this->date = $this->churchService->date->format('Y-m-d');
-            $this->service = $this->churchService->service->value;
+            $this->form->setChurchService($churchService);
             $this->items = $this->churchService->items
                 ->map(fn (ChurchServiceItem $item): array => $this->itemPayloadFromModel($item))
                 ->values()
@@ -76,17 +74,7 @@ class ManageChurchService extends Component
      */
     protected function rules(): array
     {
-        $serviceId = $this->churchService?->id;
-
         return [
-            'date' => [
-                'required',
-                'date',
-                Rule::unique('church_services', 'date')
-                    ->ignore($serviceId)
-                    ->where(fn ($query) => $query->where('service', $this->service)),
-            ],
-            'service' => ['required', Rule::in(SermonService::values())],
             'items' => ['required', 'array', 'min:1'],
             'items.*.section_type' => ['required', Rule::in(array_map(
                 static fn (ServiceSectionType $type): string => $type->value,
@@ -103,7 +91,6 @@ class ManageChurchService extends Component
     protected function messages(): array
     {
         return [
-            'date.unique' => 'A service for this date and service type already exists. Edit the existing service instead.',
             'items.min' => 'Add at least one service item.',
             'items.*.section_type.required' => 'Choose a type for each item.',
             'items.*.title.required' => 'Enter a title for each item.',
@@ -203,12 +190,13 @@ class ManageChurchService extends Component
         $this->authorizeAdmin();
         $this->abortIfDisabled();
 
-        $validated = $this->validate();
+        $this->form->validate();
+        $this->validate();
         $wasCreated = ! ($this->churchService instanceof ChurchService && $this->churchService->exists);
 
         try {
             $churchService = $saveAction->execute(
-                validated: $validated,
+                validated: ['date' => $this->form->date, 'service' => $this->form->service],
                 syncPayload: $this->buildSyncPayload(),
                 churchService: $this->churchService,
                 userId: Auth::user()->id ?? abort(403),
@@ -235,8 +223,8 @@ class ManageChurchService extends Component
     public function render(): View
     {
         return view('livewire.admin.church-services.manage-church-service', [
-            'serviceOptions' => $this->serviceOptions(),
-            'sectionTypeOptions' => $this->sectionTypeOptions(),
+            'serviceOptions' => $this->form->serviceOptions(),
+            'sectionTypeOptions' => $this->form->sectionTypeOptions(),
             'songSuggestions' => $this->songSuggestions(),
             'isEditing' => $this->churchService instanceof ChurchService,
         ])->layout('layouts.admin', [
@@ -246,35 +234,10 @@ class ManageChurchService extends Component
     }
 
     /**
-     * @return array<int, array{id:string,name:string}>
-     */
-    private function serviceOptions(): array
-    {
-        return collect(SermonService::cases())
-            ->map(fn (SermonService $service): array => [
-                'id' => $service->value,
-                'name' => $service->label(),
-            ])
-            ->all();
-    }
-
-    /**
-     * @return array<int, array{id:string,name:string}>
-     */
-    private function sectionTypeOptions(): array
-    {
-        return collect(ServiceSectionType::cases())
-            ->map(fn (ServiceSectionType $type): array => [
-                'id' => $type->value,
-                'name' => $type->label(),
-            ])
-            ->all();
-    }
-
-    /**
      * @return array<int, array<int, array{id:int,title:string}>>
      */
-    private function songSuggestions(): array
+    #[Computed]
+    public function songSuggestions(): array
     {
         $suggestions = [];
 
@@ -381,11 +344,11 @@ class ManageChurchService extends Component
     private function applyPrefillData(array $prefillData): void
     {
         if (isset($prefillData['date'])) {
-            $this->date = $prefillData['date'];
+            $this->form->date = $prefillData['date'];
         }
 
         if (isset($prefillData['service'])) {
-            $this->service = $prefillData['service'];
+            $this->form->service = $prefillData['service'];
         }
 
         if (isset($prefillData['items']) && $prefillData['items'] !== []) {

@@ -26,8 +26,8 @@ class SermonDownloadCountVerificationTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(EditSermon::class, ['sermon' => $sermon])
-            ->assertSet('downloadCount', 10)
-            ->set('downloadCount', 25)
+            ->assertSet('form.downloadCount', 10)
+            ->set('form.downloadCount', 25)
             ->call('save')
             ->assertHasNoErrors();
 
@@ -44,9 +44,9 @@ class SermonDownloadCountVerificationTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(EditSermon::class, ['sermon' => $sermon])
-            ->set('downloadCount', -5)
+            ->set('form.downloadCount', -5)
             ->call('save')
-            ->assertHasErrors(['downloadCount' => 'min']);
+            ->assertHasErrors(['form.downloadCount' => 'min']);
 
         $this->assertEquals(10, $sermon->fresh()->download_count);
     }

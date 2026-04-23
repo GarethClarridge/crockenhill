@@ -455,8 +455,8 @@ class AdminUrlStateTest extends TestCase
             'inboundEmailId' => (string) $email->id,
         ])->test(ManageChurchService::class)
             ->assertSet('inboundEmailId', $email->id)
-            ->assertSet('date', '2026-07-06')
-            ->assertSet('service', SermonService::Morning->value)
+            ->assertSet('form.date', '2026-07-06')
+            ->assertSet('form.service', SermonService::Morning->value)
             ->assertSet('items.0.title', 'Welcome')
             ->assertSet('items.1.title', 'Opening Hymn');
     }

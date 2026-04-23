@@ -59,7 +59,7 @@ class AdminLivewireSecurityTest extends TestCase
         $sermon = Sermon::factory()->create(['title' => 'Original Title']);
 
         $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Sermons\EditSermon::class, ['sermon' => $sermon])
-            ->set('title', 'Hacked Title')
+            ->set('form.title', 'Hacked Title')
             ->call('save')
             ->assertForbidden();
 

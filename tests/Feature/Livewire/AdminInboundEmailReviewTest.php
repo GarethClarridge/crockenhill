@@ -443,8 +443,8 @@ class AdminInboundEmailReviewTest extends TestCase
         ]);
 
         $component = Livewire::test(ManageChurchService::class, ['inboundEmailId' => $email->id])
-            ->assertSet('date', '2026-07-06')
-            ->assertSet('service', SermonService::Morning->value)
+            ->assertSet('form.date', '2026-07-06')
+            ->assertSet('form.service', SermonService::Morning->value)
             ->assertSet('items.0.title', 'Welcome')
             ->assertSet('items.1.title', 'Opening Prayer')
             ->call('save');
