@@ -78,13 +78,13 @@ class SermonScriptureFilterIndexServiceTest extends TestCase
 
         $sermon->reference = '';
         $this->service->syncForSermon($sermon);
-        $this->assertDatabaseCount('sermon_scripture_filters', 0);
+        $this->assertEquals(0, $sermon->scriptureFilters()->count());
 
         SermonScriptureFilter::factory()->for($sermon)->forPassage('Exodus', 2)->create();
 
         $sermon->reference = 'not a real reference';
         $this->service->syncForSermon($sermon);
-        $this->assertDatabaseCount('sermon_scripture_filters', 0);
+        $this->assertEquals(0, $sermon->scriptureFilters()->count());
     }
 
     #[Test]
@@ -99,7 +99,7 @@ class SermonScriptureFilterIndexServiceTest extends TestCase
 
         $this->service->syncForSermon($sermon);
 
-        $this->assertDatabaseCount('sermon_scripture_filters', 0);
+        $this->assertEquals(0, $sermon->scriptureFilters()->count());
     }
 
     #[Test]
@@ -114,6 +114,6 @@ class SermonScriptureFilterIndexServiceTest extends TestCase
             ['bible_book' => 'John', 'bible_chapter' => 3],
         ]);
 
-        $this->assertDatabaseCount('sermon_scripture_filters', 0);
+        $this->assertEquals(0, $sermon->scriptureFilters()->count());
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit\Services;
 
 use App\Exceptions\TranscriptionException;
@@ -8,6 +10,7 @@ use App\Services\SermonProcessingLogger;
 use Illuminate\Support\Facades\Config;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class AudioChunkingServiceTest extends TestCase
@@ -333,6 +336,104 @@ class AudioChunkingServiceTest extends TestCase
         $this->service->createAudioChunks('/nonexistent/audio.mp3', 'proc-123', 600.0);
     }
 
+    #[Test]
+    public function it_creates_chunks_for_an_mp3_with_attached_artwork(): void
+    {
+        $ffmpegBinary = $this->resolveBinary('ffmpeg');
+        $ffprobeBinary = $this->resolveBinary('ffprobe');
+
+        if ($ffmpegBinary === null || $ffprobeBinary === null) {
+            $this->markTestSkipped('ffmpeg and ffprobe are required for chunking integration coverage.');
+        }
+
+        Config::set('media-processing.ffmpeg.ffmpeg_path', $ffmpegBinary);
+        Config::set('media-processing.ffmpeg.ffprobe_path', $ffprobeBinary);
+
+        $tempDir = storage_path('app/testing/audio-chunking');
+
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $audioPath = $tempDir.'/artwork-source.mp3';
+        $imagePath = $tempDir.'/artwork-cover.jpg';
+        $sourceWithArtworkPath = $tempDir.'/artwork-attached.mp3';
+
+        try {
+            $this->runProcess(new Process([
+                $ffmpegBinary,
+                '-y',
+                '-f',
+                'lavfi',
+                '-i',
+                'sine=frequency=1000:duration=31',
+                '-c:a',
+                'libmp3lame',
+                '-q:a',
+                '4',
+                $audioPath,
+            ]));
+
+            $this->runProcess(new Process([
+                $ffmpegBinary,
+                '-y',
+                '-f',
+                'lavfi',
+                '-i',
+                'color=c=blue:s=120x120:d=1',
+                '-frames:v',
+                '1',
+                $imagePath,
+            ]));
+
+            $this->runProcess(new Process([
+                $ffmpegBinary,
+                '-y',
+                '-i',
+                $audioPath,
+                '-i',
+                $imagePath,
+                '-map',
+                '0:a',
+                '-map',
+                '1:v',
+                '-c:a',
+                'copy',
+                '-c:v',
+                'mjpeg',
+                '-disposition:v:0',
+                'attached_pic',
+                $sourceWithArtworkPath,
+            ]));
+
+            $this->logger->shouldReceive('logProcessingStep')
+                ->times(1)
+                ->with('proc-artwork', 'chunk_creation', 'completed', Mockery::type('array'));
+
+            $chunks = $this->service->createAudioChunks($sourceWithArtworkPath, 'proc-artwork', 31.0);
+
+            $this->assertCount(1, $chunks);
+            $this->assertFileExists($chunks[0]);
+            $this->assertGreaterThan(0, filesize($chunks[0]));
+        } finally {
+            $cleanupTargets = [
+                $audioPath,
+                $imagePath,
+                $sourceWithArtworkPath,
+            ];
+
+            if (isset($chunks) && is_array($chunks)) {
+                $cleanupTargets = array_merge($cleanupTargets, $chunks);
+            }
+
+            foreach ($cleanupTargets as $cleanupTarget) {
+                if (is_string($cleanupTarget) && file_exists($cleanupTarget)) {
+                    unlink($cleanupTarget);
+                }
+            }
+        }
+    }
+
     // ---- compressAudioForTranscription (requires FFmpeg, test error handling) ----
 
     #[Test]
@@ -342,5 +443,24 @@ class AudioChunkingServiceTest extends TestCase
         $this->expectExceptionMessage('Failed to compress audio for transcription');
 
         $this->service->compressAudioForTranscription('/nonexistent/audio.mp3', 'proc-123');
+    }
+
+    private function resolveBinary(string $binary): ?string
+    {
+        $process = new Process(['which', $binary]);
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            return null;
+        }
+
+        $path = trim($process->getOutput());
+
+        return $path !== '' ? $path : null;
+    }
+
+    private function runProcess(Process $process): void
+    {
+        $process->mustRun();
     }
 }

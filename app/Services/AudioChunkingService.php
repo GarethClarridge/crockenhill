@@ -9,6 +9,7 @@ use Exception;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
+use FFMpeg\Media\Audio;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -83,8 +84,6 @@ class AudioChunkingService
             'timeout' => 300,
             'ffmpeg.threads' => 1,
         ]);
-
-        $audio = $ffmpeg->open($filePath);
         $chunks = [];
         $chunkIndex = 0;
         $currentTime = 0;
@@ -107,6 +106,8 @@ class AudioChunkingService
             }
 
             try {
+                $audio = new Audio($filePath, $ffmpeg->getFFMpegDriver(), $ffmpeg->getFFProbe());
+
                 $format = new Mp3;
                 $format->setAudioKiloBitrate(48)
                     ->setAudioChannels(1);
