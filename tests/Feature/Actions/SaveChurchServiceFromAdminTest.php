@@ -14,9 +14,12 @@ use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
 use App\Models\Song;
 use App\Models\User;
+use App\Services\ChurchServiceItemSyncService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class SaveChurchServiceFromAdminTest extends TestCase
@@ -263,5 +266,33 @@ class SaveChurchServiceFromAdminTest extends TestCase
 
         $this->assertInstanceOf(ChurchService::class, $result);
         $this->assertDatabaseCount('church_services', 1);
+    }
+
+    #[Test]
+    public function it_throws_when_items_constraint_violation_escapes_sync(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $mock = $this->mock(ChurchServiceItemSyncService::class);
+        $previous = new \PDOException('Duplicate entry for key "church_service_items_active_position_unique"');
+        $mock->shouldReceive('sync')
+            ->once()
+            ->andThrow(new UniqueConstraintViolationException('default', 'INSERT INTO ...', [], $previous));
+
+        $this->app->instance(ChurchServiceItemSyncService::class, $mock);
+        $action = app(SaveChurchServiceFromAdmin::class);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ordering conflict');
+
+        $action->execute(
+            validated: [
+                'date' => '2026-04-23',
+                'service' => SermonService::Morning->value,
+            ],
+            syncPayload: [],
+            churchService: $churchService,
+            userId: $this->admin->id,
+        );
     }
 }

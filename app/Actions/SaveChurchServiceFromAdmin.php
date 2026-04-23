@@ -12,7 +12,9 @@ use App\Services\ChurchServiceCanonicalUpdateService;
 use App\Services\ChurchServiceItemSyncService;
 use App\Services\ChurchServiceSongLinker;
 use App\Services\InboundEmailImportService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class SaveChurchServiceFromAdmin
 {
@@ -64,7 +66,16 @@ class SaveChurchServiceFromAdmin
             ]);
             $model->save();
 
-            $syncResult = $this->itemSyncService->sync($model, $syncPayload, ChurchServiceItemSource::Manual);
+            try {
+                $syncResult = $this->itemSyncService->sync($model, $syncPayload, ChurchServiceItemSource::Manual);
+            } catch (UniqueConstraintViolationException $exception) {
+                if (str_contains($exception->getMessage(), 'church_service_items_active_position_unique')) {
+                    throw new RuntimeException('Service item ordering conflict: the service could not be saved because two items share the same position. Please reload and try again.');
+                }
+
+                throw $exception;
+            }
+
             $this->songLinker->linkForService($model);
 
             return [$model->fresh(['items']) ?? $model, $syncResult];

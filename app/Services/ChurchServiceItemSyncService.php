@@ -687,15 +687,35 @@ class ChurchServiceItemSyncService
             ->orderBy('id')
             ->get();
 
-        foreach ($activeItems->values() as $index => $item) {
-            $expectedPosition = $index + 1;
+        if ($activeItems->isEmpty()) {
+            return;
+        }
 
-            if ($item->position === $expectedPosition) {
+        // Phase 1: Move all items to temporary positions above any current max.
+        // This frees all current positions so we can safely resequence without
+        // triggering the unique constraint when items need to cross each other.
+        $maxPosition = (int) $activeItems->max('position');
+        $tempBase = $maxPosition + $activeItems->count() + 1;
+
+        foreach ($activeItems->values() as $index => $item) {
+            $temporaryPosition = $tempBase + $index;
+
+            if ($item->position === $temporaryPosition) {
                 continue;
             }
 
-            $item->position = $expectedPosition;
-            $item->save();
+            ChurchServiceItem::withTrashed()
+                ->whereKey($item->id)
+                ->update(['position' => $temporaryPosition]);
+        }
+
+        // Phase 2: Apply final sequential positions 1, 2, 3...
+        foreach ($activeItems->values() as $index => $item) {
+            $expectedPosition = $index + 1;
+
+            ChurchServiceItem::withTrashed()
+                ->whereKey($item->id)
+                ->update(['position' => $expectedPosition]);
         }
     }
 

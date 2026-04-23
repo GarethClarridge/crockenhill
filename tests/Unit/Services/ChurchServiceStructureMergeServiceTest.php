@@ -9,10 +9,13 @@ use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Services\ChurchServiceItemSyncService;
 use App\Services\ChurchServiceStructureMergeService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class ChurchServiceStructureMergeServiceTest extends TestCase
@@ -300,5 +303,25 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
         }
 
         return $churchService;
+    }
+
+    #[Test]
+    public function test_direct_merge_propagates_items_constraint_violation(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $mock = $this->mock(ChurchServiceItemSyncService::class);
+        $previous = new \PDOException('Duplicate entry for key "church_service_items_active_position_unique"');
+        $mock->shouldReceive('sync')
+            ->once()
+            ->andThrow(new UniqueConstraintViolationException('default', 'INSERT INTO ...', [], $previous));
+
+        $this->app->instance(ChurchServiceItemSyncService::class, $mock);
+        $service = app(ChurchServiceStructureMergeService::class);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ordering conflict');
+
+        $service->merge($churchService, [], ChurchServiceItemSource::OpenLp);
     }
 }

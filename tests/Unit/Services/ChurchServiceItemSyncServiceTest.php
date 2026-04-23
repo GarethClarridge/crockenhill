@@ -387,6 +387,54 @@ class ChurchServiceItemSyncServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_resequence_does_not_fire_constraint_when_items_must_cross_positions(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        // Create a test scenario where the two-phase resequencer is needed.
+        // Start with items at positions 1 and 3 (gap at 2), then sync a manual item at position 2.
+        // The manual item will be preserved and fill the gap.
+        $itemA = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Song A',
+        ]);
+
+        // No item at position 2 (gap).
+
+        $itemC = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'position' => 3,
+            'type' => 'songs',
+            'title' => 'Song C',
+        ]);
+
+        // Sync with Email source (human-provided, different merge authority).
+        // This adds a Manual item at position 2 which is preserved alongside OpenLp items.
+        $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Song A', 'Song A', 'song a@'),
+            $this->incomingItem(2, 'custom', 'Prayer', 'Prayer', null),
+            $this->incomingItem(3, 'songs', 'Song C', 'Song C', 'song c@'),
+        ], ChurchServiceItemSource::Email);
+
+        // After sync: A at 1 (matched, OpenLp→Email mixed sources),
+        // new Manual at 2, C at 3 (matched).
+        // The resequencer should not have fired any constraint violations.
+        $items = ChurchServiceItem::where('church_service_id', $churchService->id)
+            ->whereNull('deleted_at')
+            ->orderBy('position')
+            ->get();
+
+        // Assert the service has exactly 3 items with sequential positions 1, 2, 3.
+        $this->assertCount(3, $items);
+        $positions = $items->pluck('position')->all();
+        $this->assertSame([1, 2, 3], $positions);
+    }
+
+    #[Test]
     public function test_openlp_enriches_email_song_items_without_removing_email_speech_items(): void
     {
         $churchService = ChurchService::factory()->create([

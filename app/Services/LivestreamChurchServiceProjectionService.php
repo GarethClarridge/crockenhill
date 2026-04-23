@@ -11,6 +11,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -111,11 +112,24 @@ class LivestreamChurchServiceProjectionService
 
             $this->linkProcessingLogToService($processingLog, $churchService);
 
-            $syncResult = $this->itemSyncService->sync(
-                $churchService,
-                $itemPayloads,
-                ChurchServiceItemSource::Livestream,
-            );
+            try {
+                $syncResult = $this->itemSyncService->sync(
+                    $churchService,
+                    $itemPayloads,
+                    ChurchServiceItemSource::Livestream,
+                );
+            } catch (UniqueConstraintViolationException $exception) {
+                if (str_contains($exception->getMessage(), 'church_service_items_active_position_unique')) {
+                    Log::warning('Church service item ordering constraint violated during projection', [
+                        'processing_id' => $processingLog->processing_id,
+                        'church_service_id' => $churchService->id,
+                    ]);
+
+                    return $this->skipped('Service item ordering constraint violated during livestream projection', $churchService->id);
+                }
+
+                throw $exception;
+            }
 
             $freshService = $churchService->fresh() ?? $churchService;
 

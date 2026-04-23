@@ -206,13 +206,23 @@ class ManageChurchService extends Component
         $validated = $this->validate();
         $wasCreated = ! ($this->churchService instanceof ChurchService && $this->churchService->exists);
 
-        $churchService = $saveAction->execute(
-            validated: $validated,
-            syncPayload: $this->buildSyncPayload(),
-            churchService: $this->churchService,
-            userId: Auth::user()->id ?? abort(403),
-            inboundEmailId: $this->inboundEmailId,
-        );
+        try {
+            $churchService = $saveAction->execute(
+                validated: $validated,
+                syncPayload: $this->buildSyncPayload(),
+                churchService: $this->churchService,
+                userId: Auth::user()->id ?? abort(403),
+                inboundEmailId: $this->inboundEmailId,
+            );
+        } catch (\RuntimeException $exception) {
+            if (str_contains($exception->getMessage(), 'ordering conflict')) {
+                $this->addError('items', $exception->getMessage());
+
+                return null;
+            }
+
+            throw $exception;
+        }
 
         $this->churchService = $churchService;
 

@@ -7,7 +7,9 @@ namespace App\Services;
 use App\Data\StructureMergeResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class ChurchServiceStructureMergeService
 {
@@ -82,7 +84,15 @@ class ChurchServiceStructureMergeService
     ): StructureMergeResult {
         $beforeSnapshot = $this->canonicalStateService->snapshot($churchService);
 
-        $syncResult = $this->itemSyncService->sync($churchService, $incomingItems, $incomingSource);
+        try {
+            $syncResult = $this->itemSyncService->sync($churchService, $incomingItems, $incomingSource);
+        } catch (UniqueConstraintViolationException $exception) {
+            if (str_contains($exception->getMessage(), 'church_service_items_active_position_unique')) {
+                throw new RuntimeException('Service item ordering conflict: the merge could not complete because two items share the same position.');
+            }
+
+            throw $exception;
+        }
 
         $churchService = $this->canonicalUpdateService->finalize(
             $churchService,
