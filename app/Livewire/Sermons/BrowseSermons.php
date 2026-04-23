@@ -92,6 +92,20 @@ class BrowseSermons extends Component
         $this->resetPage();
     }
 
+    public function removeFilter(string $filter): void
+    {
+        if ($filter === 'book') {
+            $this->bookFilter = null;
+            $this->chapterFilter = null;
+        } elseif ($filter === 'preacher') {
+            $this->preacherFilter = null;
+        } elseif ($filter === 'series') {
+            $this->seriesFilter = null;
+        }
+
+        $this->resetPage();
+    }
+
     public function render(SermonRepository $sermonRepository, BibleCanon $bibleCanon): View
     {
         $hasActiveFilters = $this->hasActiveFilters();
@@ -194,24 +208,24 @@ class BrowseSermons extends Component
     /**
      * @param  array<int, array{id:int, name:string}>  $preacherOptions
      * @param  array<int, array{id:string, name:string}>  $seriesOptions
-     * @return array<int, string>
+     * @return array<string, string>
      */
     private function activeFilterLabels(array $preacherOptions, array $seriesOptions): array
     {
         $labels = [];
 
         if ($this->bookFilter !== null) {
-            $labels[] = $this->chapterFilter !== null
+            $labels['book'] = $this->chapterFilter !== null
                 ? $this->bookFilter.' '.$this->chapterFilter
                 : $this->bookFilter;
         }
 
         if ($this->preacherFilter !== null) {
-            $labels[] = $this->findOptionName($preacherOptions, $this->preacherFilter) ?? 'Selected preacher';
+            $labels['preacher'] = $this->findOptionName($preacherOptions, $this->preacherFilter) ?? 'Selected preacher';
         }
 
         if ($this->seriesFilter !== null) {
-            $labels[] = $this->findOptionName($seriesOptions, $this->seriesFilter) ?? $this->seriesFilter;
+            $labels['series'] = $this->findOptionName($seriesOptions, $this->seriesFilter) ?? $this->seriesFilter;
         }
 
         return $labels;
