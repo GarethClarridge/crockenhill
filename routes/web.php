@@ -217,7 +217,7 @@ if (app()->isLocal()) {
 
     Route::view('/dev/components', 'dev.components')->name('dev.components');
 
-    Route::get('phpinfo', fn () => phpinfo())->middleware(['auth', 'admin']);
+    Route::get('phpinfo', fn () => phpinfo())->middleware(['auth', 'verified', 'admin']);
 }
 
 // Catch-all dynamic page routes (these must be last!)
