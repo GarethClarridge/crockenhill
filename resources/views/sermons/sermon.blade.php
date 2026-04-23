@@ -26,7 +26,11 @@ $hasPublicVideo = filled($sermonView['video_url']);
   :author="$sermonView['preacher_url']"
   :published-time="$sermon->date->toIso8601String()"
   section="Sermons"
-  :tags="$sermon->series" />
+  :tags="$sermon->series"
+  label1="Preacher"
+  :data1="$sermonViewPresenter->displayPreacherName($sermon)"
+  :label2="$sermon->series ? 'Series' : null"
+  :data2="$sermon->series" />
 
 <x-schema.sermon :$sermon :$sermonView />
 <x-schema.webpage
