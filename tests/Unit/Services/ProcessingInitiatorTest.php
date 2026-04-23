@@ -60,8 +60,8 @@ class ProcessingInitiatorTest extends TestCase
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
-        $this->assertEquals('2026-02-10', $log->processing_metadata['extracted_date']);
-        $this->assertEquals('evening', $log->processing_metadata['extracted_service']);
+        $this->assertEquals('2026-02-10', $log->extracted_date->toDateString());
+        $this->assertEquals(SermonService::Evening, $log->extracted_service);
         $this->assertEquals('video_metadata_or_filename', $log->processing_metadata['date_extraction_method']);
     }
 
@@ -96,7 +96,7 @@ class ProcessingInitiatorTest extends TestCase
 
         $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
-        $this->assertEquals('evening', $log->processing_metadata['extracted_service']);
+        $this->assertEquals(SermonService::Evening, $log->extracted_service);
     }
 
     #[Test]
@@ -168,11 +168,11 @@ class ProcessingInitiatorTest extends TestCase
             ],
         ]);
 
-        // Core metadata should be present
-        $this->assertEquals('2026-02-10', $log->processing_metadata['extracted_date']);
-        $this->assertEquals('morning', $log->processing_metadata['extracted_service']);
+        // Core identity is in columns, not JSON metadata
+        $this->assertEquals('2026-02-10', $log->extracted_date->toDateString());
+        $this->assertEquals(SermonService::Morning, $log->extracted_service);
 
-        // Additional metadata should be merged
+        // Additional metadata should be merged into JSON
         $this->assertEquals('video/mp4', $log->processing_metadata['mime_type']);
         $this->assertArrayHasKey('format_details', $log->processing_metadata);
     }

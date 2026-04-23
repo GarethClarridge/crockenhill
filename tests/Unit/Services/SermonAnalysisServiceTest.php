@@ -89,25 +89,9 @@ class SermonAnalysisServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_retries_and_succeeds_after_a_network_failure(): void
+    public function it_throws_on_network_failure_letting_queue_retry(): void
     {
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
-
-        $mockResponse = [
-            'choices' => [
-                [
-                    'message' => [
-                        'content' => json_encode([
-                            'title' => 'Succeeds After Retry',
-                            'series' => null,
-                            'reference' => null,
-                            'points' => ['Main point'],
-                            'summary' => 'Summary after retry.',
-                        ]),
-                    ],
-                ],
-            ],
-        ];
 
         $clientException = new \GuzzleHttp\Exception\ConnectException(
             'Network error',
@@ -116,75 +100,45 @@ class SermonAnalysisServiceTest extends TestCase
 
         OpenAI::fake([
             new TransporterException($clientException),
-            CreateResponse::fake($mockResponse),
         ]);
 
-        $result = $this->service->analyzeSermon($transcript);
+        $this->expectException(\Exception::class);
 
-        $this->assertEquals('Succeeds After Retry', $result->title);
-        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 2);
+        $this->service->analyzeSermon($transcript);
     }
 
     #[Test]
-    public function it_retries_and_succeeds_after_a_server_error(): void
+    public function it_throws_on_server_error_letting_queue_retry(): void
     {
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
-        $mockResponse = [
-            'choices' => [
-                [
-                    'message' => [
-                        'content' => json_encode([
-                            'title' => 'Succeeds After 500',
-                            'series' => null,
-                            'reference' => null,
-                            'points' => ['Main point'],
-                            'summary' => 'Summary after 500.',
-                        ]),
-                    ],
-                ],
-            ],
-        ];
-
-        // ErrorException needs array for its first argument when using OpenAI SDK mock
         $serverError = new ErrorException(['message' => 'Internal Server Error', 'type' => 'server_error', 'code' => null], 500);
 
-        OpenAI::fake([
-            $serverError,
-            CreateResponse::fake($mockResponse),
-        ]);
+        OpenAI::fake([$serverError]);
 
-        $result = $this->service->analyzeSermon($transcript);
+        $this->expectException(\Exception::class);
 
-        $this->assertEquals('Succeeds After 500', $result->title);
-        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 2);
+        $this->service->analyzeSermon($transcript);
     }
 
     #[Test]
-    public function it_stops_retries_and_returns_fallback_on_non_retryable_error(): void
+    public function it_throws_on_authentication_error(): void
     {
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
-        // 401 is non-retryable
         $unauthorizedError = new ErrorException(['message' => 'Unauthorized', 'type' => 'authentication_error', 'code' => null], 401);
 
-        // Mock OpenAI to return 401
-        OpenAI::fake([
-            $unauthorizedError,
-        ]);
+        OpenAI::fake([$unauthorizedError]);
 
-        $result = $this->service->analyzeSermon($transcript);
+        $this->expectException(\Exception::class);
 
-        // Should return fallback data
-        $this->assertNotEmpty($result->title);
-        $this->assertEquals(['Main Message'], $result->points);
+        $this->service->analyzeSermon($transcript);
 
-        // Assert that only one OpenAI call was made (non-retryable)
         OpenAI::assertSent(\OpenAI\Resources\Chat::class, 1);
     }
 
     #[Test]
-    public function it_retries_when_ai_generates_a_title_exceeding_the_character_limit(): void
+    public function it_throws_when_ai_generates_a_title_exceeding_the_character_limit(): void
     {
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
@@ -206,86 +160,27 @@ class SermonAnalysisServiceTest extends TestCase
             ],
         ];
 
-        $mockResponseShort = [
-            'choices' => [
-                [
-                    'message' => [
-                        'content' => json_encode([
-                            'title' => 'Short Title',
-                            'series' => null,
-                            'reference' => null,
-                            'points' => ['Point'],
-                            'summary' => 'Summary',
-                        ]),
-                    ],
-                ],
-            ],
-        ];
-
         OpenAI::fake([
             CreateResponse::fake($mockResponseLong),
-            CreateResponse::fake($mockResponseShort),
         ]);
 
-        $result = $this->service->analyzeSermon($transcript);
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessageMatches('/AI title exceeds/');
 
-        $this->assertEquals('Short Title', $result->title);
-        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 2);
+        $this->service->analyzeSermon($transcript);
     }
 
     #[Test]
-    public function it_retries_when_parsing_the_ai_response_fails(): void
+    public function it_throws_on_malformed_ai_response(): void
     {
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
-        // Malformed JSON will cause a TypeError in some versions of the SDK or caught in parseAiResponse
-        // Actually, executeAiRequest has a try/catch for TypeError too.
-
-        $mockResponseValid = [
-            'choices' => [
-                [
-                    'message' => [
-                        'content' => json_encode([
-                            'title' => 'Valid Title',
-                            'series' => null,
-                            'reference' => null,
-                            'points' => ['Point'],
-                            'summary' => 'Summary',
-                        ]),
-                    ],
-                ],
-            ],
-        ];
-
         OpenAI::fake([
-            new \TypeError('Malformed response'), // Simulated TypeError
-            CreateResponse::fake($mockResponseValid),
+            new \TypeError('Malformed response'),
         ]);
 
-        $result = $this->service->analyzeSermon($transcript);
+        $this->expectException(\Exception::class);
 
-        $this->assertEquals('Valid Title', $result->title);
-        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 2);
-    }
-
-    #[Test]
-    public function it_returns_fallback_data_after_all_retry_attempts_fail(): void
-    {
-        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
-
-        $serverError = new ErrorException(['message' => 'Internal Server Error', 'type' => 'server_error', 'code' => null], 500);
-
-        OpenAI::fake([
-            $serverError,
-            $serverError,
-            $serverError,
-        ]);
-
-        $result = $this->service->analyzeSermon($transcript);
-
-        // Should return fallback data
-        $this->assertNotEmpty($result->title);
-        $this->assertEquals(['Main Message'], $result->points);
-        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 3);
+        $this->service->analyzeSermon($transcript);
     }
 }

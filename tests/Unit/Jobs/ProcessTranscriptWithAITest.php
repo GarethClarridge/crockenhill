@@ -73,6 +73,8 @@ class ProcessTranscriptWithAITest extends TestCase
 
         $log->refresh();
         $this->assertNotNull($log->ai_analysis);
+        $this->assertFalse($log->is_degraded_completion);
+        $this->assertSame(1, $log->attempt_count);
     }
 
     #[Test]
@@ -102,6 +104,7 @@ class ProcessTranscriptWithAITest extends TestCase
         // Falls back to a simple analysis without throwing
         $log->refresh();
         $this->assertEquals('ai_analysis_fallback', $log->current_step);
+        $this->assertTrue($log->is_degraded_completion);
     }
 
     #[Test]
@@ -132,6 +135,7 @@ class ProcessTranscriptWithAITest extends TestCase
         $log->refresh();
         $this->assertNotNull($log->ai_analysis);
         $this->assertEquals('ai_analysis_fallback', $log->current_step);
+        $this->assertTrue($log->is_degraded_completion);
     }
 
     #[Test]

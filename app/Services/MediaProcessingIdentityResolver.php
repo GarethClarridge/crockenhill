@@ -17,36 +17,14 @@ class MediaProcessingIdentityResolver
      */
     public function resolve(MediaProcessingLog $processingLog): ?array
     {
-        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+        $date = $processingLog->extracted_date?->toDateString();
+        $service = $processingLog->extracted_service;
 
-        return $this->resolveFromValues(
-            $processingLog->extracted_date?->toDateString(),
-            $processingLog->extracted_service,
-            $metadata['extracted_date'] ?? null,
-            $metadata['extracted_service'] ?? null
-        );
-    }
-
-    /**
-     * @return array{date: string, service: SermonService}|null
-     */
-    public function resolveFromValues(
-        ?string $columnDate,
-        ?SermonService $columnService,
-        mixed $metadataDate,
-        mixed $metadataService
-    ): ?array {
-        $resolvedDate = $columnDate ?? $this->parseDate($metadataDate);
-        $resolvedService = $columnService ?? $this->parseService($metadataService);
-
-        if (! is_string($resolvedDate) || ! $resolvedService instanceof SermonService) {
+        if (! is_string($date) || ! $service instanceof SermonService) {
             return null;
         }
 
-        return [
-            'date' => $resolvedDate,
-            'service' => $resolvedService,
-        ];
+        return ['date' => $date, 'service' => $service];
     }
 
     public function parseDate(mixed $value): ?string
@@ -96,19 +74,7 @@ class MediaProcessingIdentityResolver
      */
     public function scopeMatchesIdentity(Builder $query, string $date, SermonService $service): Builder
     {
-        $serviceValue = $service->value;
-
-        return $query->where(function (Builder $query) use ($date, $serviceValue): void {
-            $query->where(function (Builder $query) use ($date, $serviceValue): void {
-                $query->whereDate('extracted_date', $date)
-                    ->where('extracted_service', $serviceValue);
-            })->orWhere(function (Builder $query) use ($date, $serviceValue): void {
-                $query->where(function (Builder $query): void {
-                    $query->whereNull('extracted_date')
-                        ->orWhereNull('extracted_service');
-                })->where('processing_metadata->extracted_date', $date)
-                    ->where('processing_metadata->extracted_service', $serviceValue);
-            });
-        });
+        return $query->whereDate('extracted_date', $date)
+            ->where('extracted_service', $service->value);
     }
 }

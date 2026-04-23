@@ -106,14 +106,10 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
             'extracted_service' => $churchService->service,
         ]);
 
-        $matchedByMetadata = MediaProcessingLog::factory()->livestream()->completed()->create([
+        $matchedSecond = MediaProcessingLog::factory()->livestream()->completed()->create([
             'status' => ProcessingStatus::Completed,
-            'extracted_date' => null,
-            'extracted_service' => null,
-            'processing_metadata' => [
-                'extracted_date' => $churchService->date->toDateString(),
-                'extracted_service' => $churchService->service->value,
-            ],
+            'extracted_date' => $churchService->date,
+            'extracted_service' => $churchService->service,
         ]);
 
         MediaProcessingLog::factory()->livestream()->pending()->create([
@@ -140,11 +136,11 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
 
         $this->assertSame(2, $count);
 
-        Bus::assertDispatched(ReconcileServiceSections::class, function (ReconcileServiceSections $job) use ($matchedByColumns, $matchedByMetadata): bool {
+        Bus::assertDispatched(ReconcileServiceSections::class, function (ReconcileServiceSections $job) use ($matchedByColumns, $matchedSecond): bool {
             $processingLog = $this->jobProperty($job, 'processingLog');
 
             return $processingLog instanceof MediaProcessingLog
-                && in_array($processingLog->id, [$matchedByColumns->id, $matchedByMetadata->id], true);
+                && in_array($processingLog->id, [$matchedByColumns->id, $matchedSecond->id], true);
         });
         Bus::assertDispatched(ReconcileServiceSections::class, 2);
     }

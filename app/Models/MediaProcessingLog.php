@@ -56,8 +56,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $sermon_id
  * @property int|null $owner_user_id
  * @property int|null $church_service_id
+ * @property string|null $queue_name
+ * @property string|null $batch_id
+ * @property string|null $job_id
+ * @property int|null $attempt_count
  * @property \Illuminate\Support\Carbon|null $started_at
  * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property bool $is_degraded_completion
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read ChurchService|null $churchService
@@ -125,9 +130,16 @@ class MediaProcessingLog extends Model
         'owner_user_id',
         'church_service_id',
 
+        // Queue correlation
+        'queue_name',
+        'batch_id',
+        'job_id',
+        'attempt_count',
+
         // Timestamps
         'started_at',
         'completed_at',
+        'is_degraded_completion',
     ];
 
     /**
@@ -152,8 +164,10 @@ class MediaProcessingLog extends Model
             'visual_sample_count' => 'integer',
             'visual_processing_time' => 'float',
             'file_size' => 'integer',
+            'attempt_count' => 'integer',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'is_degraded_completion' => 'boolean',
         ];
     }
 
@@ -351,6 +365,11 @@ class MediaProcessingLog extends Model
     public function isCancelled(): bool
     {
         return $this->status === ProcessingStatus::Cancelled;
+    }
+
+    public function isDegradedCompletion(): bool
+    {
+        return $this->is_degraded_completion;
     }
 
     /**

@@ -372,26 +372,34 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
-                'key' => 'generate_thumbnail',
+                'key' => 'assess_video_quality',
                 'progress' => 88,
                 'job_offset' => 7,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'assessing_video_quality',
+                ],
+            ],
+            [
+                'key' => 'generate_thumbnail',
+                'progress' => 89,
+                'job_offset' => 8,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'generating_thumbnail',
                 ],
             ],
             [
-                'key' => 'update_sermon_record',
-                'progress' => 90,
-                'job_offset' => 8,
-                'steps' => [
-                    'updating_sermon_record',
-                    'updating_sermon_record_failed',
-                ],
-            ],
-            [
                 'key' => 'send_notification',
                 'progress' => 92,
-                'job_offset' => 8,
+                'job_offset' => 9,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'sending_notification',
                 ],
@@ -399,7 +407,10 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'notification_complete',
                 'progress' => 93,
-                'job_offset' => 8,
+                'job_offset' => 9,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'notification_sent',
                     'notification_skipped',
@@ -410,7 +421,10 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'cleanup',
                 'progress' => 95,
-                'job_offset' => 9,
+                'job_offset' => 10,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'cleanup',
                 ],
@@ -596,9 +610,23 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
+                'key' => 'assess_video_quality',
+                'progress' => 89,
+                'job_offset' => 13,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'assessing_video_quality',
+                ],
+            ],
+            [
                 'key' => 'generate_thumbnail',
                 'progress' => 90,
-                'job_offset' => 13,
+                'job_offset' => 14,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'generating_thumbnail',
                 ],
@@ -606,7 +634,10 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'send_notification',
                 'progress' => 92,
-                'job_offset' => 14,
+                'job_offset' => 15,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'sending_notification',
                 ],
@@ -614,7 +645,10 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'notification_complete',
                 'progress' => 93,
-                'job_offset' => 14,
+                'job_offset' => 15,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'notification_sent',
                     'notification_skipped',
@@ -625,7 +659,10 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'cleanup',
                 'progress' => 95,
-                'job_offset' => 15,
+                'job_offset' => 16,
+                'retry_action' => 'dispatch_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'cleanup',
                 ],
@@ -860,9 +897,20 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
+                'key' => 'assess_video_quality',
+                'progress' => 89,
+                'job_offset' => 14,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'assessing_video_quality',
+                ],
+            ],
+            [
                 'key' => 'thumbnail',
                 'progress' => 90,
-                'job_offset' => 14,
+                'job_offset' => 15,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -873,7 +921,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'prepare_section_publication_candidates',
                 'progress' => 91,
-                'job_offset' => 15,
+                'job_offset' => 16,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 // The job owns its own provenance-aware rerun rules, so no
@@ -886,7 +934,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'send_notification',
                 'progress' => 92,
-                'job_offset' => 16,
+                'job_offset' => 17,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -897,7 +945,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'notification_complete',
                 'progress' => 93,
-                'job_offset' => 16,
+                'job_offset' => 17,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -911,7 +959,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'cleanup',
                 'progress' => 95,
-                'job_offset' => 17,
+                'job_offset' => 18,
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',

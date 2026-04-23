@@ -51,6 +51,8 @@ class ProcessingInitiator
     ): MediaProcessingLog {
         $processingId = Str::uuid()->toString();
 
+        $extractedIdentity = [];
+
         if ($preExtractedMetadata !== null) {
             $baseMetadata = $preExtractedMetadata;
             Log::info('Initiating media processing with pre-extracted metadata', [
@@ -71,10 +73,12 @@ class ProcessingInitiator
                 'extracted_service' => $extractedService->value,
             ]);
 
-            $baseMetadata = [
+            $extractedIdentity = [
                 'extracted_date' => $extractedDateTime->toDateString(),
-                'extracted_datetime' => $extractedDateTime->toDateTimeString(),
-                'extracted_service' => $extractedService->value,
+                'extracted_service' => $extractedService,
+            ];
+
+            $baseMetadata = [
                 'date_extraction_method' => 'video_metadata_or_filename',
                 'service_extraction_method' => 'datetime_timestamp',
             ];
@@ -92,7 +96,7 @@ class ProcessingInitiator
             'status' => ProcessingStatus::Pending,
             'current_step' => "{$processingType->value}_processing_initiated",
             'processing_metadata' => array_merge($baseMetadata, $extraMetadata),
-        ], $additionalLogData);
+        ], $extractedIdentity, $additionalLogData);
 
         return MediaProcessingLog::create($logData);
     }

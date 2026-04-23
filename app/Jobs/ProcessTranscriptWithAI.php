@@ -48,8 +48,9 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            // Initialize step logging
+            // Initialize step logging and capture queue correlation
             $this->initializeStepLogging($this->processingLog->processing_id);
+            $this->captureQueueCorrelation($this->processingLog, $this->job ?? null, $this->attempts());
 
             // Check if processing has been cancelled
             if ($this->isCancelled()) {
@@ -196,6 +197,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 }
 
                 $this->updateProcessingRunStep($this->processingLog, 'ai_analysis_fallback');
+                $this->processingLog->update(['is_degraded_completion' => true]);
             } else {
                 $this->markProcessingRunAsFailed($this->processingLog, $e->getMessage(), 'analyzing_transcript');
                 $this->logStepFailed('analyzing', $e->getMessage());

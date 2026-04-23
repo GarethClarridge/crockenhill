@@ -199,6 +199,32 @@ abstract class ProcessingJob
     }
 
     /**
+     * Persist queue/job/attempt correlation data onto the processing log.
+     *
+     * Call this once per job execution after initializeStepLogging().
+     * Concrete jobs pass $this->job and $this->attempts() from InteractsWithQueue.
+     */
+    protected function captureQueueCorrelation(
+        MediaProcessingLog $processingLog,
+        ?\Illuminate\Contracts\Queue\Job $job,
+        int $attempts
+    ): void {
+        try {
+            $processingLog->update([
+                'queue_name' => $job?->getQueue(),
+                'job_id' => $job?->getJobId(),
+                'attempt_count' => $attempts,
+            ]);
+        } catch (Throwable $e) {
+            Log::warning('Failed to capture queue correlation; continuing job', [
+                'processing_id' => $processingLog->processing_id,
+                'job_class' => get_class($this),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Get the processing ID from a sermon's processing log
      */
     protected function getProcessingIdFromSermon(int $sermonId): ?string

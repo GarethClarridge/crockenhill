@@ -12,6 +12,7 @@ use App\Services\SermonAnalysisValidator;
 use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use OpenAI\Exceptions\ErrorException;
+use OpenAI\Laravel\Facades\OpenAI;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -237,30 +238,6 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     }
 
     #[Test]
-    public function it_generates_fallback_analysis_data(): void
-    {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('getFallbackAnalysisData');
-        $method->setAccessible(true);
-
-        $transcript = 'This is a sample sermon transcript about God\'s love and grace in our lives with enough content.';
-        $result = $method->invoke($this->service, $transcript);
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('title', $result);
-        $this->assertArrayHasKey('series', $result);
-        $this->assertArrayHasKey('reference', $result);
-        $this->assertArrayHasKey('points', $result);
-        $this->assertArrayHasKey('transcript', $result);
-
-        $this->assertNotEmpty($result['title']);
-        $this->assertNull($result['series']);
-        $this->assertNull($result['reference']);
-        $this->assertEquals(['Main Message'], $result['points']);
-        $this->assertEquals($transcript, $result['transcript']);
-    }
-
-    #[Test]
     public function it_preserves_long_ai_titles_without_truncating(): void
     {
         $longTitle = 'This is a sermon title that is definitely longer than sixty characters in total';
@@ -300,29 +277,16 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     }
 
     #[Test]
-    public function it_identifies_non_retryable_errors(): void
+    public function it_throws_on_openai_errors_letting_queue_retry(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('isNonRetryableError');
-        $method->setAccessible(true);
+        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
-        // Non-retryable errors - using proper ErrorException constructor with array
-        $badRequestError = new ErrorException(['message' => 'Bad Request', 'type' => 'invalid_request_error', 'code' => null], 400);
-        $unauthorizedError = new ErrorException(['message' => 'Unauthorized', 'type' => 'authentication_error', 'code' => null], 401);
-        $forbiddenError = new ErrorException(['message' => 'Forbidden', 'type' => 'permission_error', 'code' => null], 403);
-
-        $this->assertTrue($method->invoke($this->service, $badRequestError));
-        $this->assertTrue($method->invoke($this->service, $unauthorizedError));
-        $this->assertTrue($method->invoke($this->service, $forbiddenError));
-
-        // Retryable errors
         $serverError = new ErrorException(['message' => 'Internal Server Error', 'type' => 'server_error', 'code' => null], 500);
-        $rateLimitError = new ErrorException(['message' => 'Rate Limit Exceeded', 'type' => 'rate_limit_error', 'code' => null], 429);
-        $timeoutError = new ErrorException(['message' => 'Request Timeout', 'type' => 'timeout_error', 'code' => null], 408);
+        OpenAI::fake([$serverError]);
 
-        $this->assertFalse($method->invoke($this->service, $serverError));
-        $this->assertFalse($method->invoke($this->service, $rateLimitError));
-        $this->assertFalse($method->invoke($this->service, $timeoutError));
+        $this->expectException(\Exception::class);
+
+        $this->service->analyzeSermon($transcript);
     }
 
     #[Test]
@@ -361,7 +325,6 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->assertTrue($reflection->hasMethod('extractSermonPoints'));
 
         // Test that key private methods still exist on this service
-        $this->assertTrue($reflection->hasMethod('isNonRetryableError'));
         $this->assertTrue($reflection->hasMethod('getExistingSeries'));
 
         // Test that moved methods now live on the collaborator classes

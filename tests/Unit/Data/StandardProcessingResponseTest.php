@@ -329,7 +329,7 @@ class StandardProcessingResponseTest extends TestCase
             'transcription_completed' => ['transcription_completed', 70],
             'analyzing_transcript' => ['analyzing_transcript', 85],
             'ai_analysis_completed' => ['ai_analysis_completed', 85],
-            'generating_thumbnail' => ['generating_thumbnail', 88],
+            'generating_thumbnail' => ['generating_thumbnail', 89],
             'cleanup' => ['cleanup', 95],
         ];
     }
@@ -361,8 +361,8 @@ class StandardProcessingResponseTest extends TestCase
             'current_step' => 'generating_thumbnail',
         ]);
 
-        $this->assertEquals(90, StandardProcessingResponse::fromProcessingLog($videoLog)->progressPercentage);
-        $this->assertEquals(88, StandardProcessingResponse::fromProcessingLog($thumbnailLog)->progressPercentage);
+        $this->assertEquals(87, StandardProcessingResponse::fromProcessingLog($videoLog)->progressPercentage);
+        $this->assertEquals(89, StandardProcessingResponse::fromProcessingLog($thumbnailLog)->progressPercentage);
     }
 
     #[Test]

@@ -15,10 +15,6 @@ use OpenAI\Laravel\Facades\OpenAI;
 
 class SermonAnalysisService implements SermonAnalysisInterface
 {
-    private const DEFAULT_MAX_RETRIES = 3;
-
-    private const DEFAULT_RETRY_DELAY_BASE = 2; // seconds
-
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly SermonRepository $sermonRepository,
@@ -91,22 +87,6 @@ class SermonAnalysisService implements SermonAnalysisInterface
     }
 
     /**
-     * Resolve retry count from configuration.
-     */
-    private function maxRetries(): int
-    {
-        return max(1, (int) config('media-processing.analysis.max_retries', self::DEFAULT_MAX_RETRIES));
-    }
-
-    /**
-     * Resolve retry delay base (seconds) from configuration.
-     */
-    private function retryDelayBase(): int
-    {
-        return max(0, (int) config('media-processing.analysis.retry_delay_base', self::DEFAULT_RETRY_DELAY_BASE));
-    }
-
-    /**
      * Perform comprehensive AI analysis using OpenAI GPT API with retry logic.
      *
      * @param  string  $transcript  The sermon transcript
@@ -116,43 +96,27 @@ class SermonAnalysisService implements SermonAnalysisInterface
      */
     private function performAiAnalysis(string $transcript, array $existingSeries, string $processingId = 'unknown'): array
     {
-        $maxRetries = $this->maxRetries();
-        $attempt = 0;
-        $lastException = null;
+        $apiStartTime = microtime(true);
 
-        while ($attempt < $maxRetries) {
-            $attempt++;
-            $apiStartTime = microtime(true);
+        try {
+            return $this->runAnalysisAttempt($transcript, $existingSeries, $processingId, 1, $apiStartTime);
+        } catch (Exception|\TypeError $e) {
+            $this->handleAnalysisAttemptError($e, $processingId, 1, $apiStartTime);
 
-            try {
-                return $this->runAnalysisAttempt($transcript, $existingSeries, $processingId, $attempt, $apiStartTime);
-            } catch (Exception|\TypeError $e) {
-                $lastException = $e;
+            $this->logger->logProcessingStep(
+                $processingId,
+                'ai_analysis',
+                'failed',
+                [
+                    'total_attempts' => 1,
+                    'final_error' => $e->getMessage(),
+                ]
+            );
 
-                $this->handleAnalysisAttemptError($e, $processingId, $attempt, $apiStartTime);
-
-                if ($e instanceof ErrorException && $this->isNonRetryableError($e)) {
-                    break;
-                }
-            }
-
-            if ($attempt < $maxRetries) {
-                $this->sleepBetweenAttempts($processingId, $attempt);
-            }
+            throw $e instanceof \TypeError
+                ? new Exception('OpenAI API response malformed: '.$e->getMessage(), 0, $e)
+                : $e;
         }
-
-        $this->logger->logProcessingStep(
-            $processingId,
-            'ai_analysis',
-            'failed',
-            [
-                'total_attempts' => $attempt,
-                'final_error' => $lastException?->getMessage() ?? 'AI analysis failed after all retry attempts.',
-                'using_fallback' => true,
-            ]
-        );
-
-        return $this->getFallbackAnalysisData($transcript);
     }
 
     /**
@@ -287,26 +251,6 @@ class SermonAnalysisService implements SermonAnalysisInterface
     }
 
     /**
-     * Wait before the next AI analysis attempt with exponential backoff.
-     */
-    private function sleepBetweenAttempts(string $processingId, int $attempt): void
-    {
-        $retryDelayBase = $this->retryDelayBase();
-        $delay = $retryDelayBase > 0 ? $retryDelayBase ** $attempt : 0;
-
-        $this->logger->logProcessingStep(
-            $processingId,
-            'retry_delay',
-            'waiting',
-            ['delay_seconds' => $delay, 'next_attempt' => $attempt + 1]
-        );
-
-        if ($delay > 0) {
-            sleep($delay);
-        }
-    }
-
-    /**
      * Parse and validate OpenAI API response.
      *
      * @return array<string, mixed>
@@ -415,46 +359,6 @@ class SermonAnalysisService implements SermonAnalysisInterface
         ]);
 
         return $series;
-    }
-
-    /**
-     * Check if an error should not be retried
-     *
-     * @param  ErrorException  $exception  The OpenAI API exception
-     * @return bool True if error should not be retried
-     */
-    private function isNonRetryableError(ErrorException $exception): bool
-    {
-        $nonRetryableCodes = [
-            400, // Bad Request - invalid request format
-            401, // Unauthorized - invalid API key
-            403, // Forbidden - insufficient permissions
-        ];
-
-        return in_array($exception->getStatusCode(), $nonRetryableCodes);
-    }
-
-    /**
-     * Get fallback analysis data when AI processing fails
-     *
-     * @param  string  $transcript  Original transcript
-     * @return array<string, mixed> Fallback analysis data
-     */
-    private function getFallbackAnalysisData(string $transcript): array
-    {
-        Log::info('Generating fallback analysis data');
-
-        // Generate basic title from transcript
-        $title = $this->promptBuilder->generateFallbackTitle($transcript);
-
-        return [
-            'title' => $title,
-            'series' => null,
-            'reference' => null,
-            'points' => ['Main Message'], // Simple fallback
-            'summary' => null, // No summary available when AI fails
-            'transcript' => $transcript,
-        ];
     }
 
     /**

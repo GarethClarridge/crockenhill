@@ -43,25 +43,6 @@ class MediaProcessingIdentityResolverTest extends TestCase
     }
 
     #[Test]
-    public function it_resolves_identity_from_metadata_when_columns_are_null(): void
-    {
-        $log = MediaProcessingLog::factory()->create([
-            'extracted_date' => null,
-            'extracted_service' => null,
-            'processing_metadata' => [
-                'extracted_date' => '2024-05-13',
-                'extracted_service' => SermonService::Evening->value,
-            ],
-        ]);
-
-        $identity = $this->resolver->resolve($log);
-
-        $this->assertNotNull($identity);
-        $this->assertEquals('2024-05-13', $identity['date']);
-        $this->assertEquals(SermonService::Evening, $identity['service']);
-    }
-
-    #[Test]
     public function it_returns_null_when_identity_cannot_be_resolved(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -136,34 +117,5 @@ class MediaProcessingIdentityResolverTest extends TestCase
         $results = $query->get();
         $this->assertCount(1, $results);
         $this->assertEquals('2024-05-12', $results->first()->extracted_date->toDateString());
-    }
-
-    #[Test]
-    public function it_scopes_query_to_match_identity_via_metadata(): void
-    {
-        MediaProcessingLog::factory()->create([
-            'extracted_date' => null,
-            'extracted_service' => null,
-            'processing_metadata' => [
-                'extracted_date' => '2024-05-12',
-                'extracted_service' => SermonService::Morning->value,
-            ],
-        ]);
-
-        MediaProcessingLog::factory()->create([
-            'extracted_date' => null,
-            'extracted_service' => null,
-            'processing_metadata' => [
-                'extracted_date' => '2024-05-13',
-                'extracted_service' => SermonService::Morning->value,
-            ],
-        ]);
-
-        $query = MediaProcessingLog::query();
-        $this->resolver->scopeMatchesIdentity($query, '2024-05-12', SermonService::Morning);
-
-        $results = $query->get();
-        $this->assertCount(1, $results);
-        $this->assertEquals('2024-05-12', $results->first()->processing_metadata['extracted_date']);
     }
 }
