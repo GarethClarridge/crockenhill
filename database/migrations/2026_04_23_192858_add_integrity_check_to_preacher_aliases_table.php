@@ -22,8 +22,6 @@ return new class extends Migration
         ]);
 
         // 2. Add the CHECK constraint if it doesn't already exist
-        // We use a raw statement because Laravel's Blueprint doesn't natively support CHECK constraints across all versions/drivers.
-        // The constraint ensures the alias is lowercase, trimmed, and not empty.
         $constraintExists = DB::select("
             SELECT CONSTRAINT_NAME
             FROM information_schema.TABLE_CONSTRAINTS
@@ -46,6 +44,18 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('ALTER TABLE preacher_aliases DROP CHECK IF EXISTS preacher_aliases_alias_format_check');
+        // MySQL 8.0.x does not support DROP CHECK IF EXISTS
+        // We check manually to ensure rollback safety
+        $constraintExists = DB::select("
+            SELECT CONSTRAINT_NAME
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'preacher_aliases'
+            AND CONSTRAINT_NAME = 'preacher_aliases_alias_format_check'
+        ");
+
+        if (! empty($constraintExists)) {
+            DB::statement('ALTER TABLE preacher_aliases DROP CHECK preacher_aliases_alias_format_check');
+        }
     }
 };
