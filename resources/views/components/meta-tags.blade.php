@@ -13,6 +13,10 @@
     'publishedTime' => null,
     'section' => null,
     'tags' => null,
+    'label1' => null,
+    'data1' => null,
+    'label2' => null,
+    'data2' => null,
 ])
 
 @php
@@ -69,6 +73,14 @@
 <meta name="twitter:title" content="{{ $fullTitle }}">
 <meta name="twitter:description" content="{{ $metaDescription }}">
 <meta name="twitter:image" content="{{ $metaImage }}">
+@if($label1 && $data1)
+<meta name="twitter:label1" content="{{ $label1 }}">
+<meta name="twitter:data1" content="{{ $data1 }}">
+@endif
+@if($label2 && $data2)
+<meta name="twitter:label2" content="{{ $label2 }}">
+<meta name="twitter:data2" content="{{ $data2 }}">
+@endif
 
 @if($canonical)
 @section('canonical')
