@@ -63,7 +63,7 @@ class PreacherAlias extends Model
     protected function alias(): Attribute
     {
         return Attribute::make(
-            set: fn (string $value): string => strtolower(trim($value)),
+            set: fn (string $value): string => mb_strtolower(trim($value)),
         );
     }
 
