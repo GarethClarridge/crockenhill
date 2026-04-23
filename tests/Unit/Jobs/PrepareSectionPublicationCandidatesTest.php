@@ -176,6 +176,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'confidence' => 0.72,
             'metadata' => ['confidence_level' => 'low'],
         ]);
 

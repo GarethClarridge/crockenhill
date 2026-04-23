@@ -71,7 +71,7 @@ class DeleteLivestreamUpload
             /** @var EloquentCollection<int, ChurchServiceItem> $projectedItems */
             $projectedItems = ChurchServiceItem::query()
                 ->withTrashed()
-                ->where('metadata->livestream_projection->processing_id', $processingId)
+                ->where('livestream_processing_id', $processingId)
                 ->lockForUpdate()
                 ->get();
 

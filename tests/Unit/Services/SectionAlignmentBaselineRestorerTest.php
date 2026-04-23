@@ -215,7 +215,7 @@ class SectionAlignmentBaselineRestorerTest extends TestCase
     // ── persistConfidenceLevel ───────────────────────────────────────────────
 
     #[Test]
-    public function it_writes_confidence_redundantly_to_column_and_metadata(): void
+    public function it_normalizes_confidence_to_column_only(): void
     {
         $section = $this->makeSection(confidence: 0.90);
 
@@ -223,17 +223,18 @@ class SectionAlignmentBaselineRestorerTest extends TestCase
 
         $this->assertEqualsWithDelta(0.90, $section->confidence, 0.001);
         $this->assertEqualsWithDelta(0.90, $section->metadata['confidence_score'], 0.001);
-        $this->assertSame('high', $section->metadata['confidence_level']);
+        $this->assertArrayNotHasKey('confidence_level', $section->metadata->toArray());
     }
 
     #[Test]
-    public function it_writes_low_confidence_level_for_low_confidence(): void
+    public function it_preserves_confidence_score_for_legacy_fallback(): void
     {
         $section = $this->makeSection(confidence: 0.60);
 
         $this->restorer->persistConfidenceLevel($section);
 
-        $this->assertSame('low', $section->metadata['confidence_level']);
+        $this->assertEqualsWithDelta(0.60, $section->metadata['confidence_score'], 0.001);
+        $this->assertArrayNotHasKey('confidence_level', $section->metadata->toArray());
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

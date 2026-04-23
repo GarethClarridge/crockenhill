@@ -33,6 +33,7 @@ class ChurchServiceCanonicalStateService
                 'source_title' => $item->source_title,
                 'openlp_search_title' => $item->openlp_search_title,
                 'song_id' => $item->song_id,
+                'confidence' => $this->extractItemConfidence($item),
                 'metadata' => $this->normaliseValue($this->normaliseItemMetadata($item->metadata)),
             ])
             ->values()
@@ -142,5 +143,23 @@ class ChurchServiceCanonicalStateService
         unset($metadata['section_type']);
 
         return $metadata === [] ? null : $metadata;
+    }
+
+    private function extractItemConfidence(ChurchServiceItem $item): ?float
+    {
+        if ($item->relationLoaded('serviceSections') && $item->serviceSections->isNotEmpty()) {
+            return (float) ($item->serviceSections->first()->confidence ?? 0.0);
+        }
+
+        $metadata = $item->metadata ?? [];
+        $livestreamProjection = $metadata['livestream_projection'] ?? [];
+        $confidenceLevel = $livestreamProjection['confidence_level'] ?? null;
+
+        return match ($confidenceLevel) {
+            'high' => 0.90,
+            'medium' => 0.50,
+            'low' => 0.20,
+            default => null,
+        };
     }
 }

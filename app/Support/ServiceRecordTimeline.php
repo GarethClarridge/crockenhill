@@ -59,9 +59,9 @@ final class ServiceRecordTimeline
                 : null;
 
             // Priority 2/3: metadata fallback when the FK is unset
-            $expectedItemId = $section->expectedItemId();
+            $expectedItemId = $section->expected_item_id;
 
-            $matchedItemId = $section->matchedItemId();
+            $matchedItemId = $section->matched_item_id;
 
             // Determine the active item that should be consumed so it isn't also emitted as planned_only
             $consumableActiveItemId = null;
@@ -260,9 +260,7 @@ final class ServiceRecordTimeline
         array $oosAlignment,
     ): array {
         $metadata = $section->metadata?->toArray() ?? [];
-        $confidenceLevel = isset($metadata['confidence_level']) && is_string($metadata['confidence_level'])
-            ? $metadata['confidence_level']
-            : null;
+        $confidenceLevel = ServiceSectionConfidence::levelFor($section->confidence ?? 0.0);
         $reviewReason = isset($metadata['review_reason']) && is_string($metadata['review_reason'])
             ? $metadata['review_reason']
             : null;
@@ -287,7 +285,7 @@ final class ServiceRecordTimeline
             'needs_review' => $section->needs_manual_review,
             'review_reason' => $reviewReason,
             'mismatch_reason' => $mismatchReason,
-            'song_match_type' => $section->songMatchType(),
+            'song_match_type' => $section->song_match_type,
             'presentation_inference' => $presentationInference,
             'publication_status' => $section->publication_status,
             'published_sermon' => $section->publishedSermon ?? null,

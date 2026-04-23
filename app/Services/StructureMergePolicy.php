@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Support\ServiceSectionConfidence;
 
 class StructureMergePolicy
 {
@@ -168,10 +169,9 @@ class StructureMergePolicy
      */
     private function itemConfidenceLevel(array $snapshot): string
     {
-        $metadata = is_array($snapshot['metadata'] ?? null) ? $snapshot['metadata'] : [];
-        $projection = is_array($metadata['livestream_projection'] ?? null) ? $metadata['livestream_projection'] : [];
+        $confidence = is_numeric($snapshot['confidence'] ?? null) ? (float) $snapshot['confidence'] : 0.0;
 
-        return is_string($projection['confidence_level'] ?? null) ? $projection['confidence_level'] : 'unknown';
+        return ServiceSectionConfidence::levelFor($confidence);
     }
 
     /**
@@ -357,6 +357,17 @@ class StructureMergePolicy
      */
     private function itemToSnapshot(ChurchServiceItem $item): array
     {
+        // Extract confidence from livestream projection metadata if present
+        $metadata = $item->metadata ?? [];
+        $livestreamProjection = $metadata['livestream_projection'] ?? [];
+        $confidenceLevel = $livestreamProjection['confidence_level'] ?? null;
+        $confidence = match ($confidenceLevel) {
+            'high' => 0.90,
+            'medium' => 0.50,
+            'low' => 0.20,
+            default => 0.0,
+        };
+
         return [
             'id' => $item->id,
             'position' => $item->position,
@@ -367,6 +378,7 @@ class StructureMergePolicy
             'source_title' => $item->source_title,
             'openlp_search_title' => $item->openlp_search_title,
             'song_id' => $item->song_id,
+            'confidence' => $confidence,
             'metadata' => $item->metadata,
         ];
     }

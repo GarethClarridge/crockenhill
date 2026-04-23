@@ -211,12 +211,8 @@ class LivestreamChurchServiceProjectionService
         $sectionIdToItem = [];
 
         foreach ($items as $item) {
-            $metadata = is_array($item->metadata) ? $item->metadata : [];
-            $projection = is_array($metadata['livestream_projection'] ?? null) ? $metadata['livestream_projection'] : [];
-            $sectionId = $projection['service_section_id'] ?? null;
-
-            if (is_int($sectionId)) {
-                $sectionIdToItem[$sectionId] = $item;
+            if (is_int($item->livestream_service_section_id)) {
+                $sectionIdToItem[$item->livestream_service_section_id] = $item;
             }
         }
 

@@ -107,7 +107,7 @@
                                     Ready
                                 </span>
                             @endif
-                            @if($churchService->has_pending_merge)
+                            @if($churchService->pending_structure_merge_source !== null)
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                     Pending merge
                                 </span>

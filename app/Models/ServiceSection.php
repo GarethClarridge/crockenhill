@@ -194,46 +194,19 @@ class ServiceSection extends Model
         return MediaAssetPath::diskForPath($path);
     }
 
-    public function songMatchType(): ?ServiceSectionSongMatchType
-    {
-        if ($this->song_match_type instanceof ServiceSectionSongMatchType) {
-            return $this->song_match_type;
-        }
-
-        $matchType = $this->metadata?->oosAlignment?->songMatchType;
-
-        return is_string($matchType)
-            ? ServiceSectionSongMatchType::tryFrom($matchType)
-            : null;
-    }
-
-    public function matchedItemId(): ?int
-    {
-        return is_int($this->matched_item_id)
-            ? $this->matched_item_id
-            : $this->metadata?->oosAlignment?->matchedItemId;
-    }
-
-    public function expectedItemId(): ?int
-    {
-        return is_int($this->expected_item_id)
-            ? $this->expected_item_id
-            : $this->metadata?->oosAlignment?->expectedItemId;
-    }
-
     public function hasConfirmedSongMatch(): bool
     {
-        return $this->songMatchType() === ServiceSectionSongMatchType::CONFIRMED;
+        return $this->song_match_type === ServiceSectionSongMatchType::CONFIRMED;
     }
 
     public function hasInferredSongMatch(): bool
     {
-        return $this->songMatchType() === ServiceSectionSongMatchType::INFERRED;
+        return $this->song_match_type === ServiceSectionSongMatchType::INFERRED;
     }
 
     public function hasUnmatchedSongMatch(): bool
     {
-        return $this->songMatchType() === ServiceSectionSongMatchType::UNMATCHED;
+        return $this->song_match_type === ServiceSectionSongMatchType::UNMATCHED;
     }
 
     /**

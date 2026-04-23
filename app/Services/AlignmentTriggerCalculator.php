@@ -121,7 +121,7 @@ class AlignmentTriggerCalculator
             'confidence' => ServiceSectionConfidence::resolve($section->confidence, $metadata),
             'reading_reference' => $metadata['reading_reference'] ?? null,
             'song_id' => $metadata['song_id'] ?? null,
-            'song_match_type' => $section->songMatchType()?->value,
+            'song_match_type' => $section->song_match_type?->value,
             'review_reason' => $metadata['review_reason'] ?? null,
         ];
     }

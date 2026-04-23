@@ -184,8 +184,7 @@ class ServiceReviewDashboardQuery
     public function pendingMergeCount(): int
     {
         return ChurchService::query()
-            ->whereNotNull('import_metadata')
-            ->whereRaw("JSON_CONTAINS_PATH(import_metadata, 'one', '$.pending_structure_merge.incoming_source')")
+            ->whereNotNull('pending_structure_merge_source')
             ->count();
     }
 

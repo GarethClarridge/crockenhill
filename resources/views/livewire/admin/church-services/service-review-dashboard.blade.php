@@ -131,7 +131,7 @@
                                 $section = $entry['section'];
                                 $sectionTitle = $section->title ?: 'Untitled section';
                                 $linkedSongTitle = $section->churchServiceItem?->song?->title;
-                                $songMatchType = $section->songMatchType();
+                                $songMatchType = $section->song_match_type;
                                 $predictedSpeaker = $section->predictedChildrensTalkSpeaker();
                                 $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
                                 $speakerOutcome = is_array($predictedSpeaker) ? ($predictedSpeaker['outcome'] ?? null) : null;

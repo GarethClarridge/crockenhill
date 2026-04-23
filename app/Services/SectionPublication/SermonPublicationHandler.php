@@ -13,6 +13,7 @@ use App\Services\ChildrensTalkSpeakerService;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\SermonCreationService;
 use App\Services\ServiceSectionPublicationTransitionService;
+use App\Support\ServiceSectionConfidence;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -38,9 +39,8 @@ class SermonPublicationHandler implements SectionPublicationHandler
     public function isEligible(ServiceSection $section): bool
     {
         $requireHighConfidence = (bool) config('media-processing.section_publishing.require_high_confidence', true);
-        $confidence = (string) ($section->metadata['confidence_level'] ?? 'none');
 
-        return ! $requireHighConfidence || $confidence === 'high';
+        return ! $requireHighConfidence || ($section->confidence ?? 0.0) >= ServiceSectionConfidence::HIGH_THRESHOLD;
     }
 
     public function afterExtraction(ServiceSection $section): void

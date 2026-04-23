@@ -52,9 +52,9 @@ class OosAlignmentServiceTest extends TestCase
             'section_type' => ServiceSectionType::SONG->value,
             'section_order' => 1,
             'title' => 'Song Two',
-            'confidence' => 0.5,
+            'confidence' => 0.9,
             'metadata' => [
-                'confidence_level' => 'low',
+                'confidence_level' => 'high',
                 'classification_mode' => 'audio_only',
             ],
         ]);
@@ -65,9 +65,9 @@ class OosAlignmentServiceTest extends TestCase
             'section_type' => ServiceSectionType::SONG->value,
             'section_order' => 2,
             'title' => 'Song One',
-            'confidence' => 0.5,
+            'confidence' => 0.9,
             'metadata' => [
-                'confidence_level' => 'low',
+                'confidence_level' => 'high',
                 'classification_mode' => 'audio_only',
             ],
         ]);
@@ -123,9 +123,9 @@ class OosAlignmentServiceTest extends TestCase
             'section_type' => ServiceSectionType::PRAYER->value,
             'section_order' => 1,
             'title' => null,
-            'confidence' => 0.5,
+            'confidence' => 0.9,
             'metadata' => [
-                'confidence_level' => 'low',
+                'confidence_level' => 'high',
                 'classification_mode' => 'ai_transcript',
             ],
         ]);
@@ -136,9 +136,9 @@ class OosAlignmentServiceTest extends TestCase
             'section_type' => ServiceSectionType::BIBLE_READING->value,
             'section_order' => 2,
             'title' => null,
-            'confidence' => 0.5,
+            'confidence' => 0.9,
             'metadata' => [
-                'confidence_level' => 'low',
+                'confidence_level' => 'high',
                 'classification_mode' => 'ai_transcript',
             ],
         ]);

@@ -63,7 +63,7 @@ class ChurchServiceCanonicalStateServiceTest extends TestCase
 
         $this->assertCount(1, $result);
 
-        $expectedKeys = ['id', 'position', 'type', 'section_type', 'source', 'title', 'source_title', 'openlp_search_title', 'song_id', 'metadata'];
+        $expectedKeys = ['id', 'position', 'type', 'section_type', 'source', 'title', 'source_title', 'openlp_search_title', 'song_id', 'confidence', 'metadata'];
         foreach ($expectedKeys as $key) {
             $this->assertArrayHasKey($key, $result[0]);
         }

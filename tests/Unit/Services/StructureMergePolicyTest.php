@@ -173,6 +173,8 @@ class StructureMergePolicyTest extends TestCase
      */
     private function songSnapshot(string $title, int $position, string $confidence, ?string $openlpSearchTitle = null): array
     {
+        $confidenceMap = ['high' => 0.9, 'medium' => 0.5, 'low' => 0.2];
+
         return [
             'id' => $position,
             'position' => $position,
@@ -183,6 +185,7 @@ class StructureMergePolicyTest extends TestCase
             'source_title' => null,
             'openlp_search_title' => $openlpSearchTitle,
             'song_id' => null,
+            'confidence' => $confidenceMap[$confidence] ?? 0.0,
             'metadata' => [
                 'livestream_projection' => [
                     'processing_id' => 'test',
@@ -199,6 +202,8 @@ class StructureMergePolicyTest extends TestCase
      */
     private function customSnapshot(string $title, int $position, string $sectionType, string $confidence): array
     {
+        $confidenceMap = ['high' => 0.9, 'medium' => 0.5, 'low' => 0.2];
+
         return [
             'id' => $position,
             'position' => $position,
@@ -209,6 +214,7 @@ class StructureMergePolicyTest extends TestCase
             'source_title' => null,
             'openlp_search_title' => null,
             'song_id' => null,
+            'confidence' => $confidenceMap[$confidence] ?? 0.0,
             'metadata' => [
                 'livestream_projection' => [
                     'processing_id' => 'test',

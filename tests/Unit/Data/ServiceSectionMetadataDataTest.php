@@ -75,7 +75,7 @@ class ServiceSectionMetadataDataTest extends TestCase
         ]);
 
         $this->assertInstanceOf(SectionOosAlignment::class, $metadata->oosAlignment);
-        $this->assertSame('exact', $metadata->oosAlignment->songMatchType);
+        $this->assertSame('exact', $metadata->oosAlignment->raw['song_match_type']);
     }
 
     #[Test]
@@ -255,9 +255,9 @@ class ServiceSectionMetadataDataTest extends TestCase
             'base_needs_manual_review' => false,
         ]);
 
-        $this->assertSame('fuzzy', $alignment->songMatchType);
+        $this->assertSame('fuzzy', $alignment->raw['song_match_type']);
         $this->assertSame(0.75, $alignment->songMatchScore);
-        $this->assertSame(10, $alignment->matchedItemId);
+        $this->assertSame(10, $alignment->raw['matched_item_id']);
         $this->assertSame('How Great Thou Art', $alignment->matchedItemTitle);
         $this->assertSame(0.8, $alignment->baseConfidence);
         $this->assertFalse($alignment->baseNeedsManualReview);

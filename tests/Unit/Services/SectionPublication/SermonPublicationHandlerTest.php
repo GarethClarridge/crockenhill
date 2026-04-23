@@ -101,12 +101,12 @@ class SermonPublicationHandlerTest extends TestCase
         config(['media-processing.section_publishing.require_high_confidence' => true]);
 
         $highConfidence = ServiceSection::factory()->create([
-            'metadata' => ['confidence_level' => 'high'],
+            'confidence' => 0.90,
             'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
         ]);
 
         $lowConfidence = ServiceSection::factory()->create([
-            'metadata' => ['confidence_level' => 'low'],
+            'confidence' => 0.50,
             'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
         ]);
 
@@ -120,7 +120,7 @@ class SermonPublicationHandlerTest extends TestCase
         config(['media-processing.section_publishing.require_high_confidence' => false]);
 
         $lowConfidence = ServiceSection::factory()->create([
-            'metadata' => ['confidence_level' => 'low'],
+            'confidence' => 0.50,
             'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
         ]);
 

@@ -1190,6 +1190,7 @@ class AdminChurchServiceTest extends TestCase
                 'date' => '2026-03-23',
                 'service' => SermonService::Morning,
                 'needs_review' => true,
+                'pending_structure_merge_source' => 'UPLOAD',
                 'import_metadata' => [
                     'pending_structure_merge' => [
                         'incoming_source' => 'openlp',

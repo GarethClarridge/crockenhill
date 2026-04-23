@@ -160,6 +160,7 @@ class ResolvePendingStructureMerge
 
         $churchService->forceFill([
             'needs_review' => $preserveNeedsReview,
+            'pending_structure_merge_source' => null,
             'import_metadata' => $importMetadata,
             ...$normalizedColumns,
         ])->save();

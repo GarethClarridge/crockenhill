@@ -71,6 +71,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'title' => 'Unknown Song',
             'needs_manual_review' => true,
             'confidence' => 0.72,
+            'song_match_type' => 'unmatched',
             'metadata' => [
                 'review_reason' => 'expected_type_mismatch',
                 'oos_alignment' => [
@@ -134,6 +135,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'section_order' => 1,
             'title' => 'Confirmed Song',
             'confidence' => 0.72,
+            'song_match_type' => 'confirmed',
             'metadata' => [
                 'oos_alignment' => [
                     'song_match_type' => 'confirmed',
@@ -149,6 +151,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'title' => 'Inferred Song',
             'needs_manual_review' => true,
             'confidence' => 0.72,
+            'song_match_type' => 'inferred',
             'metadata' => [
                 'review_reason' => 'song_alignment_inferred',
                 'oos_alignment' => [

@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $openlp_search_title
  * @property int|null $song_id
  * @property array<string, mixed>|null $metadata
+ * @property string|null $livestream_processing_id
+ * @property int|null $livestream_service_section_id
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
@@ -60,6 +62,8 @@ class ChurchServiceItem extends Model
         'openlp_search_title',
         'song_id',
         'metadata',
+        'livestream_processing_id',
+        'livestream_service_section_id',
     ];
 
     /**

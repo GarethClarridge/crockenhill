@@ -44,7 +44,7 @@ class PromotedReportingStateCompatibilityTest extends TestCase
     }
 
     #[Test]
-    public function service_section_promoted_readers_support_column_and_legacy_json_shapes(): void
+    public function service_section_promoted_fields_read_from_columns_only(): void
     {
         $columnBacked = ServiceSection::factory()->make([
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
@@ -53,25 +53,9 @@ class PromotedReportingStateCompatibilityTest extends TestCase
             'metadata' => ['oos_alignment' => []],
         ]);
 
-        $legacyJson = ServiceSection::factory()->make([
-            'song_match_type' => null,
-            'matched_item_id' => null,
-            'expected_item_id' => null,
-            'metadata' => [
-                'oos_alignment' => [
-                    'song_match_type' => ServiceSectionSongMatchType::INFERRED->value,
-                    'matched_item_id' => 33,
-                    'expected_item_id' => 44,
-                ],
-            ],
-        ]);
-
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $columnBacked->songMatchType());
-        $this->assertSame(12, $columnBacked->matchedItemId());
-        $this->assertSame(21, $columnBacked->expectedItemId());
-
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $legacyJson->songMatchType());
-        $this->assertSame(33, $legacyJson->matchedItemId());
-        $this->assertSame(44, $legacyJson->expectedItemId());
+        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $columnBacked->song_match_type);
+        $this->assertSame(12, $columnBacked->matched_item_id);
+        $this->assertSame(21, $columnBacked->expected_item_id);
+        $this->assertTrue($columnBacked->hasConfirmedSongMatch());
     }
 }

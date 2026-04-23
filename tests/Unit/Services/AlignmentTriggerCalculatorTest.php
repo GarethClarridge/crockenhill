@@ -37,6 +37,7 @@ class AlignmentTriggerCalculatorTest extends TestCase
             'church_service_item_id' => $item->id,
             'title' => 'Morning Prayer',
             'confidence' => 0.9,
+            'song_match_type' => 'confirmed',
             'metadata' => [
                 'reading_reference' => 'Psalm 23',
                 'song_id' => 42,

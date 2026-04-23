@@ -71,9 +71,9 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
         $churchService->refresh();
         $this->assertTrue($churchService->needs_review);
 
+        $this->assertSame('openlp', $churchService->pending_structure_merge_source);
         $importMetadata = $churchService->import_metadata?->toArray() ?? [];
         $this->assertArrayHasKey('pending_structure_merge', $importMetadata);
-        $this->assertSame('openlp', $importMetadata['pending_structure_merge']['incoming_source']);
         $this->assertNotEmpty($importMetadata['pending_structure_merge']['conflicts']);
         $this->assertNotEmpty($importMetadata['pending_structure_merge']['proposed_items']);
     }

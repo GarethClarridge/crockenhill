@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property bool|null $canonical_conflict_canonical_changed
  * @property ChurchServiceCanonicalConflictReason|null $canonical_conflict_reason
  * @property ChurchServiceImportMetadata|null $import_metadata
+ * @property string|null $pending_structure_merge_source
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ChurchServiceItem> $items
@@ -72,6 +73,7 @@ class ChurchService extends Model
         'canonical_conflict_canonical_changed',
         'canonical_conflict_reason',
         'import_metadata',
+        'pending_structure_merge_source',
     ];
 
     /**

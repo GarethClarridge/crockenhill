@@ -346,6 +346,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'section_type' => ServiceSectionType::SONG->value,
             'needs_manual_review' => true,
             'confidence' => 0.99,
+            'song_match_type' => 'inferred',
             'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
             'metadata' => ['oos_alignment' => ['song_match_type' => 'inferred']],
         ]);
@@ -369,6 +370,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'church_service_item_id' => null,
             'needs_manual_review' => true,
             'confidence' => 0.99,
+            'song_match_type' => 'unmatched',
             'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
             'metadata' => ['oos_alignment' => ['song_match_type' => 'unmatched']],
         ]);

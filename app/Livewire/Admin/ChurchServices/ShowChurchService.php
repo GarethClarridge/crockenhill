@@ -497,20 +497,22 @@ class ShowChurchService extends Component
     {
         $processingIds = [];
 
-        $importMetadata = $this->churchService->import_metadata?->toArray() ?? [];
-        $projectionProcessingId = $importMetadata['livestream_projection']['processing_id'] ?? null;
+        foreach ($this->churchService->items as $item) {
+            if (is_string($item->livestream_processing_id) && trim($item->livestream_processing_id) !== '') {
+                $processingIds[] = $item->livestream_processing_id;
+            }
 
-        if (is_string($projectionProcessingId) && trim($projectionProcessingId) !== '') {
-            $processingIds[] = $projectionProcessingId;
+            $itemMetadata = $item->metadata ?? [];
+            $itemProjection = $itemMetadata['livestream_projection'] ?? [];
+            if (is_string($itemProjection['processing_id'] ?? null) && trim($itemProjection['processing_id']) !== '') {
+                $processingIds[] = $itemProjection['processing_id'];
+            }
         }
 
-        foreach ($this->churchService->items as $item) {
-            $metadata = is_array($item->metadata) ? $item->metadata : [];
-            $itemProcessingId = $metadata['livestream_projection']['processing_id'] ?? null;
-
-            if (is_string($itemProcessingId) && trim($itemProcessingId) !== '') {
-                $processingIds[] = $itemProcessingId;
-            }
+        $serviceMetadata = $this->churchService->import_metadata?->toArray() ?? [];
+        $serviceProjection = $serviceMetadata['livestream_projection'] ?? [];
+        if (is_string($serviceProjection['processing_id'] ?? null) && trim($serviceProjection['processing_id']) !== '') {
+            $processingIds[] = $serviceProjection['processing_id'];
         }
 
         return array_values(array_unique($processingIds));

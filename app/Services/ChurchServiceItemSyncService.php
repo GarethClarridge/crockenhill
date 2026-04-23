@@ -83,6 +83,7 @@ class ChurchServiceItemSyncService
                     $pendingUpdates[] = [
                         'existing_item' => $match,
                         'incoming_item' => $incomingItem,
+                        'raw_incoming_item' => $rawIncomingItem,
                         'desired_position' => $this->shouldKeepExistingPosition($existingSource, $incomingSource)
                             ? $match->position
                             : $incomingItem['position'],
@@ -92,7 +93,10 @@ class ChurchServiceItemSyncService
                     continue;
                 }
 
-                $pendingCreates[] = $incomingItem;
+                $pendingCreates[] = [
+                    'normalized_item' => $incomingItem,
+                    'raw_item' => $rawIncomingItem,
+                ];
             }
 
             $positionsToPreserve = [];
@@ -132,28 +136,44 @@ class ChurchServiceItemSyncService
                 $existingItem = $pendingUpdate['existing_item'];
                 /** @var array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>} $incomingItem */
                 $incomingItem = $pendingUpdate['incoming_item'];
+                /** @var array<string, mixed> $rawIncomingItem */
+                $rawIncomingItem = $pendingUpdate['raw_incoming_item'];
                 $resolvedPosition = $this->claimNextAvailablePosition(
                     $pendingUpdate['desired_position'],
                     $positionsToPreserve,
                 );
 
-                $this->updateMatchedItem($existingItem, $incomingItem, $incomingSource, $resolvedPosition);
+                $this->updateMatchedItem($existingItem, $incomingItem, $incomingSource, $resolvedPosition, $rawIncomingItem);
             }
 
-            foreach ($pendingCreates as $incomingItem) {
-                $resolvedPosition = $this->claimNextAvailablePosition($incomingItem['position'], $positionsToPreserve);
+            foreach ($pendingCreates as $pendingCreate) {
+                /** @var array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>} $normalizedItem */
+                $normalizedItem = $pendingCreate['normalized_item'];
+                /** @var array<string, mixed> $rawItem */
+                $rawItem = $pendingCreate['raw_item'];
+                $resolvedPosition = $this->claimNextAvailablePosition($normalizedItem['position'], $positionsToPreserve);
 
-                $created = $lockedService->items()->create([
+                $createData = [
                     'position' => $resolvedPosition,
-                    'type' => $incomingItem['type'],
-                    'section_type' => $incomingItem['section_type'],
+                    'type' => $normalizedItem['type'],
+                    'section_type' => $normalizedItem['section_type'],
                     'source' => $incomingSource->value,
-                    'title' => $incomingItem['title'],
-                    'source_title' => $incomingItem['source_title'],
-                    'openlp_search_title' => $incomingItem['openlp_search_title'],
-                    'song_id' => $incomingItem['song_id'],
-                    'metadata' => $incomingItem['metadata'],
-                ]);
+                    'title' => $normalizedItem['title'],
+                    'source_title' => $normalizedItem['source_title'],
+                    'openlp_search_title' => $normalizedItem['openlp_search_title'],
+                    'song_id' => $normalizedItem['song_id'],
+                    'metadata' => $normalizedItem['metadata'],
+                ];
+
+                if (isset($rawItem['livestream_processing_id'])) {
+                    $createData['livestream_processing_id'] = $rawItem['livestream_processing_id'];
+                }
+
+                if (isset($rawItem['livestream_service_section_id'])) {
+                    $createData['livestream_service_section_id'] = $rawItem['livestream_service_section_id'];
+                }
+
+                $created = $lockedService->items()->create($createData);
 
                 $matchedExistingItemIds[] = $created->id;
             }
@@ -290,11 +310,16 @@ class ChurchServiceItemSyncService
     /**
      * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      */
+    /**
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array<string, mixed>|null  $rawIncomingItem
+     */
     private function updateMatchedItem(
         ChurchServiceItem $existingItem,
         array $incomingItem,
         ChurchServiceItemSource $incomingSource,
         int $position,
+        ?array $rawIncomingItem = null,
     ): void {
         if ($existingItem->trashed()) {
             $existingItem->restore();
@@ -303,7 +328,7 @@ class ChurchServiceItemSyncService
         $existingSource = $this->sourceForExistingItem($existingItem);
         $preserveOpenLpSongMetadata = $this->shouldPreserveOpenLpSongMetadata($existingItem, $incomingSource);
 
-        $existingItem->fill([
+        $fillData = [
             'position' => $position,
             'type' => $incomingItem['type'],
             'section_type' => $incomingItem['section_type'],
@@ -313,7 +338,19 @@ class ChurchServiceItemSyncService
             'openlp_search_title' => $this->resolveOpenLpSearchTitle($existingItem, $incomingItem, $preserveOpenLpSongMetadata),
             'song_id' => $this->resolveSongId($existingItem, $incomingItem, $preserveOpenLpSongMetadata),
             'metadata' => $this->resolveMetadata($existingItem, $incomingItem, $existingSource, $incomingSource),
-        ]);
+        ];
+
+        if ($rawIncomingItem !== null) {
+            if (isset($rawIncomingItem['livestream_processing_id'])) {
+                $fillData['livestream_processing_id'] = $rawIncomingItem['livestream_processing_id'];
+            }
+
+            if (isset($rawIncomingItem['livestream_service_section_id'])) {
+                $fillData['livestream_service_section_id'] = $rawIncomingItem['livestream_service_section_id'];
+            }
+        }
+
+        $existingItem->fill($fillData);
 
         $existingItem->save();
     }

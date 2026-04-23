@@ -50,6 +50,8 @@ class LivestreamSectionToServiceItemMapper
                 'source_title' => null,
                 'openlp_search_title' => null,
                 'song_id' => null,
+                'livestream_processing_id' => $processingId,
+                'livestream_service_section_id' => $section->id,
                 'metadata' => $this->buildMetadata($section, $processingId),
             ];
         }

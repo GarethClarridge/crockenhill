@@ -127,6 +127,7 @@ class ShowChurchServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'title' => 'Sermon',
+            'livestream_processing_id' => $processingId,
             'metadata' => [
                 'livestream_projection' => [
                     'processing_id' => $processingId,

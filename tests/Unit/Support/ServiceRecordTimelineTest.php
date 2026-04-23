@@ -96,6 +96,7 @@ class ServiceRecordTimelineTest extends TestCase
             'section_order' => 1,
             'start_time' => 10.0,
             'end_time' => 80.0,
+            'expected_item_id' => $item->id,
             'metadata' => [
                 'oos_alignment' => [
                     'mismatch_reason' => 'expected_type_mismatch',
@@ -132,6 +133,7 @@ class ServiceRecordTimelineTest extends TestCase
             'church_service_item_id' => null,
             'section_type' => ServiceSectionType::SONG->value,
             'section_order' => 1,
+            'expected_item_id' => $item->id,
             'metadata' => [
                 'oos_alignment' => [
                     'mismatch_reason' => 'type_mismatch',
@@ -165,6 +167,7 @@ class ServiceRecordTimelineTest extends TestCase
             'church_service_item_id' => null,
             'section_type' => ServiceSectionType::SONG->value,
             'section_order' => 3,
+            'expected_item_id' => $deletedId,
             'metadata' => [
                 'oos_alignment' => [
                     'mismatch_reason' => 'oos_type_mismatch',
@@ -393,6 +396,7 @@ class ServiceRecordTimelineTest extends TestCase
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
             'section_order' => 1,
+            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
             'metadata' => [
                 'oos_alignment' => [
                     'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,

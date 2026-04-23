@@ -62,7 +62,7 @@ class AlignWithOosTest extends TestCase
 
         $this->assertSame($churchService->id, $processingLog->church_service_id);
         $this->assertSame($song->id, $section->church_service_item_id);
-        $this->assertSame('high', $section->metadata['confidence_level']);
+        $this->assertGreaterThanOrEqual(0.85, $section->confidence);
         $this->assertDatabaseHas('sermon_processing_steps', [
             'processing_id' => $processingLog->processing_id,
             'step' => ChurchServiceProcessingTimeline::ALIGN_WITH_OOS,

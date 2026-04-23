@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Support\ServiceSectionConfidence;
 
 class SermonExtractionPlanResolver
 {
@@ -207,7 +208,7 @@ class SermonExtractionPlanResolver
             ->where('section_type', $type->value)
             ->where('status', ServiceSectionStatus::Identified->value)
             ->where('needs_manual_review', false)
-            ->where('metadata->confidence_level', 'high')
+            ->where('confidence', '>=', ServiceSectionConfidence::HIGH_THRESHOLD)
             ->whereColumn('end_time', '>', 'start_time')
             ->orderBy('section_order')
             ->orderByDesc('duration')

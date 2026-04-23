@@ -66,7 +66,7 @@ class StructureMergeIntegrationTest extends TestCase
         $fresh = $result->churchService->fresh();
         $importMetadata = $fresh->import_metadata?->toArray() ?? [];
 
-        $this->assertArrayHasKey('pending_structure_merge', $importMetadata);
+        $this->assertNotNull($fresh->pending_structure_merge_source);
         $this->assertTrue($fresh->needs_review);
 
         $items = $fresh->items()->orderBy('position')->get();
@@ -97,7 +97,7 @@ class StructureMergeIntegrationTest extends TestCase
         $fresh = $result->churchService->fresh();
         $importMetadata = $fresh->import_metadata?->toArray() ?? [];
 
-        $this->assertArrayNotHasKey('pending_structure_merge', $importMetadata);
+        $this->assertNull($fresh->pending_structure_merge_source);
 
         $items = $fresh->items()->orderBy('position')->get();
         $songTitles = $items->pluck('title')->toArray();
@@ -158,7 +158,7 @@ class StructureMergeIntegrationTest extends TestCase
         $fresh = $resultService->fresh();
         $importMetadata = $fresh->import_metadata?->toArray() ?? [];
 
-        $this->assertArrayHasKey('pending_structure_merge', $importMetadata);
+        $this->assertNotNull($fresh->pending_structure_merge_source);
         $this->assertTrue($fresh->needs_review);
 
         $items = $fresh->items()->orderBy('position')->get();
@@ -208,7 +208,7 @@ class StructureMergeIntegrationTest extends TestCase
         $fresh = $resultService->fresh();
         $importMetadata = $fresh->import_metadata?->toArray() ?? [];
 
-        $this->assertArrayNotHasKey('pending_structure_merge', $importMetadata);
+        $this->assertNull($fresh->pending_structure_merge_source);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -257,7 +257,7 @@ class StructureMergeIntegrationTest extends TestCase
         $churchService->refresh();
         $this->assertSame(ChurchServiceItemSource::Livestream->value, $churchService->source, 'Source must not change to openlp while merge is staged');
         $this->assertTrue($churchService->needs_review);
-        $this->assertArrayHasKey('pending_structure_merge', $churchService->import_metadata?->toArray() ?? []);
+        $this->assertNotNull($churchService->pending_structure_merge_source);
 
         // Items unchanged
         $items = $churchService->items()->orderBy('position')->get();
@@ -273,7 +273,7 @@ class StructureMergeIntegrationTest extends TestCase
         $fresh = $resolution->churchService;
         $this->assertSame(ChurchServiceItemSource::OpenLp->value, $fresh->source, 'Source must be openlp after accepting incoming');
         $this->assertFalse($fresh->needs_review);
-        $this->assertArrayNotHasKey('pending_structure_merge', $fresh->import_metadata?->toArray() ?? []);
+        $this->assertNull($fresh->pending_structure_merge_source);
 
         $finalItems = $fresh->items()->orderBy('position')->get();
         $this->assertSame('How Great Thou Art', $finalItems->first()->title);
@@ -427,6 +427,7 @@ class StructureMergeIntegrationTest extends TestCase
                 'type' => $item['type'],
                 'section_type' => $sectionType,
                 'title' => $item['title'],
+                'livestream_processing_id' => 'test-projection',
                 'metadata' => [
                     'livestream_projection' => [
                         'processing_id' => 'test-projection',

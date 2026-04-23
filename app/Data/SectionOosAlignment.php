@@ -11,17 +11,14 @@ final class SectionOosAlignment extends JsonData
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?string $songMatchType = null,
         public readonly ?float $songMatchScore = null,
         public readonly ?string $songMatchStrategy = null,
         public readonly ?string $songTitleMatched = null,
         public readonly ?string $reclassifiedFrom = null,
         public readonly ?string $reclassifiedBy = null,
-        public readonly ?int $matchedItemId = null,
         public readonly ?string $matchedItemType = null,
         public readonly ?string $matchedItemTitle = null,
         public readonly ?string $mismatchReason = null,
-        public readonly ?int $expectedItemId = null,
         public readonly ?string $expectedItemTitle = null,
         public readonly ?string $expectedSectionType = null,
         public readonly ?float $baseConfidence = null,
@@ -41,17 +38,14 @@ final class SectionOosAlignment extends JsonData
         $presentationInference = $value['presentation_inference'] ?? null;
 
         return new self(
-            songMatchType: self::stringOrNull($value['song_match_type'] ?? null),
             songMatchScore: self::floatOrNull($value['song_match_score'] ?? null),
             songMatchStrategy: self::stringOrNull($value['song_match_strategy'] ?? null),
             songTitleMatched: self::stringOrNull($value['song_title_matched'] ?? null),
             reclassifiedFrom: self::stringOrNull($value['reclassified_from'] ?? null),
             reclassifiedBy: self::stringOrNull($value['reclassified_by'] ?? null),
-            matchedItemId: self::intOrNull($value['matched_item_id'] ?? null),
             matchedItemType: self::stringOrNull($value['matched_item_type'] ?? null),
             matchedItemTitle: self::stringOrNull($value['matched_item_title'] ?? null),
             mismatchReason: self::stringOrNull($value['mismatch_reason'] ?? null),
-            expectedItemId: self::intOrNull($value['expected_item_id'] ?? null),
             expectedItemTitle: self::stringOrNull($value['expected_item_title'] ?? null),
             expectedSectionType: self::stringOrNull($value['expected_section_type'] ?? null),
             baseConfidence: self::floatOrNull($value['base_confidence'] ?? null),

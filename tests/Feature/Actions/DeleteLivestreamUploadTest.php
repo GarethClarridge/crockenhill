@@ -97,15 +97,23 @@ class DeleteLivestreamUploadTest extends TestCase
             'transcript_file_path' => $sermon->transcript_file_path,
         ]);
 
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+        ]);
+
         ChurchServiceItem::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'position' => 1,
             'source' => ChurchServiceItemSource::Livestream->value,
             'title' => 'Children\'s Talk',
+            'livestream_processing_id' => $processingId,
+            'livestream_service_section_id' => $section->id,
             'metadata' => [
                 'livestream_projection' => [
                     'processing_id' => $processingId,
-                    'service_section_id' => 120,
+                    'service_section_id' => $section->id,
+                    'confidence_level' => 'high',
+                    'needs_manual_review' => false,
                 ],
             ],
         ]);
@@ -177,22 +185,30 @@ class DeleteLivestreamUploadTest extends TestCase
             'title' => 'Welcome',
         ]);
 
+        $log = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'processing_id' => $processingId,
+            'church_service_id' => $service->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+        ]);
+
         $runItem = ChurchServiceItem::factory()->livestream()->create([
             'church_service_id' => $service->id,
             'position' => 2,
             'source' => ChurchServiceItemSource::Livestream->value,
             'title' => 'Sermon',
+            'livestream_processing_id' => $processingId,
+            'livestream_service_section_id' => $section->id,
             'metadata' => [
                 'livestream_projection' => [
                     'processing_id' => $processingId,
-                    'service_section_id' => 200,
+                    'service_section_id' => $section->id,
+                    'confidence_level' => 'high',
+                    'needs_manual_review' => false,
                 ],
             ],
-        ]);
-
-        $log = MediaProcessingLog::factory()->livestream()->failed()->create([
-            'processing_id' => $processingId,
-            'church_service_id' => $service->id,
         ]);
 
         $sermon = Sermon::factory()->fromLivestream()->create([

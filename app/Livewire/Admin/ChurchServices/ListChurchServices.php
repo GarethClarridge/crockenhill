@@ -10,7 +10,6 @@ use App\Livewire\Traits\WithSortableListing;
 use App\Models\ChurchService;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\Expression;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -94,7 +93,7 @@ class ListChurchServices extends Component
         $churchServices = ChurchService::query()
             ->select([
                 'id', 'date', 'service', 'source', 'original_filename', 'needs_review', 'updated_at',
-                new Expression("JSON_CONTAINS_PATH(import_metadata, 'one', '$.pending_structure_merge.incoming_source') AS has_pending_merge"),
+                'pending_structure_merge_source',
             ])
             ->withCount('items')
             ->when($search !== '', function (Builder $query) use ($search, $escapedSearch): void {

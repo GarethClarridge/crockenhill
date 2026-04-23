@@ -88,10 +88,10 @@ class SectionAlignmentBaselineRestorer
     }
 
     /**
-     * Normalize confidence onto the section column and redundantly into metadata.
+     * Normalize confidence onto the section column.
      *
-     * This redundancy is intentional and must be preserved — both locations are
-     * read by different parts of the system.
+     * The confidence column is now the sole runtime authority; confidence_level
+     * is derived from it as needed and no longer written redundantly to JSON.
      */
     public function persistConfidenceLevel(ServiceSection $section): void
     {
@@ -99,7 +99,6 @@ class SectionAlignmentBaselineRestorer
         $confidence = ServiceSectionConfidence::resolve($section->confidence, $metadata);
 
         $section->confidence = $confidence;
-        $metadata['confidence_level'] = ServiceSectionConfidence::levelFor($confidence);
         $metadata['confidence_score'] = $confidence;
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }

@@ -125,7 +125,7 @@ class ReconcileServiceSectionsTest extends TestCase
         $this->assertSame(210.0, $songSection->end_time);
         $this->assertFalse($songSection->needs_manual_review);
         $this->assertSame([$songSegment->id], $songSection->source_segment_ids);
-        $this->assertSame('high', $songSection->metadata['confidence_level']);
+        $this->assertGreaterThanOrEqual(0.85, $songSection->confidence);
 
         $this->assertSame($prayer->id, $prayerSection->church_service_item_id);
         $this->assertSame('prayer', $prayerSection->section_type->value);
@@ -134,7 +134,7 @@ class ReconcileServiceSectionsTest extends TestCase
         $this->assertSame(360.0, $prayerSection->end_time);
         $this->assertFalse($prayerSection->needs_manual_review);
         $this->assertSame([$prayerSegment->id], $prayerSection->source_segment_ids);
-        $this->assertSame('high', $prayerSection->metadata['confidence_level']);
+        $this->assertGreaterThanOrEqual(0.85, $prayerSection->confidence);
         $this->assertTrue($churchService->fresh()->needs_review);
     }
 

@@ -144,6 +144,7 @@ class ChurchServiceStructureMergeService
 
         $churchService->forceFill([
             'needs_review' => true,
+            'pending_structure_merge_source' => $incomingSource->value,
             'import_metadata' => $importMetadata,
         ])->save();
 
