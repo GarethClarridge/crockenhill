@@ -62,39 +62,23 @@ Route::prefix('media')->name('api.media.')->group(function () {
         ->name('upload');
 });
 
-// Processing management routes - defined separately to avoid nested group issues
-Route::get('media/processing/{processingId}/status', [MediaController::class, 'status'])
-    ->middleware([
-        'auth:sanctum',
-        'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
-        'media.process',
-        'throttle:api',
-    ])
-    ->name('api.media.processing.status');
+// Processing management routes
+Route::middleware(['auth:sanctum', 'ability:'.ApiTokenAbility::MEDIA_PROCESS->value, 'media.process'])
+    ->name('api.media.processing.')
+    ->group(function () {
+        Route::get('media/processing/{processingId}/status', [MediaController::class, 'status'])
+            ->middleware('throttle:api')
+            ->name('status');
 
-Route::delete('media/processing/{processingId}', [MediaController::class, 'cancel'])
-    ->middleware([
-        'auth:sanctum',
-        'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
-        'media.process',
-        'throttle:api',
-    ])
-    ->name('api.media.processing.cancel');
+        Route::delete('media/processing/{processingId}', [MediaController::class, 'cancel'])
+            ->middleware('throttle:api')
+            ->name('cancel');
 
-Route::post('media/processing/{processingId}/retry', [MediaController::class, 'retry'])
-    ->middleware([
-        'auth:sanctum',
-        'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
-        'media.process',
-        'throttle:media-retry',
-    ])
-    ->name('api.media.processing.retry');
+        Route::post('media/processing/{processingId}/retry', [MediaController::class, 'retry'])
+            ->middleware('throttle:media-retry')
+            ->name('retry');
 
-Route::post('media/processing/{processingId}/confirm-segment', [MediaController::class, 'confirmSegment'])
-    ->middleware([
-        'auth:sanctum',
-        'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
-        'media.process',
-        'throttle:api',
-    ])
-    ->name('api.media.processing.confirm-segment');
+        Route::post('media/processing/{processingId}/confirm-segment', [MediaController::class, 'confirmSegment'])
+            ->middleware('throttle:api')
+            ->name('confirm-segment');
+    });

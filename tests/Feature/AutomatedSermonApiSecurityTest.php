@@ -272,11 +272,8 @@ class AutomatedSermonApiSecurityTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$maliciousId}/status");
 
-        $response->assertStatus(400)
-            ->assertJson([
-                'found' => false,
-                'message' => 'Invalid processing ID format',
-            ]);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['processingId']);
     }
 
     #[Test]
@@ -559,7 +556,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
     {
         // Try to trigger various error conditions and verify they don't leak sensitive info
         $testCases = [
-            ['invalid id!', 400],
+            ['invalid id!', 422],
             [(string) Str::uuid(), 404],
         ];
 

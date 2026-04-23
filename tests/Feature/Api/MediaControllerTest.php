@@ -191,8 +191,8 @@ class MediaControllerTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->getJson('/api/media/processing/invalid-uuid/status');
 
-        $response->assertStatus(400);
-        $response->assertJsonPath('message', 'Invalid processing ID format');
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['processingId']);
     }
 
     #[Test]

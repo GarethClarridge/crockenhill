@@ -4,39 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class MediaStatusRequest extends FormRequest
+class MediaStatusRequest extends MediaProcessingRequest
 {
     protected function prepareForValidation(): void
     {
+        $this->merge([
+            'processingId' => $this->route('processingId'),
+        ]);
+
         if ($this->has('include_logs')) {
             $this->merge([
                 'include_logs' => $this->normalizeBoolean($this->input('include_logs')),
             ]);
         }
-    }
-
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * Provides Defense in Depth alongside the media.process middleware.
-     */
-    public function authorize(): bool
-    {
-        $user = $this->user();
-
-        if ($user?->canAccessAdmin() !== true) {
-            return false;
-        }
-
-        // When using a bearer token (e.g., from a separate uploader tool),
-        // we must also verify the granular token ability.
-        if ($this->bearerToken() !== null && ! $user->tokenCan(\App\Enums\ApiTokenAbility::MEDIA_PROCESS->value)) {
-            return false;
-        }
-
-        return true;
     }
 
     /**
@@ -47,6 +27,7 @@ class MediaStatusRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'processingId' => ['required', 'uuid'],
             'include_logs' => ['nullable', 'boolean'],
             'log_limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];

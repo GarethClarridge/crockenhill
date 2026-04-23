@@ -211,7 +211,8 @@ class MediaUploadTest extends TestCase
 
         $this->withToken($token)
             ->getJson('/api/media/processing/!!bad!!/status')
-            ->assertBadRequest();
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['processingId']);
     }
 
     // -------------------------------------------------------------------------
@@ -259,7 +260,8 @@ class MediaUploadTest extends TestCase
 
         $this->withToken($token)
             ->deleteJson('/api/media/processing/!!bad!!')
-            ->assertBadRequest();
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['processingId']);
     }
 
     // -------------------------------------------------------------------------
@@ -309,7 +311,8 @@ class MediaUploadTest extends TestCase
 
         $this->withToken($token)
             ->postJson('/api/media/processing/!!bad!!/retry')
-            ->assertBadRequest();
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['processingId']);
     }
 
     #[Test]

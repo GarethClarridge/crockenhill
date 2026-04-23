@@ -52,7 +52,7 @@ class MediaController extends Controller
                 'size' => $file->getSize(),
             ]);
 
-            $options = $this->processingOptions($validated);
+            $options = $this->processingOptions($type, $validated);
             $result = $options === []
                 ? $this->mediaProcessor->process($type, $file)
                 : $this->mediaProcessor->process($type, $file, options: $options);
@@ -83,14 +83,6 @@ class MediaController extends Controller
      */
     public function status(MediaStatusRequest $request, string $processingId): JsonResponse
     {
-        // Validate processing ID format
-        if (! $this->isValidProcessingId($processingId)) {
-            return response()->json([
-                'found' => false,
-                'message' => 'Invalid processing ID format',
-            ], 400);
-        }
-
         $validated = $request->validated();
 
         try {
@@ -123,26 +115,10 @@ class MediaController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    public function cancelProcessing(string $processingId): array
-    {
-        return $this->mediaProcessor->cancel($processingId);
-    }
-
-    /**
      * Cancel processing
      */
     public function cancel(CancelMediaProcessingRequest $request, string $processingId): JsonResponse
     {
-        // Validate processing ID format
-        if (! $this->isValidProcessingId($processingId)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid processing ID format',
-            ], 400);
-        }
-
         try {
             $result = $this->cancelProcessing($processingId);
 
@@ -171,13 +147,6 @@ class MediaController extends Controller
      */
     public function confirmSegment(ConfirmMediaSegmentRequest $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
     {
-        if (! $this->isValidProcessingId($processingId)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid processing ID format',
-            ], 400);
-        }
-
         /** @var \App\Models\User $user */
         $user = $request->user();
 
@@ -214,14 +183,6 @@ class MediaController extends Controller
      */
     public function retry(RetryMediaProcessingRequest $request, string $processingId): JsonResponse
     {
-        // Validate processing ID format
-        if (! $this->isValidProcessingId($processingId)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid processing ID format',
-            ], 400);
-        }
-
         try {
             $result = $this->mediaProcessor->retry($processingId);
 
@@ -246,27 +207,25 @@ class MediaController extends Controller
     }
 
     /**
-     * Validate processing ID format (UUID v4 only).
-     */
-    private function isValidProcessingId(string $processingId): bool
-    {
-        return (bool) preg_match(
-            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
-            $processingId
-        );
-    }
-
-    /**
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    private function processingOptions(array $validated): array
+    private function processingOptions(string $type, array $validated): array
     {
-        return VideoProcessingOptions::forVideo(
+        return VideoProcessingOptions::forMediaType(
+            $type,
             (bool) ($validated['auto_trim'] ?? false),
             isset($validated['video_processing_mode']) && is_string($validated['video_processing_mode'])
                 ? $validated['video_processing_mode']
                 : null
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function cancelProcessing(string $processingId): array
+    {
+        return $this->mediaProcessor->cancel($processingId);
     }
 }

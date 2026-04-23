@@ -247,10 +247,8 @@ class AutomatedSermonApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$invalidId}/status");
 
-        $response->assertStatus(400)
-            ->assertJsonFragment([
-                'message' => 'Invalid processing ID format',
-            ]);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['processingId']);
     }
 
     #[Test]
@@ -396,10 +394,8 @@ class AutomatedSermonApiTest extends TestCase
             $response = $this->actingAs($this->user)
                 ->json($method, $url);
 
-            $response->assertStatus(400)
-                ->assertJsonFragment([
-                    'message' => 'Invalid processing ID format',
-                ]);
+            $response->assertStatus(422)
+                ->assertJsonValidationErrors(['processingId']);
         }
     }
 

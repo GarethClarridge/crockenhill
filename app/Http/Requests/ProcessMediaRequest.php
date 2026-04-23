@@ -1,42 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use App\Enums\MediaType;
 use App\Services\MediaValidationService;
 use App\Services\VideoProcessingOptions;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ProcessMediaRequest extends FormRequest
+class ProcessMediaRequest extends MediaProcessingRequest
 {
     private ?MediaValidationService $validationService = null;
 
     private function validationService(): MediaValidationService
     {
         return $this->validationService ??= $this->container->make(MediaValidationService::class);
-    }
-
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * Provides Defense in Depth alongside the media.process middleware.
-     */
-    public function authorize(): bool
-    {
-        $user = $this->user();
-
-        if ($user?->canAccessAdmin() !== true) {
-            return false;
-        }
-
-        // When using a bearer token (e.g., from a separate uploader tool),
-        // we must also verify the granular token ability.
-        if ($this->bearerToken() !== null && ! $user->tokenCan(\App\Enums\ApiTokenAbility::MEDIA_PROCESS->value)) {
-            return false;
-        }
-
-        return true;
     }
 
     /**
