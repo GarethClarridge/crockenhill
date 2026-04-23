@@ -227,6 +227,28 @@ class BrowseSermonsTest extends TestCase
     }
 
     #[Test]
+    public function individual_filters_can_be_removed(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Remove Test', 'slug' => 'remove-test']);
+
+        Livewire::test(BrowseSermons::class)
+            ->set('bookFilter', 'John')
+            ->set('chapterFilter', 3)
+            ->set('preacherFilter', $preacher->id)
+            ->set('seriesFilter', 'Remove Series')
+            ->call('removeFilter', 'book')
+            ->assertSet('bookFilter', null)
+            ->assertSet('chapterFilter', null)
+            ->assertSet('preacherFilter', $preacher->id)
+            ->assertSet('seriesFilter', 'Remove Series')
+            ->call('removeFilter', 'preacher')
+            ->assertSet('preacherFilter', null)
+            ->assertSet('seriesFilter', 'Remove Series')
+            ->call('removeFilter', 'series')
+            ->assertSet('seriesFilter', null);
+    }
+
+    #[Test]
     public function url_state_round_trips_correctly(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'Url Test', 'slug' => 'url-test']);
