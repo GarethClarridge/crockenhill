@@ -15,6 +15,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
+use App\Models\ServiceSection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -218,5 +219,55 @@ class DeleteLivestreamUploadTest extends TestCase
         $service->refresh();
 
         $this->assertArrayNotHasKey('livestream_projection', $service->import_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function it_does_not_delete_a_sermon_owned_by_a_different_processing_run(): void
+    {
+        $processingId = '33333333-3333-3333-3333-333333333333';
+        $otherProcessingId = '99999999-9999-9999-9999-999999999999';
+
+        $log = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'processing_id' => $processingId,
+            'church_service_id' => null,
+        ]);
+
+        // Create the other run so the FK on sermons.livestream_processing_id is satisfied
+        MediaProcessingLog::factory()->livestream()->completed()->create([
+            'processing_id' => $otherProcessingId,
+        ]);
+
+        // A sermon owned by a different run — must survive this cleanup
+        $foreignSermon = Sermon::factory()->fromLivestream()->create([
+            'livestream_processing_id' => $otherProcessingId,
+            'audio_file_path' => 'sermons/audio/foreign.mp3',
+        ]);
+
+        // A section owned by this run whose published_sermon_id points to the foreign sermon.
+        // The factory's afterMaking hook auto-promotes publication_status to PUBLISHED
+        // and sets published_at when published_sermon_id is supplied.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'published_sermon_id' => $foreignSermon->id,
+        ]);
+
+        // A sermon genuinely owned by this run — must be deleted
+        $ownedSermon = Sermon::factory()->fromLivestream()->create([
+            'livestream_processing_id' => $processingId,
+            'audio_file_path' => 'sermons/audio/'.$processingId.'_owned.mp3',
+        ]);
+
+        $result = app(DeleteLivestreamUpload::class)->execute($log);
+
+        $this->assertSame(1, $result['deleted_sermons']);
+
+        $this->assertDatabaseMissing('media_processing_logs', ['id' => $log->id]);
+        $this->assertDatabaseMissing('sermons', ['id' => $ownedSermon->id]);
+
+        // Foreign sermon must survive
+        $this->assertDatabaseHas('sermons', ['id' => $foreignSermon->id]);
+
+        // The section cascaded away with the log — no dangling link
+        $this->assertDatabaseMissing('service_sections', ['published_sermon_id' => $foreignSermon->id]);
     }
 }

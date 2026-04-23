@@ -66,7 +66,7 @@ class DeleteLivestreamUpload
                 ->lockForUpdate()
                 ->get();
 
-            $sermons = $this->loadOwnedSermons($lockedLog, $sections);
+            $sermons = $this->loadOwnedSermons($lockedLog);
 
             /** @var EloquentCollection<int, ChurchServiceItem> $projectedItems */
             $projectedItems = ChurchServiceItem::query()
@@ -147,43 +147,15 @@ class DeleteLivestreamUpload
     }
 
     /**
-     * @param  EloquentCollection<int, ServiceSection>  $sections
      * @return EloquentCollection<int, Sermon>
      */
-    private function loadOwnedSermons(
-        MediaProcessingLog $processingLog,
-        EloquentCollection $sections,
-    ): EloquentCollection {
-        $processingId = $processingLog->processing_id;
-        $publishedSermonIds = $sections
-            ->pluck('published_sermon_id')
-            ->filter(fn (mixed $id): bool => is_int($id))
-            ->map(fn (mixed $id): int => (int) $id)
-            ->unique()
-            ->values();
-
-        $query = Sermon::query()
-            ->where('livestream_processing_id', $processingId);
-
-        if ($processingLog->sermon_id !== null || $publishedSermonIds->isNotEmpty()) {
-            $query->orWhere(function ($builder) use ($processingLog, $publishedSermonIds): void {
-                if ($processingLog->sermon_id !== null) {
-                    $builder->whereKey($processingLog->sermon_id);
-                }
-
-                if ($publishedSermonIds->isNotEmpty()) {
-                    $method = $processingLog->sermon_id !== null ? 'orWhereIn' : 'whereIn';
-                    $builder->{$method}('id', $publishedSermonIds->all());
-                }
-            });
-        }
-
+    private function loadOwnedSermons(MediaProcessingLog $processingLog): EloquentCollection
+    {
         /** @var EloquentCollection<int, Sermon> $sermons */
-        $sermons = $query
+        $sermons = Sermon::query()
+            ->where('livestream_processing_id', $processingLog->processing_id)
             ->lockForUpdate()
-            ->get()
-            ->unique('id')
-            ->values();
+            ->get();
 
         return $sermons;
     }
