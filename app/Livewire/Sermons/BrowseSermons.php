@@ -175,10 +175,10 @@ class BrowseSermons extends Component
     #[Computed]
     public function preacherOptions(): array
     {
-        return Preacher::getForPublicList()
-            ->map(fn (Preacher $preacher): array => ['id' => $preacher->id, 'name' => $preacher->name])
-            ->values()
-            ->all();
+        return array_map(
+            fn (Preacher $preacher): array => ['id' => $preacher->id, 'name' => $preacher->name],
+            Preacher::getForPublicList()->all()
+        );
     }
 
     /**
@@ -187,10 +187,10 @@ class BrowseSermons extends Component
     #[Computed]
     public function seriesOptions(): array
     {
-        return collect(app(SermonRepository::class)->getSeriesForDisplay())
-            ->map(fn (string $series): array => ['id' => $series, 'name' => $series])
-            ->values()
-            ->all();
+        return array_map(
+            fn (string $series): array => ['id' => $series, 'name' => $series],
+            app(SermonRepository::class)->getSeriesForDisplay()
+        );
     }
 
     /**

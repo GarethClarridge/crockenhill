@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
 
 class SermonViewPresenter
 {
+    private const MEMO_NULL = '__memo_null__';
+
     /**
      * @var array<string, mixed>
      */
@@ -89,23 +91,23 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'duration');
 
-        if (array_key_exists($key, $this->memoizedDurations)) {
-            return $this->memoizedDurations[$key];
+        if (isset($this->memoizedDurations[$key])) {
+            return $this->memoizedDurations[$key] === self::MEMO_NULL ? null : $this->memoizedDurations[$key];
         }
 
         if ($sermon->duration === null || $sermon->duration <= 0) {
-            return $this->memoizedDurations[$key] = null;
+            $this->memoizedDurations[$key] = self::MEMO_NULL;
+
+            return null;
         }
 
         $seconds = (int) $sermon->duration;
         $hours = floor($seconds / 3600);
         $minutes = floor(($seconds % 3600) / 60);
 
-        if ($hours > 0) {
-            return $this->memoizedDurations[$key] = "{$hours}h {$minutes}m";
-        }
-
-        return $this->memoizedDurations[$key] = "{$minutes}m";
+        return $this->memoizedDurations[$key] = $hours > 0
+            ? "{$hours}h {$minutes}m"
+            : "{$minutes}m";
     }
 
     /**
@@ -146,13 +148,17 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'audio');
 
-        if (! array_key_exists($key, $this->memoizedUrls)) {
-            $this->memoizedUrls[$key] = filled($sermon->audio_file_path)
-                ? $this->storageService->getAudioDeliveryUrl($sermon)
-                : null;
+        if (isset($this->memoizedUrls[$key])) {
+            return $this->memoizedUrls[$key] === self::MEMO_NULL ? null : $this->memoizedUrls[$key];
         }
 
-        return $this->memoizedUrls[$key];
+        $url = filled($sermon->audio_file_path)
+            ? $this->storageService->getAudioDeliveryUrl($sermon)
+            : null;
+
+        $this->memoizedUrls[$key] = $url ?? self::MEMO_NULL;
+
+        return $url;
     }
 
     public function canonicalUrl(Sermon $sermon): string
@@ -164,42 +170,50 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'card_thumb');
 
-        if (! array_key_exists($key, $this->memoizedUrls)) {
-            $this->memoizedUrls[$key] = (function () use ($sermon) {
-                if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-                    return null;
-                }
-
-                if (! $sermon->hasPlainThumbnail()) {
-                    return null;
-                }
-
-                return $this->storageService->getCardThumbnailDeliveryUrl($sermon);
-            })();
+        if (isset($this->memoizedUrls[$key])) {
+            return $this->memoizedUrls[$key] === self::MEMO_NULL ? null : $this->memoizedUrls[$key];
         }
 
-        return $this->memoizedUrls[$key];
+        $url = (function () use ($sermon) {
+            if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
+                return null;
+            }
+
+            if (! $sermon->hasPlainThumbnail()) {
+                return null;
+            }
+
+            return $this->storageService->getCardThumbnailDeliveryUrl($sermon);
+        })();
+
+        $this->memoizedUrls[$key] = $url ?? self::MEMO_NULL;
+
+        return $url;
     }
 
     public function plainThumbnailUrl(Sermon $sermon): ?string
     {
         $key = $this->cacheKey($sermon, 'plain_thumb');
 
-        if (! array_key_exists($key, $this->memoizedUrls)) {
-            $this->memoizedUrls[$key] = (function () use ($sermon) {
-                if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-                    return null;
-                }
-
-                if (! $sermon->hasPlainThumbnail()) {
-                    return null;
-                }
-
-                return $this->storageService->getPlainThumbnailDeliveryUrl($sermon);
-            })();
+        if (isset($this->memoizedUrls[$key])) {
+            return $this->memoizedUrls[$key] === self::MEMO_NULL ? null : $this->memoizedUrls[$key];
         }
 
-        return $this->memoizedUrls[$key];
+        $url = (function () use ($sermon) {
+            if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
+                return null;
+            }
+
+            if (! $sermon->hasPlainThumbnail()) {
+                return null;
+            }
+
+            return $this->storageService->getPlainThumbnailDeliveryUrl($sermon);
+        })();
+
+        $this->memoizedUrls[$key] = $url ?? self::MEMO_NULL;
+
+        return $url;
     }
 
     public function preacherUrl(Sermon $sermon): ?string
@@ -216,21 +230,25 @@ class SermonViewPresenter
             return null;
         }
 
-        if (! isset($this->memoizedPreacherUrls[$preacherKey])) {
-            $this->memoizedPreacherUrls[$preacherKey] = (function () use ($sermon, $preacherName) {
-                if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-                    return route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
-                }
-
-                $preacherName ??= $this->displayPreacherName($sermon);
-
-                return filled($preacherName)
-                    ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
-                    : null;
-            })();
+        if (isset($this->memoizedPreacherUrls[$preacherKey])) {
+            return $this->memoizedPreacherUrls[$preacherKey] === self::MEMO_NULL ? null : $this->memoizedPreacherUrls[$preacherKey];
         }
 
-        return $this->memoizedPreacherUrls[$preacherKey];
+        $url = (function () use ($sermon, $preacherName) {
+            if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+                return route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
+            }
+
+            $preacherName ??= $this->displayPreacherName($sermon);
+
+            return filled($preacherName)
+                ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
+                : null;
+        })();
+
+        $this->memoizedPreacherUrls[$preacherKey] = $url ?? self::MEMO_NULL;
+
+        return $url;
     }
 
     /**
@@ -245,7 +263,15 @@ class SermonViewPresenter
             return null;
         }
 
-        return $this->memoizedSeriesUrls[$sermon->series] ??= route('sermons.series.show', ['series' => $this->slug($sermon->series)]);
+        if (isset($this->memoizedSeriesUrls[$sermon->series])) {
+            return $this->memoizedSeriesUrls[$sermon->series] === self::MEMO_NULL ? null : $this->memoizedSeriesUrls[$sermon->series];
+        }
+
+        $url = route('sermons.series.show', ['series' => $this->slug($sermon->series)]);
+
+        $this->memoizedSeriesUrls[$sermon->series] = $url;
+
+        return $url;
     }
 
     /**
@@ -333,21 +359,25 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'thumb');
 
-        if (! array_key_exists($key, $this->memoizedUrls)) {
-            $this->memoizedUrls[$key] = (function () use ($sermon) {
-                if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-                    return null;
-                }
-
-                if (! $sermon->hasThumbnail()) {
-                    return null;
-                }
-
-                return $this->storageService->getThumbnailDeliveryUrl($sermon);
-            })();
+        if (isset($this->memoizedUrls[$key])) {
+            return $this->memoizedUrls[$key] === self::MEMO_NULL ? null : $this->memoizedUrls[$key];
         }
 
-        return $this->memoizedUrls[$key];
+        $url = (function () use ($sermon) {
+            if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
+                return null;
+            }
+
+            if (! $sermon->hasThumbnail()) {
+                return null;
+            }
+
+            return $this->storageService->getThumbnailDeliveryUrl($sermon);
+        })();
+
+        $this->memoizedUrls[$key] = $url ?? self::MEMO_NULL;
+
+        return $url;
     }
 
     public function transcript(Sermon $sermon): ?string
@@ -372,15 +402,21 @@ class SermonViewPresenter
             return null;
         }
 
-        if (array_key_exists($identityKey, $this->memoizedPreacherNames)) {
-            return $this->memoizedPreacherNames[$identityKey];
+        if (isset($this->memoizedPreacherNames[$identityKey])) {
+            return $this->memoizedPreacherNames[$identityKey] === self::MEMO_NULL ? null : $this->memoizedPreacherNames[$identityKey];
         }
 
         $preacherName = ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null)
             ? $sermon->preacherProfile->name
             : trim((string) $sermon->preacher);
 
-        return $this->memoizedPreacherNames[$identityKey] = ($preacherName !== '' ? $preacherName : null);
+        if ($preacherName === '') {
+            $this->memoizedPreacherNames[$identityKey] = self::MEMO_NULL;
+
+            return null;
+        }
+
+        return $this->memoizedPreacherNames[$identityKey] = $preacherName;
     }
 
     /**
@@ -401,8 +437,8 @@ class SermonViewPresenter
             return null;
         }
 
-        if (array_key_exists($identityKey, $this->memoizedReferences)) {
-            return $this->memoizedReferences[$identityKey];
+        if (isset($this->memoizedReferences[$identityKey])) {
+            return $this->memoizedReferences[$identityKey] === self::MEMO_NULL ? null : $this->memoizedReferences[$identityKey];
         }
 
         if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
@@ -415,7 +451,13 @@ class SermonViewPresenter
 
         $reference = trim((string) $sermon->reference);
 
-        return $this->memoizedReferences[$identityKey] = ($reference !== '' ? $reference : null);
+        if ($reference === '') {
+            $this->memoizedReferences[$identityKey] = self::MEMO_NULL;
+
+            return null;
+        }
+
+        return $this->memoizedReferences[$identityKey] = $reference;
     }
 
     /**
@@ -477,17 +519,21 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'video');
 
-        if (! array_key_exists($key, $this->memoizedUrls)) {
-            $this->memoizedUrls[$key] = (function () use ($sermon) {
-                if (! $this->exposurePolicy->shouldExposeVideo($sermon)) {
-                    return null;
-                }
-
-                return $this->storageService->getVideoDeliveryUrl($sermon);
-            })();
+        if (isset($this->memoizedUrls[$key])) {
+            return $this->memoizedUrls[$key] === self::MEMO_NULL ? null : $this->memoizedUrls[$key];
         }
 
-        return $this->memoizedUrls[$key];
+        $url = (function () use ($sermon) {
+            if (! $this->exposurePolicy->shouldExposeVideo($sermon)) {
+                return null;
+            }
+
+            return $this->storageService->getVideoDeliveryUrl($sermon);
+        })();
+
+        $this->memoizedUrls[$key] = $url ?? self::MEMO_NULL;
+
+        return $url;
     }
 
     /**
