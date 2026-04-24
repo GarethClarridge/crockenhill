@@ -630,18 +630,23 @@ class Sermon extends Model implements Sitemapable
      */
     public function isAutomated(): bool
     {
+        if ($this->hasTranscript()) {
+            return true;
+        }
+
         /**
          * Performance Optimization: Check if relationship is already loaded to prevent N+1 queries.
+         * We prioritize latestProcessingLog as it is more commonly eager-loaded in listing views.
          */
-        if ($this->relationLoaded('processingLogs')) {
-            return ! empty($this->transcript_file_path) || $this->processingLogs->isNotEmpty();
-        }
-
         if ($this->relationLoaded('latestProcessingLog')) {
-            return ! empty($this->transcript_file_path) || $this->latestProcessingLog !== null;
+            return $this->latestProcessingLog !== null;
         }
 
-        return ! empty($this->transcript_file_path) || $this->processingLogs()->exists();
+        if ($this->relationLoaded('processingLogs')) {
+            return $this->processingLogs->isNotEmpty();
+        }
+
+        return $this->processingLogs()->exists();
     }
 
     /**
