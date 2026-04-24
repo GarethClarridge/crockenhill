@@ -265,6 +265,33 @@ class SermonViewPresenterTest extends TestCase
     }
 
     #[Test]
+    public function duration_iso8601_returns_null_when_duration_is_null(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => null]);
+
+        $this->assertNull($this->presenter->durationIso8601($sermon));
+    }
+
+    #[Test]
+    public function duration_iso8601_returns_null_when_duration_is_zero(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => 0]);
+
+        $this->assertNull($this->presenter->durationIso8601($sermon));
+    }
+
+    #[Test]
+    public function duration_iso8601_formats_duration_correctly(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => 1800]); // 30 minutes
+
+        $this->assertSame('PT30M', $this->presenter->durationIso8601($sermon));
+
+        $sermon2 = Sermon::factory()->make(['duration' => 3661]); // 1h 1m 1s
+        $this->assertSame('PT1H1M1S', $this->presenter->durationIso8601($sermon2));
+    }
+
+    #[Test]
     public function meta_description_returns_explicit_attribute_when_set(): void
     {
         $sermon = Sermon::factory()->make([

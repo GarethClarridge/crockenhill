@@ -46,6 +46,11 @@ class SermonViewPresenter
     private array $memoizedDurations = [];
 
     /**
+     * @var array<int|string, ?string>
+     */
+    private array $memoizedIso8601Durations = [];
+
+    /**
      * @var array<string, array<string, mixed>>
      */
     private array $memoizedPresents = [];
@@ -136,6 +141,7 @@ class SermonViewPresenter
         $this->memoizedPreacherNames = [];
         $this->memoizedReferences = [];
         $this->memoizedDurations = [];
+        $this->memoizedIso8601Durations = [];
         $this->memoizedPresents = [];
         $this->memoizedTimestamps = [];
         $this->memoizedSermonKeys = [];
@@ -458,6 +464,31 @@ class SermonViewPresenter
         }
 
         return $this->memoizedReferences[$identityKey] = $reference;
+    }
+
+    /**
+     * Get the duration of the sermon in ISO 8601 format (e.g. PT45M12S).
+     *
+     * Performance Optimization: Memoizes ISO 8601 duration strings
+     * to avoid redundant Carbon object creation in listing contexts.
+     */
+    public function durationIso8601(Sermon $sermon): ?string
+    {
+        $key = $this->cacheKey($sermon, 'iso_dur');
+
+        if (isset($this->memoizedIso8601Durations[$key])) {
+            return $this->memoizedIso8601Durations[$key] === self::MEMO_NULL ? null : $this->memoizedIso8601Durations[$key];
+        }
+
+        if ($sermon->duration === null || $sermon->duration <= 0) {
+            $this->memoizedIso8601Durations[$key] = self::MEMO_NULL;
+
+            return null;
+        }
+
+        $duration = \Carbon\CarbonInterval::seconds($sermon->duration)->cascade()->spec();
+
+        return $this->memoizedIso8601Durations[$key] = $duration;
     }
 
     /**

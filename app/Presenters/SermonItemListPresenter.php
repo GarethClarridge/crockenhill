@@ -34,14 +34,19 @@ class SermonItemListPresenter
             'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
                 $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
                 $publicUrl = $this->sermonViewPresenter->publicUrl($sermon);
+                $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
+                $audioUrl = $this->sermonViewPresenter->audioUrl($sermon);
+                $duration = $this->sermonViewPresenter->durationIso8601($sermon);
+                $datePublished = $sermon->date->toIso8601String();
+                $description = $this->sermonViewPresenter->metaDescription($sermon);
 
                 $item = [
                     '@type' => 'Article',
                     'headline' => $sermon->title,
                     'name' => $sermon->title,
                     'url' => $publicUrl,
-                    'description' => $sermon->meta_description,
-                    'datePublished' => $sermon->date->toIso8601String(),
+                    'description' => $description,
+                    'datePublished' => $datePublished,
                     'inLanguage' => 'en-GB',
                     'contentLocation' => [
                         '@type' => 'Place',
@@ -66,6 +71,36 @@ class SermonItemListPresenter
                     ],
                     'image' => $thumbnailUrl ?: $logoUrl,
                 ];
+
+                if ($videoUrl) {
+                    $item['video'] = [
+                        '@type' => 'VideoObject',
+                        'name' => $sermon->title,
+                        'description' => $description,
+                        'thumbnailUrl' => $thumbnailUrl ?: $logoUrl,
+                        'uploadDate' => $datePublished,
+                        'contentUrl' => $videoUrl,
+                    ];
+
+                    if ($duration) {
+                        $item['video']['duration'] = $duration;
+                    }
+                }
+
+                if ($audioUrl) {
+                    $item['audio'] = [
+                        '@type' => 'AudioObject',
+                        'name' => $sermon->title,
+                        'description' => $description,
+                        'uploadDate' => $datePublished,
+                        'contentUrl' => $audioUrl,
+                        'encodingFormat' => 'audio/mpeg',
+                    ];
+
+                    if ($duration) {
+                        $item['audio']['duration'] = $duration;
+                    }
+                }
 
                 return [
                     '@type' => 'ListItem',

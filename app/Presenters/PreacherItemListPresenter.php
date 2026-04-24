@@ -24,19 +24,25 @@ class PreacherItemListPresenter
             '@type' => 'ItemList',
             'numberOfItems' => $preachers->count(),
             'itemListElement' => $preachers->map(function ($preacher, $index) use ($orgName) {
+                $item = [
+                    '@type' => 'Person',
+                    'name' => $preacher->name,
+                    'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
+                    'jobTitle' => 'Preacher',
+                    'worksFor' => [
+                        '@type' => 'Organization',
+                        'name' => $orgName,
+                    ],
+                ];
+
+                if ($preacher->profile_image_url) {
+                    $item['image'] = $preacher->profile_image_url;
+                }
+
                 return [
                     '@type' => 'ListItem',
                     'position' => $index + 1,
-                    'item' => [
-                        '@type' => 'Person',
-                        'name' => $preacher->name,
-                        'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
-                        'jobTitle' => 'Preacher',
-                        'worksFor' => [
-                            '@type' => 'Organization',
-                            'name' => $orgName,
-                        ],
-                    ],
+                    'item' => $item,
                 ];
             })->values()->all(),
         ];
