@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Livewire\Auth;
 
+use App\Models\User;
+use App\Traits\SanitizesLogData;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +19,8 @@ use Livewire\Features\SupportRedirects\Redirector;
 
 class Login extends Component
 {
+    use SanitizesLogData;
+
     /**
      * Security: Explicit length constraints are enforced on input fields to provide
      * Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
@@ -79,6 +83,17 @@ class Login extends Component
         }
 
         RateLimiter::hit($this->throttleKey($credentials['email']));
+
+        $user = User::where('email', (string) $credentials['email'])->first();
+
+        if ($user instanceof User && $user->is_admin) {
+            \Illuminate\Support\Facades\Log::warning('Admin login attempt failed', [
+                'admin_id' => $user->id,
+                'email' => $this->sanitizeForLog($user->email),
+                'ip' => request()->ip(),
+            ]);
+        }
+
         $this->error = trans('auth.failed');
 
         return null;
