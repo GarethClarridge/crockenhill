@@ -75,7 +75,7 @@ class SermonStorageService
     }
 
     /**
-     * Get file information for a sermon based on its storage pattern
+     * Get file information for a sermon based on its storage pattern.
      *
      * Performance Optimization: Memoizes file information lookups within the request
      * to avoid redundant path validation and storage pattern logic when resolving
