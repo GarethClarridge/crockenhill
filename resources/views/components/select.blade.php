@@ -32,7 +32,7 @@ $describedBy = implode(' ', $describedBy);
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
         >
             @if($placeholder)
-                <option value="">{{ $placeholder }}</option>
+                <option value="" disabled selected hidden>{{ $placeholder }}</option>
             @endif
             @foreach($options as $option)
                 <option value="{{ $option['id'] }}" @disabled(($option['disabled'] ?? false) === true)>{{ $option['name'] }}</option>

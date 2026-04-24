@@ -17,14 +17,16 @@
     $seriesUrl = $presenter->seriesUrl($sermon);
 @endphp
 
-<div data-sermon-card class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
+<div data-sermon-card class="relative group flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
 
   @if($thumbnailUrl)
     <a
       href="{{ $sermonUrl }}"
       wire:navigate
+      tabindex="-1"
+      aria-hidden="true"
       data-sermon-card-thumbnail
-      class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200"
+      class="relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200"
     >
       <img
         src="{{ $thumbnailUrl }}"
@@ -80,7 +82,7 @@
       </li>
       @endif
       @if ($preacherName != null)
-      <li class="flex items-center">
+      <li class="flex items-center relative z-10">
         <x-heroicon-o-user class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         @if ($preacherUrl)
           <a href="{{ $preacherUrl }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $preacherName }}</a>
@@ -90,7 +92,7 @@
       </li>
       @endif
       @if ($sermon->series != null)
-      <li class="flex items-center">
+      <li class="flex items-center relative z-10">
         <x-heroicon-o-tag class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         <a href="{{ $seriesUrl }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->series }}</a>
       </li>
@@ -112,11 +114,13 @@
       iconStyle="solid"
       iconPosition="trailing"
       iconClass="shrink-0 text-white/90"
-      class="w-full justify-between rounded-none text-left font-normal"
+      class="w-full justify-between rounded-none text-left font-normal after:absolute after:inset-0"
       aria-label="View sermon: {{ $sermon->title }}"
   >
       View Sermon
   </x-button>
 
-  <x-sermon-card-admin-overlay :$sermon />
+  <div class="relative z-10">
+    <x-sermon-card-admin-overlay :$sermon />
+  </div>
 </div>

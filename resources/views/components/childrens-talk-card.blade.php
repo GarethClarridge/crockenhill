@@ -10,12 +10,14 @@
     $hasVideo = filled($sermonViewPresenter->videoUrl($sermon));
 @endphp
 
-<article class="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+<article class="relative group flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
     @if ($cardThumbnailUrl)
         <a
             href="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}"
             wire:navigate
-            class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
+            tabindex="-1"
+            aria-hidden="true"
+            class="relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
         >
             <img
                 src="{{ $cardThumbnailUrl }}"
@@ -69,7 +71,7 @@
             @endif
         </dl>
 
-        <div class="mt-auto space-y-4">
+        <div class="mt-auto space-y-4 relative z-10">
             <div class="flex flex-wrap gap-2" aria-label="Media availability">
                 @if ($hasVideo)
                     <span class="inline-flex items-center gap-1 rounded-full bg-cbc-teal/10 px-3 py-1 text-xs font-semibold text-cbc-teal-dark">
@@ -90,7 +92,7 @@
                 @endif
             </div>
 
-            <x-button link="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}" variant="secondary" size="sm" inline>
+            <x-button link="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}" variant="secondary" size="sm" inline class="after:absolute after:inset-0">
                 Open talk
             </x-button>
         </div>
