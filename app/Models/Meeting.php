@@ -321,8 +321,8 @@ class Meeting extends Model implements HasMedia, Sitemapable
         $originalMonth = $meetingDate->month;
         $originalDay = $meetingDate->day;
 
-        // Candidate in current year
-        $currentYearCandidate = $now->copy()->month($originalMonth);
+        // Candidate in current year. Reset day to 1 before changing month to avoid overflow.
+        $currentYearCandidate = $now->copy()->day(1)->month($originalMonth);
         $currentYearOccurrence = $currentYearCandidate
             ->day(min($originalDay, $currentYearCandidate->daysInMonth))
             ->setTimeFrom($meetingDate);
@@ -331,8 +331,8 @@ class Meeting extends Model implements HasMedia, Sitemapable
             return $currentYearOccurrence;
         }
 
-        // Candidate in next year
-        $nextYearCandidate = $now->copy()->addYearNoOverflow()->month($originalMonth);
+        // Candidate in next year. Reset day to 1 before changing month to avoid overflow.
+        $nextYearCandidate = $now->copy()->addYearNoOverflow()->day(1)->month($originalMonth);
 
         return $nextYearCandidate
             ->day(min($originalDay, $nextYearCandidate->daysInMonth))
