@@ -20,12 +20,8 @@ class CalendarService
      */
     public function getEventsForMeeting(string $meetingSlug, ?Carbon $startDate = null, ?Carbon $endDate = null): Collection
     {
-        /**
-         * Performance Optimization: Limits retrieved columns to required fields for cards
-         * to reduce memory usage and DB I/O.
-         */
         $query = CalendarEvent::query()
-            ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+            ->forCard()
             ->where('meeting_slug', $meetingSlug)
             ->confirmed()
             ->orderBy('start_datetime');
@@ -46,12 +42,8 @@ class CalendarService
      */
     public function getAllUpcomingEvents(?Carbon $startDate = null, ?Carbon $endDate = null): Collection
     {
-        /**
-         * Performance Optimization: Limits retrieved columns to required fields for cards
-         * to reduce memory usage and DB I/O.
-         */
         $query = CalendarEvent::query()
-            ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+            ->forCard()
             ->confirmed()
             ->where('start_datetime', '>=', $startDate ?? now())
             ->orderBy('start_datetime');
@@ -68,12 +60,8 @@ class CalendarService
      */
     public function getUncategorizedEvents(): Collection
     {
-        /**
-         * Performance Optimization: Limits retrieved columns to required fields for cards
-         * to reduce memory usage and DB I/O.
-         */
         return CalendarEvent::query()
-            ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+            ->forCard()
             ->whereNull('meeting_slug')
             ->confirmed()
             ->orderBy('start_datetime')

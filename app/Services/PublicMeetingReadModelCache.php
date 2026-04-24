@@ -98,7 +98,7 @@ class PublicMeetingReadModelCache
     private function upcomingEvents(Meeting $meeting): \Illuminate\Database\Eloquent\Collection
     {
         return CalendarEvent::query()
-            ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+            ->forCard()
             ->where('meeting_slug', $meeting->slug)
             ->upcoming()
             ->confirmed()

@@ -83,6 +83,15 @@ class CalendarEvent extends Model
      * @param  Builder<CalendarEvent>  $query
      * @return Builder<CalendarEvent>
      */
+    public function scopeForCard(Builder $query): Builder
+    {
+        return $query->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime']);
+    }
+
+    /**
+     * @param  Builder<CalendarEvent>  $query
+     * @return Builder<CalendarEvent>
+     */
     public function scopeUpcoming(Builder $query): Builder
     {
         return $query->where('start_datetime', '>=', now());

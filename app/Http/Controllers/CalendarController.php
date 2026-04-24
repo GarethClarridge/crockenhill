@@ -16,12 +16,8 @@ class CalendarController extends Controller
 
     public function index(): View
     {
-        /**
-         * Performance Optimization: Limits retrieved columns for calendar events and eager-loaded
-         * meetings to required fields to reduce memory usage and DB I/O.
-         */
         $allEvents = CalendarEvent::query()
-            ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+            ->forCard()
             ->with('meeting:id,slug,location')
             ->upcoming()
             ->confirmed()

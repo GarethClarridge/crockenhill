@@ -22,8 +22,19 @@
                     <div class="flex flex-wrap items-center justify-center gap-2">
                         <span class="text-sm text-gray-500">Filtered by</span>
 
-                        @foreach ($activeFilterLabels as $activeFilterLabel)
-                            <x-badge variant="teal">{{ $activeFilterLabel }}</x-badge>
+                        @foreach ($activeFilterLabels as $key => $label)
+                            <x-badge variant="teal">
+                                {{ $label }}
+                                <button
+                                    type="button"
+                                    wire:click="removeFilter('{{ $key }}')"
+                                    class="ml-1 -mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-cbc-teal hover:bg-cbc-teal/20 hover:text-cbc-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal"
+                                    aria-label="Remove filter: {{ $label }}"
+                                    title="Remove filter: {{ $label }}"
+                                >
+                                    <x-heroicon-o-x-mark class="h-3 w-3" />
+                                </button>
+                            </x-badge>
                         @endforeach
                     </div>
 
@@ -78,7 +89,7 @@
         </div>
     </section>
 
-    <div wire:loading.flex wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter" class="mx-auto mt-4 max-w-7xl items-center gap-2 px-6 text-sm text-gray-500" role="status">
+    <div wire:loading.flex wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters" class="mx-auto mt-4 max-w-7xl items-center gap-2 px-6 text-sm text-gray-500" role="status">
         <svg class="h-4 w-4 animate-spin text-cbc-teal" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -86,7 +97,7 @@
         Updating sermon results…
     </div>
 
-    <div id="sermon-results" wire:loading.class="pointer-events-none opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter">
+    <div id="sermon-results" wire:loading.class="pointer-events-none opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters">
         @php
             /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
         @endphp
