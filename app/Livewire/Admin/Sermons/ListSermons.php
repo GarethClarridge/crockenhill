@@ -11,6 +11,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Support\Collection;
@@ -23,6 +24,13 @@ use Livewire\WithPagination;
 class ListSermons extends Component
 {
     use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+
+    private SermonViewPresenter $sermonViewPresenter;
+
+    public function boot(SermonViewPresenter $sermonViewPresenter): void
+    {
+        $this->sermonViewPresenter = $sermonViewPresenter;
+    }
 
     protected const DEFAULT_SORT_COLUMN = 'date';
 
@@ -202,6 +210,7 @@ class ListSermons extends Component
             'preachers' => $this->getPreachers(),
             'seriesList' => $this->getSeries(),
             'headers' => $headers,
+            'sermonViewPresenter' => $this->sermonViewPresenter,
         ])->layout('layouts.admin', ['title' => 'Sermons & Talks', 'heading' => 'Sermons & Talks']);
     }
 }

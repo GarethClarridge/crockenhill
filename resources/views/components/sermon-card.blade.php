@@ -1,21 +1,13 @@
 @props([
 'sermon',
+'sermonUrl',
+'thumbnailUrl',
+'preacherName',
+'reference',
+'preacherUrl',
+'formattedDuration',
+'seriesUrl',
 ])
-
-@php
-    /**
-     * Performance Optimization: Consolidate URL logic into the SermonViewPresenter
-     * to reduce logic duplication and leverage singleton instances.
-     */
-    $presenter = app(\App\Presenters\SermonViewPresenter::class);
-    $sermonUrl = $presenter->canonicalUrl($sermon);
-    $thumbnailUrl = $presenter->plainThumbnailUrl($sermon);
-    $preacherName = $presenter->displayPreacherName($sermon);
-    $reference = $presenter->displayReference($sermon);
-    $preacherUrl = $presenter->preacherUrl($sermon);
-    $formattedDuration = $presenter->formattedDuration($sermon);
-    $seriesUrl = $presenter->seriesUrl($sermon);
-@endphp
 
 <div data-sermon-card class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
 

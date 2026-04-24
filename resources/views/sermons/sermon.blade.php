@@ -2,9 +2,7 @@
 
 @php
 use Illuminate\Support\Str;
-$sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
-$fullTitle = $sermon->title . ' | ' . ($sermonViewPresenter->displayPreacherName($sermon) ?? 'Unknown preacher');
-$displayReference = $sermonViewPresenter->displayReference($sermon);
+$displayReference = $sermonView['display_reference'];
 $hasPublicAudio = filled($sermonView['audio_url']);
 $hasPublicVideo = filled($sermonView['video_url']);
 @endphp
@@ -14,7 +12,7 @@ $hasPublicVideo = filled($sermonView['video_url']);
 @section('meta_tags')
 <x-meta-tags
   :title="$fullTitle"
-  :description="$description ?? $sermonViewPresenter->metaDescription($sermon)"
+  :description="$description ?? $metaDescription"
   type="article"
   :image="$sermonView['thumbnail_url']"
   :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
@@ -28,11 +26,11 @@ $hasPublicVideo = filled($sermonView['video_url']);
   section="Sermons"
   :tags="$sermon->series"
   label1="Preacher"
-  :data1="$sermonViewPresenter->displayPreacherName($sermon)"
+  :data1="$sermonView['preacher_name']"
   :label2="$sermon->series ? 'Series' : null"
   :data2="$sermon->series" />
 
-<x-schema.sermon :$sermon :$sermonView />
+<x-schema.sermon :$sermon :$sermonView :$metaDescription />
 <x-schema.webpage
   :heading="$fullTitle"
   :description="$description ?? $sermonViewPresenter->metaDescription($sermon)"
@@ -250,25 +248,25 @@ $hasPublicVideo = filled($sermonView['video_url']);
           </div>
           @endif
 
-          @if ($sermonViewPresenter->displayPreacherName($sermon) != null)
+          @if ($sermonView['preacher_name'] != null)
           <div class="flex items-center gap-3">
             <x-heroicon-o-user class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
-<div>
+            <div>
               <dt class="sr-only">Preacher</dt>
               <dd class="text-gray-900 font-medium">
-                <a href="{{ $sermonView['preacher_url'] }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermonViewPresenter->displayPreacherName($sermon) }}</a>
+                <a href="{{ $sermonView['preacher_url'] }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermonView['preacher_name'] }}</a>
               </dd>
             </div>
           </div>
           @endif
 
-          @if ($sermon->series != null && $sermonViewPresenter->seriesUrl($sermon))
+          @if ($sermon->series != null && $sermonView['series_url'])
           <div class="flex items-center gap-3">
             <x-heroicon-o-tag class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
             <div>
               <dt class="sr-only">Series</dt>
               <dd class="text-gray-900 font-medium">
-                <a href="{{ $sermonViewPresenter->seriesUrl($sermon) }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->series }}</a>
+                <a href="{{ $sermonView['series_url'] }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->series }}</a>
               </dd>
             </div>
           </div>

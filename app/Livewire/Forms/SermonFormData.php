@@ -6,6 +6,7 @@ namespace App\Livewire\Forms;
 
 use App\Enums\SermonService;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Support\Str;
 use Livewire\Form;
 
@@ -55,7 +56,7 @@ class SermonFormData extends Form
 
     public string $lastGeneratedSlug = '';
 
-    public function setSermon(Sermon $sermon): void
+    public function setSermon(Sermon $sermon, SermonViewPresenter $presenter): void
     {
         $sermon->loadMissing('preacherProfile', 'scripturePassage');
 
@@ -66,14 +67,12 @@ class SermonFormData extends Form
             throw new \UnexpectedValueException('Sermon service is required.');
         }
 
-        $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
-
         $this->fill([
             'title' => $sermon->title,
             'slug' => $sermon->slug,
             'date' => $sermon->date->format('Y-m-d'),
             'service' => $service->value,
-            'preacher' => $sermonViewPresenter->displayPreacherName($sermon) ?? '',
+            'preacher' => $presenter->displayPreacherName($sermon) ?? '',
             'preacherId' => $sermon->preacher_id,
             'preacherSource' => $sermon->preacher_source?->value,
             'preacherConfidence' => $sermon->preacher_confidence,
@@ -81,7 +80,7 @@ class SermonFormData extends Form
             'segmentStartTime' => $sermon->segment_start_time,
             'segmentEndTime' => $sermon->segment_end_time,
             'downloadCount' => $sermon->download_count,
-            'reference' => $sermonViewPresenter->displayReference($sermon),
+            'reference' => $presenter->displayReference($sermon),
             'series' => $sermon->series,
             'summary' => $sermon->summary,
             'points' => $sermon->points ?? [],

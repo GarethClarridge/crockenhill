@@ -12,6 +12,7 @@ use App\Livewire\Forms\SermonFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use App\Services\SermonStorageService;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\View\View;
@@ -40,12 +41,12 @@ class EditSermon extends Component
 
     public ?string $selectedThumbnailCandidateId = null;
 
-    public function mount(Sermon $sermon): void
+    public function mount(Sermon $sermon, SermonViewPresenter $sermonViewPresenter): void
     {
         $this->authorizeAdmin();
 
         $this->sermon = $sermon;
-        $this->form->setSermon($sermon);
+        $this->form->setSermon($sermon, $sermonViewPresenter);
 
         $this->isChildrensTalk = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk;
         $this->contentTypeLabel = $sermon->content_type->label();

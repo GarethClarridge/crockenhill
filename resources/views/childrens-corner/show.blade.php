@@ -1,17 +1,11 @@
 @extends('layouts.page')
 
-@php
-    $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
-    $speakerName = $sermonViewPresenter->displayPreacherName($sermon);
-    $fullTitle = $sermon->title . ($speakerName ? ' | ' . $speakerName : '');
-@endphp
-
 @section('title'){{ $fullTitle }}@stop
 
 @section('meta_tags')
     <x-meta-tags
         :title="$fullTitle"
-        :description="$sermonViewPresenter->metaDescription($sermon) ?: $sermon->title"
+        :description="$metaDescription ?: $sermon->title"
         type="article"
         :image="$sermonView['thumbnail_url']"
         :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
@@ -22,7 +16,7 @@
         :canonical="$sermonView['public_url']"
     />
 
-    <x-schema.sermon :$sermon :$sermonView />
+    <x-schema.sermon :$sermon :$sermonView :$metaDescription />
 @endsection
 
 @section('dynamic_content')

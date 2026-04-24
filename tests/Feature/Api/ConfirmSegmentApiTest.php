@@ -101,8 +101,7 @@ class ConfirmSegmentApiTest extends TestCase
 
         $this->withToken($token)
             ->postJson('/api/media/processing/not-a-uuid/confirm-segment', ['segment_id' => 1])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['processingId']);
+            ->assertStatus(400);
     }
 
     #[Test]

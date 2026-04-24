@@ -53,7 +53,6 @@
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($sermons as $sermon)
                 @php
-                    $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
                     $publicUrl = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
                         ? route('childrens-corner.show', ['sermon' => $sermon->slug])
                         : route('sermons.show', ['sermon' => $sermon->slug]);

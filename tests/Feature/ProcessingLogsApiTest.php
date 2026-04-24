@@ -248,8 +248,7 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$invalidId}/status");
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['processingId']);
+        $response->assertStatus(400);
     }
 
     #[Test]

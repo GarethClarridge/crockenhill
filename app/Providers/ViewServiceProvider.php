@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\View\Composers\BreadcrumbComposer;
 use App\View\Composers\ChurchPageComposer;
 use App\View\Composers\CommunityPageComposer;
 use App\View\Composers\FooterComposer;
@@ -30,6 +31,7 @@ class ViewServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('components.layout.header', HeaderComposer::class);
+        View::composer('components.breadcrumbs', BreadcrumbComposer::class);
         View::composer('includes.footer', FooterComposer::class);
         View::composer('includes.photo-selector', PhotoSelectorComposer::class);
         View::composer('layouts/page', LayoutPageComposer::class);

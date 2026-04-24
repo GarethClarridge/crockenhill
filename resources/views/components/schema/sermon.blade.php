@@ -1,18 +1,17 @@
 @props([
     'sermon',
     'sermonView',
+    'metaDescription',
 ])
 
 @php
     use Illuminate\Support\Str;
 
-    $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
     $transcript = $sermonView['transcript'] ?? null;
     $duration = $sermon->duration ? \Carbon\CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
-    $preacherName = $sermonViewPresenter->displayPreacherName($sermon);
+    $preacherName = $sermonView['preacher_name'];
     $thumbnailUrl = $sermonView['thumbnail_url'] ?: asset('images/Primary.png');
     $datePublished = $sermon->date->toIso8601String();
-    $metaDescription = $sermonViewPresenter->metaDescription($sermon);
 
     $schema = [
         '@context' => 'https://schema.org',

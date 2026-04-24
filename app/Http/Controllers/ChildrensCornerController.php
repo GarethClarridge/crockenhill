@@ -68,6 +68,10 @@ class ChildrensCornerController extends Controller
 
         $sermon->loadMissing('preacherProfile:id,name,slug');
 
+        $sermonView = $this->sermonViewPresenter->present($sermon);
+        $speakerName = $sermonView['preacher_name'];
+        $fullTitle = $sermon->title.($speakerName ? ' | '.$speakerName : '');
+
         return view('childrens-corner.show', [
             'heading' => $sermon->title,
             'area' => 'christ',
@@ -81,7 +85,10 @@ class ChildrensCornerController extends Controller
                 extraExcludedSlugs: ['privacy-policy'],
             ),
             'sermon' => $sermon,
-            'sermonView' => $this->sermonViewPresenter->present($sermon),
+            'sermonView' => $sermonView,
+            'speakerName' => $speakerName,
+            'fullTitle' => $fullTitle,
+            'metaDescription' => $this->sermonViewPresenter->metaDescription($sermon),
         ]);
     }
 }

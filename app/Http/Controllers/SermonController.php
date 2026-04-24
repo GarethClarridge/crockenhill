@@ -107,13 +107,18 @@ class SermonController extends Controller
         $heading = $sermon->title;
         $pageContext = $pageContextService->build($sermon);
 
+        $sermonView = $this->sermonViewPresenter->present($sermon);
+        $fullTitle = $sermon->title.' | '.($sermonView['preacher_name'] ?? 'Unknown preacher');
+
         return view('sermons.sermon', [
             'slug' => $sermon->slug,
             'heading' => $heading,
             'description' => $sermon->meta_description,
             'content' => '',
             'sermon' => $sermon,
-            'sermonView' => $this->sermonViewPresenter->present($sermon),
+            'sermonView' => $sermonView,
+            'fullTitle' => $fullTitle,
+            'metaDescription' => $this->sermonViewPresenter->metaDescription($sermon),
             'readingReference' => $pageContext['reading_reference'],
             'readingUrl' => $pageContext['reading_url'],
             'area' => 'christ',
@@ -209,8 +214,13 @@ class SermonController extends Controller
     {
         $series = collect($this->sermonRepository->getSeriesForDisplay());
 
+        $seriesUrls = $series->mapWithKeys(fn (string $name): array => [
+            $name => route('sermons.series.show', ['series' => Str::slug($name)]),
+        ]);
+
         return view('sermons.serieses', [
             'series' => $series,
+            'seriesUrls' => $seriesUrls,
             'json_ld_data' => $itemListPresenter->toItemList($series),
             'heading' => 'Sermon Series',
             'description' => 'Browse sermon series from Crockenhill Baptist Church.',

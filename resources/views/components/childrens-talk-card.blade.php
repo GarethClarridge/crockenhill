@@ -1,14 +1,10 @@
 @props([
     'sermon',
+    'cardThumbnailUrl',
+    'speakerName',
+    'hasAudio',
+    'hasVideo',
 ])
-
-@php
-    $sermonViewPresenter = app(\App\Presenters\SermonViewPresenter::class);
-    $cardThumbnailUrl = $sermonViewPresenter->cardThumbnailUrl($sermon);
-    $speakerName = $sermonViewPresenter->displayPreacherName($sermon);
-    $hasAudio = filled($sermon->audio_file_path);
-    $hasVideo = filled($sermonViewPresenter->videoUrl($sermon));
-@endphp
 
 <article class="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
     @if ($cardThumbnailUrl)

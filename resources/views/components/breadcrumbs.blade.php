@@ -4,13 +4,6 @@
 'jsonOnly' => false,
 ])
 
-@php
-/** @var \App\Presenters\BreadcrumbPresenter $presenter */
-$presenter = app(\App\Presenters\BreadcrumbPresenter::class);
-$breadcrumbItems = $presenter->items($area, $heading);
-$breadcrumbList = $presenter->jsonLd($breadcrumbItems);
-@endphp
-
 <script type="application/ld+json">
   {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
