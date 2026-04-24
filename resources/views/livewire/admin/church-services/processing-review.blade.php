@@ -1,14 +1,9 @@
-<div class="space-y-6">
-    {{-- Header --}}
-    <div class="flex justify-between items-center">
-        <div>
-            <h1 class="font-display text-3xl">Review sermon processing</h1>
-            <p class="text-gray-600">Select the correct sermon segment to resume processing for this {{ strtolower($runLabel) }}</p>
-        </div>
+<x-admin.page title="Review sermon processing" :description="'Select the correct sermon segment to resume processing for this '.strtolower($runLabel)">
+    <x-slot:actions>
         <x-button link="{{ route('admin.services.processing.review.index') }}" variant="outline" inline wire:navigate>
             Back to queue
         </x-button>
-    </div>
+    </x-slot:actions>
 
     {{-- Processing run details --}}
     <x-card heading="Processing run">
@@ -209,4 +204,4 @@
             @endif
         @endif
     </x-card>
-</div>
+</x-admin.page>

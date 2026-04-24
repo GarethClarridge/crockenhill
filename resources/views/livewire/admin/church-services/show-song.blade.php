@@ -1,15 +1,9 @@
-<div class="space-y-6">
-    <div class="space-y-2">
-        <a href="{{ route('admin.services.songs.index') }}" wire:navigate class="inline-flex items-center text-sm font-medium text-cbc-teal hover:text-cbc-teal-dark">
+<x-admin.page :title="$song->title" :description="$song->alternate_title ?: null">
+    <x-slot:actions>
+        <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" inline>
             Back to songs
-        </a>
-        <div>
-            <h1 class="font-display text-3xl">{{ $song->title }}</h1>
-            @if($song->alternate_title)
-                <p class="text-sm text-gray-600">{{ $song->alternate_title }}</p>
-            @endif
-        </div>
-    </div>
+        </x-button>
+    </x-slot:actions>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
@@ -117,7 +111,6 @@
                     <p class="text-sm text-gray-500">No usage history found for this song.</p>
                 @endif
             </x-card>
-
         </div>
 
         <div class="space-y-6">
@@ -181,4 +174,4 @@
             </x-card>
         </div>
     </div>
-</div>
+</x-admin.page>

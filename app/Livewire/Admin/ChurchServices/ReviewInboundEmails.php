@@ -34,6 +34,8 @@ class ReviewInboundEmails extends Component
     #[Url(except: '')]
     public string $statusFilter = '';
 
+    public bool $hasFilters = false;
+
     public function mount(): void
     {
 
@@ -44,10 +46,20 @@ class ReviewInboundEmails extends Component
     public function updatedSearch(): void
     {
         $this->resetPage();
+        $this->hasFilters = $this->search !== '' || $this->statusFilter !== '';
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->resetPage();
+        $this->hasFilters = $this->search !== '' || $this->statusFilter !== '';
+    }
+
+    public function resetFilters(): void
+    {
+        $this->search = '';
+        $this->statusFilter = '';
+        $this->hasFilters = false;
         $this->resetPage();
     }
 
@@ -197,9 +209,6 @@ class ReviewInboundEmails extends Component
             'inboundEmails' => $inboundEmails,
             'reviewData' => $reviewData,
             'statusOptions' => $statusOptions,
-        ])->layout('layouts.admin', [
-            'title' => 'Inbound Email Review',
-            'heading' => 'Inbound Email Review',
         ]);
     }
 

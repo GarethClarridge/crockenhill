@@ -1,19 +1,12 @@
-<div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-            <h1 class="font-display text-3xl">Service review dashboard</h1>
-            <p class="text-gray-600">Review flagged services and classified sections in one queue</p>
-        </div>
-
-        <div class="flex flex-wrap gap-2">
-            <x-button link="{{ route('admin.services.section-publications') }}" variant="outline" inline>
-                Section queue
-            </x-button>
-            <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-                Back to services
-            </x-button>
-        </div>
-    </div>
+<x-admin.page title="Service review dashboard" description="Review flagged services and classified sections in one queue">
+    <x-slot:actions>
+        <x-button link="{{ route('admin.services.section-publications') }}" variant="outline" inline>
+            Section queue
+        </x-button>
+        <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
+            Back to services
+        </x-button>
+    </x-slot:actions>
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
         <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -386,4 +379,4 @@
             </div>
         </x-card>
     @endforelse
-</div>
+</x-admin.page>

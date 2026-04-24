@@ -1,5 +1,5 @@
-<div>
-    <div class="flex justify-end gap-2 mb-6">
+<x-admin.page :title="$churchService->date->format('j M Y').' '.$churchService->service->label()">
+    <x-slot:actions>
         <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
             Review dashboard
         </x-button>
@@ -12,7 +12,7 @@
         <x-button link="{{ route('admin.services.section-publications') }}" variant="outline" inline>
             Section queue
         </x-button>
-    </div>
+    </x-slot:actions>
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div class="lg:col-span-3 space-y-6">
@@ -126,4 +126,4 @@
             @endif
         </div>
     </div>
-</div>
+</x-admin.page>
