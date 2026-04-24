@@ -30,6 +30,13 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Presenters\MeetingSitemapPresenter::class);
         $this->app->singleton(\App\Presenters\PreacherSitemapPresenter::class);
         $this->app->singleton(BibleCanon::class);
+
+        $this->app->singleton(\App\Services\SermonExposurePolicy::class);
+        $this->app->singleton(\App\Services\SermonStorageService::class);
+        $this->app->singleton(\App\Services\SermonTranscriptReader::class);
+        $this->app->singleton(\App\Services\TranscriptStorageService::class);
+        $this->app->singleton(\App\Presenters\SermonViewPresenter::class);
+        $this->app->singleton(\App\Presenters\SermonItemListPresenter::class);
     }
 
     public function boot(): void
