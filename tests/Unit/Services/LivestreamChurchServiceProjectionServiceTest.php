@@ -290,8 +290,8 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $churchService = ChurchService::query()->find($result['church_service_id']);
         $item = $churchService->items()->first();
 
+        $this->assertSame($log->processing_id, $item->livestream_processing_id);
         $this->assertArrayHasKey('livestream_projection', $item->metadata);
-        $this->assertSame($log->processing_id, $item->metadata['livestream_projection']['processing_id']);
         $this->assertSame('high', $item->metadata['livestream_projection']['confidence_level']);
     }
 

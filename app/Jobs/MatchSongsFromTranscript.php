@@ -86,7 +86,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         }
 
         $this->processingLog = $processingLog;
-        $this->initializeStepLogging($this->processingLog->processing_id);
+        $this->startProcessingJob($this->processingLog, $this->job ?? null, $this->attempts());
 
         if (
             $this->processingLog->processing_type !== MediaType::Livestream

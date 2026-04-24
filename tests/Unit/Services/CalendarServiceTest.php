@@ -291,6 +291,59 @@ class CalendarServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_manually_uncategorizes_an_event(): void
+    {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+
+        $event = CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'is_categorized_automatically' => true,
+            'google_event_id' => 'google-event-abc',
+        ]);
+
+        $this->googleSync
+            ->expects($this->once())
+            ->method('removeCategorizationFromGoogle')
+            ->with('google-event-abc')
+            ->willReturn(true);
+
+        $result = $this->service->manuallyUnCategorizeEvent($event->id);
+
+        $this->assertInstanceOf(CalendarCategorizationResult::class, $result);
+        $this->assertNull($result->event->meeting_slug);
+        $this->assertFalse($result->event->is_categorized_automatically);
+        $this->assertTrue($result->googleSynced);
+
+        $event->refresh();
+        $this->assertNull($event->meeting_slug);
+        $this->assertFalse($event->is_categorized_automatically);
+    }
+
+    #[Test]
+    public function it_uncategorizes_event_updating_db_even_if_google_fails(): void
+    {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+
+        $event = CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'google_event_id' => 'google-event-xyz',
+        ]);
+
+        $this->googleSync
+            ->method('removeCategorizationFromGoogle')
+            ->willReturn(false);
+
+        $result = $this->service->manuallyUnCategorizeEvent($event->id);
+
+        $this->assertInstanceOf(CalendarCategorizationResult::class, $result);
+        $this->assertNull($result->event->meeting_slug);
+        $this->assertFalse($result->googleSynced);
+
+        $event->refresh();
+        $this->assertNull($event->meeting_slug);
+    }
+
+    #[Test]
     public function it_returns_empty_collection_when_no_events_exist(): void
     {
         $events = $this->service->getEventsForMeeting('nonexistent-meeting');

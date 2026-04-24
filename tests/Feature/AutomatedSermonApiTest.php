@@ -247,8 +247,7 @@ class AutomatedSermonApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$invalidId}/status");
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['processingId']);
+        $response->assertStatus(400);
     }
 
     #[Test]
@@ -384,7 +383,7 @@ class AutomatedSermonApiTest extends TestCase
     #[Test]
     public function it_validates_processing_id_format_in_all_endpoints(): void
     {
-        $invalidId = 'x'; // Too short to pass isValidProcessingId (< 8 chars)
+        $invalidId = 'x';
         $endpoints = [
             ['GET', "/api/media/processing/{$invalidId}/status"],
             ['POST', "/api/media/processing/{$invalidId}/retry"],
@@ -394,8 +393,7 @@ class AutomatedSermonApiTest extends TestCase
             $response = $this->actingAs($this->user)
                 ->json($method, $url);
 
-            $response->assertStatus(422)
-                ->assertJsonValidationErrors(['processingId']);
+            $response->assertStatus(400);
         }
     }
 

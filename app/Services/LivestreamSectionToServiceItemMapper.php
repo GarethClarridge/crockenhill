@@ -28,7 +28,7 @@ class LivestreamSectionToServiceItemMapper
      * Convert classified ServiceSections into ChurchServiceItem sync payloads.
      *
      * @param  Collection<int, ServiceSection>  $sections
-     * @return list<array{position: int, type: string, section_type: string, title: string, source_title: null, openlp_search_title: null, song_id: null, metadata: array<string, mixed>}>
+     * @return list<array{position: int, type: string, section_type: string, title: string, source_title: null, openlp_search_title: null, song_id: null, livestream_processing_id: string, livestream_service_section_id: int, metadata: array<string, mixed>}>
      */
     public function map(Collection $sections, string $processingId): array
     {
@@ -96,14 +96,19 @@ class LivestreamSectionToServiceItemMapper
     }
 
     /**
-     * @return array{livestream_projection: array{processing_id: string, service_section_id: int, source_segment_ids: array<int, int>, confidence_level: string, needs_manual_review: bool}}
+     * Build derived/display-only fields that are not yet promoted to columns.
+     *
+     * `processing_id` and `service_section_id` are intentionally omitted — those
+     * live on dedicated columns (`livestream_processing_id`,
+     * `livestream_service_section_id`) and are written as top-level payload keys
+     * by the mapper. Duplicating them inside the JSON blob invited drift.
+     *
+     * @return array{livestream_projection: array{source_segment_ids: array<int, int>, confidence_level: string, needs_manual_review: bool}}
      */
     private function buildMetadata(ServiceSection $section, string $processingId): array
     {
         return [
             'livestream_projection' => [
-                'processing_id' => $processingId,
-                'service_section_id' => $section->id,
                 'source_segment_ids' => $section->source_segment_ids ?? [],
                 'confidence_level' => $this->confidenceLevel($section->confidence),
                 'needs_manual_review' => (bool) $section->needs_manual_review,

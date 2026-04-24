@@ -501,12 +501,6 @@ class ShowChurchService extends Component
             if (is_string($item->livestream_processing_id) && trim($item->livestream_processing_id) !== '') {
                 $processingIds[] = $item->livestream_processing_id;
             }
-
-            $itemMetadata = $item->metadata ?? [];
-            $itemProjection = $itemMetadata['livestream_projection'] ?? [];
-            if (is_string($itemProjection['processing_id'] ?? null) && trim($itemProjection['processing_id']) !== '') {
-                $processingIds[] = $itemProjection['processing_id'];
-            }
         }
 
         $serviceMetadata = $this->churchService->import_metadata?->toArray() ?? [];

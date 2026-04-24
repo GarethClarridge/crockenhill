@@ -48,9 +48,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            // Initialize step logging and capture queue correlation
-            $this->initializeStepLogging($this->processingLog->processing_id);
-            $this->captureQueueCorrelation($this->processingLog, $this->job ?? null, $this->attempts());
+            $this->startProcessingJob($this->processingLog, $this->job ?? null, $this->attempts());
 
             // Check if processing has been cancelled
             if ($this->isCancelled()) {

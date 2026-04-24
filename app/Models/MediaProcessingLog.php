@@ -57,7 +57,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $owner_user_id
  * @property int|null $church_service_id
  * @property string|null $queue_name
- * @property string|null $batch_id
  * @property string|null $job_id
  * @property int|null $attempt_count
  * @property \Illuminate\Support\Carbon|null $started_at
@@ -132,7 +131,6 @@ class MediaProcessingLog extends Model
 
         // Queue correlation
         'queue_name',
-        'batch_id',
         'job_id',
         'attempt_count',
 

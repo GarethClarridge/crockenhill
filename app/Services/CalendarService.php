@@ -101,4 +101,25 @@ class CalendarService
 
         return new CalendarCategorizationResult($event, $googleSynced);
     }
+
+    public function manuallyUnCategorizeEvent(int $eventId): CalendarCategorizationResult
+    {
+        $event = CalendarEvent::findOrFail($eventId);
+
+        $event->update([
+            'meeting_slug' => null,
+            'is_categorized_automatically' => false,
+        ]);
+
+        Log::warning('Calendar event un-categorized', [
+            'admin_id' => auth()->id(),
+            'event_id' => $event->id,
+            'event_title' => $event->title,
+        ]);
+
+        $googleSynced = $event->google_event_id !== null
+            && $this->googleSync->removeCategorizationFromGoogle($event->google_event_id);
+
+        return new CalendarCategorizationResult($event, $googleSynced);
+    }
 }

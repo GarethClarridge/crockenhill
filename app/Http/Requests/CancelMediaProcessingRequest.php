@@ -8,9 +8,7 @@ class CancelMediaProcessingRequest extends MediaProcessingRequest
 {
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'processingId' => $this->route('processingId'),
-        ]);
+        $this->assertProcessingIdShape();
     }
 
     /**
@@ -20,8 +18,6 @@ class CancelMediaProcessingRequest extends MediaProcessingRequest
      */
     public function rules(): array
     {
-        return [
-            'processingId' => ['required', 'uuid'],
-        ];
+        return [];
     }
 }

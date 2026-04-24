@@ -55,7 +55,7 @@ class EnhanceAudio extends ProcessingJob implements ShouldQueue
         }
 
         $this->processingLog = $refreshedLog;
-        $this->initializeStepLogging($this->processingLog->processing_id);
+        $this->startProcessingJob($this->processingLog, $this->job ?? null, $this->attempts());
 
         if ($this->isCancelled()) {
             Log::info('EnhanceAudio: job cancelled', [

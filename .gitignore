@@ -38,6 +38,10 @@
 /.phpunit.cache/
 *.cache
 *.backup
+*.bak
+
+# Claude Code runtime state
+/.claude/scheduled_tasks.lock
 
 # Lighthouse CI report artifacts
 /.lighthouseci/

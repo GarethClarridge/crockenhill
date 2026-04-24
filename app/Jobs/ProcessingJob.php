@@ -225,6 +225,21 @@ abstract class ProcessingJob
     }
 
     /**
+     * Start step logging and capture queue correlation in one call.
+     *
+     * Prefer this over calling initializeStepLogging() and captureQueueCorrelation()
+     * separately — it keeps correlation capture consistent across processing jobs.
+     */
+    protected function startProcessingJob(
+        MediaProcessingLog $processingLog,
+        ?\Illuminate\Contracts\Queue\Job $job,
+        int $attempts
+    ): void {
+        $this->initializeStepLogging($processingLog->processing_id);
+        $this->captureQueueCorrelation($processingLog, $job, $attempts);
+    }
+
+    /**
      * Get the processing ID from a sermon's processing log
      */
     protected function getProcessingIdFromSermon(int $sermonId): ?string

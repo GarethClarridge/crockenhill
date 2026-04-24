@@ -8,9 +8,7 @@ class MediaStatusRequest extends MediaProcessingRequest
 {
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'processingId' => $this->route('processingId'),
-        ]);
+        $this->assertProcessingIdShape();
 
         if ($this->has('include_logs')) {
             $this->merge([
@@ -27,7 +25,6 @@ class MediaStatusRequest extends MediaProcessingRequest
     public function rules(): array
     {
         return [
-            'processingId' => ['required', 'uuid'],
             'include_logs' => ['nullable', 'boolean'],
             'log_limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];

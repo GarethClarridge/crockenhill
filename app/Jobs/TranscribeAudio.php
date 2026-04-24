@@ -49,8 +49,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            // Initialize step logging
-            $this->initializeStepLogging($this->processingLog->processing_id);
+            $this->startProcessingJob($this->processingLog, $this->job ?? null, $this->attempts());
 
             // Check if processing has been cancelled
             if ($this->isCancelled()) {

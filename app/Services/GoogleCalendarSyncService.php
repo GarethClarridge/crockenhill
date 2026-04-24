@@ -180,6 +180,40 @@ class GoogleCalendarSyncService
     }
 
     /**
+     * Clear a manual meeting_slug categorization from the Google Calendar event's extended properties.
+     *
+     * Returns true when the Google write succeeded, false when it failed gracefully.
+     */
+    public function removeCategorizationFromGoogle(string $googleEventId): bool
+    {
+        try {
+            $googleEvent = Event::find($googleEventId);
+            /** @phpstan-ignore-next-line */
+            if (! $googleEvent) {
+                return false;
+            }
+
+            /** @phpstan-ignore-next-line */
+            $extendedProperties = $googleEvent->googleEvent->getExtendedProperties() ?? [];
+            if (isset($extendedProperties['private']['meeting_slug'])) {
+                unset($extendedProperties['private']['meeting_slug']);
+            }
+
+            $googleEvent->googleEvent->setExtendedProperties($extendedProperties);
+            $googleEvent->save();
+
+            return true;
+        } catch (\Exception $e) {
+            Log::warning('Failed to clear Google Calendar extended property', [
+                'google_event_id' => $googleEventId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $eventData
      */
     public function createEventForMeeting(string $meetingSlug, array $eventData): Event

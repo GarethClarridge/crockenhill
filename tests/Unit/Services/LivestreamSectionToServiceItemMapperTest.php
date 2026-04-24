@@ -73,7 +73,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         $this->assertNull($result[0]['openlp_search_title']);
         $this->assertNull($result[0]['song_id']);
         $this->assertSame('high', $result[0]['metadata']['livestream_projection']['confidence_level']);
-        $this->assertSame($log->processing_id, $result[0]['metadata']['livestream_projection']['processing_id']);
+        $this->assertSame($log->processing_id, $result[0]['livestream_processing_id']);
 
         $this->assertSame(2, $result[1]['position']);
         $this->assertSame('custom', $result[1]['type']);
@@ -226,7 +226,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
 
         $result = $this->mapper->map($sections, $log->processing_id);
 
-        $this->assertSame($section->id, $result[0]['metadata']['livestream_projection']['service_section_id']);
+        $this->assertSame($section->id, $result[0]['livestream_service_section_id']);
         $this->assertSame([5, 6, 7], $result[0]['metadata']['livestream_projection']['source_segment_ids']);
     }
 

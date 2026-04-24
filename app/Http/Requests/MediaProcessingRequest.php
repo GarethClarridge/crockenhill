@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Enums\ApiTokenAbility;
 use Illuminate\Foundation\Http\FormRequest;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 abstract class MediaProcessingRequest extends FormRequest
 {
@@ -29,5 +30,21 @@ abstract class MediaProcessingRequest extends FormRequest
         }
 
         return true;
+    }
+
+    /**
+     * Reject malformed route-supplied processingId values with HTTP 400.
+     *
+     * External uploader tools predate the Form Request migration and already
+     * handle 400 for a malformed processingId. Preserving that contract here
+     * means only body-field validation failures surface as 422.
+     */
+    protected function assertProcessingIdShape(): void
+    {
+        $processingId = $this->route('processingId');
+
+        if (! is_string($processingId) || preg_match('/^[0-9a-fA-F-]{36}$/', $processingId) !== 1) {
+            throw new HttpException(400, 'Invalid processing ID format.');
+        }
     }
 }
