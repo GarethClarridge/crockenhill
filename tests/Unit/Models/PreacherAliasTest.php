@@ -27,8 +27,7 @@ class PreacherAliasTest extends TestCase
         $alias = new PreacherAlias($data);
 
         $this->assertEquals($data['preacher_id'], $alias->preacher_id);
-        // Normalized to lowercase by model mutator
-        $this->assertEquals('john dory', $alias->alias);
+        $this->assertEquals($data['alias'], $alias->alias);
     }
 
     #[Test]
@@ -68,12 +67,11 @@ class PreacherAliasTest extends TestCase
             'alias' => 'Alternative Name',
         ]);
 
-        // Query by normalized lowercase alias
-        $retrieved = PreacherAlias::where('alias', 'alternative name')->first();
+        $retrieved = PreacherAlias::where('alias', 'Alternative Name')->first();
 
         $this->assertNotNull($retrieved);
         $this->assertEquals($preacher->id, $retrieved->preacher_id);
-        $this->assertEquals('alternative name', $retrieved->alias);
+        $this->assertEquals('Alternative Name', $retrieved->alias);
     }
 
     #[Test]

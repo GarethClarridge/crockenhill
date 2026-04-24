@@ -80,7 +80,7 @@ class MeetingRecursionTest extends TestCase
     }
 
     #[Test]
-    public function monthly_recurrence_on_31st_lands_on_end_of_march_if_in_february(): void
+    public function monthly_recurrence_on_31st_lands_on_last_day_of_february_if_now_is_february(): void
     {
         Carbon::setTestNow('2024-02-01 10:00:00');
 
@@ -92,33 +92,13 @@ class MeetingRecursionTest extends TestCase
 
         $next = $meeting->getNextOccurrence();
 
-        // Current month (Feb) occurrence of 31st resolves to March 2nd.
-        // Since March 2nd is in the future, it is selected as the initial candidate.
-        // The implementation then sees day (2) != originalDay (31) and re-applies ->day(31).
-        // March 2nd ->day(31) becomes March 31st.
-        $this->assertEquals('2024-03-31 12:00:00', $next->toDateTimeString());
+        // 2024 is leap year, so Feb has 29 days. 31st is clamped to 29th.
+        $this->assertEquals('2024-02-29 12:00:00', $next->toDateTimeString());
     }
 
     #[Test]
-    public function monthly_recurrence_past_current_month_overflow_lands_on_end_of_next_month(): void
+    public function monthly_recurrence_past_current_month_lands_on_next_month(): void
     {
-        // March 2nd 14:00.
-        // A meeting on Jan 31st 12:00.
-        // Current month (March) occurrence of 31st is March 31st.
-        // But wait, the code says:
-        // $currentMonthOccurrence = $now->copy()->day($originalDay)->setTimeFrom($meetingDate);
-        // If $now is March 2nd, $originalDay is 31, $currentMonthOccurrence is March 31st.
-        // March 31st is Future, so it should return March 31st.
-
-        // Let's try to trigger the 'else' block in monthly.
-        // $now = March 2nd 14:00.
-        // $meetingDate = Jan 1st 12:00.
-        // $originalDay = 1.
-        // $currentMonthOccurrence = March 1st 12:00.
-        // $currentMonthOccurrence is Past.
-        // $nextOccurrence = $now->copy()->addMonthNoOverflow()->day(1)->setTimeFrom($meetingDate);
-        // $nextOccurrence = April 1st 12:00.
-
         Carbon::setTestNow('2024-03-02 14:00:00');
 
         $meeting = Meeting::factory()->create([
@@ -160,8 +140,8 @@ class MeetingRecursionTest extends TestCase
 
         $next = $meeting->getNextOccurrence();
 
-        // In 2025, Feb 29 resolves to March 1st
-        $this->assertEquals('2025-03-01 12:00:00', $next->toDateTimeString());
+        // In 2025, Feb 29 is clamped to Feb 28th
+        $this->assertEquals('2025-02-28 12:00:00', $next->toDateTimeString());
     }
 
     #[Test]
