@@ -9,6 +9,8 @@
     :title="$heading"
     :description="$description"
     :image="$preacher->profile_image_url"
+    label1="Sermons"
+    :data1="$sermons->count()"
 />
 <x-schema.webpage
     :heading="$heading"

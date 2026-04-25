@@ -8,6 +8,8 @@
 <x-meta-tags
     :title="$heading"
     :description="$description"
+    :image="asset('/images/headings/large/sermons.webp')"
+    image-alt="Sermon Series: {{ $heading }}"
 />
 <x-schema.webpage
     :heading="$heading"

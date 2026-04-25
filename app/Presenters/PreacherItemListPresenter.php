@@ -31,6 +31,7 @@ class PreacherItemListPresenter
                         '@type' => 'Person',
                         'name' => $preacher->name,
                         'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
+                        'image' => $preacher->profile_image_url,
                         'jobTitle' => 'Preacher',
                         'worksFor' => [
                             '@type' => 'Organization',
