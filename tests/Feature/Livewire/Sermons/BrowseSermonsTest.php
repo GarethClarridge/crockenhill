@@ -26,6 +26,14 @@ class BrowseSermonsTest extends TestCase
     }
 
     #[Test]
+    public function it_contains_a_skip_to_results_link(): void
+    {
+        Livewire::test(BrowseSermons::class)
+            ->assertSeeHtml('href="#sermon-results"')
+            ->assertSee('Skip to results');
+    }
+
+    #[Test]
     public function no_filters_show_flat_paginated_browse_results(): void
     {
         Sermon::factory()->create([
