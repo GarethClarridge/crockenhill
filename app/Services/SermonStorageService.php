@@ -87,9 +87,17 @@ class SermonStorageService
         // to ensure uniqueness and handle state changes within the request.
         $cacheKey = ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
 
-        if (isset($this->memoizedFileInfo[$cacheKey])) {
-            return $this->memoizedFileInfo[$cacheKey];
-        }
+        return $this->memoizedFileInfo[$cacheKey] ??= $this->resolveFileInfo($sermon);
+    }
+
+    /**
+     * Resolve file information for a sermon based on its storage pattern.
+     *
+     * @return array{type: string, disk: string, path: string, original_path: string}
+     */
+    private function resolveFileInfo(Sermon $sermon): array
+    {
+        $audioPath = $sermon->audio_file_path ?? '';
 
         $this->validatePath($audioPath, 'audio file');
 
@@ -122,7 +130,7 @@ class SermonStorageService
 
         if (str_contains($audioPath, '/')) {
             // Newer Laravel storage pattern
-            return $this->memoizedFileInfo[$cacheKey] = [
+            return [
                 'type' => 'storage',
                 'disk' => $this->sermonDisk,
                 'path' => $audioPath,
@@ -131,7 +139,7 @@ class SermonStorageService
         }
 
         // Current media processing pattern
-        return $this->memoizedFileInfo[$cacheKey] = [
+        return [
             'type' => 'processing',
             'disk' => $this->sermonDisk,
             'path' => $audioPath,

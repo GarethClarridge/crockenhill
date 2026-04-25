@@ -560,13 +560,8 @@ class SermonViewPresenter
     {
         $id = $sermon->id ?? 'u'.spl_object_id($sermon);
 
-        if (! isset($this->memoizedSermonKeys[$id])) {
-            if (! isset($this->memoizedTimestamps[$id])) {
-                $this->memoizedTimestamps[$id] = $sermon->updated_at?->getTimestamp() ?? 0;
-            }
-
-            $this->memoizedSermonKeys[$id] = "{$id}_{$this->memoizedTimestamps[$id]}";
-        }
+        $this->memoizedTimestamps[$id] ??= $sermon->updated_at?->getTimestamp() ?? 0;
+        $this->memoizedSermonKeys[$id] ??= "{$id}_{$this->memoizedTimestamps[$id]}";
 
         return "{$type}_{$this->memoizedSermonKeys[$id]}";
     }
