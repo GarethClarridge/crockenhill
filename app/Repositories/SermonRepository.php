@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Models\SermonScriptureFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -24,7 +26,7 @@ class SermonRepository
     {
         return Sermon::query()
             ->whereSermon()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'duration', 'audio_file_path', 'video_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'duration', 'audio_file_path', 'video_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary', 'filetype'])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',
@@ -165,8 +167,11 @@ class SermonRepository
         Cache::forget('latest_sermons');
         Cache::forget('all_sermons');
         Cache::forget('sermon_series');
+        Cache::forget('sermon_scripture_books');
 
         if ($model instanceof Sermon) {
+            $this->clearScriptureChapterCaches($model);
+
             if ($model->series) {
                 Cache::forget('sermons_series_'.Str::slug($model->series));
             }
@@ -213,6 +218,19 @@ class SermonRepository
         }
 
         return $slug;
+    }
+
+    /**
+     * Clear scripture chapter caches for a specific sermon's bible references.
+     */
+    private function clearScriptureChapterCaches(Sermon $sermon): void
+    {
+        // Clear caches for all books associated with this sermon via scripture filters
+        $books = $sermon->scriptureFilters()->pluck('bible_book')->unique();
+
+        foreach ($books as $book) {
+            Cache::forget("sermon_scripture_chapters_{$book}");
+        }
     }
 
     /**
@@ -266,5 +284,72 @@ class SermonRepository
 
             return $series;
         });
+    }
+
+    /**
+     * Get distinct bible books that have associated sermons.
+     *
+     * Performance Optimization: Caches the book list for 24 hours using flexible cache.
+     * Optimizes the query to avoid joining the 'sermons' table when filters are null.
+     *
+     * @return array<int, string>
+     */
+    public function getScriptureBooks(?int $preacherId = null, ?string $series = null): array
+    {
+        if ($preacherId === null && $series === null) {
+            return Cache::flexible('sermon_scripture_books', [86400, 172800], function (): array {
+                return SermonScriptureFilter::query()
+                    ->select('bible_book')
+                    ->distinct()
+                    ->pluck('bible_book')
+                    ->all();
+            });
+        }
+
+        return SermonScriptureFilter::query()
+            ->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+            ->where('sermons.content_type', SermonContentType::Sermon->value)
+            ->when($preacherId, fn (Builder $query): Builder => $query->where('sermons.preacher_id', $preacherId))
+            ->when($series, fn (Builder $query): Builder => $query->where('sermons.series', $series))
+            ->select('bible_book')
+            ->distinct()
+            ->pluck('bible_book')
+            ->all();
+    }
+
+    /**
+     * Get distinct bible chapters for a book that have associated sermons.
+     *
+     * Performance Optimization: Caches the chapter list per book for 24 hours using flexible cache.
+     *
+     * @return array<int, int>
+     */
+    public function getScriptureChapters(string $book, ?int $preacherId = null, ?string $series = null): array
+    {
+        if ($preacherId === null && $series === null) {
+            return Cache::flexible("sermon_scripture_chapters_{$book}", [86400, 172800], function () use ($book): array {
+                return SermonScriptureFilter::query()
+                    ->where('bible_book', $book)
+                    ->select('bible_chapter')
+                    ->distinct()
+                    ->orderBy('bible_chapter')
+                    ->pluck('bible_chapter')
+                    ->map(fn (mixed $chapter): int => (int) $chapter)
+                    ->all();
+            });
+        }
+
+        return SermonScriptureFilter::query()
+            ->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+            ->where('sermons.content_type', SermonContentType::Sermon->value)
+            ->where('sermon_scripture_filters.bible_book', $book)
+            ->when($preacherId, fn (Builder $query): Builder => $query->where('sermons.preacher_id', $preacherId))
+            ->when($series, fn (Builder $query): Builder => $query->where('sermons.series', $series))
+            ->select('bible_chapter')
+            ->distinct()
+            ->orderBy('bible_chapter')
+            ->pluck('bible_chapter')
+            ->map(fn (mixed $chapter): int => (int) $chapter)
+            ->all();
     }
 }
