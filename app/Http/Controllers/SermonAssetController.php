@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
+use App\Models\User;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use Illuminate\Http\RedirectResponse;
@@ -65,6 +66,8 @@ class SermonAssetController extends Controller
             return $authorizationResponse;
         }
 
+        $this->ensureVideoIsExposed($sermon);
+
         if (! $sermon->video_file_path) {
             abort(404, 'Video file not found.');
         }
@@ -103,6 +106,8 @@ class SermonAssetController extends Controller
             return $authorizationResponse;
         }
 
+        $this->ensureThumbnailIsExposed($sermon);
+
         if (! $sermon->thumbnail_file_path) {
             abort(404, 'Thumbnail not found.');
         }
@@ -133,6 +138,8 @@ class SermonAssetController extends Controller
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
+
+        $this->ensureThumbnailIsExposed($sermon);
 
         $cardThumbnailPath = $sermon->card_thumbnail_file_path;
 
@@ -188,6 +195,26 @@ class SermonAssetController extends Controller
             'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
             'Cache-Control' => 'no-store',
         ]);
+    }
+
+    private function ensureVideoIsExposed(Sermon $sermon): void
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (! ($user?->canAccessAdmin() === true) && ! $this->exposurePolicy->shouldExposeVideo($sermon)) {
+            abort(403, 'This video is not publicly available.');
+        }
+    }
+
+    private function ensureThumbnailIsExposed(Sermon $sermon): void
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (! ($user?->canAccessAdmin() === true) && ! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
+            abort(403, 'This thumbnail is not publicly available.');
+        }
     }
 
     private function authorizeChildrensTalkAssetAccess(Sermon $sermon): ?RedirectResponse
