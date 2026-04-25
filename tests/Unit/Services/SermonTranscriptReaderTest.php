@@ -63,4 +63,93 @@ class SermonTranscriptReaderTest extends TestCase
         $this->assertNull($transcript);
         Log::shouldHaveReceived('warning')->once();
     }
+
+    #[Test]
+    public function it_caches_successful_transcript_reads_for_24_hours(): void
+    {
+        \Illuminate\Support\Facades\Cache::spy();
+        Storage::fake('local');
+        Storage::put('transcripts/cache-test.md', 'Transcript content');
+
+        $sermon = Sermon::factory()->create([
+            'transcript_file_path' => 'transcripts/cache-test.md',
+        ]);
+
+        $reader = app(SermonTranscriptReader::class);
+        $reader->read($sermon);
+
+        $hash = sha1('transcripts/cache-test.md');
+        $timestamp = $sermon->updated_at->getTimestamp();
+        $expectedKey = "sermon_transcript_{$hash}_{$timestamp}";
+
+        \Illuminate\Support\Facades\Cache::shouldHaveReceived('put')
+            ->once()
+            ->with($expectedKey, 'Transcript content', 86400);
+    }
+
+    #[Test]
+    public function it_uses_cached_transcript_on_subsequent_calls(): void
+    {
+        Storage::fake('local');
+        Storage::put('transcripts/subsequent-test.md', 'Initial content');
+
+        $sermon = Sermon::factory()->create([
+            'transcript_file_path' => 'transcripts/subsequent-test.md',
+        ]);
+
+        $reader = app(SermonTranscriptReader::class);
+
+        // First read - should hit storage and cache
+        $this->assertSame('Initial content', $reader->read($sermon));
+
+        // Change content in storage
+        Storage::put('transcripts/subsequent-test.md', 'Changed content');
+
+        // Second read - should hit cache and NOT see the change
+        $this->assertSame('Initial content', $reader->read($sermon));
+    }
+
+    #[Test]
+    public function it_busts_cache_when_sermon_is_updated(): void
+    {
+        Storage::fake('local');
+        Storage::put('transcripts/bust-test.md', 'Original content');
+
+        $sermon = Sermon::factory()->create([
+            'transcript_file_path' => 'transcripts/bust-test.md',
+            'updated_at' => now()->subMinutes(5),
+        ]);
+
+        $reader = app(SermonTranscriptReader::class);
+
+        // First read - should hit storage and cache
+        $this->assertSame('Original content', $reader->read($sermon));
+
+        // Change content in storage
+        Storage::put('transcripts/bust-test.md', 'Updated content');
+
+        // Update the sermon timestamp to bust cache
+        $sermon->updated_at = now();
+        $sermon->save();
+        $sermon->refresh();
+
+        // Second read - should hit storage again because timestamp changed
+        $this->assertSame('Updated content', $reader->read($sermon));
+    }
+
+    #[Test]
+    public function it_does_not_cache_failed_reads(): void
+    {
+        \Illuminate\Support\Facades\Cache::spy();
+        Storage::fake('local');
+
+        $sermon = Sermon::factory()->create([
+            'transcript_file_path' => 'transcripts/fail-cache-test.md',
+        ]);
+
+        $reader = app(SermonTranscriptReader::class);
+        $reader->read($sermon);
+
+        \Illuminate\Support\Facades\Cache::shouldNotHaveReceived('put');
+    }
 }
