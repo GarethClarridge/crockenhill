@@ -9,13 +9,15 @@
 'seriesUrl',
 ])
 
-<div data-sermon-card class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
+<div data-sermon-card class="group relative flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
 
   @if($thumbnailUrl)
     <a
       href="{{ $sermonUrl }}"
       wire:navigate
       data-sermon-card-thumbnail
+      tabindex="-1"
+      aria-hidden="true"
       class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200"
     >
       <img
@@ -36,13 +38,13 @@
 
   <div class="flex flex-col flex-1 p-6">
     @if (($sermon->title != null) && ! $thumbnailUrl)
-      <a class="group" href="{{ $sermonUrl }}" wire:navigate>
+      <a class="relative z-10" href="{{ $sermonUrl }}" wire:navigate>
         <h4 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h4>
       </a>
     @elseif ($sermon->title != null)
-      <a class="group hidden" href="{{ $sermonUrl }}" wire:navigate data-sermon-card-title-fallback>
+      <a class="relative z-10 hidden" href="{{ $sermonUrl }}" wire:navigate data-sermon-card-title-fallback>
         <h4 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h4>
@@ -75,7 +77,7 @@
       <li class="flex items-center">
         <x-heroicon-o-user class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         @if ($preacherUrl)
-          <a href="{{ $preacherUrl }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $preacherName }}</a>
+          <a href="{{ $preacherUrl }}" wire:navigate class="relative z-10 hover:text-cbc-teal-dark transition-colors">{{ $preacherName }}</a>
         @else
           <span>{{ $preacherName }}</span>
         @endif
@@ -84,7 +86,7 @@
       @if ($sermon->series != null)
       <li class="flex items-center">
         <x-heroicon-o-tag class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
-        <a href="{{ $seriesUrl }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->series }}</a>
+        <a href="{{ $seriesUrl }}" wire:navigate class="relative z-10 hover:text-cbc-teal-dark transition-colors">{{ $sermon->series }}</a>
       </li>
       @endif
       @if ($reference != null)
@@ -104,7 +106,7 @@
       iconStyle="solid"
       iconPosition="trailing"
       iconClass="shrink-0 text-white/90"
-      class="w-full justify-between rounded-none text-left font-normal"
+      class="w-full justify-between rounded-none text-left font-normal after:absolute after:inset-0"
       aria-label="View sermon: {{ $sermon->title }}"
   >
       View Sermon
