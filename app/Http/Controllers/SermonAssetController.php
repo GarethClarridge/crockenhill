@@ -26,7 +26,7 @@ class SermonAssetController extends Controller
      */
     public function serveAudio(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'audio');
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -60,7 +60,7 @@ class SermonAssetController extends Controller
 
     public function serveVideo(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'video');
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -98,7 +98,7 @@ class SermonAssetController extends Controller
      */
     public function serveThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'thumbnail');
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -129,7 +129,7 @@ class SermonAssetController extends Controller
      */
     public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'thumbnail');
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -190,17 +190,55 @@ class SermonAssetController extends Controller
         ]);
     }
 
-    private function authorizeChildrensTalkAssetAccess(Sermon $sermon): ?RedirectResponse
+    /**
+     * Authorize access to a sermon asset based on content type and exposure policy.
+     *
+     * Security: Admins have unrestricted access for review. Children's Talk access
+     * is gated by verified email (when not public). Regular sermon video and
+     * thumbnail visibility is governed by automated quality assessment and
+     * manual visibility overrides.
+     */
+    private function authorizeAssetAccess(Sermon $sermon, string $assetType): ?RedirectResponse
     {
-        if ($sermon->content_type !== SermonContentType::ChildrensTalk) {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        // Security: Administrators are exempt from exposure policies to allow for review.
+        if ($user?->canAccessAdmin()) {
             return null;
         }
 
-        if ($this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
-            return null;
+        // Security: Private assets of regular sermons are restricted to administrators.
+        // Public users should only access assets marked as public (non-private/ path).
+        $path = match ($assetType) {
+            'audio' => $sermon->audio_file_path,
+            'video' => $sermon->video_file_path,
+            'thumbnail' => $sermon->thumbnail_file_path,
+            default => null,
+        };
+
+        if ($path !== null && str_starts_with($path, 'private/')) {
+            abort(403, 'Unauthorized access to private asset.');
         }
 
-        return redirect()->guest(route('login'));
+        if ($sermon->content_type === SermonContentType::ChildrensTalk) {
+            if ($this->exposurePolicy->canAccessChildrensCorner($user)) {
+                return null;
+            }
+
+            return redirect()->guest(route('login'));
+        }
+
+        // Regular sermon visibility checks
+        if ($assetType === 'video' && ! $this->exposurePolicy->shouldExposeVideo($sermon)) {
+            abort(404, 'Video not available.');
+        }
+
+        if ($assetType === 'thumbnail' && ! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
+            abort(404, 'Thumbnail not available.');
+        }
+
+        return null;
     }
 
     private function abortOnUnsafePath(string $path, string $type): void
