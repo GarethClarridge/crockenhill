@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Models\SermonScriptureFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -167,6 +169,8 @@ class SermonRepository
         Cache::forget('sermon_series');
 
         if ($model instanceof Sermon) {
+            $this->clearScriptureChapterCaches($model);
+
             if ($model->series) {
                 Cache::forget('sermons_series_'.Str::slug($model->series));
             }
@@ -266,5 +270,119 @@ class SermonRepository
 
             return $series;
         });
+    }
+
+    /**
+     * Get distinct Bible books that have associated sermons, optionally filtered by preacher or series.
+     *
+     * Performance Optimization: Caches the book list for 24 hours using flexible cache.
+     * If no preacher or series filters are applied, it avoids joining the sermons table.
+     *
+     * @return Collection<int, string>
+     */
+    public function getScriptureBooks(mixed $preacherId = null, mixed $series = null): Collection
+    {
+        $preacherId = (int) $preacherId ?: null;
+        $series = filled($series) ? (string) $series : null;
+
+        $cacheKey = 'sermon_scripture_books_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
+
+        return Cache::flexible($cacheKey, [86400, 172800], function () use ($preacherId, $series): Collection {
+            $query = SermonScriptureFilter::query();
+
+            if ($preacherId === null && $series === null) {
+                // Entries are only created for ContentType::Sermon, so we can skip the join
+                return $query->select('bible_book')
+                    ->distinct()
+                    ->pluck('bible_book');
+            }
+
+            return $query->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+                ->where('sermons.content_type', SermonContentType::Sermon)
+                ->when($preacherId, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherId))
+                ->when($series, fn (Builder $q) => $q->where('sermons.series', $series))
+                ->select('bible_book')
+                ->distinct()
+                ->pluck('bible_book');
+        });
+    }
+
+    /**
+     * Get distinct chapters for a Bible book that have associated sermons, optionally filtered by preacher or series.
+     *
+     * Performance Optimization: Caches the chapter list for 24 hours using flexible cache.
+     * If no preacher or series filters are applied, it avoids joining the sermons table.
+     *
+     * @return Collection<int, int>
+     */
+    public function getScriptureChapters(string $book, mixed $preacherId = null, mixed $series = null): Collection
+    {
+        $preacherId = (int) $preacherId ?: null;
+        $series = filled($series) ? (string) $series : null;
+
+        $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
+
+        return Cache::flexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
+            $query = SermonScriptureFilter::query()->where('bible_book', $book);
+
+            if ($preacherId === null && $series === null) {
+                return $query->select('bible_chapter')
+                    ->distinct()
+                    ->orderBy('bible_chapter')
+                    ->pluck('bible_chapter');
+            }
+
+            return $query->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+                ->where('sermons.content_type', SermonContentType::Sermon)
+                ->when($preacherId, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherId))
+                ->when($series, fn (Builder $q) => $q->where('sermons.series', $series))
+                ->select('bible_chapter')
+                ->distinct()
+                ->orderBy('bible_chapter')
+                ->pluck('bible_chapter');
+        });
+    }
+
+    /**
+     * Clear the cached scripture book and chapter lists for a specific sermon.
+     */
+    public function clearScriptureChapterCaches(Sermon $sermon): void
+    {
+        // Clear global book list (no filters)
+        Cache::forget('sermon_scripture_books_all_all');
+
+        // Clear preacher-specific book list
+        if ($sermon->preacher_id) {
+            Cache::forget("sermon_scripture_books_{$sermon->preacher_id}_all");
+        }
+
+        // Clear series-specific book list
+        if ($sermon->series) {
+            $seriesSlug = Str::slug($sermon->series);
+            Cache::forget("sermon_scripture_books_all_{$seriesSlug}");
+            if ($sermon->preacher_id) {
+                Cache::forget("sermon_scripture_books_{$sermon->preacher_id}_{$seriesSlug}");
+            }
+        }
+
+        // Clear chapter lists for books associated with this sermon
+        $books = $sermon->scriptureFilters()->distinct()->pluck('bible_book');
+
+        foreach ($books as $book) {
+            $bookSlug = Str::slug($book);
+            Cache::forget("sermon_scripture_chapters_{$bookSlug}_all_all");
+
+            if ($sermon->preacher_id) {
+                Cache::forget("sermon_scripture_chapters_{$bookSlug}_{$sermon->preacher_id}_all");
+            }
+
+            if ($sermon->series) {
+                $seriesSlug = Str::slug($sermon->series);
+                Cache::forget("sermon_scripture_chapters_{$bookSlug}_all_{$seriesSlug}");
+                if ($sermon->preacher_id) {
+                    Cache::forget("sermon_scripture_chapters_{$bookSlug}_{$sermon->preacher_id}_{$seriesSlug}");
+                }
+            }
+        }
     }
 }
