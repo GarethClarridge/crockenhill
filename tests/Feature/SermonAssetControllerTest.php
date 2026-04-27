@@ -392,6 +392,7 @@ class SermonAssetControllerTest extends TestCase
     public function it_serves_private_audio_file_as_binary_response(): void
     {
         Storage::fake('local');
+        $admin = \App\Models\User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-sermon',
@@ -400,7 +401,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('local')->put('private/sermons/test-audio.mp3', 'fake private audio content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio");
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'audio/mpeg');
@@ -410,6 +411,7 @@ class SermonAssetControllerTest extends TestCase
     public function it_serves_private_video_file_as_binary_response(): void
     {
         Storage::fake('local');
+        $admin = \App\Models\User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-video-sermon',
@@ -418,7 +420,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('local')->put('private/sermons/test-video.mp4', 'fake private video content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video");
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'video/mp4');
@@ -429,6 +431,7 @@ class SermonAssetControllerTest extends TestCase
     public function it_serves_private_thumbnail_file_as_binary_response(): void
     {
         Storage::fake('local');
+        $admin = \App\Models\User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-thumb-sermon',
@@ -437,7 +440,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('local')->put('private/thumbnails/test-thumb.png', 'fake private png content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/png');
@@ -447,6 +450,7 @@ class SermonAssetControllerTest extends TestCase
     public function it_serves_private_card_thumbnail_file_as_binary_response(): void
     {
         Storage::fake('local');
+        $admin = \App\Models\User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-card-thumb-sermon',
@@ -457,7 +461,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('local')->put('private/thumbnails/card.webp', 'fake private webp content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/webp');

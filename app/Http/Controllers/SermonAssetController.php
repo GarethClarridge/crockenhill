@@ -26,13 +26,13 @@ class SermonAssetController extends Controller
      */
     public function serveAudio(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
-        if ($authorizationResponse instanceof RedirectResponse) {
-            return $authorizationResponse;
-        }
-
         if (! $sermon->audio_file_path) {
             abort(404, 'Audio file not found.');
+        }
+
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, $sermon->audio_file_path);
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
         }
 
         $this->abortOnUnsafePath($sermon->audio_file_path, 'audio');
@@ -60,13 +60,13 @@ class SermonAssetController extends Controller
 
     public function serveVideo(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
-        if ($authorizationResponse instanceof RedirectResponse) {
-            return $authorizationResponse;
-        }
-
         if (! $sermon->video_file_path) {
             abort(404, 'Video file not found.');
+        }
+
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, $sermon->video_file_path);
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
         }
 
         $this->abortOnUnsafePath($sermon->video_file_path, 'video');
@@ -98,13 +98,13 @@ class SermonAssetController extends Controller
      */
     public function serveThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
-        if ($authorizationResponse instanceof RedirectResponse) {
-            return $authorizationResponse;
-        }
-
         if (! $sermon->thumbnail_file_path) {
             abort(404, 'Thumbnail not found.');
+        }
+
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, $sermon->thumbnail_file_path);
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
         }
 
         $this->abortOnUnsafePath($sermon->thumbnail_file_path, 'thumbnail');
@@ -129,15 +129,15 @@ class SermonAssetController extends Controller
      */
     public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
-        if ($authorizationResponse instanceof RedirectResponse) {
-            return $authorizationResponse;
-        }
-
         $cardThumbnailPath = $sermon->card_thumbnail_file_path;
 
         if (! $cardThumbnailPath) {
             abort(404, 'Card thumbnail not found.');
+        }
+
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, $cardThumbnailPath);
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
         }
 
         $this->abortOnUnsafePath($cardThumbnailPath, 'thumbnail');
@@ -190,17 +190,33 @@ class SermonAssetController extends Controller
         ]);
     }
 
-    private function authorizeChildrensTalkAssetAccess(Sermon $sermon): ?RedirectResponse
+    /**
+     * Authorize access to a sermon asset based on content type and storage path.
+     */
+    private function authorizeAssetAccess(Sermon $sermon, ?string $path): ?RedirectResponse
     {
-        if ($sermon->content_type !== SermonContentType::ChildrensTalk) {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        // 1. Storage-level security: assets in the private/ directory are restricted to administrators.
+        if ($path !== null && str_starts_with($path, 'private/')) {
+            if ($user?->canAccessAdmin() !== true) {
+                abort(403, 'Unauthorized access to private asset.');
+            }
+
             return null;
         }
 
-        if ($this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
-            return null;
+        // 2. Business logic security: Children's Corner content is restricted via its own policy.
+        if ($sermon->content_type === SermonContentType::ChildrensTalk) {
+            if ($this->exposurePolicy->canAccessChildrensCorner($user)) {
+                return null;
+            }
+
+            return redirect()->guest(route('login'));
         }
 
-        return redirect()->guest(route('login'));
+        return null;
     }
 
     private function abortOnUnsafePath(string $path, string $type): void

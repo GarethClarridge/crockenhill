@@ -89,7 +89,7 @@ class SermonPrivateStorageMoveTest extends TestCase
     }
 
     #[Test]
-    public function it_serves_private_audio_to_authenticated_user(): void
+    public function it_serves_private_audio_to_admin_user(): void
     {
         Storage::fake('local');
 
@@ -101,9 +101,9 @@ class SermonPrivateStorageMoveTest extends TestCase
             'audio_file_path' => $privatePath,
         ]);
 
-        $user = User::factory()->create();
+        $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
 
-        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio");
 
         $response->assertStatus(200);
     }
