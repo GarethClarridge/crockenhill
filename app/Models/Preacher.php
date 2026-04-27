@@ -61,6 +61,16 @@ class Preacher extends Model implements Sitemapable
     }
 
     /**
+     * @return Attribute<string, string>
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
      * @return array<string, list<string|mixed>>
      */
     public static function validationRules(?self $preacher = null): array
