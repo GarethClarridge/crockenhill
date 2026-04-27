@@ -40,9 +40,28 @@ class SitemapService
     public function generate(): bool
     {
         $sitemapPath = $this->getFilePath();
+        $now = now();
 
-        $sitemap = Sitemap::create()
-            // Static high-priority URLs
+        $sitemap = Sitemap::create();
+
+        $this->addStaticUrls($sitemap);
+        $this->addSermons($sitemap, $now);
+        $this->addPages($sitemap);
+        $this->addMeetings($sitemap);
+        $this->addPreachers($sitemap);
+        $this->addSeries($sitemap);
+
+        $sitemap->writeToFile($sitemapPath);
+
+        return true;
+    }
+
+    /**
+     * Add static high-priority URLs to the sitemap.
+     */
+    private function addStaticUrls(Sitemap $sitemap): void
+    {
+        $sitemap
             ->add(Url::create('/')
                 ->setPriority(1.0)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
@@ -95,7 +114,13 @@ class SitemapService
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
             );
         }
+    }
 
+    /**
+     * Add dynamic sermon URLs to the sitemap.
+     */
+    private function addSermons(Sitemap $sitemap, \Illuminate\Support\Carbon $now): void
+    {
         /**
          * Performance Optimization: Use lazy() to iterate through models one by one,
          * keeping memory usage low for sites with large numbers of sermons.
@@ -109,45 +134,63 @@ class SitemapService
             ->whereVisibleInSitemap()
             ->lazy();
 
-        $now = now();
+        $sitemap->add($sermons->map(fn (Sermon $sermon): Url => $this->sermonSitemapPresenter->toSitemapTag($sermon, $now)));
+    }
 
-        $sitemap
-            // Dynamic content via Sitemapable models
-            // Eager load relationships to prevent N+1 queries during sitemap generation
-            ->add($sermons->map(fn (Sermon $sermon): Url => $this->sermonSitemapPresenter->toSitemapTag($sermon, $now)))
-            ->add(
-                Page::query()
-                    ->public()
-                    ->where('area', '!=', PageArea::Members->value)
-                    ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
-                    /**
-                     * Performance Optimization: Only eager load 'media' (needed for images),
-                     * and remove 'meeting' as it is not utilized in sitemap generation.
-                     */
-                    ->with(['media'])
-                    ->lazy()
-                    ->map(fn (Page $page): Url|string|array => $this->pageSitemapPresenter->toSitemapTag($page))
-            )
-            ->add(
-                Meeting::query()
-                    /**
-                     * Performance Optimization: Only select columns required for sitemap generation
-                     * to reduce memory usage.
-                     */
-                    ->select(['id', 'slug', 'updated_at', 'page_id'])
-                    ->with(['media', 'page:id,heading'])
-                    ->publiclyAccessible()
-                    ->lazy()
-                    ->map(fn (Meeting $meeting): Url|string|array => $this->meetingSitemapPresenter->toSitemapTag($meeting))
-            )
-            ->add(
-                Preacher::active()
-                    ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
-                    ->lazy()
-                    ->map(fn (Preacher $preacher): Url|string|array => $this->preacherSitemapPresenter->toSitemapTag($preacher))
-            );
+    /**
+     * Add dynamic page URLs to the sitemap.
+     */
+    private function addPages(Sitemap $sitemap): void
+    {
+        $pages = Page::query()
+            ->public()
+            ->where('area', '!=', PageArea::Members->value)
+            ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
+            /**
+             * Performance Optimization: Only eager load 'media' (needed for images),
+             * and remove 'meeting' as it is not utilized in sitemap generation.
+             */
+            ->with(['media'])
+            ->lazy();
 
-        // Add Sermon Series
+        $sitemap->add($pages->map(fn (Page $page): Url|string|array => $this->pageSitemapPresenter->toSitemapTag($page)));
+    }
+
+    /**
+     * Add dynamic meeting URLs to the sitemap.
+     */
+    private function addMeetings(Sitemap $sitemap): void
+    {
+        $meetings = Meeting::query()
+            /**
+             * Performance Optimization: Only select columns required for sitemap generation
+             * to reduce memory usage.
+             */
+            ->select(['id', 'slug', 'updated_at', 'page_id'])
+            ->with(['media', 'page:id,heading'])
+            ->publiclyAccessible()
+            ->lazy();
+
+        $sitemap->add($meetings->map(fn (Meeting $meeting): Url|string|array => $this->meetingSitemapPresenter->toSitemapTag($meeting)));
+    }
+
+    /**
+     * Add dynamic preacher URLs to the sitemap.
+     */
+    private function addPreachers(Sitemap $sitemap): void
+    {
+        $preachers = Preacher::active()
+            ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
+            ->lazy();
+
+        $sitemap->add($preachers->map(fn (Preacher $preacher): Url|string|array => $this->preacherSitemapPresenter->toSitemapTag($preacher)));
+    }
+
+    /**
+     * Add sermon series URLs to the sitemap.
+     */
+    private function addSeries(Sitemap $sitemap): void
+    {
         foreach ($this->sermonRepository->getSeriesForDisplay() as $series) {
             $sitemap->add(
                 Url::create('/christ/sermons/series/'.Str::slug($series))
@@ -155,10 +198,6 @@ class SitemapService
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
             );
         }
-
-        $sitemap->writeToFile($sitemapPath);
-
-        return true;
     }
 
     public function getFilePath(): string
