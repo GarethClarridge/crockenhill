@@ -31,7 +31,7 @@ class SermonAssetController extends Controller
      */
     public function serveTranscript(Sermon $sermon): Response|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'transcript');
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
