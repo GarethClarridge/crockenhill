@@ -380,25 +380,25 @@ class SermonRepository
             }
         }
 
-        // Resolve all books that need their chapter caches invalidated.
-        // We check the current relationship state as a baseline.
-        $books = $sermon->scriptureFilters()->distinct()->pluck('bible_book')->all();
+        // Resolve all Bible books associated with this sermon (current and previous)
+        // to ensure all relevant chapter caches are invalidated. We parse references
+        // directly to handle new, deleted, or updated states robustly.
+        $indexService = app(\App\Services\SermonScriptureFilterIndexService::class);
+        $references = array_filter(array_unique([
+            (string) $sermon->reference ?: null,
+            (string) $sermon->getOriginal('reference') ?: null,
+        ]));
 
-        // If the reference changed, we must also clear caches for both the original
-        // and new reference strings. This ensures invalidation works correctly
-        // regardless of whether this is called before or after the filter index sync.
-        if ($sermon->wasChanged('reference') || $sermon->isDirty('reference')) {
-            $indexService = app(\App\Services\SermonScriptureFilterIndexService::class);
-            $references = array_filter(array_unique([
-                (string) $sermon->reference ?: null,
-                (string) $sermon->getOriginal('reference') ?: null,
-            ]));
-
-            foreach ($references as $ref) {
-                foreach ($indexService->entriesForReference($ref) as $entry) {
-                    $books[] = $entry['bible_book'];
-                }
+        $books = [];
+        foreach ($references as $ref) {
+            foreach ($indexService->entriesForReference($ref) as $entry) {
+                $books[] = $entry['bible_book'];
             }
+        }
+
+        // We also check the relationship to catch current or deleted filters.
+        foreach ($sermon->scriptureFilters()->distinct()->pluck('bible_book') as $book) {
+            $books[] = (string) $book;
         }
 
         $books = array_unique($books);
