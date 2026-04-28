@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace App\Livewire\Sermons;
 
-use App\Enums\SermonContentType;
 use App\Models\Preacher;
-use App\Models\SermonScriptureFilter;
 use App\Repositories\SermonRepository;
 use App\Support\BibleCanon;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -145,10 +142,10 @@ class BrowseSermons extends Component
     #[Computed]
     public function enabledBooks(): Collection
     {
-        return $this->scriptureFilterOptionQuery()
-            ->select('bible_book')
-            ->distinct()
-            ->pluck('bible_book');
+        return app(SermonRepository::class)->getScriptureBooks(
+            preacherId: $this->preacherFilter,
+            series: $this->seriesFilter,
+        );
     }
 
     /**
@@ -161,12 +158,11 @@ class BrowseSermons extends Component
             return collect();
         }
 
-        return $this->scriptureFilterOptionQuery()
-            ->where('bible_book', $this->bookFilter)
-            ->select('bible_chapter')
-            ->distinct()
-            ->orderBy('bible_chapter')
-            ->pluck('bible_chapter');
+        return app(SermonRepository::class)->getScriptureChapters(
+            book: $this->bookFilter,
+            preacherId: $this->preacherFilter,
+            series: $this->seriesFilter,
+        );
     }
 
     /**
@@ -191,18 +187,6 @@ class BrowseSermons extends Component
             fn (string $series): array => ['id' => $series, 'name' => $series],
             app(SermonRepository::class)->getSeriesForDisplay()
         );
-    }
-
-    /**
-     * @return Builder<SermonScriptureFilter>
-     */
-    private function scriptureFilterOptionQuery(): Builder
-    {
-        return SermonScriptureFilter::query()
-            ->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
-            ->where('sermons.content_type', SermonContentType::Sermon->value)
-            ->when($this->preacherFilter, fn (Builder $query): Builder => $query->where('sermons.preacher_id', $this->preacherFilter))
-            ->when($this->seriesFilter, fn (Builder $query): Builder => $query->where('sermons.series', $this->seriesFilter));
     }
 
     /**
