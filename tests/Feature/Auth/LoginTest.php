@@ -10,6 +10,7 @@ use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -186,6 +187,47 @@ class LoginTest extends TestCase
             ->assertSet('error', trans('auth.failed'));
 
         $component
+            ->call('login')
+            ->assertSet('error', trans('auth.failed'));
+    }
+
+    #[Test]
+    public function failed_admin_login_is_logged_as_warning(): void
+    {
+        Log::shouldReceive('warning')
+            ->once()
+            ->with('Admin login attempt failed', \Mockery::on(function ($context) {
+                return isset($context['admin_id'])
+                    && isset($context['email'])
+                    && isset($context['ip']);
+            }));
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'password' => bcrypt('correct-password'),
+        ]);
+
+        Livewire::test(LoginComponent::class)
+            ->set('email', $admin->email)
+            ->set('password', 'wrong-password')
+            ->call('login')
+            ->assertSet('error', trans('auth.failed'));
+    }
+
+    #[Test]
+    public function failed_regular_user_login_is_not_logged_as_warning(): void
+    {
+        Log::shouldReceive('warning')
+            ->never();
+
+        $user = User::factory()->create([
+            'is_admin' => false,
+            'password' => bcrypt('correct-password'),
+        ]);
+
+        Livewire::test(LoginComponent::class)
+            ->set('email', $user->email)
+            ->set('password', 'wrong-password')
             ->call('login')
             ->assertSet('error', trans('auth.failed'));
     }
