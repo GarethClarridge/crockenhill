@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Sermon;
+use Exception;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 use LogicException;
 
 class SermonStorageService
@@ -87,10 +90,16 @@ class SermonStorageService
         // to ensure uniqueness and handle state changes within the request.
         $cacheKey = ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
 
-        if (isset($this->memoizedFileInfo[$cacheKey])) {
-            return $this->memoizedFileInfo[$cacheKey];
-        }
+        return $this->memoizedFileInfo[$cacheKey] ??= $this->resolveFileInfo($sermon, $audioPath);
+    }
 
+    /**
+     * Resolve file information for a sermon based on its storage pattern.
+     *
+     * @return array{type: string, disk: string, path: string, original_path: string}
+     */
+    private function resolveFileInfo(Sermon $sermon, string $audioPath): array
+    {
         $this->validatePath($audioPath, 'audio file');
 
         // Private files stored on the local disk (unreachable via the public/storage symlink)
@@ -122,7 +131,7 @@ class SermonStorageService
 
         if (str_contains($audioPath, '/')) {
             // Newer Laravel storage pattern
-            return $this->memoizedFileInfo[$cacheKey] = [
+            return [
                 'type' => 'storage',
                 'disk' => $this->sermonDisk,
                 'path' => $audioPath,
@@ -131,7 +140,7 @@ class SermonStorageService
         }
 
         // Current media processing pattern
-        return $this->memoizedFileInfo[$cacheKey] = [
+        return [
             'type' => 'processing',
             'disk' => $this->sermonDisk,
             'path' => $audioPath,
@@ -389,8 +398,8 @@ class SermonStorageService
             // Storage::disk($info['disk'])->delete($info['path']);
 
             return true;
-        } catch (\Exception $e) {
-            \Log::error('Failed to move sermon file', [
+        } catch (Exception $e) {
+            Log::error('Failed to move sermon file', [
                 'sermon_id' => $sermon->id,
                 'from_disk' => $info['disk'],
                 'to_disk' => $targetDisk,
@@ -409,7 +418,27 @@ class SermonStorageService
      */
     public function getStorageStats(): array
     {
-        $stats = [
+        $stats = $this->initializeStorageStats();
+
+        Sermon::query()
+            ->select(['id', 'audio_file_path', 'filetype'])
+            ->chunk(self::STATS_CHUNK_SIZE, function ($sermons) use (&$stats) {
+                foreach ($sermons as $sermon) {
+                    $this->updateStatsForSermon($stats, $sermon);
+                }
+            });
+
+        return $stats;
+    }
+
+    /**
+     * Initialize the storage statistics array.
+     *
+     * @return array<string, mixed>
+     */
+    private function initializeStorageStats(): array
+    {
+        return [
             'total_sermons' => Sermon::count(),
             'patterns' => [
                 'private' => 0,
@@ -421,37 +450,37 @@ class SermonStorageService
             'total_size' => 0,
             'missing_files' => 0,
         ];
+    }
 
-        Sermon::query()
-            ->select(['id', 'audio_file_path', 'filetype'])
-            ->chunk(self::STATS_CHUNK_SIZE, function ($sermons) use (&$stats) {
-                foreach ($sermons as $sermon) {
-                    $info = $this->getSermonFileInfo($sermon);
-                    $stats['patterns'][$info['type']]++;
+    /**
+     * Update storage statistics for a single sermon.
+     *
+     * @param  array<string, mixed>  $stats
+     */
+    private function updateStatsForSermon(array &$stats, Sermon $sermon): void
+    {
+        $info = $this->getSermonFileInfo($sermon);
+        $stats['patterns'][$info['type']]++;
 
-                    $disk = $info['disk'];
-                    if (! isset($stats['disks'][$disk])) {
-                        $stats['disks'][$disk] = [
-                            'count' => 0,
-                            'size' => 0,
-                            'missing' => 0,
-                        ];
-                    }
+        $disk = $info['disk'];
+        if (! isset($stats['disks'][$disk])) {
+            $stats['disks'][$disk] = [
+                'count' => 0,
+                'size' => 0,
+                'missing' => 0,
+            ];
+        }
 
-                    $stats['disks'][$disk]['count']++;
+        $stats['disks'][$disk]['count']++;
 
-                    try {
-                        $size = Storage::disk($disk)->size($info['path']);
-                        $stats['disks'][$disk]['size'] += $size;
-                        $stats['total_size'] += $size;
-                    } catch (\Exception $e) {
-                        $stats['disks'][$disk]['missing']++;
-                        $stats['missing_files']++;
-                    }
-                }
-            });
-
-        return $stats;
+        try {
+            $size = Storage::disk($disk)->size($info['path']);
+            $stats['disks'][$disk]['size'] += $size;
+            $stats['total_size'] += $size;
+        } catch (Exception $e) {
+            $stats['disks'][$disk]['missing']++;
+            $stats['missing_files']++;
+        }
     }
 
     private function appendVersion(string $url, string $version): string
@@ -492,7 +521,7 @@ class SermonStorageService
             'thumbnail' => $this->getThumbnailUrl($sermon),
             'card thumbnail' => $this->getCardThumbnailUrl($sermon),
             'plain thumbnail' => $this->getPlainThumbnailUrl($sermon),
-            default => throw new \InvalidArgumentException("Unsupported thumbnail type: {$type}"),
+            default => throw new InvalidArgumentException("Unsupported thumbnail type: {$type}"),
         };
     }
 
@@ -520,11 +549,9 @@ class SermonStorageService
 
     private function resolvePublicUrl(string $disk, string $path, string $version): string
     {
-        if ($disk === 'do_spaces' && $this->cdnEndpoint) {
-            $baseUrl = $this->cdnEndpoint;
-        } else {
-            $baseUrl = $this->memoizedDiskUrls[$disk] ??= rtrim(Storage::disk($disk)->url('/'), '/');
-        }
+        $baseUrl = ($disk === 'do_spaces' && $this->cdnEndpoint)
+            ? $this->cdnEndpoint
+            : ($this->memoizedDiskUrls[$disk] ??= rtrim(Storage::disk($disk)->url('/'), '/'));
 
         return $this->appendVersion($baseUrl.'/'.ltrim($path, '/'), $version);
     }
@@ -543,7 +570,7 @@ class SermonStorageService
                     'last_modified' => Storage::disk($info['disk'])->lastModified($info['path']),
                     'size' => Storage::disk($info['disk'])->size($info['path']),
                 ];
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 return [
                     'last_modified' => null,
                     'size' => null,
@@ -579,7 +606,7 @@ class SermonStorageService
     private function validatePath(?string $path, string $type): void
     {
         if (is_string($path) && str_contains($path, '..')) {
-            throw new \InvalidArgumentException("Invalid {$type} path: Path traversal detected.");
+            throw new InvalidArgumentException("Invalid {$type} path: Path traversal detected.");
         }
     }
 
