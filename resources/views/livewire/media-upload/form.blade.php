@@ -139,6 +139,7 @@
                     :status="$status"
                     :upload-progress="$uploadProgress"
                     :current-file-name="$originalFileName ?? ($mediaFile ? $mediaFile->getClientOriginalName() : 'file')"
+                    :form-component-id="$this->getId()"
                     :key="'media-upload-progress-'.$this->getId()"
                 />
 
@@ -168,6 +169,7 @@
                 :cancelled-message="$cancelledMessage"
                 :manual-review-message="$manualReviewMessage"
                 :manual-review-url="$manualReviewUrl"
+                :form-component-id="$this->getId()"
                 :key="'media-upload-status-'.$this->getId()"
             />
         </div>

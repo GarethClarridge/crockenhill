@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature\Livewire;
 
 use App\Jobs\AlignWithOos;
@@ -428,5 +430,71 @@ class MediaUploadTest extends TestCase
             SendCompletionNotification::class,
             CleanupTemporaryFiles::class,
         ]);
+    }
+
+    #[Test]
+    public function it_ignores_cancel_upload_event_with_mismatched_form_id(): void
+    {
+        $this->actingAs($this->admin);
+
+        $component = Livewire::test(MediaUpload::class)
+            ->set('mediaFile', UploadedFile::fake()->create('sermon.mp3', 1024))
+            ->set('isUploading', true);
+
+        $originalState = $component->instance()->isUploading;
+
+        // Dispatch event with different form ID
+        $component->dispatch('media-upload:cancel-upload', id: 'different-form-id')
+            ->assertSet('isUploading', $originalState); // State unchanged when ID doesn't match
+    }
+
+    #[Test]
+    public function it_processes_cancel_upload_event_only_for_matching_form_id(): void
+    {
+        $this->actingAs($this->admin);
+
+        $component = Livewire::test(MediaUpload::class)
+            ->set('mediaFile', UploadedFile::fake()->create('sermon.mp3', 1024))
+            ->set('isUploading', true);
+
+        $formId = $component->instance()->getId();
+
+        // Dispatch event with matching form ID
+        $component->dispatch('media-upload:cancel-upload', id: $formId)
+            ->assertSet('isUploading', false); // Upload cancelled when ID matches
+    }
+
+    #[Test]
+    public function it_ignores_cancel_processing_event_with_mismatched_form_id(): void
+    {
+        $this->actingAs($this->admin);
+
+        $component = Livewire::test(MediaUpload::class)
+            ->set('processingId', 'test-processing-123')
+            ->set('status', 'processing')
+            ->set('currentStep', 'Transcribing');
+
+        $originalStep = $component->instance()->currentStep;
+
+        // Dispatch event with different form ID - should be ignored
+        $component->dispatch('media-upload:cancel-processing', id: 'different-form-id')
+            ->assertSet('currentStep', $originalStep); // State unchanged when ID doesn't match
+    }
+
+    #[Test]
+    public function it_ignores_retry_upload_event_with_mismatched_form_id(): void
+    {
+        $this->actingAs($this->admin);
+
+        $component = Livewire::test(MediaUpload::class)
+            ->set('processingId', 'test-processing-123')
+            ->set('status', 'failed')
+            ->set('errorMessage', 'Upload failed');
+
+        $originalStatus = $component->instance()->status;
+
+        // Dispatch event with different form ID - should be ignored
+        $component->dispatch('media-upload:retry-upload', id: 'different-form-id')
+            ->assertSet('status', $originalStatus); // State unchanged when ID doesn't match
     }
 }

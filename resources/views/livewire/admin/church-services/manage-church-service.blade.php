@@ -11,7 +11,7 @@
                 View service
             </x-button>
         @endif
-        <x-form-button variant="primary" wire:click="save" icon="check">
+        <x-form-button variant="primary" wire:click="save" icon="check" data-form-action="save">
             {{ $isEditing ? 'Save changes' : 'Create service' }}
         </x-form-button>
     </x-slot:actions>

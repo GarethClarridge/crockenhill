@@ -195,20 +195,32 @@ class Form extends Component
     }
 
     #[On('media-upload:cancel-upload')]
-    public function handleCancelUploadRequest(): void
+    public function handleCancelUploadRequest(?string $id = null): void
     {
+        if ($id && $id !== $this->getId()) {
+            return;
+        }
+
         $this->cancelUpload();
     }
 
     #[On('media-upload:cancel-processing')]
-    public function handleCancelProcessingRequest(): void
+    public function handleCancelProcessingRequest(?string $id = null): void
     {
+        if ($id && $id !== $this->getId()) {
+            return;
+        }
+
         $this->cancelProcessing();
     }
 
     #[On('media-upload:retry-upload')]
-    public function handleRetryUploadRequest(): void
+    public function handleRetryUploadRequest(?string $id = null): void
     {
+        if ($id && $id !== $this->getId()) {
+            return;
+        }
+
         $this->retryUpload();
     }
 

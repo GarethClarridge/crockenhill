@@ -22,9 +22,11 @@ class Progress extends Component
     #[Reactive]
     public ?string $currentFileName = null;
 
+    public ?string $formComponentId = null;
+
     public function requestCancelUpload(): void
     {
-        $this->dispatch('media-upload:cancel-upload')->to(Form::class);
+        $this->dispatch('media-upload:cancel-upload', id: $this->formComponentId);
     }
 
     public function render(): View

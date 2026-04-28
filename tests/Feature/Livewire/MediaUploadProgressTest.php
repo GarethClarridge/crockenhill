@@ -47,4 +47,21 @@ class MediaUploadProgressTest extends TestCase
             ->call('requestCancelUpload')
             ->assertDispatched('media-upload:cancel-upload');
     }
+
+    #[Test]
+    public function it_includes_form_component_id_when_dispatching_cancel_event(): void
+    {
+        $progress = Livewire::test(Progress::class, [
+            'isUploading' => true,
+            'status' => 'uploading',
+            'uploadProgress' => 55,
+            'currentFileName' => 'sermon.mp3',
+            'formComponentId' => 'test-form-123',
+        ]);
+
+        $progress->call('requestCancelUpload')
+            ->assertDispatched('media-upload:cancel-upload', function (string $name, array $params) {
+                return isset($params['id']) && $params['id'] === 'test-form-123';
+            });
+    }
 }

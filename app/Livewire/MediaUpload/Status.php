@@ -37,14 +37,16 @@ class Status extends Component
     #[Reactive]
     public ?string $manualReviewUrl = null;
 
+    public ?string $formComponentId = null;
+
     public function requestCancelProcessing(): void
     {
-        $this->dispatch('media-upload:cancel-processing')->to(Form::class);
+        $this->dispatch('media-upload:cancel-processing', id: $this->formComponentId);
     }
 
     public function requestRetryUpload(): void
     {
-        $this->dispatch('media-upload:retry-upload')->to(Form::class);
+        $this->dispatch('media-upload:retry-upload', id: $this->formComponentId);
     }
 
     public function render(): View

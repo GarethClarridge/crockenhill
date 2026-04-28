@@ -12,7 +12,7 @@
         <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
             Submit email text
         </x-button>
-        <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray">
+        <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray" data-form-action="save">
             Import
         </x-form-button>
     </x-slot:actions>

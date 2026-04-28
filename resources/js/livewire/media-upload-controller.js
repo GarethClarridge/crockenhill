@@ -71,7 +71,11 @@ export const mediaUploadController = (config = {}) => {
         },
 
         registerUploadListeners() {
-            this.registerListener('media-upload:cancel-upload', () => {
+            this.registerListener('media-upload:cancel-upload', (event) => {
+                if (event.detail?.id && event.detail.id !== this.componentId) {
+                    return;
+                }
+
                 this.clearUploadTimeout();
                 this.processingTriggered = false;
 
