@@ -26,7 +26,7 @@ class SermonAssetController extends Controller
      */
     public function serveAudio(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'audio');
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'audio', $sermon->audio_file_path);
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -60,7 +60,7 @@ class SermonAssetController extends Controller
 
     public function serveVideo(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'video');
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'video', $sermon->video_file_path);
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -98,7 +98,7 @@ class SermonAssetController extends Controller
      */
     public function serveThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'thumbnail');
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'thumbnail', $sermon->thumbnail_file_path);
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -129,12 +129,12 @@ class SermonAssetController extends Controller
      */
     public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'card_thumbnail');
+        $cardThumbnailPath = $sermon->card_thumbnail_file_path;
+
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'thumbnail', $cardThumbnailPath);
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
-
-        $cardThumbnailPath = $sermon->card_thumbnail_file_path;
 
         if (! $cardThumbnailPath) {
             abort(404, 'Card thumbnail not found.');
@@ -198,7 +198,7 @@ class SermonAssetController extends Controller
      * thumbnail visibility is governed by automated quality assessment and
      * manual visibility overrides.
      */
-    private function authorizeAssetAccess(Sermon $sermon, string $assetType): ?RedirectResponse
+    private function authorizeAssetAccess(Sermon $sermon, string $assetType, ?string $path): ?RedirectResponse
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
@@ -218,14 +218,6 @@ class SermonAssetController extends Controller
 
         // Security: Private assets are restricted to administrators.
         // Public users should only access assets marked as public (non-private/ path).
-        $path = match ($assetType) {
-            'audio' => $sermon->audio_file_path,
-            'video' => $sermon->video_file_path,
-            'thumbnail' => $sermon->thumbnail_file_path,
-            'card_thumbnail' => $sermon->card_thumbnail_file_path,
-            default => null,
-        };
-
         if ($path !== null && str_starts_with($path, 'private/')) {
             abort(404, 'Asset not available.');
         }
@@ -234,7 +226,7 @@ class SermonAssetController extends Controller
         // These apply to all sermons, including Children's Talks (Defense in Depth).
         $exposed = match ($assetType) {
             'video' => $this->exposurePolicy->shouldExposeVideo($sermon),
-            'thumbnail', 'card_thumbnail' => $this->exposurePolicy->shouldExposeThumbnail($sermon),
+            'thumbnail' => $this->exposurePolicy->shouldExposeThumbnail($sermon),
             default => true,
         };
 
