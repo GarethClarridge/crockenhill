@@ -67,6 +67,32 @@ class Song extends Model
     ];
 
     /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(?self $song = null): array
+    {
+        $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
+        $uniqueSlug = \Illuminate\Validation\Rule::unique('songs', 'slug');
+
+        if ($song) {
+            $uniqueSlug->ignore($song->id);
+        }
+
+        $slugRule[] = $uniqueSlug;
+
+        return [
+            'title' => ['required', 'string', 'max:255'],
+            'slug' => $slugRule,
+            'canonical_key' => ['required', 'string', 'max:255'],
+            'alternate_title' => ['nullable', 'string', 'max:255'],
+            'lyrics_xml' => ['required', 'string'],
+            'lyrics_plain' => ['nullable', 'string'],
+            'verse_order' => ['nullable', 'string', 'max:255'],
+            'ccli_number' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
