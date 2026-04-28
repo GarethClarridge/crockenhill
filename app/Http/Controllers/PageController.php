@@ -76,7 +76,7 @@ class PageController extends Controller
             return $redirect;
         }
 
-        return response()->view('layouts/page', $this->publicPageReadModelCache->get($page)->toViewData(
+        return response()->view($this->resolveView($page->area->value, $page->slug), $this->publicPageReadModelCache->get($page)->toViewData(
             links: $this->relatedPagePresenter->random(
                 linkArea: $page->area->value,
                 slugToExclude: $page->slug,
@@ -86,5 +86,23 @@ class PageController extends Controller
             ),
             page: $page,
         ));
+    }
+
+    /**
+     * Resolves the view for a page, allowing per-slug child views to override
+     * the default layout. If a view exists at pages.{area}.{slug} it will be
+     * used; otherwise the standard layouts/page template is returned.
+     *
+     * NOTE: The override view file name is coupled to the page slug and area.
+     * If a page with a bespoke view (e.g. pages/christ/free-bible.blade.php)
+     * has its slug or area changed in the admin, this method will silently
+     * fall back to layouts/page and the custom content will stop rendering.
+     * Keep slug, area, and view file name in sync when making such changes.
+     */
+    private function resolveView(string $area, string $slug): string
+    {
+        $override = "pages.{$area}.{$slug}";
+
+        return view()->exists($override) ? $override : 'layouts/page';
     }
 }
