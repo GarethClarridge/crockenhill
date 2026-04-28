@@ -39,12 +39,12 @@ class Status extends Component
 
     public function requestCancelProcessing(): void
     {
-        $this->dispatch('media-upload:cancel-processing');
+        $this->dispatch('media-upload:cancel-processing')->to(Form::class);
     }
 
     public function requestRetryUpload(): void
     {
-        $this->dispatch('media-upload:retry-upload');
+        $this->dispatch('media-upload:retry-upload')->to(Form::class);
     }
 
     public function render(): View

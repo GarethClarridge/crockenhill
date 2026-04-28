@@ -78,10 +78,10 @@
                     </label>
                     
                     {{-- Drag and Drop Area --}}
-                    <div 
+                    <div
                         x-on:dragover.prevent="isDragOver = true"
                         x-on:dragleave.prevent="isDragOver = false"
-                        x-on:drop.prevent="isDragOver = false"
+                        x-on:drop.prevent="isDragOver = false; handleDrop($event)"
                         x-bind:class="{
                             'border-cbc-teal bg-cbc-teal/5': isDragOver,
                             'border-gray-300': !isDragOver

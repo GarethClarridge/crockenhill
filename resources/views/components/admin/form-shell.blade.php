@@ -6,11 +6,7 @@
 <x-admin.page :title="$title" :description="$description" {{ $attributes }}
     x-data="{
         save() {
-            {{-- Find the first primary save button or submit button and click it --}}
-            const saveBtn = $el.querySelector('button[wire\\:click=save]')
-                || $el.querySelector('button[type=submit]')
-                || $el.querySelector('div[x-slot-actions] button:last-child');
-
+            const saveBtn = $el.querySelector('[data-form-action]');
             if (saveBtn) {
                 saveBtn.click();
             }

@@ -93,6 +93,10 @@ export const mediaUploadController = (config = {}) => {
             });
 
             this.registerListener('livewire-upload-progress', (event) => {
+                if (! hasMediaFileDetail(event, this.componentId)) {
+                    return;
+                }
+
                 if (! this.$wire.isUploading) {
                     return;
                 }
@@ -161,6 +165,24 @@ export const mediaUploadController = (config = {}) => {
             const modifiedDate = new Date(file.lastModified);
             this.fileModifiedDate = modifiedDate.toISOString().split('T')[0];
             this.$wire.set('fileModifiedDate', this.fileModifiedDate);
+        },
+
+        handleDrop(event) {
+            const file = event.dataTransfer?.files?.[0];
+
+            if (! file) {
+                return;
+            }
+
+            if (this.maxFileSizeBytes > 0 && file.size > this.maxFileSizeBytes) {
+                window.alert(`File too large! Max ${this.maxFileSizeLabel} allowed.`);
+                return;
+            }
+
+            const modifiedDate = new Date(file.lastModified);
+            this.fileModifiedDate = modifiedDate.toISOString().split('T')[0];
+            this.$wire.set('fileModifiedDate', this.fileModifiedDate);
+            this.$wire.upload('mediaFile', file, () => {}, () => {}, (progress) => {});
         },
 
         cancelUpload() {

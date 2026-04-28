@@ -255,16 +255,28 @@
                     this.setupAutoRefresh();
                 },
 
+                destroy() {
+                    this.stopAutoRefresh();
+                },
+
                 setupAutoRefresh() {
                     this.$watch('$wire.autoRefresh', (value) => {
-                        if (value) {
+                        if (value && $wire.expanded) {
                             this.startAutoRefresh();
                         } else {
                             this.stopAutoRefresh();
                         }
                     });
 
-                    if ($wire.autoRefresh) {
+                    this.$watch('$wire.expanded', (value) => {
+                        if (value && $wire.autoRefresh) {
+                            this.startAutoRefresh();
+                        } else {
+                            this.stopAutoRefresh();
+                        }
+                    });
+
+                    if ($wire.autoRefresh && $wire.expanded) {
                         this.startAutoRefresh();
                     }
                 },
@@ -272,9 +284,7 @@
                 startAutoRefresh() {
                     this.stopAutoRefresh();
                     this.refreshInterval = setInterval(() => {
-                        if ($wire.expanded && $wire.autoRefresh) {
-                            $wire.fetchLogs();
-                        }
+                        $wire.fetchLogs();
                     }, @json($refreshInterval));
                 },
 

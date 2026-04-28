@@ -24,7 +24,7 @@ class Progress extends Component
 
     public function requestCancelUpload(): void
     {
-        $this->dispatch('media-upload:cancel-upload');
+        $this->dispatch('media-upload:cancel-upload')->to(Form::class);
     }
 
     public function render(): View

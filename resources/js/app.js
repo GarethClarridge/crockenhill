@@ -1,6 +1,5 @@
 import '../css/app.scss';
 import './bootstrap';
-import './page_editor';
 import './livewire/media-upload-controller';
 import './scripture-fums';
 

@@ -31,7 +31,6 @@
     "vite-plugin-compression": "^0.5.1"
   },
   "dependencies": {
-    "alpinejs": "^3.13.0",
-    "showdown": "^2.1.0"
+    "alpinejs": "^3.13.0"
   }
 }
