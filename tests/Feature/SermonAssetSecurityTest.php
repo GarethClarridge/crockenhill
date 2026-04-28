@@ -125,8 +125,7 @@ class SermonAssetSecurityTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
 
-        // Currently it serves it to guests because it only checks Children's Talk access.
-        $response->assertStatus(403);
+        $response->assertStatus(404);
     }
 
     #[Test]
@@ -140,7 +139,7 @@ class SermonAssetSecurityTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/video");
 
-        $response->assertStatus(403);
+        $response->assertStatus(404);
     }
 
     #[Test]

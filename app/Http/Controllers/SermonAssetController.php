@@ -129,7 +129,7 @@ class SermonAssetController extends Controller
      */
     public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'thumbnail');
+        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'card_thumbnail');
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -208,25 +208,28 @@ class SermonAssetController extends Controller
             return null;
         }
 
-        // Security: Private assets of regular sermons are restricted to administrators.
-        // Public users should only access assets marked as public (non-private/ path).
-        $path = match ($assetType) {
-            'audio' => $sermon->audio_file_path,
-            'video' => $sermon->video_file_path,
-            'thumbnail' => $sermon->thumbnail_file_path,
-            default => null,
-        };
-
-        if ($path !== null && str_starts_with($path, 'private/')) {
-            abort(403, 'Unauthorized access to private asset.');
-        }
-
+        // Security: Children's Corner access is gated by verified email (when not public).
+        // This check takes precedence over private path restrictions to ensure proper redirection.
         if ($sermon->content_type === SermonContentType::ChildrensTalk) {
             if ($this->exposurePolicy->canAccessChildrensCorner($user)) {
                 return null;
             }
 
             return redirect()->guest(route('login'));
+        }
+
+        // Security: Private assets of regular sermons are restricted to administrators.
+        // Public users should only access assets marked as public (non-private/ path).
+        $path = match ($assetType) {
+            'audio' => $sermon->audio_file_path,
+            'video' => $sermon->video_file_path,
+            'thumbnail' => $sermon->thumbnail_file_path,
+            'card_thumbnail' => $sermon->card_thumbnail_file_path,
+            default => null,
+        };
+
+        if ($path !== null && str_starts_with($path, 'private/')) {
+            abort(404, 'Asset not available.');
         }
 
         // Regular sermon visibility checks
