@@ -128,7 +128,7 @@ class SitemapService
         $sermons = Sermon::query()
             ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'video_quality_status', 'video_visibility_override', 'thumbnail_file_path', 'thumbnail_generated_at', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'scripture_passage_id'])
             ->with([
-                'preacherProfile:id,name,slug',
+                'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',
             ])
             ->whereVisibleInSitemap()

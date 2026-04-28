@@ -184,7 +184,7 @@ class Preacher extends Model implements Sitemapable
     {
         return \Illuminate\Support\Facades\Cache::flexible('public_preacher_list', [86400, 172800], function () {
             return self::active()
-                ->select(['id', 'name', 'slug'])
+                ->select(['id', 'name', 'slug', 'image_path'])
                 ->withCount([
                     'sermons' => fn (Builder $query): Builder => $query->whereSermon(),
                 ])

@@ -8,6 +8,8 @@
 <x-meta-tags
     :title="$heading"
     :description="$description"
+    :image="asset('/images/headings/large/sermons.webp')"
+    image-alt="Sermons at Crockenhill Baptist Church"
 />
 <x-schema.webpage
     :heading="$heading"
@@ -24,5 +26,6 @@
 @section('full_width_content')
 
   <x-sermon-list :sermons="$sermons" :groupedByDate="false" />
+
 
 @stop
