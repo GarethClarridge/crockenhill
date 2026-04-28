@@ -74,11 +74,11 @@
                         $authorNames = $song->authors->pluck('display_name')->implode(', ') ?: null;
                         $bookEntries = $song->books->map(fn ($book) => $book->name . ($book->pivot->entry ? ' #' . $book->pivot->entry : ''))->implode(', ') ?: null;
                     @endphp
-                    <article wire:key="song-{{ $song->id }}" class="flex h-full flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
+                    <article wire:key="song-{{ $song->id }}" class="group relative flex h-full flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 
                         <div class="flex flex-col flex-1 p-6 @if (!empty($snippetsBySongId[$song->id])) pb-0 @endif">
                             <div class="flex items-start justify-between gap-4">
-                                <a class="group" href="{{ $songUrl }}" wire:navigate>
+                                <a class="group" href="{{ $songUrl }}" wire:navigate tabindex="-1" aria-hidden="true">
                                     <h2 class="font-display text-3xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
                                         {{ $song->title }}
                                     </h2>
@@ -145,7 +145,7 @@
                             iconStyle="solid"
                             iconPosition="trailing"
                             iconClass="shrink-0 text-white/90"
-                            class="w-full justify-between rounded-none text-left font-normal"
+                            class="w-full justify-between rounded-none text-left font-normal after:absolute after:inset-0"
                             aria-label="View song: {{ $song->title }}"
                         >
                             View Song

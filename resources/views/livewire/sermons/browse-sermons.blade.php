@@ -1,5 +1,14 @@
 <div class="pb-12">
-    <section class="px-6" x-data="{ expanded: @js($hasActiveFilters) }">
+    <a href="#sermon-results" class="sr-only focus:not-sr-only focus:absolute focus:z-30 focus:m-4 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-cbc-teal-dark focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-cbc-teal">
+        Skip to results
+    </a>
+
+    <section
+        class="px-6"
+        x-data="{ expanded: @js($hasActiveFilters) }"
+        @keydown.escape.window="expanded = false"
+        @click.away="expanded = false"
+    >
         <div class="mx-auto max-w-2xl lg:max-w-5xl xl:max-w-7xl">
             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
                 <x-form-button
