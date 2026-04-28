@@ -193,4 +193,13 @@ class BreadcrumbRenderingTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('BreadcrumbList', false);
     }
+
+    #[Test]
+    public function sermon_index_page_serves_breadcrumb_json_ld(): void
+    {
+        $response = $this->get('/christ/sermons');
+
+        $response->assertStatus(200);
+        $response->assertSee('BreadcrumbList', false);
+    }
 }
