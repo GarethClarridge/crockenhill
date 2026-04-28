@@ -31,8 +31,7 @@
         </x-admin.filter-bar>
     </x-slot:filters>
 
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
+    <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Received</th>
@@ -234,7 +233,6 @@
                 @endforelse
             </tbody>
         </table>
-    </div>
 
     <x-slot:pagination>
         {{ $inboundEmails->links() }}

@@ -1,8 +1,8 @@
 @php
     use App\Enums\ServiceSectionPublicationStatus;
 
-    $hasSections = $processingRun->serviceSections->isNotEmpty();
-    $isInProgress = $processingRun->status->isInProgress();
+    $hasSections = $run->serviceSections->isNotEmpty();
+    $isInProgress = $run->status->isInProgress();
 @endphp
 
 <div class="rounded-lg border border-gray-200 p-4" wire:key="processing-run-{{ $run->id }}">

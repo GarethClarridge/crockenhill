@@ -46,7 +46,6 @@ final class ProcessingRunTimelineBuilder
                 ? self::entryFromRecordedStep($definition['label'], $recordedStep)
                 : self::entryFromMissingStep(
                     label: $definition['label'],
-                    step: $definition['key'],
                     stepIndex: $index,
                     latestRecordedIndex: $latestRecordedIndex,
                     currentStepIndex: $currentStepIndex,
@@ -82,7 +81,6 @@ final class ProcessingRunTimelineBuilder
      */
     private static function entryFromMissingStep(
         string $label,
-        string $step,
         int $stepIndex,
         ?int $latestRecordedIndex,
         ?int $currentStepIndex,

@@ -14,8 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ProcessingRunTimelineBuilder;
-use App\Support\ServiceFlowBuilder;
-use App\Support\ServiceRecordTimeline;
+use App\Support\ServiceTimelineBuilder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -52,7 +51,9 @@ class ShowChurchService extends Component
         $pendingMerge = $this->churchService->import_metadata?->pendingStructureMerge;
         $hasPendingMerge = $pendingMerge !== null && $pendingMerge->incomingSource !== null;
 
-        $serviceTimelines = $this->buildServiceTimelines($processingRuns);
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\ChurchServiceItem> $items */
+        $items = $this->churchService->items;
+        $serviceTimelines = ServiceTimelineBuilder::buildTimelines($processingRuns, $items);
 
         return view('livewire.admin.church-services.show-church-service', [
             'importMetadata' => $importMetadata,
@@ -61,7 +62,7 @@ class ShowChurchService extends Component
             'processingRuns' => $processingRuns,
             'processingTimelines' => ProcessingRunTimelineBuilder::buildAll($processingRuns),
             'serviceTimelines' => $serviceTimelines,
-            'serviceFlows' => $this->buildServiceFlows($serviceTimelines, $processingRuns),
+            'serviceFlows' => ServiceTimelineBuilder::buildFlows($serviceTimelines, $processingRuns),
             'pendingMerge' => $hasPendingMerge ? $pendingMerge : null,
         ]);
     }
@@ -242,41 +243,6 @@ class ShowChurchService extends Component
             ->orderByDesc('created_at');
 
         return $query->get();
-    }
-
-    /**
-     * @param  EloquentCollection<int, MediaProcessingLog>  $processingRuns
-     * @return array<int, list<array<string, mixed>>>
-     */
-    private function buildServiceTimelines(EloquentCollection $processingRuns): array
-    {
-        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\ChurchServiceItem> $items */
-        $items = $this->churchService->items;
-
-        return $processingRuns
-            ->mapWithKeys(fn (MediaProcessingLog $run): array => [
-                $run->id => ServiceRecordTimeline::build($items, $run),
-            ])
-            ->all();
-    }
-
-    /**
-     * @param  array<int, list<array<string, mixed>>>  $serviceTimelines
-     * @param  EloquentCollection<int, MediaProcessingLog>  $processingRuns
-     * @return array<int, list<array<string, mixed>>>
-     */
-    private function buildServiceFlows(array $serviceTimelines, EloquentCollection $processingRuns): array
-    {
-        return collect($serviceTimelines)
-            ->mapWithKeys(function (array $rows, int $runId) use ($processingRuns): array {
-                $run = $processingRuns->find($runId);
-                if (! $run instanceof MediaProcessingLog) {
-                    return [$runId => []];
-                }
-
-                return [$runId => ServiceFlowBuilder::build($rows, $run)];
-            })
-            ->all();
     }
 
     private function processingLogMatchesService(MediaProcessingLog $processingLog): bool
