@@ -5,6 +5,8 @@ namespace Tests\Unit;
 use App\Models\Sermon;
 use App\Presenters\SermonItemListPresenter;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -12,14 +14,25 @@ class SermonItemListPresenterTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('public');
+        Config::set('media-processing.storage.sermon_disk', 'public');
+    }
+
     #[Test]
-    public function it_generates_item_list_json_ld(): void
+    public function it_generates_item_list_json_ld_with_rich_metadata(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon',
             'date' => '2024-01-01',
             'preacher' => 'John Doe',
+            'audio_file_path' => 'sermons/test.mp3',
+            'duration' => 1800,
         ]);
+
+        Storage::disk('public')->put('sermons/test.mp3', 'audio');
 
         $presenter = app(SermonItemListPresenter::class);
         $result = $presenter->toItemList(collect([$sermon]));
@@ -33,5 +46,16 @@ class SermonItemListPresenterTest extends TestCase
         $this->assertEquals('Test Sermon', $item['name']);
         $this->assertEquals('John Doe', $item['author']['name']);
         $this->assertEquals('2024-01-01T00:00:00+00:00', $item['datePublished']);
+
+        // Check for rich audio metadata
+        $this->assertArrayHasKey('audio', $item);
+        $this->assertEquals('AudioObject', $item['audio']['@type']);
+        $this->assertEquals('PT30M', $item['audio']['duration']);
+        $this->assertEquals('audio/mpeg', $item['audio']['encodingFormat']);
+
+        // Check for author enrichment
+        $this->assertEquals('Preacher', $item['author']['jobTitle']);
+        $this->assertArrayHasKey('worksFor', $item['author']);
+        $this->assertEquals(config('organization.name'), $item['author']['worksFor']['name']);
     }
 }

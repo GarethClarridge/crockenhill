@@ -36,6 +36,47 @@ class SermonViewPresenterTest extends TestCase
     }
 
     #[Test]
+    public function duration_iso8601_returns_null_when_duration_is_null_or_zero(): void
+    {
+        $sermonNull = Sermon::factory()->make(['duration' => null]);
+        $sermonZero = Sermon::factory()->make(['duration' => 0]);
+
+        $this->assertNull($this->presenter->durationIso8601($sermonNull));
+        $this->assertNull($this->presenter->durationIso8601($sermonZero));
+    }
+
+    #[Test]
+    public function duration_iso8601_formats_correctly(): void
+    {
+        $sermon = Sermon::factory()->make(['duration' => 2700]); // 45 minutes
+
+        $this->assertSame('PT45M', $this->presenter->durationIso8601($sermon));
+    }
+
+    #[Test]
+    public function preacher_image_url_returns_null_when_no_profile_or_image(): void
+    {
+        $sermon = Sermon::factory()->make(['preacher_id' => null, 'preacher' => 'John Doe']);
+
+        $this->assertNull($this->presenter->preacherImageUrl($sermon));
+    }
+
+    #[Test]
+    public function preacher_image_url_returns_url_from_profile(): void
+    {
+        $preacher = Preacher::factory()->create([
+            'image_path' => 'preachers/john.jpg',
+        ]);
+        $sermon = Sermon::factory()->create([
+            'preacher_id' => $preacher->id,
+        ]);
+        $sermon->load('preacherProfile');
+
+        $url = $this->presenter->preacherImageUrl($sermon);
+        $this->assertStringContainsString('/storage/preachers/john.jpg', $url ?? '');
+    }
+
+    #[Test]
     public function it_presents_explicit_media_and_link_data(): void
     {
         $preacher = Preacher::factory()->create([
@@ -58,6 +99,7 @@ class SermonViewPresenterTest extends TestCase
             'thumbnail_file_path' => 'thumbnails/test.jpg',
             'thumbnail_metadata' => ['plain_thumbnail_path' => 'thumbnails/test.jpg'],
             'transcript_file_path' => 'transcripts/test.md',
+            'duration' => 3600,
         ]);
 
         $sermon->load('preacherProfile');
@@ -74,6 +116,7 @@ class SermonViewPresenterTest extends TestCase
         $this->assertStringContainsString('?v=', $presented['thumbnail_url'] ?? '');
         $this->assertSame('Transcript body', $presented['transcript']);
         $this->assertStringContainsString('/storage/sermons/test.mp4', $presented['video_url'] ?? '');
+        $this->assertSame('PT1H', $presented['duration_iso8601']);
     }
 
     #[Test]

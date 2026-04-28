@@ -32,29 +32,45 @@ class SermonItemListPresenter
             '@type' => 'ItemList',
             'numberOfItems' => $flatSermons->count(),
             'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
-                $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
-                $publicUrl = $this->sermonViewPresenter->publicUrl($sermon);
+                $sermonView = $this->sermonViewPresenter->present($sermon);
+                $thumbnailUrl = $sermonView['thumbnail_url'];
+                $publicUrl = $sermonView['public_url'];
+                $datePublished = $sermon->date->toIso8601String();
+                $metaDescription = $this->sermonViewPresenter->metaDescription($sermon);
+
+                $author = [
+                    '@type' => 'Person',
+                    'name' => $sermonView['preacher_name'],
+                    'url' => $sermonView['preacher_url'],
+                    'jobTitle' => 'Preacher',
+                    'worksFor' => [
+                        '@type' => 'Organization',
+                        'name' => $orgName,
+                        '@id' => config('app.url').'/',
+                    ],
+                ];
+
+                if ($sermonView['preacher_image_url']) {
+                    $author['image'] = $sermonView['preacher_image_url'];
+                }
 
                 $item = [
                     '@type' => 'Article',
                     'headline' => $sermon->title,
                     'name' => $sermon->title,
                     'url' => $publicUrl,
-                    'description' => $sermon->meta_description,
-                    'datePublished' => $sermon->date->toIso8601String(),
+                    'description' => $metaDescription,
+                    'datePublished' => $datePublished,
                     'inLanguage' => 'en-GB',
                     'contentLocation' => [
                         '@type' => 'Place',
                         'name' => $orgName,
                     ],
-                    'author' => [
-                        '@type' => 'Person',
-                        'name' => $this->sermonViewPresenter->displayPreacherName($sermon),
-                        'url' => $this->sermonViewPresenter->preacherUrl($sermon),
-                    ],
+                    'author' => $author,
                     'publisher' => [
                         '@type' => 'Organization',
                         'name' => $orgName,
+                        '@id' => config('app.url').'/',
                         'logo' => [
                             '@type' => 'ImageObject',
                             'url' => $logoUrl,
@@ -66,6 +82,40 @@ class SermonItemListPresenter
                     ],
                     'image' => $thumbnailUrl ?: $logoUrl,
                 ];
+
+                if ($sermonView['video_url']) {
+                    $video = [
+                        '@type' => 'VideoObject',
+                        'name' => $sermon->title,
+                        'description' => $metaDescription,
+                        'thumbnailUrl' => $thumbnailUrl ?: $logoUrl,
+                        'uploadDate' => $datePublished,
+                        'contentUrl' => $sermonView['video_url'],
+                    ];
+
+                    if ($sermonView['duration_iso8601']) {
+                        $video['duration'] = $sermonView['duration_iso8601'];
+                    }
+
+                    $item['video'] = $video;
+                }
+
+                if ($sermonView['audio_url']) {
+                    $audio = [
+                        '@type' => 'AudioObject',
+                        'name' => $sermon->title,
+                        'contentUrl' => $sermonView['audio_url'],
+                        'description' => $metaDescription,
+                        'encodingFormat' => 'audio/mpeg',
+                        'uploadDate' => $datePublished,
+                    ];
+
+                    if ($sermonView['duration_iso8601']) {
+                        $audio['duration'] = $sermonView['duration_iso8601'];
+                    }
+
+                    $item['audio'] = $audio;
+                }
 
                 return [
                     '@type' => 'ListItem',

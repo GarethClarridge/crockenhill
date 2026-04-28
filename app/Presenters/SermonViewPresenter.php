@@ -46,6 +46,11 @@ class SermonViewPresenter
     private array $memoizedDurations = [];
 
     /**
+     * @var array<int|string, ?string>
+     */
+    private array $memoizedIsoDurations = [];
+
+    /**
      * @var array<string, array<string, mixed>>
      */
     private array $memoizedPresents = [];
@@ -74,6 +79,11 @@ class SermonViewPresenter
      * @var array<string, string>
      */
     private array $memoizedMetaDescriptions = [];
+
+    /**
+     * @var array<string, ?string>
+     */
+    private array $memoizedPreacherImageUrls = [];
 
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
@@ -111,6 +121,29 @@ class SermonViewPresenter
     }
 
     /**
+     * Get the ISO 8601 duration string (e.g. PT45M) for the sermon.
+     *
+     * Performance Optimization: Memoizes duration formatting results
+     * to avoid redundant calculations across multiple views and components.
+     */
+    public function durationIso8601(Sermon $sermon): ?string
+    {
+        $key = $this->cacheKey($sermon, 'duration_iso');
+
+        if (isset($this->memoizedIsoDurations[$key])) {
+            return $this->memoizedIsoDurations[$key] === self::MEMO_NULL ? null : $this->memoizedIsoDurations[$key];
+        }
+
+        if ($sermon->duration === null || $sermon->duration <= 0) {
+            $this->memoizedIsoDurations[$key] = self::MEMO_NULL;
+
+            return null;
+        }
+
+        return $this->memoizedIsoDurations[$key] = \Carbon\CarbonInterval::seconds($sermon->duration)->cascade()->spec();
+    }
+
+    /**
      * Get the human-friendly date of the sermon.
      *
      * Performance Optimization: Memoizes date formatting results by timestamp
@@ -142,6 +175,8 @@ class SermonViewPresenter
         $this->memoizedHumanDates = [];
         $this->memoizedSlugs = [];
         $this->memoizedMetaDescriptions = [];
+        $this->memoizedIsoDurations = [];
+        $this->memoizedPreacherImageUrls = [];
     }
 
     public function audioUrl(Sermon $sermon): ?string
@@ -157,6 +192,39 @@ class SermonViewPresenter
             : null;
 
         $this->memoizedUrls[$key] = $url ?? self::MEMO_NULL;
+
+        return $url;
+    }
+
+    /**
+     * Get the preacher's profile image URL.
+     *
+     * Performance Optimization: Memoizes preacher image URL lookups to avoid
+     * redundant Storage or relationship lookups for the same preacher.
+     */
+    public function preacherImageUrl(Sermon $sermon): ?string
+    {
+        $preacherKey = $sermon->preacher_id !== null
+            ? "id_{$sermon->preacher_id}"
+            : (string) $this->displayPreacherName($sermon);
+
+        if ($preacherKey === '') {
+            return null;
+        }
+
+        if (isset($this->memoizedPreacherImageUrls[$preacherKey])) {
+            return $this->memoizedPreacherImageUrls[$preacherKey] === self::MEMO_NULL ? null : $this->memoizedPreacherImageUrls[$preacherKey];
+        }
+
+        $url = (function () use ($sermon) {
+            if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+                return $sermon->preacherProfile->profile_image_url;
+            }
+
+            return null;
+        })();
+
+        $this->memoizedPreacherImageUrls[$preacherKey] = $url ?? self::MEMO_NULL;
 
         return $url;
     }
@@ -284,8 +352,10 @@ class SermonViewPresenter
      * @return array{
      *     audio_url: ?string,
      *     display_reference: ?string,
+     *     duration_iso8601: ?string,
      *     formatted_duration: ?string,
      *     human_date: string,
+     *     preacher_image_url: ?string,
      *     preacher_name: ?string,
      *     preacher_url: ?string,
      *     series_url: ?string,
@@ -297,12 +367,14 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'api_present');
 
-        /** @var array{audio_url: ?string, display_reference: ?string, formatted_duration: ?string, human_date: string, preacher_name: ?string, preacher_url: ?string, series_url: ?string, thumbnail_url: ?string, video_url: ?string} */
+        /** @var array{audio_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, series_url: ?string, thumbnail_url: ?string, video_url: ?string} */
         return $this->memoizedPresents[$key] ??= [
             'audio_url' => $this->audioUrl($sermon),
             'display_reference' => $this->displayReference($sermon),
+            'duration_iso8601' => $this->durationIso8601($sermon),
             'formatted_duration' => $this->formattedDuration($sermon),
             'human_date' => $this->humanDate($sermon),
+            'preacher_image_url' => $this->preacherImageUrl($sermon),
             'preacher_name' => $this->displayPreacherName($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
             'series_url' => $this->seriesUrl($sermon),
@@ -317,8 +389,10 @@ class SermonViewPresenter
      *     canonical_url: string,
      *     card_thumbnail_url: ?string,
      *     display_reference: ?string,
+     *     duration_iso8601: ?string,
      *     formatted_duration: ?string,
      *     human_date: string,
+     *     preacher_image_url: ?string,
      *     preacher_name: ?string,
      *     preacher_url: ?string,
      *     public_url: string,
@@ -332,14 +406,16 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'full_present');
 
-        /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, formatted_duration: ?string, human_date: string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, transcript: ?string, video_url: ?string} */
+        /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, transcript: ?string, video_url: ?string} */
         return $this->memoizedPresents[$key] ??= [
             'audio_url' => $this->audioUrl($sermon),
             'canonical_url' => $this->canonicalUrl($sermon),
             'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
             'display_reference' => $this->displayReference($sermon),
+            'duration_iso8601' => $this->durationIso8601($sermon),
             'formatted_duration' => $this->formattedDuration($sermon),
             'human_date' => $this->humanDate($sermon),
+            'preacher_image_url' => $this->preacherImageUrl($sermon),
             'preacher_name' => $this->displayPreacherName($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
             'public_url' => $this->publicUrl($sermon),
