@@ -56,6 +56,35 @@ class SongIntegrityTest extends TestCase
     }
 
     #[Test]
+    public function migration_repairs_invalid_slugs(): void
+    {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Database integrity tests require MySQL');
+        }
+
+        // 1. Create a song with an invalid slug (bypassing Eloquent if needed, but here we can just rollback)
+        // Actually, we'll test the repair logic by rolling back and then migrating again.
+
+        // We'll create a song with an underscore in the slug, which is invalid per the pattern.
+        // But the constraint is currently active. So we have to rollback first.
+        \Illuminate\Support\Facades\Artisan::call('migrate:rollback', ['--step' => 1]);
+
+        \Illuminate\Support\Facades\DB::table('songs')->insert([
+            'slug' => 'invalid_slug_with_underscore',
+            'canonical_key' => 'repair-test-key',
+            'title' => 'Repair Test',
+            'lyrics_xml' => '<song></song>',
+        ]);
+
+        // 2. Run the migration
+        \Illuminate\Support\Facades\Artisan::call('migrate');
+
+        // 3. Verify it was repaired
+        $song = \App\Models\Song::where('canonical_key', 'repair-test-key')->first();
+        $this->assertEquals('invalid-slug-with-underscore', $song->slug);
+    }
+
+    #[Test]
     public function database_rejects_empty_song_slug(): void
     {
         if (config('database.default') !== 'mysql') {

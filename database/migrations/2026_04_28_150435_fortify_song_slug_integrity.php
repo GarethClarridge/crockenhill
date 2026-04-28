@@ -27,21 +27,27 @@ return new class extends Migration
             return;
         }
 
-        // 1. Backfill any missing slugs (safety check)
-        $songsMissingSlugs = DB::table('songs')
-            ->where(function ($query) {
-                $query->whereNull('slug')
-                    ->orWhere('slug', '');
-            })
-            ->get(['id', 'title']);
+        // 1. Backfill and repair invalid slugs
+        // We use REGEXP with 'c' for case-sensitivity in PHP logic via model or DB::raw if needed,
+        // but here we can just check if it matches our pattern.
+        $songsToRepair = DB::table('songs')
+            ->get(['id', 'title', 'slug']);
 
-        foreach ($songsMissingSlugs as $song) {
-            $baseSlug = Str::slug((string) $song->title) ?: 'untitled-song';
+        $regex = '/' . self::SLUG_CHECK_PATTERN . '/';
+
+        foreach ($songsToRepair as $song) {
+            if ($song->slug !== null && $song->slug !== '' && preg_match($regex, $song->slug)) {
+                continue;
+            }
+
+            // If slug is missing or invalid, generate a new one
+            $baseSlug = Str::slug((string) ($song->slug ?: $song->title)) ?: 'untitled-song';
             $slug = $baseSlug;
             $counter = 1;
 
-            while (DB::table('songs')->where('slug', $slug)->exists()) {
-                $slug = $baseSlug.'-'.$counter;
+            // Collision avoidance (ignoring current record)
+            while (DB::table('songs')->where('slug', $slug)->where('id', '!=', $song->id)->exists()) {
+                $slug = $baseSlug . '-' . $counter;
                 $counter++;
             }
 
