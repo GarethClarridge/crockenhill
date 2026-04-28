@@ -36,7 +36,7 @@ return new class extends Migration
             ->get(['id', 'title']);
 
         foreach ($songsMissingSlugs as $song) {
-            $baseSlug = Str::slug($song->title ?: 'untitled-song');
+            $baseSlug = Str::slug((string) $song->title) ?: 'untitled-song';
             $slug = $baseSlug;
             $counter = 1;
 
