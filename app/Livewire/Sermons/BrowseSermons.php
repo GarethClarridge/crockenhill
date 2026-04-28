@@ -37,23 +37,20 @@ class BrowseSermons extends Component
     #[Url(as: 'series', except: null)]
     public ?string $seriesFilter = null;
 
-    public function mount(BibleCanon $bibleCanon): void
+    public function mount(BibleCanon $bibleCanon, SermonRepository $sermonRepository): void
     {
-        if ($this->bookFilter !== null && ! $bibleCanon->hasBook($this->bookFilter)) {
-            $this->bookFilter = null;
-        }
+        $normalized = $sermonRepository->normalizeArchiveFilters(
+            $bibleCanon,
+            $this->bookFilter,
+            $this->chapterFilter,
+            $this->preacherFilter,
+            $this->seriesFilter,
+        );
 
-        if ($this->bookFilter === null) {
-            $this->chapterFilter = null;
-
-            return;
-        }
-
-        $maxChapter = $bibleCanon->chaptersInBook($this->bookFilter);
-
-        if ($this->chapterFilter !== null && ($this->chapterFilter < 1 || $this->chapterFilter > $maxChapter)) {
-            $this->chapterFilter = null;
-        }
+        $this->bookFilter = $normalized['book'];
+        $this->chapterFilter = $normalized['chapter'];
+        $this->preacherFilter = $normalized['preacherId'];
+        $this->seriesFilter = $normalized['series'];
     }
 
     public function updatedBookFilter(): void

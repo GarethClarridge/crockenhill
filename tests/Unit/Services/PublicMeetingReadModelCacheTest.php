@@ -124,12 +124,17 @@ class PublicMeetingReadModelCacheTest extends TestCase
 
         $result = $this->service->get($meeting);
 
-        $this->assertCount(3, $result->pastEvents);
+        // Past events are not baked into the cache, so the read model should have an empty collection
+        $this->assertCount(0, $result->pastEvents);
         $this->assertCount(6, $result->upcomingEvents);
+
+        // Test the fresh past events method separately
+        $pastEvents = $this->service->getPastEventsForMeeting($meeting);
+        $this->assertCount(3, $pastEvents);
 
         // Verify order of past events (descending)
         $this->assertTrue(
-            $result->pastEvents[0]->start_datetime->gt($result->pastEvents[1]->start_datetime)
+            $pastEvents[0]->start_datetime->gt($pastEvents[1]->start_datetime)
         );
 
         // Verify order of upcoming events (ascending)

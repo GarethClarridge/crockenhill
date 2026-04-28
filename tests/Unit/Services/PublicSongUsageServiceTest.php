@@ -294,4 +294,90 @@ class PublicSongUsageServiceTest extends TestCase
 
         $this->assertCount(0, $history);
     }
+
+    // ── qualification policy: non-completed-livestream states ──
+
+    #[Test]
+    public function test_query_includes_oos_song_when_livestream_log_is_failed(): void
+    {
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->failed()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $results = $this->service->query()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame($song->id, $results->first()->id);
+    }
+
+    #[Test]
+    public function test_query_includes_oos_song_when_livestream_log_is_pending(): void
+    {
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $results = $this->service->query()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame($song->id, $results->first()->id);
+    }
+
+    #[Test]
+    public function test_query_includes_oos_song_when_livestream_log_is_processing(): void
+    {
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->processing()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $results = $this->service->query()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame($song->id, $results->first()->id);
+    }
+
+    #[Test]
+    public function test_query_includes_oos_song_when_processing_log_is_completed_audio(): void
+    {
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+        ]);
+
+        MediaProcessingLog::factory()->audio()->completed()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $results = $this->service->query()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame($song->id, $results->first()->id);
+    }
 }

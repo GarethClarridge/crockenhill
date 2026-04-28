@@ -335,4 +335,30 @@ class SermonRepositoryTest extends TestCase
 
         $this->assertEquals('test-sermon', $slug);
     }
+
+    #[Test]
+    public function it_returns_books_when_enabled_books_for_filter_is_called(): void
+    {
+        Cache::forget('sermon_filter_books');
+
+        $result = $this->repository->getEnabledBooksForFilter();
+
+        // Should return a collection with distinct books from sermon scripture filters
+        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result);
+        // After calling it once, it should be cached
+        $this->assertTrue(Cache::has('sermon_filter_books'));
+    }
+
+    #[Test]
+    public function it_caches_enabled_books_and_clears_on_clear_listing_caches(): void
+    {
+        Cache::forget('sermon_filter_books');
+
+        $this->repository->getEnabledBooksForFilter();
+        $this->assertTrue(Cache::has('sermon_filter_books'));
+
+        $this->repository->clearListingCaches();
+
+        $this->assertFalse(Cache::has('sermon_filter_books'));
+    }
 }

@@ -273,6 +273,123 @@ class PublicSongCatalogServiceTest extends TestCase
         $this->assertSame(0, (int) $oosResult->usage_count);
     }
 
+    // ── qualification policy: non-completed-livestream states ──
+
+    #[Test]
+    public function failed_livestream_log_does_not_disqualify_oos_items(): void
+    {
+        $song = Song::factory()->create(['title' => 'Failed Log Song']);
+
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $song->id,
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->failed()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $result = $this->service->query('all')->firstWhere('id', $song->id);
+
+        $this->assertNotNull($result);
+        $this->assertSame(1, (int) $result->usage_count);
+    }
+
+    #[Test]
+    public function pending_livestream_log_does_not_disqualify_oos_items(): void
+    {
+        $song = Song::factory()->create(['title' => 'Pending Log Song']);
+
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $song->id,
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $result = $this->service->query('all')->firstWhere('id', $song->id);
+
+        $this->assertNotNull($result);
+        $this->assertSame(1, (int) $result->usage_count);
+    }
+
+    #[Test]
+    public function processing_livestream_log_does_not_disqualify_oos_items(): void
+    {
+        $song = Song::factory()->create(['title' => 'Processing Log Song']);
+
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $song->id,
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->processing()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $result = $this->service->query('all')->firstWhere('id', $song->id);
+
+        $this->assertNotNull($result);
+        $this->assertSame(1, (int) $result->usage_count);
+    }
+
+    #[Test]
+    public function completed_audio_log_does_not_disqualify_oos_items(): void
+    {
+        $song = Song::factory()->create(['title' => 'Audio Log Song']);
+
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $song->id,
+        ]);
+
+        MediaProcessingLog::factory()->audio()->completed()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $result = $this->service->query('all')->firstWhere('id', $song->id);
+
+        $this->assertNotNull($result);
+        $this->assertSame(1, (int) $result->usage_count);
+    }
+
+    #[Test]
+    public function completed_livestream_without_confirmed_section_excludes_oos_item(): void
+    {
+        $song = Song::factory()->create(['title' => 'No Section Song']);
+
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'type' => 'songs',
+            'song_id' => $song->id,
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->completed()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $result = $this->service->query('all')->firstWhere('id', $song->id);
+
+        $this->assertNotNull($result);
+        $this->assertSame(0, (int) $result->usage_count);
+    }
+
     // ── normalizeRange ────────────────────────────────────────────────────
 
     #[Test]

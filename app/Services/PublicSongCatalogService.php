@@ -159,9 +159,8 @@ class PublicSongCatalogService
                 fn (Builder $q): Builder => $q->where('church_services.date', '>=', now()->subYears(3)->startOfDay())
             )
             ->where(function (Builder $q): void {
-                // Phase 6.1 policy: when a completed livestream processing log exists for a service,
-                // only count songs with a confirmed section match. Services without any processing
-                // log use the order-of-service items directly.
+                // Phase 6.1 policy: OoS items remain eligible unless a completed livestream log exists for the service.
+                // Failed, pending, in-progress, or non-livestream logs leave OoS items eligible.
                 $q
                     ->whereExists(function (QueryBuilder $logQuery): void {
                         $logQuery->selectRaw('1')
@@ -181,7 +180,9 @@ class PublicSongCatalogService
                     ->orWhereNotExists(function (QueryBuilder $logQuery): void {
                         $logQuery->selectRaw('1')
                             ->from('media_processing_logs')
-                            ->whereColumn('media_processing_logs.church_service_id', 'church_services.id');
+                            ->whereColumn('media_processing_logs.church_service_id', 'church_services.id')
+                            ->where('media_processing_logs.processing_type', MediaType::Livestream->value)
+                            ->where('media_processing_logs.status', ProcessingStatus::Completed->value);
                     });
             });
     }

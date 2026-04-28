@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Models\CalendarEvent;
@@ -42,5 +44,63 @@ class PublicMeetingReadModelCacheTest extends TestCase
 
         $this->assertFalse(Cache::has($cacheKey));
         $this->get('/community/cached-meeting')->assertSee('Fresh event');
+    }
+
+    #[Test]
+    public function past_events_within_two_years_are_shown(): void
+    {
+        $page = Page::factory()->create([
+            'slug' => 'past-events-page',
+            'area' => 'community',
+            'heading' => 'Past Events',
+            'admin' => 'no',
+        ]);
+
+        $meeting = Meeting::factory()->create([
+            'slug' => 'past-events-meeting',
+            'page_id' => $page->id,
+        ]);
+
+        // Create a confirmed past event 6 months ago
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'past-events-meeting',
+            'title' => 'Recent Past Event',
+            'start_datetime' => now()->subMonths(6)->setHour(10),
+            'end_datetime' => now()->subMonths(6)->setHour(11),
+            'status' => \App\Enums\CalendarEventStatus::Confirmed,
+        ]);
+
+        $this->get('/community/past-events-meeting')
+            ->assertOk()
+            ->assertSee('Recent Past Event');
+    }
+
+    #[Test]
+    public function past_events_older_than_two_years_are_excluded(): void
+    {
+        $page = Page::factory()->create([
+            'slug' => 'old-events-page',
+            'area' => 'community',
+            'heading' => 'Old Events',
+            'admin' => 'no',
+        ]);
+
+        $meeting = Meeting::factory()->create([
+            'slug' => 'old-events-meeting',
+            'page_id' => $page->id,
+        ]);
+
+        // Create a confirmed past event 3 years ago
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'old-events-meeting',
+            'title' => 'Very Old Event',
+            'start_datetime' => now()->subYears(3)->subDay()->setHour(10),
+            'end_datetime' => now()->subYears(3)->subDay()->setHour(11),
+            'status' => \App\Enums\CalendarEventStatus::Confirmed,
+        ]);
+
+        $this->get('/community/old-events-meeting')
+            ->assertOk()
+            ->assertDontSee('Very Old Event');
     }
 }

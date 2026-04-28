@@ -34,26 +34,29 @@ class SermonController extends Controller
 
     /**
      * Display a listing of the resource.
+     *
+     * Renders the archive page shell. Filter validation happens in the mount phase,
+     * and the BrowseSermons Livewire component is the single owner of the paginated
+     * sermon query. JSON-LD schema is generated with all unfiltered sermons for SEO.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $filters = $this->archiveFilters(request());
-        $sermons = $this->sermonRepository->publicBrowseQuery(
-            book: $filters['book'],
-            chapter: $filters['chapter'],
-            preacherId: $filters['preacher'],
-            series: $filters['series'],
-        )
-            ->paginate(24);
+        $canonicalUrl = route('sermons.index');
+        if ($request->filled('page')) {
+            $canonicalUrl = route('sermons.index', ['page' => $request->integer('page')]);
+        }
+
+        $allSermons = $this->sermonRepository->publicBrowseQuery()->get();
+        $jsonLd = $this->itemListPresenter->toItemList($allSermons);
 
         return view('sermons.index', [
-            'json_ld_data' => $this->itemListPresenter->toItemList($sermons->getCollection()),
             'heading' => 'Sermons',
             'description' => 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.',
-            'canonical_url' => $this->archiveCanonicalUrl(request(), $filters),
+            'canonical_url' => $canonicalUrl,
             'area' => 'christ',
             'links' => $this->sermonLinks('sermons'),
             'slug' => 'sermons',
+            'json_ld_data' => $jsonLd,
         ]);
     }
 
@@ -124,40 +127,6 @@ class SermonController extends Controller
             'area' => 'christ',
             'links' => $this->sermonLinks($sermon->slug, ['homepage']),
         ]);
-    }
-
-    /**
-     * @return array{book:?string, chapter:?int, preacher:?int, series:?string}
-     */
-    private function archiveFilters(Request $request): array
-    {
-        $book = $request->filled('book') ? trim((string) $request->string('book')) : null;
-        $series = $request->filled('series') ? trim((string) $request->string('series')) : null;
-
-        return [
-            'book' => $book !== '' ? $book : null,
-            'chapter' => $request->filled('chapter') ? $request->integer('chapter') : null,
-            'preacher' => $request->filled('preacher') ? $request->integer('preacher') : null,
-            'series' => $series !== '' ? $series : null,
-        ];
-    }
-
-    /**
-     * @param  array{book:?string, chapter:?int, preacher:?int, series:?string}  $filters
-     */
-    private function archiveCanonicalUrl(Request $request, array $filters): string
-    {
-        if (collect($filters)->filter()->isNotEmpty()) {
-            return route('sermons.index');
-        }
-
-        $page = $request->integer('page', 1);
-
-        if ($page > 1) {
-            return route('sermons.index', ['page' => $page]);
-        }
-
-        return route('sermons.index');
     }
 
     public function preachers(PreacherItemListPresenter $itemListPresenter): View

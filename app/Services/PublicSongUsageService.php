@@ -122,8 +122,8 @@ class PublicSongUsageService
                 fn (Builder $query): Builder => $query->whereYear('church_services.date', now()->year)
             )
             ->where(function (Builder $query): void {
-                // Current Phase 6.1 policy: once any processing log exists for a service,
-                // we stop trusting the OoS directly and only count detected livestream songs.
+                // Phase 6.1 policy: OoS items remain eligible unless a completed livestream log exists for the service.
+                // Failed, pending, in-progress, or non-livestream logs leave OoS items eligible.
                 $query
                     ->whereExists(function (QueryBuilder $logQuery): void {
                         $logQuery->selectRaw('1')
@@ -143,7 +143,9 @@ class PublicSongUsageService
                     ->orWhereNotExists(function (QueryBuilder $logQuery): void {
                         $logQuery->selectRaw('1')
                             ->from('media_processing_logs')
-                            ->whereColumn('media_processing_logs.church_service_id', 'church_services.id');
+                            ->whereColumn('media_processing_logs.church_service_id', 'church_services.id')
+                            ->where('media_processing_logs.processing_type', MediaType::Livestream->value)
+                            ->where('media_processing_logs.status', ProcessingStatus::Completed->value);
                     });
             });
     }

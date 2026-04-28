@@ -33,6 +33,7 @@ final readonly class PublicMeetingReadModel
 
     /**
      * @param  Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>|array<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>  $links
+     * @param  Collection<int, mixed>|null  $pastEvents
      * @return array{
      *     area: string,
      *     content: string,
@@ -52,7 +53,7 @@ final readonly class PublicMeetingReadModel
      *     upcomingEvents: Collection<int, mixed>
      * }
      */
-    public function toViewData(Collection|array $links, Meeting $meeting, ?Page $page = null): array
+    public function toViewData(Collection|array $links, Meeting $meeting, ?Page $page = null, ?Collection $pastEvents = null): array
     {
         return [
             'area' => $this->area,
@@ -67,7 +68,7 @@ final readonly class PublicMeetingReadModel
             'metaDescription' => $this->metaDescription,
             'page' => $page,
             'pageDescription' => $this->pageDescription,
-            'pastEvents' => $this->pastEvents,
+            'pastEvents' => $pastEvents ?? $this->pastEvents,
             'photos' => $this->photos,
             'slug' => $this->slug,
             'upcomingEvents' => $this->upcomingEvents,

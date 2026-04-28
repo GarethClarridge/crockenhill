@@ -43,7 +43,7 @@ class PublicMeetingReadModelCache
                 metaDescription: $pageReadModel === null ? $heading : $pageReadModel->metaDescription,
                 pageDescription: $meeting->page?->description,
                 photos: $this->meetingShowPresenter->photos($meeting),
-                pastEvents: $this->pastEvents($meeting),
+                pastEvents: collect(),
                 slug: $meeting->slug,
                 upcomingEvents: $this->upcomingEvents($meeting),
             );
@@ -78,13 +78,19 @@ class PublicMeetingReadModelCache
     }
 
     /**
+     * Get past events within the recent window, applied fresh on each call so the window is never stale.
+     * Events at or after the 2-year cutoff are included; older events are filtered out.
+     *
      * @return \Illuminate\Database\Eloquent\Collection<int, CalendarEvent>
      */
-    private function pastEvents(Meeting $meeting): \Illuminate\Database\Eloquent\Collection
+    public function getPastEventsForMeeting(Meeting $meeting): \Illuminate\Database\Eloquent\Collection
     {
+        $cutoff = now()->subYears(2)->startOfDay();
+
         return CalendarEvent::query()
             ->select(['id', 'title', 'speaker', 'start_datetime'])
             ->where('meeting_slug', $meeting->slug)
+            ->where('start_datetime', '>=', $cutoff)
             ->past()
             ->confirmed()
             ->orderBy('start_datetime', 'desc')

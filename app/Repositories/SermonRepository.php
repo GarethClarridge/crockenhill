@@ -9,6 +9,7 @@ use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
+use App\Support\BibleCanon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -160,6 +161,59 @@ class SermonRepository
     }
 
     /**
+     * Normalize and validate raw sermon archive filter inputs against the Bible canon.
+     *
+     * Returns sanitized values; invalid book names and out-of-range chapters become null.
+     *
+     * @return array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}
+     */
+    public function normalizeArchiveFilters(
+        BibleCanon $bibleCanon,
+        ?string $book,
+        ?int $chapter,
+        ?int $preacherId,
+        ?string $series,
+    ): array {
+        $book = is_string($book) && $book !== '' ? trim($book) : null;
+        $series = is_string($series) && $series !== '' ? trim($series) : null;
+        $series = $series === '' ? null : $series;
+
+        if ($book !== null && ! $bibleCanon->hasBook($book)) {
+            $book = null;
+        }
+
+        if ($book === null) {
+            $chapter = null;
+        } elseif ($chapter !== null) {
+            $maxChapter = $bibleCanon->chaptersInBook($book);
+            if ($chapter < 1 || $chapter > $maxChapter) {
+                $chapter = null;
+            }
+        }
+
+        return compact('book', 'chapter', 'preacherId', 'series');
+    }
+
+    /**
+     * Get all distinct Bible books that have at least one sermon scripture filter entry.
+     *
+     * Cached for 24–48 hours; cleared by clearListingCaches().
+     *
+     * @return Collection<int, string>
+     */
+    public function getEnabledBooksForFilter(): Collection
+    {
+        return Cache::flexible('sermon_filter_books', [86400, 172800], function (): Collection {
+            return SermonScriptureFilter::query()
+                ->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+                ->where('sermons.content_type', SermonContentType::Sermon->value)
+                ->select('bible_book')
+                ->distinct()
+                ->pluck('bible_book');
+        });
+    }
+
+    /**
      * Clear all cached sermon listings.
      */
     public function clearListingCaches(Sermon|Preacher|null $model = null): void
@@ -167,6 +221,7 @@ class SermonRepository
         Cache::forget('latest_sermons');
         Cache::forget('all_sermons');
         Cache::forget('sermon_series');
+        Cache::forget('sermon_filter_books');
 
         if ($model instanceof Sermon) {
             $this->clearScriptureChapterCaches($model);

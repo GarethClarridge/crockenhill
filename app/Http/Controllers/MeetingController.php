@@ -68,10 +68,14 @@ class MeetingController extends Controller
         );
         $readModel = $this->publicMeetingReadModelCache->get($meeting);
 
+        // Apply fresh past events with current time window (not cached)
+        $pastEvents = $this->publicMeetingReadModelCache->getPastEventsForMeeting($meeting);
+
         return view('meetings.show', $readModel->toViewData(
             links: $links,
             meeting: $meeting,
             page: $meeting->page,
+            pastEvents: $pastEvents,
         ));
     }
 
