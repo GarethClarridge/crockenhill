@@ -26,7 +26,7 @@ class SermonAssetController extends Controller
      */
     public function serveAudio(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'audio');
+        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -60,7 +60,7 @@ class SermonAssetController extends Controller
 
     public function serveVideo(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'video');
+        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -98,7 +98,7 @@ class SermonAssetController extends Controller
      */
     public function serveThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'thumbnail');
+        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -129,7 +129,7 @@ class SermonAssetController extends Controller
      */
     public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        $authorizationResponse = $this->authorizeAssetAccess($sermon, 'card_thumbnail');
+        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
         if ($authorizationResponse instanceof RedirectResponse) {
             return $authorizationResponse;
         }
@@ -190,59 +190,17 @@ class SermonAssetController extends Controller
         ]);
     }
 
-    /**
-     * Authorize access to a sermon asset based on content type and exposure policy.
-     *
-     * Security: Admins have unrestricted access for review. Children's Talk access
-     * is gated by verified email (when not public). Regular sermon video and
-     * thumbnail visibility is governed by automated quality assessment and
-     * manual visibility overrides.
-     */
-    private function authorizeAssetAccess(Sermon $sermon, string $assetType): ?RedirectResponse
+    private function authorizeChildrensTalkAssetAccess(Sermon $sermon): ?RedirectResponse
     {
-        /** @var \App\Models\User|null $user */
-        $user = Auth::user();
-
-        // Security: Administrators are exempt from exposure policies to allow for review.
-        if ($user?->canAccessAdmin()) {
+        if ($sermon->content_type !== SermonContentType::ChildrensTalk) {
             return null;
         }
 
-        // Security: Children's Corner access is gated by verified email (when not public).
-        // This check takes precedence over other restrictions to ensure proper login redirection.
-        if ($sermon->content_type === SermonContentType::ChildrensTalk) {
-            if (! $this->exposurePolicy->canAccessChildrensCorner($user)) {
-                return redirect()->guest(route('login'));
-            }
+        if ($this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
+            return null;
         }
 
-        // Security: Private assets are restricted to administrators.
-        // Public users should only access assets marked as public (non-private/ path).
-        $path = match ($assetType) {
-            'audio' => $sermon->audio_file_path,
-            'video' => $sermon->video_file_path,
-            'thumbnail' => $sermon->thumbnail_file_path,
-            'card_thumbnail' => $sermon->card_thumbnail_file_path,
-            default => null,
-        };
-
-        if ($path !== null && str_starts_with($path, 'private/')) {
-            abort(404, 'Asset not available.');
-        }
-
-        // Visibility checks based on quality assessment and manual overrides.
-        // These apply to all sermons, including Children's Talks (Defense in Depth).
-        $exposed = match ($assetType) {
-            'video' => $this->exposurePolicy->shouldExposeVideo($sermon),
-            'thumbnail', 'card_thumbnail' => $this->exposurePolicy->shouldExposeThumbnail($sermon),
-            default => true,
-        };
-
-        if (! $exposed) {
-            abort(404, 'Asset not available.');
-        }
-
-        return null;
+        return redirect()->guest(route('login'));
     }
 
     private function abortOnUnsafePath(string $path, string $type): void

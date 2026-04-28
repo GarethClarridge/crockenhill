@@ -27,8 +27,3 @@
 **Vulnerability:** Core media processing services were catching raw exceptions and returning `$e->getMessage()` directly in API responses and database logs. This leaked internal server paths, SQL errors, and configuration details to end users.
 **Learning:** General exception messages are often too technical and descriptive for public exposure. Failing to explicitly distinguish between "user-safe" and "internal" errors leads to accidental information disclosure.
 **Prevention:** Use the `ProvidesSafeMessage` interface to mark exceptions that are safe for public display. Sanitize all error reporting in public-facing services by replacing non-safe exceptions with generic messages. Always ensure technical details are still captured in system logs (`Log::error`) for developer visibility.
-
-## 2026-05-15 - [Authorized Asset Serving Policy]
-**Vulnerability:** `SermonAssetController` was only enforcing access policies for Children's Talk content, leaving regular sermon assets (audio, video, thumbnails) accessible via direct URLs even if they were stored in `private/` or marked as unexposed by the `SermonExposurePolicy` (e.g., due to poor quality).
-**Learning:** Relying on frontend visibility logic (hiding links) is insufficient if the serving endpoint itself does not re-verify the exposure policy. Public-facing asset controllers must act as the final gatekeeper for all media assets.
-**Prevention:** Centralize authorization logic for asset serving that combines content-type policies, automated quality assessment results, and manual visibility overrides. Explicitly restrict "private/" storage paths to administrators to prevent accidental leakage of raw or unedited media.
