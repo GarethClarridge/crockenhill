@@ -31,7 +31,7 @@
             <x-button link="{{ route('admin.pages.index') }}" variant="outline" inline>
                 Cancel
             </x-button>
-            <x-form-button variant="primary" wire:click="save" icon="check" data-form-action="save">
+            <x-form-button variant="primary" wire:click="save" icon="check" data-form-action>
                 Save
             </x-form-button>
         </x-slot:actions>

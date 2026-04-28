@@ -497,4 +497,47 @@ class MediaUploadTest extends TestCase
         $component->dispatch('media-upload:retry-upload', id: 'different-form-id')
             ->assertSet('status', $originalStatus); // State unchanged when ID doesn't match
     }
+
+    #[Test]
+    public function it_processes_retry_upload_event_only_for_matching_form_id(): void
+    {
+        $this->actingAs($this->admin);
+
+        $component = Livewire::test(MediaUpload::class)
+            ->set('processingId', 'test-processing-123')
+            ->set('status', 'failed')
+            ->set('errorMessage', 'Upload failed');
+
+        $formId = $component->instance()->getId();
+
+        $component->dispatch('media-upload:retry-upload', id: $formId)
+            ->assertSet('status', 'idle')
+            ->assertSet('showUploadForm', true)
+            ->assertSet('showProcessingStatus', false);
+    }
+
+    #[Test]
+    public function it_processes_cancel_processing_event_only_for_matching_form_id(): void
+    {
+        $this->actingAs($this->admin);
+
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor->expects($this->once())
+            ->method('cancel')
+            ->with('test-processing-123')
+            ->willReturn(['success' => true, 'message' => 'Processing cancelled successfully']);
+
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
+
+        $component = Livewire::test(MediaUpload::class)
+            ->set('processingId', 'test-processing-123')
+            ->set('status', 'processing');
+
+        $formId = $component->instance()->getId();
+
+        $component->dispatch('media-upload:cancel-processing', id: $formId)
+            ->assertSet('status', 'cancelled')
+            ->assertSet('currentStep', 'Processing cancelled')
+            ->assertSet('cancelledMessage', 'Processing was cancelled by user.');
+    }
 }

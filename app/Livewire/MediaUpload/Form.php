@@ -195,9 +195,9 @@ class Form extends Component
     }
 
     #[On('media-upload:cancel-upload')]
-    public function handleCancelUploadRequest(?string $id = null): void
+    public function handleCancelUploadRequest(string $id): void
     {
-        if ($id && $id !== $this->getId()) {
+        if ($id !== $this->getId()) {
             return;
         }
 
@@ -205,9 +205,9 @@ class Form extends Component
     }
 
     #[On('media-upload:cancel-processing')]
-    public function handleCancelProcessingRequest(?string $id = null): void
+    public function handleCancelProcessingRequest(string $id): void
     {
-        if ($id && $id !== $this->getId()) {
+        if ($id !== $this->getId()) {
             return;
         }
 
@@ -215,9 +215,9 @@ class Form extends Component
     }
 
     #[On('media-upload:retry-upload')]
-    public function handleRetryUploadRequest(?string $id = null): void
+    public function handleRetryUploadRequest(string $id): void
     {
-        if ($id && $id !== $this->getId()) {
+        if ($id !== $this->getId()) {
             return;
         }
 
