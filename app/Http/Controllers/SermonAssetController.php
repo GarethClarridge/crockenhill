@@ -209,16 +209,14 @@ class SermonAssetController extends Controller
         }
 
         // Security: Children's Corner access is gated by verified email (when not public).
-        // This check takes precedence over private path restrictions to ensure proper redirection.
+        // This check takes precedence over other restrictions to ensure proper login redirection.
         if ($sermon->content_type === SermonContentType::ChildrensTalk) {
-            if ($this->exposurePolicy->canAccessChildrensCorner($user)) {
-                return null;
+            if (! $this->exposurePolicy->canAccessChildrensCorner($user)) {
+                return redirect()->guest(route('login'));
             }
-
-            return redirect()->guest(route('login'));
         }
 
-        // Security: Private assets of regular sermons are restricted to administrators.
+        // Security: Private assets are restricted to administrators.
         // Public users should only access assets marked as public (non-private/ path).
         $path = match ($assetType) {
             'audio' => $sermon->audio_file_path,
@@ -232,13 +230,16 @@ class SermonAssetController extends Controller
             abort(404, 'Asset not available.');
         }
 
-        // Regular sermon visibility checks
-        if ($assetType === 'video' && ! $this->exposurePolicy->shouldExposeVideo($sermon)) {
-            abort(404, 'Video not available.');
-        }
+        // Visibility checks based on quality assessment and manual overrides.
+        // These apply to all sermons, including Children's Talks (Defense in Depth).
+        $exposed = match ($assetType) {
+            'video' => $this->exposurePolicy->shouldExposeVideo($sermon),
+            'thumbnail', 'card_thumbnail' => $this->exposurePolicy->shouldExposeThumbnail($sermon),
+            default => true,
+        };
 
-        if ($assetType === 'thumbnail' && ! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-            abort(404, 'Thumbnail not available.');
+        if (! $exposed) {
+            abort(404, 'Asset not available.');
         }
 
         return null;
