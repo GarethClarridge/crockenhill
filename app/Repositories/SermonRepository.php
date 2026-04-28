@@ -345,42 +345,70 @@ class SermonRepository
 
     /**
      * Clear the cached scripture book and chapter lists for a specific sermon.
+     *
+     * Performance Optimization: Invalidates caches for both current and original values
+     * to ensure filter options stay in sync when a sermon's preacher, series, or
+     * scripture reference is modified.
      */
     public function clearScriptureChapterCaches(Sermon $sermon): void
     {
-        // Clear global book list (no filters)
+        // Always clear the global (no-filter) book list
         Cache::forget('sermon_scripture_books_all_all');
 
-        // Clear preacher-specific book list
-        if ($sermon->preacher_id) {
-            Cache::forget("sermon_scripture_books_{$sermon->preacher_id}_all");
+        // Extract all possible values that could be cached
+        $preacherIds = array_filter(array_unique([
+            (int) $sermon->preacher_id ?: null,
+            (int) $sermon->getOriginal('preacher_id') ?: null,
+        ]));
+
+        $seriesNames = array_filter(array_unique([
+            $sermon->series ?: null,
+            $sermon->getOriginal('series') ?: null,
+        ]));
+
+        $seriesSlugs = array_map(fn (string $s) => Str::slug($s), $seriesNames);
+
+        // Clear book list caches for all combinations of preacher and series
+        foreach ($preacherIds as $id) {
+            Cache::forget("sermon_scripture_books_{$id}_all");
         }
 
-        // Clear series-specific book list
-        if ($sermon->series) {
-            $seriesSlug = Str::slug($sermon->series);
-            Cache::forget("sermon_scripture_books_all_{$seriesSlug}");
-            if ($sermon->preacher_id) {
-                Cache::forget("sermon_scripture_books_{$sermon->preacher_id}_{$seriesSlug}");
+        foreach ($seriesSlugs as $slug) {
+            Cache::forget("sermon_scripture_books_all_{$slug}");
+            foreach ($preacherIds as $id) {
+                Cache::forget("sermon_scripture_books_{$id}_{$slug}");
             }
         }
 
-        // Clear chapter lists for books associated with this sermon
-        $books = $sermon->scriptureFilters()->distinct()->pluck('bible_book');
+        // Resolve all books that need their chapter caches invalidated
+        // We check current filters, original filters, and current reference string
+        $books = $sermon->scriptureFilters()->distinct()->pluck('bible_book')->all();
+
+        // If the reference just changed, we should also clear for the new reference
+        // to be safe, using the index service to resolve books from the string.
+        if ($sermon->isDirty('reference')) {
+            $newEntries = app(\App\Services\SermonScriptureFilterIndexService::class)
+                ->entriesForReference($sermon->reference);
+
+            foreach ($newEntries as $entry) {
+                $books[] = $entry['bible_book'];
+            }
+        }
+
+        $books = array_unique($books);
 
         foreach ($books as $book) {
             $bookSlug = Str::slug($book);
             Cache::forget("sermon_scripture_chapters_{$bookSlug}_all_all");
 
-            if ($sermon->preacher_id) {
-                Cache::forget("sermon_scripture_chapters_{$bookSlug}_{$sermon->preacher_id}_all");
+            foreach ($preacherIds as $id) {
+                Cache::forget("sermon_scripture_chapters_{$bookSlug}_{$id}_all");
             }
 
-            if ($sermon->series) {
-                $seriesSlug = Str::slug($sermon->series);
-                Cache::forget("sermon_scripture_chapters_{$bookSlug}_all_{$seriesSlug}");
-                if ($sermon->preacher_id) {
-                    Cache::forget("sermon_scripture_chapters_{$bookSlug}_{$sermon->preacher_id}_{$seriesSlug}");
+            foreach ($seriesSlugs as $slug) {
+                Cache::forget("sermon_scripture_chapters_{$bookSlug}_all_{$slug}");
+                foreach ($preacherIds as $id) {
+                    Cache::forget("sermon_scripture_chapters_{$bookSlug}_{$id}_{$slug}");
                 }
             }
         }
