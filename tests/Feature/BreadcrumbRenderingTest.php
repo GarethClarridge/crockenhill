@@ -58,6 +58,50 @@ class BreadcrumbRenderingTest extends TestCase
     }
 
     #[Test]
+    public function presenter_builds_sermons_trail_for_preacher_page(): void
+    {
+        $this->get('/christ/sermons/preachers/john-smith');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('christ', 'John Smith');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Christ', $names);
+        $this->assertContains('Sermons', $names);
+        $this->assertContains('Preachers', $names);
+        $this->assertContains('John Smith', $names);
+    }
+
+    #[Test]
+    public function presenter_builds_sermons_trail_for_series_page(): void
+    {
+        $this->get('/christ/sermons/series/the-gospel-of-mark');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('christ', 'The Gospel of Mark');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Christ', $names);
+        $this->assertContains('Sermons', $names);
+        $this->assertContains('Series', $names);
+        $this->assertContains('The Gospel of Mark', $names);
+    }
+
+    #[Test]
+    public function presenter_builds_sermons_trail_for_service_page(): void
+    {
+        $this->get('/christ/sermons/morning');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('christ', 'Morning Services');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Christ', $names);
+        $this->assertContains('Sermons', $names);
+        $this->assertContains('Morning Services', $names);
+    }
+
+    #[Test]
     public function presenter_builds_admin_trail_for_admin_subsection(): void
     {
         $this->get('/admin/sermons/edit');

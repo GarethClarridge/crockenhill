@@ -56,9 +56,11 @@ class BreadcrumbPresenter
                 if ($this->request->segment(2) === 'sermons') {
                     $items[] = ['name' => 'Sermons', 'item' => url('christ/sermons')];
 
-                    if (count($this->request->segments()) === 4) {
-                        $seg3 = (string) $this->request->segment(3);
-                        $items[] = ['name' => Str::title($seg3), 'item' => url('christ/sermons/'.$seg3)];
+                    $seg3 = (string) $this->request->segment(3);
+                    if ($seg3 === 'preachers' && $this->request->segment(4) !== null) {
+                        $items[] = ['name' => 'Preachers', 'item' => url('christ/sermons/preachers')];
+                    } elseif ($seg3 === 'series' && $this->request->segment(4) !== null) {
+                        $items[] = ['name' => 'Series', 'item' => url('christ/sermons/series')];
                     }
                 } elseif ($this->request->segment(2) === 'members') {
                     $items[] = ['name' => 'Members', 'item' => url('church/members')];

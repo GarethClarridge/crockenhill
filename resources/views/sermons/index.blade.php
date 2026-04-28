@@ -12,6 +12,7 @@
     :image="asset('/images/headings/large/sermons.webp')"
     image-alt="Sermons at Crockenhill Baptist Church"
 />
+<x-breadcrumbs area="christ" :heading="$heading" jsonOnly />
 <x-schema.webpage
     :heading="$heading"
     :description="$description"
