@@ -12,7 +12,7 @@ class PreacherItemListPresenter
     /**
      * Convert a collection of preachers into a Schema.org ItemList data array.
      *
-     * @param  Collection<int, Preacher>
+     * @param  Collection<int, Preacher>  $preachers
      * @return array<string, mixed>
      */
     public function toItemList(Collection $preachers): array

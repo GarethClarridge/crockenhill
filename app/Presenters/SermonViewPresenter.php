@@ -201,6 +201,8 @@ class SermonViewPresenter
      *
      * Performance Optimization: Memoizes preacher image URL lookups to avoid
      * redundant Storage or relationship lookups for the same preacher.
+     * Only caches results when they are definitively known from a loaded
+     * relation or non-existent profile.
      */
     public function preacherImageUrl(Sermon $sermon): ?string
     {
@@ -216,13 +218,14 @@ class SermonViewPresenter
             return $this->memoizedPreacherImageUrls[$preacherKey] === self::MEMO_NULL ? null : $this->memoizedPreacherImageUrls[$preacherKey];
         }
 
-        $url = ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null)
-            ? $sermon->preacherProfile->profile_image_url
-            : null;
+        if ($sermon->relationLoaded('preacherProfile') || $sermon->preacher_id === null) {
+            $url = $sermon->preacherProfile?->profile_image_url;
+            $this->memoizedPreacherImageUrls[$preacherKey] = $url ?? self::MEMO_NULL;
 
-        $this->memoizedPreacherImageUrls[$preacherKey] = $url ?? self::MEMO_NULL;
+            return $url;
+        }
 
-        return $url;
+        return null;
     }
 
     public function canonicalUrl(Sermon $sermon): string
