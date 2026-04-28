@@ -298,20 +298,22 @@ class Meeting extends Model implements HasMedia, Sitemapable
     private function calculateNextMonthlyOccurrence(Carbon $now, Carbon $meetingDate): Carbon
     {
         $originalDay = $meetingDate->day;
-        $currentMonthOccurrence = $now->copy()->day($originalDay)->setTimeFrom($meetingDate);
 
-        if ($currentMonthOccurrence->isFuture()) {
-            $nextOccurrence = $currentMonthOccurrence;
-        } else {
-            $nextOccurrence = $now->copy()->addMonthNoOverflow()->day($originalDay)->setTimeFrom($meetingDate);
+        // Candidate in current month (clamped to end of month)
+        $candidate = $now->copy()
+            ->day(min($originalDay, $now->daysInMonth))
+            ->setTimeFrom($meetingDate);
+
+        if ($candidate->isFuture()) {
+            return $candidate;
         }
 
-        // Ensure it respects the original day if possible, otherwise adjusts (e.g. Feb 30 -> Feb 28/29)
-        if ($nextOccurrence->day !== $originalDay) {
-            $nextOccurrence->day($originalDay);
-        }
+        // Candidate in next month
+        $nextMonth = $now->copy()->addMonthNoOverflow();
 
-        return $nextOccurrence;
+        return $nextMonth
+            ->day(min($originalDay, $nextMonth->daysInMonth))
+            ->setTimeFrom($meetingDate);
     }
 
     private function calculateNextAnnualOccurrence(Carbon $now, Carbon $meetingDate): Carbon
@@ -319,26 +321,22 @@ class Meeting extends Model implements HasMedia, Sitemapable
         $originalMonth = $meetingDate->month;
         $originalDay = $meetingDate->day;
 
-        $currentYearOccurrence = $now->copy()
-            ->month($originalMonth)
-            ->day($originalDay)
+        // Candidate in current year. Reset day to 1 before changing month to avoid overflow.
+        $currentYearCandidate = $now->copy()->day(1)->month($originalMonth);
+        $currentYearOccurrence = $currentYearCandidate
+            ->day(min($originalDay, $currentYearCandidate->daysInMonth))
             ->setTimeFrom($meetingDate);
 
         if ($currentYearOccurrence->isFuture()) {
-            $nextOccurrence = $currentYearOccurrence;
-        } else {
-            $nextOccurrence = $now->copy()->addYearNoOverflow()
-                ->month($originalMonth)
-                ->day($originalDay)
-                ->setTimeFrom($meetingDate);
+            return $currentYearOccurrence;
         }
 
-        // Ensure it respects the original day if possible
-        if ($nextOccurrence->month !== $originalMonth || $nextOccurrence->day !== $originalDay) {
-            $nextOccurrence->month($originalMonth)->day($originalDay);
-        }
+        // Candidate in next year. Reset day to 1 before changing month to avoid overflow.
+        $nextYearCandidate = $now->copy()->addYearNoOverflow()->day(1)->month($originalMonth);
 
-        return $nextOccurrence;
+        return $nextYearCandidate
+            ->day(min($originalDay, $nextYearCandidate->daysInMonth))
+            ->setTimeFrom($meetingDate);
     }
 
     /**
