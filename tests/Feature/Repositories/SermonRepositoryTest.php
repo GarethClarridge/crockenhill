@@ -361,4 +361,55 @@ class SermonRepositoryTest extends TestCase
 
         $this->assertFalse(Cache::has('sermon_filter_books'));
     }
+
+    #[Test]
+    public function it_caches_enabled_chapters_for_filter_and_clears_on_clear_listing_caches(): void
+    {
+        $book = 'John';
+        $cacheKey = 'sermon_filter_chapters_john';
+        Cache::forget($cacheKey);
+
+        $result = $this->repository->getEnabledChaptersForFilter($book);
+
+        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result);
+        $this->assertTrue(Cache::has($cacheKey));
+
+        $this->repository->clearListingCaches();
+
+        $this->assertFalse(Cache::has($cacheKey));
+    }
+
+    #[Test]
+    public function get_recent_sermons_for_json_ld_returns_collection_and_caches_result(): void
+    {
+        Cache::forget('sermons_jsonld_recent_100');
+
+        $result = $this->repository->getRecentSermonsForJsonLd();
+
+        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result);
+        $this->assertTrue(Cache::has('sermons_jsonld_recent_100'));
+    }
+
+    #[Test]
+    public function get_recent_sermons_for_json_ld_cache_is_cleared_with_listing_caches(): void
+    {
+        Cache::forget('sermons_jsonld_recent_100');
+
+        $this->repository->getRecentSermonsForJsonLd();
+        $this->assertTrue(Cache::has('sermons_jsonld_recent_100'));
+
+        $this->repository->clearListingCaches();
+
+        $this->assertFalse(Cache::has('sermons_jsonld_recent_100'));
+    }
+
+    #[Test]
+    public function get_recent_sermons_for_json_ld_respects_limit(): void
+    {
+        Sermon::factory()->count(5)->create(['content_type' => 'sermon']);
+
+        $result = $this->repository->getRecentSermonsForJsonLd(limit: 3);
+
+        $this->assertLessThanOrEqual(3, $result->count());
+    }
 }

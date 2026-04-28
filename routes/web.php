@@ -97,6 +97,10 @@ Route::group(['prefix' => 'christ/sermons'], function () {
         ->middleware('throttle:media-thumbnail')
         ->name('sermons.thumbnail.card');
 
+    Route::get('/{sermon:slug}/transcript', [SermonAssetController::class, 'serveTranscript'])
+        ->middleware('throttle:media-thumbnail')
+        ->name('sermons.transcript');
+
     // Fallback slug-only routes
     Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('sermons.show');
     Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'verified', 'admin'])->name('sermons.destroy');

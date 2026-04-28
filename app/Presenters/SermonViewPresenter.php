@@ -390,6 +390,7 @@ class SermonViewPresenter
      *     display_reference: ?string,
      *     duration_iso8601: ?string,
      *     formatted_duration: ?string,
+     *     has_transcript: bool,
      *     human_date: string,
      *     preacher_image_url: ?string,
      *     preacher_name: ?string,
@@ -398,6 +399,7 @@ class SermonViewPresenter
      *     series_url: ?string,
      *     thumbnail_url: ?string,
      *     transcript: ?string,
+     *     transcript_url: ?string,
      *     video_url: ?string
      * }
      */
@@ -405,7 +407,7 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'full_present');
 
-        /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, transcript: ?string, video_url: ?string} */
+        /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, video_url: ?string} */
         return $this->memoizedPresents[$key] ??= [
             'audio_url' => $this->audioUrl($sermon),
             'canonical_url' => $this->canonicalUrl($sermon),
@@ -413,6 +415,7 @@ class SermonViewPresenter
             'display_reference' => $this->displayReference($sermon),
             'duration_iso8601' => $this->durationIso8601($sermon),
             'formatted_duration' => $this->formattedDuration($sermon),
+            'has_transcript' => $sermon->hasTranscript(),
             'human_date' => $this->humanDate($sermon),
             'preacher_image_url' => $this->preacherImageUrl($sermon),
             'preacher_name' => $this->displayPreacherName($sermon),
@@ -421,6 +424,7 @@ class SermonViewPresenter
             'series_url' => $this->seriesUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'transcript' => $this->transcriptReader->read($sermon),
+            'transcript_url' => $sermon->hasTranscript() ? route('sermons.transcript', ['sermon' => $sermon->slug]) : null,
             'video_url' => $this->videoUrl($sermon),
         ];
     }

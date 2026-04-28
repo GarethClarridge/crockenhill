@@ -43,7 +43,6 @@ class PublicMeetingReadModelCache
                 metaDescription: $pageReadModel === null ? $heading : $pageReadModel->metaDescription,
                 pageDescription: $meeting->page?->description,
                 photos: $this->meetingShowPresenter->photos($meeting),
-                pastEvents: collect(),
                 slug: $meeting->slug,
                 upcomingEvents: $this->upcomingEvents($meeting),
             );

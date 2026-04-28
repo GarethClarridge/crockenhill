@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Services\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -465,5 +468,49 @@ class SermonAssetControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/webp');
+    }
+
+    // ── Transcript endpoint ───────────────────────────────────────────────────
+
+    #[Test]
+    public function it_returns_rendered_html_for_a_sermon_transcript(): void
+    {
+        $sermon = Sermon::factory()->create(['slug' => 'transcript-sermon', 'transcript_file_path' => 'transcripts/sample.txt']);
+
+        $reader = $this->createMock(SermonTranscriptReader::class);
+        $reader->method('read')->willReturn("Hello **world**.\n\nSecond paragraph.");
+        $this->app->instance(SermonTranscriptReader::class, $reader);
+
+        $response = $this->get('/christ/sermons/transcript-sermon/transcript');
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'text/html; charset=UTF-8');
+        $response->assertSee('<strong>world</strong>', false);
+    }
+
+    #[Test]
+    public function it_returns_404_when_sermon_has_no_transcript(): void
+    {
+        $sermon = Sermon::factory()->create(['slug' => 'no-transcript-sermon', 'transcript_file_path' => null]);
+
+        $response = $this->get('/christ/sermons/no-transcript-sermon/transcript');
+
+        $response->assertNotFound();
+    }
+
+    #[Test]
+    public function transcript_endpoint_redirects_unauthenticated_user_for_non_public_childrens_talk(): void
+    {
+        config(['sermons.childrens_talks.public' => false]);
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'private-ct-transcript',
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'transcript_file_path' => 'transcripts/ct.txt',
+        ]);
+
+        $response = $this->get('/christ/sermons/private-ct-transcript/transcript');
+
+        $response->assertRedirect(route('login'));
     }
 }

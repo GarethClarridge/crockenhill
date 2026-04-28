@@ -29,7 +29,6 @@ class PublicMeetingReadModelDataTest extends TestCase
             metaDescription: 'Join us on Sunday',
             pageDescription: 'We meet every Sunday at 10:30am',
             photos: collect([]),
-            pastEvents: collect([]),
             slug: 'sunday-morning',
             upcomingEvents: collect([]),
         );
@@ -48,7 +47,6 @@ class PublicMeetingReadModelDataTest extends TestCase
         $this->assertSame('We meet every Sunday at 10:30am', $model->pageDescription);
         $this->assertNull($model->headingpictureMobile);
         $this->assertInstanceOf(Collection::class, $model->upcomingEvents);
-        $this->assertInstanceOf(Collection::class, $model->pastEvents);
         $this->assertInstanceOf(Collection::class, $model->photos);
     }
 
@@ -58,7 +56,7 @@ class PublicMeetingReadModelDataTest extends TestCase
     public function to_view_data_returns_all_keys(): void
     {
         $meeting = Meeting::factory()->create();
-        $viewData = $this->makeModel()->toViewData(links: [], meeting: $meeting);
+        $viewData = $this->makeModel()->toViewData(links: [], meeting: $meeting, pastEvents: collect());
 
         foreach (['area', 'content', 'description', 'heading', 'headingpicture', 'headingpictureMobile',
             'headingpictureTablet', 'links', 'meeting', 'metaDescription', 'page', 'pageDescription',
@@ -71,7 +69,7 @@ class PublicMeetingReadModelDataTest extends TestCase
     public function to_view_data_includes_meeting_model(): void
     {
         $meeting = Meeting::factory()->create();
-        $viewData = $this->makeModel()->toViewData(links: [], meeting: $meeting);
+        $viewData = $this->makeModel()->toViewData(links: [], meeting: $meeting, pastEvents: collect());
 
         $this->assertInstanceOf(Meeting::class, $viewData['meeting']);
         $this->assertSame($meeting->id, $viewData['meeting']->id);
@@ -81,7 +79,7 @@ class PublicMeetingReadModelDataTest extends TestCase
     public function to_view_data_defaults_page_to_null(): void
     {
         $meeting = Meeting::factory()->create();
-        $viewData = $this->makeModel()->toViewData(links: [], meeting: $meeting);
+        $viewData = $this->makeModel()->toViewData(links: [], meeting: $meeting, pastEvents: collect());
 
         $this->assertNull($viewData['page']);
     }
@@ -92,7 +90,7 @@ class PublicMeetingReadModelDataTest extends TestCase
         $meeting = Meeting::factory()->create();
         $page = Page::factory()->create(['slug' => 'sunday-morning']);
 
-        $viewData = $this->makeModel()->toViewData(links: [], meeting: $meeting, page: $page);
+        $viewData = $this->makeModel()->toViewData(links: [], meeting: $meeting, pastEvents: collect(), page: $page);
 
         $this->assertInstanceOf(Page::class, $viewData['page']);
     }
@@ -105,7 +103,7 @@ class PublicMeetingReadModelDataTest extends TestCase
             ['area' => 'community', 'description' => 'Sunday', 'heading' => 'Sunday', 'image_url' => '', 'slug' => 'sunday', 'url' => '/community/sunday'],
         ];
 
-        $viewData = $this->makeModel()->toViewData(links: $links, meeting: $meeting);
+        $viewData = $this->makeModel()->toViewData(links: $links, meeting: $meeting, pastEvents: collect());
 
         $this->assertInstanceOf(Collection::class, $viewData['links']);
         $this->assertCount(1, $viewData['links']);
@@ -119,13 +117,13 @@ class PublicMeetingReadModelDataTest extends TestCase
             ['area' => 'community', 'description' => 'Sunday', 'heading' => 'Sunday', 'image_url' => '', 'slug' => 'sunday', 'url' => '/sunday'],
         ]);
 
-        $viewData = $this->makeModel()->toViewData(links: $links, meeting: $meeting);
+        $viewData = $this->makeModel()->toViewData(links: $links, meeting: $meeting, pastEvents: collect());
 
         $this->assertSame($links, $viewData['links']);
     }
 
     #[Test]
-    public function to_view_data_passes_through_collections(): void
+    public function to_view_data_passes_through_past_events_from_caller(): void
     {
         $upcomingEvents = collect([['date' => '2024-04-14', 'title' => 'Easter Service']]);
         $pastEvents = collect([['date' => '2024-03-17', 'title' => 'Palm Sunday']]);
@@ -142,13 +140,12 @@ class PublicMeetingReadModelDataTest extends TestCase
             metaDescription: 'Meta',
             pageDescription: null,
             photos: $photos,
-            pastEvents: $pastEvents,
             slug: 'slug',
             upcomingEvents: $upcomingEvents,
         );
 
         $meeting = Meeting::factory()->create();
-        $viewData = $model->toViewData(links: [], meeting: $meeting);
+        $viewData = $model->toViewData(links: [], meeting: $meeting, pastEvents: $pastEvents);
 
         $this->assertSame($upcomingEvents, $viewData['upcomingEvents']);
         $this->assertSame($pastEvents, $viewData['pastEvents']);

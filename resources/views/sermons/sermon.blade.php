@@ -153,10 +153,40 @@ $hasPublicVideo = filled($sermonView['video_url']);
       </div>
       @endif
 
-      {{-- ── Transcript ───────────────────────────────────────── --}}
-      @if (is_string($sermonView['transcript']) && trim($sermonView['transcript']) !== '')
+      {{-- ── Transcript (lazy-loaded) ─────────────────────────── --}}
+      @if (! empty($sermonView['has_transcript']) && ! empty($sermonView['transcript_url']))
       <div
-        x-data="{ expanded: false }"
+        x-data="{
+          expanded: false,
+          loaded: false,
+          loading: false,
+          error: null,
+          html: '',
+          async toggle() {
+            this.expanded = !this.expanded;
+            if (this.expanded && !this.loaded && !this.loading) {
+              this.loading = true;
+              this.error = null;
+              try {
+                const response = await fetch(@js($sermonView['transcript_url']), { credentials: 'same-origin' });
+                if (!response.ok) {
+                  throw new Error('Transcript request failed: ' + response.status);
+                }
+                this.html = await response.text();
+                this.loaded = true;
+              } catch (e) {
+                this.error = 'Transcript could not be loaded.';
+              } finally {
+                this.loading = false;
+              }
+            }
+          },
+          plainText() {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = this.html;
+            return (tmp.textContent || tmp.innerText || '').trim();
+          },
+        }"
         class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-2">
@@ -165,16 +195,20 @@ $hasPublicVideo = filled($sermonView['video_url']);
             <span class="text-xs text-gray-400 font-sans">(may contain errors)</span>
           </div>
           <div class="flex items-center gap-2">
-            <x-clipboard-button
-                :content="$sermonView['transcript']"
-                label="Copy Transcript"
-                title="Copy transcript to clipboard"
-                icon="clipboard-document"
-            />
+            <button
+              type="button"
+              x-show="loaded"
+              @click="navigator.clipboard.writeText(plainText())"
+              class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-md bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2"
+              title="Copy transcript to clipboard">
+              <x-heroicon-o-clipboard-document class="h-4 w-4" aria-hidden="true" />
+              <span>Copy Transcript</span>
+            </button>
 
             <button
+              type="button"
               class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-md bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2"
-              @click="expanded = !expanded"
+              @click="toggle()"
               :aria-expanded="expanded"
               aria-controls="transcript-content">
               <span x-text="expanded ? 'Hide' : 'Show'">Show</span>
@@ -194,12 +228,9 @@ $hasPublicVideo = filled($sermonView['video_url']);
           x-transition:leave-start="opacity-100 translate-y-0"
           x-transition:leave-end="opacity-0 -translate-y-1"
           class="p-6 max-h-96 overflow-y-auto">
-          <div class="prose prose-gray max-w-none text-gray-700">
-            {!! Str::markdown($sermonView['transcript'], [
-            'html_input' => 'escape',
-            'allow_unsafe_links' => false,
-            ]) !!}
-          </div>
+          <div x-show="loading" class="text-sm text-gray-500">Loading transcript…</div>
+          <div x-show="error" x-text="error" class="text-sm text-red-600"></div>
+          <div x-show="loaded" x-html="html" class="prose prose-gray max-w-none text-gray-700"></div>
         </div>
       </div>
       @endif

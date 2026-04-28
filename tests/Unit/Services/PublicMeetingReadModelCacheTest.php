@@ -124,8 +124,7 @@ class PublicMeetingReadModelCacheTest extends TestCase
 
         $result = $this->service->get($meeting);
 
-        // Past events are not baked into the cache, so the read model should have an empty collection
-        $this->assertCount(0, $result->pastEvents);
+        // Past events are fetched fresh per-request via getPastEventsForMeeting(), not stored on the model
         $this->assertCount(6, $result->upcomingEvents);
 
         // Test the fresh past events method separately

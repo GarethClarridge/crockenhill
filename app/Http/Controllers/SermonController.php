@@ -35,19 +35,19 @@ class SermonController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * Renders the archive page shell. Filter validation happens in the mount phase,
-     * and the BrowseSermons Livewire component is the single owner of the paginated
-     * sermon query. JSON-LD schema is generated with all unfiltered sermons for SEO.
+     * The BrowseSermons Livewire component owns the paginated sermon query and filter
+     * normalization. The controller renders the page shell and a bounded JSON-LD payload
+     * sourced from the most recent sermons.
      */
     public function index(Request $request): View
     {
-        $canonicalUrl = route('sermons.index');
-        if ($request->filled('page')) {
-            $canonicalUrl = route('sermons.index', ['page' => $request->integer('page')]);
-        }
+        $canonicalUrl = $request->filled('page')
+            ? route('sermons.index', ['page' => $request->integer('page')])
+            : route('sermons.index');
 
-        $allSermons = $this->sermonRepository->publicBrowseQuery()->get();
-        $jsonLd = $this->itemListPresenter->toItemList($allSermons);
+        $jsonLd = $this->itemListPresenter->toItemList(
+            $this->sermonRepository->getRecentSermonsForJsonLd()
+        );
 
         return view('sermons.index', [
             'heading' => 'Sermons',

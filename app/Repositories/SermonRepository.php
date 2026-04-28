@@ -176,7 +176,6 @@ class SermonRepository
     ): array {
         $book = is_string($book) && $book !== '' ? trim($book) : null;
         $series = is_string($series) && $series !== '' ? trim($series) : null;
-        $series = $series === '' ? null : $series;
 
         if ($book !== null && ! $bibleCanon->hasBook($book)) {
             $book = null;
@@ -214,6 +213,51 @@ class SermonRepository
     }
 
     /**
+     * Get distinct chapters that have a sermon scripture filter entry for a given book.
+     *
+     * Cached per book for 24–48 hours; cleared in bulk by clearListingCaches().
+     *
+     * @return Collection<int, int>
+     */
+    public function getEnabledChaptersForFilter(string $book): Collection
+    {
+        /** @var array<int, string> $knownBooks */
+        $knownBooks = Cache::get('sermon_filter_chapter_books', []);
+        if (! in_array($book, $knownBooks, true)) {
+            $knownBooks[] = $book;
+            Cache::put('sermon_filter_chapter_books', $knownBooks, 172800);
+        }
+
+        return Cache::flexible($this->chaptersCacheKey($book), [86400, 172800], function () use ($book): Collection {
+            return SermonScriptureFilter::query()
+                ->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+                ->where('sermons.content_type', SermonContentType::Sermon->value)
+                ->where('bible_book', $book)
+                ->select('bible_chapter')
+                ->distinct()
+                ->orderBy('bible_chapter')
+                ->pluck('bible_chapter');
+        });
+    }
+
+    /**
+     * Get the most recent sermons for archive-level JSON-LD generation.
+     *
+     * Why: `ItemList` schema doesn't require the full archive; loading every sermon
+     * with relations on every request is wasteful at 700+ rows.
+     *
+     * @return Collection<int, Sermon>
+     */
+    public function getRecentSermonsForJsonLd(int $limit = 100): Collection
+    {
+        return Cache::flexible("sermons_jsonld_recent_{$limit}", [86400, 172800], function () use ($limit): Collection {
+            return $this->publicBrowseQuery()
+                ->limit($limit)
+                ->get();
+        });
+    }
+
+    /**
      * Clear all cached sermon listings.
      */
     public function clearListingCaches(Sermon|Preacher|null $model = null): void
@@ -222,6 +266,8 @@ class SermonRepository
         Cache::forget('all_sermons');
         Cache::forget('sermon_series');
         Cache::forget('sermon_filter_books');
+        Cache::forget('sermons_jsonld_recent_100');
+        $this->forgetChapterCaches();
 
         if ($model instanceof Sermon) {
             $this->clearScriptureChapterCaches($model);
@@ -282,6 +328,23 @@ class SermonRepository
         $slug = (string) ($preacher->slug ?: Str::slug($preacher->name));
 
         return 'sermons_preacher_'.$slug;
+    }
+
+    private function chaptersCacheKey(string $book): string
+    {
+        return 'sermon_filter_chapters_'.Str::slug($book);
+    }
+
+    private function forgetChapterCaches(): void
+    {
+        /** @var array<int, string> $knownBooks */
+        $knownBooks = Cache::get('sermon_filter_chapter_books', []);
+
+        foreach ($knownBooks as $book) {
+            Cache::forget($this->chaptersCacheKey($book));
+        }
+
+        Cache::forget('sermon_filter_chapter_books');
     }
 
     /**

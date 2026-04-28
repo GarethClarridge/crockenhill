@@ -8,9 +8,12 @@ use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
+use App\Services\SermonTranscriptReader;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 
@@ -19,7 +22,36 @@ class SermonAssetController extends Controller
     public function __construct(
         private readonly SermonStorageService $storageService,
         private readonly SermonExposurePolicy $exposurePolicy,
+        private readonly SermonTranscriptReader $transcriptReader,
     ) {}
+
+    /**
+     * Serve the rendered HTML for a sermon transcript so the detail page can
+     * fetch it lazily instead of embedding the full markdown render up front.
+     */
+    public function serveTranscript(Sermon $sermon): Response|RedirectResponse
+    {
+        $authorizationResponse = $this->authorizeChildrensTalkAssetAccess($sermon);
+        if ($authorizationResponse instanceof RedirectResponse) {
+            return $authorizationResponse;
+        }
+
+        $transcript = $this->transcriptReader->read($sermon);
+
+        if ($transcript === null || trim($transcript) === '') {
+            abort(404, 'Transcript not found.');
+        }
+
+        $html = (string) Str::markdown($transcript, [
+            'html_input' => 'escape',
+            'allow_unsafe_links' => false,
+        ]);
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Cache-Control' => 'private, max-age=300',
+        ]);
+    }
 
     /**
      * Serve audio file for a sermon
