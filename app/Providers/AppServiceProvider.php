@@ -31,12 +31,17 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Presenters\PreacherSitemapPresenter::class);
         $this->app->singleton(BibleCanon::class);
 
-        $this->app->singleton(\App\Services\SermonExposurePolicy::class);
-        $this->app->singleton(\App\Services\SermonStorageService::class);
-        $this->app->singleton(\App\Services\SermonTranscriptReader::class);
-        $this->app->singleton(\App\Services\TranscriptStorageService::class);
-        $this->app->singleton(\App\Presenters\SermonViewPresenter::class);
-        $this->app->singleton(\App\Presenters\SermonItemListPresenter::class);
+        /**
+         * Performance Optimization: These collaborators carry request-level memoization,
+         * so they should be shared within a single request / job lifecycle without
+         * leaking state across long-running workers.
+         */
+        $this->app->scoped(\App\Services\SermonExposurePolicy::class);
+        $this->app->scoped(\App\Services\SermonStorageService::class);
+        $this->app->scoped(\App\Services\SermonTranscriptReader::class);
+        $this->app->scoped(\App\Services\TranscriptStorageService::class);
+        $this->app->scoped(\App\Presenters\SermonViewPresenter::class);
+        $this->app->scoped(\App\Presenters\SermonItemListPresenter::class);
     }
 
     public function boot(): void
