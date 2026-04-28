@@ -216,13 +216,9 @@ class SermonViewPresenter
             return $this->memoizedPreacherImageUrls[$preacherKey] === self::MEMO_NULL ? null : $this->memoizedPreacherImageUrls[$preacherKey];
         }
 
-        $url = (function () use ($sermon) {
-            if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-                return $sermon->preacherProfile->profile_image_url;
-            }
-
-            return null;
-        })();
+        $url = ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null)
+            ? $sermon->preacherProfile->profile_image_url
+            : null;
 
         $this->memoizedPreacherImageUrls[$preacherKey] = $url ?? self::MEMO_NULL;
 
@@ -636,13 +632,8 @@ class SermonViewPresenter
     {
         $id = $sermon->id ?? 'u'.spl_object_id($sermon);
 
-        if (! isset($this->memoizedSermonKeys[$id])) {
-            if (! isset($this->memoizedTimestamps[$id])) {
-                $this->memoizedTimestamps[$id] = $sermon->updated_at?->getTimestamp() ?? 0;
-            }
-
-            $this->memoizedSermonKeys[$id] = "{$id}_{$this->memoizedTimestamps[$id]}";
-        }
+        $this->memoizedTimestamps[$id] ??= $sermon->updated_at?->getTimestamp() ?? 0;
+        $this->memoizedSermonKeys[$id] ??= "{$id}_{$this->memoizedTimestamps[$id]}";
 
         return "{$type}_{$this->memoizedSermonKeys[$id]}";
     }

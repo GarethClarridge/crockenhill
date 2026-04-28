@@ -8,10 +8,26 @@
     use Illuminate\Support\Str;
 
     $transcript = $sermonView['transcript'] ?? null;
-    $duration = $sermon->duration ? \Carbon\CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
+    $duration = $sermonView['duration_iso8601'] ?? null;
     $preacherName = $sermonView['preacher_name'];
     $thumbnailUrl = $sermonView['thumbnail_url'] ?: asset('images/Primary.png');
     $datePublished = $sermon->date->toIso8601String();
+
+    $author = [
+        '@type' => 'Person',
+        'name' => $preacherName,
+        'url' => $sermonView['preacher_url'],
+        'jobTitle' => 'Preacher',
+        'worksFor' => [
+            '@type' => 'Organization',
+            'name' => config('organization.name'),
+            '@id' => config('app.url').'/',
+        ],
+    ];
+
+    if ($sermonView['preacher_image_url']) {
+        $author['image'] = $sermonView['preacher_image_url'];
+    }
 
     $schema = [
         '@context' => 'https://schema.org',
@@ -20,11 +36,7 @@
         'description' => $metaDescription,
         'image' => $thumbnailUrl,
         'datePublished' => $datePublished,
-        'author' => [
-            '@type' => 'Person',
-            'name' => $preacherName,
-            'url' => $sermonView['preacher_url'],
-        ],
+        'author' => $author,
         'publisher' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),
