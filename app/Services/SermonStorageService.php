@@ -75,7 +75,7 @@ class SermonStorageService
     }
 
     /**
-     * Get file information for a sermon based on its storage pattern
+     * Get file information for a sermon based on its storage pattern.
      *
      * Performance Optimization: Memoizes file information lookups within the request
      * to avoid redundant path validation and storage pattern logic when resolving
@@ -85,12 +85,19 @@ class SermonStorageService
      */
     public function getSermonFileInfo(Sermon $sermon): array
     {
+        return $this->memoizedFileInfo[$this->getFileInfoCacheKey($sermon)] ??= $this->resolveFileInfo($sermon);
+    }
+
+    /**
+     * Get the request-level cache key for a sermon's file information.
+     */
+    private function getFileInfoCacheKey(Sermon $sermon): string
+    {
         $audioPath = $sermon->audio_file_path ?? '';
+
         // Key by ID (if persisted) or object hash (if unsaved), plus path and filetype
         // to ensure uniqueness and handle state changes within the request.
-        $cacheKey = ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
-
-        return $this->memoizedFileInfo[$cacheKey] ??= $this->resolveFileInfo($sermon, $audioPath);
+        return ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
     }
 
     /**
@@ -98,8 +105,9 @@ class SermonStorageService
      *
      * @return array{type: string, disk: string, path: string, original_path: string}
      */
-    private function resolveFileInfo(Sermon $sermon, string $audioPath): array
+    private function resolveFileInfo(Sermon $sermon): array
     {
+        $audioPath = $sermon->audio_file_path ?? '';
         $this->validatePath($audioPath, 'audio file');
 
         // Private files stored on the local disk (unreachable via the public/storage symlink)
@@ -347,9 +355,7 @@ class SermonStorageService
             Cache::forget($this->fileMetadataCacheKey($sermon));
 
             // Also clear request-level memoization for this sermon
-            $audioPath = $sermon->audio_file_path ?? '';
-            $cacheKey = ($sermon->id ?? 'u'.spl_object_id($sermon))."_{$audioPath}_{$sermon->filetype}";
-            unset($this->memoizedFileInfo[$cacheKey]);
+            unset($this->memoizedFileInfo[$this->getFileInfoCacheKey($sermon)]);
 
             if ($sermon->thumbnail_file_path) {
                 unset($this->memoizedThumbnailDisks[$sermon->thumbnail_file_path]);
