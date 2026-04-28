@@ -136,7 +136,27 @@ class SermonVideoServingTest extends TestCase
 
         $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/video");
 
-        $response->assertRedirect(); // Should redirect to public delivery URL since it's verified
+        $expectedUrl = app(SermonStorageService::class)->getVideoDeliveryUrl($sermon);
+        $response->assertRedirect($expectedUrl);
+    }
+
+    #[Test]
+    public function unverified_user_cannot_access_childrens_talk_video_when_not_public(): void
+    {
+        Config::set('sermons.childrens_talks.public', false);
+        $user = User::factory()->create(['email_verified_at' => null]);
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'childrens-talk',
+            'content_type' => SermonContentType::ChildrensTalk,
+            'video_file_path' => 'sermons/kids.mp4',
+        ]);
+
+        Storage::disk('public')->put('sermons/kids.mp4', 'fake content');
+
+        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/video");
+
+        $response->assertRedirect(route('login'));
     }
 
     #[Test]
@@ -154,6 +174,7 @@ class SermonVideoServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/video");
 
-        $response->assertRedirect();
+        $expectedUrl = app(SermonStorageService::class)->getVideoDeliveryUrl($sermon);
+        $response->assertRedirect($expectedUrl);
     }
 }
