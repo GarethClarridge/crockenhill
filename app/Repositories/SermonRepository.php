@@ -380,18 +380,24 @@ class SermonRepository
             }
         }
 
-        // Resolve all books that need their chapter caches invalidated
-        // We check current filters, original filters, and current reference string
+        // Resolve all books that need their chapter caches invalidated.
+        // We check the current relationship state as a baseline.
         $books = $sermon->scriptureFilters()->distinct()->pluck('bible_book')->all();
 
-        // If the reference just changed, we should also clear for the new reference
-        // to be safe, using the index service to resolve books from the string.
-        if ($sermon->isDirty('reference')) {
-            $newEntries = app(\App\Services\SermonScriptureFilterIndexService::class)
-                ->entriesForReference($sermon->reference);
+        // If the reference changed, we must also clear caches for both the original
+        // and new reference strings. This ensures invalidation works correctly
+        // regardless of whether this is called before or after the filter index sync.
+        if ($sermon->wasChanged('reference') || $sermon->isDirty('reference')) {
+            $indexService = app(\App\Services\SermonScriptureFilterIndexService::class);
+            $references = array_filter(array_unique([
+                (string) $sermon->reference ?: null,
+                (string) $sermon->getOriginal('reference') ?: null,
+            ]));
 
-            foreach ($newEntries as $entry) {
-                $books[] = $entry['bible_book'];
+            foreach ($references as $ref) {
+                foreach ($indexService->entriesForReference($ref) as $entry) {
+                    $books[] = $entry['bible_book'];
+                }
             }
         }
 
