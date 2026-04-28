@@ -78,7 +78,7 @@
 
                         <div class="flex flex-col flex-1 p-6 @if (!empty($snippetsBySongId[$song->id])) pb-0 @endif">
                             <div class="flex items-start justify-between gap-4">
-                                <a class="group" href="{{ $songUrl }}" wire:navigate tabindex="-1" aria-hidden="true">
+                                <a class="group" href="{{ $songUrl }}" wire:navigate tabindex="-1">
                                     <h2 class="font-display text-3xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
                                         {{ $song->title }}
                                     </h2>

@@ -1,5 +1,5 @@
 <div class="pb-12">
-    <a href="#sermon-results" class="sr-only focus:not-sr-only focus:absolute focus:z-30 focus:m-4 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-cbc-teal-dark focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-cbc-teal">
+    <a href="#sermon-results" @click.prevent="document.getElementById('sermon-results').focus()" class="sr-only focus:not-sr-only focus:absolute focus:z-30 focus:m-4 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-cbc-teal-dark focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-cbc-teal">
         Skip to results
     </a>
 
@@ -106,7 +106,7 @@
         Updating sermon results…
     </div>
 
-    <div id="sermon-results" wire:loading.class="pointer-events-none opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters">
+    <div id="sermon-results" tabindex="-1" wire:loading.class="pointer-events-none opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters">
         @php
             /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
         @endphp
