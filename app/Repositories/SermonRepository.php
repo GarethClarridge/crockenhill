@@ -169,13 +169,23 @@ class SermonRepository
      */
     public function normalizeArchiveFilters(
         BibleCanon $bibleCanon,
-        ?string $book,
-        ?int $chapter,
-        ?int $preacherId,
-        ?string $series,
+        mixed $book,
+        mixed $chapter,
+        mixed $preacherId,
+        mixed $series,
     ): array {
-        $book = is_string($book) && $book !== '' ? trim($book) : null;
-        $series = is_string($series) && $series !== '' ? trim($series) : null;
+        $book = is_string($book) ? trim($book) : null;
+        if ($book === '') {
+            $book = null;
+        }
+
+        $series = is_string($series) ? trim($series) : null;
+        if ($series === '') {
+            $series = null;
+        }
+
+        $preacherId = (int) $preacherId ?: null;
+        $chapter = (int) $chapter ?: null;
 
         if ($book !== null && ! $bibleCanon->hasBook($book)) {
             $book = null;
