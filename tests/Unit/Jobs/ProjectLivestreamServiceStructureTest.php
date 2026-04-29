@@ -62,7 +62,12 @@ class ProjectLivestreamServiceStructureTest extends TestCase
         $this->assertSame(ProcessingStatus::Completed, $step->status);
         $this->assertStringContainsString('1 item(s)', $step->message);
 
-        $this->assertSame(1, ChurchService::query()->count());
+        $churchService = $log->fresh()?->churchService;
+
+        $this->assertNotNull($churchService);
+        $this->assertSame('2026-03-23', $churchService->date->toDateString());
+        $this->assertSame(SermonService::Morning, $churchService->service);
+        $this->assertSame(1, $churchService->items()->count());
     }
 
     #[Test]

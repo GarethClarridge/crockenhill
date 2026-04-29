@@ -46,7 +46,7 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
 
         $this->instance(SpeakerIdentificationInterface::class, $mockService);
 
-        $this->artisan('speaker-profiles:bootstrap --min-sermons=2 --max-sermons=2')
+        $this->artisan("speaker-profiles:bootstrap --preacher={$preacher->slug} --min-sermons=2 --max-sermons=2")
             ->assertSuccessful();
 
         $profile = SpeakerProfile::where('preacher_id', $preacher->id)->first();
@@ -91,13 +91,16 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
 
         $this->instance(SpeakerIdentificationInterface::class, $mockService);
 
-        $this->artisan('speaker-profiles:bootstrap --min-sermons=2 --max-sermons=2')
+        $this->artisan("speaker-profiles:bootstrap --preacher={$preacher->slug} --min-sermons=2 --max-sermons=2")
             ->assertSuccessful();
-        $this->artisan('speaker-profiles:bootstrap --min-sermons=2 --max-sermons=2')
+        $this->artisan("speaker-profiles:bootstrap --preacher={$preacher->slug} --min-sermons=2 --max-sermons=2")
             ->assertSuccessful();
 
+        $profile = SpeakerProfile::where('preacher_id', $preacher->id)->first();
+
+        $this->assertNotNull($profile);
         $this->assertEquals(1, SpeakerProfile::where('preacher_id', $preacher->id)->count());
-        $this->assertEquals(2, SpeakerSample::count());
+        $this->assertEquals(2, SpeakerSample::where('speaker_profile_id', $profile->id)->count());
     }
 
     public function test_bootstrap_resolves_legacy_sermon_paths_via_storage_service(): void
@@ -120,13 +123,15 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
 
         $embedding = array_fill(0, 256, 0.1);
 
+        $resolvedPaths = [];
+
         $mockService = $this->createMock(SpeakerIdentificationInterface::class);
         $mockService->method('extractEmbedding')
-            ->with(
-                $this->equalTo('legacy/sermons/my-sermon.mp3'),
-                $this->isType('string'),
-            )
-            ->willReturn(SpeakerEmbeddingResult::success($embedding, 60.0));
+            ->willReturnCallback(function (string $path, string $disk) use (&$resolvedPaths, $embedding): SpeakerEmbeddingResult {
+                $resolvedPaths[] = [$path, $disk];
+
+                return SpeakerEmbeddingResult::success($embedding, 60.0);
+            });
         $mockService->method('updateProfile')
             ->willReturnCallback(function (SpeakerProfile $profile, array $approvedEmbeddings): SpeakerProfile {
                 $profile->update([
@@ -139,12 +144,19 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
 
         $this->instance(SpeakerIdentificationInterface::class, $mockService);
 
-        $this->artisan('speaker-profiles:bootstrap --min-sermons=2 --max-sermons=2')
+        $this->artisan("speaker-profiles:bootstrap --preacher={$preacher->slug} --min-sermons=2 --max-sermons=2")
             ->assertSuccessful();
 
         $profile = SpeakerProfile::where('preacher_id', $preacher->id)->first();
         $this->assertNotNull($profile);
         $this->assertEquals(2, $profile->sample_count);
+        $this->assertSame(
+            [
+                ['legacy/sermons/my-sermon.mp3', 'public'],
+                ['legacy/sermons/my-sermon.mp3', 'public'],
+            ],
+            $resolvedPaths
+        );
     }
 
     public function test_bootstrap_dry_run_makes_no_changes(): void
@@ -162,10 +174,15 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
         $mockService->expects($this->never())->method('updateProfile');
         $this->instance(SpeakerIdentificationInterface::class, $mockService);
 
-        $this->artisan('speaker-profiles:bootstrap --dry-run --min-sermons=2 --max-sermons=3')
+        $this->artisan("speaker-profiles:bootstrap --dry-run --preacher={$preacher->slug} --min-sermons=2 --max-sermons=3")
             ->assertSuccessful();
 
-        $this->assertEquals(0, SpeakerProfile::count());
-        $this->assertEquals(0, SpeakerSample::count());
+        $this->assertEquals(0, SpeakerProfile::where('preacher_id', $preacher->id)->count());
+        $this->assertEquals(
+            0,
+            SpeakerSample::query()
+                ->whereHas('speakerProfile', fn ($query) => $query->where('preacher_id', $preacher->id))
+                ->count()
+        );
     }
 }
