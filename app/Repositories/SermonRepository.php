@@ -169,23 +169,15 @@ class SermonRepository
      */
     public function normalizeArchiveFilters(
         BibleCanon $bibleCanon,
-        mixed $book,
-        mixed $chapter,
-        mixed $preacherId,
-        mixed $series,
+        string|int|null $book,
+        string|int|null $chapter,
+        string|int|null $preacherId,
+        string|int|null $series,
     ): array {
-        $book = is_string($book) ? trim($book) : null;
-        if ($book === '') {
-            $book = null;
-        }
-
-        $series = is_string($series) ? trim($series) : null;
-        if ($series === '') {
-            $series = null;
-        }
-
-        $preacherId = (int) $preacherId ?: null;
-        $chapter = (int) $chapter ?: null;
+        $book = is_string($book) && trim($book) !== '' ? trim($book) : null;
+        $series = is_string($series) && trim($series) !== '' ? trim($series) : null;
+        $preacherId = filter_var($preacherId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+        $chapter = filter_var($chapter, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
 
         if ($book !== null && ! $bibleCanon->hasBook($book)) {
             $book = null;
@@ -193,11 +185,8 @@ class SermonRepository
 
         if ($book === null) {
             $chapter = null;
-        } elseif ($chapter !== null) {
-            $maxChapter = $bibleCanon->chaptersInBook($book);
-            if ($chapter < 1 || $chapter > $maxChapter) {
-                $chapter = null;
-            }
+        } elseif ($chapter !== null && $chapter > $bibleCanon->chaptersInBook($book)) {
+            $chapter = null;
         }
 
         return compact('book', 'chapter', 'preacherId', 'series');
