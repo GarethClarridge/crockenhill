@@ -18,8 +18,12 @@ class EnsureServiceTrackingAccess
     {
         $user = $request->user();
 
-        if (! $user?->canAccessAdmin()) {
+        if (! $user?->is_admin) {
             abort(403, 'Unauthorized action.');
+        }
+
+        if (! $user->canAccessAdmin()) {
+            abort(403, 'Your email address is not verified.');
         }
 
         if ($request->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::SERVICE_UPLOAD->value)) {
