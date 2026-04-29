@@ -33,7 +33,7 @@ return new class extends Migration
         $songsToRepair = DB::table('songs')
             ->get(['id', 'title', 'slug']);
 
-        $regex = '/' . self::SLUG_CHECK_PATTERN . '/';
+        $regex = '/'.self::SLUG_CHECK_PATTERN.'/';
 
         foreach ($songsToRepair as $song) {
             if ($song->slug !== null && $song->slug !== '' && preg_match($regex, $song->slug)) {
@@ -47,7 +47,7 @@ return new class extends Migration
 
             // Collision avoidance (ignoring current record)
             while (DB::table('songs')->where('slug', $slug)->where('id', '!=', $song->id)->exists()) {
-                $slug = $baseSlug . '-' . $counter;
+                $slug = $baseSlug.'-'.$counter;
                 $counter++;
             }
 

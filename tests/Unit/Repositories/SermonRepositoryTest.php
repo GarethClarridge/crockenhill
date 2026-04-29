@@ -17,7 +17,7 @@ class SermonRepositoryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->repository = new SermonRepository();
+        $this->repository = new SermonRepository;
     }
 
     #[Test]
