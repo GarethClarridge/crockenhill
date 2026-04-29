@@ -8,13 +8,14 @@ use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AdminBoundaryTest extends TestCase
 {
     use DatabaseTransactions;
 
-    /** @test */
+    #[Test]
     public function unverified_admins_are_blocked_from_media_processing_apis(): void
     {
         $admin = User::factory()->create([
@@ -31,7 +32,7 @@ class AdminBoundaryTest extends TestCase
             ->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function unverified_admins_are_blocked_from_service_tracking_apis(): void
     {
         $admin = User::factory()->create([
@@ -44,7 +45,7 @@ class AdminBoundaryTest extends TestCase
             ->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function unverified_admins_cannot_categorize_calendar_events(): void
     {
         $admin = User::factory()->create([
