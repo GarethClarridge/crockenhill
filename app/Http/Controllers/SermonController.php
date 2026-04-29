@@ -45,10 +45,13 @@ class SermonController extends Controller
             ? route('sermons.index', ['page' => $request->integer('page')])
             : route('sermons.index');
 
+        $recentSermons = $this->sermonRepository->getRecentSermonsForJsonLd();
+
         return view('sermons.index', [
             'heading' => 'Sermons',
             'description' => 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.',
             'canonical_url' => $canonicalUrl,
+            'json_ld_data' => $this->itemListPresenter->toItemList($recentSermons),
             'area' => 'christ',
             'links' => $this->sermonLinks('sermons'),
             'slug' => 'sermons',

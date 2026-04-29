@@ -66,11 +66,15 @@ class DurationConstraintTest extends TestCase
     #[Test]
     public function it_rejects_negative_sermon_start_time_on_media_processing_logs(): void
     {
+        // The DB constraint fires when both times are provided and either is negative.
+        // A negative start_time with a null end_time is allowed at the DB level
+        // (application-level validation covers that case — see it_validates_media_processing_log_rules_at_application_level).
         $this->expectException(QueryException::class);
-        $this->expectExceptionMessage('media_processing_logs_timing_check');
+        $this->expectExceptionMessage('media_processing_logs_sermon_time_range_check');
 
         MediaProcessingLog::factory()->create([
             'sermon_start_time' => -1.0,
+            'sermon_end_time' => 50.0,
         ]);
     }
 
@@ -78,7 +82,7 @@ class DurationConstraintTest extends TestCase
     public function it_rejects_sermon_end_time_before_start_time_on_media_processing_logs(): void
     {
         $this->expectException(QueryException::class);
-        $this->expectExceptionMessage('media_processing_logs_timing_check');
+        $this->expectExceptionMessage('media_processing_logs_sermon_time_range_check');
 
         MediaProcessingLog::factory()->create([
             'sermon_start_time' => 100.0,

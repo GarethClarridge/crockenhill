@@ -9,7 +9,6 @@ use App\Services\AudioExtractionService;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\StorageAdapterHelper;
 use App\Traits\ChecksCancellation;
-use App\Traits\DetectsStorageType;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -17,6 +16,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 /**
  * ValidateAudioFile - Job to validate audio files for processing
@@ -26,7 +27,7 @@ use Illuminate\Support\Facades\Log;
  */
 class ValidateAudioFile implements ShouldQueue
 {
-    use ChecksCancellation, DetectsStorageType, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -47,18 +48,17 @@ class ValidateAudioFile implements ShouldQueue
             'processing_id' => $this->processingLog->processing_id,
         ]);
 
+        /** @var string|null $localTempPath */
         $localTempPath = null;
 
         try {
-            $storedFilePath = $this->processingLog->stored_file_path;
+            $storedFilePath = $this->resolveStoredFilePath();
             $originalName = $this->processingLog->original_filename;
 
-            if (! $storedFilePath) {
-                throw new \Exception('No stored file path found in processing log');
-            }
-
-            $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
-            $isS3Disk = $this->isS3Disk($sermonDisk);
+            $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+            $sermonStorage = Storage::disk($sermonDisk);
+            $diskDriver = config("filesystems.disks.{$sermonDisk}.driver");
+            $isS3Disk = is_string($diskDriver) && $diskDriver === 's3';
 
             Log::info('ValidateAudioFile path resolution', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -68,8 +68,8 @@ class ValidateAudioFile implements ShouldQueue
             ]);
 
             if ($isS3Disk) {
-                if (! \Illuminate\Support\Facades\Storage::disk($sermonDisk)->exists($storedFilePath)) {
-                    throw new \Exception("Audio file not found in S3 storage: {$storedFilePath}");
+                if (! $sermonStorage->exists($storedFilePath)) {
+                    throw new RuntimeException("Audio file not found in S3 storage: {$storedFilePath}");
                 }
 
                 Log::info('Downloading audio from S3 for validation', [
@@ -80,16 +80,16 @@ class ValidateAudioFile implements ShouldQueue
                 $localTempPath = $storageHelper->downloadToTemp($storedFilePath, $sermonDisk, 'local', 'temp/audio-validation');
                 $filePath = $localTempPath;
             } else {
-                $filePath = \Illuminate\Support\Facades\Storage::disk($sermonDisk)->path($storedFilePath);
+                $filePath = $sermonStorage->path($storedFilePath);
             }
 
             if (! file_exists($filePath)) {
-                throw new \Exception("Audio file not found at path: {$filePath} (relative: {$storedFilePath})");
+                throw new RuntimeException("Audio file not found at path: {$filePath} (relative: {$storedFilePath})");
             }
 
             $mimeType = mime_content_type($filePath);
             if ($mimeType === false) {
-                throw new \Exception('Could not determine audio file MIME type');
+                throw new RuntimeException('Could not determine audio file MIME type');
             }
 
             $file = new UploadedFile($filePath, $originalName, $mimeType, null, true);
@@ -105,7 +105,7 @@ class ValidateAudioFile implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Audio file validation failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
@@ -115,7 +115,7 @@ class ValidateAudioFile implements ShouldQueue
 
             throw $e;
         } finally {
-            if ($localTempPath) {
+            if ($localTempPath !== null) {
                 $storageHelper->cleanupTempFile($localTempPath);
             }
         }
@@ -125,5 +125,19 @@ class ValidateAudioFile implements ShouldQueue
     {
         app(MediaProcessingRunTransitionService::class)
             ->markAsFailed($this->processingLog, 'Audio validation job failed: '.$exception->getMessage());
+    }
+
+    private function resolveStoredFilePath(): string
+    {
+        $attributes = $this->processingLog->getAttributes();
+        $storedFilePath = $attributes['source_file_path'] ?? $attributes['stored_file_path'] ?? null;
+
+        throw_unless(
+            is_string($storedFilePath) && trim($storedFilePath) !== '',
+            RuntimeException::class,
+            'No stored file path found in processing log',
+        );
+
+        return (string) $storedFilePath;
     }
 }

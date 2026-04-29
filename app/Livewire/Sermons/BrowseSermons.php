@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Sermons;
 
 use App\Models\Preacher;
+use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Support\BibleCanon;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -20,6 +21,7 @@ use Livewire\WithPagination;
  * @property-read Collection<int, int> $enabledChapters
  * @property-read array<int, array{id:int, name:string}> $preacherOptions
  * @property-read array<int, array{id:string, name:string}> $seriesOptions
+ * @property-read LengthAwarePaginator<int, Sermon> $sermons
  */
 class BrowseSermons extends Component
 {
@@ -104,7 +106,7 @@ class BrowseSermons extends Component
     {
         $hasActiveFilters = $this->hasActiveFilters();
 
-        /** @var LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
+        /** @var LengthAwarePaginator<int, Sermon> $sermons */
         $sermons = $this->sermons;
 
         return view('livewire.sermons.browse-sermons', [
@@ -192,6 +194,9 @@ class BrowseSermons extends Component
         );
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Sermon>
+     */
     #[Computed]
     public function sermons(): LengthAwarePaginator
     {
