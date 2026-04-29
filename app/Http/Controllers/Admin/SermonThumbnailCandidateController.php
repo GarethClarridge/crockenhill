@@ -29,9 +29,7 @@ class SermonThumbnailCandidateController extends Controller
             abort(404, 'Thumbnail candidate not found.');
         }
 
-        if (str_contains($thumbnailPath, '..')) {
-            abort(404, 'Invalid thumbnail file path.');
-        }
+        $this->abortOnUnsafePath($thumbnailPath, 'thumbnail');
 
         $disk = $this->storageService->resolveThumbnailDisk($thumbnailPath);
 
@@ -55,5 +53,12 @@ class SermonThumbnailCandidateController extends Controller
             'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
             'Cache-Control' => 'no-store',
         ]);
+    }
+
+    private function abortOnUnsafePath(string $path, string $type): void
+    {
+        if (str_contains($path, '..') || str_starts_with($path, '/') || str_starts_with($path, '\\')) {
+            abort(404, "Invalid {$type} file path.");
+        }
     }
 }
