@@ -132,6 +132,7 @@ class ChurchServiceSongLinkerTest extends TestCase
         $song = Song::factory()->create([
             'canonical_key' => 'song one',
         ]);
+        $songCountBeforeRun = Song::query()->count();
 
         $item = ChurchServiceItem::factory()->create([
             'type' => 'songs',
@@ -144,7 +145,8 @@ class ChurchServiceSongLinkerTest extends TestCase
         $item->refresh();
 
         $this->assertNull($item->song_id);
-        $this->assertSame($song->id, Song::query()->firstOrFail()->id);
+        $this->assertTrue(Song::query()->whereKey($song->id)->exists());
+        $this->assertSame($songCountBeforeRun, Song::query()->count());
         $this->assertSame(1, $metrics['updated']);
     }
 
