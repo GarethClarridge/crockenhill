@@ -195,15 +195,14 @@ $hasPublicVideo = filled($sermonView['video_url']);
             <span class="text-xs text-gray-400 font-sans">(may contain errors)</span>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              type="button"
-              x-show="loaded"
-              @click="navigator.clipboard.writeText(plainText())"
-              class="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-md bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2"
-              title="Copy transcript to clipboard">
-              <x-heroicon-o-clipboard-document class="h-4 w-4" aria-hidden="true" />
-              <span>Copy Transcript</span>
-            </button>
+            <div x-show="loaded" x-cloak>
+              <x-clipboard-button
+                js-content="plainText()"
+                label="Copy Transcript"
+                icon="clipboard-document"
+                size="sm"
+              />
+            </div>
 
             <button
               type="button"

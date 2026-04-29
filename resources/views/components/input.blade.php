@@ -8,7 +8,7 @@ $hasError = $modelName && $errors->has($modelName);
 $type = $attributes->get('type', 'text');
 $isPassword = $type === 'password';
 
-$inputClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2'
+$inputClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 disabled:opacity-50 disabled:bg-gray-50 disabled:cursor-not-allowed'
     . ($icon ? ' pl-10' : '')
     . ($hasError ? ' border-red-300' : ' border-gray-300')
     . ($clearable || $isPassword ? ' pr-10' : '');
