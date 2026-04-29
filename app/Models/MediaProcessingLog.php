@@ -554,6 +554,42 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * Get all temporary file paths associated with this processing run.
+     *
+     * @return list<string>
+     */
+    public function temporaryFilePaths(): array
+    {
+        $tempFiles = [];
+
+        if (filled($this->source_file_path)) {
+            $tempFiles[] = (string) $this->source_file_path;
+        }
+
+        if (filled($this->enhanced_audio_file_path)) {
+            $tempFiles[] = (string) $this->enhanced_audio_file_path;
+        }
+
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+
+        foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {
+            $path = $metadata[$key] ?? null;
+            if (filled($path) && is_string($path)) {
+                $tempFiles[] = $path;
+            }
+        }
+
+        if ($this->processing_type === MediaType::Video) {
+            $storedPath = $this->stored_file_path;
+            if (filled($storedPath) && str_contains((string) $storedPath, 'temp/')) {
+                $tempFiles[] = (string) $storedPath;
+            }
+        }
+
+        return array_values(array_unique($tempFiles));
+    }
+
+    /**
      * @return array<string, list<string|mixed>>
      */
     public static function validationRules(): array
