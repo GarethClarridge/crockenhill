@@ -77,6 +77,7 @@ class SongCatalogSyncServiceTest extends TestCase
     public function it_returns_metrics_without_writing_to_the_database_in_dry_run_mode(): void
     {
         $path = $this->createSqliteWithOneSong('Amazing Grace', 'amazing grace how sweet the sound');
+        $songCountBeforeSync = Song::query()->count();
 
         $metrics = $this->service->sync($path, dryRun: true);
 
@@ -87,7 +88,8 @@ class SongCatalogSyncServiceTest extends TestCase
         $this->assertSame(1, $metrics['songs_created']);
 
         // No actual DB writes
-        $this->assertDatabaseEmpty('songs');
+        $this->assertSame($songCountBeforeSync, Song::query()->count());
+        $this->assertDatabaseMissing('songs', ['title' => 'Amazing Grace']);
     }
 
     // ── Live sync ─────────────────────────────────────────────────────────────
