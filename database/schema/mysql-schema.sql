@@ -40,13 +40,13 @@ CREATE TABLE `church_service_items` (
   `position` int unsigned NOT NULL,
   `type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `section_type` enum('welcome','prayer','notices','song','childrens_talk','bible_reading','sermon','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `source` enum('email','openlp','manual','livestream') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source` enum('email','openlp','manual','livestream') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `source_title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `openlp_search_title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `song_id` int unsigned DEFAULT NULL,
   `metadata` json DEFAULT NULL,
-  `livestream_processing_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `livestream_processing_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `livestream_service_section_id` bigint unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE `church_services` (
   `canonical_conflict_canonical_changed` tinyint(1) DEFAULT NULL,
   `canonical_conflict_reason` enum('unspecified','conflicts_only','canonical_changed','canonical_changed_with_conflicts') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `import_metadata` json DEFAULT NULL,
-  `pending_structure_merge_source` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `pending_structure_merge_source` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -261,14 +261,14 @@ CREATE TABLE `media_processing_logs` (
   `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `original_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `file_hash` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `dedup_key` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `dedup_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `file_size` bigint DEFAULT NULL,
   `duration` double DEFAULT NULL,
   `extracted_date` date DEFAULT NULL,
   `extracted_service` enum('morning','evening','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `source_file_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `audio_file_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `enhanced_audio_file_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `enhanced_audio_file_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `video_file_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `transcript_file_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `rms_log_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -276,8 +276,8 @@ CREATE TABLE `media_processing_logs` (
   `sermon_end_time` double DEFAULT NULL,
   `ai_analysis` json DEFAULT NULL,
   `processing_metadata` json DEFAULT NULL,
-  `queue_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `job_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `queue_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `job_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `attempt_count` smallint unsigned DEFAULT NULL,
   `threshold_method` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `adaptive_threshold` double DEFAULT NULL,
@@ -365,7 +365,7 @@ CREATE TABLE `pages` (
   `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `heading` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `description` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
-  `area` enum('christ','church','community','members','sermons') COLLATE utf8mb3_unicode_ci NOT NULL,
+  `area` enum('christ','church','community','members','sermons') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `body` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `admin` enum('yes','no') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'no',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -377,6 +377,8 @@ CREATE TABLE `pages` (
   UNIQUE KEY `pages_area_slug_unique` (`area`,`slug`),
   KEY `pages_area_index` (`area`),
   KEY `pages_navigation_index` (`navigation`),
+  CONSTRAINT `pages_heading_format_check` CHECK (((cast(`heading` as char charset binary) = trim(`heading`)) and (`heading` <> _utf8mb3''))),
+  CONSTRAINT `pages_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb4'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
   CONSTRAINT `pages_sort_order_check` CHECK (((`sort_order` >= 0) or (`sort_order` is null)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -445,7 +447,8 @@ CREATE TABLE `preacher_aliases` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `preacher_aliases_alias_unique` (`alias`),
   KEY `preacher_aliases_preacher_id_index` (`preacher_id`),
-  CONSTRAINT `preacher_aliases_preacher_id_foreign` FOREIGN KEY (`preacher_id`) REFERENCES `preachers` (`id`) ON DELETE CASCADE
+  CONSTRAINT `preacher_aliases_preacher_id_foreign` FOREIGN KEY (`preacher_id`) REFERENCES `preachers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `preacher_aliases_alias_format_check` CHECK (((cast(`alias` as char charset binary) = lower(trim(`alias`))) and (`alias` <> _utf8mb4'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `preachers`;
@@ -464,6 +467,7 @@ CREATE TABLE `preachers` (
   UNIQUE KEY `preachers_slug_unique` (`slug`),
   UNIQUE KEY `preachers_name_unique` (`name`),
   KEY `preachers_is_active_index` (`is_active`),
+  CONSTRAINT `preachers_name_format_check` CHECK (((cast(`name` as char charset binary) = trim(`name`)) and (`name` <> _utf8mb4''))),
   CONSTRAINT `preachers_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb4'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -472,13 +476,13 @@ DROP TABLE IF EXISTS `scripture_passages`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `scripture_passages` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `bible_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `normalized_reference` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `api_passage_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `display_reference` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bible_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `normalized_reference` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `api_passage_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `display_reference` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `html_content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `copyright` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `fums_token` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fums_token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `fetched_at` timestamp NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -524,7 +528,7 @@ DROP TABLE IF EXISTS `sermon_scripture_filters`;
 CREATE TABLE `sermon_scripture_filters` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `sermon_id` int unsigned NOT NULL,
-  `bible_book` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `bible_book` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `bible_chapter` smallint unsigned NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -544,13 +548,13 @@ CREATE TABLE `sermons` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `livestream_processing_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `date` date NOT NULL,
-  `service` enum('morning','evening') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `service` enum('morning','evening','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `content_type` enum('sermon','childrens_talk') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'sermon',
-  `audio_file_path` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `audio_file_path` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `video_file_path` varchar(500) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
-  `video_quality_status` enum('unassessed','approved','rejected','needs_review') COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'unassessed',
-  `video_quality_reason` varchar(64) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
-  `video_visibility_override` enum('default','force_show','force_hide') COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'default',
+  `video_quality_status` enum('unassessed','approved','rejected','needs_review') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'unassessed',
+  `video_quality_reason` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `video_visibility_override` enum('default','force_show','force_hide') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'default',
   `video_quality_assessed_at` timestamp NULL DEFAULT NULL,
   `source_type` enum('manual','audio_upload','livestream','video_upload') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'manual',
   `segment_start_time` decimal(10,3) DEFAULT NULL,
@@ -592,12 +596,18 @@ CREATE TABLE `sermons` (
   KEY `sermons_date_index` (`date`),
   KEY `sermons_video_quality_status_index` (`video_quality_status`),
   KEY `sermons_download_count_index` (`download_count`),
+  KEY `sermons_preacher_id_foreign` (`preacher_id`),
   CONSTRAINT `sermons_livestream_processing_id_foreign` FOREIGN KEY (`livestream_processing_id`) REFERENCES `media_processing_logs` (`processing_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `sermons_preacher_id_foreign` FOREIGN KEY (`preacher_id`) REFERENCES `preachers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `sermons_scripture_passage_id_foreign` FOREIGN KEY (`scripture_passage_id`) REFERENCES `scripture_passages` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `sermons_audio_file_path_format_check` CHECK (((`audio_file_path` <> _utf8mb4'') and (cast(`audio_file_path` as char charset binary) = trim(`audio_file_path`)))),
   CONSTRAINT `sermons_download_count_check` CHECK ((`download_count` >= 0)),
   CONSTRAINT `sermons_duration_check` CHECK (((`duration` >= 0) or (`duration` is null))),
   CONSTRAINT `sermons_preacher_confidence_check` CHECK (((`preacher_confidence` >= 0) and (`preacher_confidence` <= 1))),
-  CONSTRAINT `sermons_timing_invariants_check` CHECK (((`segment_start_time` >= 0) and ((`segment_end_time` >= `segment_start_time`) or (`segment_end_time` is null) or (`segment_start_time` is null))))
+  CONSTRAINT `sermons_series_format_check` CHECK (((`series` is null) or ((cast(`series` as char charset binary) = trim(`series`)) and (`series` <> _utf8mb3'')))),
+  CONSTRAINT `sermons_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb3'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
+  CONSTRAINT `sermons_timing_invariants_check` CHECK (((`segment_start_time` >= 0) and ((`segment_end_time` >= `segment_start_time`) or (`segment_end_time` is null) or (`segment_start_time` is null)))),
+  CONSTRAINT `sermons_title_format_check` CHECK (((cast(`title` as char charset binary) = trim(`title`)) and (`title` <> _utf8mb3'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `service_sections`;
@@ -607,7 +617,7 @@ CREATE TABLE `service_sections` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `media_processing_log_id` bigint unsigned NOT NULL,
   `church_service_item_id` bigint unsigned DEFAULT NULL,
-  `section_type` enum('welcome','prayer','notices','song','childrens_talk','bible_reading','sermon','other') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `section_type` enum('welcome','prayer','notices','song','childrens_talk','bible_reading','sermon','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `section_order` int unsigned NOT NULL,
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `start_time` double NOT NULL,
@@ -652,7 +662,7 @@ CREATE TABLE `service_sections` (
   CONSTRAINT `service_sections_published_sermon_id_foreign` FOREIGN KEY (`published_sermon_id`) REFERENCES `sermons` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `service_sections_confidence_range_check` CHECK (((`confidence` is null) or ((`confidence` >= 0.000) and (`confidence` <= 1.000)))),
   CONSTRAINT `service_sections_publication_link_check` CHECK ((((`publication_status` = _utf8mb4'published') and (`published_at` is not null)) or ((`publication_status` <> _utf8mb4'published') and (`published_sermon_id` is null) and (`published_at` is null)))),
-  CONSTRAINT `service_sections_publication_media_check` CHECK ((((`publication_status` in (_utf8mb4'approved',_utf8mb4'published')) and (`extracted_video_path` is not null) and (`extracted_audio_path` is not null) and (`extracted_at` is not null)) or (`publication_status` in (_utf8mb4'not_applicable',_utf8mb4'pending_approval',_utf8mb4'rejected')))),
+  CONSTRAINT `service_sections_publication_media_check` CHECK ((((`publication_status` in (_utf8mb4'approved',_utf8mb4'published')) and (`extracted_video_path` is not null) and (`extracted_at` is not null) and ((`section_type` = _utf8mb4'song') or (`extracted_audio_path` is not null))) or (`publication_status` in (_utf8mb4'not_applicable',_utf8mb4'pending_approval',_utf8mb4'rejected')))),
   CONSTRAINT `service_sections_status_publication_check` CHECK (((`status` <> _utf8mb4'skipped') or (`publication_status` = _utf8mb4'not_applicable'))),
   CONSTRAINT `service_sections_timing_invariants_check` CHECK (((`start_time` >= 0) and (`end_time` > `start_time`) and (`duration` >= 0) and (abs(((`end_time` - `start_time`) - `duration`)) <= 0.050)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -730,7 +740,7 @@ CREATE TABLE `song_videos` (
   `song_id` int unsigned NOT NULL,
   `service_section_id` bigint unsigned DEFAULT NULL,
   `church_service_id` bigint unsigned DEFAULT NULL,
-  `video_file_path` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `video_file_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `duration` double DEFAULT NULL,
   `recorded_date` date DEFAULT NULL,
   `is_featured` tinyint(1) NOT NULL DEFAULT '0',
@@ -756,7 +766,7 @@ CREATE TABLE `songs` (
   `title` varchar(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `author` varchar(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `lyrics` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
-  `copyright` text COLLATE utf8mb3_unicode_ci,
+  `copyright` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `alternative_title` varchar(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
@@ -765,7 +775,7 @@ CREATE TABLE `songs` (
   `major_category` enum('Psalms','Approaching God','Children’s','Christ’s Lordship over all of life','The Bible','The Christian life','The church','The Father','The future','The gospel','The Holy Spirit','The Son') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `minor_category` enum('The eternal Trinity','Adoration and thanksgiving','Creator and sustainer','Morning and evening','The Lord’s Day','Beginning and ending of the year','His character','His providence','His love','His covenant','His name and praise','His birth and childhood','His life and ministry','His suffering and death','His resurrection','His ascension and reign','His priesthood and intercession','His return in glory','His person and power','His presence in the church','His work in revival','Authority and sufficiency','Enjoyment and obedience','Character and privileges','Fellowship','Gifts and ministries','The life of prayer','Evangelism and mission','Baptism','The Lord’s Supper','Invitation and warning','Crying out for God','New birth and new life','Repentance and faith','Union with Christ','Love for Christ','Freedom in Christ','Submission and trust','Assurance and hope','Peace and joy','Holiness','Humbling and restoration','Commitment and obedience','Zeal in service','Guidance','Suffering and trial','Spiritual warfare','Perseverance','Facing death','The earth and harvest','Christian citizenship','Christian marriage','Families and children','Health and healing','Work and leisure','Those in need','Government and nations','The resurrection of the body','Judgement and hell','Heaven and glory') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `canonical_key` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
-  `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `alternate_title` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `lyrics_xml` longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
   `lyrics_plain` longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
@@ -775,13 +785,14 @@ CREATE TABLE `songs` (
   `import_metadata` json DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `songs_canonical_key_unique` (`canonical_key`),
   UNIQUE KEY `songs_slug_unique` (`slug`),
+  UNIQUE KEY `songs_canonical_key_unique` (`canonical_key`),
   KEY `songs_ccli_number_index` (`ccli_number`),
   KEY `songs_deleted_at_index` (`deleted_at`),
   FULLTEXT KEY `songs_lyrics_plain_fulltext` (`lyrics_plain`),
   CONSTRAINT `songs_canonical_key_check` CHECK ((`canonical_key` <> _utf8mb3'')),
   CONSTRAINT `songs_lyrics_xml_check` CHECK ((`lyrics_xml` <> _utf8mb3'')),
+  CONSTRAINT `songs_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb4'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
   CONSTRAINT `songs_title_check` CHECK ((`title` <> _utf8mb3''))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -855,7 +866,9 @@ CREATE TABLE `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_unique` (`email`),
   KEY `users_created_at_index` (`created_at`),
-  KEY `users_is_admin_index` (`is_admin`)
+  KEY `users_is_admin_index` (`is_admin`),
+  CONSTRAINT `users_email_format_check` CHECK (((cast(`email` as char charset binary) = lower(trim(`email`))) and (`email` <> _utf8mb4''))),
+  CONSTRAINT `users_name_format_check` CHECK (((cast(`name` as char charset binary) = trim(`name`)) and (`name` <> _utf8mb3'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -1015,3 +1028,7 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_22_201250_add_q
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_23_123518_add_pending_structure_merge_source_to_church_services_table',62);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_23_124718_add_livestream_columns_to_church_service_items_table',62);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_23_224514_drop_batch_id_from_media_processing_logs',63);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_23_192858_add_integrity_check_to_preacher_aliases_table',64);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_27_052406_add_text_integrity_checks',64);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_28_150435_fortify_song_slug_integrity',64);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_29_202817_add_foreign_key_to_sermons_preacher_id',65);

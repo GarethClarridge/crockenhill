@@ -411,25 +411,18 @@ class SitemapTest extends TestCase
     }
 
     #[Test]
-    public function sitemap_handles_pages_without_updated_at(): void
+    public function sitemap_includes_pages(): void
     {
-        // Create a page with null updated_at
         $page = Page::factory()->create([
             'slug' => 'page-without-date',
             'area' => 'church',
             'admin' => 'no',
         ]);
 
-        // Manually set updated_at to null
-        \DB::table('pages')
-            ->where('id', $page->id)
-            ->update(['updated_at' => null]);
-
         Cache::forget('sitemap');
 
         $response = $this->get('/sitemap.xml');
 
-        // Should not throw error
         $response->assertStatus(200);
 
         $content = $response->getContent();
@@ -437,23 +430,16 @@ class SitemapTest extends TestCase
     }
 
     #[Test]
-    public function sitemap_handles_meetings_without_updated_at(): void
+    public function sitemap_includes_meetings(): void
     {
-        // Create a meeting with null updated_at
         $meeting = Meeting::factory()->create([
             'slug' => 'meeting-without-date',
         ]);
-
-        // Manually set updated_at to null
-        \DB::table('meetings')
-            ->where('id', $meeting->id)
-            ->update(['updated_at' => null]);
 
         Cache::forget('sitemap');
 
         $response = $this->get('/sitemap.xml');
 
-        // Should not throw error
         $response->assertStatus(200);
 
         $content = $response->getContent();

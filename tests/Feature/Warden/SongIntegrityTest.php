@@ -6,6 +6,7 @@ namespace Tests\Feature\Warden;
 
 use App\Models\Song;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -33,7 +34,7 @@ class SongIntegrityTest extends TestCase
         $this->expectException(\Illuminate\Database\QueryException::class);
 
         // We use DB directly to bypass any Eloquent safeguards if they exist
-        \Illuminate\Support\Facades\DB::table('songs')->insert([
+        DB::table('songs')->insert([
             'slug' => null,
             'canonical_key' => 'test-key',
             'title' => 'Test Song',
@@ -62,26 +63,32 @@ class SongIntegrityTest extends TestCase
             $this->markTestSkipped('Database integrity tests require MySQL');
         }
 
-        // 1. Create a song with an invalid slug (bypassing Eloquent if needed, but here we can just rollback)
-        // Actually, we'll test the repair logic by rolling back and then migrating again.
+        // Drop the constraint directly so we can insert invalid data to test the migration repair logic
+        DB::statement('ALTER TABLE songs DROP CHECK songs_slug_format_check');
 
-        // We'll create a song with an underscore in the slug, which is invalid per the pattern.
-        // But the constraint is currently active. So we have to rollback first.
-        \Illuminate\Support\Facades\Artisan::call('migrate:rollback', ['--step' => 1]);
+        try {
+            DB::table('songs')->insert([
+                'slug' => 'invalid_slug_with_underscore',
+                'canonical_key' => 'repair-test-key',
+                'title' => 'Repair Test',
+                'lyrics_xml' => '<song></song>',
+            ]);
 
-        \Illuminate\Support\Facades\DB::table('songs')->insert([
-            'slug' => 'invalid_slug_with_underscore',
-            'canonical_key' => 'repair-test-key',
-            'title' => 'Repair Test',
-            'lyrics_xml' => '<song></song>',
-        ]);
+            // Run the migration's up() to exercise repair logic
+            $migration = require database_path('migrations/2026_04_28_150435_fortify_song_slug_integrity.php');
+            $migration->up();
 
-        // 2. Run the migration
-        \Illuminate\Support\Facades\Artisan::call('migrate');
-
-        // 3. Verify it was repaired
-        $song = \App\Models\Song::where('canonical_key', 'repair-test-key')->first();
-        $this->assertEquals('invalid-slug-with-underscore', $song->slug);
+            $song = \App\Models\Song::where('canonical_key', 'repair-test-key')->first();
+            $this->assertEquals('invalid-slug-with-underscore', $song->slug);
+        } finally {
+            // Ensure constraint is restored even if something fails
+            try {
+                DB::statement('ALTER TABLE songs DROP CHECK songs_slug_format_check');
+            } catch (\Throwable) {
+            }
+            $pattern = '^[a-z0-9]+(?:-[a-z0-9]+)*$';
+            DB::statement("ALTER TABLE songs ADD CONSTRAINT songs_slug_format_check CHECK (REGEXP_LIKE(slug, '{$pattern}', 'c'))");
+        }
     }
 
     #[Test]

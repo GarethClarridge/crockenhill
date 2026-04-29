@@ -37,9 +37,14 @@ return new class extends Migration
 
         Schema::table('sermons', function (Blueprint $table) use ($isSqlite) {
             if ($isSqlite) {
+                $table->string('service', 20)->nullable()->change();
                 $table->string('content_type', 32)->default('sermon')->change();
                 $table->string('preacher_source', 20)->nullable()->change();
             } else {
+                $table->enum('service', SermonService::values())
+                    ->nullable()
+                    ->change();
+
                 $table->enum('content_type', SermonContentType::values())
                     ->default(SermonContentType::Sermon->value)
                     ->change();
@@ -65,6 +70,7 @@ return new class extends Migration
         });
 
         Schema::table('sermons', function (Blueprint $table) {
+            $table->string('service', 20)->nullable()->change();
             $table->string('content_type', 32)->default('sermon')->change();
             $table->string('preacher_source', 20)->nullable()->change();
         });

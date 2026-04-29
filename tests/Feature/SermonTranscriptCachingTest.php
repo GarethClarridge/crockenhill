@@ -36,6 +36,7 @@ class SermonTranscriptCachingTest extends TestCase
                 ->andReturn($transcriptContent);
         });
 
+        $this->app->forgetInstance(SermonTranscriptReader::class);
         $reader = app(SermonTranscriptReader::class);
 
         // First call should hit storage and cache the result
@@ -62,6 +63,7 @@ class SermonTranscriptCachingTest extends TestCase
                 ->andReturn($transcriptContent);
         });
 
+        $this->app->forgetInstance(SermonTranscriptReader::class);
         $reader = app(SermonTranscriptReader::class);
 
         // First call
@@ -96,6 +98,7 @@ class SermonTranscriptCachingTest extends TestCase
                 ->andReturn('Content 2');
         });
 
+        $this->app->forgetInstance(SermonTranscriptReader::class);
         $reader = app(SermonTranscriptReader::class);
 
         // First call with path1
@@ -134,6 +137,7 @@ class SermonTranscriptCachingTest extends TestCase
                 ->andReturn('Recovered content');
         });
 
+        $this->app->forgetInstance(SermonTranscriptReader::class);
         $reader = app(SermonTranscriptReader::class);
 
         // First call should return null

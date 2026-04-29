@@ -127,6 +127,8 @@ class IdentifySpeakerTest extends TestCase
         ]);
 
         Log::shouldReceive('info')->zeroOrMoreTimes();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+        Log::shouldReceive('error')->zeroOrMoreTimes();
 
         $mockService = $this->createMock(SpeakerIdentificationInterface::class);
 

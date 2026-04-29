@@ -54,7 +54,8 @@ class SermonVideoServingTest extends TestCase
 
         Storage::disk('local')->put('private/sermons/test.mp4', 'fake private video content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $admin = User::factory()->crockenhillAdmin()->create();
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video");
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'video/mp4');

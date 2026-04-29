@@ -24,7 +24,8 @@ class SermonPrivateAssetTest extends TestCase
 
         Storage::disk('local')->put('private/sermons/audio/test.mp3', 'fake mp3 content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $admin = \App\Models\User::factory()->crockenhillAdmin()->create();
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio");
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'audio/mpeg');
@@ -44,7 +45,8 @@ class SermonPrivateAssetTest extends TestCase
 
         Storage::disk('local')->put('private/thumbnails/test.webp', 'fake webp content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $admin = \App\Models\User::factory()->crockenhillAdmin()->create();
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/webp');
@@ -63,7 +65,8 @@ class SermonPrivateAssetTest extends TestCase
 
         Storage::disk('local')->put('private/thumbnails/test.jpg', 'fake jpg content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $admin = \App\Models\User::factory()->crockenhillAdmin()->create();
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/jpeg');
@@ -83,7 +86,8 @@ class SermonPrivateAssetTest extends TestCase
 
         Storage::disk('local')->put('private/thumbnails/card.png', 'fake png content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $admin = \App\Models\User::factory()->crockenhillAdmin()->create();
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/png');

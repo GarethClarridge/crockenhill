@@ -101,9 +101,9 @@ class SermonPrivateStorageMoveTest extends TestCase
             'audio_file_path' => $privatePath,
         ]);
 
-        $user = User::factory()->create();
+        $admin = User::factory()->crockenhillAdmin()->create();
 
-        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio");
 
         $response->assertStatus(200);
     }

@@ -110,22 +110,22 @@ class SermonScriptureFilterMigrationTest extends TestCase
 
     private function rollbackIntegrityMigration(): void
     {
-        $this->artisan('migrate:rollback', [
-            '--path' => [$this->integrityMigrationPath()],
-            '--realpath' => true,
-        ])->assertExitCode(0);
+        DB::statement('ALTER TABLE sermon_scripture_filters DROP CHECK sermon_scripture_filters_bible_book_format_check');
+        DB::statement('ALTER TABLE sermon_scripture_filters DROP CHECK sermon_scripture_filters_bible_chapter_check');
     }
 
     private function runIntegrityMigration(): void
     {
-        $this->artisan('migrate', [
-            '--path' => [$this->integrityMigrationPath()],
-            '--realpath' => true,
-        ])->assertExitCode(0);
-    }
+        // Drop first (idempotent restore — constraints may already exist if migration ran successfully)
+        foreach (['sermon_scripture_filters_bible_book_format_check', 'sermon_scripture_filters_bible_chapter_check'] as $name) {
+            try {
+                DB::statement("ALTER TABLE sermon_scripture_filters DROP CHECK {$name}");
+            } catch (\Throwable) {
+                // Constraint may already be gone — that's fine
+            }
+        }
 
-    private function integrityMigrationPath(): string
-    {
-        return database_path('migrations/'.self::INTEGRITY_MIGRATION);
+        $migration = require database_path('migrations/'.self::INTEGRITY_MIGRATION);
+        $migration->up();
     }
 }

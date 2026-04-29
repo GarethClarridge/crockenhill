@@ -111,9 +111,11 @@ class SyncSongsCommandTest extends TestCase
     #[Test]
     public function it_reconciles_an_existing_legacy_song_row_by_praise_number_and_title(): void
     {
-        Schema::table('songs', function (Blueprint $table): void {
-            $table->string('praise_number')->nullable();
-        });
+        if (! Schema::hasColumn('songs', 'praise_number')) {
+            Schema::table('songs', function (Blueprint $table): void {
+                $table->string('praise_number')->nullable();
+            });
+        }
 
         $path = $this->createSqliteWithOneSong(
             'Where High The Heavenly Temple Stands #501',

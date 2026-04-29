@@ -247,10 +247,13 @@ class MediaUploadTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        Livewire::test(MediaUpload::class)
+        $component = Livewire::test(MediaUpload::class)
             ->set('isUploading', true)
-            ->set('status', 'uploading')
-            ->dispatch('media-upload:cancel-upload')
+            ->set('status', 'uploading');
+
+        $formId = $component->instance()->getId();
+
+        $component->dispatch('media-upload:cancel-upload', id: $formId)
             ->assertSet('isUploading', false)
             ->assertSet('uploadCancelled', true)
             ->assertSet('status', 'idle');

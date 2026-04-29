@@ -206,12 +206,8 @@ class SitemapableTest extends TestCase
             'area' => 'church',
         ]);
 
-        // Manually set updated_at to null
-        \DB::table('pages')
-            ->where('id', $page->id)
-            ->update(['updated_at' => null]);
-
-        $page = $page->fresh();
+        // Set updated_at to null on the in-memory model to test null guard in presenter
+        $page->updated_at = null;
 
         $tag = $page->toSitemapTag();
 
@@ -274,12 +270,8 @@ class SitemapableTest extends TestCase
             'slug' => 'test-meeting',
         ]);
 
-        // Manually set updated_at to null
-        \DB::table('meetings')
-            ->where('id', $meeting->id)
-            ->update(['updated_at' => null]);
-
-        $meeting = $meeting->fresh();
+        // Set updated_at to null on the in-memory model to test null guard in presenter
+        $meeting->updated_at = null;
 
         $tag = $meeting->toSitemapTag();
 

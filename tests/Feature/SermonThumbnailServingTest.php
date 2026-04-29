@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -99,7 +100,8 @@ class SermonThumbnailServingTest extends TestCase
         // Create a fake thumbnail file
         Storage::disk('local')->put('private/sermons/thumbnails/test-thumbnail.jpg', 'fake image content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $admin = User::factory()->crockenhillAdmin()->create();
+        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(200);
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
