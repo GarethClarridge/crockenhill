@@ -13,7 +13,7 @@ class UploadChurchServiceRequest extends FormRequest
     {
         $user = $this->user();
 
-        if (! $user?->is_admin || ! $user->hasVerifiedEmail()) {
+        if (! $user?->canAccessAdmin()) {
             return false;
         }
 

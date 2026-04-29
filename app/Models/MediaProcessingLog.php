@@ -331,7 +331,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->is_admin) {
+        if ($user->canAccessAdmin()) {
             return $query;
         }
 

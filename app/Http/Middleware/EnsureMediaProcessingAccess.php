@@ -18,12 +18,8 @@ class EnsureMediaProcessingAccess
     {
         $user = $request->user();
 
-        if (! $user || ! $user->is_admin) {
+        if (! $user?->canAccessAdmin()) {
             abort(403, 'Unauthorized action.');
-        }
-
-        if (! $user->hasVerifiedEmail()) {
-            abort(403, 'Your email address is not verified.');
         }
 
         // Session-authenticated first-party clients have no bearer token;
