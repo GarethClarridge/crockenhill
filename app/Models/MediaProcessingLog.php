@@ -505,6 +505,16 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * @return Attribute<never, string>
+     */
+    protected function originalFilename(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function legacyManualReviewMetadata(): array
