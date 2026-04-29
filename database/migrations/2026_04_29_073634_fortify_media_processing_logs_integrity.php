@@ -26,10 +26,15 @@ return new class extends Migration
 
         if (DB::getDriverName() === 'mysql') {
             // 1. Data Cleanup
-            // Trim existing filenames to satisfy the format check.
+            // Fix original_filename: trim and ensure not empty
             DB::table('media_processing_logs')->update([
                 'original_filename' => DB::raw('TRIM(original_filename)'),
             ]);
+
+            // Ensure no empty original_filenames exist before adding constraint
+            DB::table('media_processing_logs')
+                ->where('original_filename', '')
+                ->update(['original_filename' => DB::raw("CONCAT('file_', id)")]);
 
             // Ensure start and end times are non-negative if present.
             DB::table('media_processing_logs')
@@ -48,24 +53,16 @@ return new class extends Migration
                 ->update(['sermon_end_time' => DB::raw('sermon_start_time')]);
 
             // 2. Add CHECK constraints
-            // Wrapped in try-catch to allow the migration to proceed even if edge-case data violations remain.
-            try {
-                DB::statement(sprintf(
-                    'ALTER TABLE media_processing_logs ADD CONSTRAINT %s CHECK (sermon_start_time IS NULL OR sermon_end_time IS NULL OR (sermon_start_time >= 0 AND sermon_end_time >= 0 AND sermon_end_time >= sermon_start_time))',
-                    self::SERMON_TIME_RANGE_CHECK
-                ));
-            } catch (\Illuminate\Database\QueryException) {
-                // Skip if data still violates after cleanup attempt.
-            }
+            // Surfacing any remaining data integrity issues by not swallowing QueryException.
+            DB::statement(sprintf(
+                'ALTER TABLE media_processing_logs ADD CONSTRAINT %s CHECK (sermon_start_time IS NULL OR sermon_end_time IS NULL OR (sermon_start_time >= 0 AND sermon_end_time >= 0 AND sermon_end_time >= sermon_start_time))',
+                self::SERMON_TIME_RANGE_CHECK
+            ));
 
-            try {
-                DB::statement(sprintf(
-                    "ALTER TABLE media_processing_logs ADD CONSTRAINT %s CHECK (BINARY original_filename = TRIM(original_filename) AND original_filename != '')",
-                    self::ORIGINAL_FILENAME_FORMAT_CHECK
-                ));
-            } catch (\Illuminate\Database\QueryException) {
-                // Skip if data still violates after cleanup attempt.
-            }
+            DB::statement(sprintf(
+                "ALTER TABLE media_processing_logs ADD CONSTRAINT %s CHECK (BINARY original_filename = TRIM(original_filename) AND original_filename != '')",
+                self::ORIGINAL_FILENAME_FORMAT_CHECK
+            ));
         }
     }
 
@@ -78,13 +75,13 @@ return new class extends Migration
             try {
                 DB::statement(sprintf('ALTER TABLE media_processing_logs DROP CHECK %s', self::SERMON_TIME_RANGE_CHECK));
             } catch (\Illuminate\Database\QueryException) {
-                // Check might not exist if it failed to add during up().
+                // Ignore if it doesn't exist
             }
 
             try {
                 DB::statement(sprintf('ALTER TABLE media_processing_logs DROP CHECK %s', self::ORIGINAL_FILENAME_FORMAT_CHECK));
             } catch (\Illuminate\Database\QueryException) {
-                // Check might not exist if it failed to add during up().
+                // Ignore if it doesn't exist
             }
         }
 
