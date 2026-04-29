@@ -18,11 +18,11 @@ class EnsureMediaProcessingAccess
     {
         $user = $request->user();
 
-        if (! $user || ! $user->is_admin) {
+        if (! $user?->is_admin) {
             abort(403, 'Unauthorized action.');
         }
 
-        if (! $user->hasVerifiedEmail()) {
+        if (! $user->canAccessAdmin()) {
             abort(403, 'Your email address is not verified.');
         }
 

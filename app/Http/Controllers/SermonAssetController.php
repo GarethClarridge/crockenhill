@@ -248,8 +248,9 @@ class SermonAssetController extends Controller
             }
         }
 
-        // Security: Private assets are restricted to administrators.
-        // Public users should only access assets marked as public (non-private/ path).
+        // Security: Private assets are generally restricted to administrators.
+        // However, Children's Talks moved to private storage for privacy reasons
+        // are accessible to verified members.
         $path = match ($assetType) {
             'audio' => $sermon->audio_file_path,
             'video' => $sermon->video_file_path,
@@ -259,7 +260,12 @@ class SermonAssetController extends Controller
         };
 
         if ($path !== null && str_starts_with($path, 'private/')) {
-            abort(404, 'Asset not available.');
+            $isChildrensTalk = $sermon->content_type === SermonContentType::ChildrensTalk;
+            $canAccessChildrensTalk = $isChildrensTalk && $this->exposurePolicy->canAccessChildrensCorner($user);
+
+            if (! $canAccessChildrensTalk) {
+                abort(404, 'Asset not available.');
+            }
         }
 
         // Visibility checks based on quality assessment and manual overrides.
