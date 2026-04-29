@@ -13,6 +13,8 @@ return new class extends Migration
 
     private const ORIGINAL_FILENAME_FORMAT_CHECK = 'media_processing_logs_original_filename_format_check';
 
+    private const OBSOLETE_TIMING_CHECK = 'media_processing_logs_timing_check';
+
     /**
      * Run the migrations.
      */
@@ -52,8 +54,11 @@ return new class extends Migration
                 ->whereRaw('sermon_end_time < sermon_start_time')
                 ->update(['sermon_end_time' => DB::raw('sermon_start_time')]);
 
-            // 2. Add CHECK constraints
-            // Surfacing any remaining data integrity issues by not swallowing QueryException.
+            // 2. Drop obsolete/conflicting constraints
+            // media_processing_logs_timing_check is more restrictive than necessary and partially redundant.
+            $this->dropConstraintIfExists('media_processing_logs', self::OBSOLETE_TIMING_CHECK);
+
+            // 3. Add CHECK constraints
             DB::statement(sprintf(
                 'ALTER TABLE media_processing_logs ADD CONSTRAINT %s CHECK (sermon_start_time IS NULL OR sermon_end_time IS NULL OR (sermon_start_time >= 0 AND sermon_end_time >= 0 AND sermon_end_time >= sermon_start_time))',
                 self::SERMON_TIME_RANGE_CHECK
@@ -72,16 +77,17 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::getDriverName() === 'mysql') {
-            try {
-                DB::statement(sprintf('ALTER TABLE media_processing_logs DROP CHECK %s', self::SERMON_TIME_RANGE_CHECK));
-            } catch (\Illuminate\Database\QueryException) {
-                // Ignore if it doesn't exist
-            }
+            $this->dropConstraintIfExists('media_processing_logs', self::SERMON_TIME_RANGE_CHECK);
+            $this->dropConstraintIfExists('media_processing_logs', self::ORIGINAL_FILENAME_FORMAT_CHECK);
 
+            // Restore the obsolete check if possible
             try {
-                DB::statement(sprintf('ALTER TABLE media_processing_logs DROP CHECK %s', self::ORIGINAL_FILENAME_FORMAT_CHECK));
+                DB::statement(sprintf(
+                    'ALTER TABLE media_processing_logs ADD CONSTRAINT %s CHECK (sermon_start_time >= 0 AND (sermon_end_time >= sermon_start_time OR sermon_end_time IS NULL OR sermon_start_time IS NULL))',
+                    self::OBSOLETE_TIMING_CHECK
+                ));
             } catch (\Illuminate\Database\QueryException) {
-                // Ignore if it doesn't exist
+                // Ignore if it fails
             }
         }
 
@@ -98,5 +104,21 @@ return new class extends Migration
     private function indexExists(string $table, string $indexName): bool
     {
         return Schema::hasIndex($table, $indexName);
+    }
+
+    private function dropConstraintIfExists(string $table, string $constraint): void
+    {
+        if ($this->constraintExists($table, $constraint)) {
+            DB::statement(sprintf('ALTER TABLE %s DROP CHECK %s', $table, $constraint));
+        }
+    }
+
+    private function constraintExists(string $table, string $constraint): bool
+    {
+        return DB::table('information_schema.table_constraints')
+            ->where('table_schema', DB::getDatabaseName())
+            ->where('table_name', $table)
+            ->where('constraint_name', $constraint)
+            ->exists();
     }
 };
