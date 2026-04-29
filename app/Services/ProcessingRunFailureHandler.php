@@ -138,20 +138,6 @@ class ProcessingRunFailureHandler
      */
     private function segmentationTempFiles(MediaProcessingLog $processingLog): array
     {
-        $tempFiles = [];
-
-        if (is_string($processingLog->source_file_path) && $processingLog->source_file_path !== '') {
-            $tempFiles[] = $processingLog->source_file_path;
-        }
-
-        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
-
-        foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {
-            if (is_string($metadata[$key] ?? null) && $metadata[$key] !== '') {
-                $tempFiles[] = $metadata[$key];
-            }
-        }
-
-        return array_values(array_unique($tempFiles));
+        return $processingLog->temporaryFilePaths();
     }
 }
