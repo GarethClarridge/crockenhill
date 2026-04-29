@@ -61,6 +61,7 @@ class SermonItemListPresenter
                     'url' => $publicUrl,
                     'description' => $metaDescription,
                     'datePublished' => $datePublished,
+                    'dateModified' => $sermon->updated_at?->toIso8601String() ?? $datePublished,
                     'inLanguage' => 'en-GB',
                     'contentLocation' => [
                         '@type' => 'Place',
