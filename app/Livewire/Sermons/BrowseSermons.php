@@ -100,17 +100,12 @@ class BrowseSermons extends Component
         $this->resetPage();
     }
 
-    public function render(SermonRepository $sermonRepository, BibleCanon $bibleCanon): View
+    public function render(BibleCanon $bibleCanon): View
     {
         $hasActiveFilters = $this->hasActiveFilters();
 
         /** @var LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
-        $sermons = $sermonRepository->publicBrowseQuery(
-            book: $this->bookFilter,
-            chapter: $this->chapterFilter,
-            preacherId: $this->preacherFilter,
-            series: $this->seriesFilter,
-        )->paginate(24);
+        $sermons = $this->sermons;
 
         return view('livewire.sermons.browse-sermons', [
             'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks),
@@ -184,6 +179,28 @@ class BrowseSermons extends Component
             fn (string $series): array => ['id' => $series, 'name' => $series],
             app(SermonRepository::class)->getSeriesForDisplay()
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    #[Computed]
+    public function jsonLdData(): array
+    {
+        return app(\App\Presenters\SermonItemListPresenter::class)->toItemList(
+            $this->sermons->getCollection()
+        );
+    }
+
+    #[Computed]
+    public function sermons(): LengthAwarePaginator
+    {
+        return app(SermonRepository::class)->publicBrowseQuery(
+            book: $this->bookFilter,
+            chapter: $this->chapterFilter,
+            preacherId: $this->preacherFilter,
+            series: $this->seriesFilter,
+        )->paginate(24);
     }
 
     /**

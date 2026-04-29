@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\VideoStorageService;
@@ -49,47 +48,7 @@ class CleanupTemporaryFiles implements ShouldQueue
                 'processing_type' => $this->processingLog->processing_type,
             ]);
 
-            // Collect all temporary file paths from the processing log
-            /** @var array<int, string> $tempFiles */
-            $tempFiles = [];
-
-            // Add source file (always a temporary upload path during processing)
-            if ($this->processingLog->source_file_path) {
-                $tempFiles[] = $this->processingLog->source_file_path;
-            }
-
-            // Add extracted segment paths if they exist in metadata (livestream processing)
-            $metadata = $this->processingLog->processing_metadata?->toArray() ?? [];
-            if (isset($metadata['extracted_segment_path'])) {
-                $tempFiles[] = $metadata['extracted_segment_path'];
-            }
-            if (isset($metadata['extracted_audio_path'])) {
-                $tempFiles[] = $metadata['extracted_audio_path'];
-            }
-            if (isset($metadata['temp_video_path'])) {
-                $tempFiles[] = $metadata['temp_video_path'];
-            }
-
-            // Enhanced audio temp file (produced by EnhanceAudio job, absolute local path)
-            if ($this->processingLog->enhanced_audio_file_path) {
-                $tempFiles[] = $this->processingLog->enhanced_audio_file_path;
-            }
-
-            // Audio processing: cleanup temp files from validation and extraction
-            if ($this->processingLog->processing_type === MediaType::Audio) {
-                // Audio validation temp files are already cleaned by ValidateAudioFile job
-                // Audio transcription chunks are already cleaned by AudioTranscriptionService
-                // No additional cleanup needed for audio processing
-            }
-
-            // Video processing: cleanup temp files from extraction
-            if ($this->processingLog->processing_type === MediaType::Video) {
-                // Video extraction temp files are handled by VideoExtractionService
-                // Stored file might be in temp directory for processing
-                if ($this->processingLog->stored_file_path && str_contains($this->processingLog->stored_file_path, 'temp/')) {
-                    $tempFiles[] = $this->processingLog->stored_file_path;
-                }
-            }
+            $tempFiles = $this->processingLog->temporaryFilePaths();
 
             Log::info('Cleaning up temporary files', [
                 'processing_id' => $this->processingLog->processing_id,

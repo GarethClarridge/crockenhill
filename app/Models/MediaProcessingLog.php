@@ -331,7 +331,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->is_admin) {
+        if ($user->canAccessAdmin()) {
             return $query;
         }
 
@@ -505,6 +505,16 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * @return Attribute<never, string>
+     */
+    protected function originalFilename(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function legacyManualReviewMetadata(): array
@@ -551,6 +561,42 @@ class MediaProcessingLog extends Model
         return str_starts_with($this->error_message, 'Manual Review Note: ')
             ? substr($this->error_message, strlen('Manual Review Note: '))
             : $this->error_message;
+    }
+
+    /**
+     * Get all temporary file paths associated with this processing run.
+     *
+     * @return list<string>
+     */
+    public function temporaryFilePaths(): array
+    {
+        $tempFiles = [];
+
+        if (filled($this->source_file_path)) {
+            $tempFiles[] = (string) $this->source_file_path;
+        }
+
+        if (filled($this->enhanced_audio_file_path)) {
+            $tempFiles[] = (string) $this->enhanced_audio_file_path;
+        }
+
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+
+        foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {
+            $path = $metadata[$key] ?? null;
+            if (filled($path) && is_string($path)) {
+                $tempFiles[] = $path;
+            }
+        }
+
+        if ($this->processing_type === MediaType::Video) {
+            $storedPath = $this->stored_file_path;
+            if (filled($storedPath) && str_contains((string) $storedPath, 'temp/')) {
+                $tempFiles[] = (string) $storedPath;
+            }
+        }
+
+        return array_values(array_unique($tempFiles));
     }
 
     /**

@@ -32,7 +32,7 @@ class SermonItemListPresenter
             '@type' => 'ItemList',
             'numberOfItems' => $flatSermons->count(),
             'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
-                $sermonView = $this->sermonViewPresenter->present($sermon);
+                $sermonView = $this->sermonViewPresenter->presentForList($sermon);
                 $thumbnailUrl = $sermonView['thumbnail_url'];
                 $publicUrl = $sermonView['public_url'];
                 $datePublished = $sermon->date->toIso8601String();
@@ -61,6 +61,7 @@ class SermonItemListPresenter
                     'url' => $publicUrl,
                     'description' => $metaDescription,
                     'datePublished' => $datePublished,
+                    'dateModified' => $sermon->updated_at?->toIso8601String() ?? $datePublished,
                     'inLanguage' => 'en-GB',
                     'contentLocation' => [
                         '@type' => 'Place',

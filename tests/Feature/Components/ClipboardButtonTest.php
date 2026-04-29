@@ -16,7 +16,8 @@ class ClipboardButtonTest extends TestCase
         $url = 'https://example.com/test';
         $rendered = Blade::render('<x-clipboard-button :url="$url" />', ['url' => $url]);
 
-        $this->assertStringContainsString('navigator.clipboard.writeText(\'https:\/\/example.com\/test\')', $rendered);
+        $this->assertStringContainsString('navigator.clipboard.writeText(textToCopy)', $rendered);
+        $this->assertStringContainsString('const textToCopy = \'https:\/\/example.com\/test\'', $rendered);
         $this->assertStringContainsString('Copy link', $rendered);
         $this->assertStringNotContainsString('sr-only', $rendered);
         // Accessibility: ensure it has type="button" to prevent form submission
@@ -29,8 +30,8 @@ class ClipboardButtonTest extends TestCase
         $url = 'https://example.com/test';
         $rendered = Blade::render('<x-clipboard-button :url="$url" hideLabel />', ['url' => $url]);
 
-        $this->assertStringContainsString('navigator.clipboard.writeText(\'https:\/\/example.com\/test\')', $rendered);
-        $this->assertStringContainsString('x-bind:class="{ \'sr-only\': !copied }"', $rendered);
+        $this->assertStringContainsString('navigator.clipboard.writeText(textToCopy)', $rendered);
+        $this->assertStringContainsString('class="sr-only"', $rendered);
     }
 
     #[Test]
@@ -39,8 +40,17 @@ class ClipboardButtonTest extends TestCase
         $content = 'John 3:16';
         $rendered = Blade::render('<x-clipboard-button :content="$content" label="Copy reference" />', ['content' => $content]);
 
-        $this->assertStringContainsString('navigator.clipboard.writeText(\'John 3:16\')', $rendered);
+        $this->assertStringContainsString('navigator.clipboard.writeText(textToCopy)', $rendered);
+        $this->assertStringContainsString('const textToCopy = \'John 3:16\'', $rendered);
         $this->assertStringContainsString('Copy reference', $rendered);
+    }
+
+    #[Test]
+    public function it_supports_js_content_prop(): void
+    {
+        $rendered = Blade::render('<x-clipboard-button jsContent="test()" />');
+
+        $this->assertStringContainsString('const textToCopy = test()', $rendered);
     }
 
     #[Test]
