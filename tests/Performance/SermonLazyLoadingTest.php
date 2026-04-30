@@ -23,7 +23,7 @@ class SermonLazyLoadingTest extends TestCase
             Sermon::factory()->count(5)->create();
         }
 
-        $repository = new SermonRepository;
+        $repository = app(SermonRepository::class);
 
         $sermon = $repository->publicSermonQuery()->first();
 

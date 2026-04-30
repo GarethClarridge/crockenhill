@@ -27,7 +27,7 @@ class SermonCreationServiceTest extends TestCase
         parent::setUp();
         $this->service = new SermonCreationService(
             new PreacherResolutionService,
-            new SermonRepository
+            app(SermonRepository::class)
         );
     }
 

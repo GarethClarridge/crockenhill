@@ -24,7 +24,7 @@ class SermonEagerLoadingTest extends TestCase
             'content_type' => \App\Enums\SermonContentType::Sermon,
         ]);
 
-        $repository = new SermonRepository;
+        $repository = app(SermonRepository::class);
         $sermons = $repository->publicSermonQuery()->get();
 
         foreach ($sermons as $sermon) {

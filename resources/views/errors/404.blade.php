@@ -6,7 +6,7 @@
 
 @section('content')
 
-<main id="main-content">
+<main id="main-content" tabindex="-1">
 
     <x-h1>Page not found</x-h1>
 

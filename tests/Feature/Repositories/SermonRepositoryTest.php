@@ -22,7 +22,7 @@ class SermonRepositoryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->repository = new SermonRepository;
+        $this->repository = app(SermonRepository::class);
     }
 
     #[Test]
@@ -337,44 +337,45 @@ class SermonRepositoryTest extends TestCase
     }
 
     #[Test]
-    public function it_returns_books_when_enabled_books_for_filter_is_called(): void
+    public function it_returns_books_and_caches_result_with_new_key(): void
     {
-        Cache::forget('sermon_filter_books');
+        Cache::forget('sermon_scripture_books_all_all');
 
-        $result = $this->repository->getEnabledBooksForFilter();
+        $result = $this->repository->getScriptureBooks();
 
-        // Should return a collection with distinct books from sermon scripture filters
         $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result);
-        // After calling it once, it should be cached
-        $this->assertTrue(Cache::has('sermon_filter_books'));
+        $this->assertTrue(Cache::has('sermon_scripture_books_all_all'));
     }
 
     #[Test]
-    public function it_caches_enabled_books_and_clears_on_clear_listing_caches(): void
+    public function it_caches_scripture_books_and_clears_on_clear_listing_caches(): void
     {
-        Cache::forget('sermon_filter_books');
+        Cache::forget('sermon_scripture_books_all_all');
 
-        $this->repository->getEnabledBooksForFilter();
-        $this->assertTrue(Cache::has('sermon_filter_books'));
+        $this->repository->getScriptureBooks();
+        $this->assertTrue(Cache::has('sermon_scripture_books_all_all'));
 
         $this->repository->clearListingCaches();
 
-        $this->assertFalse(Cache::has('sermon_filter_books'));
+        $this->assertFalse(Cache::has('sermon_scripture_books_all_all'));
     }
 
     #[Test]
-    public function it_caches_enabled_chapters_for_filter_and_clears_on_clear_listing_caches(): void
+    public function it_caches_scripture_chapters_and_clears_on_clear_listing_caches(): void
     {
         $book = 'John';
-        $cacheKey = 'sermon_filter_chapters_john';
+        $cacheKey = 'sermon_scripture_chapters_john_all_all';
         Cache::forget($cacheKey);
 
-        $result = $this->repository->getEnabledChaptersForFilter($book);
+        $sermon = Sermon::factory()->create([
+            'reference' => 'John 1',
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
 
-        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result);
+        $this->repository->getScriptureChapters($book);
         $this->assertTrue(Cache::has($cacheKey));
 
-        $this->repository->clearListingCaches();
+        $this->repository->clearListingCaches($sermon);
 
         $this->assertFalse(Cache::has($cacheKey));
     }

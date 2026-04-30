@@ -18,22 +18,26 @@ class PreacherItemListPresenter
     public function toItemList(Collection $preachers): array
     {
         $orgName = (string) config('organization.name');
+        $appUrl = (string) config('app.url');
+        $appId = $appUrl.'/';
+
+        $worksFor = [
+            '@type' => 'Organization',
+            'name' => $orgName,
+            '@id' => $appId,
+        ];
 
         return [
             '@context' => 'https://schema.org',
             '@type' => 'ItemList',
             'numberOfItems' => $preachers->count(),
-            'itemListElement' => $preachers->map(function ($preacher, $index) use ($orgName) {
+            'itemListElement' => $preachers->map(function ($preacher, $index) use ($worksFor) {
                 $item = [
                     '@type' => 'Person',
                     'name' => $preacher->name,
                     'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
                     'jobTitle' => 'Preacher',
-                    'worksFor' => [
-                        '@type' => 'Organization',
-                        'name' => $orgName,
-                        '@id' => config('app.url').'/',
-                    ],
+                    'worksFor' => $worksFor,
                 ];
 
                 if ($preacher->profile_image_url) {

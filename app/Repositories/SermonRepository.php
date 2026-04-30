@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
+use App\Services\SermonScriptureFilterIndexService;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use App\Support\BibleCanon;
@@ -18,6 +19,10 @@ use Illuminate\Support\Str;
 
 class SermonRepository
 {
+    public function __construct(
+        private readonly SermonScriptureFilterIndexService $indexService,
+    ) {}
+
     /**
      * Build the base query for public sermon listings and browse pages.
      *
@@ -27,7 +32,7 @@ class SermonRepository
     {
         return Sermon::query()
             ->whereSermon()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'duration', 'audio_file_path', 'video_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'duration', 'audio_file_path', 'video_file_path', 'transcript_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary'])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',
@@ -193,53 +198,6 @@ class SermonRepository
     }
 
     /**
-     * Get all distinct Bible books that have at least one sermon scripture filter entry.
-     *
-     * Cached for 24–48 hours; cleared by clearListingCaches().
-     *
-     * @return Collection<int, string>
-     */
-    public function getEnabledBooksForFilter(): Collection
-    {
-        return Cache::flexible('sermon_filter_books', [86400, 172800], function (): Collection {
-            return SermonScriptureFilter::query()
-                ->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
-                ->where('sermons.content_type', SermonContentType::Sermon->value)
-                ->select('bible_book')
-                ->distinct()
-                ->pluck('bible_book');
-        });
-    }
-
-    /**
-     * Get distinct chapters that have a sermon scripture filter entry for a given book.
-     *
-     * Cached per book for 24–48 hours; cleared in bulk by clearListingCaches().
-     *
-     * @return Collection<int, int>
-     */
-    public function getEnabledChaptersForFilter(string $book): Collection
-    {
-        /** @var array<int, string> $knownBooks */
-        $knownBooks = Cache::get('sermon_filter_chapter_books', []);
-        if (! in_array($book, $knownBooks, true)) {
-            $knownBooks[] = $book;
-            Cache::put('sermon_filter_chapter_books', $knownBooks, 172800);
-        }
-
-        return Cache::flexible($this->chaptersCacheKey($book), [86400, 172800], function () use ($book): Collection {
-            return SermonScriptureFilter::query()
-                ->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
-                ->where('sermons.content_type', SermonContentType::Sermon->value)
-                ->where('bible_book', $book)
-                ->select('bible_chapter')
-                ->distinct()
-                ->orderBy('bible_chapter')
-                ->pluck('bible_chapter');
-        });
-    }
-
-    /**
      * Get the most recent sermons for archive-level JSON-LD generation.
      *
      * Why: `ItemList` schema doesn't require the full archive; loading every sermon
@@ -264,9 +222,8 @@ class SermonRepository
         Cache::forget('latest_sermons');
         Cache::forget('all_sermons');
         Cache::forget('sermon_series');
-        Cache::forget('sermon_filter_books');
+        Cache::forget('sermon_scripture_books_all_all');
         Cache::forget('sermons_jsonld_recent_100');
-        $this->forgetChapterCaches();
 
         if ($model instanceof Sermon) {
             $this->clearScriptureChapterCaches($model);
@@ -327,23 +284,6 @@ class SermonRepository
         $slug = (string) ($preacher->slug ?: Str::slug($preacher->name));
 
         return 'sermons_preacher_'.$slug;
-    }
-
-    private function chaptersCacheKey(string $book): string
-    {
-        return 'sermon_filter_chapters_'.Str::slug($book);
-    }
-
-    private function forgetChapterCaches(): void
-    {
-        /** @var array<int, string> $knownBooks */
-        $knownBooks = Cache::get('sermon_filter_chapter_books', []);
-
-        foreach ($knownBooks as $book) {
-            Cache::forget($this->chaptersCacheKey($book));
-        }
-
-        Cache::forget('sermon_filter_chapter_books');
     }
 
     /**
@@ -437,6 +377,13 @@ class SermonRepository
         $preacherId = (int) $preacherId ?: null;
         $series = filled($series) ? (string) $series : null;
 
+        /** @var array<int, string> $knownBooks */
+        $knownBooks = Cache::get('sermon_scripture_books_with_cached_chapters', []);
+        if (! in_array($book, $knownBooks, true)) {
+            $knownBooks[] = $book;
+            Cache::put('sermon_scripture_books_with_cached_chapters', $knownBooks, 172800);
+        }
+
         $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
         return Cache::flexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
@@ -500,7 +447,6 @@ class SermonRepository
         // Resolve all Bible books associated with this sermon (current and previous)
         // to ensure all relevant chapter caches are invalidated. We parse references
         // directly to handle new, deleted, or updated states robustly.
-        $indexService = app(\App\Services\SermonScriptureFilterIndexService::class);
         $references = array_filter(array_unique([
             (string) $sermon->reference ?: null,
             (string) $sermon->getOriginal('reference') ?: null,
@@ -508,7 +454,7 @@ class SermonRepository
 
         $books = [];
         foreach ($references as $ref) {
-            foreach ($indexService->entriesForReference($ref) as $entry) {
+            foreach ($this->indexService->entriesForReference($ref) as $entry) {
                 $books[] = $entry['bible_book'];
             }
         }
