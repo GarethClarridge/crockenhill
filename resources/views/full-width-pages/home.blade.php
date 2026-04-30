@@ -25,7 +25,7 @@
 
 @section('content')
 
-<main id="main-content" class="text-sm -mt-px text-center">
+<main id="main-content" tabindex="-1" class="text-sm -mt-px text-center">
 
   {{-- Hero --}}
   <div class="home-hero">

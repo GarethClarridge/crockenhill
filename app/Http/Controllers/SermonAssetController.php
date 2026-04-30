@@ -285,7 +285,7 @@ class SermonAssetController extends Controller
 
     private function abortOnUnsafePath(string $path, string $type): void
     {
-        if (str_contains($path, '..')) {
+        if (str_contains($path, '..') || str_starts_with($path, '/') || str_starts_with($path, '\\')) {
             abort(404, "Invalid {$type} file path.");
         }
     }

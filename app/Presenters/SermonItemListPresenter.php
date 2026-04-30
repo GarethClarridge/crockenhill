@@ -9,6 +9,11 @@ use Illuminate\Support\Collection;
 
 class SermonItemListPresenter
 {
+    /**
+     * @var array<string, array<string, mixed>>
+     */
+    private array $memoizedAuthors = [];
+
     public function __construct(
         private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
@@ -26,32 +31,57 @@ class SermonItemListPresenter
 
         $orgName = (string) config('organization.name');
         $logoUrl = asset('images/Primary.png');
+        $appUrl = (string) config('app.url');
+        $appId = $appUrl.'/';
+
+        $publisher = [
+            '@type' => 'Organization',
+            'name' => $orgName,
+            '@id' => $appId,
+            'logo' => [
+                '@type' => 'ImageObject',
+                'url' => $logoUrl,
+            ],
+        ];
+
+        $contentLocation = [
+            '@type' => 'Place',
+            'name' => $orgName,
+        ];
+
+        $worksFor = [
+            '@type' => 'Organization',
+            'name' => $orgName,
+            '@id' => $appId,
+        ];
 
         return [
             '@context' => 'https://schema.org',
             '@type' => 'ItemList',
             'numberOfItems' => $flatSermons->count(),
-            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($orgName, $logoUrl) {
+            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($logoUrl, $publisher, $contentLocation, $worksFor) {
                 $sermonView = $this->sermonViewPresenter->presentForList($sermon);
                 $thumbnailUrl = $sermonView['thumbnail_url'];
                 $publicUrl = $sermonView['public_url'];
                 $datePublished = $sermon->date->toIso8601String();
                 $metaDescription = $this->sermonViewPresenter->metaDescription($sermon);
 
-                $author = [
+                $preacherKey = $sermon->preacher_id !== null
+                    ? "id_{$sermon->preacher_id}"
+                    : (string) $sermonView['preacher_name'];
+
+                /** @var array<string, mixed> $author */
+                $author = $this->memoizedAuthors[$preacherKey] ??= [
                     '@type' => 'Person',
                     'name' => $sermonView['preacher_name'],
                     'url' => $sermonView['preacher_url'],
                     'jobTitle' => 'Preacher',
-                    'worksFor' => [
-                        '@type' => 'Organization',
-                        'name' => $orgName,
-                        '@id' => config('app.url').'/',
-                    ],
+                    'worksFor' => $worksFor,
                 ];
 
-                if ($sermonView['preacher_image_url']) {
+                if ($sermonView['preacher_image_url'] && ! isset($author['image'])) {
                     $author['image'] = $sermonView['preacher_image_url'];
+                    $this->memoizedAuthors[$preacherKey] = $author;
                 }
 
                 $item = [
@@ -63,20 +93,9 @@ class SermonItemListPresenter
                     'datePublished' => $datePublished,
                     'dateModified' => $sermon->updated_at?->toIso8601String() ?? $datePublished,
                     'inLanguage' => 'en-GB',
-                    'contentLocation' => [
-                        '@type' => 'Place',
-                        'name' => $orgName,
-                    ],
+                    'contentLocation' => $contentLocation,
                     'author' => $author,
-                    'publisher' => [
-                        '@type' => 'Organization',
-                        'name' => $orgName,
-                        '@id' => config('app.url').'/',
-                        'logo' => [
-                            '@type' => 'ImageObject',
-                            'url' => $logoUrl,
-                        ],
-                    ],
+                    'publisher' => $publisher,
                     'mainEntityOfPage' => [
                         '@type' => 'WebPage',
                         '@id' => $publicUrl,

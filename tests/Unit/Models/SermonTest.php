@@ -271,4 +271,37 @@ class SermonTest extends TestCase
         $ids = [$sermon->id, $childrensTalk->id];
         $this->assertCount(2, Sermon::whereVisibleInSitemap()->whereIn('id', $ids)->get());
     }
+
+    #[Test]
+    public function scope_order_by_preacher_name_orders_correctly(): void
+    {
+        \App\Models\Preacher::query()->delete();
+        Sermon::query()->delete();
+
+        $preacherAdam = \App\Models\Preacher::factory()->create(['name' => 'Adam']);
+        $preacherMark = \App\Models\Preacher::factory()->create(['name' => 'Mark']);
+
+        $sermonAdam = Sermon::factory()->create([
+            'preacher' => 'Adam',
+            'preacher_id' => $preacherAdam->id,
+        ]);
+
+        $sermonMark = Sermon::factory()->create([
+            'preacher' => 'Mark',
+            'preacher_id' => $preacherMark->id,
+        ]);
+
+        $sermonZack = Sermon::factory()->create([
+            'preacher' => 'Zack',
+            'preacher_id' => null,
+        ]);
+
+        // Ascending: NULLs from the preacher_id subquery (unlinked preachers) come first in MySQL
+        $resultsAsc = Sermon::query()->orderByPreacherName('asc')->get();
+        $this->assertEquals(['Zack', 'Adam', 'Mark'], $resultsAsc->pluck('preacher')->toArray());
+
+        // Descending: NULLs from the preacher_id subquery come last in MySQL
+        $resultsDesc = Sermon::query()->orderByPreacherName('desc')->get();
+        $this->assertEquals(['Mark', 'Adam', 'Zack'], $resultsDesc->pluck('preacher')->toArray());
+    }
 }

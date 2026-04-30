@@ -21,7 +21,7 @@
 @stop
 
 @section('content')
-<main id="main-content" class="mb-3">
+<main id="main-content" class="mb-3" tabindex="-1">
 
   <article>
 

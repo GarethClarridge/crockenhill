@@ -32,7 +32,7 @@ class SermonRepository
     {
         return Sermon::query()
             ->whereSermon()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'duration', 'audio_file_path', 'video_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'duration', 'audio_file_path', 'video_file_path', 'transcript_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary'])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',
@@ -197,7 +197,6 @@ class SermonRepository
         return compact('book', 'chapter', 'preacherId', 'series');
     }
 
-
     /**
      * Get the most recent sermons for archive-level JSON-LD generation.
      *
@@ -286,7 +285,6 @@ class SermonRepository
 
         return 'sermons_preacher_'.$slug;
     }
-
 
     /**
      * Get all distinct sermon series from database.
@@ -378,6 +376,13 @@ class SermonRepository
     {
         $preacherId = (int) $preacherId ?: null;
         $series = filled($series) ? (string) $series : null;
+
+        /** @var array<int, string> $knownBooks */
+        $knownBooks = Cache::get('sermon_scripture_books_with_cached_chapters', []);
+        if (! in_array($book, $knownBooks, true)) {
+            $knownBooks[] = $book;
+            Cache::put('sermon_scripture_books_with_cached_chapters', $knownBooks, 172800);
+        }
 
         $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 

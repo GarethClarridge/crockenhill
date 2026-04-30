@@ -1,5 +1,23 @@
 @extends('layouts.page')
 
+@section('title')
+{{ $heading }} | Songs
+@stop
+
+@section('meta_description'){{ $description }}@stop
+
+@section('meta_tags')
+<x-meta-tags
+    :title="$heading . ' | Songs'"
+    :description="$description"
+/>
+<x-schema.webpage
+    :heading="$heading"
+    :description="$description"
+/>
+<x-schema.music-composition :$song />
+@stop
+
 @section('dynamic_content')
     <section class="space-y-8">
         <div class="overflow-hidden rounded-2xl border border-cbc-teal/15 bg-[linear-gradient(135deg,rgba(36,154,151,0.12)_0%,rgba(29,104,106,0.08)_50%,rgba(20,85,87,0.16)_100%)] p-8 shadow-sm">

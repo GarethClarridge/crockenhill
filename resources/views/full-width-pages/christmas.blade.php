@@ -89,7 +89,7 @@
 @stop
 
 @section('content')
-<main id="main-content" class="-mb-10 bg-cover bg-center bg-[url('/public/images/homepage/christmas2023.webp')] bg-gray-700 bg-blend-multiply">
+<main id="main-content" tabindex="-1" class="-mb-10 bg-cover bg-center bg-[url('/public/images/homepage/christmas2023.webp')] bg-gray-700 bg-blend-multiply">
 
   <x-h1>
     <span class="text-white">Christmas at Crockenhill Baptist Church</span>
