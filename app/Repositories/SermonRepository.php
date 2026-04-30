@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
+use App\Services\SermonScriptureFilterIndexService;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use App\Support\BibleCanon;
@@ -18,6 +19,10 @@ use Illuminate\Support\Str;
 
 class SermonRepository
 {
+    public function __construct(
+        private readonly SermonScriptureFilterIndexService $indexService,
+    ) {}
+
     /**
      * Build the base query for public sermon listings and browse pages.
      *
@@ -217,12 +222,8 @@ class SermonRepository
         Cache::forget('latest_sermons');
         Cache::forget('all_sermons');
         Cache::forget('sermon_series');
+        Cache::forget('sermon_scripture_books_all_all');
         Cache::forget('sermons_jsonld_recent_100');
-
-        if ($model === null) {
-            Cache::forget('sermon_scripture_books_all_all');
-            $this->forgetScriptureChapterCaches();
-        }
 
         if ($model instanceof Sermon) {
             $this->clearScriptureChapterCaches($model);
@@ -283,19 +284,6 @@ class SermonRepository
         $slug = (string) ($preacher->slug ?: Str::slug($preacher->name));
 
         return 'sermons_preacher_'.$slug;
-    }
-
-    private function forgetScriptureChapterCaches(): void
-    {
-        /** @var array<int, string> $knownBooks */
-        $knownBooks = Cache::get('sermon_scripture_books_with_cached_chapters', []);
-
-        foreach ($knownBooks as $book) {
-            $bookSlug = Str::slug($book);
-            Cache::forget("sermon_scripture_chapters_{$bookSlug}_all_all");
-        }
-
-        Cache::forget('sermon_scripture_books_with_cached_chapters');
     }
 
     /**
@@ -459,7 +447,6 @@ class SermonRepository
         // Resolve all Bible books associated with this sermon (current and previous)
         // to ensure all relevant chapter caches are invalidated. We parse references
         // directly to handle new, deleted, or updated states robustly.
-        $indexService = app(\App\Services\SermonScriptureFilterIndexService::class);
         $references = array_filter(array_unique([
             (string) $sermon->reference ?: null,
             (string) $sermon->getOriginal('reference') ?: null,
@@ -467,7 +454,7 @@ class SermonRepository
 
         $books = [];
         foreach ($references as $ref) {
-            foreach ($indexService->entriesForReference($ref) as $entry) {
+            foreach ($this->indexService->entriesForReference($ref) as $entry) {
                 $books[] = $entry['bible_book'];
             }
         }

@@ -22,7 +22,7 @@ class SermonRepositoryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->repository = new SermonRepository;
+        $this->repository = app(SermonRepository::class);
     }
 
     #[Test]
@@ -337,7 +337,7 @@ class SermonRepositoryTest extends TestCase
     }
 
     #[Test]
-    public function it_returns_books_when_get_scripture_books_is_called(): void
+    public function it_returns_books_and_caches_result_with_new_key(): void
     {
         Cache::forget('sermon_scripture_books_all_all');
 
@@ -367,12 +367,15 @@ class SermonRepositoryTest extends TestCase
         $cacheKey = 'sermon_scripture_chapters_john_all_all';
         Cache::forget($cacheKey);
 
-        $result = $this->repository->getScriptureChapters($book);
+        $sermon = Sermon::factory()->create([
+            'reference' => 'John 1',
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
 
-        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result);
+        $this->repository->getScriptureChapters($book);
         $this->assertTrue(Cache::has($cacheKey));
 
-        $this->repository->clearListingCaches();
+        $this->repository->clearListingCaches($sermon);
 
         $this->assertFalse(Cache::has($cacheKey));
     }
