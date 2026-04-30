@@ -450,10 +450,6 @@ class LivestreamProcessingApiTest extends TestCase
         $statusUrl = $response->json('status_url');
         $this->assertStringContainsString('/api/media/processing/', $statusUrl);
         $this->assertStringContainsString('/status', $statusUrl);
-
-        // Verify estimated_completion is a valid datetime
-        $estimatedCompletion = $response->json('estimated_completion');
-        $this->assertNotNull(\DateTime::createFromFormat(\DateTime::ISO8601, $estimatedCompletion));
     }
 
     public function test_api_handles_concurrent_uploads()

@@ -55,8 +55,11 @@ class SyncSermonScriptureFilters extends Command
             return $sermonOption === null ? self::SUCCESS : self::FAILURE;
         }
 
+        $sermonCount = $query->clone()->count();
         $this->info(sprintf(
-            'Syncing scripture filters%s%s.',
+            'Syncing scripture filters for %d sermon%s%s%s.',
+            $sermonCount,
+            $sermonCount !== 1 ? 's' : '',
             $onlyMissing ? ' (only missing)' : '',
             $dryRun ? ' (dry run)' : '',
         ));

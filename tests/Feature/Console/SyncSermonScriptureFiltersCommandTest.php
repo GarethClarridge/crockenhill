@@ -60,11 +60,12 @@ class SyncSermonScriptureFiltersCommandTest extends TestCase
         $this->createUnindexedSermon(['reference' => 'John 3:16']);
         $this->createUnindexedSermon(['reference' => null]);
         $this->createUnindexedSermon(['reference' => 'totally invalid reference']);
-        $skipped = $this->createUnindexedSermon(['reference' => 'Romans 8:1']);
-        SermonScriptureFilter::factory()->for($skipped)->forPassage('Romans', 8)->create();
+        $alreadyIndexed = $this->createUnindexedSermon(['reference' => 'Romans 8:1']);
+        SermonScriptureFilter::factory()->for($alreadyIndexed)->forPassage('Romans', 8)->create();
 
+        // When --only-missing is used, already-indexed sermons are filtered out by the query
         $this->artisan('sermons:sync-scripture-filters', ['--only-missing' => true])
-            ->expectsOutputToContain('Indexed: 1, Cleared: 1, Unparseable: 1, Skipped: 1')
+            ->expectsOutputToContain('Indexed: 1, Cleared: 1, Unparseable: 1, Skipped: 0')
             ->assertSuccessful();
     }
 
