@@ -82,10 +82,5 @@
 <meta name="twitter:data2" content="{{ $data2 }}">
 @endif
 
-@if($canonical)
-@push('canonical')
-<link rel="canonical" href="{{ $canonical }}">
-@endpush
-@endif
 
 {{ $slot }}

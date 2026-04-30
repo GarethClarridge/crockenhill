@@ -55,7 +55,7 @@ New pages should use component-based shells. These push head metadata onto stack
 | Auth pages | `<x-auth.shell>` | Login, register, password-reset, verify-email |
 | Admin pages | `<x-admin.shell>` | Controller-rendered admin pages (not Livewire full-page) |
 
-**`<x-page.shell>` props:** `heading` (required), `metaDescription`, `description`, `headingpicture`, `headingpictureMobile`, `headingpictureTablet`, `area`, `slug`, `links`, `canonical`. Has a `$fullWidth` named slot for content that breaks out of the content wrapper.
+**`<x-page.shell>` props:** `heading` (required), `metaDescription`, `description`, `headingpicture`, `headingpictureMobile`, `headingpictureTablet`, `area`, `slug`, `links`, `canonical`, `showToolbar` (default: `true` — pass `:show-toolbar="false"` to suppress breadcrumbs and edit buttons). Has a `$fullWidth` named slot for content that breaks out of the content wrapper.
 
 **`<x-auth.shell>` props:** `heading` (required), `description`. No toolbar, no related pages.
 

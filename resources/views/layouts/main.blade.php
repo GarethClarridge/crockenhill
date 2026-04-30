@@ -20,7 +20,8 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="msvalidate.01" content="2EF7ECDA9644EAD5B1B36A960808B8DB" />
 
-  {{-- Meta Description: stack (component shells) then section (legacy @extends views) --}}
+  {{-- Meta Description: @push stack (component shells) takes priority; @section fallback for the ~22 legacy @extends('layouts.page') views.
+       Phase 2: once all legacy views migrate to x-page.shell, remove the @elseif branch. --}}
   @php $pushedDescription = trim($__env->yieldPushContent('meta_description')); @endphp
   @if($pushedDescription !== '')
     <meta name="description" content="{{ $pushedDescription }}">
@@ -30,7 +31,8 @@
     <meta name="description" content="{{ $metaDescription ?? 'Crockenhill Baptist Church - An independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ.' }}">
   @endif
 
-  {{-- Additional meta tags: stack (component shells) then section (legacy @extends views) --}}
+  {{-- Additional meta tags: @push stack (component shells) takes priority; @section fallback for legacy views.
+       Phase 2: remove the @elseif branch once all legacy views are migrated. --}}
   @php $pushedMetaTags = trim($__env->yieldPushContent('meta_tags')); @endphp
   @if($pushedMetaTags !== '')
     {!! $pushedMetaTags !!}
@@ -38,7 +40,8 @@
     @yield('meta_tags')
   @endif
 
-  {{-- Canonical URL: stack (component shells and x-meta-tags :canonical prop) then section fallback --}}
+  {{-- Canonical URL: @push stack (x-page.shell or explicit @section('canonical')) then url()->current() default.
+       Phase 2: remove the @elseif branch once all legacy views are migrated. --}}
   @php $pushedCanonical = trim($__env->yieldPushContent('canonical')); @endphp
   @if($pushedCanonical !== '')
     {!! $pushedCanonical !!}

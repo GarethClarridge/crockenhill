@@ -4,6 +4,8 @@
 
 @section('meta_description', $description)
 
+@section('canonical')<link rel="canonical" href="{{ $canonical_url }}">@endsection
+
 @section('meta_tags')
 <x-meta-tags
     :title="$heading"

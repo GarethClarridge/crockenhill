@@ -9,6 +9,7 @@
     'slug' => null,
     'links' => [],
     'canonical' => null,
+    'showToolbar' => true,
 ])
 
 @php
@@ -31,6 +32,12 @@
 />
 <x-schema.webpage :$heading :description="$resolvedDescription" :image="$headingpicture ?? null" :canonical="$canonical" />
 @endpush
+
+@if ($canonical)
+@push('canonical')
+<link rel="canonical" href="{{ $canonical }}">
+@endpush
+@endif
 
 <main id="main-content" class="mb-3">
 
@@ -69,12 +76,14 @@
         </x-session-message>
       @endif
 
-      <x-page-toolbar
-        :area="$area"
-        :heading="$heading"
-        :slug="$slug"
-        :editable="isset($page) || ($slug !== null && $area !== null)"
-      />
+      @if ($showToolbar)
+        <x-page-toolbar
+          :area="$area"
+          :heading="$heading"
+          :slug="$slug"
+          :editable="isset($page) || ($slug !== null && $area !== null)"
+        />
+      @endif
 
       {{ $slot }}
 
