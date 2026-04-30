@@ -83,9 +83,9 @@
 @endif
 
 @if($canonical)
-@section('canonical')
+@push('canonical')
 <link rel="canonical" href="{{ $canonical }}">
-@endsection
+@endpush
 @endif
 
 {{ $slot }}

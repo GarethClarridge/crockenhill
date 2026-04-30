@@ -1,9 +1,7 @@
-@extends('layouts.page')
+@extends('layouts.main')
 
-@section('title', 'Forgot Password')
-@section('description', 'Reset your password')
-@section('heading', 'Forgot Password')
-
-@section('dynamic_content')
+@section('content')
+<x-auth.shell heading="Forgot Password" description="Reset your password">
     <livewire:auth.forgot-password />
-@endsection 
+</x-auth.shell>
+@endsection

@@ -1,9 +1,7 @@
-@extends('layouts.page')
+@extends('layouts.main')
 
-@section('title', 'Register')
-@section('description', 'Create a new account')
-@section('heading', 'Register')
-
-@section('dynamic_content')
+@section('content')
+<x-auth.shell heading="Register" description="Create a new account">
     <livewire:auth.register />
-@endsection 
+</x-auth.shell>
+@endsection

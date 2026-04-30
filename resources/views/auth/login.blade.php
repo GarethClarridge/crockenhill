@@ -1,9 +1,7 @@
-@extends('layouts.page')
+@extends('layouts.main')
 
-@section('title', 'Login')
-@section('description', 'Login to your account')
-@section('heading', 'Login')
-
-@section('dynamic_content')
+@section('content')
+<x-auth.shell heading="Login" description="Login to your account">
     <livewire:auth.login />
+</x-auth.shell>
 @endsection

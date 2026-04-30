@@ -45,14 +45,37 @@ done
 
 ## 2. Core UI Architecture
 
-### Layouts
+### Preferred Shell Pattern (new work)
 
-- Public base layout: `resources/views/layouts/main.blade.php`
-- Public content layout: `resources/views/layouts/page.blade.php`
-- Admin content layout: `resources/views/layouts/admin.blade.php`
+New pages should use component-based shells. These push head metadata onto stacks consumed by `layouts/main.blade.php` and expose a `$slot` for body content:
 
-### Shared Shell Components
+| Shell | Tag | Use for |
+|---|---|---|
+| Public CMS pages | `<x-page.shell>` | Controller-rendered CMS pages via `pages/show.blade.php` |
+| Auth pages | `<x-auth.shell>` | Login, register, password-reset, verify-email |
+| Admin pages | `<x-admin.shell>` | Controller-rendered admin pages (not Livewire full-page) |
 
+**`<x-page.shell>` props:** `heading` (required), `metaDescription`, `description`, `headingpicture`, `headingpictureMobile`, `headingpictureTablet`, `area`, `slug`, `links`, `canonical`. Has a `$fullWidth` named slot for content that breaks out of the content wrapper.
+
+**`<x-auth.shell>` props:** `heading` (required), `description`. No toolbar, no related pages.
+
+**`<x-admin.shell>` props:** `heading` (required), `title` (optional, defaults to heading). Renders breadcrumbs and toast container.
+
+For **Livewire full-page admin components**, continue using the `#[Layout('layouts.admin')]` attribute and composing `<x-admin.page>`, `<x-admin.list-shell>`, or `<x-admin.form-shell>` directly inside the component view — no `<x-admin.shell>` wrapper needed.
+
+### Legacy Layout Pattern (tolerated, not preferred)
+
+The following `@extends`-based patterns remain active for the existing 22 public views. Do not use these for new pages. Migration to `<x-page.shell>` is tracked as a Phase 2 follow-up:
+
+- `@extends('layouts.page')` — public content pages (sermons, meetings, calendar, songs, children's corner)
+
+`layouts/main.blade.php` reads both `@push` stacks (new shells) and `@section` yields (legacy views) for `title`, `meta_description`, `meta_tags`, and `canonical` — this dual-consumer pattern ensures legacy views keep rendering correctly until Phase 2.
+
+### Base Layout and Shared Shell Components
+
+- HTML root: `resources/views/layouts/main.blade.php`
+- Legacy public shell: `resources/views/layouts/page.blade.php` (retained for legacy `@extends` views)
+- Legacy admin shell: `resources/views/layouts/admin.blade.php` (retained for Livewire `#[Layout]` consumers)
 - Header: `resources/views/components/layout/header.blade.php`
 - Footer: `resources/views/components/layout/footer.blade.php`
 - Page header switcher (image or text): `resources/views/components/page-header.blade.php`

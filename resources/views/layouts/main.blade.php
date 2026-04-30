@@ -5,11 +5,13 @@
   <meta charset="utf-8">
 
   @php
-    $yieldTitle = trim($__env->yieldContent('title'));
     $siteName = 'Crockenhill Baptist Church';
-    $fullTitle = ($yieldTitle === '' || $yieldTitle === $siteName)
+    $pushedTitle = trim($__env->yieldPushContent('title'));
+    $sectionTitle = trim($__env->yieldContent('title'));
+    $resolvedTitle = $pushedTitle !== '' ? $pushedTitle : $sectionTitle;
+    $fullTitle = ($resolvedTitle === '' || $resolvedTitle === $siteName)
       ? $siteName
-      : $yieldTitle.' | '.$siteName;
+      : $resolvedTitle.' | '.$siteName;
   @endphp
   <title>{{ $fullTitle }}</title>
 
@@ -18,20 +20,29 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="msvalidate.01" content="2EF7ECDA9644EAD5B1B36A960808B8DB" />
 
-  {{-- Meta Description --}}
-  @hasSection('meta_description')
+  {{-- Meta Description: stack (component shells) then section (legacy @extends views) --}}
+  @php $pushedDescription = trim($__env->yieldPushContent('meta_description')); @endphp
+  @if($pushedDescription !== '')
+    <meta name="description" content="{{ $pushedDescription }}">
+  @elseif(View::hasSection('meta_description'))
     <meta name="description" content="@yield('meta_description')">
   @else
     <meta name="description" content="{{ $metaDescription ?? 'Crockenhill Baptist Church - An independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ.' }}">
   @endif
 
-  {{-- Additional meta tags for social media sharing --}}
-  @hasSection('meta_tags')
+  {{-- Additional meta tags: stack (component shells) then section (legacy @extends views) --}}
+  @php $pushedMetaTags = trim($__env->yieldPushContent('meta_tags')); @endphp
+  @if($pushedMetaTags !== '')
+    {!! $pushedMetaTags !!}
+  @elseif(View::hasSection('meta_tags'))
     @yield('meta_tags')
   @endif
 
-  {{-- Canonical URL --}}
-  @hasSection('canonical')
+  {{-- Canonical URL: stack (component shells and x-meta-tags :canonical prop) then section fallback --}}
+  @php $pushedCanonical = trim($__env->yieldPushContent('canonical')); @endphp
+  @if($pushedCanonical !== '')
+    {!! $pushedCanonical !!}
+  @elseif(View::hasSection('canonical'))
     @yield('canonical')
   @else
     <link rel="canonical" href="{{ url()->current() }}">

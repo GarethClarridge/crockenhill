@@ -1,9 +1,7 @@
-@extends('layouts.page')
+@extends('layouts.main')
 
-@section('title', 'Verify Email')
-@section('description', 'Verify your email address to continue')
-@section('heading', 'Verify Email')
-
-@section('dynamic_content')
+@section('content')
+<x-auth.shell heading="Verify Email" description="Verify your email address to continue">
     <livewire:auth.verify-email />
-@endsection 
+</x-auth.shell>
+@endsection

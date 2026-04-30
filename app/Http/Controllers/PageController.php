@@ -50,7 +50,7 @@ class PageController extends Controller
             return $redirect;
         }
 
-        return response()->view('layouts/page', $this->publicPageReadModelCache->get($page)->toViewData(
+        return response()->view('pages.show', $this->publicPageReadModelCache->get($page)->toViewData(
             links: $this->relatedPagePresenter->random(
                 linkArea: $area,
                 slugToExclude: $page->slug,
@@ -103,6 +103,6 @@ class PageController extends Controller
     {
         $override = "pages.{$area}.{$slug}";
 
-        return view()->exists($override) ? $override : 'layouts/page';
+        return view()->exists($override) ? $override : 'pages.show';
     }
 }

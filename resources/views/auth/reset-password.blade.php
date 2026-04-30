@@ -1,9 +1,7 @@
-@extends('layouts.page')
+@extends('layouts.main')
 
-@section('title', 'Reset Password')
-@section('description', 'Set a new password for your account')
-@section('heading', 'Reset Password')
-
-@section('dynamic_content')
+@section('content')
+<x-auth.shell heading="Reset Password" description="Set a new password for your account">
     <livewire:auth.reset-password :token="$token" />
-@endsection 
+</x-auth.shell>
+@endsection

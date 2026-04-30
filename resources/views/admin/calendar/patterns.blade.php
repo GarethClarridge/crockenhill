@@ -1,6 +1,7 @@
-@extends('layouts/admin')
+@extends('layouts.main')
 
-@section('dynamic_content')
+@section('content')
+<x-admin.shell heading="Calendar Patterns">
 
 <x-admin.page
     title="Calendar Categorization Patterns"
@@ -91,4 +92,5 @@
 
 </x-admin.page>
 
-@stop
+</x-admin.shell>
+@endsection

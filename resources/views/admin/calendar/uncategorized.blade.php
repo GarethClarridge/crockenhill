@@ -1,6 +1,7 @@
-@extends('layouts/admin')
+@extends('layouts.main')
 
-@section('dynamic_content')
+@section('content')
+<x-admin.shell heading="Categorise Calendar Events">
 
 <x-admin.page
     title="Uncategorized Events"
@@ -58,4 +59,5 @@
 
 </x-admin.page>
 
-@stop
+</x-admin.shell>
+@endsection

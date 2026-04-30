@@ -7,7 +7,7 @@ namespace App\View\Composers;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
-class LayoutPageComposer
+class PageShowComposer
 {
     public function compose(View $view): void
     {

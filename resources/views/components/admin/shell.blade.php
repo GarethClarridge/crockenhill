@@ -1,20 +1,18 @@
-@extends('layouts.main')
+@props([
+    'heading',
+    'title' => null,
+])
 
-@section('title')
-{{ $title ?? $heading ?? 'Admin' }}
-@stop
+@push('title'){{ $title ?? $heading }}@endpush
 
-@section('content')
 <main id="main-content" class="mb-3">
 
   <article>
 
-    {{-- Page Header --}}
-    <x-page-header :heading="$heading ?? 'Admin'" />
+    <x-page-header :heading="$heading" />
 
     <x-content-wrapper class="mx-auto max-w-7xl px-6 md:px-8">
 
-      {{-- Session Messages --}}
       @if (session('message'))
         <x-session-message type="success">
           {{ session('message') }}
@@ -33,20 +31,16 @@
         </x-session-message>
       @endif
 
-      {{-- Flash Notifications (from redirects) --}}
       @if (session('notification'))
         <x-session-message :type="session('notification')['type'] ?? 'success'">
           {{ session('notification')['message'] }}
         </x-session-message>
       @endif
 
-      {{-- Breadcrumbs --}}
-      <x-breadcrumbs area="church" :heading="$heading ?? 'Admin'" />
+      <x-breadcrumbs area="church" :heading="$heading" />
 
-      {{-- Main Content: $slot for Livewire full-page components, @yield for legacy @extends consumers --}}
       <div class="mt-6">
         {{ $slot }}
-        @yield('dynamic_content')
       </div>
 
     </x-content-wrapper>
@@ -109,4 +103,3 @@
   </div>
 
 </main>
-@stop
