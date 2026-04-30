@@ -41,7 +41,7 @@ class SermonListingNPlusOneTest extends TestCase
             'show_summary' => true,
         ]);
 
-        $repository = new SermonRepository;
+        $repository = app(SermonRepository::class);
         $sermon = $repository->publicSermonQuery()->whereKey($created->id)->first();
 
         $this->assertNotNull($sermon);
