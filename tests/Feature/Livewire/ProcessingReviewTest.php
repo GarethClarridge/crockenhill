@@ -16,9 +16,11 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\BuildsTestScenarios;
 
 class ProcessingReviewTest extends TestCase
 {
+    use BuildsTestScenarios;
     use RefreshDatabase;
 
     private User $admin;
@@ -31,10 +33,7 @@ class ProcessingReviewTest extends TestCase
 
         Storage::fake('local');
 
-        $this->admin = User::factory()->create([
-            'is_admin' => true,
-            'email_verified_at' => now(),
-        ]);
+        $this->admin = $this->createVerifiedAdmin();
 
         $this->nonAdmin = User::factory()->create([
             'is_admin' => false,

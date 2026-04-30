@@ -656,7 +656,7 @@ class ThumbnailCanvasComposer
         }
     }
 
-    private function wrapText(string $text, int $maxWidth, int $fontSize, ?string $overrideFontPath = null): string
+    public function wrapText(string $text, int $maxWidth, int $fontSize, ?string $overrideFontPath = null): string
     {
         try {
             $normalizedText = trim($text);
@@ -827,21 +827,7 @@ class ThumbnailCanvasComposer
      */
     private function hexToRgb(string $hexColor): array
     {
-        $normalized = ltrim($hexColor, '#');
-
-        if (strlen($normalized) === 3) {
-            $normalized = preg_replace('/(.)/', '$1$1', $normalized) ?? $normalized;
-        }
-
-        if (strlen($normalized) !== 6) {
-            return [20, 85, 87];
-        }
-
-        return [
-            max(0, min(255, (int) hexdec(substr($normalized, 0, 2)))),
-            max(0, min(255, (int) hexdec(substr($normalized, 2, 2)))),
-            max(0, min(255, (int) hexdec(substr($normalized, 4, 2)))),
-        ];
+        return $this->textHelper->hexToRgb($hexColor);
     }
 
     private function encodeGdImage(\GdImage $image): string

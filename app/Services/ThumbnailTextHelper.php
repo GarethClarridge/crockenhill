@@ -75,6 +75,30 @@ class ThumbnailTextHelper
     }
 
     /**
+     * Convert a hex colour string to an [R, G, B] integer tuple.
+     *
+     * @return array{0:int<0, 255>,1:int<0, 255>,2:int<0, 255>}
+     */
+    public function hexToRgb(string $hexColor): array
+    {
+        $normalized = ltrim($hexColor, '#');
+
+        if (strlen($normalized) === 3) {
+            $normalized = preg_replace('/(.)/', '$1$1', $normalized) ?? $normalized;
+        }
+
+        if (strlen($normalized) !== 6) {
+            return [20, 85, 87];
+        }
+
+        return [
+            max(0, min(255, (int) hexdec(substr($normalized, 0, 2)))),
+            max(0, min(255, (int) hexdec(substr($normalized, 2, 2)))),
+            max(0, min(255, (int) hexdec(substr($normalized, 4, 2)))),
+        ];
+    }
+
+    /**
      * Fallback text wrapping using character estimation
      *
      * @param  string  $text  Text to wrap

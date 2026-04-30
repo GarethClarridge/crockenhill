@@ -12,6 +12,7 @@
     <testsuites>
         <testsuite name="Default Tests">
             <directory suffix="Test.php">./tests/Feature</directory>
+            <directory suffix="Test.php">./tests/Integration</directory>
             <directory suffix="Test.php">./tests/Unit</directory>
         </testsuite>
 
@@ -21,6 +22,10 @@
 
         <testsuite name="Unit Tests">
             <directory suffix="Test.php">./tests/Unit</directory>
+        </testsuite>
+
+        <testsuite name="Integration Tests">
+            <directory suffix="Test.php">./tests/Integration</directory>
         </testsuite>
 
         <testsuite name="Browser Tests">

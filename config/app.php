@@ -108,8 +108,6 @@ return [
 
     'test_token' => env('TEST_TOKEN'),
 
-    'run_performance_tests' => env('RUN_PERFORMANCE_TESTS', false),
-
     /*
     |--------------------------------------------------------------------------
     | Trusted Proxies

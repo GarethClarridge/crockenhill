@@ -63,6 +63,20 @@ final class ChurchServiceScenario
     }
 
     /**
+     * @param  list<string>  $types
+     */
+    public function withSections(int $count, array $types = []): self
+    {
+        for ($i = 0; $i < $count; $i++) {
+            $this->items[] = array_filter([
+                'type' => $types[$i] ?? null,
+            ]);
+        }
+
+        return $this;
+    }
+
+    /**
      * @param  array<string, mixed>  $attributes
      */
     public function withItem(array $attributes = []): self

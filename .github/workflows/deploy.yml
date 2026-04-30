@@ -109,7 +109,7 @@ jobs:
         run: composer phpstan
 
       - name: Tests (Core)
-        run: php artisan test --parallel --exclude-group=dedicated
+        run: php artisan test --parallel --exclude-group=dedicated,performance
 
       - name: Tests (Dedicated)
         run: php artisan test --group=dedicated

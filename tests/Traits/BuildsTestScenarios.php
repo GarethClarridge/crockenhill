@@ -76,6 +76,19 @@ trait BuildsTestScenarios
         return ChurchServiceScenario::make();
     }
 
+    protected function flaggedReviewServiceScenario(): ChurchService
+    {
+        return ChurchServiceScenario::make()->needsReview()->create();
+    }
+
+    /**
+     * @param  list<string>  $types
+     */
+    protected function serviceWithSectionsScenario(int $count, array $types = []): ChurchService
+    {
+        return ChurchServiceScenario::make()->withSections($count, $types)->create();
+    }
+
     protected function serviceSectionScenario(): ServiceSectionScenario
     {
         return ServiceSectionScenario::make();

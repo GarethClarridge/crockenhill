@@ -7,8 +7,10 @@ namespace Tests\Performance;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('performance')]
 class SermonLazyLoadingTest extends TestCase
 {
     use DatabaseTransactions;

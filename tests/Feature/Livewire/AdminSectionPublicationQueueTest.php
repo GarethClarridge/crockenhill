@@ -18,9 +18,11 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\BuildsTestScenarios;
 
 class AdminSectionPublicationQueueTest extends TestCase
 {
+    use BuildsTestScenarios;
     use RefreshDatabase;
 
     private User $admin;
@@ -29,10 +31,7 @@ class AdminSectionPublicationQueueTest extends TestCase
     {
         parent::setUp();
 
-        $this->admin = User::factory()->create([
-            'is_admin' => true,
-            'email_verified_at' => now(),
-        ]);
+        $this->admin = $this->createVerifiedAdmin();
     }
 
     #[Test]

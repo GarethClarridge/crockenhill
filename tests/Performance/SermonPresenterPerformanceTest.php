@@ -2,15 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Performance;
+namespace Tests\Performance;
 
 use App\Models\Sermon;
 use App\Presenters\SermonSitemapPresenter;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
+#[Group('performance')]
 class SermonPresenterPerformanceTest extends TestCase
 {
     use DatabaseTransactions;
