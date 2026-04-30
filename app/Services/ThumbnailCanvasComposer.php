@@ -658,64 +658,7 @@ class ThumbnailCanvasComposer
 
     public function wrapText(string $text, int $maxWidth, int $fontSize, ?string $overrideFontPath = null): string
     {
-        try {
-            $normalizedText = trim($text);
-            if ($normalizedText === '') {
-                return '';
-            }
-
-            $fontPath = $overrideFontPath ?? $this->getOswaldFontPath();
-            $words = preg_split('/\s+/', $normalizedText) ?: [];
-            $lines = [];
-            $currentLine = '';
-
-            foreach ($words as $word) {
-                $testLine = $currentLine === '' ? $word : $currentLine.' '.$word;
-                $bounds = $this->textHelper->calculateTextBounds($testLine, $fontSize, $fontPath);
-
-                if ((int) round($bounds['width']) <= $maxWidth) {
-                    $currentLine = $testLine;
-
-                    continue;
-                }
-
-                if ($currentLine === '') {
-                    // Single word overflows — break at character level rather than accepting overflow.
-                    $partial = '';
-                    foreach (mb_str_split($word) as $char) {
-                        $testPartial = $partial.$char;
-                        $charBounds = $this->textHelper->calculateTextBounds($testPartial, $fontSize, $fontPath);
-
-                        if ((int) round($charBounds['width']) > $maxWidth && $partial !== '') {
-                            $lines[] = $partial;
-                            $partial = $char;
-                        } else {
-                            $partial .= $char;
-                        }
-                    }
-
-                    $currentLine = $partial;
-
-                    continue;
-                }
-
-                $lines[] = $currentLine;
-                $currentLine = $word;
-            }
-
-            if ($currentLine !== '') {
-                $lines[] = $currentLine;
-            }
-
-            return implode("\n", $lines);
-        } catch (\Throwable $e) {
-            Log::warning('Text wrapping failed, using fallback', [
-                'text' => $text,
-                'error' => $e->getMessage(),
-            ]);
-
-            return $this->textHelper->fallbackTextWrap($text, $maxWidth, $fontSize);
-        }
+        return $this->textHelper->wrapText($text, $maxWidth, $fontSize, $overrideFontPath ?? $this->getOswaldFontPath());
     }
 
     private function cloneImage(ImageInterface $image): ImageInterface
@@ -789,7 +732,7 @@ class ThumbnailCanvasComposer
             return $clone;
         }
 
-        [$red, $green, $blue] = $this->hexToRgb($hexColor);
+        [$red, $green, $blue] = $this->textHelper->hexToRgb($hexColor);
         $width = imagesx($native);
         $height = imagesy($native);
 
@@ -820,14 +763,6 @@ class ThumbnailCanvasComposer
         }
 
         return $clone;
-    }
-
-    /**
-     * @return array{0:int<0, 255>,1:int<0, 255>,2:int<0, 255>}
-     */
-    private function hexToRgb(string $hexColor): array
-    {
-        return $this->textHelper->hexToRgb($hexColor);
     }
 
     private function encodeGdImage(\GdImage $image): string

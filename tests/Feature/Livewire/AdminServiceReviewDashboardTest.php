@@ -12,6 +12,7 @@ use App\Livewire\Admin\ChurchServices\ServiceReviewDashboard;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -627,6 +628,123 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $this->assertDatabaseHas('service_sections', ['id' => $first->id]);
         $this->assertDatabaseHas('service_sections', ['id' => $third->id]);
+    }
+
+    #[Test]
+    public function save_section_wires_livewire_edits_through_to_persistence_and_dispatches_notify(): void
+    {
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-01',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'title' => 'Original Title',
+            'needs_manual_review' => true,
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->set("sectionEdits.{$section->id}.section_type", ServiceSectionType::PRAYER->value)
+            ->set("sectionEdits.{$section->id}.title", 'Updated Title')
+            ->call('saveSection', $section->id)
+            ->assertDispatched('notify', type: 'success', message: 'Section changes saved.');
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionType::PRAYER, $section->section_type);
+        $this->assertSame('Updated Title', $section->title);
+        $this->assertFalse($section->needs_manual_review);
+    }
+
+    #[Test]
+    public function save_section_wires_speaker_edits_through_to_persistence_and_dispatches_notify(): void
+    {
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-07-02',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        $preacher = Preacher::factory()->create(['name' => 'Rev Override']);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'title' => "Children's Talk",
+            'needs_manual_review' => true,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'extracted_video_path' => 'sermons/sections/speaker-test/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/speaker-test.mp3',
+            'metadata' => [
+                'review_reason' => 'childrens_talk_speaker_ambiguous',
+                'childrens_talk_speaker' => [
+                    'predicted' => ['outcome' => 'ambiguous', 'preacher_name' => 'Unknown', 'confidence' => 0.5, 'reason' => 'Too close to call.'],
+                ],
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/speaker-test/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/speaker-test.mp3', 'audio');
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->set("speakerEdits.{$section->id}.preacher_id", (string) $preacher->id)
+            ->set("speakerEdits.{$section->id}.speaker_name", '')
+            ->call('saveSection', $section->id)
+            ->assertDispatched('notify', type: 'success', message: 'Section changes saved.');
+
+        $section->refresh();
+
+        $this->assertFalse($section->needs_manual_review);
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame('Rev Override', $section->metadata['childrens_talk_speaker']['reviewed']['preacher_name'] ?? null);
+    }
+
+    #[Test]
+    public function approve_pending_publications_wires_through_to_batch_action_and_dispatches_notify(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-07-03',
+            'service' => SermonService::Morning,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-07-03',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 1,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/batch-journey/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/batch-journey.mp3',
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/batch-journey/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/batch-journey.mp3', 'audio');
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('approvePendingPublications', $service->id)
+            ->assertDispatched('notify', type: 'success', message: 'Approved all 1 pending publication for this service.');
+
+        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->fresh()->publication_status);
+        Queue::assertPushed(PublishApprovedServiceSection::class);
     }
 
     #[Test]

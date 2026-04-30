@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Http\Resources;
+namespace Tests\Integration\Http\Resources;
 
 use App\Enums\SermonService;
 use App\Http\Resources\ChurchServiceResource;

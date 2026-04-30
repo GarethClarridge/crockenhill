@@ -98,6 +98,66 @@ class ThumbnailTextHelper
         ];
     }
 
+    public function wrapText(string $text, int $maxWidth, int $fontSize, ?string $fontPath = null): string
+    {
+        try {
+            $normalizedText = trim($text);
+            if ($normalizedText === '') {
+                return '';
+            }
+
+            $words = preg_split('/\s+/', $normalizedText) ?: [];
+            $lines = [];
+            $currentLine = '';
+
+            foreach ($words as $word) {
+                $testLine = $currentLine === '' ? $word : $currentLine.' '.$word;
+                $bounds = $this->calculateTextBounds($testLine, $fontSize, $fontPath);
+
+                if ((int) round($bounds['width']) <= $maxWidth) {
+                    $currentLine = $testLine;
+
+                    continue;
+                }
+
+                if ($currentLine === '') {
+                    $partial = '';
+                    foreach (mb_str_split($word) as $char) {
+                        $testPartial = $partial.$char;
+                        $charBounds = $this->calculateTextBounds($testPartial, $fontSize, $fontPath);
+
+                        if ((int) round($charBounds['width']) > $maxWidth && $partial !== '') {
+                            $lines[] = $partial;
+                            $partial = $char;
+                        } else {
+                            $partial .= $char;
+                        }
+                    }
+
+                    $currentLine = $partial;
+
+                    continue;
+                }
+
+                $lines[] = $currentLine;
+                $currentLine = $word;
+            }
+
+            if ($currentLine !== '') {
+                $lines[] = $currentLine;
+            }
+
+            return implode("\n", $lines);
+        } catch (\Throwable $e) {
+            Log::warning('Text wrapping failed, using fallback', [
+                'text' => $text,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->fallbackTextWrap($text, $maxWidth, $fontSize);
+        }
+    }
+
     /**
      * Fallback text wrapping using character estimation
      *

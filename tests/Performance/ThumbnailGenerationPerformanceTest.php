@@ -26,8 +26,6 @@ class ThumbnailGenerationPerformanceTest extends TestCase
 
     private ThumbnailTextHelper $textHelper;
 
-    private ThumbnailCanvasComposer $canvasComposer;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -54,7 +52,6 @@ class ThumbnailGenerationPerformanceTest extends TestCase
         );
 
         $this->textHelper = app(ThumbnailTextHelper::class);
-        $this->canvasComposer = app(ThumbnailCanvasComposer::class);
     }
 
     #[Test]
@@ -85,7 +82,7 @@ class ThumbnailGenerationPerformanceTest extends TestCase
         $longTitle = str_repeat('This is a very long sermon title that needs wrapping. ', 50);
 
         $startTime = microtime(true);
-        $wrappedText = $this->canvasComposer->wrapText($longTitle, 400, 48);
+        $wrappedText = $this->textHelper->wrapText($longTitle, 400, 48);
         $executionTime = microtime(true) - $startTime;
 
         $this->assertLessThan(0.1, $executionTime,
