@@ -90,7 +90,7 @@
     Skip to content
   </a>
 
-  <header x-data="{ expanded: false }" class="site-header">
+  <header x-data="{ expanded: false }" x-on:livewire:navigating.window="expanded = false" class="site-header">
     <x-layout.header />
   </header>
 

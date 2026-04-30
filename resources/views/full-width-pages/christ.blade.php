@@ -39,7 +39,7 @@
 @stop
 
 @section('content')
-<main id="main-content" class="text-center">
+<main id="main-content" tabindex="-1" class="text-center">
 
   <x-h1>
     Christ
