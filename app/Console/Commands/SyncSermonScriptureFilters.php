@@ -44,8 +44,9 @@ class SyncSermonScriptureFilters extends Command
             $query->doesntHave('scriptureFilters');
         }
 
-        // Check if any sermons exist before processing
-        if (! $query->clone()->exists()) {
+        $sermonCount = $query->clone()->count();
+
+        if ($sermonCount === 0) {
             $message = $sermonOption === null
                 ? 'No sermons found to process.'
                 : "Sermon [{$sermonOption}] was not found.";
@@ -55,7 +56,6 @@ class SyncSermonScriptureFilters extends Command
             return $sermonOption === null ? self::SUCCESS : self::FAILURE;
         }
 
-        $sermonCount = $query->clone()->count();
         $this->info(sprintf(
             'Syncing scripture filters for %d sermon%s%s%s.',
             $sermonCount,
@@ -68,14 +68,9 @@ class SyncSermonScriptureFilters extends Command
             'indexed' => 0,
             'cleared' => 0,
             'unparseable' => 0,
-            'skipped' => 0,
         ];
 
-        $query->lazyById(200)->each(function (Sermon $sermon) use ($indexService, $dryRun, $onlyMissing, &$counts): void {
-            if ($onlyMissing) {
-                // Already filtered by doesntHave, so skip logic is not needed
-            }
-
+        $query->lazyById(200)->each(function (Sermon $sermon) use ($indexService, $dryRun, &$counts): void {
             $reference = is_string($sermon->reference) ? trim($sermon->reference) : '';
 
             if ($sermon->content_type !== SermonContentType::Sermon || $reference === '') {
@@ -111,11 +106,10 @@ class SyncSermonScriptureFilters extends Command
         });
 
         $this->info(sprintf(
-            'Done. Indexed: %d, Cleared: %d, Unparseable: %d, Skipped: %d',
+            'Done. Indexed: %d, Cleared: %d, Unparseable: %d',
             $counts['indexed'],
             $counts['cleared'],
             $counts['unparseable'],
-            $counts['skipped'],
         ));
 
         return self::SUCCESS;

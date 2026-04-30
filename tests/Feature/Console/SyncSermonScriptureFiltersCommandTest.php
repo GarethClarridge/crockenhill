@@ -65,7 +65,7 @@ class SyncSermonScriptureFiltersCommandTest extends TestCase
 
         // When --only-missing is used, already-indexed sermons are filtered out by the query
         $this->artisan('sermons:sync-scripture-filters', ['--only-missing' => true])
-            ->expectsOutputToContain('Indexed: 1, Cleared: 1, Unparseable: 1, Skipped: 0')
+            ->expectsOutputToContain('Indexed: 1, Cleared: 1, Unparseable: 1')
             ->assertSuccessful();
     }
 
