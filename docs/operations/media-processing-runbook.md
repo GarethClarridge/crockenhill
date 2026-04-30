@@ -50,7 +50,7 @@ echo "1. Operational Smoke Check:"
 
 # Check queue status
 echo "2. Queue Status:"
-php artisan queue:monitor redis:livestream --max=10
+php artisan queue:monitor redis:livestream-processing --max=10
 
 # Check disk space
 echo "3. Disk Space:"
@@ -117,7 +117,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost/api/livestreams/proc
 echo "SELECT processing_id, status, current_step, created_at FROM livestream_processing_logs WHERE status IN ('pending', 'processing') ORDER BY created_at DESC;" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
 
 # Monitor queue in real-time
-watch -n 5 'php artisan queue:monitor redis:livestream'
+watch -n 5 'php artisan queue:monitor redis:livestream-processing'
 ```
 
 #### Monitor System Resources

@@ -23,11 +23,6 @@ class SermonViewPresenter
     /**
      * @var array<string, ?string>
      */
-    private array $memoizedPreacherUrls = [];
-
-    /**
-     * @var array<string, ?string>
-     */
     private array $memoizedSeriesUrls = [];
 
     /**
@@ -79,11 +74,6 @@ class SermonViewPresenter
      * @var array<string, string>
      */
     private array $memoizedMetaDescriptions = [];
-
-    /**
-     * @var array<string, ?string>
-     */
-    private array $memoizedPreacherImageUrls = [];
 
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
@@ -164,7 +154,6 @@ class SermonViewPresenter
     public function clearInternalCaches(): void
     {
         $this->memoizedUrls = [];
-        $this->memoizedPreacherUrls = [];
         $this->memoizedSeriesUrls = [];
         $this->memoizedPreacherNames = [];
         $this->memoizedReferences = [];
@@ -176,7 +165,6 @@ class SermonViewPresenter
         $this->memoizedSlugs = [];
         $this->memoizedMetaDescriptions = [];
         $this->memoizedIsoDurations = [];
-        $this->memoizedPreacherImageUrls = [];
     }
 
     public function audioUrl(Sermon $sermon): ?string
@@ -199,32 +187,18 @@ class SermonViewPresenter
     /**
      * Get the preacher's profile image URL.
      *
-     * Performance Optimization: Memoizes preacher image URL lookups to avoid
-     * redundant Storage or relationship lookups for the same preacher.
-     * Only caches results when they are definitively known from a loaded
-     * relation or non-existent profile.
+     * Performance Optimization: Only caches when the relation is loaded.
+     * Relation Loading: Always consults the loaded relation first to ensure
+     * the most current state is returned.
      */
     public function preacherImageUrl(Sermon $sermon): ?string
     {
-        $preacherKey = $sermon->preacher_id !== null
-            ? "id_{$sermon->preacher_id}"
-            : (string) $this->displayPreacherName($sermon);
-
-        if ($preacherKey === '') {
-            return null;
+        // If the relation is explicitly loaded, always use it as the source of truth
+        if ($sermon->relationLoaded('preacherProfile')) {
+            return $sermon->preacherProfile?->profile_image_url;
         }
 
-        if (isset($this->memoizedPreacherImageUrls[$preacherKey])) {
-            return $this->memoizedPreacherImageUrls[$preacherKey] === self::MEMO_NULL ? null : $this->memoizedPreacherImageUrls[$preacherKey];
-        }
-
-        if ($sermon->relationLoaded('preacherProfile') || $sermon->preacher_id === null) {
-            $url = $sermon->preacherProfile?->profile_image_url;
-            $this->memoizedPreacherImageUrls[$preacherKey] = $url ?? self::MEMO_NULL;
-
-            return $url;
-        }
-
+        // Without a loaded relation, we cannot determine the image URL
         return null;
     }
 
@@ -285,37 +259,17 @@ class SermonViewPresenter
 
     public function preacherUrl(Sermon $sermon): ?string
     {
-        $preacherName = null;
-        if ($sermon->preacher_id !== null) {
-            $preacherKey = "id_{$sermon->preacher_id}";
-        } else {
-            $preacherName = $this->displayPreacherName($sermon);
-            $preacherKey = (string) $preacherName;
+        // If the relation is explicitly loaded, always use it as the source of truth
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            return route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
         }
 
-        if ($preacherKey === '') {
-            return null;
-        }
+        // Fall back to the unloaded path: derive URL from displayPreacherName
+        $preacherName = $this->displayPreacherName($sermon);
 
-        if (isset($this->memoizedPreacherUrls[$preacherKey])) {
-            return $this->memoizedPreacherUrls[$preacherKey] === self::MEMO_NULL ? null : $this->memoizedPreacherUrls[$preacherKey];
-        }
-
-        $url = (function () use ($sermon, $preacherName) {
-            if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-                return route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
-            }
-
-            $preacherName ??= $this->displayPreacherName($sermon);
-
-            return filled($preacherName)
-                ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
-                : null;
-        })();
-
-        $this->memoizedPreacherUrls[$preacherKey] = $url ?? self::MEMO_NULL;
-
-        return $url;
+        return filled($preacherName)
+            ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
+            : null;
     }
 
     /**
@@ -509,9 +463,19 @@ class SermonViewPresenter
      * Performance Optimization: Memoizes preacher name lookup by identity
      * (profile ID or name string) instead of sermon ID. This avoids redundant
      * lookups across multiple sermons in a listing by the same preacher.
+     *
+     * Relation Loading: Always consults the loaded relation first to ensure
+     * the most current state is returned, avoiding staleness when relations
+     * transition from unloaded to loaded within a single request.
      */
     public function displayPreacherName(Sermon $sermon): ?string
     {
+        // If the relation is explicitly loaded, always use it as the source of truth
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            return $sermon->preacherProfile->name ?: null;
+        }
+
+        // Fall back to the unloaded path: cache the string fallback
         $identityKey = $sermon->preacher_id !== null
             ? "id_{$sermon->preacher_id}"
             : (string) $sermon->preacher;
@@ -524,9 +488,7 @@ class SermonViewPresenter
             return $this->memoizedPreacherNames[$identityKey] === self::MEMO_NULL ? null : $this->memoizedPreacherNames[$identityKey];
         }
 
-        $preacherName = ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null)
-            ? $sermon->preacherProfile->name
-            : trim((string) $sermon->preacher);
+        $preacherName = trim((string) $sermon->preacher);
 
         if ($preacherName === '') {
             $this->memoizedPreacherNames[$identityKey] = self::MEMO_NULL;
@@ -544,9 +506,23 @@ class SermonViewPresenter
      * (passage ID or reference string) instead of sermon ID. This avoids
      * redundant lookups across multiple sermons in a listing using the
      * same bible passage.
+     *
+     * Relation Loading: Always consults the loaded relation first to ensure
+     * the most current state is returned, avoiding staleness when relations
+     * transition from unloaded to loaded within a single request.
      */
     public function displayReference(Sermon $sermon): ?string
     {
+        // If the relation is explicitly loaded, always use it as the source of truth
+        if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
+            $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
+
+            if (trim((string) $displayReference) !== '') {
+                return $displayReference;
+            }
+        }
+
+        // Fall back to the unloaded path: cache the string fallback
         $identityKey = $sermon->scripture_passage_id !== null
             ? "id_{$sermon->scripture_passage_id}"
             : (string) $sermon->reference;
@@ -557,14 +533,6 @@ class SermonViewPresenter
 
         if (isset($this->memoizedReferences[$identityKey])) {
             return $this->memoizedReferences[$identityKey] === self::MEMO_NULL ? null : $this->memoizedReferences[$identityKey];
-        }
-
-        if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
-            $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
-
-            if (trim((string) $displayReference) !== '') {
-                return $this->memoizedReferences[$identityKey] = $displayReference;
-            }
         }
 
         $reference = trim((string) $sermon->reference);

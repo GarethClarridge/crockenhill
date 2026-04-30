@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,8 +24,8 @@ class CategorizeEventRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'event_id' => 'required|integer|exists:calendar_events,id',
-            'meeting_slug' => 'required|string|exists:meetings,slug',
+            'event_id' => ['required', 'integer', 'exists:calendar_events,id'],
+            'meeting_slug' => ['required', 'string', 'exists:meetings,slug'],
         ];
     }
 

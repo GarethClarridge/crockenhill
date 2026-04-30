@@ -8,6 +8,7 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\Preacher;
+use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -423,5 +424,55 @@ class SermonViewPresenterTest extends TestCase
         $this->assertLessThanOrEqual(158, strlen($description));
         $this->assertStringContainsString("Listen to 'The Prodigal Son' by John Smith", $description);
         $this->assertStringEndsWith('...', $description);
+    }
+
+    #[Test]
+    public function display_preacher_name_uses_loaded_relation(): void
+    {
+        $preacher = Preacher::factory()->create([
+            'name' => 'Dr. John Smith',
+            'slug' => 'dr-john-smith',
+        ]);
+
+        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id]);
+        $sermon->load('preacherProfile');
+
+        $name = $this->presenter->displayPreacherName($sermon);
+        $this->assertSame('Dr. John Smith', $name);
+    }
+
+    #[Test]
+    public function display_reference_uses_loaded_relation(): void
+    {
+        $passage = ScripturePassage::factory()->create([
+            'display_reference' => 'Romans 3:23-28',
+            'normalized_reference' => 'Romans 3:23-28',
+        ]);
+
+        $sermon = Sermon::factory()->create([
+            'scripture_passage_id' => $passage->id,
+            'reference' => 'Romans',
+        ]);
+        $sermon->load('scripturePassage');
+
+        $ref = $this->presenter->displayReference($sermon);
+        $this->assertSame('Romans 3:23-28', $ref);
+    }
+
+    #[Test]
+    public function preacher_image_url_returns_value_when_loaded(): void
+    {
+        $preacher = Preacher::factory()->create([
+            'image_path' => 'preachers/test-image.jpg',
+        ]);
+
+        $sermon = Sermon::factory()->create([
+            'preacher_id' => $preacher->id,
+        ]);
+        $sermon->load('preacherProfile');
+
+        $url = $this->presenter->preacherImageUrl($sermon);
+        $this->assertNotNull($url);
+        $this->assertStringContainsString('test-image.jpg', $url);
     }
 }

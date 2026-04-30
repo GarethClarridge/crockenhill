@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Livewire\Admin\ChurchServices\ManageChurchService;

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use App\Enums\MeetingFrequency;
@@ -41,13 +43,13 @@ class UpdateMeetingRequest extends FormRequest
             'day' => $modelRules['day'],
             'location' => $modelRules['location'],
             'who' => $modelRules['who'],
-            'pictures' => 'required|boolean',
-            'start_time' => 'nullable|date_format:H:i:s,H:i',
-            'end_time' => 'nullable|date_format:H:i:s,H:i|after_or_equal:start_time',
+            'pictures' => ['required', 'boolean'],
+            'start_time' => ['nullable', 'date_format:H:i:s,H:i'],
+            'end_time' => ['nullable', 'date_format:H:i:s,H:i', 'after_or_equal:start_time'],
             'leaders_phone' => $modelRules['leaders_phone'],
             'leaders_email' => $modelRules['leaders_email'],
-            'meeting_date' => 'nullable|date_format:Y-m-d',
-            'is_recurring' => 'nullable|boolean',
+            'meeting_date' => ['nullable', 'date_format:Y-m-d'],
+            'is_recurring' => ['nullable', 'boolean'],
             'frequency' => ['nullable', 'required_if:is_recurring,true', Rule::enum(MeetingFrequency::class)],
             'page_id' => $modelRules['page_id'],
         ];

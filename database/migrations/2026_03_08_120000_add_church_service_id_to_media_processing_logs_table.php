@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\ChurchService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,10 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('media_processing_logs', function (Blueprint $table): void {
-            $table->foreignIdFor(ChurchService::class)
-                ->nullable()
-                ->after('owner_user_id')
-                ->constrained()
+            $table->unsignedBigInteger('church_service_id')->nullable()->after('owner_user_id');
+            $table->foreign('church_service_id')
+                ->references('id')->on('church_services')
                 ->nullOnDelete();
         });
     }

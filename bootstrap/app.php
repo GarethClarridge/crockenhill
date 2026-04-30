@@ -32,6 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
+        // Read directly from env() — TrustProxies must be configured before the
+        // container/config cache is fully booted. Intentional, not config drift.
         $trustedProxies = env('TRUSTED_PROXIES');
 
         if (is_string($trustedProxies) && trim($trustedProxies) !== '') {

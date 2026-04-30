@@ -45,7 +45,7 @@ sudo apt update
 sudo apt install ffmpeg
 
 # Install PHP extensions
-sudo apt install php8.2-gd php8.2-imagick
+sudo apt install php8.4-gd php8.4-imagick
 
 # Verify installations
 ffmpeg -version

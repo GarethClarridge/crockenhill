@@ -8,7 +8,6 @@ use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Services\SermonScriptureFilterIndexService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
 
 class SyncSermonScriptureFilters extends Command
 {
@@ -27,7 +26,6 @@ class SyncSermonScriptureFilters extends Command
 
         $query = Sermon::query()
             ->select(['id', 'reference', 'content_type'])
-            ->withCount('scriptureFilters')
             ->orderBy('id');
 
         if ($sermonOption !== null) {
@@ -42,10 +40,12 @@ class SyncSermonScriptureFilters extends Command
             $query->whereKey($sermonId);
         }
 
-        /** @var Collection<int, Sermon> $sermons */
-        $sermons = $query->get();
+        if ($onlyMissing) {
+            $query->doesntHave('scriptureFilters');
+        }
 
-        if ($sermons->isEmpty()) {
+        // Check if any sermons exist before processing
+        if (! $query->clone()->exists()) {
             $message = $sermonOption === null
                 ? 'No sermons found to process.'
                 : "Sermon [{$sermonOption}] was not found.";
@@ -56,8 +56,7 @@ class SyncSermonScriptureFilters extends Command
         }
 
         $this->info(sprintf(
-            'Syncing scripture filters for %d sermon(s)%s%s.',
-            $sermons->count(),
+            'Syncing scripture filters%s%s.',
             $onlyMissing ? ' (only missing)' : '',
             $dryRun ? ' (dry run)' : '',
         ));
@@ -69,12 +68,9 @@ class SyncSermonScriptureFilters extends Command
             'skipped' => 0,
         ];
 
-        foreach ($sermons as $sermon) {
-            if ($onlyMissing && (int) $sermon->scripture_filters_count > 0) {
-                $counts['skipped']++;
-                $this->writeVerboseStatus('skipped', $sermon, 'already indexed');
-
-                continue;
+        $query->lazyById(200)->each(function (Sermon $sermon) use ($indexService, $dryRun, $onlyMissing, &$counts): void {
+            if ($onlyMissing) {
+                // Already filtered by doesntHave, so skip logic is not needed
             }
 
             $reference = is_string($sermon->reference) ? trim($sermon->reference) : '';
@@ -87,7 +83,7 @@ class SyncSermonScriptureFilters extends Command
                 $counts['cleared']++;
                 $this->writeVerboseStatus('cleared', $sermon, $reference === '' ? 'no reference' : 'non-public content');
 
-                continue;
+                return;
             }
 
             $entries = $indexService->entriesForReference($reference);
@@ -100,7 +96,7 @@ class SyncSermonScriptureFilters extends Command
                 $counts['unparseable']++;
                 $this->writeVerboseStatus('unparseable', $sermon, $reference);
 
-                continue;
+                return;
             }
 
             if (! $dryRun) {
@@ -109,7 +105,7 @@ class SyncSermonScriptureFilters extends Command
 
             $counts['indexed']++;
             $this->writeVerboseStatus('indexed', $sermon, sprintf('%s (%d entries)', $reference, count($entries)));
-        }
+        });
 
         $this->info(sprintf(
             'Done. Indexed: %d, Cleared: %d, Unparseable: %d, Skipped: %d',

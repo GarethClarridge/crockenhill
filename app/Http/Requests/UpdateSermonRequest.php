@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use App\Models\Sermon;
@@ -30,7 +32,7 @@ class UpdateSermonRequest extends FormRequest
         return [
             'title' => $modelRules['title'],
             'slug' => $modelRules['slug'],
-            'date' => 'required|date_format:Y-m-d',
+            'date' => ['required', 'date_format:Y-m-d'],
             'service' => array_merge(['required'], array_filter($modelRules['service'], fn ($r) => $r !== 'nullable')),
             'series' => $modelRules['series'],
             'reference' => $modelRules['reference'],
@@ -41,10 +43,10 @@ class UpdateSermonRequest extends FormRequest
             'duration' => $modelRules['duration'],
             'segment_start_time' => $modelRules['segment_start_time'],
             'segment_end_time' => $modelRules['segment_end_time'],
-            'points' => 'nullable|json', // Expects a JSON string or null
-            'summary' => 'nullable|string|max:1000',
-            'show_summary' => 'nullable|boolean',
-            'show_points' => 'nullable|boolean',
+            'points' => ['nullable', 'json'],
+            'summary' => ['nullable', 'string', 'max:1000'],
+            'show_summary' => ['nullable', 'boolean'],
+            'show_points' => ['nullable', 'boolean'],
         ];
     }
 
