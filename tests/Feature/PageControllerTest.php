@@ -17,13 +17,14 @@ class PageControllerTest extends TestCase
     #[Test]
     public function show_page_returns_200_for_valid_area_with_landing_page(): void
     {
-        // Use an area that doesn't have a static Route::view override
+        // Use 'sermons' area because '/christ', '/church', and '/community' have static Route::view overrides in web.php.
+        // /sermons is handled dynamically by PageController::showPage.
         Page::factory()->create([
-            'area' => PageArea::Community,
-            'slug' => 'community',
+            'area' => PageArea::Sermons,
+            'slug' => 'sermons',
         ]);
 
-        $response = $this->get('/community');
+        $response = $this->get('/sermons');
 
         $response->assertStatus(200);
     }
