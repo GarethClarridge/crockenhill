@@ -14,15 +14,18 @@ use App\Enums\SermonSourceType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Presenters\SermonSitemapPresenter;
+use App\Presenters\SermonViewPresenter;
 use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -92,7 +95,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ThumbnailCandidate|null $selected_thumbnail_candidate
  * @property-read ServiceSection|null $publishedServiceSection
  * @property-read MediaProcessingLog|null $latestProcessingLog
- * @property-read \Illuminate\Database\Eloquent\Collection<int, SermonScriptureFilter> $scriptureFilters
+ * @property-read Collection<int, SermonScriptureFilter> $scriptureFilters
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
  * @method static Builder|Sermon newModelQuery()
@@ -197,7 +200,7 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return Attribute<string, string>
+     * @return Attribute<never, string>
      */
     protected function title(): Attribute
     {
@@ -207,7 +210,7 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return Attribute<?string, ?string>
+     * @return Attribute<never, ?string>
      */
     protected function series(): Attribute
     {
@@ -230,7 +233,7 @@ class Sermon extends Model implements Sitemapable
     public static function validationRules(?self $sermon = null): array
     {
         $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
-        $uniqueSlug = \Illuminate\Validation\Rule::unique('sermons', 'slug');
+        $uniqueSlug = Rule::unique('sermons', 'slug');
         if ($sermon) {
             $uniqueSlug->ignore($sermon->id);
         }
@@ -241,14 +244,14 @@ class Sermon extends Model implements Sitemapable
             'slug' => $slugRule,
             'audio_file_path' => ['nullable', 'string', 'max:255'],
             'video_file_path' => ['nullable', 'string', 'max:500'],
-            'content_type' => ['required', \Illuminate\Validation\Rule::enum(SermonContentType::class)],
-            'source_type' => ['nullable', \Illuminate\Validation\Rule::enum(SermonSourceType::class)],
-            'service' => ['nullable', \Illuminate\Validation\Rule::enum(SermonService::class)],
+            'content_type' => ['required', Rule::enum(SermonContentType::class)],
+            'source_type' => ['nullable', Rule::enum(SermonSourceType::class)],
+            'service' => ['nullable', Rule::enum(SermonService::class)],
             'series' => ['nullable', 'string', 'max:255'],
             'reference' => ['nullable', 'string', 'max:255'],
             'preacher' => ['required', 'string', 'max:255'],
             'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
-            'preacher_source' => ['nullable', \Illuminate\Validation\Rule::enum(PreacherSource::class)],
+            'preacher_source' => ['nullable', Rule::enum(PreacherSource::class)],
             'preacher_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'segment_start_time' => ['nullable', 'numeric', 'min:0'],
             'segment_end_time' => ['nullable', 'numeric', 'min:0', 'gte:segment_start_time'],
@@ -264,7 +267,7 @@ class Sermon extends Model implements Sitemapable
     protected function humanDate(): Attribute
     {
         return Attribute::make(
-            get: fn (): string => app(\App\Presenters\SermonViewPresenter::class)->humanDate($this)
+            get: fn (): string => app(SermonViewPresenter::class)->humanDate($this)
         )->shouldCache();
     }
 
@@ -322,7 +325,7 @@ class Sermon extends Model implements Sitemapable
     protected function seriesUrl(): Attribute
     {
         return Attribute::make(
-            get: fn (): ?string => app(\App\Presenters\SermonViewPresenter::class)->seriesUrl($this)
+            get: fn (): ?string => app(SermonViewPresenter::class)->seriesUrl($this)
         )->shouldCache();
     }
 
@@ -819,7 +822,7 @@ class Sermon extends Model implements Sitemapable
     protected function metaDescription(): Attribute
     {
         return Attribute::make(
-            get: fn (): string => app(\App\Presenters\SermonViewPresenter::class)->metaDescription($this)
+            get: fn (): string => app(SermonViewPresenter::class)->metaDescription($this)
         )->shouldCache();
     }
 

@@ -7,6 +7,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * App\Models\PreacherAlias
@@ -14,8 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $preacher_id
  * @property string $alias
- * @property ?\Illuminate\Support\Carbon $created_at
- * @property ?\Illuminate\Support\Carbon $updated_at
+ * @property ?Carbon $created_at
+ * @property ?Carbon $updated_at
  *
  * @mixin \Eloquent
  */
@@ -45,7 +47,7 @@ class PreacherAlias extends Model
      */
     public static function validationRules(?self $alias = null): array
     {
-        $uniqueAlias = \Illuminate\Validation\Rule::unique('preacher_aliases', 'alias');
+        $uniqueAlias = Rule::unique('preacher_aliases', 'alias');
 
         if ($alias) {
             $uniqueAlias->ignore($alias->id);
@@ -58,7 +60,7 @@ class PreacherAlias extends Model
     }
 
     /**
-     * @return Attribute<string, string>
+     * @return Attribute<never, string>
      */
     protected function alias(): Attribute
     {
