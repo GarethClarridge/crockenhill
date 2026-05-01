@@ -49,3 +49,7 @@
 ## 2026-04-12 - [Sermon Model Testing Invariants]
 **Learning:** The `sermons` table has several `NOT NULL` columns with database-level defaults (`video_quality_status`, `video_visibility_override`). When writing tests, avoid passing `null` for these columns as it triggers integrity violations; use explicit enum values. Additionally, `ThumbnailMetadata` object verification requires specific keys (`id`, `timestamp`, `score`, `plain_path`) in each candidate to satisfy the `ThumbnailMetadata::candidateList()` parser.
 **Action:** Ensure sermon test factories or explicit `create()` calls provide valid enum values for status columns and properly structured arrays for metadata fields.
+
+## 2026-05-01 - [Testing Dynamic Routes with Static Overrides]
+**Learning:** Catch-all dynamic routes (e.g., `/{area}`) are superseded by static route definitions (e.g., `Route::view('/christ', ...)`) regardless of their order in the route file if they are more specific. When testing fallback logic in a catch-all controller, ensure the test cases use parameters that do not match any static overrides.
+**Action:** Use `php artisan route:list --path=parameter` to verify if a path is handled by a static view or a controller before writing assertions for catch-all behavior.
