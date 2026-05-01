@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Notifications\DatabaseNotificationCollection;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * App\Models\User
@@ -23,9 +31,9 @@ use Laravel\Sanctum\HasApiTokens;
  * @property ?string $remember_token
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
- * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
+ * @property-read DatabaseNotificationCollection<int, DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
- * @property-read \Illuminate\Database\Eloquent\Collection|\Laravel\Sanctum\PersonalAccessToken[] $tokens
+ * @property-read Collection|PersonalAccessToken[] $tokens
  * @property-read int|null $tokens_count
  *
  * @method static \Database\Factories\UserFactory factory(...$parameters)
@@ -37,7 +45,7 @@ use Laravel\Sanctum\HasApiTokens;
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
@@ -52,21 +60,21 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * @return \Illuminate\Database\Eloquent\Casts\Attribute<string, string>
+     * @return Attribute<never, string>
      */
-    protected function name(): \Illuminate\Database\Eloquent\Casts\Attribute
+    protected function name(): Attribute
     {
-        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
+        return Attribute::make(
             set: fn (string $value) => trim($value),
         );
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Casts\Attribute<string, string>
+     * @return Attribute<never, string>
      */
-    protected function email(): \Illuminate\Database\Eloquent\Casts\Attribute
+    protected function email(): Attribute
     {
-        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
+        return Attribute::make(
             set: fn (string $value) => strtolower(trim($value)),
         );
     }
@@ -94,12 +102,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * @return array<string, list<string|\Illuminate\Validation\Rules\Unique>>
+     * @return array<string, list<string|Unique>>
      */
     public static function validationRules(?self $user = null): array
     {
         $emailRule = ['required', 'email', 'lowercase', 'max:255'];
-        $uniqueEmail = \Illuminate\Validation\Rule::unique('users', 'email');
+        $uniqueEmail = Rule::unique('users', 'email');
 
         if ($user) {
             $uniqueEmail->ignore($user->id);
