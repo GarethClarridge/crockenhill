@@ -7,9 +7,9 @@ namespace App\Repositories;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
-use App\Services\SermonScriptureFilterIndexService;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
+use App\Services\SermonScriptureFilterIndexService;
 use App\Support\BibleCanon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -19,6 +19,11 @@ use Illuminate\Support\Str;
 
 class SermonRepository
 {
+    /**
+     * @var array<int, string>|null
+     */
+    private ?array $knownBooks = null;
+
     public function __construct(
         private readonly SermonScriptureFilterIndexService $indexService,
     ) {}
@@ -77,7 +82,8 @@ class SermonRepository
      */
     public function getLatestSermons(): Collection
     {
-        return Cache::flexible('latest_sermons', [86400, 172800], function (): Collection {
+        /** @var Collection<string, Collection<int, Sermon>> $results */
+        $results = Cache::flexible('latest_sermons', [86400, 172800], function (): Collection {
             $distinct_dates = Sermon::query()
                 ->whereSermon()
                 ->select('date')
@@ -90,13 +96,18 @@ class SermonRepository
                 return collect();
             }
 
-            return $this->publicSermonQuery()
+            /** @var Collection<string, Collection<int, Sermon>> $grouped */
+            $grouped = $this->publicSermonQuery()
                 ->whereIn('date', $distinct_dates)
                 ->orderBy('date', 'desc')
                 ->orderBy('service', 'asc')
                 ->get()
-                ->groupBy(fn ($sermon) => $sermon->date->format('Y-m-d'));
+                ->groupBy(fn (Sermon $sermon): string => $sermon->date->format('Y-m-d'));
+
+            return $grouped;
         });
+
+        return $results;
     }
 
     /**
@@ -106,15 +117,21 @@ class SermonRepository
      */
     public function getAllSermons(): Collection
     {
-        return Cache::flexible('all_sermons', [86400, 172800], function (): Collection {
-            return $this->publicSermonQuery()
+        /** @var Collection<string, Collection<int, Sermon>> $results */
+        $results = Cache::flexible('all_sermons', [86400, 172800], function (): Collection {
+            /** @var Collection<string, Collection<int, Sermon>> $grouped */
+            $grouped = $this->publicSermonQuery()
                 ->orderBy('date', 'desc')
                 ->orderBy('service', 'asc')
                 ->get()
                 ->groupBy(function (Sermon $sermon): string {
                     return $sermon->date->format('Y-m-d');
                 });
+
+            return $grouped;
         });
+
+        return $results;
     }
 
     /**
@@ -124,12 +141,15 @@ class SermonRepository
      */
     public function getSermonsBySeries(string $seriesName): Collection
     {
-        return Cache::flexible('sermons_series_'.Str::slug($seriesName), [86400, 172800], function () use ($seriesName): Collection {
+        /** @var Collection<int, Sermon> $results */
+        $results = Cache::flexible('sermons_series_'.Str::slug($seriesName), [86400, 172800], function () use ($seriesName): Collection {
             return $this->publicSermonQuery()
                 ->where('series', $seriesName)
                 ->orderBy('date', 'desc')
                 ->get();
         });
+
+        return $results;
     }
 
     /**
@@ -142,12 +162,15 @@ class SermonRepository
      */
     public function getSermonsByPreacher(Preacher $preacher): Collection
     {
-        return Cache::flexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher): Collection {
+        /** @var Collection<int, Sermon> $results */
+        $results = Cache::flexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher): Collection {
             return $this->publicSermonQuery()
                 ->where('preacher_id', $preacher->id)
                 ->orderBy('date', 'desc')
                 ->get();
         });
+
+        return $results;
     }
 
     /**
@@ -157,12 +180,15 @@ class SermonRepository
      */
     public function getSermonsByService(SermonService $service): Collection
     {
-        return Cache::flexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service): Collection {
+        /** @var Collection<int, Sermon> $results */
+        $results = Cache::flexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service): Collection {
             return $this->publicSermonQuery()
                 ->where('service', $service)
                 ->orderBy('date', 'desc')
                 ->get();
         });
+
+        return $results;
     }
 
     /**
@@ -207,11 +233,14 @@ class SermonRepository
      */
     public function getRecentSermonsForJsonLd(int $limit = 100): Collection
     {
-        return Cache::flexible("sermons_jsonld_recent_{$limit}", [86400, 172800], function () use ($limit): Collection {
+        /** @var Collection<int, Sermon> $results */
+        $results = Cache::flexible("sermons_jsonld_recent_{$limit}", [86400, 172800], function () use ($limit): Collection {
             return $this->publicBrowseQuery()
                 ->limit($limit)
                 ->get();
         });
+
+        return $results;
     }
 
     /**
@@ -224,6 +253,8 @@ class SermonRepository
         Cache::forget('sermon_series');
         Cache::forget('sermon_scripture_books_all_all');
         Cache::forget('sermons_jsonld_recent_100');
+
+        $this->knownBooks = null;
 
         if ($model instanceof Sermon) {
             $this->clearScriptureChapterCaches($model);
@@ -294,7 +325,8 @@ class SermonRepository
     public function getExistingSeries(): array
     {
         try {
-            return Sermon::query()
+            /** @var array<int, string> $series */
+            $series = Sermon::query()
                 ->whereSermon()
                 ->whereNotNull('series')
                 ->where('series', '!=', '')
@@ -302,6 +334,8 @@ class SermonRepository
                 ->orderBy('series')
                 ->pluck('series')
                 ->all();
+
+            return $series;
         } catch (\Exception $e) {
             Log::warning('Failed to retrieve existing series', [
                 'error' => $e->getMessage(),
@@ -321,12 +355,15 @@ class SermonRepository
      */
     public function getSeriesForDisplay(): array
     {
-        return Cache::flexible('sermon_series', [86400, 172800], function (): array {
+        /** @var array<int, string> $series */
+        $series = Cache::flexible('sermon_series', [86400, 172800], function (): array {
             $series = $this->getExistingSeries();
             sort($series);
 
             return $series;
         });
+
+        return $series;
     }
 
     /**
@@ -339,29 +376,38 @@ class SermonRepository
      */
     public function getScriptureBooks(mixed $preacherId = null, mixed $series = null): Collection
     {
-        $preacherId = (int) $preacherId ?: null;
-        $series = filled($series) ? (string) $series : null;
+        $preacherIdInt = is_numeric($preacherId) ? (int) $preacherId : null;
+        $seriesNameStr = filled($series) ? (string) $series : null;
 
-        $cacheKey = 'sermon_scripture_books_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
+        $cacheKey = 'sermon_scripture_books_'.($preacherIdInt ?? 'all').'_'.($seriesNameStr ? Str::slug($seriesNameStr) : 'all');
 
-        return Cache::flexible($cacheKey, [86400, 172800], function () use ($preacherId, $series): Collection {
+        /** @var Collection<int, string> $books */
+        $books = Cache::flexible($cacheKey, [86400, 172800], function () use ($preacherIdInt, $seriesNameStr): Collection {
             $query = SermonScriptureFilter::query();
 
-            if ($preacherId === null && $series === null) {
+            if ($preacherIdInt === null && $seriesNameStr === null) {
                 // Entries are only created for ContentType::Sermon, so we can skip the join
-                return $query->select('bible_book')
+                /** @var Collection<int, string> $results */
+                $results = $query->select('bible_book')
                     ->distinct()
                     ->pluck('bible_book');
+
+                return $results;
             }
 
-            return $query->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+            /** @var Collection<int, string> $results */
+            $results = $query->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
                 ->where('sermons.content_type', SermonContentType::Sermon)
-                ->when($preacherId, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherId))
-                ->when($series, fn (Builder $q) => $q->where('sermons.series', $series))
+                ->when($preacherIdInt, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherIdInt))
+                ->when($seriesNameStr, fn (Builder $q) => $q->where('sermons.series', $seriesNameStr))
                 ->select('bible_book')
                 ->distinct()
                 ->pluck('bible_book');
+
+            return $results;
         });
+
+        return $books;
     }
 
     /**
@@ -374,37 +420,48 @@ class SermonRepository
      */
     public function getScriptureChapters(string $book, mixed $preacherId = null, mixed $series = null): Collection
     {
-        $preacherId = (int) $preacherId ?: null;
-        $series = filled($series) ? (string) $series : null;
+        $preacherIdInt = is_numeric($preacherId) ? (int) $preacherId : null;
+        $seriesNameStr = filled($series) ? (string) $series : null;
 
-        /** @var array<int, string> $knownBooks */
-        $knownBooks = Cache::get('sermon_scripture_books_with_cached_chapters', []);
-        if (! in_array($book, $knownBooks, true)) {
-            $knownBooks[] = $book;
-            Cache::put('sermon_scripture_books_with_cached_chapters', $knownBooks, 172800);
+        /** @var array<int, string> $cachedBooks */
+        $cachedBooks = Cache::get('sermon_scripture_books_with_cached_chapters', []);
+        $this->knownBooks ??= $cachedBooks;
+
+        if (! in_array($book, $this->knownBooks, true)) {
+            $this->knownBooks[] = $book;
+            Cache::put('sermon_scripture_books_with_cached_chapters', $this->knownBooks, 172800);
         }
 
-        $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
+        $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherIdInt ?? 'all').'_'.($seriesNameStr ? Str::slug($seriesNameStr) : 'all');
 
-        return Cache::flexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
+        /** @var Collection<int, int> $chapters */
+        $chapters = Cache::flexible($cacheKey, [86400, 172800], function () use ($book, $preacherIdInt, $seriesNameStr): Collection {
             $query = SermonScriptureFilter::query()->where('bible_book', $book);
 
-            if ($preacherId === null && $series === null) {
-                return $query->select('bible_chapter')
+            if ($preacherIdInt === null && $seriesNameStr === null) {
+                /** @var Collection<int, int> $results */
+                $results = $query->select('bible_chapter')
                     ->distinct()
                     ->orderBy('bible_chapter')
                     ->pluck('bible_chapter');
+
+                return $results;
             }
 
-            return $query->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+            /** @var Collection<int, int> $results */
+            $results = $query->join('sermons', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
                 ->where('sermons.content_type', SermonContentType::Sermon)
-                ->when($preacherId, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherId))
-                ->when($series, fn (Builder $q) => $q->where('sermons.series', $series))
+                ->when($preacherIdInt, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherIdInt))
+                ->when($seriesNameStr, fn (Builder $q) => $q->where('sermons.series', $seriesNameStr))
                 ->select('bible_chapter')
                 ->distinct()
                 ->orderBy('bible_chapter')
                 ->pluck('bible_chapter');
+
+            return $results;
         });
+
+        return $chapters;
     }
 
     /**
@@ -420,17 +477,22 @@ class SermonRepository
         Cache::forget('sermon_scripture_books_all_all');
 
         // Extract all possible values that could be cached
+        /** @var array<int, int> $preacherIds */
         $preacherIds = array_filter(array_unique([
-            (int) $sermon->preacher_id ?: null,
-            (int) $sermon->getOriginal('preacher_id') ?: null,
+            (int) ($sermon->preacher_id ?? 0),
+            (int) ($sermon->getOriginal('preacher_id') ?? 0),
         ]));
 
-        $seriesNames = array_filter(array_unique([
-            $sermon->series ?: null,
-            $sermon->getOriginal('series') ?: null,
-        ]));
+        $rawSeriesNames = array_unique([
+            (string) ($sermon->series ?? ''),
+            (string) ($sermon->getOriginal('series') ?? ''),
+        ]);
 
-        $seriesSlugs = array_map(fn (string $s) => Str::slug($s), $seriesNames);
+        /** @var array<int, string> $seriesNames */
+        $seriesNames = array_filter($rawSeriesNames);
+
+        /** @var array<int, string> $seriesSlugs */
+        $seriesSlugs = array_map(fn (mixed $s): string => Str::slug((string) $s), $seriesNames);
 
         // Clear book list caches for all combinations of preacher and series
         foreach ($preacherIds as $id) {
@@ -455,7 +517,7 @@ class SermonRepository
         $books = [];
         foreach ($references as $ref) {
             foreach ($this->indexService->entriesForReference($ref) as $entry) {
-                $books[] = $entry['bible_book'];
+                $books[] = (string) $entry['bible_book'];
             }
         }
 
@@ -467,7 +529,7 @@ class SermonRepository
         $books = array_unique($books);
 
         foreach ($books as $book) {
-            $bookSlug = Str::slug($book);
+            $bookSlug = Str::slug((string) $book);
             Cache::forget("sermon_scripture_chapters_{$bookSlug}_all_all");
 
             foreach ($preacherIds as $id) {
