@@ -1,380 +1,636 @@
-# Livestream Daemon Upload (2026-05-01) — Decision-Input-First Analysis with Laptop-Side Trimming
+# Livestream Daemon Upload (2026-05-01) - Analysis Proxy Video with Laptop-Side Trimming
+
+## Recommendation
+
+Proceed with the laptop daemon, but do not implement the original "audio plus frame archive" design.
+
+The better shape is:
+
+1. The daemon creates a small analysis proxy video from the full 1080p recording.
+2. The server runs the existing livestream analysis jobs against that proxy video.
+3. Once the server knows which sections to preserve, the daemon trims the original 1080p file locally.
+4. The daemon uploads only the full-quality kept assets.
+5. The server finalizes those uploaded assets into the existing sermon and section-publishing flows.
+
+This keeps the main win, which is avoiding a 5 GB full upload, while removing most of the brittle refactor work from the first plan. A proxy video gives the existing server jobs one normal media path to inspect, so `GenerateRmsLog`, `PerformVisualAnalysis`, `TranscribeSpeechSegments`, `MatchSongsFromTranscript`, OCR, and dense visual boundary refinement can continue to behave like video-backed jobs.
+
+The tradeoff is that the analysis payload is larger than the original ~190 MB estimate. Expect something closer to ~300-700 MB for a two-hour 720p/1fps proxy with usable audio. That is still materially smaller than a 5 GB upload, and the implementation is much safer.
 
 ## Background
 
-The church livestream pipeline currently accepts a full-resolution video upload from the church laptop, runs RMS audio analysis to identify sermon and other segments, extracts the wanted segments, and discards the rest. Today's recordings are 720p (~1.5 GB) but the goal is to move to 1080p (~5 GB) for archival quality. Uploading 5 GB only to discard most of it is wasteful in three ways:
+The current livestream pipeline accepts a full-resolution video upload, runs analysis, extracts wanted sections, and discards the rest. Moving from 720p recordings (~1.5 GB) to 1080p recordings (~5 GB) makes that increasingly painful:
 
-- **Bandwidth**: 5 GB over the church's connection is slow and failure-prone.
-- **Storage I/O**: full file lands on the server even though most bytes will be deleted.
-- **Operator patience**: long uploads tie up the church laptop and increase the chance of an aborted session.
+- **Bandwidth**: the church upload connection is the bottleneck and large uploads are fragile.
+- **Storage I/O**: the full source lands on the server even though much of it is temporary.
+- **Operator experience**: long uploads increase the chance of aborted sessions and reduce confidence.
 
-A second observation is that the inputs the *analyzer* needs are far smaller than the inputs the *viewer* needs. Several decision-time jobs consume media:
+The original decision-input-first plan correctly spotted that analysis does not need the full 1080p source. However, it proposed shipping separate audio plus a JPEG frame archive. That creates a new media abstraction layer across several jobs and risks accuracy regressions, especially where the current server code expects a video path.
 
-- `GenerateRmsLog` needs the audio waveform.
-- `PerformVisualAnalysis` needs sample frames at 10-second intervals (`SAMPLE_INTERVAL_SECONDS = 10` in [VisualAnalysisService.php](../../app/Services/VisualAnalysisService.php)) for song-vs-speech disambiguation via brightness, contrast, and edge density.
-- `TranscribeSpeechSegments` needs audio of speech regions.
-- `MatchSongsFromTranscript` needs both frames within song regions (for OCR of projected lyrics via `SongLyricOcrService`) *and* audio of song openings (to transcribe the first few seconds and match against the lyrics catalogue).
-
-Together, these inputs total ~80 MB of audio plus ~110 MB of OCR-readable sample frames, around ~190 MB. The full 1080p video is ~5 GB, but the kept segments after segmentation are typically ~2 GB — so the realistic comparison is "5 GB uploaded, 2 GB worth keeping" today vs "~190 MB of analyzer inputs followed by ~2 GB of kept segments" in the new flow. The asymmetry between *decision-making payload* and *display payload* is what creates the opportunity, not a near-elimination of upload bytes.
+The safer approach is to make a compact video proxy that preserves the "server analyzes media" contract.
 
 ## Goal
 
-Replace the monolithic 5 GB upload with a two-phase flow driven by a daemon on the church laptop:
+Replace the monolithic 5 GB browser upload with a daemon-driven two-phase flow:
 
-1. Laptop extracts the analyzer's inputs locally — audio (~80 MB) plus sample frames at the existing 10-second interval at OCR-readable resolution (~110 MB at 1280×720) — and uploads them for analysis. Total analyze payload: ~190 MB.
-2. Server runs RMS analysis on the audio and visual classification on the frames in parallel, then chains through segmentation, speech transcription, and song matching (which uses both frames for OCR and audio for opening-transcription). Returns segment timestamps and types.
-3. Laptop trims the original 1080p video locally with `ffmpeg -c copy` (no re-encoding).
-4. Laptop uploads only the kept segments via direct-to-S3 multipart uploads (~2 GB total — sermon, children's talk, songs).
-5. Server triggers the existing post-review pipeline on the already-trimmed assets.
+1. Laptop creates an analysis proxy video, for example 1280x720 at 1fps with AAC audio.
+2. Laptop uploads the proxy to a daemon-specific Laravel endpoint.
+3. Server stores the proxy as the analysis `source_file_path` and runs a daemon-analysis pipeline.
+4. Server returns an upload manifest for required full-quality outputs.
+5. Laptop trims the original 1080p recording locally using `ffmpeg`, preferring stream copy.
+6. Laptop uploads full-quality preserved assets directly to the configured sermon disk, usually DigitalOcean Spaces.
+7. Server finalizes the uploaded assets, creates or updates the sermon, prepares section publications, and runs the normal post-processing jobs.
 
-Total bytes uploaded: ~190 MB analyze + ~2 GB kept segments ≈ ~2.2 GB, vs. ~5 GB today. That's roughly 55% fewer bytes uploaded, full 1080p quality preserved end-to-end, segmentation and song-matching accuracy preserved (visual analysis and OCR both still run, on daemon-supplied frames), and zero weekly operator effort beyond moving the recording into a drop folder.
-
-The headline win isn't actually byte savings (which are real but modest). It's that the bytes we *do* upload are bytes we *want* — every uploaded segment becomes a published piece of content. Today's 3 GB of "uploaded then discarded" is eliminated.
+The proxy should be treated as analysis-only. It must never become the public sermon video.
 
 ## Non-Goals
 
-- Replacing the existing in-browser livestream upload. It stays as a manual fallback for testing, emergencies, or operators without laptop access.
-- Real-time / streaming ingestion. The daemon is post-recording.
-- Replacing or duplicating visual analysis. It remains in the pipeline; the daemon supplies pre-extracted sample frames so the existing `VisualAnalysisService` can run as it does today, with only its input source changing.
-- Browser-based ffmpeg / WASM trimming. Browser heap limits make this impractical for 5 GB files; the daemon owns local processing.
-
-## Rationale Summary
-
-- **Why decision-input-first**: today we upload 5 GB and discard ~3 GB after segmentation. The new flow uploads ~190 MB of analyzer inputs, the server decides which segments to keep, and only then does the laptop upload the ~2 GB of kept segments. Total upload drops from ~5 GB to ~2.2 GB — modest in absolute terms, but the eliminated bytes are precisely the ones that would have been thrown away.
-- **Why a laptop daemon over auto-upload-on-record-finish**: testing parity (drop a file in any time, no need to record a service), avoiding accidental processing of mid-week recordings (rehearsals, weddings, sound checks), explicit operator intent.
-- **Why a drop folder over a watched OBS output folder**: filesystem-move atomicity (no "is the file done writing?" detection), unified treatment of all sources (local recording, YouTube fallback, USB-imported file), trivial recovery (drop the file again), and identical pattern in dev and production.
-- **Why reuse the existing `manual_review` state machine**: the codebase already supports analyze-pause-resume; the daemon plays the role today filled by a human reviewer. New work is mostly a new pipeline definition and two thin endpoints.
-
-## Quality Gates
-
-- `vendor/bin/sail artisan test --compact <focused test paths>`
-- `vendor/bin/sail composer phpstan`
-- `vendor/bin/sail bin pint --dirty`
-- `vendor/bin/sail artisan dusk` (only if any UI surfaces are added; not expected)
+- Do not remove the existing browser livestream upload. It remains the manual fallback.
+- Do not introduce real-time ingestion. The daemon is post-recording only.
+- Do not move RMS, visual analysis, OCR, or song matching to the daemon.
+- Do not rely on browser-based ffmpeg/WASM for 5 GB files.
+- Do not assume the server has the full original recording after daemon analysis.
 
 ## Architecture Overview
 
+```text
+[Church laptop]                                      [Laravel server]
+
+OBS recording -> drop folder
+        |
+        v
+Daemon moves file to processing folder
+        |
+        v
+Create analysis proxy video
+        |
+        v
+Upload proxy ----------------------------> POST /api/livestream-daemon/analyses
+                                            - Authenticates daemon token
+                                            - Stores proxy as analysis source
+                                            - Creates MediaProcessingLog
+                                            - Dispatches daemon analysis pipeline
+
+Poll status ------------------------------> GET /api/livestream-daemon/analyses/{id}
+                                            - Returns analysis state
+                                            - Returns upload requirements when ready
+
+Create upload session --------------------> POST /api/livestream-daemon/analyses/{id}/upload-sessions
+                                            - Creates scoped object keys
+                                            - Creates/reuses multipart upload IDs
+                                            - Returns presigned part URLs
+
+Trim original 1080p locally
+Upload kept assets directly to storage
+        |
+        v
+Finalize --------------------------------> POST /api/livestream-daemon/analyses/{id}/finalize
+                                            - Verifies expected assets exist
+                                            - Records uploaded asset paths
+                                            - Creates/updates sermon
+                                            - Dispatches post-daemon chain
+
+Archive original to NAS                    - Transcription, AI, thumbnails, quality checks,
+                                             section publication, and notifications continue
 ```
-[Church laptop]                                    [Server (Laravel)]
-                                                   
-OBS recording -> drop folder                       
-        |                                          
-        v                                          
-Daemon detects file                                
-Extract audio + sample frames (ffmpeg, ~190MB)     
-Upload audio + frames -----------------> POST /api/livestreams/analyze
-                                          - Creates MediaProcessingLog
-                                          - Dispatches parallel jobs:
-                                              GenerateRmsLog (audio)
-                                              PerformVisualAnalysis (frames)
-                                          - Then chains through segmentation
-                                          - Pipeline pauses at manual_review
-                                                   
-Poll for result <----------------------- GET /api/livestreams/analyze/{id}
-                                          - Returns segments + S3 multipart URLs
-                                                   
-Trim segments locally (ffmpeg -c copy)             
-Upload trimmed segments ---------------> Direct-to-S3 (DigitalOcean Spaces)
-                                                   
-Notify finalize -----------------------> POST /api/livestreams/finalize
-                                          - Validates soft identity match
-                                          - Records segments as confirmed
-                                          - Dispatches post-daemon chain
-                                                   
-Archive original to NAS                            - Sermon assets attached
-                                                   - Transcription, AI, thumbnails run
-                                                   - Completion email sent
+
+## Key Decisions
+
+### D1. Use a drop folder, not OBS auto-watch
+
+The operator moves a recording to `D:\Crockenhill\drop\`. The daemon immediately moves it to `D:\Crockenhill\processing\<recording-id>\original.mkv`.
+
+This keeps operator intent explicit, avoids accidentally processing rehearsals or weddings, and gives a simple recovery path: drop the file again. The installer must verify that the drop folder and OBS output folder are on the same Windows volume if atomic moves are expected.
+
+### D2. Upload an analysis proxy video, not audio plus frames
+
+The daemon should generate one compact video artifact:
+
+```bash
+ffmpeg -i original.mkv \
+  -map 0:v:0 -map 0:a:0 \
+  -vf "fps=1,scale=1280:-2" \
+  -c:v libx264 -preset veryfast -crf 28 -pix_fmt yuv420p \
+  -c:a aac -b:a 96k -ac 1 \
+  -movflags +faststart \
+  analysis-proxy.mp4
 ```
 
-## Decisions
+The exact CRF, frame rate, and audio bitrate must be tuned against real church recordings before rollout. The first measurement gate should compare the existing full-video pipeline with the proxy pipeline for segmentation boundaries, visual song clusters, OCR success, and song-opening transcription.
 
-### D1. Trigger model: drop folder, not auto-watch
+Why this is better than audio plus frames:
 
-Operator (or a one-line `.bat` shortcut) moves the recording to `D:\Crockenhill\drop\`. Daemon picks it up via filesystem watcher. Daemon immediately moves the file to `D:\Crockenhill\processing\<recording-id>\original.mkv` to give visual feedback and prevent double-processing.
+- It preserves the existing server assumption that analysis jobs receive a local video path.
+- It keeps dense visual boundary refinement possible because a 1fps proxy still has frames at 1-second cadence.
+- It avoids new frame-archive unpacking, timestamp lookup, and media-provider abstractions.
+- It lets OCR and song-opening transcription keep using the same video-backed services.
+- It is easier to reason about and easier to test end-to-end.
 
-**Why**: testability (can drop any file, including 5-second test clips), explicit operator intent, no need to filter out non-service recordings, atomic-move guarantee on same-volume operations.
+### D3. Store proxy size as `MediaProcessingLog.file_size`
 
-### D2. Refactor shape: new pipeline definition reusing existing manual-review pattern
+For daemon runs, `MediaProcessingLog.source_file_path` should point to the proxy video and `file_size` should be the proxy size, not the original 5 GB size. Existing jobs such as `GenerateRmsLog` compare `file_size` to configured upload limits and would reject the run if `file_size` stored the original 1080p size.
 
-The new pipeline mirrors the existing livestream pipeline's parallel-then-chain shape ([ProcessingPipelineBuilder.php:115-156](../../app/Services/ProcessingPipelineBuilder.php#L115-L156)), differing only in input sourcing.
+Original recording metadata belongs in structured daemon metadata, for example:
 
-Add `ProcessingPipelineBuilder::buildLivestreamDaemonAnalysisParallelJobs()` — runs `PerformVisualAnalysis` (reading daemon-supplied frames) and `GenerateRmsLog` (reading daemon-supplied audio) in parallel.
+```php
+[
+    'daemon' => [
+        'recording_id' => '...',
+        'source' => 'analysis_proxy',
+        'original' => [
+            'filename' => '...',
+            'size' => 5368709120,
+            'duration' => 7200.4,
+            'sha256' => '...',
+        ],
+        'proxy' => [
+            'path' => 'livestream-daemon/proxies/...',
+            'size' => 480000000,
+            'duration' => 7200.4,
+            'sha256' => '...',
+            'profile' => '720p-1fps-aac96',
+        ],
+    ],
+]
+```
 
-Add `ProcessingPipelineBuilder::buildLivestreamDaemonAnalysisChainJobs()` — runs sequentially after the parallel phase: `AnalyzeSegments -> ClassifyServiceSections -> TranscribeSpeechSegments -> ClassifySpeechSections -> ProjectLivestreamServiceStructure -> AlignWithOos -> MatchSongsFromTranscript -> ReclassifyIntroOutroSections`, then transitions the log to `manual_review_required`.
+### D4. Add a daemon analysis pipeline, but reuse existing analysis jobs
 
-Add `ProcessingPipelineBuilder::buildLivestreamPostDaemonChainJobs()` — identical to the existing `buildLivestreamPostReviewChainJobs()` *minus* `ExtractSermon` (the daemon already produced trimmed assets).
+The daemon analysis pipeline should run against the proxy video:
 
-Validation runs ahead of the parallel phase: a new `ValidateDaemonAnalysisPayload` job (or extension to `ValidateAudioFile`) confirms both the audio file and the frame archive are present and well-formed.
+1. `ValidateDaemonProxyFile`
+2. Parallel phase: `GenerateRmsLog`, `PerformVisualAnalysis`
+3. Chain phase: `AnalyzeSegments`, `ClassifyServiceSections`, `TranscribeSpeechSegments`, `ClassifySpeechSections`, `ProjectLivestreamServiceStructure`, `AlignWithOos`, `MatchSongsFromTranscript`, `ReclassifyIntroOutroSections`
+4. New terminal analysis step: `MarkDaemonAnalysisReady`
 
-**Why**: codebase already has the analyze-pause-resume pattern *and* the parallel-then-chain shape. The new pipeline reuses both; the only architectural delta is that two jobs read their inputs from daemon-supplied artifacts rather than extracting them from a server-side video. Keeping `ExtractSermon` skip explicit (new pipeline definition) is more readable than making the job conditionally a no-op.
+Do not run `ExtractSermon`, `SubmitToProcessing`, or `PrepareSectionPublicationCandidates` before full-quality assets have arrived. Those jobs either assume a full source video or create public-facing records/assets from the current processing paths.
 
-### D3. Async, not sync
+Implementation note: this can be a new `ProcessingRunOrchestrator::startDaemonAnalysis()` path rather than forcing `processingPipelineProfile()` to infer everything from `processing_type`.
 
-The analyze endpoint returns a `processing_id` immediately; daemon polls for completion. Matches the existing `ProcessingRunOrchestrator` and queue infrastructure.
+### D5. Finalize is a first-class handoff, not a skipped `ExtractSermon`
 
-**Why**: aligns with existing async patterns; avoids tying up a long HTTP request for ~30–60 seconds of RMS processing; lets the queue worker do what it's already configured to do.
+The first plan said the post-daemon chain is "existing post-review minus `ExtractSermon`". That is not sufficient.
 
-### D4. Identity verification: soft cross-check
+Current code has several source-video assumptions:
 
-Daemon submits `original_filename`, `file_size`, and `duration` on the `analyze` call. Server stores them on `MediaProcessingLog`. On `finalize`, daemon submits the same three values. Server compares; mismatch returns a friendly error.
+- `ExtractSermon` reads `source_file_path`.
+- `SubmitToProcessing` creates the `Sermon` and stores the video.
+- `PrepareSectionPublicationCandidates` extracts section media from `source_file_path`.
+- The manual confirmation action checks that the original source video still exists.
 
-**Why**: catches realistic failure modes (operator drops the wrong file, daemon state file corruption, two recordings on the laptop) without cryptographic ceremony. Threat model is "human or daemon bug," not adversarial.
+Daemon finalization needs a dedicated action, for example `FinalizeDaemonLivestreamAssets`, that:
 
-### D5. Domain object timing
+- Locks the processing log.
+- Verifies the run is in `daemon_analysis_ready` or `daemon_uploading_assets`.
+- Verifies each required object key is server-issued and exists on the configured disk.
+- Verifies expected size, content type, and checksum metadata where storage supports it.
+- Writes the sermon video and sermon audio paths to `MediaProcessingLog`.
+- Writes section asset paths to `ServiceSection.extracted_video_path` and `ServiceSection.extracted_audio_path`.
+- Creates or updates the `Sermon` using the same domain services as `SubmitToProcessing`, but without copying from a temp extraction path.
+- Dispatches a daemon-specific post-finalize chain.
 
-`MediaProcessingLog` is created at `analyze` time (existing behavior in `LivestreamSegmentationService::startProcessing`). The `Sermon` record is created downstream during the audio-only chain (existing behavior — `ProjectLivestreamServiceStructure` or similar already does this for livestreams). The daemon's `finalize` call attaches trimmed video to a Sermon that already exists.
+The post-finalize chain should start after canonical assets are recorded:
 
-**Why**: matches the existing pipeline shape; no new orchestration needed.
+```text
+CreateOrUpdateSermonFromDaemonAssets
+EnhanceAudio
+IdentifySpeaker
+TranscribeAudio
+ProcessTranscriptWithAI
+AssessSermonVideoQuality
+GenerateThumbnail
+PrepareDaemonSectionPublicationCandidates
+SendCompletionNotification
+CleanupTemporaryFiles
+```
 
-### D6. Multi-segment mapping
+`PrepareDaemonSectionPublicationCandidates` may share most logic with `PrepareSectionPublicationCandidates`, but it must not silently extract section media from the proxy. It should reuse daemon-provided full-quality assets or mark missing optional assets as warnings.
 
-A service produces multiple typed outputs (sermon, children's talk, songs, OOS items). Each is stored as a `LivestreamSegment` and mapped via existing `LivestreamSectionToServiceItemMapper` and `ChurchServiceItemSyncService`. The analyze endpoint returns segments tagged with type; the daemon uploads trimmed video for each segment that needs preservation; finalize wires each upload to the matching segment by ID.
+### D6. The server decides the upload manifest
 
-**Why**: existing infrastructure already handles multi-output services; no model changes needed.
+The daemon should not decide which sections are important based only on raw segments. The server should return an explicit upload manifest once analysis is ready.
 
-### D7. Partial success is allowed
+The manifest should include:
 
-Each segment's video upload is its own atomic operation. Segment status is updated as each completes. If 3 of 5 succeed and the laptop dies, the 3 are kept; the `MediaProcessingLog` lands in a `completed_with_warnings` state and a notification email lists what's missing.
+- The sermon extraction plan, including `single_span` or `concat_spans`.
+- Required sermon assets, at minimum full-quality video and an audio asset suitable for transcription/publication.
+- Optional section assets for songs, children's talks, or other publishable sections.
+- Stable IDs for each asset, preferably `service_section_id` for section publications and a dedicated `sermon` asset ID for the sermon.
+- Exact start/end spans to trim from the original recording.
+- Whether each asset is required or optional.
 
-**Why**: matches existing graceful-degradation patterns; partial output is more useful than rolled-back nothing.
+This matters because `SermonExtractionPlanResolver` can choose enhanced plans such as bible-reading-plus-sermon or concatenated spans. The daemon must support multi-span trim/concat for those plans.
 
-### D8. Sunday-evening status email
+### D7. Manual review still exists, but it must not require server-side original video
 
-A scheduled task at ~18:00 every Sunday emails a status report (`[OK] Sermon "Title" published at 18:42` or `[WARN] No recording was dropped today`). Reuses existing `Mailable` infrastructure.
+If sermon selection is ambiguous, the analysis pipeline can still enter manual review. However, the existing confirm action checks that `source_file_path` points to a source video. For daemon runs, `source_file_path` is the proxy and the full original lives only on the laptop.
 
-**Why**: shifts failure detection from passive ("I'll notice if the website is missing a sermon") to active ("did I get the OK email?"), which is far easier to verify and harder to overlook.
+Add a daemon-aware confirmation path that:
 
-### D9. YouTube as a fallback path, not a primary one
+- Allows an admin to confirm the sermon section without requiring the full original on the server.
+- Updates manual review metadata as today.
+- Rebuilds the daemon upload manifest from the confirmed segment or section.
+- Lets the daemon continue polling until the manifest is available.
 
-If the local recording is unavailable, the operator (or a manual command) downloads the YouTube version via `yt-dlp` and drops it into the same drop folder. The daemon and server treat it identically to a local recording.
+### D8. Use structured upload sessions, not ad-hoc JSON only
 
-**Why**: belt-and-braces redundancy; the drop folder pattern unifies fallback handling at zero design cost.
+Direct-to-S3 multipart upload is stateful enough to deserve explicit server-side records. Avoid hiding the whole contract inside `MediaProcessingLog.processing_metadata`.
 
-### D10. Preserve visual analysis and OCR via daemon-supplied frames at OCR-readable resolution
+Recommended tables:
 
-The daemon extracts sample frames at the existing 10-second interval (`SAMPLE_INTERVAL_SECONDS = 10` in [VisualAnalysisService.php](../../app/Services/VisualAnalysisService.php)) using `ffmpeg -vf fps=1/10 -s 1280x720`. For a 2-hour service this produces ~720 JPEG frames totalling ~110 MB. The frames are bundled (tar.gz) and uploaded alongside the audio in the analyze request. Server-side `PerformVisualAnalysis` and `SongLyricOcrService` both read frames from the unpacked archive instead of extracting them from a video.
+- `livestream_daemon_upload_sessions`: processing log, daemon recording ID, status, expiry, original/proxy metadata, last heartbeat.
+- `livestream_daemon_upload_assets`: session, asset ID, service section ID, asset type, required flag, storage disk, storage key, multipart upload ID, expected size, uploaded size, checksum, status.
 
-The 1280×720 resolution is chosen to serve two consumers:
+Metadata on `MediaProcessingLog` can still hold a compact summary for UI/status responses, but upload lifecycle should be queryable and testable.
 
-- **Visual classification** (`PerformVisualAnalysis`) needs low-cost metrics — brightness, contrast, edge density, ylow. These work at any resolution; 1280×720 is more than sufficient.
-- **OCR of projected lyrics** (`SongLyricOcrService::extractLyrics`, called from `MatchSongsFromTranscript`) needs readable text. 320×180 would be too low. 1280×720 is the practical floor for reliable Tesseract output on typical projector slides.
+### D9. Presigned multipart URLs should be idempotent and scoped
 
-One frame set serves both purposes: the daemon doesn't need to ship two resolutions.
+Do not generate new multipart uploads on every status poll. Use a separate upload-session endpoint:
 
-Considered alternatives:
+```text
+POST /api/livestream-daemon/analyses/{processingId}/upload-sessions
+```
 
-- **Skip visual analysis and OCR entirely.** Rejected: visual classification materially improves song-vs-speech disambiguation; OCR materially improves song identification (it's the strongest signal when the lyrics are clearly projected). `MatchSongsFromTranscript` already gracefully degrades to title-hint-only matching when the source is unavailable, but accuracy regresses noticeably.
-- **Reimplement classification and/or OCR on the daemon.** Rejected: duplicates non-trivial logic and drift between server and daemon implementations would silently degrade results.
-- **Daemon ships low-res frames for classification, on-demand high-res frames for OCR after analysis identifies songs.** Rejected: requires a roundtrip between server (which now knows where the songs are) and daemon (which has the original video), adding a phase to the daemon's state machine and complicating the API. Single-resolution upload is simpler and only ~80 MB more expensive.
-- **Daemon ships full video.** Rejected: defeats the entire purpose; we're back to 5 GB uploads.
+If an active session exists, return it. If it expired or was aborted, explicitly create a replacement. The server must generate all object keys and enforce a prefix such as:
 
-**Why**: preserves classification *and* song-matching accuracy at modest bandwidth cost (~110 MB instead of ~30 MB — still <2.5% of today's 5 GB), keeps the brain on the server (no duplicated logic), requires a moderate refactor to `VisualAnalysisService` and `SongLyricOcrService` to accept pre-extracted frames as input, and avoids any roundtrip between daemon and server during analysis.
+```text
+livestream-daemon/{processing_id}/{asset_id}/video.mp4
+livestream-daemon/{processing_id}/{asset_id}/audio.mp3
+```
 
-### D11. Media source abstraction for analysis-time jobs
+The daemon should never submit arbitrary storage keys.
 
-`MatchSongsFromTranscript` currently takes `$localSourcePath` (the original video) and uses it for two operations: extracting frames at specific timestamps for OCR, and extracting audio from specific time ranges for song-opening transcription. With the daemon flow, the original video isn't on the server — only the frames archive and the audio file are.
+When the configured sermon disk is not S3-compatible, for example local development, the same upload-session contract should fall back to daemon uploads through Laravel endpoints. Production can use presigned multipart uploads; tests and local development should not need real Spaces credentials.
 
-Introduce a `MediaSourceProvider` interface with two implementations:
+### D10. Security model: daemon-specific, least privilege
 
-- **`VideoBackedMediaSource`** — wraps a video path, extracts frames and audio on demand via ffmpeg. Used by the existing browser-upload pipeline.
-- **`DaemonArtifactMediaSource`** — wraps `(audio_path, frames_directory)`, returns the nearest available frame for a target timestamp and slices audio from the audio file directly. Used by the daemon-driven pipeline.
+Use a dedicated Sanctum ability such as `media:daemon`, not the broader `media:process` ability. Apply it to all daemon endpoints.
 
-`MatchSongsFromTranscript`, `SongLyricOcrService`, and any other analysis-time job that previously used `$localSourcePath` accept the interface instead. The daemon controller assembles the appropriate provider based on the `MediaProcessingLog`'s source type.
+Security requirements:
 
-Considered alternatives:
+- HTTPS only.
+- Dedicated daemon token stored in Windows Credential Manager or another protected store, not a plaintext config file.
+- Rotateable token with a device label.
+- Separate rate limiters for analysis upload, status polling, upload-session creation, finalization, and heartbeat.
+- Idempotency key on `analyze`, based on the daemon recording ID.
+- Server-generated upload keys only.
+- Strict MIME/extension/probe validation for the proxy.
+- Strict object HEAD checks during finalize.
+- Safe error messages in API responses, detailed errors only in logs.
 
-- **Sibling methods on each consumer.** Adding `extractLyricsFromFrames(...)` next to `extractLyrics(...)` works but spreads the daemon-vs-video branching across multiple services. The interface approach centralises the decision.
-- **Reconstruct a synthetic video from frames + audio.** Theoretically allows zero refactor of consumers, but ffmpeg-encoding a fake video from scattered frames is fragile, slow, and produces a video that visual classification might score differently than the real one.
+Soft identity checks are still useful, but they are not security. Filename, size, duration, and original SHA-256 catch daemon or operator mistakes; they do not prove trust by themselves.
 
-**Why**: cleanly separates "what does this job do?" from "where does the media come from?". The refactor surface is moderate but bounded — the interface lives in front of two services and a handful of jobs. Same abstraction would benefit any future analysis-time consumer of media.
+### D11. Partial success should use existing completion semantics
+
+There is no `completed_with_warnings` processing status today. Use existing status values:
+
+- If required sermon assets are missing, finalization fails.
+- If optional section assets are missing, the run may complete with `is_degraded_completion = true`.
+- Store warnings in processing metadata and include them in the completion email.
+- Mark affected `ServiceSection` records as not applicable or needing review, depending on the handler.
+
+Partial publication is useful, but the sermon itself should be treated as required.
+
+### D12. Keep originals locally, with an explicit archive policy
+
+The daemon should archive the full original to a NAS path after successful finalization. The plan must be honest that the server will not have the full original unless we add a background archival upload.
+
+Recommended policy:
+
+- Required: NAS archive path with local retention.
+- Required: operator-visible failure if archive copy fails.
+- Recommended: NAS backups are covered by existing off-site backup.
+- Optional later: overnight low-priority cloud upload of the full original for reprocessing.
+
+### D13. YouTube fallback uses the same drop-folder flow
+
+If the local OBS recording is unavailable, download the YouTube version with `yt-dlp` and drop it into the same folder. The daemon treats it as just another source recording.
+
+This should remain a fallback, not the primary recording path, because YouTube compression may affect OCR, audio, and long-term archival quality.
+
+### D14. Keep daemon code in this repository as a top-level subproject
+
+The daemon should live in this repo, but outside the Laravel application tree:
+
+```text
+livestream-daemon/
+  pyproject.toml
+  src/crockenhill_livestream_daemon/
+  tests/
+  packaging/windows/
+    install-service.ps1
+    uninstall-service.ps1
+    nssm/
+```
+
+Do not put daemon code in `app/`, because it is not Laravel application code. Do not hide it in `scripts/`, because it is a long-running product component with its own tests, packaging, releases, and operational state. A separate repository is unnecessary unless the daemon needs independent versioning or reuse outside this project.
+
+Keeping it in the monorepo lets one pull request update the Laravel API contract, daemon client, fixtures, and documentation together.
+
+## API Contract
+
+### `POST /api/livestream-daemon/analyses`
+
+Multipart form upload:
+
+- `proxy_video`: required MP4 analysis proxy.
+- `daemon_recording_id`: required idempotency key.
+- `original_filename`: required.
+- `original_size`: required integer.
+- `original_duration`: required float.
+- `original_sha256`: recommended.
+- `proxy_sha256`: recommended.
+- `proxy_profile`: required string, for example `720p-1fps-aac96`.
+
+Response:
+
+- `processing_id`
+- `status_url`
+- `message`
+
+### `GET /api/livestream-daemon/analyses/{processingId}`
+
+Returns:
+
+- Current status and current step.
+- Analysis progress.
+- Whether manual review is required.
+- Upload manifest when analysis is ready.
+- Upload session summary if one exists.
+- Warnings or blocking errors.
+
+### `POST /api/livestream-daemon/analyses/{processingId}/upload-sessions`
+
+Creates or reuses a scoped upload session for the current manifest.
+
+Returns:
+
+- Asset list.
+- Storage keys.
+- Multipart upload IDs.
+- Presigned part URLs or instructions for requesting part URL batches.
+- Expiry timestamps.
+
+### `POST /api/livestream-daemon/analyses/{processingId}/finalize`
+
+Request:
+
+- `daemon_recording_id`
+- Original metadata repeated for soft identity check.
+- Upload session ID.
+- Per-asset completed multipart parts.
+- Per-asset file size and checksum metadata.
+
+Response:
+
+- Accepted status.
+- Final processing status URL.
+- Any warnings about optional missing assets.
+
+### `POST /api/livestream-daemon/heartbeat`
+
+Records daemon health, current phase, version, and last recording ID. This supports daemon-down and no-recording alerts.
 
 ## Test Strategy
 
-The codebase already has fixture-as-builder at the RMS-log level (`buildRmsLog([...])` helper in `VideoSegmentationServiceRmsTest`). The strategy extends that pattern up the stack.
+### Measurement gate before implementation
 
-### Three test layers
+Before building the full daemon, run a local spike on at least two real recordings:
 
-| Layer | Inputs | Fixtures | Speed | Where |
-|---|---|---|---|---|
-| Unit | Synthetic RMS log strings; synthetic frame metric arrays | `buildRmsLog([...])` helper, in-memory metric structs, no binary files | <100ms each | In test files |
-| Feature | Tiny generated `.m4a` files + matching frame sequences | `tests/Fixtures/audio/` and `tests/Fixtures/frames/` (~6MB total committed) | ~1–2s each | Repo |
-| Manual exploratory | Real recordings | Operator's gitignored `D:\Crockenhill\test-recordings\` | Minutes | Local-only |
+- Full source through current server analysis.
+- Proxy source through current server analysis.
+- Compare RMS boundaries, service sections, song clusters, OCR matches, and song-opening transcription.
 
-CI runs unit + feature. Manual is the developer's responsibility before significant releases.
+If proxy accuracy is poor, tune proxy settings before building API and upload-session machinery. Do not compensate by reviving the frame-archive design unless measurement proves the proxy cannot work.
 
-### Audio fixtures (six, generated)
+### Automated test layers
 
-A new artisan command `php artisan test:build-audio-fixtures` reads `tests/Fixtures/audio/manifest.yaml`, runs `ffmpeg`, writes outputs:
+| Layer | Purpose | Fixtures |
+|---|---|---|
+| Unit | Pipeline definitions, manifest generation, upload-session state, finalization validation | Model factories and fake disks |
+| Feature | Daemon API contract, auth, idempotency, upload-session reuse, finalize behavior | Small generated proxy MP4 fixtures |
+| Job/service | Analysis pipeline integration where existing jobs can be mocked | Fake `VideoSegmentationService`, fake storage, queued jobs |
+| Manual exploratory | Real daemon on Windows against real recordings | Gitignored local recordings |
 
-1. `happy-path.m4a` (60s) — silence-speech-silence-speech-silence; predictable boundaries.
-2. `pure-silence.m4a` (30s) — segmenter must handle "no segments found".
-3. `pure-speech.m4a` (30s) — no silence gaps; segmenter must produce one giant segment.
-4. `tiny.m4a` (1s) — `ValidateAudioFile` minimum-duration boundary case.
-5. `corrupt.m4a` — truncated valid file; ffmpeg should fail gracefully.
-6. `wrong-format.m4a` — text file with `.m4a` extension; `ValidateAudioFile` should reject.
+### Fixture approach
 
-Both manifest and generated binaries are committed. CI verifies checksums match the manifest output.
+The old audio/frame fixture plan should be replaced with generated tiny proxy videos. Keep tests fast, but use fixtures that exercise the same file shape as production: an MP4 with video and audio.
 
-### Synthetic over real
+Recommended fixtures:
 
-Audio fixtures are generated, not real recordings. Generated fixtures give exact-match assertions (`assertEquals([{ start: 5.0, end: 15.0, type: 'speech' }], $segments)`). Real recordings would force weak assertions like `assertGreaterThan(0, count($segments))` and miss subtle regressions.
+1. `happy-path-proxy.mp4`: predictable audio and visual sections.
+2. `ambiguous-sermon-proxy.mp4`: triggers manual review.
+3. `no-sermon-proxy.mp4`: analysis completes but cannot produce a required sermon asset.
+4. `bad-proxy.txt`: extension spoofing should fail validation.
+5. `truncated-proxy.mp4`: ffprobe or ffmpeg validation should fail.
 
-Real recordings stay out of the repo entirely — they live in the operator's gitignored test-recordings folder for full end-to-end exploratory testing via the drop folder.
-
-### New test helpers
-
-- `SegmentBuilder` — fluent helper that assembles coherent `LivestreamSegment` data for downstream-job tests that don't care about the audio (`SegmentBuilder::for($log)->silence(0, 30)->speech(30, 240, type: 'song')->save()`).
+Use fake S3 disks for upload-session/finalize tests. Do not require real DigitalOcean Spaces in CI.
 
 ## Implementation Plan
 
-### Phase 1 — Server-side daemon-analysis pipeline
+### Phase 0 - Proxy measurement spike
 
-Priority: **Critical** — blocks daemon work.
-
-Target files:
-
-- `app/Services/ProcessingPipelineBuilder.php` — add `buildLivestreamDaemonAnalysisParallelJobs()`, `buildLivestreamDaemonAnalysisChainJobs()`, and `buildLivestreamPostDaemonChainJobs()`.
-- `app/Services/ProcessingPhaseRegistry.php` — register phase mappings for the new pipeline so progress reporting works.
-- `app/Services/MediaSourceProvider.php` (new interface) plus `VideoBackedMediaSource` and `DaemonArtifactMediaSource` implementations (D11). Provide methods like `frameAtTimestamp(float $time): ?string` and `audioSlice(float $start, float $end): string`.
-- `app/Services/VisualAnalysisService.php` — split `extractFrameMetrics()` into "extract from video" and "compute metrics from existing frames" phases, or add a sibling `extractFrameMetricsFromFiles(array $framePaths, ...)` entry point. Keep `analyzeVideo()` and `refineBoundaries()` callable in both modes.
-- `app/Services/SongLyricOcrService.php` — refactor `extractLyrics()` to take a `MediaSourceProvider` instead of `$localVideoPath`. The existing video-extracting `extractFrame()` becomes the implementation behind `VideoBackedMediaSource::frameAtTimestamp()`.
-- `app/Jobs/MatchSongsFromTranscript.php` — replace `$localSourcePath` resolution with `MediaSourceProvider` resolution. Both video-backed and daemon-artifact sources route through the same downstream logic.
-- `app/Jobs/PerformVisualAnalysis.php` — read frame source from log metadata (daemon-supplied tar.gz path vs. extract-from-video path). Both modes call into the same downstream classification logic.
-- `app/Services/LivestreamSegmentationService.php` — accept the (audio + frames) payload, thread through to the new pipeline.
-- `app/Http/Controllers/Api/` — new controller (e.g. `LivestreamDaemonController`) with `analyze`, `analyzeStatus`, `finalize`, `heartbeat` endpoints.
-- `routes/api.php` — register new routes under `/api/livestreams/`.
-- `config/media-processing.php` — confirm audio formats are present in the relevant allowlist.
+Priority: Critical.
 
 Tasks:
 
-- [ ] Verify whether `ValidateAudioFile` job uses its own format allowlist or the shared `media-processing.allowed_formats`. If shared, add `m4a/aac/mp3` if missing.
-- [ ] Verify exact job that creates the `Sermon` record in the livestream pipeline (`ProjectLivestreamServiceStructure` or `SubmitToProcessing`?) so the daemon-server contract is precise.
-- [ ] Define the `MediaSourceProvider` interface and the two implementations (`VideoBackedMediaSource`, `DaemonArtifactMediaSource`). Unit tests for both, including frame-nearest-timestamp lookup and audio-slice extraction.
-- [ ] Refactor `VisualAnalysisService::extractFrameMetrics` to support pre-extracted frames as input (split or sibling-method). Add unit tests for the new entry point using synthetic JPEG fixtures.
-- [ ] Refactor `SongLyricOcrService::extractLyrics` to take a `MediaSourceProvider`. Existing video-extraction logic moves into `VideoBackedMediaSource`. Add tests comparing OCR output against the same source delivered as a video vs. as a daemon artifact bundle.
-- [ ] Refactor `MatchSongsFromTranscript` to resolve a `MediaSourceProvider` instead of `$localSourcePath`. Tests must cover both source types and the existing graceful-degradation path when neither OCR nor opening-transcription is available.
-- [ ] Update `PerformVisualAnalysis` job to detect daemon-supplied frames (via log metadata) and route to the new entry point. Existing extract-from-video path stays intact for the legacy livestream upload.
-- [ ] Define `buildLivestreamAudioAnalysisOnlyPipeline()` and `buildLivestreamPostDaemonChainJobs()`.
-- [ ] Wire phase keys for both pipelines into `ProcessingPhaseRegistry`.
-- [ ] Add `LivestreamDaemonController` with analyze/analyzeStatus/finalize/heartbeat endpoints.
-- [ ] Define analyze-request payload shape: multipart form with `audio` (m4a), `frames` (tar.gz of JPEGs), and metadata fields. Server unpacks frames archive into a temp directory referenced by `MediaProcessingLog.processing_metadata`.
-- [ ] Implement soft identity check in `finalize` (filename + size + duration cross-match against stored `MediaProcessingLog`). Add a soft sanity check on frame count vs. expected (`duration / 10` ± tolerance) at analyze time.
-- [ ] Pre-signed multipart S3 URL generation in `analyzeStatus` response (use AWS SDK `S3Client::createMultipartUpload()`).
-- [ ] Feature tests for both endpoints using audio + frame fixtures.
-- [ ] Unit tests for the new pipeline definitions, phase mappings, and `VisualAnalysisService` frames-from-disk entry point.
+- Generate proxy videos from two or more real recordings.
+- Run existing analysis jobs against full source and proxy source.
+- Compare segment boundaries, song cluster boundaries, OCR results, song matches, and transcription quality.
+- Pick default proxy settings and document expected proxy size.
 
 Exit criteria:
 
-- Daemon-shaped HTTP requests against the new endpoints produce a Sermon record and run the post-daemon chain end-to-end with mocked queues.
-- Segment boundaries from synthetic audio + frame fixtures match expected timestamps exactly.
-- Visual analysis on daemon-supplied frames produces identical classifications to visual analysis on frames extracted from the same source video.
+- Proxy analysis quality is close enough to full-source analysis for Sunday use.
+- Any known accuracy tradeoffs are explicit.
 
-### Phase 2 — Test fixture infrastructure
+### Phase 1 - Server daemon analysis pipeline
 
-Priority: **High** — feeds Phase 1 tests.
+Priority: Critical.
 
-Target files:
+Target areas:
 
-- `app/Console/Commands/BuildAudioFixturesCommand.php` (new).
-- `app/Console/Commands/BuildFrameFixturesCommand.php` (new).
-- `tests/Fixtures/audio/manifest.yaml` (new).
-- `tests/Fixtures/audio/*.m4a` (generated, committed).
-- `tests/Fixtures/frames/manifest.yaml` (new).
-- `tests/Fixtures/frames/*/` (generated frame sequences, committed).
-- `tests/Support/SegmentBuilder.php` (new).
+- `routes/api.php`
+- `app/Enums/ApiTokenAbility.php`
+- `app/Http/Controllers/Api/LivestreamDaemonController.php`
+- New daemon form requests.
+- `app/Services/ProcessingPipelineBuilder.php`
+- `app/Services/ProcessingRunOrchestrator.php`
+- `app/Services/ProcessingPhaseRegistry.php`
+- New `ValidateDaemonProxyFile` and `MarkDaemonAnalysisReady` jobs.
 
 Tasks:
 
-- [ ] Define audio manifest format (silence/tone block declarations with durations and frequencies).
-- [ ] Implement `BuildAudioFixturesCommand` that runs `ffmpeg` per fixture, writes outputs.
-- [ ] Generate the six audio fixtures, commit them.
-- [ ] Define frame manifest format (per-fixture: count, resolution, frame metric profile — `song`/`speech`/`mixed` — any specific timestamps that should classify a particular way, and optional rendered-text content for OCR fixtures).
-- [ ] Implement `BuildFrameFixturesCommand` that generates synthetic JPEGs at 1280×720 with controlled brightness/contrast/edge density to produce predictable visual classifications. For OCR-targeted fixtures, render known lyric text onto the frames using a standard font so OCR output can be asserted against ground truth.
-- [ ] Generate frame fixtures matching the audio fixtures (e.g. `happy-path/` contains 6 frames matching the 60s audio at 10s intervals). Add at least one OCR-targeted fixture (`song-with-projected-lyrics/`) where specific frames contain readable lyric text and the test asserts `SongLyricOcrService` extracts the expected text.
-- [ ] Add CI verification step (regenerate from manifests, compare checksums).
-- [ ] Implement `SegmentBuilder` fluent helper for downstream-job tests.
+- Add `media:daemon` token ability and authorization tests.
+- Add daemon analyze/status/heartbeat routes.
+- Store uploaded proxy on the temp disk and create `MediaProcessingLog` with `source_file_path` pointing to the proxy.
+- Store original recording metadata separately from `file_size`.
+- Add daemon analysis pipeline using existing analysis jobs.
+- Add phase/progress mappings for daemon analysis.
+- Add idempotency by `daemon_recording_id`.
+- Add feature tests for auth, validation, idempotency, and dispatch.
 
 Exit criteria:
 
-- `php artisan test:build-audio-fixtures` and `test:build-frame-fixtures` regenerate all fixtures deterministically.
-- Feature tests in Phase 1 use the generated fixtures.
+- Uploading a valid proxy dispatches analysis.
+- Existing full livestream upload still works.
+- Daemon analysis reaches `daemon_analysis_ready` without requiring the full original.
 
-### Phase 3 — Windows daemon
+### Phase 2 - Upload manifest and session model
 
-Priority: **Critical** — delivers user-facing value.
+Priority: Critical.
 
-Daemon implementation:
+Target areas:
 
-- Language: Python 3.x. Rationale: `watchdog` library handles Windows file events cleanly; `requests` for HTTP; `boto3` for S3 multipart; portable to Linux for dev.
-- Hosting: NSSM-wrapped Windows service with auto-restart.
-- ffmpeg: bundled in install dir, not relying on PATH.
-- State persistence: JSON file per recording at `%APPDATA%\CrockenhillDaemon\state\<recording-id>.json`.
-- File watcher: debounced `on_modified` to handle Windows write-while-watcher-fires race.
+- New upload-session migrations and models.
+- Manifest builder service.
+- S3-compatible multipart upload service.
+- Daemon upload-session endpoint.
 
 Tasks:
 
-- [ ] Project skeleton (Python, dependencies, NSSM install scripts).
-- [ ] Drop folder watcher with atomic-move-to-processing semantics.
-- [ ] Audio extraction via bundled ffmpeg (`-vn -c:a aac -b:a 96k`).
-- [ ] Frame extraction via bundled ffmpeg (`-vf fps=1/10 -s 1280x720`, JPEG output, quality ~85). Sample interval matches `VisualAnalysisService::SAMPLE_INTERVAL_SECONDS`; if that constant changes server-side, daemon's interval must follow. Resolution chosen for OCR readability (per D10).
-- [ ] Frame bundling into tar.gz for upload (chosen over zip for streaming-friendly output and ubiquity in Python's stdlib).
-- [ ] Frame count sanity check before upload (warn if `count != round(duration / 10)` ± small tolerance — catches truncated extractions).
-- [ ] HTTP client for `analyze` / `analyzeStatus` / `finalize` endpoints. Multipart form upload with audio + frames archive + metadata.
-- [ ] Multipart S3 upload with retry/resume semantics for trimmed video segments.
-- [ ] `ffmpeg -c copy` segment trimming based on returned timestamps.
-- [ ] State machine with phase persistence (resumable across restarts). Phases: `new -> extracting_audio -> extracting_frames -> bundling_frames -> uploading_analysis_payload -> awaiting_analysis -> trimming_and_uploading_segments -> finalizing -> done`.
-- [ ] Heartbeat: `POST /api/livestreams/heartbeat` every 5 minutes.
-- [ ] Archive successful runs to a configurable NAS folder; failed runs to a `failed\` folder with `error.txt`.
-- [ ] NSSM service registration script and uninstaller.
-- [ ] Operator-facing log file with rotation.
+- Build upload manifest from service sections and sermon extraction plan.
+- Represent required and optional assets explicitly.
+- Support `single_span` and `concat_spans`.
+- Create/reuse upload sessions idempotently.
+- Generate scoped storage keys server-side.
+- Generate presigned multipart upload instructions.
+- Provide a Laravel-mediated upload fallback for non-S3 local/dev disks.
+- Add expiry/abort handling.
+- Add feature tests using fake disks and mocked S3 client behavior.
 
 Exit criteria:
 
-- Drop a generated test fixture into the drop folder; trimmed segments arrive in S3; sermon appears on the website.
-- Daemon survives a forced kill mid-phase and resumes correctly on restart.
+- The daemon can retrieve a stable manifest and upload-session instructions after analysis.
+- Repeated polling does not create duplicate multipart uploads.
 
-### Phase 4 — Operations
+### Phase 3 - Finalization and post-daemon processing
 
-Priority: **Medium** — quality-of-life, not blocking.
+Priority: Critical.
+
+Target areas:
+
+- `FinalizeDaemonLivestreamAssets` action.
+- `CreateOrUpdateSermonFromDaemonAssets` job or service.
+- `PrepareDaemonSectionPublicationCandidates` job or refactor of existing section publication preparation.
+- Completion notification data.
 
 Tasks:
 
-- [ ] Sunday-evening status email scheduled task. Sends `[OK]` if a recording was processed today, `[WARN]` if not. Reuses `Mailable` infrastructure.
-- [ ] Server-side heartbeat freshness check: if no heartbeat for >25 hours, send a daemon-down alert email.
-- [ ] Documentation for operators: how to drop a file, what to do if processing fails, how to invoke the YouTube fallback (`yt-dlp <URL>` to drop folder).
+- Validate all required uploaded assets.
+- Record sermon video/audio paths on `MediaProcessingLog`.
+- Create/update `Sermon` without relying on `SubmitToProcessing` copying an extracted temp video.
+- Record section asset paths and extraction provenance.
+- Dispatch post-daemon chain.
+- Use `is_degraded_completion` plus warnings for optional missing assets.
+- Ensure manual review confirmation works for daemon runs without server-side original video.
+- Add tests for happy path, missing required sermon asset, missing optional section asset, and manual review continuation.
 
 Exit criteria:
 
-- A missed-processing scenario produces an email by Sunday evening at the latest.
-- A daemon-offline scenario produces an email within 25 hours.
+- Finalize creates a sermon and dispatches downstream processing.
+- Optional asset failures are visible but do not block sermon publication.
+- Required asset failures block finalization safely.
 
-## Open Questions to Verify During Implementation
+### Phase 4 - Windows daemon
 
-1. **Format allowlist scope**. Confirm whether `ValidateAudioFile` job uses `media-processing.allowed_formats` (shared with video) or a separate audio allowlist. Determines whether config needs an additive change or is already correct.
+Priority: Critical.
 
-2. **Sermon record creation point**. Confirm exactly which job in the existing livestream chain creates the `Sermon` record (`ProjectLivestreamServiceStructure`, `SubmitToProcessing`, or another). Determines whether the daemon's `finalize` finds an existing Sermon and attaches media, or whether it needs to handle a creation path.
+Implementation:
 
-3. **`ExtractSermon` semantics**. Confirm that excluding `ExtractSermon` from the post-daemon chain is sufficient, vs. needing to make it tolerant of a pre-existing trimmed file at its expected output location. The pipeline-definition approach in D2 should make this a non-issue, but worth a sanity check during Phase 1.
+- Location: `livestream-daemon/`.
+- Language: Python 3.x.
+- File watcher: `watchdog`.
+- HTTP: `requests`.
+- Storage upload: `boto3` or presigned-url HTTP client, depending on the final server contract.
+- Hosting: NSSM-wrapped Windows service.
+- FFmpeg: bundled with the daemon, not assumed on `PATH`.
+- State: one JSON state file per recording under `%APPDATA%\CrockenhillDaemon\state\`.
 
-4. **S3 multipart vs single-PUT cutoff**. Trimmed segments span a wide size range (a 4-minute song might be 100MB, a 35-minute sermon 1.2GB). Decide whether the daemon always uses multipart, or single-PUT under (say) 100MB. Multipart-only is simpler; single-PUT under 100MB is slightly faster for small segments. Default: multipart-only unless profiling shows it matters.
+Tasks:
 
-5. **Drop folder volume**. Recordings and drop folder must be on the same Windows volume for atomic moves. Confirm during installation that OBS records to a path on `D:\` (or wherever the drop folder lives) and document this as a prerequisite.
+- Drop-folder watcher with atomic move to processing folder.
+- Proxy generation.
+- Analyze upload with retry and idempotency.
+- Polling with backoff.
+- Manual-review waiting state.
+- Full-quality trim using stream copy, with duration/playability validation.
+- High-quality re-encode fallback only when stream copy fails.
+- Multi-span concat support.
+- Multipart/resumable upload.
+- Finalize call.
+- NAS archive copy.
+- Failed-run folder with `error.txt`.
+- Heartbeat every 5 minutes.
+- Operator log with rotation.
 
-6. **`VisualAnalysisService` refactor surface**. Confirm whether `extractFrameMetrics(string $videoPath, ...)` can be cleanly split into "extract from video" and "compute metrics from existing frames" without disturbing `analyzeVideo()`, `refineBoundaries()`, or `extractFrameMetricsInRegion()`. If the internal coupling is tight, the alternative is a sibling method that takes a frames directory and reuses the same metric computation. Either is acceptable; pick the smaller diff.
+State machine:
 
-7. **10-second sampling adequacy across consumers**. Three different jobs consume the frame samples — `PerformVisualAnalysis`, `SongLyricOcrService` (called from `MatchSongsFromTranscript`), and `VisualAnalysisService::refineBoundaries` / `extractFrameMetricsInRegion`. Visual classification works fine at 10-second intervals (that's already the existing default). OCR currently picks a specific timestamp within a song segment; with 10-second sampling, the nearest available frame may be up to 5 seconds off-target — likely fine for typical 4-minute songs, possibly inadequate for short songs or songs with rapid lyric changes. Boundary refinement may rely on denser sampling inside song clusters. Options to evaluate during Phase 1: (a) keep 10-second sampling and accept any minor regressions, (b) daemon oversamples uniformly at 5-second intervals (~220 MB of frames instead of ~110 MB, total analyze upload still ~300 MB), (c) the analyze response can request additional frames in specific regions and the daemon supports a follow-up extraction call (most complex; allows adaptive density). Option (a) first, with measurement; only escalate if measurement shows real accuracy loss.
+```text
+new
+-> moving_to_processing
+-> creating_proxy
+-> uploading_proxy
+-> awaiting_analysis
+-> awaiting_manual_review
+-> creating_upload_session
+-> trimming_assets
+-> uploading_assets
+-> finalizing
+-> archiving_original
+-> done
+```
 
-8. **Frame bundle format**. Tar.gz of JPEGs is the default choice (streaming-friendly; trivial Python and PHP support; minimal compression overhead since JPEGs are already compressed). Alternative: individual multipart form parts per frame. Validate during Phase 1 that tar extraction performance on the server is acceptable for ~720 frames; if not, evaluate a single concatenated JPEG bundle with byte-offset index.
+Exit criteria:
 
-9. **Cloud archive of original recordings**. The daemon archives the 5 GB original to a configurable local NAS folder (D8 mentions this only briefly). Today's pipeline preserves originals in cloud storage; the new flow does not. If the AI improves and we want to reprocess from source (better speaker identification, refined segmentation, new analysis types), only the NAS has the recording. Decide: (a) accept that reprocessing requires retrieving from NAS — fine if the NAS is backed up off-site, (b) extend the daemon to upload the original as a low-priority background transfer overnight (defeats some of the bandwidth gain but preserves cloud archive), (c) accept that originals are local-only and reprocessing requires manual re-upload. Recommend documenting the NAS-backup expectation explicitly and revisiting if any of those reprocess scenarios become real needs.
+- Forced daemon restart resumes from persisted state.
+- A real recording can process end-to-end without opening the browser uploader.
+- A failed upload can resume without reprocessing the proxy or duplicating server records.
+
+### Phase 5 - Operations
+
+Priority: Medium.
+
+Tasks:
+
+- Sunday status email: OK, warning, or failure.
+- Daemon heartbeat freshness alert.
+- Upload-session expiry cleanup.
+- Proxy cleanup after successful finalization.
+- Operator runbook for drop folder, failures, manual review, and YouTube fallback.
+
+Exit criteria:
+
+- Missing recording is reported by Sunday evening.
+- Daemon-down condition is reported within the configured alert window.
+- Temporary proxy and upload-session artifacts are cleaned safely.
+
+## Open Questions
+
+1. **Proxy settings**: What is the smallest proxy that preserves segmentation, OCR, and song matching for this church's camera/projector setup?
+2. **Audio asset source**: Should the daemon upload sermon audio directly, or should the server extract public/transcription audio from the uploaded full-quality sermon video? Default recommendation: daemon uploads both video and audio so finalize has explicit canonical assets.
+3. **Multipart implementation**: Does DigitalOcean Spaces in the current Flysystem/AWS SDK setup support the checksum features we want, or do we rely on size plus metadata plus optional server-side spot checks?
+4. **Section publication scope**: Which non-sermon sections should be uploaded every week by default: songs, children's talk, both, or only those eligible for publication review?
+5. **Manual review UX**: Should the existing admin manual-review UI be reused with daemon-specific continuation, or should daemon analysis get a small dedicated screen?
+6. **Original archive policy**: Is NAS plus off-site backup enough, or do we want an overnight low-priority full-original cloud archive later?
+
+## Quality Gates
+
+For implementation work, keep the usual project gates:
+
+- Run focused tests for changed behavior.
+- Run `vendor/bin/sail composer phpstan`.
+- Run `vendor/bin/sail bin pint --dirty`.
+- Run Dusk only if UI surfaces are added.
 
 ## Estimate
 
-- Phase 1 (server-side): ~3.5 days. Includes the `VisualAnalysisService` refactor, `SongLyricOcrService` refactor, the `MediaSourceProvider` interface and two implementations, and `MatchSongsFromTranscript` rewiring. The OCR/song-matching path is the largest single chunk of refactor work.
-- Phase 2 (fixtures): ~1.5 days. Audio + frame fixture builders, OCR-targeted frame fixtures with rendered text, manifests, and the `SegmentBuilder` helper.
-- Phase 3 (daemon): ~3.5–4.5 days. Frame extraction at 1280×720, bundling, additional state-machine phases.
-- Phase 4 (operations): ~0.5 day.
+- Phase 0: 0.5-1 day.
+- Phase 1: 2-3 days.
+- Phase 2: 2-3 days.
+- Phase 3: 2.5-4 days.
+- Phase 4: 4-6 days.
+- Phase 5: 0.5-1 day.
 
-Total: roughly 9–10 working days of focused effort. The original estimate (~6 days) was too optimistic because it underestimated the analysis-time consumers of media — every job that reaches into `$localSourcePath` during the analyze chain needs to be adapted, not just `PerformVisualAnalysis`. Server-side refactor work has roughly doubled compared to the first cut.
+Total: roughly 11-18 working days depending on how much polish the Windows daemon and multipart resume behavior need.
 
-The architectural alignment with the existing manual-review pattern still keeps the *pipeline orchestration* small. What grew is the boundary work — substituting daemon-supplied artifacts for the original video in places where existing services assumed it was always available.
+This is still a better plan than the audio-plus-frame-archive version. The proxy approach spends more bandwidth on analysis, but it preserves existing server behavior and avoids a risky media-source abstraction across half the livestream pipeline. The main complexity moves to the correct place: the daemon's upload/finalize contract and operational reliability.
