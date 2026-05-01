@@ -226,7 +226,10 @@ class SermonViewPresenter
 
         // If the relation is explicitly loaded, always use it as the source of truth
         if ($sermon->relationLoaded('preacherProfile')) {
-            return $this->memoizedPreacherImageUrls[$identityKey] = $sermon->preacherProfile->profile_image_url ?? self::MEMO_NULL;
+            $profile = $sermon->preacherProfile;
+            $url = $profile ? $profile->profile_image_url : null;
+
+            return $this->memoizedPreacherImageUrls[$identityKey] = $url ?? self::MEMO_NULL;
         }
 
         // Without a loaded relation, we cannot determine the image URL
