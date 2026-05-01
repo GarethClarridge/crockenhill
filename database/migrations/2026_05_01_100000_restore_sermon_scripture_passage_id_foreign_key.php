@@ -16,11 +16,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (DB::getDriverName() !== 'mysql') {
+        if (DB::getDriverName() !== 'mysql' || ! Schema::hasTable('sermons')) {
             return;
         }
 
-        // 1. Clean up orphaned scripture_passage_id values that would block the FK
+        // 1. Clean up orphaned scripture_passage_id values that would block the FK.
+        // Orphans could have been introduced while the constraint was missing.
         DB::table('sermons')
             ->whereNotNull('scripture_passage_id')
             ->whereNotExists(function ($query) {
@@ -30,13 +31,14 @@ return new class extends Migration
             })
             ->update(['scripture_passage_id' => null]);
 
-        // 2. Restore the foreign key dropped by a previous migration.
-        // We use a manual statement to ensure consistent naming and parameters.
+        // 2. Restore the foreign key using the Schema builder for better consistency.
         if (! $this->foreignKeyExists()) {
-            DB::statement(sprintf(
-                'ALTER TABLE sermons ADD CONSTRAINT %s FOREIGN KEY (scripture_passage_id) REFERENCES scripture_passages (id) ON DELETE SET NULL',
-                self::CONSTRAINT
-            ));
+            Schema::table('sermons', function (Blueprint $table) {
+                $table->foreign('scripture_passage_id', self::CONSTRAINT)
+                    ->references('id')
+                    ->on('scripture_passages')
+                    ->onDelete('set null');
+            });
         }
     }
 
@@ -45,22 +47,30 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (DB::getDriverName() !== 'mysql') {
+        if (DB::getDriverName() !== 'mysql' || ! Schema::hasTable('sermons')) {
             return;
         }
 
         if ($this->foreignKeyExists()) {
-            DB::statement(sprintf('ALTER TABLE sermons DROP FOREIGN KEY %s', self::CONSTRAINT));
+            Schema::table('sermons', function (Blueprint $table) {
+                $table->dropForeign(self::CONSTRAINT);
+            });
         }
     }
 
+    /**
+     * Check if the foreign key exists in the database.
+     * Uses DATABASE() to ensure the check is scoped to the current schema.
+     */
     private function foreignKeyExists(): bool
     {
-        return DB::table('information_schema.table_constraints')
-            ->where('table_schema', DB::getDatabaseName())
-            ->where('table_name', 'sermons')
-            ->where('constraint_name', self::CONSTRAINT)
-            ->where('constraint_type', 'FOREIGN KEY')
-            ->exists();
+        return collect(DB::select("
+            SELECT CONSTRAINT_NAME
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'sermons'
+            AND CONSTRAINT_NAME = ?
+            AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ", [self::CONSTRAINT]))->isNotEmpty();
     }
 };
