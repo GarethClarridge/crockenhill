@@ -123,7 +123,9 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
      */
     public function uniqueId(): string
     {
-        return (string) ($this->sermonId ?? $this->processingLog?->sermon_id ?? '');
+        $id = $this->sermonId ?? $this->processingLog?->sermon_id;
+
+        return (string) ($id ?? '');
     }
 
     /**

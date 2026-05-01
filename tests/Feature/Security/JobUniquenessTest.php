@@ -7,8 +7,8 @@ namespace Tests\Feature\Security;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class JobUniquenessTest extends TestCase
 {
@@ -17,6 +17,7 @@ class JobUniquenessTest extends TestCase
     #[Test]
     public function assess_video_quality_job_is_configured_to_be_unique(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
 
         $job = new AssessSermonVideoQuality(sermonId: $sermon->id);
@@ -29,7 +30,10 @@ class JobUniquenessTest extends TestCase
     #[Test]
     public function it_can_resolve_unique_id_from_processing_log(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
+
+        /** @var \App\Models\MediaProcessingLog $processingLog */
         $processingLog = \App\Models\MediaProcessingLog::factory()->create([
             'sermon_id' => $sermon->id,
             'processing_id' => \Illuminate\Support\Str::uuid()->toString(),
