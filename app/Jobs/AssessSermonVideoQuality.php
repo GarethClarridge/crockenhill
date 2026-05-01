@@ -8,19 +8,25 @@ use App\Data\SermonVideoQualityAssessmentResult;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonVideoQualityAssessmentService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class AssessSermonVideoQuality extends ProcessingJob implements ShouldQueue
+class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
 
     public int $timeout = 300;
+
+    /**
+     * The number of seconds the unique lock should be maintained.
+     */
+    public int $uniqueFor = 3600;
 
     public function __construct(
         private ?MediaProcessingLog $processingLog = null,
@@ -110,6 +116,16 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldQueue
                 'runtime_ms' => (int) round((microtime(true) - $startedAt) * 1000),
             ]);
         }
+    }
+
+    /**
+     * Get the unique ID for the job.
+     */
+    public function uniqueId(): string
+    {
+        $id = $this->sermonId ?? $this->processingLog?->sermon_id;
+
+        return (string) ($id ?? '');
     }
 
     /**
