@@ -27,6 +27,16 @@ module.exports = {
         'cbc-crimson': '#6b0f1a',
         'cbc-rose-muted': '#c07c84',
       },
+      keyframes: {
+        progress: {
+          '0%': { width: '0%' },
+          '50%': { width: '70%' },
+          '100%': { width: '100%' },
+        }
+      },
+      animation: {
+        progress: 'progress 2s ease-in-out infinite',
+      }
     }
   },
   plugins: [

@@ -194,7 +194,7 @@ $hasPublicVideo = filled($sermonView['video_url']);
           <div class="flex items-center gap-2">
             <x-heroicon-o-document-text class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
             <h2 class="font-display text-xl text-gray-900">Automated transcript</h2>
-            <span class="text-xs text-gray-400 font-sans">(may contain errors)</span>
+            <span class="text-xs text-gray-500 font-sans">(may contain errors)</span>
           </div>
           <div class="flex items-center gap-2">
             <div x-show="loaded" x-cloak>
@@ -360,7 +360,7 @@ $hasPublicVideo = filled($sermonView['video_url']);
               data-fums-token="{{ $sermon->scripturePassage->fums_token }}">
               {!! $sermon->scripturePassage->html_content !!}
             </div>
-            <p class="mt-2 text-xs text-gray-400">{{ $sermon->scripturePassage->copyright }}</p>
+            <p class="mt-2 text-xs text-gray-500">{{ $sermon->scripturePassage->copyright }}</p>
           </div>
           @endif
 

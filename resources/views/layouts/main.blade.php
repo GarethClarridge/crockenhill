@@ -96,6 +96,27 @@
 </head>
 
 <body class="bg-slate-200">
+  {{-- Navigation Progress Bar --}}
+  <div
+    x-data="{ navigating: false }"
+    x-on:livewire:navigating.window="navigating = true"
+    x-on:livewire:navigated.window="navigating = false"
+    class="fixed top-0 left-0 right-0 z-[110] h-1"
+    aria-hidden="true"
+  >
+    <div
+      x-show="navigating"
+      x-transition:enter="transition ease-out duration-300"
+      x-transition:enter-start="opacity-0"
+      x-transition:enter-end="opacity-100"
+      x-transition:leave="transition ease-in duration-500"
+      x-transition:leave-start="opacity-100"
+      x-transition:leave-end="opacity-0"
+      class="h-full bg-cbc-teal shadow-[0_0_8px_theme(colors.cbc-teal.light)] animate-progress"
+      style="width: 0%;"
+    ></div>
+  </div>
+
   <div wire:offline class="fixed top-0 left-0 right-0 z-[100] bg-red-600 text-white text-center py-2 text-sm font-medium shadow-md" role="alert">
     You are currently offline. Some features may not be available.
   </div>
