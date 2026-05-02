@@ -42,13 +42,25 @@ class EditCalendarEvent extends Component
     {
         $rules = CalendarEvent::validationRules();
 
+        /** @var array<int, string> $endDateRules */
+        $endDateRules = $rules['end_datetime'];
+
+        // Fix the date sequence rule to match Livewire property name 'startDatetime'
+        $endDateRules = array_map(function (mixed $rule) {
+            if (is_string($rule) && str_starts_with($rule, 'after_or_equal:')) {
+                return 'after_or_equal:startDatetime';
+            }
+
+            return $rule;
+        }, $endDateRules);
+
         return [
             'title' => $rules['title'],
             'description' => $rules['description'],
             'speaker' => $rules['speaker'],
             'location' => $rules['location'],
             'startDatetime' => $rules['start_datetime'],
-            'endDatetime' => $rules['end_datetime'],
+            'endDatetime' => $endDateRules,
             'meetingSlug' => $rules['meeting_slug'],
             'status' => $rules['status'],
         ];
