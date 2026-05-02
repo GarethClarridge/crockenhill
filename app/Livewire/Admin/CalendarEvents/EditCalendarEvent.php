@@ -10,7 +10,6 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -41,15 +40,17 @@ class EditCalendarEvent extends Component
      */
     protected function rules(): array
     {
+        $rules = CalendarEvent::validationRules();
+
         return [
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'speaker' => 'nullable|string|max:255',
-            'location' => 'nullable|string|max:255',
-            'startDatetime' => 'required|date',
-            'endDatetime' => 'required|date|after_or_equal:startDatetime',
-            'meetingSlug' => 'nullable|exists:meetings,slug',
-            'status' => ['required', Rule::enum(CalendarEventStatus::class)],
+            'title' => $rules['title'],
+            'description' => $rules['description'],
+            'speaker' => $rules['speaker'],
+            'location' => $rules['location'],
+            'startDatetime' => $rules['start_datetime'],
+            'endDatetime' => $rules['end_datetime'],
+            'meetingSlug' => $rules['meeting_slug'],
+            'status' => $rules['status'],
         ];
     }
 
