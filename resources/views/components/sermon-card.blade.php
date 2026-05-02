@@ -1,13 +1,19 @@
 @props([
-'sermon',
-'sermonUrl',
-'thumbnailUrl',
-'preacherName',
-'reference',
-'preacherUrl',
-'formattedDuration',
-'seriesUrl',
+    'sermon',
+    'sermonView',
 ])
+
+@php
+    $sermonUrl = $sermonView['canonical_url'];
+    $thumbnailUrl = $sermonView['plain_thumbnail_url'];
+    $preacherName = $sermonView['preacher_name'];
+    $reference = $sermonView['display_reference'];
+    $preacherUrl = $sermonView['preacher_url'];
+    $formattedDuration = $sermonView['formatted_duration'];
+    $seriesUrl = $sermonView['series_url'];
+    $dateString = $sermonView['date_string'];
+    $serviceLabel = $sermonView['service_label'];
+@endphp
 
 <div data-sermon-card class="group relative flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 
@@ -55,15 +61,15 @@
       <li class="flex items-center">
         <x-heroicon-s-calendar class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         <time datetime="{{ $sermon->date->toDateString() }}">
-          {{ $sermon->date->format('j F Y') }}
+          {{ $dateString }}
         </time>
       </li>
       @endif
-      @if ($sermon->service != null)
+      @if ($serviceLabel)
       <li class="flex items-center">
         <x-heroicon-o-clock class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         <span class="flex-1">
-          {{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}
+          {{ $serviceLabel }}
         </span>
         @if ($formattedDuration)
           <span class="flex items-center text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 ml-2" title="Sermon duration">

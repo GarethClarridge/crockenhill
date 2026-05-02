@@ -20,13 +20,7 @@ class SermonCard extends Component
     public function render(): View|Closure|string
     {
         return view('components.sermon-card', [
-            'sermonUrl' => $this->presenter->canonicalUrl($this->sermon),
-            'thumbnailUrl' => $this->presenter->plainThumbnailUrl($this->sermon),
-            'preacherName' => $this->presenter->displayPreacherName($this->sermon),
-            'reference' => $this->presenter->displayReference($this->sermon),
-            'preacherUrl' => $this->presenter->preacherUrl($this->sermon),
-            'formattedDuration' => $this->presenter->formattedDuration($this->sermon),
-            'seriesUrl' => $this->presenter->seriesUrl($this->sermon),
+            'sermonView' => $this->presenter->presentForList($this->sermon),
         ]);
     }
 }
