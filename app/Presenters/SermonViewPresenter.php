@@ -277,21 +277,26 @@ class SermonViewPresenter
 
         $memoKey = "preacher_url_{$identityKey}";
 
+        // If the relation is explicitly loaded, always use it as the source of truth.
+        // We still memoize the route() call by identity key to optimize across sermons.
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            if (! isset($this->memoizedUrls[$memoKey]) || $this->memoizedUrls[$memoKey] === self::MEMO_NULL) {
+                $this->memoizedUrls[$memoKey] = route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
+            }
+
+            return $this->memoizedUrls[$memoKey];
+        }
+
         if (isset($this->memoizedUrls[$memoKey])) {
             return $this->memoizedUrls[$memoKey] === self::MEMO_NULL ? null : $this->memoizedUrls[$memoKey];
         }
 
-        // If the relation is explicitly loaded, always use it as the source of truth
-        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-            $url = route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
-        } else {
-            // Fall back to the unloaded path: derive URL from displayPreacherName
-            $preacherName = $this->displayPreacherName($sermon);
+        // Fall back to the unloaded path: derive URL from displayPreacherName
+        $preacherName = $this->displayPreacherName($sermon);
 
-            $url = filled($preacherName)
-                ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
-                : null;
-        }
+        $url = filled($preacherName)
+            ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
+            : null;
 
         $this->memoizedUrls[$memoKey] = $url ?? self::MEMO_NULL;
 
