@@ -88,6 +88,7 @@ $describedBy = implode(' ', $describedBy);
                 class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded"
                 :aria-label="showPassword ? 'Hide password' : 'Show password'"
                 :title="showPassword ? 'Hide password' : 'Show password'"
+                @if($modelName) wire:loading.remove wire:target="{{ $modelName }}" @endif
                 x-cloak>
                 <x-heroicon-o-eye x-show="!showPassword" class="h-5 w-5" />
                 <x-heroicon-o-eye-slash x-show="showPassword" class="h-5 w-5" />

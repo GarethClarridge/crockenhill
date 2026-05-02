@@ -185,6 +185,39 @@ class SermonViewPresenter
     }
 
     /**
+     * Get the plain text representation of the sermon points.
+     */
+    public function plainTextOutline(Sermon $sermon): ?string
+    {
+        if (! $sermon->points || ! is_array($sermon->points)) {
+            return null;
+        }
+
+        $outline = '';
+        foreach ($sermon->points as $index => $pointItem) {
+            $prefix = ($index + 1).'. ';
+            if (is_array($pointItem)) {
+                $mainPointText = (isset($pointItem['point']) && is_scalar($pointItem['point'])) ? (string) $pointItem['point'] : null;
+                $subPointsArray = (isset($pointItem['sub_points']) && is_array($pointItem['sub_points'])) ? $pointItem['sub_points'] : [];
+
+                if (! empty($mainPointText)) {
+                    $outline .= $prefix.$mainPointText."\n";
+                }
+
+                foreach ($subPointsArray as $subPoint) {
+                    if (is_scalar($subPoint)) {
+                        $outline .= '   - '.(string) $subPoint."\n";
+                    }
+                }
+            } elseif (is_scalar($pointItem)) {
+                $outline .= $prefix.(string) $pointItem."\n";
+            }
+        }
+
+        return trim($outline) ?: null;
+    }
+
+    /**
      * Get the preacher's profile image URL.
      *
      * Performance Optimization: Only caches when the relation is loaded.
