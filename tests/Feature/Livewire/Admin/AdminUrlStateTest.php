@@ -416,20 +416,20 @@ class AdminUrlStateTest extends TestCase
 
         InboundEmail::factory()->create([
             'subject' => 'Pending service plan',
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         InboundEmail::factory()->create([
             'subject' => 'Failed service plan',
-            'status' => InboundEmailStatus::FAILED->value,
+            'status' => InboundEmailStatus::Failed->value,
         ]);
 
         Livewire::withQueryParams([
             'search' => 'Pending',
-            'statusFilter' => InboundEmailStatus::PENDING->value,
+            'statusFilter' => InboundEmailStatus::Pending->value,
         ])->test(ReviewInboundEmails::class)
             ->assertSet('search', 'Pending')
-            ->assertSet('statusFilter', InboundEmailStatus::PENDING->value)
+            ->assertSet('statusFilter', InboundEmailStatus::Pending->value)
             ->assertSee('Pending service plan')
             ->assertDontSee('Failed service plan');
     }
@@ -440,7 +440,7 @@ class AdminUrlStateTest extends TestCase
         $this->actingAs($this->admin);
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-07-06',
                 resolvedService: SermonService::Morning->value,

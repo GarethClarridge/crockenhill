@@ -55,7 +55,7 @@
                         <td class="px-4 py-3 text-sm">
                             <p class="font-medium">{{ $inboundEmail->received_at->format('j M Y') }}</p>
                             <p class="text-xs text-gray-500">{{ $inboundEmail->received_at->format('H:i') }}</p>
-                            <span class="mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $inboundEmail->status === \App\Enums\InboundEmailStatus::FAILED ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800' }}">
+                            <span class="mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $inboundEmail->status === \App\Enums\InboundEmailStatus::Failed ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800' }}">
                                 {{ $inboundEmail->status->label() }}
                             </span>
                         </td>

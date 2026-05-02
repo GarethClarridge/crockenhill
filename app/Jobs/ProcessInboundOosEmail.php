@@ -37,7 +37,7 @@ class ProcessInboundOosEmail implements ShouldQueue
 
         if (! $parseResult->shouldImport) {
             $inboundEmail->refresh();
-            $inboundEmail->status = InboundEmailStatus::PENDING;
+            $inboundEmail->status = InboundEmailStatus::Pending;
             $inboundEmail->save();
 
             return;
@@ -62,7 +62,7 @@ class ProcessInboundOosEmail implements ShouldQueue
             return;
         }
 
-        $inboundEmail->status = InboundEmailStatus::FAILED;
+        $inboundEmail->status = InboundEmailStatus::Failed;
         $inboundEmail->processing_metadata = $this->mergeProcessingMetadata(
             $inboundEmail->processing_metadata,
             [

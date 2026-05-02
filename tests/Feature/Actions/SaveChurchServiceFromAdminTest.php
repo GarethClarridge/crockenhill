@@ -218,7 +218,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
     public function it_marks_inbound_email_as_processed_when_provided(): void
     {
         $inboundEmail = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         $payload = [[
@@ -240,7 +240,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
         );
 
         $inboundEmail->refresh();
-        $this->assertNotSame(InboundEmailStatus::PENDING->value, $inboundEmail->status->value);
+        $this->assertNotSame(InboundEmailStatus::Pending->value, $inboundEmail->status->value);
     }
 
     #[Test]

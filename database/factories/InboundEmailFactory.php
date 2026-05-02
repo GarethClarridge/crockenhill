@@ -27,7 +27,7 @@ class InboundEmailFactory extends Factory
             'body_plain' => $this->faker->paragraph(),
             'body_html' => '<p>'.$this->faker->sentence().'</p>',
             'received_at' => now(),
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => [
                 'recipient' => 'oos@crockenhill.org',
             ],

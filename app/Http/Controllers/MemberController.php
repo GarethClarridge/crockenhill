@@ -18,8 +18,8 @@ class MemberController extends Controller
         $pendingInboundEmailCount = $isAdmin
             ? InboundEmail::query()
                 ->whereIn('status', [
-                    InboundEmailStatus::PENDING->value,
-                    InboundEmailStatus::FAILED->value,
+                    InboundEmailStatus::Pending->value,
+                    InboundEmailStatus::Failed->value,
                 ])
                 ->count()
             : 0;

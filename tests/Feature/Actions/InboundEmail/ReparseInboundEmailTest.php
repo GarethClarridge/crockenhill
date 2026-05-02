@@ -37,7 +37,7 @@ class ReparseInboundEmailTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-06-29 AM',
             'body_plain' => "Call to Worship\nSermon",
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-22',
@@ -57,7 +57,7 @@ class ReparseInboundEmailTest extends TestCase
         $this->assertNull($result);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PENDING, $email->status);
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
         $this->assertSame('2026-03-12T11:30:00+00:00', $email->processing_metadata['reparsed_at'] ?? null);
         $this->assertSame('Keep this note', $email->processing_metadata['review']['notes'] ?? null);
         $this->assertSame('2026-06-29', $email->processing_metadata['parsing']['resolved_date'] ?? null);
@@ -82,7 +82,7 @@ class ReparseInboundEmailTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-07-06 PM',
             'body_plain' => "Welcome\nOpening Prayer",
-            'status' => InboundEmailStatus::FAILED->value,
+            'status' => InboundEmailStatus::Failed->value,
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-07-06',
@@ -100,7 +100,7 @@ class ReparseInboundEmailTest extends TestCase
         $this->assertNull($result);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PENDING, $email->status);
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
         $this->assertArrayNotHasKey('failure', $email->processing_metadata ?? []);
         $this->assertCount(2, $email->processing_metadata['parsing']['items'] ?? []);
         $this->assertSame(0, ChurchService::count());
@@ -118,7 +118,7 @@ class ReparseInboundEmailTest extends TestCase
         });
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
                 resolvedService: SermonService::Morning->value,
@@ -136,7 +136,7 @@ class ReparseInboundEmailTest extends TestCase
         $this->assertStringContainsString('Unable to re-parse', $result);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PENDING, $email->status);
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
         $this->assertNull($email->processing_metadata['reparsed_at'] ?? null);
         $this->assertSame('2026-06-29', $email->processing_metadata['parsing']['resolved_date'] ?? null);
         $this->assertSame('Welcome', $email->processing_metadata['parsing']['items'][0]['title'] ?? null);

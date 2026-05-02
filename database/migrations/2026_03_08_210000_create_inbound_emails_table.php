@@ -19,7 +19,7 @@ return new class extends Migration
             $table->longText('body_plain')->nullable();
             $table->longText('body_html')->nullable();
             $table->timestamp('received_at');
-            $table->enum('status', InboundEmailStatus::values())->default(InboundEmailStatus::PENDING->value);
+            $table->enum('status', InboundEmailStatus::values())->default(InboundEmailStatus::Pending->value);
             $table->json('processing_metadata')->nullable();
             $table->timestamps();
 

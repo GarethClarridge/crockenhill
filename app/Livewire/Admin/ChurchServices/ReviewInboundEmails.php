@@ -214,8 +214,8 @@ class ReviewInboundEmails extends Component
     private function reviewableStatuses(): array
     {
         return [
-            InboundEmailStatus::PENDING->value,
-            InboundEmailStatus::FAILED->value,
+            InboundEmailStatus::Pending->value,
+            InboundEmailStatus::Failed->value,
         ];
     }
 
