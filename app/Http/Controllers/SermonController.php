@@ -165,6 +165,11 @@ class SermonController extends Controller
          */
         $sermons = $this->sermonRepository->getSermonsByPreacher($preacher);
 
+        $shareImage = $preacher->profile_image_url;
+        if ($shareImage === null && $sermons->isNotEmpty()) {
+            $shareImage = $this->sermonViewPresenter->thumbnailUrl($sermons->first());
+        }
+
         return view('sermons.preacher', [
             'preacher' => $preacher,
             'sermons' => $sermons,
@@ -174,6 +179,7 @@ class SermonController extends Controller
             'area' => 'christ',
             'links' => $this->sermonLinks('preachers'),
             'slug' => 'preachers',
+            'share_image' => $shareImage,
         ]);
     }
 
@@ -206,6 +212,11 @@ class SermonController extends Controller
          */
         $sermons = $this->sermonRepository->getSermonsBySeries($series_name);
 
+        $shareImage = null;
+        if ($sermons->isNotEmpty()) {
+            $shareImage = $this->sermonViewPresenter->thumbnailUrl($sermons->first());
+        }
+
         return view('sermons.series', [
             'sermons' => $sermons,
             'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
@@ -214,6 +225,7 @@ class SermonController extends Controller
             'area' => 'christ',
             'links' => $this->sermonLinks('series'),
             'slug' => 'series',
+            'share_image' => $shareImage,
         ]);
     }
 

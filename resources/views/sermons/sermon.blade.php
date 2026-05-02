@@ -25,6 +25,7 @@ $hasPublicVideo = filled($sermonView['video_url']);
   :canonical="$sermonView['canonical_url']"
   :author="$sermonView['preacher_url']"
   :published-time="$sermon->date->toIso8601String()"
+  :modified-time="$sermon->updated_at?->year > 0 ? $sermon->updated_at->toIso8601String() : null"
   section="Sermons"
   :tags="$sermon->series"
   label1="Preacher"
