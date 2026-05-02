@@ -10,18 +10,18 @@ enum InboundEmailStatus: string
 {
     use HasValues;
 
-    case PENDING = 'pending';
-    case PROCESSED = 'processed';
-    case FAILED = 'failed';
-    case REJECTED = 'rejected';
+    case Pending = 'pending';
+    case Processed = 'processed';
+    case Failed = 'failed';
+    case Rejected = 'rejected';
 
     public function label(): string
     {
         return match ($this) {
-            self::PENDING => 'Pending',
-            self::PROCESSED => 'Processed',
-            self::FAILED => 'Failed',
-            self::REJECTED => 'Rejected',
+            self::Pending => 'Pending',
+            self::Processed => 'Processed',
+            self::Failed => 'Failed',
+            self::Rejected => 'Rejected',
         };
     }
 }

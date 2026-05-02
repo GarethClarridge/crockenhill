@@ -48,7 +48,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-03-16 AM',
             'body_plain' => "Welcome\nBefore the throne of God above\nOpening prayer\nLuke 15:1-32",
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         app()->call([new ProcessInboundOosEmail($email), 'handle']);
@@ -68,7 +68,7 @@ class ProcessInboundOosEmailTest extends TestCase
         ]);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id']);
         $this->assertCount(4, $email->processing_metadata['parsing']['items']);
         $this->assertSame('morning', $email->processing_metadata['parsing']['resolved_service']);
@@ -97,7 +97,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Service plan for 16 March',
             'body_plain' => "10.30am service\nWelcome\nHow deep the Father's love for us\nSermon",
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'received_at' => '2026-03-10 09:00:00',
         ]);
 
@@ -108,7 +108,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $this->assertTrue($service->needs_review);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertTrue($email->processing_metadata['parsing']['confidence_score'] >= 0.75);
         $this->assertTrue($email->processing_metadata['parsing']['confidence_score'] < 0.90);
     }
@@ -137,7 +137,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => $subject,
             'body_plain' => $bodyPlain,
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'received_at' => '2026-03-10 09:00:00',
         ]);
 
@@ -168,7 +168,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $this->assertSame($service->id, $songHistory->sole()->church_service_id);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertSame('evening', $email->processing_metadata['parsing']['resolved_service']);
         $this->assertSame($expectedExtractionMethod, $email->processing_metadata['parsing']['service_extraction']['method']);
     }
@@ -185,7 +185,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'hello there',
             'body_plain' => 'just checking in',
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'received_at' => '2026-03-10 09:00:00',
         ]);
 
@@ -194,7 +194,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $this->assertDatabaseCount('church_services', 0);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PENDING, $email->status);
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
         $this->assertLessThan(0.75, $email->processing_metadata['parsing']['confidence_score']);
         $this->assertSame([], $email->processing_metadata['parsing']['items']);
     }
@@ -203,7 +203,7 @@ class ProcessInboundOosEmailTest extends TestCase
     public function it_marks_the_email_as_failed_when_the_job_fails(): void
     {
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         $job = new ProcessInboundOosEmail($email);
@@ -211,7 +211,7 @@ class ProcessInboundOosEmailTest extends TestCase
 
         $email->refresh();
 
-        $this->assertSame(InboundEmailStatus::FAILED, $email->status);
+        $this->assertSame(InboundEmailStatus::Failed, $email->status);
 
         $failure = $email->processing_metadata['failure'];
         $this->assertSame('Parser exploded', $failure['message']);

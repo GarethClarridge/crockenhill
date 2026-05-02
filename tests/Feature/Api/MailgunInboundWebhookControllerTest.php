@@ -211,7 +211,7 @@ class MailgunInboundWebhookControllerTest extends TestCase
         // Pre-seed a record in FAILED state — simulates a previously failed processing attempt.
         InboundEmail::factory()->create([
             'message_id' => '<message-1@example.com>',
-            'status' => InboundEmailStatus::FAILED,
+            'status' => InboundEmailStatus::Failed,
             'processing_metadata' => [
                 'failure' => ['message' => 'OOS parser crashed', 'failed_at' => now()->toIso8601String()],
             ],
@@ -223,7 +223,7 @@ class MailgunInboundWebhookControllerTest extends TestCase
 
         $this->assertDatabaseHas('inbound_emails', [
             'message_id' => '<message-1@example.com>',
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
         $this->assertDatabaseCount('inbound_emails', 1);
         Queue::assertPushed(ProcessInboundOosEmail::class, 1);

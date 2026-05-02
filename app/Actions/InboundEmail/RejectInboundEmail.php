@@ -16,7 +16,7 @@ class RejectInboundEmail
     {
         $existingMetadata = is_array($inboundEmail->processing_metadata) ? $inboundEmail->processing_metadata : [];
 
-        $inboundEmail->status = InboundEmailStatus::REJECTED;
+        $inboundEmail->status = InboundEmailStatus::Rejected;
         $inboundEmail->processing_metadata = array_replace_recursive($existingMetadata, [
             'review' => [
                 'rejected_at' => now()->toIso8601String(),

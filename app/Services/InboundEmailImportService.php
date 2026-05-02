@@ -274,7 +274,7 @@ class InboundEmailImportService
                 ],
             ],
         );
-        $inboundEmail->status = InboundEmailStatus::PROCESSED;
+        $inboundEmail->status = InboundEmailStatus::Processed;
         $inboundEmail->save();
     }
 
@@ -292,7 +292,7 @@ class InboundEmailImportService
                 ],
             ],
         );
-        $inboundEmail->status = InboundEmailStatus::PROCESSED;
+        $inboundEmail->status = InboundEmailStatus::Processed;
         $inboundEmail->save();
     }
 

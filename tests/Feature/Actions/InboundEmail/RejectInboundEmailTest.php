@@ -31,14 +31,14 @@ class RejectInboundEmailTest extends TestCase
         $admin = User::factory()->create(['is_admin' => true]);
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         $this->action->execute($email, $admin->id);
 
         $email->refresh();
 
-        $this->assertSame(InboundEmailStatus::REJECTED, $email->status);
+        $this->assertSame(InboundEmailStatus::Rejected, $email->status);
         $this->assertSame($admin->id, $email->processing_metadata['review']['rejected_by_user_id'] ?? null);
         $this->assertNotNull($email->processing_metadata['review']['rejected_at'] ?? null);
     }
@@ -49,7 +49,7 @@ class RejectInboundEmailTest extends TestCase
         $admin = User::factory()->create(['is_admin' => true]);
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => [
                 'parsing' => ['resolved_date' => '2026-06-29'],
                 'review' => ['notes' => 'This should be preserved'],
@@ -60,7 +60,7 @@ class RejectInboundEmailTest extends TestCase
 
         $email->refresh();
 
-        $this->assertSame(InboundEmailStatus::REJECTED, $email->status);
+        $this->assertSame(InboundEmailStatus::Rejected, $email->status);
         $this->assertSame('This should be preserved', $email->processing_metadata['review']['notes'] ?? null);
         $this->assertSame($admin->id, $email->processing_metadata['review']['rejected_by_user_id'] ?? null);
         $this->assertSame('2026-06-29', $email->processing_metadata['parsing']['resolved_date'] ?? null);
@@ -72,14 +72,14 @@ class RejectInboundEmailTest extends TestCase
         $admin = User::factory()->create(['is_admin' => true]);
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::FAILED->value,
+            'status' => InboundEmailStatus::Failed->value,
         ]);
 
         $this->action->execute($email, $admin->id);
 
         $email->refresh();
 
-        $this->assertSame(InboundEmailStatus::REJECTED, $email->status);
+        $this->assertSame(InboundEmailStatus::Rejected, $email->status);
         $this->assertSame($admin->id, $email->processing_metadata['review']['rejected_by_user_id'] ?? null);
     }
 }
