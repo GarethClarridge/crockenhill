@@ -25,7 +25,7 @@ class SongLyricSnippetBuilder
         $lower = mb_strtolower($lyricsPlain);
 
         foreach ($tokens as $token) {
-            if (! str_contains($lower, $token)) {
+            if (! str_contains($lower, mb_strtolower($token))) {
                 return false;
             }
         }
@@ -72,7 +72,7 @@ class SongLyricSnippetBuilder
             // Only include lines that contain at least one token.
             $hasMatch = false;
             foreach ($tokens as $token) {
-                if (str_contains($lower, $token)) {
+                if (str_contains($lower, mb_strtolower($token))) {
                     $hasMatch = true;
                     break;
                 }
@@ -112,7 +112,11 @@ class SongLyricSnippetBuilder
         $ranges = [];
 
         foreach ($tokens as $token) {
-            $pattern = '/'.preg_quote(e($token), '/').'/iu';
+            $escapedToken = e($token);
+            if ($escapedToken === '') {
+                continue;
+            }
+            $pattern = '/'.preg_quote($escapedToken, '/').'/iu';
             preg_match_all($pattern, $escaped, $matches, PREG_OFFSET_CAPTURE);
 
             foreach ($matches[0] as [$match, $offset]) {
