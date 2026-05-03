@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PageArea;
+use App\Presenters\PageSitemapPresenter;
+use Database\Factories\PageFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -51,7 +54,7 @@ use Spatie\Sitemap\Tags\Url;
  */
 class Page extends Model implements HasMedia, Sitemapable
 {
-    /** @use HasFactory<\Database\Factories\PageFactory> */
+    /** @use HasFactory<PageFactory> */
     use HasFactory;
 
     use InteractsWithMedia;
@@ -88,7 +91,7 @@ class Page extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * @return Attribute<string, string>
+     * @return Attribute<never, string>
      */
     protected function heading(): Attribute
     {
@@ -104,7 +107,7 @@ class Page extends Model implements HasMedia, Sitemapable
     {
         $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
 
-        $uniqueRule = \Illuminate\Validation\Rule::unique('pages', 'slug');
+        $uniqueRule = Rule::unique('pages', 'slug');
         if ($page) {
             $uniqueRule->ignore($page->id);
         }
@@ -117,7 +120,7 @@ class Page extends Model implements HasMedia, Sitemapable
         return [
             'heading' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
-            'area' => ['required', \Illuminate\Validation\Rule::enum(PageArea::class)],
+            'area' => ['required', Rule::enum(PageArea::class)],
             'description' => ['required', 'string', 'max:155'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ];
@@ -312,6 +315,6 @@ class Page extends Model implements HasMedia, Sitemapable
      */
     public function toSitemapTag(): Url|string|array
     {
-        return app(\App\Presenters\PageSitemapPresenter::class)->toSitemapTag($this);
+        return app(PageSitemapPresenter::class)->toSitemapTag($this);
     }
 }

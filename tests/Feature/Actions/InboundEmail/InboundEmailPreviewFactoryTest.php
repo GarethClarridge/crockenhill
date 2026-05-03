@@ -33,7 +33,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
         $email = InboundEmail::factory()->create([
             'body_plain' => "Welcome\nSermon",
             'body_html' => '<p>Welcome</p>',
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-08',
                 resolvedService: SermonService::Morning->value,
@@ -64,7 +64,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
         $email = InboundEmail::factory()->create([
             'body_plain' => null,
             'body_html' => null,
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => null,
         ]);
 
@@ -90,7 +90,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
     public function it_sets_can_approve_true_when_all_required_fields_are_present(): void
     {
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
                 resolvedService: SermonService::Morning->value,
@@ -109,7 +109,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
     public function it_sets_can_approve_false_when_items_are_empty(): void
     {
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
                 resolvedService: SermonService::Morning->value,
@@ -126,7 +126,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
     public function it_sets_can_approve_false_when_resolved_date_is_missing(): void
     {
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '',
                 resolvedService: SermonService::Morning->value,
@@ -144,7 +144,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
     {
         $email = InboundEmail::factory()->create([
             'body_html' => '<p>Safe</p><script>alert("xss")</script><svg><circle/></svg>',
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => null,
         ]);
 
@@ -161,7 +161,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
     {
         $email = InboundEmail::factory()->create([
             'body_plain' => "Line one\r\nLine two\r\nLine three",
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => null,
         ]);
 
@@ -174,7 +174,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
     public function it_exposes_failure_message_from_failure_metadata(): void
     {
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::FAILED->value,
+            'status' => InboundEmailStatus::Failed->value,
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-29',
@@ -194,7 +194,7 @@ class InboundEmailPreviewFactoryTest extends TestCase
     public function it_exposes_reparsed_at_timestamp_when_present(): void
     {
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-29',

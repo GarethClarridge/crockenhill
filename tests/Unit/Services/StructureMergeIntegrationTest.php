@@ -136,7 +136,7 @@ class StructureMergeIntegrationTest extends TestCase
         ]);
 
         $inboundEmail = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING,
+            'status' => InboundEmailStatus::Pending,
         ]);
 
         $parseResult = new \App\Data\OosEmailParseResult(
@@ -166,7 +166,7 @@ class StructureMergeIntegrationTest extends TestCase
         $this->assertSame('Sermon', $items[1]->title);
 
         $inboundEmail->refresh();
-        $this->assertSame(InboundEmailStatus::PROCESSED, $inboundEmail->status);
+        $this->assertSame(InboundEmailStatus::Processed, $inboundEmail->status);
     }
 
     #[Test]
@@ -187,7 +187,7 @@ class StructureMergeIntegrationTest extends TestCase
         ]);
 
         $inboundEmail = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING,
+            'status' => InboundEmailStatus::Pending,
         ]);
 
         $parseResult = new \App\Data\OosEmailParseResult(

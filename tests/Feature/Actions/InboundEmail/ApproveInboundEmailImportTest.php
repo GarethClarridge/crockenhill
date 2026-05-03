@@ -47,7 +47,7 @@ class ApproveInboundEmailImportTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-06-22 AM',
             'body_plain' => "Welcome\nSermon",
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         $result = app(ApproveInboundEmailImport::class)->execute($email, $this->admin->id);
@@ -57,7 +57,7 @@ class ApproveInboundEmailImportTest extends TestCase
         $this->assertFalse($result->needs_review);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertSame('direct_approve', $email->processing_metadata['review']['mode'] ?? null);
         $this->assertSame($this->admin->id, $email->processing_metadata['review']['approved_by_user_id'] ?? null);
     }
@@ -68,7 +68,7 @@ class ApproveInboundEmailImportTest extends TestCase
         $this->bindFailingExtractor();
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
                 resolvedService: SermonService::Morning->value,
@@ -96,7 +96,7 @@ class ApproveInboundEmailImportTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Unparseable email',
             'body_plain' => 'Nothing useful here',
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         $result = app(ApproveInboundEmailImport::class)->execute($email, $this->admin->id);
@@ -128,7 +128,7 @@ class ApproveInboundEmailImportTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-06-22 AM',
             'body_plain' => "Welcome\nSermon",
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         $result = app(ApproveInboundEmailImport::class)->execute($email, $this->admin->id);

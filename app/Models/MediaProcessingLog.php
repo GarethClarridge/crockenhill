@@ -14,12 +14,16 @@ use App\Data\SongClusterCollectionCast;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use Database\Factories\MediaProcessingLogFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -33,7 +37,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $dedup_key
  * @property int|null $file_size
  * @property float|null $duration
- * @property \Illuminate\Support\Carbon|null $extracted_date
+ * @property Carbon|null $extracted_date
  * @property SermonService|null $extracted_service
  * @property string|null $source_file_path
  * @property string|null $stored_file_path
@@ -59,21 +63,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $queue_name
  * @property string|null $job_id
  * @property int|null $attempt_count
- * @property \Illuminate\Support\Carbon|null $started_at
- * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
  * @property bool $is_degraded_completion
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read ChurchService|null $churchService
  * @property-read User|null $owner
- * @property-read \Illuminate\Database\Eloquent\Collection<int, SermonProcessingStep> $processingSteps
+ * @property-read Collection<int, SermonProcessingStep> $processingSteps
  * @property-read Sermon|null $sermon
- * @property-read \Illuminate\Database\Eloquent\Collection<int, LivestreamSegment> $segments
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ServiceSection> $serviceSections
+ * @property-read Collection<int, LivestreamSegment> $segments
+ * @property-read Collection<int, ServiceSection> $serviceSections
  */
 class MediaProcessingLog extends Model
 {
-    /** @use HasFactory<\Database\Factories\MediaProcessingLogFactory> */
+    /** @use HasFactory<MediaProcessingLogFactory> */
     use HasFactory;
 
     public const VIDEO_PROCESSING_MODE_FULL_VIDEO = 'full_video';
@@ -505,7 +509,7 @@ class MediaProcessingLog extends Model
     }
 
     /**
-     * @return Attribute<string, string>
+     * @return Attribute<never, string>
      */
     protected function originalFilename(): Attribute
     {
@@ -606,8 +610,8 @@ class MediaProcessingLog extends Model
     {
         return [
             'processing_id' => ['sometimes', 'required', 'string', 'size:36'],
-            'processing_type' => ['sometimes', 'required', \Illuminate\Validation\Rule::enum(\App\Enums\MediaType::class)],
-            'status' => ['sometimes', 'required', \Illuminate\Validation\Rule::enum(ProcessingStatus::class)],
+            'processing_type' => ['sometimes', 'required', Rule::enum(MediaType::class)],
+            'status' => ['sometimes', 'required', Rule::enum(ProcessingStatus::class)],
             'original_filename' => ['sometimes', 'required', 'string', 'max:255'],
             'file_hash' => ['nullable', 'string', 'max:64'],
             'file_size' => ['nullable', 'integer', 'min:0'],

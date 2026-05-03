@@ -34,7 +34,7 @@ class InboundEmailTest extends TestCase
         $receivedAt = now()->subMinutes(10)->startOfSecond();
         $email = InboundEmail::factory()->create([
             'received_at' => $receivedAt,
-            'status' => InboundEmailStatus::PROCESSED,
+            'status' => InboundEmailStatus::Processed,
             'processing_metadata' => ['key' => 'value'],
         ]);
 
@@ -44,7 +44,7 @@ class InboundEmailTest extends TestCase
         $this->assertInstanceOf(Carbon::class, $email->received_at);
         $this->assertTrue($email->received_at->equalTo($receivedAt));
         $this->assertInstanceOf(InboundEmailStatus::class, $email->status);
-        $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertIsArray($email->processing_metadata);
         $this->assertSame(['key' => 'value'], $email->processing_metadata);
     }
@@ -59,7 +59,7 @@ class InboundEmailTest extends TestCase
             'body_plain' => 'Plain body',
             'body_html' => '<p>HTML body</p>',
             'received_at' => now()->startOfSecond(),
-            'status' => InboundEmailStatus::PENDING,
+            'status' => InboundEmailStatus::Pending,
             'processing_metadata' => ['foo' => 'bar'],
         ];
 

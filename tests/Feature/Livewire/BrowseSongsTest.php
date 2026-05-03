@@ -226,4 +226,21 @@ class BrowseSongsTest extends TestCase
             ->assertSee('Amazing Grace')
             ->assertDontSee('How Great Thou Art');
     }
+
+    #[Test]
+    public function search_displays_lyric_snippets_when_matching(): void
+    {
+        $this->actingAs($this->user);
+
+        Song::factory()->create([
+            'title' => 'Unique Title',
+            'lyrics_plain' => "Line 1\nUnique in lyrics\nLine 3",
+        ]);
+
+        Livewire::test(BrowseSongs::class)
+            ->set('range', PublicSongCatalogService::RANGE_ALL)
+            ->set('search', 'Unique')
+            ->assertSee('Unique Title')
+            ->assertSee('<mark>Unique</mark> in lyrics', false);
+    }
 }

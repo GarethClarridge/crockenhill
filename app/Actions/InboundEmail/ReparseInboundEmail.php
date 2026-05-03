@@ -39,8 +39,8 @@ class ReparseInboundEmail
                 $inboundEmail->processing_metadata = $metadata;
             }
 
-            if ($inboundEmail->status === InboundEmailStatus::FAILED) {
-                $inboundEmail->status = InboundEmailStatus::PENDING;
+            if ($inboundEmail->status === InboundEmailStatus::Failed) {
+                $inboundEmail->status = InboundEmailStatus::Pending;
             }
 
             $inboundEmail->save();

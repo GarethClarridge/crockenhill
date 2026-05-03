@@ -320,7 +320,7 @@ class AuditLoggingTest extends TestCase
     {
         Log::spy();
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'subject' => 'Suspicious Email',
         ]);
 
@@ -329,7 +329,7 @@ class AuditLoggingTest extends TestCase
             ->call('reject', $email->id);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::REJECTED, $email->status);
+        $this->assertSame(InboundEmailStatus::Rejected, $email->status);
 
         Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Inbound email rejected by admin' &&
             $context['inbound_email_id'] === $email->id &&

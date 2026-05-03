@@ -240,14 +240,14 @@ class InboundEmailImportServiceTest extends TestCase
     #[Test]
     public function test_marks_an_email_as_processed_from_manual_review(): void
     {
-        $inboundEmail = InboundEmail::factory()->create(['status' => InboundEmailStatus::PENDING->value]);
+        $inboundEmail = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending->value]);
         $churchService = ChurchService::factory()->create();
         $user = \App\Models\User::factory()->create();
 
         $this->service->markAsProcessedFromManualReview($inboundEmail, $churchService, $user->id);
 
         $inboundEmail->refresh();
-        $this->assertSame(InboundEmailStatus::PROCESSED->value, $inboundEmail->status->value);
+        $this->assertSame(InboundEmailStatus::Processed->value, $inboundEmail->status->value);
         $this->assertSame($churchService->id, $inboundEmail->processing_metadata['imported_church_service_id']);
         $this->assertSame('manual_edit', $inboundEmail->processing_metadata['review']['mode']);
         $this->assertSame($user->id, $inboundEmail->processing_metadata['review']['approved_by_user_id']);

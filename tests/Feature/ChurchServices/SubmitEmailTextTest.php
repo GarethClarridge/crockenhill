@@ -59,7 +59,7 @@ class SubmitEmailTextTest extends TestCase
         $inboundEmail = InboundEmail::query()->firstOrFail();
 
         $this->assertSame($body, $inboundEmail->body_plain);
-        $this->assertSame(InboundEmailStatus::PENDING, $inboundEmail->status);
+        $this->assertSame(InboundEmailStatus::Pending, $inboundEmail->status);
         $this->assertStringStartsWith('manual-', $inboundEmail->message_id);
         $this->assertStringEndsWith('@admin.crockenhill.org', $inboundEmail->message_id);
 

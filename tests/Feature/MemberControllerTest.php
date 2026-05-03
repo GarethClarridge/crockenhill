@@ -87,7 +87,7 @@ class MemberControllerTest extends TestCase
         ]);
 
         InboundEmail::factory()->count(2)->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         $this->actingAs($admin);

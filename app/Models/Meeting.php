@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -112,14 +113,14 @@ class Meeting extends Model implements HasMedia, Sitemapable
     public static function validationRules(?self $meeting = null): array
     {
         $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
-        $uniqueSlug = \Illuminate\Validation\Rule::unique('meetings', 'slug');
+        $uniqueSlug = Rule::unique('meetings', 'slug');
         if ($meeting) {
             $uniqueSlug->ignore($meeting->id);
         }
         $slugRule[] = $uniqueSlug;
 
         $pageIdRule = ['nullable', 'integer', 'exists:pages,id'];
-        $uniquePageId = \Illuminate\Validation\Rule::unique('meetings', 'page_id');
+        $uniquePageId = Rule::unique('meetings', 'page_id');
         if ($meeting) {
             $uniquePageId->ignore($meeting->id);
         }
@@ -127,14 +128,14 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
         return [
             'slug' => $slugRule,
-            'type' => ['required', \Illuminate\Validation\Rule::enum(MeetingType::class)],
+            'type' => ['required', Rule::enum(MeetingType::class)],
             'day' => ['required', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
             'who' => ['required', 'string', 'max:255'],
             'leaders_phone' => ['nullable', 'string', 'max:255'],
             'leaders_email' => ['nullable', 'email', 'max:255'],
             'is_recurring' => ['nullable', 'boolean'],
-            'frequency' => ['nullable', 'required_if:is_recurring,true', \Illuminate\Validation\Rule::enum(MeetingFrequency::class)],
+            'frequency' => ['nullable', 'required_if:is_recurring,true', Rule::enum(MeetingFrequency::class)],
             'page_id' => $pageIdRule,
         ];
     }

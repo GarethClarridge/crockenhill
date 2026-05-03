@@ -42,7 +42,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $pendingEmail = InboundEmail::factory()->create([
             'subject' => 'Pending service plan',
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-08',
                 resolvedService: SermonService::Morning->value,
@@ -55,7 +55,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $failedEmail = InboundEmail::factory()->create([
             'subject' => 'Failed email',
-            'status' => InboundEmailStatus::FAILED->value,
+            'status' => InboundEmailStatus::Failed->value,
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-15',
@@ -72,7 +72,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $processedEmail = InboundEmail::factory()->create([
             'subject' => 'Already imported',
-            'status' => InboundEmailStatus::PROCESSED->value,
+            'status' => InboundEmailStatus::Processed->value,
         ]);
 
         Livewire::test(ReviewInboundEmails::class)
@@ -93,7 +93,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'subject' => 'Plain text review email',
             'body_plain' => "Welcome\nSong One\nPrayer",
             'body_html' => null,
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-08',
                 resolvedService: SermonService::Morning->value,
@@ -130,7 +130,7 @@ class AdminInboundEmailReviewTest extends TestCase
                 <a href="javascript:alert('bad')">Unsafe link</a>
                 <svg><circle /></svg>
             HTML,
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-08',
                 resolvedService: SermonService::Morning->value,
@@ -160,7 +160,7 @@ class AdminInboundEmailReviewTest extends TestCase
             'subject' => 'No bodies stored',
             'body_plain' => null,
             'body_html' => null,
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => null,
         ]);
 
@@ -187,7 +187,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-06-22 AM',
             'body_plain' => "Welcome\nSermon",
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         $component = Livewire::test(ReviewInboundEmails::class)
@@ -204,7 +204,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->assertFalse($service->needs_review);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id'] ?? null);
         $this->assertSame('direct_approve', $email->processing_metadata['review']['mode'] ?? null);
         $this->assertSame($this->admin->id, $email->processing_metadata['review']['approved_by_user_id'] ?? null);
@@ -218,7 +218,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->bindFailingExtractor();
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
                 resolvedService: SermonService::Morning->value,
@@ -262,7 +262,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-06-29 AM',
             'body_plain' => "Call to Worship\nSermon",
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-06-22',
@@ -289,7 +289,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $email->refresh();
 
-        $this->assertSame(InboundEmailStatus::PENDING, $email->status);
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
         $this->assertSame('2026-03-12T11:30:00+00:00', $email->processing_metadata['reparsed_at'] ?? null);
         $this->assertSame('Keep this note', $email->processing_metadata['review']['notes'] ?? null);
         $this->assertSame('2026-06-29', $email->processing_metadata['parsing']['resolved_date'] ?? null);
@@ -318,7 +318,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-07-06 PM',
             'body_plain' => "Welcome\nOpening Prayer",
-            'status' => InboundEmailStatus::FAILED->value,
+            'status' => InboundEmailStatus::Failed->value,
             'processing_metadata' => array_replace_recursive(
                 $this->processingMetadata(
                     resolvedDate: '2026-07-06',
@@ -342,7 +342,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $email->refresh();
 
-        $this->assertSame(InboundEmailStatus::PENDING, $email->status);
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
         $this->assertNull($email->processing_metadata['failure'] ?? null);
         $this->assertSame('evening', $email->processing_metadata['parsing']['resolved_service'] ?? null);
         $this->assertCount(2, $email->processing_metadata['parsing']['items'] ?? []);
@@ -361,7 +361,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-06-29 AM',
             'body_plain' => "Welcome\nSermon",
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
                 resolvedService: SermonService::Morning->value,
@@ -377,7 +377,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $email->refresh();
 
-        $this->assertSame(InboundEmailStatus::PENDING, $email->status);
+        $this->assertSame(InboundEmailStatus::Pending, $email->status);
         $this->assertNull($email->processing_metadata['reparsed_at'] ?? null);
         $this->assertSame('2026-06-29', $email->processing_metadata['parsing']['resolved_date'] ?? null);
         $this->assertSame('Welcome', $email->processing_metadata['parsing']['items'][0]['title'] ?? null);
@@ -391,7 +391,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->actingAs($this->admin);
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         Livewire::test(ReviewInboundEmails::class)
@@ -400,7 +400,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $email->refresh();
 
-        $this->assertSame(InboundEmailStatus::REJECTED, $email->status);
+        $this->assertSame(InboundEmailStatus::Rejected, $email->status);
         $this->assertSame($this->admin->id, $email->processing_metadata['review']['rejected_by_user_id'] ?? null);
     }
 
@@ -410,7 +410,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->actingAs($this->admin);
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-06-29',
                 resolvedService: SermonService::Morning->value,
@@ -431,7 +431,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->actingAs($this->admin);
 
         $email = InboundEmail::factory()->create([
-            'status' => InboundEmailStatus::PENDING->value,
+            'status' => InboundEmailStatus::Pending->value,
             'processing_metadata' => $this->processingMetadata(
                 resolvedDate: '2026-07-06',
                 resolvedService: SermonService::Morning->value,
@@ -459,7 +459,7 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->assertSame('manual', $service->source);
 
         $email->refresh();
-        $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
         $this->assertSame('manual_edit', $email->processing_metadata['review']['mode'] ?? null);
         $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id'] ?? null);
     }

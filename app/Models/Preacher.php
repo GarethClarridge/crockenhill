@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Presenters\PreacherSitemapPresenter;
+use Database\Factories\PreacherFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -22,8 +28,8 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?string $image_path
  * @property ?string $bio
  * @property bool $is_active
- * @property ?\Illuminate\Support\Carbon $created_at
- * @property ?\Illuminate\Support\Carbon $updated_at
+ * @property ?Carbon $created_at
+ * @property ?Carbon $updated_at
  *
  * @method static \Database\Factories\PreacherFactory factory(...$parameters)
  * @method static Builder|Preacher newModelQuery()
@@ -35,7 +41,7 @@ use Spatie\Sitemap\Tags\Url;
  */
 class Preacher extends Model implements Sitemapable
 {
-    /** @use HasFactory<\Database\Factories\PreacherFactory> */
+    /** @use HasFactory<PreacherFactory> */
     use HasFactory;
 
     /**
@@ -61,7 +67,7 @@ class Preacher extends Model implements Sitemapable
     }
 
     /**
-     * @return Attribute<string, string>
+     * @return Attribute<never, string>
      */
     protected function name(): Attribute
     {
@@ -78,8 +84,8 @@ class Preacher extends Model implements Sitemapable
         $nameRule = ['required', 'string', 'max:255'];
         $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
 
-        $uniqueName = \Illuminate\Validation\Rule::unique('preachers', 'name');
-        $uniqueSlug = \Illuminate\Validation\Rule::unique('preachers', 'slug');
+        $uniqueName = Rule::unique('preachers', 'name');
+        $uniqueSlug = Rule::unique('preachers', 'slug');
 
         if ($preacher) {
             $uniqueName->ignore($preacher->id);
@@ -163,11 +169,11 @@ class Preacher extends Model implements Sitemapable
      * Performance Optimization: Caches the preacher list for 24 hours using flexible cache
      * to reduce redundant DB queries in the admin interface.
      *
-     * @return \Illuminate\Support\Collection<int, string>
+     * @return Collection<int, string>
      */
-    public static function getForAdminList(): \Illuminate\Support\Collection
+    public static function getForAdminList(): Collection
     {
-        return \Illuminate\Support\Facades\Cache::flexible('admin_preacher_list', [86400, 172800], function () {
+        return Cache::flexible('admin_preacher_list', [86400, 172800], function () {
             return self::active()->orderBy('name')->pluck('name', 'id');
         });
     }
@@ -182,7 +188,7 @@ class Preacher extends Model implements Sitemapable
      */
     public static function getForPublicList(): \Illuminate\Database\Eloquent\Collection
     {
-        return \Illuminate\Support\Facades\Cache::flexible('public_preacher_list', [86400, 172800], function () {
+        return Cache::flexible('public_preacher_list', [86400, 172800], function () {
             return self::active()
                 ->select(['id', 'name', 'slug', 'image_path'])
                 ->withCount([
@@ -201,6 +207,6 @@ class Preacher extends Model implements Sitemapable
      */
     public function toSitemapTag(): Url|string|array
     {
-        return app(\App\Presenters\PreacherSitemapPresenter::class)->toSitemapTag($this);
+        return app(PreacherSitemapPresenter::class)->toSitemapTag($this);
     }
 }
