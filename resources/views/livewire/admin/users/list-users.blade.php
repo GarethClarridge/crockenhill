@@ -52,7 +52,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($users as $user)
-                <tr class="hover:bg-gray-50">
+                <tr wire:loading.class="opacity-50" wire:target="delete({{ $user->id }}), toggleAdmin({{ $user->id }})" class="hover:bg-gray-50">
                     {{-- Name --}}
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $user->name }}</p>
@@ -62,31 +62,28 @@
                     <td class="px-4 py-3">
                         @if($user->email_verified_at)
                             <div class="flex items-center gap-2">
-                                <x-heroicon-o-check-circle class="w-5 h-5 text-green-500" aria-hidden="true" />
-                                <span class="text-sm">Verified {{ $user->email_verified_at->diffForHumans() }}</span>
+                                <x-badge variant="success" size="xs">Verified</x-badge>
+                                <span class="text-xs text-gray-500">{{ $user->email_verified_at->diffForHumans() }}</span>
                             </div>
                         @else
                             <div class="flex items-center gap-2">
-                                <x-heroicon-o-x-circle class="w-5 h-5 text-red-500" aria-hidden="true" />
-                                <span class="text-sm">Not verified</span>
+                                <x-badge variant="danger" size="xs">Not verified</x-badge>
                             </div>
                         @endif
                     </td>
                     {{-- Role --}}
                     <td class="px-4 py-3">
                         @if($user->is_admin)
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Admin
-                            </span>
+                            <x-badge variant="teal" size="xs">Admin</x-badge>
                         @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                User
-                            </span>
+                            <x-badge variant="default" size="xs">User</x-badge>
                         @endif
                     </td>
                     {{-- Created --}}
                     <td class="px-4 py-3">
-                        <span class="text-sm">{{ $user->created_at->diffForHumans() }}</span>
+                        <time datetime="{{ $user->created_at->toDateTimeString() }}" class="text-xs text-gray-500">
+                            {{ $user->created_at->diffForHumans() }}
+                        </time>
                     </td>
                     {{-- Actions --}}
                     <td class="px-4 py-3 text-right">
@@ -97,6 +94,7 @@
                                     size="xs"
                                     :icon="$user->is_admin ? 'shield-exclamation' : 'shield-check'"
                                     wire:click="toggleAdmin({{ $user->id }})"
+                                    wire:target="toggleAdmin({{ $user->id }})"
                                     wire:confirm="Toggle admin status for {{ $user->name }}?"
                                     class="{{ $user->is_admin ? 'text-amber-600' : 'text-cbc-teal' }}"
                                     :aria-label="$user->is_admin ? 'Remove admin privileges' : 'Grant admin privileges'" />
@@ -105,6 +103,7 @@
                             @if($user->id !== auth()->id())
                                 <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                     wire:click="delete({{ $user->id }})"
+                                    wire:target="delete({{ $user->id }})"
                                     wire:confirm="Delete {{ $user->name }}?"
                                     aria-label="Delete user: {{ $user->name }}" />
                             @endif
