@@ -1,19 +1,15 @@
 @props([
     'sermon',
-    'sermonView',
+    'sermonUrl',
+    'thumbnailUrl',
+    'preacherName',
+    'reference',
+    'preacherUrl',
+    'formattedDuration',
+    'seriesUrl',
+    'dateString',
+    'serviceLabel',
 ])
-
-@php
-    $sermonUrl = $sermonView['canonical_url'];
-    $thumbnailUrl = $sermonView['plain_thumbnail_url'];
-    $preacherName = $sermonView['preacher_name'];
-    $reference = $sermonView['display_reference'];
-    $preacherUrl = $sermonView['preacher_url'];
-    $formattedDuration = $sermonView['formatted_duration'];
-    $seriesUrl = $sermonView['series_url'];
-    $dateString = $sermonView['date_string'];
-    $serviceLabel = $sermonView['service_label'];
-@endphp
 
 <div data-sermon-card class="group relative flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 

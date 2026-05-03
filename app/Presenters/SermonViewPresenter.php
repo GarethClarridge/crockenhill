@@ -261,17 +261,6 @@ class SermonViewPresenter
 
     public function preacherUrl(Sermon $sermon): ?string
     {
-        // If the relation is explicitly loaded, always use it as the source of truth
-        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-            return route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
-        }
-
-        /**
-         * Performance Optimization: Memoizes preacher URL lookup by identity
-         * (profile ID or name string) instead of sermon ID. This avoids
-         * redundant route() lookups and Str::slug calls across multiple
-         * sermons in a listing by the same preacher.
-         */
         $identityKey = $sermon->preacher_id !== null
             ? "id_{$sermon->preacher_id}"
             : (string) $sermon->preacher;
@@ -282,20 +271,27 @@ class SermonViewPresenter
 
         $memoKey = "preacher_url_{$identityKey}";
 
+        /**
+         * Performance Optimization: Always prioritize the loaded relation as the
+         * absolute source of truth. If loaded, we return it and update the memo
+         * so other sermons with the same preacher can benefit from the real slug.
+         */
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            return $this->memoizedUrls[$memoKey] = route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
+        }
+
         if (isset($this->memoizedUrls[$memoKey])) {
             return $this->memoizedUrls[$memoKey] === self::MEMO_NULL ? null : $this->memoizedUrls[$memoKey];
         }
 
-        // Fall back to the unloaded path: derive URL from displayPreacherName
+        // Fall back to the unloaded path: resolve fallback URL and memoize
         $preacherName = $this->displayPreacherName($sermon);
 
         $url = filled($preacherName)
             ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
             : null;
 
-        $this->memoizedUrls[$memoKey] = $url ?? self::MEMO_NULL;
-
-        return $url;
+        return $this->memoizedUrls[$memoKey] = $url ?? self::MEMO_NULL;
     }
 
     /**
@@ -430,12 +426,15 @@ class SermonViewPresenter
      *     formatted_duration: ?string,
      *     has_transcript: bool,
      *     human_date: string,
+     *     date_string: string,
+     *     service_label: ?string,
      *     preacher_image_url: ?string,
      *     preacher_name: ?string,
      *     preacher_url: ?string,
      *     public_url: string,
      *     series_url: ?string,
      *     thumbnail_url: ?string,
+     *     plain_thumbnail_url: ?string,
      *     transcript: ?string,
      *     transcript_url: ?string,
      *     video_url: ?string
@@ -446,7 +445,7 @@ class SermonViewPresenter
         $key = $this->cacheKey($sermon, 'full_present');
 
         if (isset($this->memoizedPresents[$key])) {
-            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, video_url: ?string} */
+            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, date_string: string, service_label: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, plain_thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, video_url: ?string} */
             return $this->memoizedPresents[$key];
         }
 
