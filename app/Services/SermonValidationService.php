@@ -10,11 +10,15 @@ use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use App\Traits\HandlesSafePaths;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SermonValidationService
 {
+    use HandlesSafePaths;
+
     public function __construct(
         private readonly MediaValidationService $mediaValidation,
         private readonly SermonRepository $sermonRepository,
@@ -62,7 +66,7 @@ class SermonValidationService
             $filename = $metadata['original_filename'];
 
             // Check for potentially dangerous file patterns
-            if (str_contains($filename, '..') || str_contains($filename, '/') || str_contains($filename, '\\')) {
+            if ($this->isUnsafePath($filename)) {
                 $errors[] = 'Filename contains invalid characters';
             }
 
@@ -214,7 +218,7 @@ class SermonValidationService
             }
         } catch (\Exception $e) {
             // If we can't check disk space, log but don't fail
-            \Illuminate\Support\Facades\Log::warning('Could not check disk space', [
+            Log::warning('Could not check disk space', [
                 'disk' => $disk,
                 'error' => $e->getMessage(),
             ]);

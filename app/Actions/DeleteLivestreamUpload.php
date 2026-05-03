@@ -15,6 +15,7 @@ use App\Services\ChurchServiceReviewStateService;
 use App\Services\ChurchServiceReviewSynchronizer;
 use App\Services\SermonStorageService;
 use App\Services\TranscriptStorageService;
+use App\Traits\HandlesSafePaths;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Storage;
 
 class DeleteLivestreamUpload
 {
+    use HandlesSafePaths;
+
     public function __construct(
         private readonly ChurchServiceReviewStateService $reviewStateService,
         private readonly ChurchServiceReviewSynchronizer $reviewSynchronizer,
@@ -306,7 +309,7 @@ class DeleteLivestreamUpload
      */
     private function addStoredTarget(array &$targets, string $disk, ?string $path): void
     {
-        if (! is_string($path) || trim($path) === '' || str_contains($path, '..')) {
+        if (! is_string($path) || trim($path) === '' || $this->isUnsafePath($path)) {
             return;
         }
 

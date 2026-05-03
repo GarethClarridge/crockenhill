@@ -91,7 +91,7 @@ class RobustPathProtectionTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.sermons.thumbnails.preview', [
             'sermon' => $sermon->slug,
             'candidateId' => 'candidate-1',
-            'variant' => 'plain'
+            'variant' => 'plain',
         ]));
 
         $response->assertStatus(404);

@@ -57,5 +57,4 @@ class SermonThumbnailCandidateController extends Controller
             'Cache-Control' => 'no-store',
         ]);
     }
-
 }
