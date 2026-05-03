@@ -200,7 +200,7 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return Attribute<never, string>
+     * @return Attribute<string, string>
      */
     protected function title(): Attribute
     {
@@ -210,7 +210,7 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return Attribute<never, ?string>
+     * @return Attribute<?string, ?string>
      */
     protected function series(): Attribute
     {

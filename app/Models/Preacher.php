@@ -67,7 +67,7 @@ class Preacher extends Model implements Sitemapable
     }
 
     /**
-     * @return Attribute<never, string>
+     * @return Attribute<string, string>
      */
     protected function name(): Attribute
     {

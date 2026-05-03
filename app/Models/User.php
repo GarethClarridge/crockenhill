@@ -60,7 +60,7 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * @return Attribute<never, string>
+     * @return Attribute<string, string>
      */
     protected function name(): Attribute
     {
@@ -70,7 +70,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * @return Attribute<never, string>
+     * @return Attribute<string, string>
      */
     protected function email(): Attribute
     {

@@ -91,7 +91,7 @@ class Page extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * @return Attribute<never, string>
+     * @return Attribute<string, string>
      */
     protected function heading(): Attribute
     {

@@ -220,16 +220,21 @@ The manifest should include:
 
 This matters because `SermonExtractionPlanResolver` can choose enhanced plans such as bible-reading-plus-sermon or concatenated spans. The daemon must support multi-span trim/concat for those plans.
 
-### D7. Manual review still exists, but it must not require server-side original video
+### D7. Manual review must not require the full original on the server
 
-If sermon selection is ambiguous, the analysis pipeline can still enter manual review. However, the existing confirm action checks that `source_file_path` points to a source video. For daemon runs, `source_file_path` is the proxy and the full original lives only on the laptop.
+If sermon selection is ambiguous, the analysis pipeline can still enter manual review. However, the existing confirm action in `ConfirmLivestreamSermonSegment::ensureSourceVideoExists()` checks that `source_file_path` points to a full source video. For daemon runs, `source_file_path` is the proxy and the full original lives only on the laptop.
 
-Add a daemon-aware confirmation path that:
+This is also a problem the project wants to solve independently of the daemon: keeping full originals server-side indefinitely is not viable on the available disk. The manual-review redesign therefore lives in **Phase 0b** as a hard prerequisite for Phase 1, scoped daemon-agnostically so both upload paths inherit the same review experience.
 
-- Allows an admin to confirm the sermon section without requiring the full original on the server.
-- Updates manual review metadata as today.
-- Rebuilds the daemon upload manifest from the confirmed segment or section.
-- Lets the daemon continue polling until the manifest is available.
+Requirements for the redesigned review flow:
+
+- Reviewer works against an analysis or review proxy, not the full original.
+- Reviewer can scrub, zoom on candidate boundaries, and confirm or adjust sermon span(s) without ever touching the full source.
+- Confirmation updates `MediaProcessingLog` review metadata as today and rebuilds the upload manifest where applicable.
+- The flow works equally for browser-uploaded runs (where the server can generate a proxy from the uploaded video before review) and daemon runs (where the daemon has already supplied a proxy).
+- The daemon polls until the rebuilt manifest is ready, then resumes its normal flow.
+
+See "Phase 0b" below for scope and exit criteria.
 
 ### D8. Use structured upload sessions, not ad-hoc JSON only
 
@@ -279,16 +284,19 @@ Security requirements:
 
 Soft identity checks are still useful, but they are not security. Filename, size, duration, and original SHA-256 catch daemon or operator mistakes; they do not prove trust by themselves.
 
-### D11. Partial success should use existing completion semantics
+### D11. Partial success uses a dedicated `CompletedWithWarnings` status
 
-There is no `completed_with_warnings` processing status today. Use existing status values:
+Add a new `CompletedWithWarnings` case to the `ProcessingStatus` enum rather than overloading `is_degraded_completion`. The existing flag was introduced for degraded extraction; conflating it with "daemon optional asset missing" muddies dashboards, completion emails, and reporting later. A dedicated status separates these concerns and is cheap to add.
 
-- If required sermon assets are missing, finalization fails.
-- If optional section assets are missing, the run may complete with `is_degraded_completion = true`.
-- Store warnings in processing metadata and include them in the completion email.
+Rules:
+
+- If required sermon assets are missing, finalization fails outright.
+- If optional section assets (songs, children's talk, etc.) are missing, the run completes with status `CompletedWithWarnings`.
+- Store the warning detail in `processing_metadata` and surface it in the completion email and admin UI.
 - Mark affected `ServiceSection` records as not applicable or needing review, depending on the handler.
+- Update any code that branches on `ProcessingStatus::Completed` to also handle `CompletedWithWarnings` (admin UI badges, completion notifications, polling clients, exports).
 
-Partial publication is useful, but the sermon itself should be treated as required.
+Partial publication is useful, but the sermon itself should always be treated as required.
 
 ### D12. Keep originals locally, with an explicit archive policy
 
@@ -297,15 +305,22 @@ The daemon should archive the full original to a NAS path after successful final
 Recommended policy:
 
 - Required: NAS archive path with local retention.
-- Required: operator-visible failure if archive copy fails.
+- Required: operator-visible alert if archive copy fails.
+- Required: if the NAS is unreachable, the daemon retains the original on the laptop in a `pending-archive/` folder, alerts the operator, and retries the archive copy on each daemon start and on a periodic schedule. The processing run is still considered `done` from the server's perspective; archival is a daemon-local concern that must not block sermon publication or subsequent recordings.
 - Recommended: NAS backups are covered by existing off-site backup.
 - Optional later: overnight low-priority cloud upload of the full original for reprocessing.
 
-### D13. YouTube fallback uses the same drop-folder flow
+The Phase 4 state machine reflects this: `archiving_original` succeeds to `done`, or on NAS failure transitions to a daemon-local `archive_pending_local` retry loop while the run itself is reported complete to the server.
+
+### D13. YouTube fallback uses the same drop-folder flow, with known-degraded analysis
 
 If the local OBS recording is unavailable, download the YouTube version with `yt-dlp` and drop it into the same folder. The daemon treats it as just another source recording.
 
-This should remain a fallback, not the primary recording path, because YouTube compression may affect OCR, audio, and long-term archival quality.
+This is a fallback, not the primary recording path. YouTube re-encoding measurably degrades audio quality (affecting `MatchSongsFromTranscript` accuracy) and projector/lyric clarity (affecting visual song clustering and OCR). Treat YouTube-sourced runs as known-degraded:
+
+- Tag the proxy upload with a `source: 'youtube_fallback'` flag in daemon metadata so the server can distinguish these runs.
+- Surface the flag in the manual-review UI so reviewers know not to trust borderline song matches automatically.
+- Retuning analysis thresholds specifically for YouTube-sourced inputs is out of scope for the initial daemon rollout. Track it as a known limitation in the operator runbook and revisit once enough YouTube fallback runs have accumulated to measure the actual accuracy hit.
 
 ### D14. Keep daemon code in this repository as a top-level subproject
 
@@ -443,6 +458,36 @@ Exit criteria:
 - Proxy analysis quality is close enough to full-source analysis for Sunday use.
 - Any known accuracy tradeoffs are explicit.
 
+### Phase 0b - Manual review without server-side original
+
+Priority: Critical (hard prerequisite for Phase 1).
+
+Motivation: keeping full originals server-side indefinitely is not viable on the available disk, and the existing manual-review flow in `ConfirmLivestreamSermonSegment` requires the full source video. This phase redesigns review to operate against a proxy. It solves the disk-space problem for both upload paths and unblocks daemon runs (where the server has only the proxy). It is intentionally scoped daemon-agnostically so Phase 1 inherits the result without daemon-specific review code.
+
+Target areas:
+
+- `app/Actions/ConfirmLivestreamSermonSegment.php` — drop the `ensureSourceVideoExists()` precondition; treat the proxy as the canonical review surface.
+- New review-proxy generation step for browser-uploaded runs (server-side `ffmpeg`) so browser-path runs reach review with a proxy ready.
+- Manual-review UI (Livewire component) — proxy player with scrub, candidate-boundary zoom, confirm/adjust controls.
+- `MediaProcessingRunTransitionService::confirmSermonSegment()` — manifest rebuild path that does not assume a full source video is on disk.
+- Cleanup policy for full sources after analysis: configurable retention window so full originals are deleted server-side once review is no longer the gating step.
+
+Tasks:
+
+- Define the review proxy profile. The daemon's analysis proxy may be sufficient; if 1fps scrubbing proves too coarse for reviewers, define a slightly higher-fps "review proxy" variant.
+- For browser runs, add a server-side proxy generation step before manual review can begin.
+- Update the manual-review UI to load the proxy, not the full source.
+- Allow review confirmation to operate purely on proxy timestamps, with the full source (if still present) trimmed afterwards as today.
+- Update existing manual-review feature tests to use proxies; add tests for "full source already deleted" cases.
+- Add a cleanup job (or extend `CleanupTemporaryFiles`) to delete retained full sources once a configurable retention window expires.
+
+Exit criteria:
+
+- An admin can complete manual review entirely from the proxy, with no server-side full source required.
+- Browser-uploaded livestream runs continue to work end-to-end through review.
+- The flow is daemon-agnostic; Phase 1 inherits review behavior with no daemon-specific code in the review path.
+- Disk usage of pending review runs drops to proxy-sized.
+
 ### Phase 1 - Server daemon analysis pipeline
 
 Priority: Critical.
@@ -451,6 +496,7 @@ Target areas:
 
 - `routes/api.php`
 - `app/Enums/ApiTokenAbility.php`
+- `app/Enums/ProcessingStatus.php` — add `CompletedWithWarnings` case (per D11) and update consumers that branch on `Completed`.
 - `app/Http/Controllers/Api/LivestreamDaemonController.php`
 - New daemon form requests.
 - `app/Services/ProcessingPipelineBuilder.php`
@@ -521,8 +567,8 @@ Tasks:
 - Create/update `Sermon` without relying on `SubmitToProcessing` copying an extracted temp video.
 - Record section asset paths and extraction provenance.
 - Dispatch post-daemon chain.
-- Use `is_degraded_completion` plus warnings for optional missing assets.
-- Ensure manual review confirmation works for daemon runs without server-side original video.
+- Use `ProcessingStatus::CompletedWithWarnings` plus structured warnings in `processing_metadata` for optional missing assets (per D11).
+- Plug daemon runs into the Phase 0b review flow; daemon-specific confirmation reduces to "rebuild manifest from proxy-based review output and resume polling."
 - Add tests for happy path, missing required sermon asset, missing optional section asset, and manual review continuation.
 
 Exit criteria:
@@ -558,7 +604,7 @@ Tasks:
 - Multi-span concat support.
 - Multipart/resumable upload.
 - Finalize call.
-- NAS archive copy.
+- NAS archive copy with local retention on failure: on NAS unreachable, retain the original in a `pending-archive/` folder, alert the operator, and retry on each daemon start and on a periodic schedule. The server-side run is reported `done` regardless.
 - Failed-run folder with `error.txt`.
 - Heartbeat every 5 minutes.
 - Operator log with rotation.
@@ -578,6 +624,12 @@ new
 -> finalizing
 -> archiving_original
 -> done
+
+If the NAS archive copy fails (NAS unreachable):
+archiving_original -> archive_pending_local
+The server-side run is `done`. The daemon retains the original in `pending-archive/`,
+alerts the operator, and retries the archive copy on each daemon start and periodically.
+Subsequent recordings are not blocked.
 ```
 
 Exit criteria:
@@ -610,7 +662,7 @@ Exit criteria:
 2. **Audio asset source**: Should the daemon upload sermon audio directly, or should the server extract public/transcription audio from the uploaded full-quality sermon video? Default recommendation: daemon uploads both video and audio so finalize has explicit canonical assets.
 3. **Multipart implementation**: Does DigitalOcean Spaces in the current Flysystem/AWS SDK setup support the checksum features we want, or do we rely on size plus metadata plus optional server-side spot checks?
 4. **Section publication scope**: Which non-sermon sections should be uploaded every week by default: songs, children's talk, both, or only those eligible for publication review?
-5. **Manual review UX**: Should the existing admin manual-review UI be reused with daemon-specific continuation, or should daemon analysis get a small dedicated screen?
+5. **Manual review UX**: Resolved by Phase 0b — the existing admin manual-review UI is redesigned to operate against a proxy, daemon-agnostically. Daemon runs reuse the same screen. Open sub-question: is the daemon's 1fps analysis proxy sufficient for reviewer scrubbing, or should a higher-fps "review proxy" variant be defined?
 6. **Original archive policy**: Is NAS plus off-site backup enough, or do we want an overnight low-priority full-original cloud archive later?
 
 ## Quality Gates
@@ -625,12 +677,13 @@ For implementation work, keep the usual project gates:
 ## Estimate
 
 - Phase 0: 0.5-1 day.
+- Phase 0b: 3-5 days.
 - Phase 1: 2-3 days.
 - Phase 2: 2-3 days.
 - Phase 3: 2.5-4 days.
 - Phase 4: 4-6 days.
 - Phase 5: 0.5-1 day.
 
-Total: roughly 11-18 working days depending on how much polish the Windows daemon and multipart resume behavior need.
+Total: roughly 14.5-23 working days. Phase 0b expands scope but solves an independent disk-space constraint that the project wants addressed regardless, and unblocks Phase 1 manual-review handling for both daemon and browser paths.
 
 This is still a better plan than the audio-plus-frame-archive version. The proxy approach spends more bandwidth on analysis, but it preserves existing server behavior and avoids a risky media-source abstraction across half the livestream pipeline. The main complexity moves to the correct place: the daemon's upload/finalize contract and operational reliability.

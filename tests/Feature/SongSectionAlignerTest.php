@@ -179,9 +179,9 @@ class SongSectionAlignerTest extends TestCase
     }
 
     /**
-     * When an OoS item has no scoring candidate (no title fields) and the section also
-     * has no title, neither a confirmed nor inferred match is produced, and the section
-     * is counted as unmatched.
+     * When a song section has no title evidence, no confirmed match is produced
+     * (score is 0.0 with no section-side candidates), so it is counted as unmatched
+     * and the unmatched_song_sections review trigger is raised.
      */
     #[Test]
     public function it_counts_unmatched_song_section_when_no_candidate_exists(): void
@@ -191,12 +191,13 @@ class SongSectionAlignerTest extends TestCase
             'service' => SermonService::Morning->value,
         ]);
 
-        // Item with no title evidence at all — will score 0.0 against any section.
+        // Section has no title candidates, so songMatchScore returns 0.0 against
+        // any item — no confirmed match can be produced.
         ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'title' => '',
+            'title' => 'Untitled Song',
             'openlp_search_title' => null,
             'source_title' => null,
         ]);

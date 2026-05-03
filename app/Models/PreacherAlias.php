@@ -60,7 +60,7 @@ class PreacherAlias extends Model
     }
 
     /**
-     * @return Attribute<never, string>
+     * @return Attribute<string, string>
      */
     protected function alias(): Attribute
     {
