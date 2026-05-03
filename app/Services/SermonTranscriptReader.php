@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Sermon;
+use App\Traits\HandlesSafePaths;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SermonTranscriptReader
 {
+    use HandlesSafePaths;
+
     public function __construct(
         private readonly TranscriptStorageService $transcriptStorageService,
     ) {}
@@ -33,7 +36,7 @@ class SermonTranscriptReader
 
         $path = trim((string) $sermon->transcript_file_path);
 
-        if (str_contains($path, '..')) {
+        if ($this->isUnsafePath($path)) {
             Log::warning('Path traversal attempt detected in transcript path', [
                 'sermon_id' => $sermon->id,
                 'path' => $path,

@@ -9,6 +9,7 @@ use App\Models\Sermon;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;
+use App\Traits\HandlesSafePaths;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -19,6 +20,8 @@ use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class SermonAssetController extends Controller
 {
+    use HandlesSafePaths;
+
     public function __construct(
         private readonly SermonStorageService $storageService,
         private readonly SermonExposurePolicy $exposurePolicy,
@@ -67,7 +70,7 @@ class SermonAssetController extends Controller
             abort(404, 'Audio file not found.');
         }
 
-        $this->abortOnUnsafePath($sermon->audio_file_path, 'audio');
+        $this->abortIfUnsafe($sermon->audio_file_path, 'audio');
 
         $storageService = $this->storageService;
         $fileInfo = $storageService->getSermonFileInfo($sermon);
@@ -101,7 +104,7 @@ class SermonAssetController extends Controller
             abort(404, 'Video file not found.');
         }
 
-        $this->abortOnUnsafePath($sermon->video_file_path, 'video');
+        $this->abortIfUnsafe($sermon->video_file_path, 'video');
 
         $disk = str_starts_with($sermon->video_file_path, 'private/')
             ? 'local'
@@ -139,7 +142,7 @@ class SermonAssetController extends Controller
             abort(404, 'Thumbnail not found.');
         }
 
-        $this->abortOnUnsafePath($sermon->thumbnail_file_path, 'thumbnail');
+        $this->abortIfUnsafe($sermon->thumbnail_file_path, 'thumbnail');
 
         $disk = str_starts_with($sermon->thumbnail_file_path, 'private/')
             ? 'local'
@@ -172,7 +175,7 @@ class SermonAssetController extends Controller
             abort(404, 'Card thumbnail not found.');
         }
 
-        $this->abortOnUnsafePath($cardThumbnailPath, 'thumbnail');
+        $this->abortIfUnsafe($cardThumbnailPath, 'thumbnail');
 
         $disk = str_starts_with($cardThumbnailPath, 'private/')
             ? 'local'
@@ -281,13 +284,6 @@ class SermonAssetController extends Controller
         }
 
         return null;
-    }
-
-    private function abortOnUnsafePath(string $path, string $type): void
-    {
-        if (str_contains($path, '..') || str_starts_with($path, '/') || str_starts_with($path, '\\')) {
-            abort(404, "Invalid {$type} file path.");
-        }
     }
 
     private function videoContentType(string $name): string
