@@ -11,6 +11,7 @@
     'video' => null,
     'author' => null,
     'publishedTime' => null,
+    'modifiedTime' => null,
     'section' => null,
     'tags' => null,
     'label1' => null,
@@ -57,6 +58,9 @@
 @endif
 @if($publishedTime)
 <meta property="article:published_time" content="{{ $publishedTime }}">
+@endif
+@if($modifiedTime)
+<meta property="article:modified_time" content="{{ $modifiedTime }}">
 @endif
 @if($section)
 <meta property="article:section" content="{{ $section }}">
