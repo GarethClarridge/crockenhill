@@ -261,6 +261,12 @@ class SermonViewPresenter
 
     public function preacherUrl(Sermon $sermon): ?string
     {
+        // 1. Prioritize loaded relations for absolute accuracy and speed
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            return route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
+        }
+
+        // 2. Identify the preacher to enable cross-sermon memoization
         $identityKey = $sermon->preacher_id !== null
             ? "id_{$sermon->preacher_id}"
             : (string) $sermon->preacher;
@@ -271,27 +277,22 @@ class SermonViewPresenter
 
         $memoKey = "preacher_url_{$identityKey}";
 
-        /**
-         * Performance Optimization: Always prioritize the loaded relation as the
-         * absolute source of truth. If loaded, we return it and update the memo
-         * so other sermons with the same preacher can benefit from the real slug.
-         */
-        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-            return $this->memoizedUrls[$memoKey] = route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
-        }
-
+        // 3. Check if we've already resolved this preacher's URL in this request
         if (isset($this->memoizedUrls[$memoKey])) {
             return $this->memoizedUrls[$memoKey] === self::MEMO_NULL ? null : $this->memoizedUrls[$memoKey];
         }
 
-        // Fall back to the unloaded path: resolve fallback URL and memoize
+        // 4. Fall back to resolving the URL via display name and slugging
         $preacherName = $this->displayPreacherName($sermon);
 
         $url = filled($preacherName)
             ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
             : null;
 
-        return $this->memoizedUrls[$memoKey] = $url ?? self::MEMO_NULL;
+        // 5. Memoize the result (including nulls) and return
+        $this->memoizedUrls[$memoKey] = $url ?? self::MEMO_NULL;
+
+        return $url;
     }
 
     /**
