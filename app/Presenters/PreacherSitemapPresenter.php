@@ -9,10 +9,6 @@ use Spatie\Sitemap\Tags\Url;
 
 class PreacherSitemapPresenter
 {
-    public function __construct(
-        private readonly SermonViewPresenter $sermonViewPresenter,
-    ) {}
-
     /**
      * Convert a preacher to a sitemap tag.
      *
@@ -33,7 +29,7 @@ class PreacherSitemapPresenter
         if (! $imageUrl && $preacher->relationLoaded('sermons')) {
             $latestSermon = $preacher->sermons->first();
             if ($latestSermon) {
-                $imageUrl = $this->sermonViewPresenter->thumbnailUrl($latestSermon);
+                $imageUrl = app(SermonViewPresenter::class)->thumbnailUrl($latestSermon);
             }
         }
 
