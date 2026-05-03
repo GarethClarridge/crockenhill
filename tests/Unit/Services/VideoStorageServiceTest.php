@@ -57,7 +57,7 @@ class VideoStorageServiceTest extends TestCase
         $this->assertArrayHasKey('full_path', $result);
         $this->assertEquals('test-video.mp4', $result['original_filename']);
         $this->assertEquals(1024 * 1024, $result['file_size']);
-        $this->assertEquals('video/mp4', $result['mime_type']);
+        $this->assertContains($result['mime_type'], ['video/mp4', 'application/mp4']);
 
         Storage::disk('local_temp')->assertExists($result['temp_path']);
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Traits\HandlesSafePaths;
 use App\Models\Sermon;
 use Exception;
 use Illuminate\Support\Facades\Cache;
@@ -14,6 +15,8 @@ use LogicException;
 
 class SermonStorageService
 {
+    use HandlesSafePaths;
+
     private const STATS_CHUNK_SIZE = 100;
 
     private string $legacyDisk;
@@ -611,8 +614,8 @@ class SermonStorageService
 
     private function validatePath(?string $path, string $type): void
     {
-        if (is_string($path) && str_contains($path, '..')) {
-            throw new InvalidArgumentException("Invalid {$type} path: Path traversal detected.");
+        if (is_string($path) && $this->isUnsafePath($path)) {
+            throw new InvalidArgumentException("Invalid {$type} path: Unsafe path detected.");
         }
     }
 

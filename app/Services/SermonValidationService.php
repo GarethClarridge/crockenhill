@@ -62,7 +62,7 @@ class SermonValidationService
             $filename = $metadata['original_filename'];
 
             // Check for potentially dangerous file patterns
-            if (str_contains($filename, '..') || str_contains($filename, '/') || str_contains($filename, '\\')) {
+            if (str_contains($filename, '..') || str_contains($filename, '/') || str_contains($filename, '\\') || str_contains($filename, '://')) {
                 $errors[] = 'Filename contains invalid characters';
             }
 
