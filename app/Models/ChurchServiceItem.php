@@ -8,6 +8,7 @@ use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionType;
 use Database\Factories\ChurchServiceItemFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -76,12 +77,70 @@ class ChurchServiceItem extends Model
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
+            'church_service_id' => 'integer',
             'position' => 'integer',
             'section_type' => ServiceSectionType::class,
             'source' => ChurchServiceItemSource::class,
             'song_id' => 'integer',
             'metadata' => 'array',
         ];
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function title(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function type(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function sourceTitle(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function openlpSearchTitle(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
     }
 
     /**
@@ -111,7 +170,11 @@ class ChurchServiceItem extends Model
             'type' => ['required', 'string', 'max:50'],
             'section_type' => ['nullable', Rule::enum(ServiceSectionType::class)],
             'source' => ['nullable', Rule::enum(ChurchServiceItemSource::class)],
+            'source_title' => ['nullable', 'string', 'max:255'],
+            'openlp_search_title' => ['nullable', 'string', 'max:255'],
             'song_id' => ['nullable', 'integer', 'exists:songs,id'],
+            'livestream_processing_id' => ['nullable', 'string', 'max:36'],
+            'livestream_service_section_id' => ['nullable', 'integer', 'exists:service_sections,id'],
         ];
     }
 
