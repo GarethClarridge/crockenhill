@@ -261,6 +261,11 @@ class SermonViewPresenter
 
     public function preacherUrl(Sermon $sermon): ?string
     {
+        // If the relation is explicitly loaded, always use it as the source of truth
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            return route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
+        }
+
         /**
          * Performance Optimization: Memoizes preacher URL lookup by identity
          * (profile ID or name string) instead of sermon ID. This avoids
@@ -281,17 +286,12 @@ class SermonViewPresenter
             return $this->memoizedUrls[$memoKey] === self::MEMO_NULL ? null : $this->memoizedUrls[$memoKey];
         }
 
-        // If the relation is explicitly loaded, always use it as the source of truth
-        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-            $url = route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
-        } else {
-            // Fall back to the unloaded path: derive URL from displayPreacherName
-            $preacherName = $this->displayPreacherName($sermon);
+        // Fall back to the unloaded path: derive URL from displayPreacherName
+        $preacherName = $this->displayPreacherName($sermon);
 
-            $url = filled($preacherName)
-                ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
-                : null;
-        }
+        $url = filled($preacherName)
+            ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
+            : null;
 
         $this->memoizedUrls[$memoKey] = $url ?? self::MEMO_NULL;
 
