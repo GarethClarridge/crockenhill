@@ -8,12 +8,13 @@
 <x-meta-tags
     :title="$heading"
     :description="$description"
-    :image="$preacher->profile_image_url"
+    :image="$share_image"
+    :image-alt="'Preacher: ' . $preacher->name"
 />
 <x-schema.webpage
     :heading="$heading"
     :description="$description"
-    :image="$preacher->profile_image_url"
+    :image="$share_image"
 />
 
 <x-schema.person :$preacher />

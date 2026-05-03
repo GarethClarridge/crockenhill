@@ -14,6 +14,7 @@ use App\Presenters\PageSitemapPresenter;
 use App\Presenters\PreacherSitemapPresenter;
 use App\Presenters\SermonSitemapPresenter;
 use App\Repositories\SermonRepository;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -119,7 +120,7 @@ class SitemapService
     /**
      * Add dynamic sermon URLs to the sitemap.
      */
-    private function addSermons(Sitemap $sitemap, \Illuminate\Support\Carbon $now): void
+    private function addSermons(Sitemap $sitemap, Carbon $now): void
     {
         /**
          * Performance Optimization: Use lazy() to iterate through models one by one,
@@ -181,6 +182,9 @@ class SitemapService
     {
         $preachers = Preacher::active()
             ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
+            ->with([
+                'sermons' => fn ($query) => $query->whereSermon()->orderBy('date', 'desc')->limit(1),
+            ])
             ->lazy();
 
         $sitemap->add($preachers->map(fn (Preacher $preacher): Url|string|array => $this->preacherSitemapPresenter->toSitemapTag($preacher)));

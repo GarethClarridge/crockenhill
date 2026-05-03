@@ -11,6 +11,8 @@ $variants = [
     'danger'  => 'bg-red-50 text-red-700 ring-red-600/20',
     'info'    => 'bg-blue-50 text-blue-700 ring-blue-600/20',
     'teal'    => 'bg-cbc-teal/10 text-cbc-teal ring-cbc-teal/20',
+    'sky'     => 'bg-sky-50 text-sky-700 ring-sky-600/20',
+    'amber'   => 'bg-amber-50 text-amber-700 ring-amber-600/20',
 ];
 
 $sizes = [
