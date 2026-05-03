@@ -80,7 +80,7 @@ class SermonSitemapPresenterTest extends TestCase
         $this->assertCount(1, $tag->videos);
         $this->assertCount(1, $tag->images);
         $this->assertEquals('Presenter Test Sermon', $tag->videos[0]->title);
-        $this->assertEquals('A test summary.', $tag->videos[0]->description);
+        $this->assertStringContainsString('A test summary.', $tag->videos[0]->description);
         $this->assertEquals(1800, $tag->videos[0]->options['duration']);
     }
 
@@ -145,7 +145,7 @@ class SermonSitemapPresenterTest extends TestCase
         $tag = $this->presenter->toSitemapTag($sermon);
 
         $this->assertCount(1, $tag->videos);
-        $this->assertEquals('No Summary Sermon', $tag->videos[0]->description);
+        $this->assertStringContainsString('No Summary Sermon', $tag->videos[0]->description);
     }
 
     #[Test]

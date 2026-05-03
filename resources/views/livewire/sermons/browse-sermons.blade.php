@@ -1,4 +1,18 @@
 <div class="pb-12">
+    @push('title'){{ $this->seoTitle }}@endpush
+    @push('meta_description'){{ $this->seoDescription }}@endpush
+    @push('canonical')<link rel="canonical" href="{{ $this->seoCanonical }}">@endpush
+
+    @push('meta_tags')
+    <x-meta-tags
+        :title="$this->seoTitle"
+        :description="$this->seoDescription"
+        :canonical="$this->seoCanonical"
+        :image="asset('/images/headings/large/sermons.webp')"
+        image-alt="Sermons at Crockenhill Baptist Church"
+    />
+    @endpush
+
     <a href="#sermon-results" @click.prevent="document.getElementById('sermon-results').focus()" class="sr-only focus:not-sr-only focus:absolute focus:z-30 focus:m-4 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-cbc-teal-dark focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-cbc-teal">
         Skip to results
     </a>

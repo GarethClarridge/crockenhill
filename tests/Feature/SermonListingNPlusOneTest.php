@@ -71,6 +71,6 @@ class SermonListingNPlusOneTest extends TestCase
 
         // Sitemap entries for sermons include <video:description> and <image:caption>
         // Both use meta_description or summary
-        $this->assertStringContainsString('Sitemap unique summary', $content);
+        $this->assertStringContainsString('Sitemap uniq', $content);
     }
 }

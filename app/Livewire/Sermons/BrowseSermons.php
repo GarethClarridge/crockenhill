@@ -194,6 +194,91 @@ class BrowseSermons extends Component
         );
     }
 
+    #[Computed]
+    public function seoTitle(): string
+    {
+        $parts = [];
+        $labels = $this->activeFilterLabels($this->preacherOptions, $this->seriesOptions);
+
+        if (isset($labels['book'])) {
+            $parts[] = 'on '.$labels['book'];
+        }
+
+        if (isset($labels['preacher'])) {
+            $parts[] = 'by '.$labels['preacher'];
+        }
+
+        if (isset($labels['series'])) {
+            $parts[] = 'in '.$labels['series'];
+        }
+
+        if (empty($parts)) {
+            return 'Sermon Archive';
+        }
+
+        return 'Sermons '.implode(' ', $parts);
+    }
+
+    #[Computed]
+    public function seoDescription(): string
+    {
+        $labels = $this->activeFilterLabels($this->preacherOptions, $this->seriesOptions);
+        $description = 'Browse our sermon archive';
+
+        if (isset($labels['book'])) {
+            $description .= ' covering '.$labels['book'];
+        }
+
+        if (isset($labels['preacher'])) {
+            $description .= ' preached by '.$labels['preacher'];
+        }
+
+        if (isset($labels['series'])) {
+            $description .= ' from the '.$labels['series'].' series';
+        }
+
+        $description .= '.';
+
+        return $description;
+    }
+
+    #[Computed]
+    public function seoCanonical(): string
+    {
+        // Handle specific preacher or series archives as "clean" canonicals if they are the only filter
+        if ($this->preacherFilter !== null && $this->bookFilter === null && $this->seriesFilter === null) {
+            $preacher = Preacher::find($this->preacherFilter);
+            if ($preacher) {
+                return route('sermons.preacher', ['preacher' => $preacher->slug]);
+            }
+        }
+
+        if ($this->seriesFilter !== null && $this->bookFilter === null && $this->preacherFilter === null) {
+            return route('sermons.series.show', ['series' => \Illuminate\Support\Str::slug($this->seriesFilter)]);
+        }
+
+        $params = [];
+        if ($this->bookFilter) {
+            $params['book'] = $this->bookFilter;
+        }
+        if ($this->chapterFilter) {
+            $params['chapter'] = $this->chapterFilter;
+        }
+        if ($this->preacherFilter) {
+            $params['preacher'] = $this->preacherFilter;
+        }
+        if ($this->seriesFilter) {
+            $params['series'] = $this->seriesFilter;
+        }
+
+        $page = $this->getPage();
+        if ($page > 1) {
+            $params['page'] = $page;
+        }
+
+        return route('sermons.index', $params);
+    }
+
     /**
      * @return LengthAwarePaginator<int, Sermon>
      */

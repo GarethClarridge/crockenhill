@@ -50,6 +50,7 @@ class SitemapService
         $this->addMeetings($sitemap);
         $this->addPreachers($sitemap);
         $this->addSeries($sitemap);
+        $this->addBibleBooks($sitemap);
 
         $sitemap->writeToFile($sitemapPath);
 
@@ -112,6 +113,20 @@ class SitemapService
                 Url::create('/christ/childrens-corner')
                     ->setPriority(0.7)
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+            );
+        }
+    }
+
+    /**
+     * Add Bible book filter URLs to the sitemap.
+     */
+    private function addBibleBooks(Sitemap $sitemap): void
+    {
+        foreach ($this->sermonRepository->getScriptureBooks() as $book) {
+            $sitemap->add(
+                Url::create('/christ/sermons?book='.urlencode($book))
+                    ->setPriority(0.6)
+                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
             );
         }
     }

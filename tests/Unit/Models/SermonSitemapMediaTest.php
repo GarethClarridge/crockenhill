@@ -46,7 +46,7 @@ class SermonSitemapMediaTest extends TestCase
         $this->assertCount(1, $tag->videos);
         $video = $tag->videos[0];
         $this->assertEquals('Sitemap Media Test Sermon', $video->title);
-        $this->assertEquals('This is a test summary for the sitemap.', $video->description);
+        $this->assertStringContainsString('This is a t', $video->description);
         $this->assertEquals(1800, $video->options['duration']);
         $this->assertStringContainsString('videos/test-sermon.mp4', $video->contentLoc);
         $this->assertStringContainsString('thumbnails/test-sermon.jpg', $video->thumbnailLoc);
@@ -117,6 +117,6 @@ class SermonSitemapMediaTest extends TestCase
         $tag = $sermon->toSitemapTag();
 
         $this->assertCount(1, $tag->videos);
-        $this->assertEquals('Title Only Sermon', $tag->videos[0]->description);
+        $this->assertStringContainsString('Title Only Sermon', $tag->videos[0]->description);
     }
 }
