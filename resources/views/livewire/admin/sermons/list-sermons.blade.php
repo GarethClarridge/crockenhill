@@ -62,9 +62,9 @@
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ Str::limit($sermon->title, 50) }}</p>
                         <p class="mt-2">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk ? 'bg-sky-100 text-sky-800' : 'bg-gray-100 text-gray-700' }}">
+                            <x-badge :variant="$sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk ? 'sky' : 'default'" size="xs">
                                 {{ $sermon->content_type->label() }}
-                            </span>
+                            </x-badge>
                         </p>
                         @if($sermonViewPresenter->displayReference($sermon))
                             <p class="text-sm text-gray-500">{{ $sermonViewPresenter->displayReference($sermon) }}</p>
@@ -72,17 +72,19 @@
                     </td>
                     {{-- Date --}}
                     <td class="px-4 py-3">
-                        <span>{{ $sermon->date->format('j M Y') }}</span>
+                        <time datetime="{{ $sermon->date->toDateString() }}" class="text-sm">
+                            {{ $sermon->date->format('j M Y') }}
+                        </time>
                     </td>
                     {{-- Service --}}
                     <td class="px-4 py-3">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ match($sermon->service) {
-                            \App\Enums\SermonService::Morning => 'bg-green-100 text-green-800',
-                            \App\Enums\SermonService::Evening => 'bg-amber-100 text-amber-800',
-                            default => 'bg-gray-100 text-gray-800',
-                        } }}">
+                        <x-badge :variant="match($sermon->service) {
+                            \App\Enums\SermonService::Morning => 'success',
+                            \App\Enums\SermonService::Evening => 'amber',
+                            default => 'default',
+                        }" size="xs">
                             {{ $sermon->service->label() }}
-                        </span>
+                        </x-badge>
                     </td>
                     {{-- Preacher --}}
                     <td class="px-4 py-3">
@@ -92,7 +94,9 @@
                             <span class="text-sm text-gray-300">-</span>
                         @endif
                         @if($sermon->needs_preacher_review)
-                            <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Review</span>
+                            <x-badge variant="warning" size="xs" class="ml-1">
+                                Review
+                            </x-badge>
                         @endif
                     </td>
                     {{-- Series --}}
@@ -122,6 +126,7 @@
                             <x-button link="{{ route('admin.sermons.edit', $sermon) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
                             <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                 wire:click="delete({{ $sermon->id }})"
+                                wire:target="delete({{ $sermon->id }})"
                                 wire:confirm="Delete this {{ strtolower($sermon->content_type->label()) }}?"
                                 aria-label="Delete {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
                         </div>

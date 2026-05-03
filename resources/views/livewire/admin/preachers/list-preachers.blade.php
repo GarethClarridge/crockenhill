@@ -53,9 +53,9 @@
                     {{-- Status --}}
                     <td class="px-4 py-3">
                         @if($preacher->is_active)
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>
+                            <x-badge variant="success" size="xs">Active</x-badge>
                         @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Inactive</span>
+                            <x-badge variant="default" size="xs">Inactive</x-badge>
                         @endif
                     </td>
                     {{-- Actions --}}
@@ -65,6 +65,7 @@
                             <x-button link="{{ route('admin.preachers.edit', $preacher) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit preacher: {{ $preacher->name }}" />
                             <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                 wire:click="delete({{ $preacher->id }})"
+                                wire:target="delete({{ $preacher->id }})"
                                 wire:confirm="Delete '{{ $preacher->name }}'? This will unlink their sermons."
                                 aria-label="Delete preacher: {{ $preacher->name }}" />
                         </div>
