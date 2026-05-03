@@ -127,7 +127,7 @@ $hasPublicVideo = filled($sermonView['video_url']);
             <h2 class="font-display text-xl text-gray-900">Sermon Outline</h2>
           </div>
           <x-clipboard-button
-            :content="app(\App\Presenters\SermonViewPresenter::class)->plainTextOutline($sermon)"
+            :content="$sermonView['plain_text_outline']"
             hideLabel
             label="Copy Outline"
             title="Copy outline to clipboard"

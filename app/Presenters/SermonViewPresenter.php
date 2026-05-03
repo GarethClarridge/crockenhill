@@ -189,28 +189,40 @@ class SermonViewPresenter
      */
     public function plainTextOutline(Sermon $sermon): ?string
     {
-        if (! $sermon->points || ! is_array($sermon->points)) {
+        $points = $sermon->points;
+
+        if (! is_array($points) || $points === []) {
             return null;
         }
 
         $outline = '';
-        foreach ($sermon->points as $index => $pointItem) {
-            $prefix = ($index + 1).'. ';
+        $counter = 1;
+
+        foreach ($sermon->points as $pointItem) {
+            $mainText = '';
+            $subLines = [];
+
             if (is_array($pointItem)) {
-                $mainPointText = (isset($pointItem['point']) && is_scalar($pointItem['point'])) ? (string) $pointItem['point'] : null;
-                $subPointsArray = (isset($pointItem['sub_points']) && is_array($pointItem['sub_points'])) ? $pointItem['sub_points'] : [];
+                $mainText = (isset($pointItem['point']) && is_scalar($pointItem['point'])) ? trim((string) $pointItem['point']) : '';
+                $subPoints = (isset($pointItem['sub_points']) && is_array($pointItem['sub_points'])) ? $pointItem['sub_points'] : [];
 
-                if (! empty($mainPointText)) {
-                    $outline .= $prefix.$mainPointText."\n";
-                }
-
-                foreach ($subPointsArray as $subPoint) {
-                    if (is_scalar($subPoint)) {
-                        $outline .= '   - '.(string) $subPoint."\n";
+                foreach ($subPoints as $subPoint) {
+                    if (is_scalar($subPoint) && filled($subPoint)) {
+                        $subLines[] = '   - '.trim((string) $subPoint);
                     }
                 }
             } elseif (is_scalar($pointItem)) {
-                $outline .= $prefix.(string) $pointItem."\n";
+                $mainText = trim((string) $pointItem);
+            }
+
+            if ($mainText !== '' || count($subLines) > 0) {
+                $outline .= "{$counter}. ".($mainText !== '' ? $mainText : '(Untitled point)')."\n";
+
+                foreach ($subLines as $subLine) {
+                    $outline .= "{$subLine}\n";
+                }
+
+                $counter++;
             }
         }
 
@@ -437,6 +449,7 @@ class SermonViewPresenter
      *     thumbnail_url: ?string,
      *     transcript: ?string,
      *     transcript_url: ?string,
+     *     plain_text_outline: ?string,
      *     video_url: ?string
      * }
      */
@@ -445,13 +458,16 @@ class SermonViewPresenter
         $key = $this->cacheKey($sermon, 'full_present');
 
         if (isset($this->memoizedPresents[$key])) {
-            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, video_url: ?string} */
+            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, plain_text_outline: ?string, video_url: ?string} */
             return $this->memoizedPresents[$key];
         }
 
         return $this->memoizedPresents[$key] = array_merge(
             $this->presentForList($sermon),
-            ['transcript' => $this->transcriptReader->read($sermon)]
+            [
+                'transcript' => $this->transcriptReader->read($sermon),
+                'plain_text_outline' => $this->plainTextOutline($sermon),
+            ]
         );
     }
 
