@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -72,7 +73,7 @@ class Song extends Model
     public static function validationRules(?self $song = null): array
     {
         $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
-        $uniqueSlug = \Illuminate\Validation\Rule::unique('songs', 'slug');
+        $uniqueSlug = Rule::unique('songs', 'slug');
 
         if ($song) {
             $uniqueSlug->ignore($song->id);
