@@ -29,6 +29,20 @@ trait HandlesSafePaths
     }
 
     /**
+     * Determine if a filename is unsafe.
+     *
+     * Stricter than isUnsafePath: it also forbids directory separators
+     * anywhere in the string.
+     */
+    public function isUnsafeFilename(string $filename): bool
+    {
+        return str_contains($filename, '..')
+            || str_contains($filename, '/')
+            || str_contains($filename, '\\')
+            || str_contains($filename, '://');
+    }
+
+    /**
      * Abort the request with a 404 if the path is unsafe.
      *
      * @param  string  $path  The path to validate

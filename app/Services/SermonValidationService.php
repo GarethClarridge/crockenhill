@@ -66,7 +66,7 @@ class SermonValidationService
             $filename = $metadata['original_filename'];
 
             // Check for potentially dangerous file patterns
-            if ($this->isUnsafePath($filename)) {
+            if ($this->isUnsafeFilename($filename)) {
                 $errors[] = 'Filename contains invalid characters';
             }
 
