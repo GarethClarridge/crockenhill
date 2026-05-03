@@ -18,7 +18,7 @@ class RobustPathProtectionTest extends TestCase
     #[Test]
     public function it_blocks_unsafe_paths_in_sermon_assets(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->crockenhillAdmin()->create();
         $sermon = Sermon::factory()->create([
             'audio_file_path' => '../../etc/passwd',
             'video_file_path' => '/absolute/path/to/secret',
@@ -50,7 +50,7 @@ class RobustPathProtectionTest extends TestCase
     #[Test]
     public function it_blocks_unsafe_paths_in_thumbnail_candidates(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->crockenhillAdmin()->create();
         $sermon = Sermon::factory()->create([
             'thumbnail_metadata' => [
                 'selected_candidate_id' => 'candidate-1',
@@ -77,7 +77,7 @@ class RobustPathProtectionTest extends TestCase
     #[Test]
     public function it_blocks_unsafe_paths_in_service_section_candidates(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->crockenhillAdmin()->create();
         $section = ServiceSection::factory()->create([
             'extracted_audio_path' => 'ftp://malicious.com/audio.mp3',
             'extracted_video_path' => '\\\\network\\share\\video.mp4',
@@ -102,7 +102,7 @@ class RobustPathProtectionTest extends TestCase
         $this->get(route('sermons.transcript', $sermon))->assertStatus(404);
 
         // Admin should have access (if it exists, but here we just check it doesn't 404 on auth)
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->crockenhillAdmin()->create();
         $this->actingAs($admin);
         $this->get(route('sermons.transcript', $sermon))->assertStatus(404); // Still 404 because file doesn't exist, but it passed auth matches
     }
