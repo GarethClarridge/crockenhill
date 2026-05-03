@@ -40,6 +40,12 @@ class SermonAssetController extends Controller
             return $authorizationResponse;
         }
 
+        if (! $sermon->transcript_file_path) {
+            abort(404, 'Transcript not found.');
+        }
+
+        $this->abortIfUnsafe($sermon->transcript_file_path, 'transcript');
+
         $transcript = $this->transcriptReader->read($sermon);
 
         if ($transcript === null || trim($transcript) === '') {
@@ -260,6 +266,7 @@ class SermonAssetController extends Controller
             'video' => $sermon->video_file_path,
             'thumbnail' => $sermon->thumbnail_file_path,
             'card_thumbnail' => $sermon->card_thumbnail_file_path,
+            'transcript' => $sermon->transcript_file_path,
             default => null,
         };
 
