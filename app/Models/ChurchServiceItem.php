@@ -80,6 +80,37 @@ class ChurchServiceItem extends Model
         ];
     }
 
+    /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(?self $item = null, ?int $churchServiceId = null): array
+    {
+        $positionRule = ['required', 'integer', 'min:1'];
+        $uniquePosition = \Illuminate\Validation\Rule::unique('church_service_items', 'position')
+            ->whereNull('deleted_at');
+
+        if ($item) {
+            $uniquePosition->ignore($item->id);
+            $churchServiceId ??= $item->church_service_id;
+        }
+
+        if ($churchServiceId) {
+            $uniquePosition->where('church_service_id', $churchServiceId);
+        }
+
+        $positionRule[] = $uniquePosition;
+
+        return [
+            'church_service_id' => ['required', 'integer', 'exists:church_services,id'],
+            'position' => $positionRule,
+            'title' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'string', 'max:50'],
+            'section_type' => ['nullable', \Illuminate\Validation\Rule::enum(ServiceSectionType::class)],
+            'source' => ['nullable', \Illuminate\Validation\Rule::enum(ChurchServiceItemSource::class)],
+            'song_id' => ['nullable', 'integer', 'exists:songs,id'],
+        ];
+    }
+
     public function semanticSectionType(): ServiceSectionType
     {
         if ($this->section_type instanceof ServiceSectionType) {
