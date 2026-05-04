@@ -213,7 +213,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 ['model' => 'gpt-4o-transcribe']
             );
 
-            $transcript = $response->text ?? '';
+            $transcript = $response->text;
 
             if (empty($transcript)) {
                 throw new TranscriptionException('Received empty transcript from OpenAI API');

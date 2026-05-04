@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Presenters;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonService;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\Preacher;
@@ -52,6 +53,41 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->make(['duration' => 2700]); // 45 minutes
 
         $this->assertSame('PT45M', $this->presenter->durationIso8601($sermon));
+    }
+
+    #[Test]
+    public function plain_text_outline_returns_null_when_points_are_missing(): void
+    {
+        $sermon = Sermon::factory()->make(['points' => null]);
+
+        $this->assertNull($this->presenter->plainTextOutline($sermon));
+    }
+
+    #[Test]
+    public function plain_text_outline_formats_structured_points(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'points' => [
+                [
+                    'point' => 'First point',
+                    'sub_points' => ['First sub point'],
+                ],
+                'Second point',
+            ],
+        ]);
+
+        $this->assertSame(
+            "1. First point\n   - First sub point\n2. Second point",
+            $this->presenter->plainTextOutline($sermon),
+        );
+    }
+
+    #[Test]
+    public function service_label_uses_the_sermon_service_enum_label(): void
+    {
+        $sermon = Sermon::factory()->make(['service' => SermonService::Morning]);
+
+        $this->assertSame('Morning', $this->presenter->serviceLabel($sermon));
     }
 
     #[Test]

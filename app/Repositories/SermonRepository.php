@@ -7,9 +7,9 @@ namespace App\Repositories;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
-use App\Services\SermonScriptureFilterIndexService;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
+use App\Services\SermonScriptureFilterIndexService;
 use App\Support\BibleCanon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -111,6 +111,7 @@ class SermonRepository
                 ->orderBy('date', 'desc')
                 ->orderBy('service', 'asc')
                 ->get()
+                ->toBase()
                 ->groupBy(function (Sermon $sermon): string {
                     return $sermon->date->format('Y-m-d');
                 });

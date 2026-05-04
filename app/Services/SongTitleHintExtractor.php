@@ -49,8 +49,34 @@ class SongTitleHintExtractor
      * Extracts a title hint from the speech section's transcript and writes it into
      * the following audio-only song section's metadata as `song_title_hint`.
      *
-     * @param  array<int, mixed>  $sections  Rewritten section payloads from ClassifySpeechSections
-     * @return array<int, mixed> Sections with `song_title_hint` written into matching audio-only song sections
+     * @param  array<int, array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     confidence: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }>  $sections  Rewritten section payloads from ClassifySpeechSections
+     * @return array<int, array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     confidence: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }> Sections with `song_title_hint` written into matching audio-only song sections
      */
     public function extract(array $sections): array
     {

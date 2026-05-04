@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Presenters;
 
-use App\Enums\SermonService;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Services\SermonExposurePolicy;
@@ -205,7 +204,7 @@ class SermonViewPresenter
         $outline = '';
         $counter = 1;
 
-        foreach ($sermon->points as $pointItem) {
+        foreach ($points as $pointItem) {
             $mainText = '';
             $subLines = [];
 
@@ -401,14 +400,9 @@ class SermonViewPresenter
         }
 
         $service = $sermon->service;
+        $serviceKey = "enum_{$service->value}";
 
-        $serviceKey = $service instanceof \App\Enums\SermonService
-            ? "enum_{$service->value}"
-            : "raw_{$service}";
-
-        return $this->memoizedServiceLabels[$serviceKey] ??= ($service instanceof \App\Enums\SermonService
-            ? $service->label()
-            : Str::title((string) $service));
+        return $this->memoizedServiceLabels[$serviceKey] ??= $service->label();
     }
 
     /**

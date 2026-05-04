@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\SermonContentType;
-use App\Traits\HandlesSafePaths;
 use App\Models\Sermon;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;
+use App\Traits\HandlesSafePaths;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -273,9 +273,8 @@ class SermonAssetController extends Controller
 
         if ($path !== null && str_starts_with($path, 'private/')) {
             $isChildrensTalk = $sermon->content_type === SermonContentType::ChildrensTalk;
-            $canAccessChildrensTalk = $isChildrensTalk && $this->exposurePolicy->canAccessChildrensCorner($user);
 
-            if (! $canAccessChildrensTalk) {
+            if (! $isChildrensTalk) {
                 abort(404, 'Asset not available.');
             }
         }

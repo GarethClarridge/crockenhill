@@ -186,7 +186,7 @@ class OpenLpLyricsParser
         }
 
         $rawTokens = preg_split('/[\s,;]+/u', $verseOrder);
-        if (! is_array($rawTokens) || $rawTokens === []) {
+        if (! is_array($rawTokens)) {
             return [];
         }
 
