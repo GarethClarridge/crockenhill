@@ -84,8 +84,7 @@ class CalendarService
             'meeting_slug' => $meetingSlug,
         ]);
 
-        $googleSynced = $event->google_event_id !== null
-            && $this->googleSync->syncCategorizationToGoogle($event->google_event_id, $meetingSlug);
+        $googleSynced = $this->googleSync->syncCategorizationToGoogle($event->google_event_id, $meetingSlug);
 
         return new CalendarCategorizationResult($event, $googleSynced);
     }
@@ -105,8 +104,7 @@ class CalendarService
             'event_title' => $event->title,
         ]);
 
-        $googleSynced = $event->google_event_id !== null
-            && $this->googleSync->removeCategorizationFromGoogle($event->google_event_id);
+        $googleSynced = $this->googleSync->removeCategorizationFromGoogle($event->google_event_id);
 
         return new CalendarCategorizationResult($event, $googleSynced);
     }

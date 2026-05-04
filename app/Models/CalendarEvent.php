@@ -7,14 +7,16 @@ namespace App\Models;
 use App\Enums\CalendarEventStatus;
 use Database\Factories\CalendarEventFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
- * @property string|null $google_event_id
+ * @property string $google_event_id
  * @property string|null $meeting_slug
  * @property string $title
  * @property string|null $description
@@ -62,15 +64,61 @@ class CalendarEvent extends Model
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return Attribute<string, string>
+     */
+    protected function googleEventId(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function title(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function speaker(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function location(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
+        );
+    }
+
+    /**
+     * @return array<string, list<string|mixed>>
      */
     public static function validationRules(): array
     {
         return [
+            'google_event_id' => ['required', 'string', 'max:255'],
+            'meeting_slug' => ['nullable', 'string', 'max:255', 'exists:meetings,slug'],
             'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
             'speaker' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
-            'status' => ['required', 'string', 'in:'.implode(',', CalendarEventStatus::values())],
+            'start_datetime' => ['required', 'date'],
+            'end_datetime' => ['required', 'date', 'after_or_equal:start_datetime'],
+            'status' => ['required', Rule::enum(CalendarEventStatus::class)],
+            'is_categorized_automatically' => ['nullable', 'boolean'],
         ];
     }
 
