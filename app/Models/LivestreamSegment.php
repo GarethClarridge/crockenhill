@@ -251,7 +251,7 @@ class LivestreamSegment extends Model
 
     public static function getLongestSpeechSegment(int $processingLogId): ?self
     {
-        return static::where('media_processing_log_id', $processingLogId)
+        return static::query()->where('media_processing_log_id', $processingLogId)
             ->speech()
             ->orderByRaw('(end_time - start_time) DESC')
             ->first();
@@ -277,7 +277,7 @@ class LivestreamSegment extends Model
      */
     public static function getSegmentsSummary(int $processingLogId): array
     {
-        $segments = static::where('media_processing_log_id', $processingLogId)->get();
+        $segments = static::query()->where('media_processing_log_id', $processingLogId)->get();
 
         return [
             'total_segments' => $segments->count(),

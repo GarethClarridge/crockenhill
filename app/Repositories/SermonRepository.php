@@ -107,7 +107,8 @@ class SermonRepository
     public function getAllSermons(): Collection
     {
         return Cache::flexible('all_sermons', [86400, 172800], function (): Collection {
-            return $this->publicSermonQuery()
+            /** @var Collection<string, Collection<int, Sermon>> $grouped */
+            $grouped = $this->publicSermonQuery()
                 ->orderBy('date', 'desc')
                 ->orderBy('service', 'asc')
                 ->get()
@@ -115,6 +116,8 @@ class SermonRepository
                 ->groupBy(function (Sermon $sermon): string {
                     return $sermon->date->format('Y-m-d');
                 });
+
+            return $grouped;
         });
     }
 
@@ -260,7 +263,7 @@ class SermonRepository
         $counter = 1;
 
         // Ensure slug is unique
-        $query = Sermon::where('slug', $slug);
+        $query = Sermon::query()->where('slug', $slug);
         if ($excludeSermonId !== null) {
             $query->where('id', '!=', $excludeSermonId);
         }
@@ -268,7 +271,7 @@ class SermonRepository
         while ($query->clone()->exists()) {
             $slug = $baseSlug.'-'.$counter;
             $counter++;
-            $query = Sermon::where('slug', $slug);
+            $query = Sermon::query()->where('slug', $slug);
             if ($excludeSermonId !== null) {
                 $query->where('id', '!=', $excludeSermonId);
             }
