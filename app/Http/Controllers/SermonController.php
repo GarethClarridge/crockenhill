@@ -12,11 +12,13 @@ use App\Models\Sermon;
 use App\Presenters\PreacherItemListPresenter;
 use App\Presenters\RelatedPagePresenter;
 use App\Presenters\SeriesItemListPresenter;
+use App\Presenters\SermonArchiveSeoPresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
+use App\Support\BibleCanon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -30,6 +32,7 @@ class SermonController extends Controller
         private readonly SermonRepository $sermonRepository,
         private readonly SermonItemListPresenter $itemListPresenter,
         private readonly SermonViewPresenter $sermonViewPresenter,
+        private readonly SermonArchiveSeoPresenter $seoPresenter,
     ) {}
 
     /**
@@ -41,16 +44,26 @@ class SermonController extends Controller
      */
     public function index(Request $request): View
     {
-        $canonicalUrl = $request->filled('page')
-            ? route('sermons.index', ['page' => $request->integer('page')])
-            : route('sermons.index');
+        $bibleCanon = app(BibleCanon::class);
+        $filters = $this->sermonRepository->normalizeArchiveFilters(
+            $bibleCanon,
+            $request->query('book'),
+            $request->query('chapter'),
+            $request->query('preacher'),
+            $request->query('series'),
+        );
 
-        $recentSermons = $this->sermonRepository->getRecentSermonsForJsonLd();
+        $recentSermons = $this->sermonRepository->publicBrowseQuery(
+            book: $filters['book'],
+            chapter: $filters['chapter'],
+            preacherId: $filters['preacherId'],
+            series: $filters['series'],
+        )->limit(24)->get();
 
         return view('sermons.index', [
-            'heading' => 'Sermons',
-            'description' => 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.',
-            'canonical_url' => $canonicalUrl,
+            'heading' => $this->seoPresenter->title($filters),
+            'description' => $this->seoPresenter->description($filters),
+            'canonical_url' => $this->seoPresenter->canonical($filters, $request->integer('page', 1)),
             'json_ld_data' => $this->itemListPresenter->toItemList($recentSermons),
             'area' => 'christ',
             'links' => $this->sermonLinks('sermons'),
