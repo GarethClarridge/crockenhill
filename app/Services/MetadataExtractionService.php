@@ -796,6 +796,46 @@ class MetadataExtractionService
         }
     }
 
+    /**
+     * Extract explicitly embedded audio metadata from a filesystem path.
+     *
+     * @return array{title: string|null, preacher: string|null, series: string|null, reference: string|null, date: string|null, duration: float|null}
+     */
+    public function extractId3MetadataFromPath(string $filePath): array
+    {
+        try {
+            $track = new GetId3($filePath);
+            $rawInfo = $track->extractInfo();
+            $info = is_array($rawInfo) ? $rawInfo : [];
+            $comments = isset($info['comments']) && is_array($info['comments'])
+                ? $info['comments']
+                : [];
+
+            return [
+                'title' => $this->firstCommentValue($comments, 'title'),
+                'preacher' => $this->firstCommentValue($comments, 'artist'),
+                'series' => $this->firstCommentValue($comments, 'album'),
+                'reference' => $this->firstCommentValue($comments, 'comment'),
+                'date' => $this->firstCommentValue($comments, 'date') ?? $this->firstCommentValue($comments, 'year'),
+                'duration' => $this->extractDuration($info),
+            ];
+        } catch (\Exception $e) {
+            Log::warning('Failed to extract ID3 metadata from audio file path', [
+                'filepath' => $filePath,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'title' => null,
+                'preacher' => null,
+                'series' => null,
+                'reference' => null,
+                'date' => null,
+                'duration' => null,
+            ];
+        }
+    }
+
     private function toNullableFloat(mixed $value): ?float
     {
         if (is_numeric($value)) {
@@ -821,5 +861,27 @@ class MetadataExtractionService
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $comments
+     */
+    private function firstCommentValue(array $comments, string $key): ?string
+    {
+        $values = $comments[$key] ?? null;
+
+        if (! is_array($values)) {
+            return null;
+        }
+
+        $value = $values[0] ?? null;
+
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

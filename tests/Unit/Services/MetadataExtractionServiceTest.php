@@ -425,6 +425,36 @@ class MetadataExtractionServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_extracts_embedded_id3_metadata_from_a_file_path(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'id3-path-test-');
+
+        if ($path === false) {
+            self::fail('Failed to allocate a temporary audio file.');
+        }
+
+        file_put_contents($path, str_repeat("\xFF\xFB\x90\x00", 256).$this->id3v1Tag(
+            title: 'Embedded Title',
+            artist: 'Embedded Preacher',
+            album: 'Embedded Series',
+            year: '2004',
+            comment: 'Embedded Reference',
+        ));
+
+        try {
+            $metadata = $this->service->extractId3MetadataFromPath($path);
+        } finally {
+            @unlink($path);
+        }
+
+        $this->assertSame('Embedded Title', $metadata['title']);
+        $this->assertSame('Embedded Preacher', $metadata['preacher']);
+        $this->assertSame('Embedded Series', $metadata['series']);
+        $this->assertSame('Embedded Reference', $metadata['reference']);
+        $this->assertSame('2004', $metadata['date']);
+    }
+
+    #[Test]
     public function it_handles_edge_cases_gracefully(): void
     {
         // Empty filename
@@ -438,5 +468,21 @@ class MetadataExtractionServiceTest extends TestCase
         // Filename with multiple extensions
         $result = $this->service->extractDateFromFilename('2024-01-15.backup.mp3');
         $this->assertEquals('2024-01-15', $result->format('Y-m-d'));
+    }
+
+    private function id3v1Tag(string $title, string $artist, string $album, string $year, string $comment): string
+    {
+        return 'TAG'
+            .$this->id3v1Field($title, 30)
+            .$this->id3v1Field($artist, 30)
+            .$this->id3v1Field($album, 30)
+            .$this->id3v1Field($year, 4)
+            .$this->id3v1Field($comment, 30)
+            .chr(255);
+    }
+
+    private function id3v1Field(string $value, int $length): string
+    {
+        return str_pad(substr($value, 0, $length), $length, "\0");
     }
 }

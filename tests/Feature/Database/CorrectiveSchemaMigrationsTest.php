@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Database;
 
+use App\Models\Sermon;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,14 @@ class CorrectiveSchemaMigrationsTest extends TestCase
     {
         /** @var Migration $migration */
         $migration = require base_path('database/migrations/2026_02_26_221409_normalize_password_reset_tokens_email_key.php');
+
+        return $migration;
+    }
+
+    private function sermonAudioFilePathCheckMigration(): Migration
+    {
+        /** @var Migration $migration */
+        $migration = require base_path('database/migrations/2026_04_20_053821_add_audio_file_path_check_to_sermons_table.php');
 
         return $migration;
     }
@@ -85,6 +94,16 @@ class CorrectiveSchemaMigrationsTest extends TestCase
             ->exists();
     }
 
+    private function hasCheckConstraint(string $table, string $constraint): bool
+    {
+        return DB::table('information_schema.table_constraints')
+            ->whereRaw('table_schema = database()')
+            ->where('table_name', $table)
+            ->where('constraint_name', $constraint)
+            ->where('constraint_type', 'CHECK')
+            ->exists();
+    }
+
     #[Test]
     public function it_makes_meetings_location_nullable_when_schema_has_drifted(): void
     {
@@ -117,6 +136,31 @@ class CorrectiveSchemaMigrationsTest extends TestCase
 
         $this->assertFalse($this->hasPrimaryKeyOnEmail());
         $this->assertTrue(Schema::hasIndex('password_reset_tokens', 'password_reset_tokens_email_index'));
+    }
+
+    #[Test]
+    public function sermon_audio_file_path_check_migration_normalizes_blank_paths_before_adding_constraint(): void
+    {
+        if (! $this->isMySql()) {
+            $this->markTestSkipped('This drift simulation requires MySQL.');
+        }
+
+        $this->sermonAudioFilePathCheckMigration()->down();
+
+        $trimmedSermon = Sermon::factory()->create([
+            'audio_file_path' => ' sermons/archive/drifted.mp3 ',
+        ]);
+        $blankSermon = Sermon::factory()->create([
+            'audio_file_path' => '',
+        ]);
+
+        DB::statement('ALTER TABLE sermons MODIFY audio_file_path VARCHAR(255) NOT NULL');
+
+        $this->sermonAudioFilePathCheckMigration()->up();
+
+        $this->assertSame('sermons/archive/drifted.mp3', $trimmedSermon->fresh()->audio_file_path);
+        $this->assertNull($blankSermon->fresh()->audio_file_path);
+        $this->assertTrue($this->hasCheckConstraint('sermons', 'sermons_audio_file_path_format_check'));
     }
 
     #[Test]

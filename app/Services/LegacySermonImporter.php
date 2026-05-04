@@ -18,11 +18,12 @@ final class LegacySermonImporter
 {
     public function __construct(
         private readonly ProcessingRunOrchestrator $orchestrator,
+        private readonly MetadataExtractionService $metadataExtractionService,
     ) {}
 
     /**
      * @param  array<string, array<string, mixed>>  $csvIndex
-     * @param  \Closure(string $filename, string $result): void|null  $onProgress
+     * @param  \Closure(string $filename, string $result, list<array{field: string, csv: string, embedded: string}> $conflicts, string|null $message): void|null  $onProgress
      * @return array{imported: int, skipped: int, errors: int}
      */
     public function import(
@@ -39,15 +40,20 @@ final class LegacySermonImporter
 
         foreach ($this->discoverMp3Files($directory) as $absolutePath) {
             $filename = basename($absolutePath);
+            $conflicts = [];
+            $message = null;
 
             try {
-                $result = $this->importFile(
+                $fileResult = $this->importFile(
                     absolutePath: $absolutePath,
                     filename: $filename,
                     csvIndex: $csvIndex,
                     dryRun: $dryRun,
                     force: $force,
                 );
+
+                $result = $fileResult['result'];
+                $conflicts = $fileResult['conflicts'];
 
                 if ($result === 'skipped') {
                     $skipped++;
@@ -60,11 +66,12 @@ final class LegacySermonImporter
                     'error' => $e->getMessage(),
                 ]);
                 $result = 'error';
+                $message = $e->getMessage();
                 $errors++;
             }
 
             if ($onProgress !== null) {
-                $onProgress($filename, $result);
+                $onProgress($filename, $result, $conflicts, $message);
             }
 
             if (! $dryRun && $delay > 0) {
@@ -77,6 +84,7 @@ final class LegacySermonImporter
 
     /**
      * @param  array<string, array<string, mixed>>  $csvIndex
+     * @return array{result: string, conflicts: list<array{field: string, csv: string, embedded: string}>}
      */
     private function importFile(
         string $absolutePath,
@@ -84,7 +92,7 @@ final class LegacySermonImporter
         array $csvIndex,
         bool $dryRun,
         bool $force,
-    ): string {
+    ): array {
         $fileHash = hash_file('sha256', $absolutePath);
         $fileSize = filesize($absolutePath);
 
@@ -94,21 +102,30 @@ final class LegacySermonImporter
 
         if (! $force) {
             if ($this->isDuplicateByHash($fileHash)) {
-                return 'skipped';
+                return ['result' => 'skipped', 'conflicts' => []];
             }
 
             if ($this->isDuplicateByFilename($filename)) {
-                return 'skipped';
+                return ['result' => 'skipped', 'conflicts' => []];
             }
-        }
-
-        if ($dryRun) {
-            return 'imported';
         }
 
         $csvRow = $csvIndex[$this->normaliseTapeId($filename)] ?? null;
 
         $date = $this->extractDate($csvRow);
+
+        if ($date === null) {
+            throw new \RuntimeException("No valid historic date found for {$filename}. Check the Tape Index CSV has a matching Tape ID and Date.");
+        }
+
+        $embeddedMetadata = $this->metadataExtractionService->extractId3MetadataFromPath($absolutePath);
+        $conflicts = $this->detectMetadataConflicts($csvRow, $embeddedMetadata);
+        $result = $conflicts === [] ? 'imported' : 'conflict';
+
+        if ($dryRun) {
+            return ['result' => $result, 'conflicts' => $conflicts];
+        }
+
         $storedPath = $this->storeFile($absolutePath, $filename, $date);
 
         $processingLog = MediaProcessingLog::create([
@@ -123,24 +140,42 @@ final class LegacySermonImporter
             'extracted_date' => $date,
             'extracted_service' => $this->extractService($csvRow),
             'duration' => $this->extractDuration($csvRow),
-            'processing_metadata' => $this->buildProcessingMetadata($csvRow),
+            'processing_metadata' => $this->buildProcessingMetadata($csvRow, $embeddedMetadata, $conflicts),
         ]);
 
         $this->orchestrator->start($processingLog);
 
-        return 'imported';
+        return ['result' => $result, 'conflicts' => $conflicts];
     }
 
     /** @return list<string> */
     private function discoverMp3Files(string $directory): array
     {
-        $base = rtrim($directory, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+        $files = [];
 
-        // Use GLOB_BRACE for case-insensitive matching on Linux production (legacy Windows rips
-        // often have uppercase .MP3 extensions that glob('*.mp3') would miss on ext4).
-        $files = glob($base.'*.{mp3,MP3,Mp3}', GLOB_BRACE);
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS)
+        );
 
-        return $files === false ? [] : array_values(array_unique($files));
+        foreach ($iterator as $file) {
+            if (! $file instanceof \SplFileInfo) {
+                continue;
+            }
+
+            if (! $file->isFile()) {
+                continue;
+            }
+
+            if (strtolower($file->getExtension()) !== 'mp3') {
+                continue;
+            }
+
+            $files[] = $file->getPathname();
+        }
+
+        sort($files, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $files;
     }
 
     private function isDuplicateByHash(string $fileHash): bool
@@ -179,7 +214,7 @@ final class LegacySermonImporter
     {
         $withoutExtension = pathinfo($filename, PATHINFO_FILENAME);
 
-        return trim((string) preg_replace('/#[^#]*#/', '', $withoutExtension));
+        return strtolower(trim((string) preg_replace('/#[^#]*#/', '', $withoutExtension)));
     }
 
     private function storeFile(string $absolutePath, string $filename, ?Carbon $date): string
@@ -212,17 +247,169 @@ final class LegacySermonImporter
 
     /**
      * @param  array<string, mixed>|null  $csvRow
+     * @param  array<string, mixed>  $embeddedMetadata
+     * @param  list<array{field: string, csv: string, embedded: string}>  $conflicts
      * @return array<string, mixed>
      */
-    private function buildProcessingMetadata(?array $csvRow): array
+    private function buildProcessingMetadata(?array $csvRow, array $embeddedMetadata, array $conflicts): array
     {
+        $metadata = [];
         $id3Metadata = $this->buildId3Metadata($csvRow);
 
-        if ($id3Metadata === null) {
+        if ($id3Metadata !== null) {
+            $metadata['id3_metadata'] = $id3Metadata->toArray();
+        }
+
+        $embeddedMetadata = array_filter(
+            $embeddedMetadata,
+            static fn (mixed $value): bool => $value !== null && $value !== ''
+        );
+
+        if ($embeddedMetadata !== []) {
+            $metadata['embedded_id3_metadata'] = $embeddedMetadata;
+        }
+
+        if ($conflicts !== []) {
+            $metadata['metadata_conflicts'] = $conflicts;
+        }
+
+        return $metadata;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $csvRow
+     * @param  array<string, mixed>  $embeddedMetadata
+     * @return list<array{field: string, csv: string, embedded: string}>
+     */
+    private function detectMetadataConflicts(?array $csvRow, array $embeddedMetadata): array
+    {
+        if ($csvRow === null) {
             return [];
         }
 
-        return ['id3_metadata' => $id3Metadata->toArray()];
+        $conflicts = [];
+        $csvMetadata = $this->csvComparableMetadata($csvRow);
+
+        foreach (['title', 'preacher', 'series', 'reference'] as $field) {
+            $this->appendStringConflict($conflicts, $field, $csvMetadata[$field] ?? null, $embeddedMetadata[$field] ?? null);
+        }
+
+        $this->appendDateConflict($conflicts, $csvMetadata['date'] ?? null, $embeddedMetadata['date'] ?? null);
+        $this->appendDurationConflict($conflicts, $csvMetadata['duration'] ?? null, $embeddedMetadata['duration'] ?? null);
+
+        return $conflicts;
+    }
+
+    /**
+     * @param  array<string, mixed>  $csvRow
+     * @return array{title: string|null, preacher: string|null, series: string|null, reference: string|null, date: string|null, duration: float|null}
+     */
+    private function csvComparableMetadata(array $csvRow): array
+    {
+        $date = $this->extractDate($csvRow);
+
+        return [
+            'title' => $this->stringOrNull($csvRow['Title'] ?? null),
+            'preacher' => $this->stringOrNull($csvRow['Preacher'] ?? null),
+            'series' => $this->stringOrNull($csvRow['Series'] ?? null),
+            'reference' => $this->buildReference($csvRow),
+            'date' => $date?->toDateString(),
+            'duration' => $this->extractDuration($csvRow),
+        ];
+    }
+
+    /**
+     * @param  list<array{field: string, csv: string, embedded: string}>  $conflicts
+     */
+    private function appendStringConflict(array &$conflicts, string $field, ?string $csvValue, mixed $embeddedValue): void
+    {
+        $embeddedValue = $this->stringOrNull($embeddedValue);
+
+        if ($csvValue === null || $embeddedValue === null) {
+            return;
+        }
+
+        if ($this->normaliseComparableString($csvValue) === $this->normaliseComparableString($embeddedValue)) {
+            return;
+        }
+
+        $conflicts[] = [
+            'field' => $field,
+            'csv' => $csvValue,
+            'embedded' => $embeddedValue,
+        ];
+    }
+
+    /**
+     * @param  list<array{field: string, csv: string, embedded: string}>  $conflicts
+     */
+    private function appendDateConflict(array &$conflicts, ?string $csvValue, mixed $embeddedValue): void
+    {
+        $embeddedValue = $this->stringOrNull($embeddedValue);
+
+        if ($csvValue === null || $embeddedValue === null) {
+            return;
+        }
+
+        $normalisedEmbedded = $this->normaliseEmbeddedDate($embeddedValue);
+
+        if ($normalisedEmbedded === null) {
+            return;
+        }
+
+        if (strlen($normalisedEmbedded) === 4 && str_starts_with($csvValue, $normalisedEmbedded)) {
+            return;
+        }
+
+        if ($csvValue === $normalisedEmbedded) {
+            return;
+        }
+
+        $conflicts[] = [
+            'field' => 'date',
+            'csv' => $csvValue,
+            'embedded' => $embeddedValue,
+        ];
+    }
+
+    /**
+     * @param  list<array{field: string, csv: string, embedded: string}>  $conflicts
+     */
+    private function appendDurationConflict(array &$conflicts, ?float $csvValue, mixed $embeddedValue): void
+    {
+        if ($csvValue === null || ! is_numeric($embeddedValue)) {
+            return;
+        }
+
+        $embeddedSeconds = (float) $embeddedValue;
+
+        if (abs($csvValue - $embeddedSeconds) <= 5.0) {
+            return;
+        }
+
+        $conflicts[] = [
+            'field' => 'duration',
+            'csv' => (string) $csvValue,
+            'embedded' => (string) $embeddedSeconds,
+        ];
+    }
+
+    private function normaliseComparableString(string $value): string
+    {
+        return strtolower((string) preg_replace('/\s+/', ' ', trim($value)));
+    }
+
+    private function normaliseEmbeddedDate(string $value): ?string
+    {
+        if (preg_match('/^\d{4}$/', $value) === 1) {
+            return $value;
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
@@ -237,15 +424,7 @@ final class LegacySermonImporter
         $title = $this->stringOrNull($csvRow['Title'] ?? null);
         $preacher = $this->stringOrNull($csvRow['Preacher'] ?? null);
         $series = $this->stringOrNull($csvRow['Series'] ?? null);
-
-        $book = $this->stringOrNull($csvRow['Book'] ?? null);
-        $reference = $this->stringOrNull($csvRow['Reference'] ?? null);
-        $fullReference = match (true) {
-            $book !== null && $reference !== null => "{$book} {$reference}",
-            $book !== null => $book,
-            $reference !== null => $reference,
-            default => null,
-        };
+        $fullReference = $this->buildReference($csvRow);
 
         if ($title === null && $preacher === null && $series === null && $fullReference === null) {
             return null;
@@ -257,6 +436,22 @@ final class LegacySermonImporter
             series: $series,
             reference: $fullReference,
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $csvRow
+     */
+    private function buildReference(array $csvRow): ?string
+    {
+        $book = $this->stringOrNull($csvRow['Book'] ?? null);
+        $reference = $this->stringOrNull($csvRow['Reference'] ?? null);
+
+        return match (true) {
+            $book !== null && $reference !== null => "{$book} {$reference}",
+            $book !== null => $book,
+            $reference !== null => $reference,
+            default => null,
+        };
     }
 
     /**

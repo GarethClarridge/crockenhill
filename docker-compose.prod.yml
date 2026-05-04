@@ -57,8 +57,8 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      # Use TCP check to avoid exposing password in process list
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" 2>/dev/null || exit 1"]
+      # Use TCP check without passing the password on the command line.
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$${MYSQL_ROOT_PASSWORD}\" mysqladmin ping -h 127.0.0.1 -u root --silent 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3

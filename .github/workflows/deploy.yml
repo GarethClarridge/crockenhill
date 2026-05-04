@@ -24,7 +24,7 @@ jobs:
           MYSQL_INITDB_SKIP_TZINFO: 1
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping -uroot -ptesting" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="MYSQL_PWD=testing mysqladmin ping -uroot --silent" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
       - uses: actions/checkout@v6
@@ -130,7 +130,7 @@ jobs:
           MYSQL_INITDB_SKIP_TZINFO: 1
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping -uroot -ptesting" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="MYSQL_PWD=testing mysqladmin ping -uroot --silent" --health-interval=10s --health-timeout=5s --health-retries=3
 
       selenium:
         image: selenium/standalone-chromium
@@ -238,7 +238,7 @@ jobs:
           MYSQL_INITDB_SKIP_TZINFO: 1
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping -uroot -ptesting" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="MYSQL_PWD=testing mysqladmin ping -uroot --silent" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
       - uses: actions/checkout@v6
@@ -517,8 +517,8 @@ jobs:
             # Backup database before migration (keeps last 5 backups)
             BACKUP_FILE="backups/db-$(date +%Y%m%d-%H%M%S).sql.gz"
             mkdir -p backups
-            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T mysql \
-              mysqldump --no-tablespaces -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" \
+            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T -e MYSQL_PWD="${DB_PASSWORD}" mysql \
+              mysqldump --no-tablespaces -u"${DB_USERNAME}" "${DB_DATABASE}" \
               | gzip > "$BACKUP_FILE"
             ls -t backups/*.sql.gz | tail -n +6 | xargs -r rm
 

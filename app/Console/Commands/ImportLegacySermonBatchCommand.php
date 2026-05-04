@@ -55,8 +55,16 @@ class ImportLegacySermonBatchCommand extends Command
                 dryRun: $dryRun,
                 delay: $delay,
                 force: $force,
-                onProgress: function (string $filename, string $result): void {
+                onProgress: function (string $filename, string $result, array $conflicts, ?string $message): void {
                     $this->line("[{$result}] {$filename}");
+
+                    if ($message !== null) {
+                        $this->line("  {$message}");
+                    }
+
+                    foreach ($conflicts as $conflict) {
+                        $this->line("  [conflict] {$conflict['field']}: CSV \"{$conflict['csv']}\" differs from MP3 \"{$conflict['embedded']}\"");
+                    }
                 },
             );
         } catch (Throwable $exception) {
@@ -143,7 +151,7 @@ class ImportLegacySermonBatchCommand extends Command
             // Strip #...# annotations from the tape ID before indexing
             $normalisedTapeId = trim((string) preg_replace('/#[^#]*#/', '', $tapeId));
 
-            $index[$normalisedTapeId] = $combined;
+            $index[strtolower($normalisedTapeId)] = $combined;
         }
 
         fclose($handle);

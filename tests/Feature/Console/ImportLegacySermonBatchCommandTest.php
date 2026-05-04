@@ -8,6 +8,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
+use App\Services\MetadataExtractionService;
 use App\Services\ProcessingRunOrchestrator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -34,6 +35,18 @@ class ImportLegacySermonBatchCommandTest extends TestCase
             ->shouldReceive('start')
             ->andReturn();
 
+        $this->mock(MetadataExtractionService::class)
+            ->shouldReceive('extractId3MetadataFromPath')
+            ->zeroOrMoreTimes()
+            ->andReturn([
+                'title' => null,
+                'preacher' => null,
+                'series' => null,
+                'reference' => null,
+                'date' => null,
+                'duration' => null,
+            ]);
+
         Storage::fake('public');
     }
 
@@ -46,8 +59,7 @@ class ImportLegacySermonBatchCommandTest extends TestCase
         }
 
         if (is_dir($this->temporaryDirectory)) {
-            array_map('unlink', glob($this->temporaryDirectory.'/*') ?: []);
-            rmdir($this->temporaryDirectory);
+            $this->removeTemporaryDirectory($this->temporaryDirectory);
         }
 
         parent::tearDown();
@@ -107,21 +119,15 @@ class ImportLegacySermonBatchCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_imports_without_csv_match_and_starts_processing(): void
+    public function it_rejects_imports_without_a_valid_historic_date(): void
     {
         $this->createFakeMp3('UNKNOWN999.mp3');
 
         $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory])
-            ->assertExitCode(0);
+            ->assertExitCode(1)
+            ->expectsOutputToContain('[error] UNKNOWN999.mp3');
 
-        $this->assertDatabaseCount('media_processing_logs', 1);
-
-        $log = MediaProcessingLog::query()->first();
-        $this->assertNotNull($log);
-        $this->assertSame('UNKNOWN999.mp3', $log->original_filename);
-        $this->assertNull($log->extracted_date);
-        $this->assertNull($log->extracted_service);
-        $this->assertNull($log->processing_metadata?->id3Metadata);
+        $this->assertDatabaseCount('media_processing_logs', 0);
     }
 
     #[Test]
@@ -182,6 +188,9 @@ class ImportLegacySermonBatchCommandTest extends TestCase
     public function force_flag_reimports_duplicate_files(): void
     {
         $mp3Path = $this->createFakeMp3('ABC123.mp3');
+        $csvPath = $this->createCsv([
+            ['ABC123', '2024-03-10', 'AM', '45:00', 'Morning Sermon', 'Rev Smith', '', '', ''],
+        ]);
         $existingHash = hash_file('sha256', $mp3Path);
 
         MediaProcessingLog::factory()->create([
@@ -191,6 +200,7 @@ class ImportLegacySermonBatchCommandTest extends TestCase
 
         $this->artisan('sermons:import-legacy', [
             '--dir' => $this->temporaryDirectory,
+            '--csv' => $csvPath,
             '--force' => true,
         ])
             ->assertExitCode(0);
@@ -199,7 +209,7 @@ class ImportLegacySermonBatchCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_proceeds_with_warnings_when_csv_is_missing(): void
+    public function it_warns_and_rejects_imports_when_csv_is_missing(): void
     {
         $this->createFakeMp3('ABC123.mp3');
 
@@ -207,10 +217,11 @@ class ImportLegacySermonBatchCommandTest extends TestCase
             '--dir' => $this->temporaryDirectory,
             '--csv' => '/nonexistent/Tape Index.csv',
         ])
-            ->assertExitCode(0)
-            ->expectsOutputToContain('CSV not found');
+            ->assertExitCode(1)
+            ->expectsOutputToContain('CSV not found')
+            ->expectsOutputToContain('[error] ABC123.mp3');
 
-        $this->assertDatabaseCount('media_processing_logs', 1);
+        $this->assertDatabaseCount('media_processing_logs', 0);
     }
 
     #[Test]
@@ -240,8 +251,11 @@ class ImportLegacySermonBatchCommandTest extends TestCase
     public function it_outputs_per_file_progress(): void
     {
         $this->createFakeMp3('ABC123.mp3');
+        $csvPath = $this->createCsv([
+            ['ABC123', '2024-03-10', 'AM', '45:00', 'Morning Sermon', 'Rev Smith', '', '', ''],
+        ]);
 
-        $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory])
+        $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory, '--csv' => $csvPath])
             ->assertExitCode(0)
             ->expectsOutputToContain('[imported] ABC123.mp3');
     }
@@ -250,8 +264,11 @@ class ImportLegacySermonBatchCommandTest extends TestCase
     public function it_discovers_uppercase_mp3_extensions(): void
     {
         $this->createFakeMp3('UPPERCASE.MP3');
+        $csvPath = $this->createCsv([
+            ['UPPERCASE', '2024-03-10', 'AM', '45:00', 'Morning Sermon', 'Rev Smith', '', '', ''],
+        ]);
 
-        $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory])
+        $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory, '--csv' => $csvPath])
             ->assertExitCode(0);
 
         $this->assertDatabaseCount('media_processing_logs', 1);
@@ -259,6 +276,29 @@ class ImportLegacySermonBatchCommandTest extends TestCase
         $log = MediaProcessingLog::query()->first();
         $this->assertNotNull($log);
         $this->assertSame('UPPERCASE.MP3', $log->original_filename);
+    }
+
+    #[Test]
+    public function it_discovers_mp3_files_in_nested_directories(): void
+    {
+        $nestedDirectory = $this->temporaryDirectory.'/1-10';
+        mkdir($nestedDirectory, 0755, true);
+
+        $path = "{$nestedDirectory}/001a.mp3";
+        file_put_contents($path, 'fake-mp3-content-'.uniqid());
+        $this->temporaryFiles[] = $path;
+        $csvPath = $this->createCsv([
+            ['001A', '2003-08-31', 'AM', '35:05', 'Preach the Word', 'Bryan Martin', '', '', ''],
+        ]);
+
+        $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory, '--csv' => $csvPath])
+            ->assertExitCode(0);
+
+        $this->assertDatabaseCount('media_processing_logs', 1);
+
+        $log = MediaProcessingLog::query()->first();
+        $this->assertNotNull($log);
+        $this->assertSame('001a.mp3', $log->original_filename);
     }
 
     #[Test]
@@ -278,6 +318,90 @@ class ImportLegacySermonBatchCommandTest extends TestCase
         $this->assertSame(SermonService::Evening, $log->extracted_service);
     }
 
+    #[Test]
+    public function it_matches_legacy_tape_ids_case_insensitively(): void
+    {
+        $this->createFakeMp3('001a.mp3');
+        $csvPath = $this->createCsv([
+            ['001A', '2003-08-31', 'AM', '35:05', 'Preach the Word', 'Bryan Martin', "The Pastor's Role", '2 Timothy', '3:14-4:5'],
+        ]);
+
+        $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory, '--csv' => $csvPath])
+            ->assertExitCode(0);
+
+        $log = MediaProcessingLog::query()->first();
+        $this->assertNotNull($log);
+        $this->assertSame('001a.mp3', $log->original_filename);
+        $this->assertSame('2003-08-31', $log->extracted_date?->toDateString());
+        $this->assertSame(SermonService::Morning, $log->extracted_service);
+        $this->assertSame(2105.0, $log->duration);
+        $this->assertSame('Preach the Word', $log->processing_metadata?->id3Metadata?->title);
+        $this->assertSame('Bryan Martin', $log->processing_metadata?->id3Metadata?->preacher);
+        $this->assertSame("The Pastor's Role", $log->processing_metadata?->id3Metadata?->series);
+        $this->assertSame('2 Timothy 3:14-4:5', $log->processing_metadata?->id3Metadata?->reference);
+    }
+
+    #[Test]
+    public function it_reports_and_stores_embedded_metadata_conflicts_while_preserving_csv_values(): void
+    {
+        $mp3Path = $this->createFakeMp3('001a.mp3');
+        $csvPath = $this->createCsv([
+            ['001A', '2003-08-31', 'AM', '35:05', 'Preach the Word', 'Bryan Martin', "The Pastor's Role", '2 Timothy', '3:14-4:5'],
+        ]);
+
+        $this->mock(MetadataExtractionService::class)
+            ->shouldReceive('extractId3MetadataFromPath')
+            ->once()
+            ->with($mp3Path)
+            ->andReturn([
+                'title' => 'Wrong Embedded Title',
+                'preacher' => 'Unknown Artist',
+                'series' => "The Pastor's Role",
+                'reference' => '2 Timothy 3:14-4:5',
+                'date' => '2004',
+                'duration' => 2200.0,
+            ]);
+
+        $this->artisan('sermons:import-legacy', ['--dir' => $this->temporaryDirectory, '--csv' => $csvPath])
+            ->assertExitCode(0)
+            ->expectsOutputToContain('[conflict] 001a.mp3')
+            ->expectsOutputToContain('[conflict] title: CSV "Preach the Word" differs from MP3 "Wrong Embedded Title"')
+            ->expectsOutputToContain('[conflict] preacher: CSV "Bryan Martin" differs from MP3 "Unknown Artist"')
+            ->expectsOutputToContain('[conflict] date: CSV "2003-08-31" differs from MP3 "2004"')
+            ->expectsOutputToContain('[conflict] duration: CSV "2105" differs from MP3 "2200"');
+
+        $log = MediaProcessingLog::query()->first();
+        $this->assertNotNull($log);
+        $this->assertSame('2003-08-31', $log->extracted_date?->toDateString());
+        $this->assertSame(SermonService::Morning, $log->extracted_service);
+        $this->assertSame('Preach the Word', $log->processing_metadata?->id3Metadata?->title);
+
+        $metadata = $log->processing_metadata?->toArray() ?? [];
+        $this->assertSame('Wrong Embedded Title', $metadata['embedded_id3_metadata']['title'] ?? null);
+        $this->assertEquals([
+            [
+                'field' => 'title',
+                'csv' => 'Preach the Word',
+                'embedded' => 'Wrong Embedded Title',
+            ],
+            [
+                'field' => 'preacher',
+                'csv' => 'Bryan Martin',
+                'embedded' => 'Unknown Artist',
+            ],
+            [
+                'field' => 'date',
+                'csv' => '2003-08-31',
+                'embedded' => '2004',
+            ],
+            [
+                'field' => 'duration',
+                'csv' => '2105',
+                'embedded' => '2200',
+            ],
+        ], $metadata['metadata_conflicts'] ?? null);
+    }
+
     /**
      * Create a minimal fake MP3 file and register it for teardown cleanup.
      */
@@ -288,6 +412,28 @@ class ImportLegacySermonBatchCommandTest extends TestCase
         $this->temporaryFiles[] = $path;
 
         return $path;
+    }
+
+    private function removeTemporaryDirectory(string $directory): void
+    {
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST,
+        );
+
+        foreach ($items as $item) {
+            if ($item->isDir()) {
+                rmdir($item->getPathname());
+
+                continue;
+            }
+
+            if ($item->isFile()) {
+                unlink($item->getPathname());
+            }
+        }
+
+        rmdir($directory);
     }
 
     /**

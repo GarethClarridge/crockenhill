@@ -406,6 +406,41 @@ class SermonCreationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_creates_audio_upload_sermon_using_extracted_historic_identity(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_type' => 'audio',
+            'source_file_path' => 'sermons/audio/2003/08/legacy.mp3',
+            'original_filename' => '001a.mp3',
+            'extracted_date' => '2003-08-31',
+            'extracted_service' => SermonService::Morning,
+            'processing_metadata' => [
+                'id3_metadata' => [
+                    'title' => 'Preach the Word',
+                    'preacher' => 'Bryan Martin',
+                    'series' => "The Pastor's Role",
+                    'reference' => '2 Timothy 3:14-4:5',
+                ],
+            ],
+        ]);
+
+        $options = SermonCreationOptions::fromAudioUpload($log, []);
+        $options->id3Title = 'Preach the Word';
+        $options->id3Preacher = 'Bryan Martin';
+        $options->id3Series = "The Pastor's Role";
+        $options->id3Reference = '2 Timothy 3:14-4:5';
+
+        $sermon = $this->service->createSermon($log, $options);
+
+        $this->assertEquals('Preach the Word', $sermon->title);
+        $this->assertEquals('2003-08-31', $sermon->date->format('Y-m-d'));
+        $this->assertEquals(SermonService::Morning, $sermon->service);
+        $this->assertEquals('Bryan Martin', $sermon->preacher);
+        $this->assertEquals("The Pastor's Role", $sermon->series);
+        $this->assertEquals('2 Timothy 3:14-4:5', $sermon->reference);
+    }
+
+    #[Test]
     public function it_creates_sermon_from_video_upload_options(): void
     {
         $log = MediaProcessingLog::factory()->create([

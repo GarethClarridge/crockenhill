@@ -68,6 +68,8 @@ class SermonCreationOptions
             transcriptFilePath: $log->transcript_file_path,
             aiAnalysis: $aiAnalysis,
             titleStrategy: TitleGenerationStrategy::AiWithFallback,
+            service: $log->extracted_service,
+            date: $log->extracted_date?->toDateString(),
             duration: $log->duration,
         );
     }
@@ -87,6 +89,8 @@ class SermonCreationOptions
             transcriptFilePath: $log->transcript_file_path,
             aiAnalysis: $aiAnalysis,
             titleStrategy: TitleGenerationStrategy::AiWithFallback,
+            service: $log->extracted_service,
+            date: $log->extracted_date?->toDateString(),
             duration: $log->duration,
         );
     }

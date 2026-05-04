@@ -25,6 +25,12 @@ class SermonDisplayTest extends TestCase
         $this->presenter = app(SermonViewPresenter::class);
     }
 
+    protected function tearDown(): void
+    {
+        $this->presenter->clearInternalCaches();
+        parent::tearDown();
+    }
+
     #[Test]
     public function it_displays_preacher_name_from_column_when_relation_not_loaded(): void
     {

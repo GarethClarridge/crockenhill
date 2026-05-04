@@ -70,3 +70,4 @@ artisan_serve.log
 *.osz
 *.sqlite
 *.sql
+TapeIndex.csv

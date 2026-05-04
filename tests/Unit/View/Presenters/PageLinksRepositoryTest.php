@@ -6,8 +6,10 @@ namespace Tests\Unit\View\Presenters;
 
 use App\Enums\PageArea;
 use App\Models\Page;
+use App\Repositories\PageRepository;
 use App\View\Presenters\PageLinksRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -21,6 +23,15 @@ class PageLinksRepositoryTest extends TestCase
     {
         parent::setUp();
         $this->repository = app(PageLinksRepository::class);
+    }
+
+    protected function tearDown(): void
+    {
+        foreach (PageArea::cases() as $area) {
+            app(PageRepository::class)->clearAreaCache($area);
+        }
+        Cache::flush();
+        parent::tearDown();
     }
 
     #[Test]
