@@ -91,11 +91,6 @@ class SermonViewPresenter
      */
     private array $memoizedMetaDescriptions = [];
 
-    /**
-     * @var array<string, string>
-     */
-    private array $memoizedServiceLabels = [];
-
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
@@ -484,24 +479,6 @@ class SermonViewPresenter
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'video_url' => $this->videoUrl($sermon),
         ];
-    }
-
-    /**
-     * Get the service label for display.
-     *
-     * Performance Optimization: Memoizes service label lookups across
-     * multiple sermons in a listing to avoid redundant title-casing.
-     */
-    public function serviceLabel(Sermon $sermon): ?string
-    {
-        if ($sermon->service === null) {
-            return null;
-        }
-
-        $service = $sermon->service;
-        $serviceKey = "enum_{$service->value}";
-
-        return $this->memoizedServiceLabels[$serviceKey] ??= $service->label();
     }
 
     /**
