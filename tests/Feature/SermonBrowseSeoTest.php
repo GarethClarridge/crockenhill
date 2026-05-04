@@ -23,14 +23,14 @@ class SermonBrowseSeoTest extends TestCase
         $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons">', false);
     }
 
-    public function test_filtered_sermons_archive_keeps_the_canonical_unfiltered_seo_data(): void
+    public function test_filtered_sermons_archive_has_dynamic_seo_data(): void
     {
         $response = $this->get('/christ/sermons?book=John&chapter=3');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons">', false);
+        $response->assertSee('<title>John 3 | Sermons | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<meta name="description" content="Browse sermons from Crockenhill Baptist Church on John 3.">', false);
+        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons?book=John&amp;chapter=3">', false);
     }
 
     public function test_paginated_unfiltered_archive_keeps_its_page_canonical_url(): void

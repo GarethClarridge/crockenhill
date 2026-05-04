@@ -6,6 +6,7 @@ namespace App\Livewire\Sermons;
 
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Presenters\SermonArchiveSeoPresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Repositories\SermonRepository;
 use App\Support\BibleCanon;
@@ -23,6 +24,9 @@ use Livewire\WithPagination;
  * @property-read array<int, array{id:int, name:string}> $preacherOptions
  * @property-read array<int, array{id:string, name:string}> $seriesOptions
  * @property-read LengthAwarePaginator<int, Sermon> $sermons
+ * @property-read string $seoTitle
+ * @property-read string $seoDescription
+ * @property-read string $seoCanonical
  */
 class BrowseSermons extends Component
 {
@@ -108,22 +112,22 @@ class BrowseSermons extends Component
         $hasActiveFilters = $this->hasActiveFilters();
 
         /** @var LengthAwarePaginator<int, Sermon> $sermons */
-        $sermons = $this->sermons;
+        $sermons = $this->sermons();
 
         return view('livewire.sermons.browse-sermons', [
-            'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks),
+            'bookOptions' => $bibleCanon->bookOptions($this->enabledBooks()),
             'chapterOptions' => $this->bookFilter === null
                 ? []
-                : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters),
-            'preacherOptions' => $this->preacherOptions,
-            'seriesOptions' => $this->seriesOptions,
-            'activeFilterLabels' => $this->activeFilterLabels($this->preacherOptions, $this->seriesOptions),
+                : $bibleCanon->chapterOptions($this->bookFilter, $this->enabledChapters()),
+            'preacherOptions' => $this->preacherOptions(),
+            'seriesOptions' => $this->seriesOptions(),
+            'activeFilterLabels' => $this->activeFilterLabels($this->preacherOptions(), $this->seriesOptions()),
             'sermons' => $sermons,
             'hasActiveFilters' => $hasActiveFilters,
         ]);
     }
 
-    private function hasActiveFilters(): bool
+    public function hasActiveFilters(): bool
     {
         return $this->bookFilter !== null
             || $this->chapterFilter !== null
@@ -161,27 +165,27 @@ class BrowseSermons extends Component
     }
 
     /**
-     * @return array<int, array{id:int, name:string}>
+     * @return list<array{id:int, name:string}>
      */
     #[Computed]
     public function preacherOptions(): array
     {
-        return array_map(
+        return array_values(array_map(
             fn (Preacher $preacher): array => ['id' => $preacher->id, 'name' => $preacher->name],
             Preacher::getForPublicList()->all()
-        );
+        ));
     }
 
     /**
-     * @return array<int, array{id:string, name:string}>
+     * @return list<array{id:string, name:string}>
      */
     #[Computed]
     public function seriesOptions(): array
     {
-        return array_map(
+        return array_values(array_map(
             fn (string $series): array => ['id' => $series, 'name' => $series],
             app(SermonRepository::class)->getSeriesForDisplay()
-        );
+        ));
     }
 
     /**
@@ -191,7 +195,7 @@ class BrowseSermons extends Component
     public function jsonLdData(): array
     {
         return app(SermonItemListPresenter::class)->toItemList(
-            $this->sermons->getCollection()
+            $this->sermons()->getCollection()
         );
     }
 
@@ -209,9 +213,40 @@ class BrowseSermons extends Component
         )->paginate(24);
     }
 
+    #[Computed]
+    public function seoTitle(): string
+    {
+        return app(SermonArchiveSeoPresenter::class)->title($this->activeFilters());
+    }
+
+    #[Computed]
+    public function seoDescription(): string
+    {
+        return app(SermonArchiveSeoPresenter::class)->description($this->activeFilters());
+    }
+
+    #[Computed]
+    public function seoCanonical(): string
+    {
+        return app(SermonArchiveSeoPresenter::class)->canonical($this->activeFilters(), $this->getPage());
+    }
+
     /**
-     * @param  array<int, array{id:int, name:string}>  $preacherOptions
-     * @param  array<int, array{id:string, name:string}>  $seriesOptions
+     * @return array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}
+     */
+    private function activeFilters(): array
+    {
+        return [
+            'book' => $this->bookFilter,
+            'chapter' => $this->chapterFilter,
+            'preacherId' => $this->preacherFilter,
+            'series' => $this->seriesFilter,
+        ];
+    }
+
+    /**
+     * @param  list<array{id:int, name:string}>  $preacherOptions
+     * @param  list<array{id:string, name:string}>  $seriesOptions
      * @return array<string, string>
      */
     private function activeFilterLabels(array $preacherOptions, array $seriesOptions): array
@@ -236,7 +271,7 @@ class BrowseSermons extends Component
     }
 
     /**
-     * @param  array<int, array{id:int|string, name:string}>  $options
+     * @param  list<array{id:int|string, name:string}>  $options
      */
     private function findOptionName(array $options, int|string $id): ?string
     {
