@@ -99,9 +99,19 @@ $hasPublicVideo = filled($sermonView['video_url']);
       {{-- ── Summary ─────────────────────────────────────────── --}}
       @if ($sermon->show_summary && !empty($sermon->summary))
       <div class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <x-heroicon-o-document-text class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
-          <h2 class="font-display text-xl text-gray-900">Summary</h2>
+        <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-2">
+            <x-heroicon-o-document-text class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
+            <h2 class="font-display text-xl text-gray-900">Summary</h2>
+          </div>
+          <x-clipboard-button
+            :content="$sermon->summary"
+            hideLabel
+            label="Copy Summary"
+            title="Copy summary to clipboard"
+            icon="clipboard-document"
+            size="sm"
+          />
         </div>
         <div class="p-6 prose prose-gray max-w-none text-gray-700">
           {{ $sermon->summary }}
@@ -112,9 +122,19 @@ $hasPublicVideo = filled($sermonView['video_url']);
       {{-- ── Sermon Outline ───────────────────────────────────── --}}
       @if ($sermon->show_points && !empty($sermon->points) && is_array($sermon->points))
       <div class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <x-heroicon-o-list-bullet class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
-          <h2 class="font-display text-xl text-gray-900">Sermon Outline</h2>
+        <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-2">
+            <x-heroicon-o-list-bullet class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
+            <h2 class="font-display text-xl text-gray-900">Sermon Outline</h2>
+          </div>
+          <x-clipboard-button
+            :content="$sermonView['plain_text_outline']"
+            hideLabel
+            label="Copy Outline"
+            title="Copy outline to clipboard"
+            icon="clipboard-document"
+            size="sm"
+          />
         </div>
         <div class="p-6 prose prose-gray max-w-none">
           <ol class="space-y-3">

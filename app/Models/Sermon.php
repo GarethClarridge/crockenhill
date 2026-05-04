@@ -60,7 +60,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?float $preacher_confidence
  * @property bool $needs_preacher_review
  * @property ?string $series
- * @property array<int, string>|null $points
+ * @property array<int, mixed>|null $points
  * @property ?string $summary
  * @property bool $show_summary
  * @property bool $show_points
