@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ServiceSectionPublicationStatus;
-use App\Traits\HandlesSafePaths;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceSection;
+use App\Traits\HandlesSafePaths;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\HeaderUtils;

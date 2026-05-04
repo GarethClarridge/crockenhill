@@ -15,7 +15,7 @@ class SongLyricSnippetBuilderTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->builder = new SongLyricSnippetBuilder();
+        $this->builder = new SongLyricSnippetBuilder;
     }
 
     #[Test]
@@ -30,7 +30,7 @@ class SongLyricSnippetBuilderTest extends TestCase
     #[Test]
     public function has_lyric_match_returns_false_when_any_token_is_missing(): void
     {
-        $lyrics = "Amazing grace how sweet the sound";
+        $lyrics = 'Amazing grace how sweet the sound';
         $tokens = collect(['grace', 'notpresent']);
 
         $this->assertFalse($this->builder->hasLyricMatch($lyrics, $tokens));
@@ -39,7 +39,7 @@ class SongLyricSnippetBuilderTest extends TestCase
     #[Test]
     public function has_lyric_match_is_case_insensitive(): void
     {
-        $lyrics = "AMAZING GRACE";
+        $lyrics = 'AMAZING GRACE';
         $tokens = collect(['amazing', 'grace']);
 
         $this->assertTrue($this->builder->hasLyricMatch($lyrics, $tokens));
@@ -48,8 +48,8 @@ class SongLyricSnippetBuilderTest extends TestCase
     #[Test]
     public function has_lyric_match_handles_empty_inputs(): void
     {
-        $this->assertFalse($this->builder->hasLyricMatch("", collect(['grace'])));
-        $this->assertFalse($this->builder->hasLyricMatch("Amazing grace", collect([])));
+        $this->assertFalse($this->builder->hasLyricMatch('', collect(['grace'])));
+        $this->assertFalse($this->builder->hasLyricMatch('Amazing grace', collect([])));
     }
 
     #[Test]
@@ -113,7 +113,7 @@ class SongLyricSnippetBuilderTest extends TestCase
     #[Test]
     public function highlight_handles_overlapping_or_adjacent_tokens(): void
     {
-        $lyrics = "Amazing grace";
+        $lyrics = 'Amazing grace';
         // 'grace' and 'race' overlap
         $tokens = collect(['grace', 'race']);
 
@@ -125,7 +125,7 @@ class SongLyricSnippetBuilderTest extends TestCase
     #[Test]
     public function highlight_handles_multiple_tokens_in_one_line(): void
     {
-        $lyrics = "The grace of God is amazing";
+        $lyrics = 'The grace of God is amazing';
         $tokens = collect(['grace', 'amazing']);
 
         $snippets = $this->builder->buildSnippets($lyrics, $tokens);
@@ -136,7 +136,7 @@ class SongLyricSnippetBuilderTest extends TestCase
     #[Test]
     public function highlight_is_case_insensitive_for_marking(): void
     {
-        $lyrics = "Amazing Grace";
+        $lyrics = 'Amazing Grace';
         $tokens = collect(['grace']);
 
         $snippets = $this->builder->buildSnippets($lyrics, $tokens);

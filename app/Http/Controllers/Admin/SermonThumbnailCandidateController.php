@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Traits\HandlesSafePaths;
 use App\Models\Sermon;
 use App\Services\SermonStorageService;
+use App\Traits\HandlesSafePaths;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\HeaderUtils;
@@ -59,5 +59,4 @@ class SermonThumbnailCandidateController extends Controller
             'Cache-Control' => 'no-store',
         ]);
     }
-
 }

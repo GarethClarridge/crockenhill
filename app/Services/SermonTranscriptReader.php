@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Traits\HandlesSafePaths;
 use App\Models\Sermon;
+use App\Traits\HandlesSafePaths;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
