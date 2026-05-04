@@ -1,7 +1,7 @@
 @props(['label' => null, 'options' => [], 'placeholder' => null, 'hint' => null, 'required' => false])
 
 @php
-$modelName = $attributes->wire('model')->value();
+$modelName = $attributes->wire('model')?->value();
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
 $selectClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 disabled:opacity-50 disabled:bg-gray-50 disabled:cursor-not-allowed'
@@ -30,6 +30,10 @@ $describedBy = implode(' ', $describedBy);
             ]) }}
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
+            @if($modelName)
+                wire:loading.attr="disabled"
+                wire:target="{{ $modelName }}"
+            @endif
         >
             @if($placeholder)
                 <option value="">{{ $placeholder }}</option>
