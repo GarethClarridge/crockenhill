@@ -55,7 +55,7 @@
       <li class="flex items-center">
         <x-heroicon-s-calendar class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         <time datetime="{{ $sermon->date->toDateString() }}">
-          {{ $sermon->date->format('j F Y') }}
+          {{ $sermonView['date_string'] }}
         </time>
       </li>
       @endif
@@ -63,7 +63,7 @@
       <li class="flex items-center">
         <x-heroicon-o-clock class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         <span class="flex-1">
-          {{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}
+          {{ $sermonView['service_label'] }}
         </span>
         @if ($formattedDuration)
           <span class="flex items-center text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 ml-2" title="Sermon duration">

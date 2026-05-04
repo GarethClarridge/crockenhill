@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Presenters;
 
+use App\Enums\SermonService;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;
+use Carbon\CarbonInterval;
 use Illuminate\Support\Str;
 
 class SermonViewPresenter
@@ -75,6 +77,11 @@ class SermonViewPresenter
      */
     private array $memoizedMetaDescriptions = [];
 
+    /**
+     * @var array<string, string>
+     */
+    private array $memoizedServiceLabels = [];
+
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
@@ -130,7 +137,7 @@ class SermonViewPresenter
             return null;
         }
 
-        return $this->memoizedIsoDurations[$key] = \Carbon\CarbonInterval::seconds($sermon->duration)->cascade()->spec();
+        return $this->memoizedIsoDurations[$key] = CarbonInterval::seconds($sermon->duration)->cascade()->spec();
     }
 
     /**
@@ -337,11 +344,29 @@ class SermonViewPresenter
     }
 
     /**
-     * Present a lightweight subset of sermon view data for use in listings and JSON-LD.
+     * Get the service label for display.
      *
-     * Performance Optimization: Omits the expensive transcript content fetching
-     * which is unnecessary for collection views but includes all URLs and metadata.
-     *
+     * Performance Optimization: Memoizes service label lookups across
+     * multiple sermons in a listing to avoid redundant title-casing.
+     */
+    public function serviceLabel(Sermon $sermon): ?string
+    {
+        if ($sermon->service === null) {
+            return null;
+        }
+
+        $service = $sermon->service;
+
+        $serviceKey = $service instanceof \App\Enums\SermonService
+            ? "enum_{$service->value}"
+            : "raw_{$service}";
+
+        return $this->memoizedServiceLabels[$serviceKey] ??= ($service instanceof \App\Enums\SermonService
+            ? $service->label()
+            : Str::title((string) $service));
+    }
+
+    /**
      * @return array{
      *     audio_url: ?string,
      *     canonical_url: string,
@@ -351,11 +376,14 @@ class SermonViewPresenter
      *     formatted_duration: ?string,
      *     has_transcript: bool,
      *     human_date: string,
+     *     date_string: string,
+     *     plain_thumbnail_url: ?string,
      *     preacher_image_url: ?string,
      *     preacher_name: ?string,
      *     preacher_url: ?string,
      *     public_url: string,
      *     series_url: ?string,
+     *     service_label: ?string,
      *     thumbnail_url: ?string,
      *     transcript_url: ?string,
      *     video_url: ?string
@@ -365,7 +393,7 @@ class SermonViewPresenter
     {
         $key = $this->cacheKey($sermon, 'list_present');
 
-        /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, thumbnail_url: ?string, transcript_url: ?string, video_url: ?string} */
+        /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, date_string: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript_url: ?string, video_url: ?string} */
         return $this->memoizedPresents[$key] ??= [
             'audio_url' => $this->audioUrl($sermon),
             'canonical_url' => $this->canonicalUrl($sermon),
@@ -375,11 +403,14 @@ class SermonViewPresenter
             'formatted_duration' => $this->formattedDuration($sermon),
             'has_transcript' => $sermon->hasTranscript(),
             'human_date' => $this->humanDate($sermon),
+            'date_string' => $sermon->date->format('j F Y'),
+            'plain_thumbnail_url' => $this->plainThumbnailUrl($sermon),
             'preacher_image_url' => $this->preacherImageUrl($sermon),
             'preacher_name' => $this->displayPreacherName($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
             'public_url' => $this->publicUrl($sermon),
             'series_url' => $this->seriesUrl($sermon),
+            'service_label' => $this->serviceLabel($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'transcript_url' => $sermon->hasTranscript() ? route('sermons.transcript', ['sermon' => $sermon->slug]) : null,
             'video_url' => $this->videoUrl($sermon),
