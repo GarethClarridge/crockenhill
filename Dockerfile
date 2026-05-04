@@ -29,7 +29,7 @@ RUN composer dump-autoload --optimize --no-dev --no-scripts
 # =============================================================================
 # Stage 3: Production Image
 # =============================================================================
-FROM ubuntu:24.04
+FROM php:8.4-fpm-bookworm
 
 LABEL maintainer="Crockenhill Baptist Church"
 
@@ -38,29 +38,21 @@ WORKDIR /var/www/html
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/London
 
-# System packages and PHP
+# System packages and PHP extensions
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-        gnupg curl ca-certificates zip unzip \
-        supervisor nginx ffmpeg mysql-client \
+        curl ca-certificates zip unzip \
+        supervisor nginx ffmpeg default-mysql-client \
         python3 python3-pip \
-    # PHP repository
-    && mkdir -p /etc/apt/keyrings \
-    && curl -sS 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xb8dc7e53946656efbce4c1dd71daeaab4ad4cab6' \
-       | gpg --dearmor | tee /etc/apt/keyrings/ppa_ondrej_php.gpg > /dev/null \
-    && echo "deb [signed-by=/etc/apt/keyrings/ppa_ondrej_php.gpg] https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble main" \
-       > /etc/apt/sources.list.d/ppa_ondrej_php.list \
-    && apt-get update \
-    # PHP and extensions (matching your Sail setup)
-    && apt-get install -y --no-install-recommends \
-        php8.4-fpm php8.4-cli \
-        php8.4-mysql php8.4-sqlite3 php8.4-gd \
-        php8.4-curl php8.4-mbstring php8.4-xml php8.4-zip \
-        php8.4-bcmath php8.4-intl php8.4-redis php8.4-imagick \
+        $PHPIZE_DEPS build-essential python3-dev \
+        libcurl4-openssl-dev libfreetype6-dev libicu-dev libjpeg62-turbo-dev \
+        libonig-dev libpng-dev libsqlite3-dev libwebp-dev libxml2-dev libzip-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j"$(nproc)" \
+        bcmath curl exif gd intl mbstring mysqli opcache pcntl \
+        pdo_mysql pdo_sqlite soap sockets zip \
     # Build tools required for resemblyzer's native extension (webrtcvad)
-    && apt-get install -y --no-install-recommends \
-        build-essential python3-dev \
     # Speaker identification runtime dependencies. Install PyTorch from the
     # CPU-only wheel index first; default Linux wheels include multi-GB CUDA
     # libraries that are not needed on the production server.
@@ -69,7 +61,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
         torch \
     && pip3 install --no-cache-dir --break-system-packages resemblyzer \
     && ! python3 -m pip freeze | grep -E '^nvidia-' \
-    && apt-get purge -y --auto-remove build-essential python3-dev \
+    && apt-get purge -y --auto-remove $PHPIZE_DEPS build-essential python3-dev \
     # Cleanup
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -88,9 +80,8 @@ COPY --chown=www:www . .
 
 # Configuration files
 COPY docker/production/nginx.conf /etc/nginx/nginx.conf
-COPY docker/production/php.ini /etc/php/8.4/fpm/conf.d/99-app.ini
-COPY docker/production/php.ini /etc/php/8.4/cli/conf.d/99-app.ini
-COPY docker/production/php-fpm.conf /etc/php/8.4/fpm/pool.d/www.conf
+COPY docker/production/php.ini /usr/local/etc/php/conf.d/99-app.ini
+COPY docker/production/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 COPY docker/production/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/production/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
