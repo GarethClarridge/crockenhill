@@ -101,6 +101,24 @@ class Page extends Model implements HasMedia, Sitemapable
     }
 
     /**
+     * @return Attribute<string, string>
+     */
+    protected function description(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
+    }
+
+    /**
      * @return array<string, list<string|mixed>>
      */
     public static function validationRules(?self $page = null, ?string $area = null): array
