@@ -405,16 +405,7 @@ class SermonViewPresenter
             return null;
         }
 
-        if ($service instanceof \App\Enums\SermonService) {
-            return $this->memoizedServiceLabels[$service->value] ??= $service->label();
-        }
-
-        // Robustness: Fallback for cases where the service might not be cast to an enum
-        // (e.g. in tests or with legacy data), matching original Blade logic.
-        /** @phpstan-ignore-next-line */
-        $value = (string) $service;
-
-        return $this->memoizedServiceLabels[$value] ??= Str::title($value);
+        return $this->memoizedServiceLabels[$service->value] ??= $service->label();
     }
 
     /**
@@ -486,6 +477,7 @@ class SermonViewPresenter
      *     audio_url: ?string,
      *     canonical_url: string,
      *     card_thumbnail_url: ?string,
+     *     date_iso: string,
      *     date_string: string,
      *     display_reference: ?string,
      *     duration_iso8601: ?string,
@@ -509,15 +501,15 @@ class SermonViewPresenter
         $key = $this->cacheKey($sermon, 'list_present');
 
         if (isset($this->memoizedPresents[$key])) {
-            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: ?string, date_string: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript_url: ?string, video_url: ?string} */
+            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript_url: ?string, video_url: ?string} */
             return $this->memoizedPresents[$key];
         }
 
         $hasTranscript = $sermon->hasTranscript();
 
         $date = $sermon->date;
-        $dateIso = $date?->toDateString();
-        $dateString = $date?->format('j F Y');
+        $dateIso = $date->toDateString();
+        $dateString = $date->format('j F Y');
 
         return $this->memoizedPresents[$key] = [
             'audio_url' => $this->audioUrl($sermon),
@@ -548,8 +540,8 @@ class SermonViewPresenter
      *     audio_url: ?string,
      *     canonical_url: string,
      *     card_thumbnail_url: ?string,
-     *     date_iso: ?string,
-     *     date_string: ?string,
+     *     date_iso: string,
+     *     date_string: string,
      *     display_reference: ?string,
      *     duration_iso8601: ?string,
      *     formatted_duration: ?string,
@@ -574,7 +566,7 @@ class SermonViewPresenter
         $key = $this->cacheKey($sermon, 'full_present');
 
         if (isset($this->memoizedPresents[$key])) {
-            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: ?string, date_string: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, plain_text_outline: ?string, video_url: ?string} */
+            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, plain_text_outline: ?string, video_url: ?string} */
             return $this->memoizedPresents[$key];
         }
 
