@@ -254,7 +254,7 @@ final class LegacySermonImporter
     private function buildProcessingMetadata(?array $csvRow, array $embeddedMetadata, array $conflicts): array
     {
         $metadata = [];
-        $id3Metadata = $this->buildId3Metadata($csvRow);
+        $id3Metadata = $this->buildId3Metadata($csvRow, $embeddedMetadata);
 
         if ($id3Metadata !== null) {
             $metadata['id3_metadata'] = $id3Metadata->toArray();
@@ -377,21 +377,8 @@ final class LegacySermonImporter
      */
     private function appendDurationConflict(array &$conflicts, ?float $csvValue, mixed $embeddedValue): void
     {
-        if ($csvValue === null || ! is_numeric($embeddedValue)) {
-            return;
-        }
-
-        $embeddedSeconds = (float) $embeddedValue;
-
-        if (abs($csvValue - $embeddedSeconds) <= 5.0) {
-            return;
-        }
-
-        $conflicts[] = [
-            'field' => 'duration',
-            'csv' => (string) $csvValue,
-            'embedded' => (string) $embeddedSeconds,
-        ];
+        // Duration conflicts are intentionally suppressed — CSV values were hand-entered and
+        // unreliable; actual duration is measured fresh from the file during processing.
     }
 
     private function normaliseComparableString(string $value): string
@@ -413,16 +400,24 @@ final class LegacySermonImporter
     }
 
     /**
+     * Resolve metadata using per-field source preferences:
+     *   title    → CSV  (more complete/intentional)
+     *   preacher → MP3  (ID3 tags more carefully maintained for this field)
+     *   series   → CSV  (curated groupings)
+     *   reference → CSV (MP3 tags sometimes contain dates or junk in this field)
+     *
      * @param  array<string, mixed>|null  $csvRow
+     * @param  array<string, mixed>  $embeddedMetadata
      */
-    private function buildId3Metadata(?array $csvRow): ?ProcessingId3Metadata
+    private function buildId3Metadata(?array $csvRow, array $embeddedMetadata): ?ProcessingId3Metadata
     {
         if ($csvRow === null) {
             return null;
         }
 
         $title = $this->stringOrNull($csvRow['Title'] ?? null);
-        $preacher = $this->stringOrNull($csvRow['Preacher'] ?? null);
+        $preacher = $this->stringOrNull($embeddedMetadata['preacher'] ?? null)
+            ?? $this->stringOrNull($csvRow['Preacher'] ?? null);
         $series = $this->stringOrNull($csvRow['Series'] ?? null);
         $fullReference = $this->buildReference($csvRow);
 

@@ -22,13 +22,26 @@ return new class extends Migration
             'series' => DB::raw("NULLIF(TRIM(series), '')"),
         ]);
 
+        // Repair any sermons that ended up with an empty title after trimming
+        DB::table('sermons')
+            ->where('title', '')
+            ->update(['title' => DB::raw("CONCAT('Sermon ', id)")]);
+
         DB::table('preachers')->update([
             'name' => DB::raw('TRIM(name)'),
         ]);
 
+        DB::table('preachers')
+            ->where('name', '')
+            ->update(['name' => DB::raw("CONCAT('Preacher ', id)")]);
+
         DB::table('pages')->update([
             'heading' => DB::raw('TRIM(heading)'),
         ]);
+
+        DB::table('pages')
+            ->where('heading', '')
+            ->update(['heading' => DB::raw("CONCAT('Page ', id)")]);
 
         // 2. Add CHECK constraints
         // BINARY is used to ensure exact match for the trim check.

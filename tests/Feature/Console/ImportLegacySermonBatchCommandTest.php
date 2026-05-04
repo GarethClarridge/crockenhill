@@ -367,17 +367,20 @@ class ImportLegacySermonBatchCommandTest extends TestCase
             ->expectsOutputToContain('[conflict] 001a.mp3')
             ->expectsOutputToContain('[conflict] title: CSV "Preach the Word" differs from MP3 "Wrong Embedded Title"')
             ->expectsOutputToContain('[conflict] preacher: CSV "Bryan Martin" differs from MP3 "Unknown Artist"')
-            ->expectsOutputToContain('[conflict] date: CSV "2003-08-31" differs from MP3 "2004"')
-            ->expectsOutputToContain('[conflict] duration: CSV "2105" differs from MP3 "2200"');
+            ->expectsOutputToContain('[conflict] date: CSV "2003-08-31" differs from MP3 "2004"');
 
         $log = MediaProcessingLog::query()->first();
         $this->assertNotNull($log);
         $this->assertSame('2003-08-31', $log->extracted_date?->toDateString());
         $this->assertSame(SermonService::Morning, $log->extracted_service);
+        // Title: CSV wins
         $this->assertSame('Preach the Word', $log->processing_metadata?->id3Metadata?->title);
+        // Preacher: MP3 wins
+        $this->assertSame('Unknown Artist', $log->processing_metadata?->id3Metadata?->preacher);
 
         $metadata = $log->processing_metadata?->toArray() ?? [];
         $this->assertSame('Wrong Embedded Title', $metadata['embedded_id3_metadata']['title'] ?? null);
+        // Duration conflicts are suppressed — not included in metadata_conflicts
         $this->assertEquals([
             [
                 'field' => 'title',
@@ -393,11 +396,6 @@ class ImportLegacySermonBatchCommandTest extends TestCase
                 'field' => 'date',
                 'csv' => '2003-08-31',
                 'embedded' => '2004',
-            ],
-            [
-                'field' => 'duration',
-                'csv' => '2105',
-                'embedded' => '2200',
             ],
         ], $metadata['metadata_conflicts'] ?? null);
     }
