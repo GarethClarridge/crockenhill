@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Livewire\Auth;
 
 use App\Models\User;
+use App\Traits\SanitizesLogData;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
@@ -20,12 +22,14 @@ use Livewire\Features\SupportRedirects\Redirector;
 
 class ResetPassword extends Component
 {
+    use SanitizesLogData;
+
     public string $token = '';
 
     public string $email = '';
 
     /**
-     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password|null>>
+     * @return array<string, array<int, string|PasswordRule|null>>
      *
      * Security: Explicit length constraints are enforced on sensitive fields to provide
      * Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
@@ -86,9 +90,9 @@ class ResetPassword extends Component
             $user->save();
 
             if ($user->is_admin) {
-                \Illuminate\Support\Facades\Log::warning('Admin password reset', [
+                Log::warning('Admin password reset', [
                     'admin_id' => $user->id,
-                    'email' => $user->email,
+                    'email' => $this->sanitizeForLog($user->email),
                     'ip' => request()->ip(),
                 ]);
             }
