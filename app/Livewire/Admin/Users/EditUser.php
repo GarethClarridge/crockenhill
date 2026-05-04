@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\Users;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
@@ -15,7 +16,7 @@ use Livewire\Component;
 
 class EditUser extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use SanitizesLogData, WithAdminAuthorization, WithNotifications;
 
     public User $user;
 
@@ -47,6 +48,7 @@ class EditUser extends Component
             $rules['password'] = [
                 'required',
                 'string',
+                'max:100', // Defense in Depth against DoS
                 'same:passwordConfirmation',
                 Password::defaults(),
             ];
@@ -99,7 +101,7 @@ class EditUser extends Component
             Log::warning('User admin status changed via edit form', [
                 'admin_id' => auth()->id(),
                 'target_user_id' => $this->user->id,
-                'target_user_email' => $this->user->email,
+                'target_user_email' => $this->sanitizeForLog($this->user->email),
                 'old_is_admin' => $oldIsAdmin,
                 'new_is_admin' => $newIsAdmin,
             ]);

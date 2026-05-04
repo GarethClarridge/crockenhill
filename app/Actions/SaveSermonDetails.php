@@ -9,10 +9,13 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 
 class SaveSermonDetails
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly PreacherResolutionService $preacherResolutionService,
         private readonly SermonIdentitySyncService $sermonIdentitySyncService,
@@ -78,8 +81,8 @@ class SaveSermonDetails
         Log::warning('Sermon updated by admin', [
             'admin_id' => auth()->id(),
             'sermon_id' => $sermon->id,
-            'title' => ($fresh instanceof Sermon ? $fresh->title : $sermon->title),
-            'slug' => ($fresh instanceof Sermon ? $fresh->slug : $sermon->slug),
+            'title' => $this->sanitizeForLog($fresh instanceof Sermon ? $fresh->title : $sermon->title),
+            'slug' => $this->sanitizeForLog($fresh instanceof Sermon ? $fresh->slug : $sermon->slug),
         ]);
 
         // Dispatch enrichment after saving if reference was set or changed

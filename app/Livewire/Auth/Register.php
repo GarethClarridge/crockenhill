@@ -5,26 +5,31 @@ declare(strict_types=1);
 namespace App\Livewire\Auth;
 
 use App\Models\User;
+use App\Traits\SanitizesLogData;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rules\Unique;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\Features\SupportRedirects\Redirector;
 
 class Register extends Component
 {
+    use SanitizesLogData;
+
     public string $name = '';
 
     public string $email = '';
 
     /**
-     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password|\Illuminate\Validation\Rules\Unique|null>>
+     * @return array<string, array<int, string|Password|Unique|null>>
      *
      * Security: Explicit length constraints are enforced on sensitive fields to provide
      * Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
@@ -78,9 +83,10 @@ class Register extends Component
 
         // "Members only" currently means "has a user account", so registration signs
         // the user in immediately and verification remains a separate concern.
-        \Illuminate\Support\Facades\Log::info('New user registered', [
+        Log::info('New user registered', [
             'user_id' => $user->id,
-            'email' => $user->email,
+            'name' => $this->sanitizeForLog($user->name),
+            'email' => $this->sanitizeForLog($user->email),
             'ip' => request()->ip(),
         ]);
 

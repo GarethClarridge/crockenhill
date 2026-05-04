@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\Users;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
@@ -15,7 +16,7 @@ use Livewire\Component;
 
 class CreateUser extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use SanitizesLogData, WithAdminAuthorization, WithNotifications;
 
     public string $name = '';
 
@@ -46,6 +47,7 @@ class CreateUser extends Component
                 'password' => [
                     'required',
                     'string',
+                    'max:100', // Defense in Depth against DoS
                     'same:passwordConfirmation',
                     Password::defaults(),
                 ],
@@ -77,7 +79,8 @@ class CreateUser extends Component
         Log::warning('New user created by admin', [
             'admin_id' => auth()->id(),
             'target_user_id' => $user->id,
-            'target_user_email' => $user->email,
+            'target_user_name' => $this->sanitizeForLog($user->name),
+            'target_user_email' => $this->sanitizeForLog($user->email),
             'is_admin' => $user->is_admin,
         ]);
 

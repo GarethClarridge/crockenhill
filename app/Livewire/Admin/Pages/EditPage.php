@@ -8,13 +8,14 @@ use App\Livewire\Forms\PageFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
 
 class EditPage extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use SanitizesLogData, WithAdminAuthorization, WithNotifications;
 
     public Page $page;
 
@@ -38,8 +39,8 @@ class EditPage extends Component
         Log::warning('Page updated by admin', [
             'admin_id' => auth()->id(),
             'page_id' => $this->page->id,
-            'heading' => ($fresh instanceof Page ? $fresh->heading : $this->page->heading),
-            'slug' => ($fresh instanceof Page ? $fresh->slug : $this->page->slug),
+            'heading' => $this->sanitizeForLog($fresh instanceof Page ? $fresh->heading : $this->page->heading),
+            'slug' => $this->sanitizeForLog($fresh instanceof Page ? $fresh->slug : $this->page->slug),
         ]);
 
         $this->success('Page updated');
