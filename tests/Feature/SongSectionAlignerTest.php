@@ -191,13 +191,12 @@ class SongSectionAlignerTest extends TestCase
             'service' => SermonService::Morning->value,
         ]);
 
-        // Section has no title candidates, so songMatchScore returns 0.0 against
-        // any item — no confirmed match can be produced.
+        // Item with non-matching title — will score 0.0 against the null-title section.
         ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'title' => 'Untitled Song',
+            'title' => 'No Match',
             'openlp_search_title' => null,
             'source_title' => null,
         ]);
