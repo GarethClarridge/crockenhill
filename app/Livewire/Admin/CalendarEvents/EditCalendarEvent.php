@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\CalendarEvents;
 
 use App\Actions\CategorizeCalendarEvent;
-use App\Enums\CalendarEventStatus;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
@@ -42,17 +41,13 @@ class EditCalendarEvent extends Component
     {
         $rules = CalendarEvent::validationRules();
 
-        /** @var array<int, string> $endDateRules */
-        $endDateRules = $rules['end_datetime'];
-
-        // Fix the date sequence rule to match Livewire property name 'startDatetime'
         $endDateRules = array_map(function (mixed $rule) {
             if (is_string($rule) && str_starts_with($rule, 'after_or_equal:')) {
                 return 'after_or_equal:startDatetime';
             }
 
             return $rule;
-        }, $endDateRules);
+        }, $rules['end_datetime']);
 
         return [
             'title' => $rules['title'],
