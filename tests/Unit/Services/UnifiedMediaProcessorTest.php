@@ -22,6 +22,7 @@ use App\Services\ProcessingRunOrchestrator;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -701,7 +702,7 @@ class UnifiedMediaProcessorTest extends TestCase
 
 class AudioStubJob implements ShouldQueue
 {
-    use \Illuminate\Foundation\Bus\Dispatchable, \Illuminate\Queue\InteractsWithQueue, Queueable;
+    use Dispatchable, \Illuminate\Queue\InteractsWithQueue, Queueable;
 
     public function handle(): void {}
 }
