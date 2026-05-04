@@ -23,13 +23,6 @@ class SermonCard extends Component
 
         return view('components.sermon-card', [
             'sermonView' => $sermonView,
-            'sermonUrl' => $sermonView['canonical_url'],
-            'thumbnailUrl' => $sermonView['plain_thumbnail_url'],
-            'preacherName' => $sermonView['preacher_name'],
-            'reference' => $sermonView['display_reference'],
-            'preacherUrl' => $sermonView['preacher_url'],
-            'formattedDuration' => $sermonView['formatted_duration'],
-            'seriesUrl' => $sermonView['series_url'],
         ]);
     }
 }
