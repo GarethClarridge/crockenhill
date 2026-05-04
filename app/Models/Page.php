@@ -59,6 +59,19 @@ class Page extends Model implements HasMedia, Sitemapable
 
     use InteractsWithMedia;
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $page): void {
+            if (filled($page->description)) {
+                return;
+            }
+
+            $heading = trim($page->heading);
+
+            $page->description = $heading !== '' ? $heading : 'No description provided.';
+        });
+    }
+
     /**
      * The attributes that are mass assignable.
      *
@@ -111,9 +124,9 @@ class Page extends Model implements HasMedia, Sitemapable
                     return null;
                 }
 
-                $trimmed = trim($value);
+                $description = trim($value);
 
-                return $trimmed === '' ? null : $trimmed;
+                return $description !== '' ? $description : null;
             },
         );
     }
