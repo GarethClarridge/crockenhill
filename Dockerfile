@@ -61,8 +61,14 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     # Build tools required for resemblyzer's native extension (webrtcvad)
     && apt-get install -y --no-install-recommends \
         build-essential python3-dev \
-    # Speaker identification runtime dependencies
+    # Speaker identification runtime dependencies. Install PyTorch from the
+    # CPU-only wheel index first; default Linux wheels include multi-GB CUDA
+    # libraries that are not needed on the production server.
+    && pip3 install --no-cache-dir --break-system-packages \
+        --index-url https://download.pytorch.org/whl/cpu \
+        torch \
     && pip3 install --no-cache-dir --break-system-packages resemblyzer \
+    && ! python3 -m pip freeze | grep -E '^nvidia-' \
     && apt-get purge -y --auto-remove build-essential python3-dev \
     # Cleanup
     && apt-get clean && rm -rf /var/lib/apt/lists/*

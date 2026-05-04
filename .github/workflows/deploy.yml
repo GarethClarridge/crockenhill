@@ -17,12 +17,14 @@ jobs:
     services:
       mysql:
         image: mysql:8.0
+        command: --log-error-verbosity=1
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_PASSWORD: testing
           MYSQL_DATABASE: testing
+          MYSQL_INITDB_SKIP_TZINFO: 1
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="mysqladmin ping -uroot -ptesting" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
       - uses: actions/checkout@v6
@@ -90,7 +92,7 @@ jobs:
           echo "DB_HOST=127.0.0.1" >> .env
           echo "DB_DATABASE=testing" >> .env
           echo "DB_USERNAME=root" >> .env
-          echo "DB_PASSWORD=" >> .env
+          echo "DB_PASSWORD=testing" >> .env
           echo "SESSION_DRIVER=array" >> .env
           echo "QUEUE_CONNECTION=sync" >> .env
           echo "TRANSCRIPTION_SERVICE_TYPE=mock" >> .env
@@ -121,12 +123,14 @@ jobs:
     services:
       mysql:
         image: mysql:8.0
+        command: --log-error-verbosity=1
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_PASSWORD: testing
           MYSQL_DATABASE: testing
+          MYSQL_INITDB_SKIP_TZINFO: 1
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="mysqladmin ping -uroot -ptesting" --health-interval=10s --health-timeout=5s --health-retries=3
 
       selenium:
         image: selenium/standalone-chromium
@@ -179,8 +183,8 @@ jobs:
 
       - name: Run migrations
         run: |
-          mysql -h 127.0.0.1 -u root -e "CREATE DATABASE IF NOT EXISTS \`testing_dusk\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-          DB_HOST=127.0.0.1 DB_DATABASE=testing_dusk DB_USERNAME=root DB_PASSWORD= php artisan migrate --force
+          mysql -h 127.0.0.1 -u root -ptesting -e "CREATE DATABASE IF NOT EXISTS \`testing_dusk\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          DB_HOST=127.0.0.1 DB_DATABASE=testing_dusk DB_USERNAME=root DB_PASSWORD=testing php artisan migrate --force
 
       - name: Start application server
         run: |
@@ -227,12 +231,14 @@ jobs:
     services:
       mysql:
         image: mysql:8.0
+        command: --log-error-verbosity=1
         env:
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_PASSWORD: testing
           MYSQL_DATABASE: testing
+          MYSQL_INITDB_SKIP_TZINFO: 1
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="mysqladmin ping -uroot -ptesting" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
       - uses: actions/checkout@v6
@@ -277,7 +283,7 @@ jobs:
           echo "DB_HOST=127.0.0.1" >> .env
           echo "DB_DATABASE=testing" >> .env
           echo "DB_USERNAME=root" >> .env
-          echo "DB_PASSWORD=" >> .env
+          echo "DB_PASSWORD=testing" >> .env
           echo "SESSION_DRIVER=array" >> .env
           echo "QUEUE_CONNECTION=sync" >> .env
           echo "TRANSCRIPTION_SERVICE_TYPE=mock" >> .env
@@ -475,8 +481,11 @@ jobs:
             export IMAGE_TAG
             echo "Deploying app image tag: ${IMAGE_TAG}"
 
-            # Free disk space before pulling (remove unused images and build cache)
+            # Free disk space before pulling. SHA-tagged app images accumulate
+            # across deploys; keep running images, but remove unused ones.
             docker system prune -f
+            docker image prune -af
+            docker builder prune -af
 
             # Pull new image
             docker compose -f docker-compose.prod.yml --env-file .env.production pull
@@ -532,3 +541,7 @@ jobs:
 
             # Post-deploy operational smoke check
             ./scripts/post-deploy-smoke.sh
+
+            # Remove the app image from the previous deploy once the new
+            # container has passed the operational smoke check.
+            docker image prune -af
