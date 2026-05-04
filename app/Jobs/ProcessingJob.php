@@ -187,7 +187,7 @@ abstract class ProcessingJob
         }
 
         // Also check the main processing log for CANCELLED status
-        $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
+        $log = MediaProcessingLog::query()->where('processing_id', $this->processingId)->first();
 
         return $log?->isCancelled() ?? false;
     }
