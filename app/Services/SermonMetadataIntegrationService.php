@@ -32,7 +32,7 @@ class SermonMetadataIntegrationService
      */
     public function linkVideoToSermon(string $processingId, int $sermonId, string $finalVideoPath): void
     {
-        /** @var \App\Models\MediaProcessingLog $processing */
+        /** @var MediaProcessingLog $processing */
         $processing = MediaProcessingLog::where('processing_id', $processingId)->firstOrFail();
         $sermon = Sermon::findOrFail($sermonId);
 

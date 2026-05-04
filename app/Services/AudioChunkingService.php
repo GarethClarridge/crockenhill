@@ -339,7 +339,7 @@ class AudioChunkingService
 
             return $compressedPath;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             if (file_exists($compressedPath)) {
                 unlink($compressedPath);
             }

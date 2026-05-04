@@ -6,6 +6,7 @@ namespace Tests\Feature\Database;
 
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchServiceItem;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -63,7 +64,7 @@ class ChurchServiceItemSchemaTest extends TestCase
             'position' => 1,
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         DB::table('church_service_items')->insert([
             'church_service_id' => $item->church_service_id,

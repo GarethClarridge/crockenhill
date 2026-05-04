@@ -8,6 +8,7 @@ use App\Http\Resources\SermonResource;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\Resources\MissingValue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -83,7 +84,7 @@ class SermonResourceTest extends TestCase
         $array = $resource->toArray(request());
 
         $this->assertArrayHasKey('preacher_details', $array);
-        $this->assertNotInstanceOf(\Illuminate\Http\Resources\MissingValue::class, $array['preacher_details']);
+        $this->assertNotInstanceOf(MissingValue::class, $array['preacher_details']);
         $this->assertEquals($preacher->id, $array['preacher_details']['id']);
         $this->assertEquals('John Smith Resource Test', $array['preacher_details']['name']);
         $this->assertStringContainsString('preachers/john.jpg', $array['preacher_details']['image_url']);
@@ -98,7 +99,7 @@ class SermonResourceTest extends TestCase
         $resource = new SermonResource($sermon);
         $array = $resource->toArray(request());
 
-        $this->assertInstanceOf(\Illuminate\Http\Resources\MissingValue::class, $array['preacher_details']);
+        $this->assertInstanceOf(MissingValue::class, $array['preacher_details']);
     }
 
     #[Test]
@@ -145,7 +146,7 @@ class SermonResourceTest extends TestCase
         $resource = new SermonResource($sermon);
         $array = $resource->toArray(request());
 
-        $this->assertInstanceOf(\Illuminate\Http\Resources\MissingValue::class, $array['points']);
+        $this->assertInstanceOf(MissingValue::class, $array['points']);
     }
 
     #[Test]

@@ -14,6 +14,7 @@ use App\Services\ChurchServiceSongLinker;
 use App\Services\InboundEmailImportService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class SaveChurchServiceFromAdmin
@@ -90,7 +91,7 @@ class SaveChurchServiceFromAdmin
             $syncResult,
         );
 
-        \Illuminate\Support\Facades\Log::warning('Church service saved by admin', [
+        Log::warning('Church service saved by admin', [
             'admin_id' => $userId,
             'church_service_id' => $churchService->id,
             'date' => $churchService->date->toDateString(),

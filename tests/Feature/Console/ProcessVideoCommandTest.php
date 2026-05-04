@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\ProcessingPipelineBuilder;
+use App\Services\ProcessingRunOrchestrator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -122,7 +123,7 @@ class ProcessVideoCommandTest extends TestCase
 
         $builder = $this->mock(ProcessingPipelineBuilder::class);
         $builder->shouldReceive('buildLivestreamPostReviewChainJobs')->andReturn([new AlwaysFailingJob]);
-        $this->app->forgetInstance(\App\Services\ProcessingRunOrchestrator::class);
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         $this->artisan('livestream:create-sermon', ['processing_id' => $processingId])
             ->assertExitCode(1)

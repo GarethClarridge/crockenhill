@@ -6,7 +6,9 @@ namespace App\Services;
 
 use App\Data\ApiBiblePassageResult;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -261,14 +263,14 @@ class ApiBibleClient
      *
      * @param  array<string, mixed>  $query
      */
-    private function makeRequest(string $method, string $path, array $query = []): \Illuminate\Http\Client\Response
+    private function makeRequest(string $method, string $path, array $query = []): Response
     {
         // Count the first (unconditional) outbound attempt.
         $this->recordCall();
 
         return Http::withHeaders(['api-key' => $this->apiKey])
             ->timeout($this->timeoutSeconds)
-            ->retry($this->maxRetries, 500, function (\Throwable $exception, \Illuminate\Http\Client\PendingRequest $request): bool {
+            ->retry($this->maxRetries, 500, function (\Throwable $exception, PendingRequest $request): bool {
                 if ($exception instanceof ConnectionException) {
                     // Count the upcoming retry attempt against the budget.
                     $this->recordCall();

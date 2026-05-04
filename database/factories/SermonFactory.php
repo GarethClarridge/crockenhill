@@ -5,6 +5,8 @@ namespace Database\Factories;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Models\Preacher;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -54,7 +56,7 @@ class SermonFactory extends Factory
         ];
     }
 
-    public function withDate(\Carbon\Carbon $date): static
+    public function withDate(Carbon $date): static
     {
         return $this->state(fn (array $attributes) => [
             'date' => $date,
@@ -75,7 +77,7 @@ class SermonFactory extends Factory
         ]);
     }
 
-    public function withPreacher(\App\Models\Preacher $preacher): static
+    public function withPreacher(Preacher $preacher): static
     {
         return $this->state(fn () => [
             'preacher' => $preacher->name,

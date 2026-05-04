@@ -9,6 +9,7 @@ use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
 use FFMpeg\FFMpeg;
+use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Media\Video;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
@@ -228,11 +229,11 @@ class VideoStorageServiceTest extends TestCase
         $video->expects($this->once())
             ->method('save')
             ->with(
-                $this->isInstanceOf(\FFMpeg\Format\Audio\Mp3::class),
+                $this->isInstanceOf(Mp3::class),
                 $this->isString()
             )
             ->willReturnCallback(
-                static function (\FFMpeg\Format\Audio\Mp3 $format, string $outputPath) use ($saveCallback): void {
+                static function (Mp3 $format, string $outputPath) use ($saveCallback): void {
                     $saveCallback($outputPath);
                 }
             );

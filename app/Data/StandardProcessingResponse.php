@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Enums\MediaType;
+use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
+use App\Services\ProcessingPhaseRegistry;
+use App\Services\SermonStorageService;
 use Carbon\Carbon;
 
 /**
@@ -263,7 +267,7 @@ class StandardProcessingResponse
     /**
      * Create response from MediaProcessingLog
      */
-    public static function fromProcessingLog(\App\Models\MediaProcessingLog $log): self
+    public static function fromProcessingLog(MediaProcessingLog $log): self
     {
         $metadata = match ($log->processing_type) {
             MediaType::Livestream => [
@@ -283,16 +287,16 @@ class StandardProcessingResponse
 
         // Add thumbnail data if sermon exists
         $sermon = $log->sermon;
-        if ($sermon instanceof \App\Models\Sermon) {
+        if ($sermon instanceof Sermon) {
             $metadata['thumbnail_generated'] = ! empty($sermon->thumbnail_file_path);
             $metadata['thumbnail_url'] = $sermon->thumbnail_file_path
-                ? app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon)
+                ? app(SermonStorageService::class)->getThumbnailUrl($sermon)
                 : null;
             $metadata['thumbnail_generated_at'] = $sermon->thumbnail_generated_at?->toISOString();
         }
 
         $sermonUrl = null;
-        if ($log->sermon instanceof \App\Models\Sermon) {
+        if ($log->sermon instanceof Sermon) {
             $sermonUrl = "/christ/sermons/{$log->sermon->slug}";
         }
 
@@ -313,7 +317,7 @@ class StandardProcessingResponse
     /**
      * Calculate progress percentage based on current step
      */
-    private static function calculateProgress(\App\Models\MediaProcessingLog $log): int
+    private static function calculateProgress(MediaProcessingLog $log): int
     {
         if ($log->isComplete()) {
             return 100;
@@ -323,6 +327,6 @@ class StandardProcessingResponse
             return 0;
         }
 
-        return app(\App\Services\ProcessingPhaseRegistry::class)->progressForLog($log);
+        return app(ProcessingPhaseRegistry::class)->progressForLog($log);
     }
 }

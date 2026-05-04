@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SchedulerRegistrationTest extends TestCase
 {
-    /** @var array<int, \Illuminate\Console\Scheduling\Event>|null */
+    /** @var array<int, Event>|null */
     private ?array $cachedEvents = null;
 
-    /** @return array<int, \Illuminate\Console\Scheduling\Event> */
+    /** @return array<int, Event> */
     private function scheduledEvents(): array
     {
         if ($this->cachedEvents === null) {
@@ -26,7 +27,7 @@ class SchedulerRegistrationTest extends TestCase
         return $this->cachedEvents;
     }
 
-    private function findEvent(string $commandFragment): ?\Illuminate\Console\Scheduling\Event
+    private function findEvent(string $commandFragment): ?Event
     {
         foreach ($this->scheduledEvents() as $event) {
             if (str_contains($event->command, $commandFragment)) {

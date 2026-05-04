@@ -9,6 +9,7 @@ use App\Traits\DetectsStorageType;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
+use FFMpeg\Media\Video;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -106,7 +107,7 @@ class AudioCompressionService
             $config = config('media-processing.audio_extraction.transcription_optimized');
             $fallbackConfig = config('media-processing.audio_extraction.fallback_compression');
 
-            /** @var \FFMpeg\Media\Video $video */
+            /** @var Video $video */
             $video = $this->requireFfmpeg()->open($inputVideoPath);
 
             $format = new Mp3;

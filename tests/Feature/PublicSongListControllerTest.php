@@ -26,7 +26,7 @@ class PublicSongListControllerTest extends TestCase
         $this->user = User::factory()->create();
 
         // Clear songs so ordering/pagination is deterministic
-        \App\Models\Song::query()->delete();
+        Song::query()->delete();
     }
 
     protected function tearDown(): void

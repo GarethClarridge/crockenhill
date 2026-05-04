@@ -1,9 +1,19 @@
 <?php
 
+use App\Contracts\ProvidesSafeMessage;
+use App\Http\Middleware\EnsureChildrensCornerAccess;
+use App\Http\Middleware\EnsureMediaProcessingAccess;
+use App\Http\Middleware\EnsureServiceTrackingAccess;
+use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EnsureValidMailgunWebhookSignature;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -30,7 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->environments(['production']);
     })
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+        $middleware->append(SecurityHeaders::class);
 
         // Read directly from env() — TrustProxies must be configured before the
         // container/config cache is fully booted. Intentional, not config drift.
@@ -41,13 +51,13 @@ return Application::configure(basePath: dirname(__DIR__))
         }
 
         $middleware->alias([
-            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
-            'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
-            'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
-            'childrens-corner.access' => \App\Http\Middleware\EnsureChildrensCornerAccess::class,
-            'mailgun.signature' => \App\Http\Middleware\EnsureValidMailgunWebhookSignature::class,
-            'media.process' => \App\Http\Middleware\EnsureMediaProcessingAccess::class,
-            'service.access' => \App\Http\Middleware\EnsureServiceTrackingAccess::class,
+            'admin' => EnsureUserIsAdmin::class,
+            'abilities' => CheckAbilities::class,
+            'ability' => CheckForAnyAbility::class,
+            'childrens-corner.access' => EnsureChildrensCornerAccess::class,
+            'mailgun.signature' => EnsureValidMailgunWebhookSignature::class,
+            'media.process' => EnsureMediaProcessingAccess::class,
+            'service.access' => EnsureServiceTrackingAccess::class,
         ]);
 
         $middleware->redirectGuestsTo('/login');
@@ -56,8 +66,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->expectsJson() || $request->is('api/*'));
 
-        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
-            if ($e instanceof \App\Contracts\ProvidesSafeMessage && ($request->expectsJson() || $request->is('api/*'))) {
+        $exceptions->render(function (Throwable $e, Request $request) {
+            if ($e instanceof ProvidesSafeMessage && ($request->expectsJson() || $request->is('api/*'))) {
                 return response()->json([
                     'message' => $e->getSafeMessage(),
                 ], 422);

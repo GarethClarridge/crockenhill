@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -1460,7 +1461,7 @@ class OosAlignmentServiceTest extends TestCase
         // Update the dismissal section so it no longer contains the marker
         $updatedMetadata = $dismissalSection->metadata->toArray();
         $updatedMetadata['transcript'] = 'We continue our service with a time of prayer.';
-        $dismissalSection->metadata = \App\Data\ServiceSectionMetadata::fromArray($updatedMetadata);
+        $dismissalSection->metadata = ServiceSectionMetadata::fromArray($updatedMetadata);
         $dismissalSection->save();
 
         // Second alignment — flag should be cleared (baseline restorer removes OOS flags, and dismissal no longer triggers)

@@ -7,6 +7,7 @@ namespace Tests\Unit\Jobs;
 use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonCreationService;
 use App\Services\SermonMetadataIntegrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -211,7 +212,7 @@ class SubmitToProcessingTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
 
-        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+        $result = app(MediaProcessingRunTransitionService::class)
             ->markAsFailed($log, 'Sermon creation from livestream failed: something went wrong');
 
         $this->assertFalse($result);

@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\SermonContentType;
 use App\Models\Sermon;
+use App\Models\User;
+use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -30,7 +34,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }
 
     #[Test]
@@ -39,9 +43,9 @@ class SermonAssetControllerTest extends TestCase
         Storage::fake('public');
         config(['sermons.childrens_talks.public' => false]);
 
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
         $sermon = Sermon::factory()->create([
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'thumbnail_file_path' => 'thumbnails/childrens-talk.webp',
         ]);
 
@@ -83,7 +87,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -100,7 +104,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/video");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getVideoUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getVideoUrl($sermon));
     }
 
     #[Test]
@@ -132,7 +136,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -149,7 +153,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -166,7 +170,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -186,7 +190,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getCardThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -235,7 +239,7 @@ class SermonAssetControllerTest extends TestCase
         Storage::disk('public')->put('sermons/throttled.mp3', 'fake audio content');
 
         // Clear limiter state for this test (using an empty key to match the IP-only case or the general pattern)
-        \Illuminate\Support\Facades\RateLimiter::clear('media-audio|127.0.0.1');
+        RateLimiter::clear('media-audio|127.0.0.1');
 
         // Limit is 10 per minute for audio
         for ($i = 0; $i < 10; $i++) {
@@ -259,7 +263,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('thumbnails/throttled.webp', 'fake thumb');
 
-        \Illuminate\Support\Facades\RateLimiter::clear('media-thumbnail|127.0.0.1');
+        RateLimiter::clear('media-thumbnail|127.0.0.1');
 
         // Limit is 120 per minute for thumbnails
         for ($i = 0; $i < 120; $i++) {
@@ -277,7 +281,7 @@ class SermonAssetControllerTest extends TestCase
         config(['sermons.childrens_talks.public' => false]);
 
         $sermon = Sermon::factory()->create([
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'audio_file_path' => 'sermons/childrens-talk.mp3',
         ]);
 
@@ -292,7 +296,7 @@ class SermonAssetControllerTest extends TestCase
         config(['sermons.childrens_talks.public' => false]);
 
         $sermon = Sermon::factory()->create([
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'thumbnail_file_path' => 'thumbnails/childrens-talk.webp',
         ]);
 
@@ -307,7 +311,7 @@ class SermonAssetControllerTest extends TestCase
         config(['sermons.childrens_talks.public' => false]);
 
         $sermon = Sermon::factory()->create([
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'video_file_path' => 'sermons/childrens-talk.mp4',
         ]);
 
@@ -322,7 +326,7 @@ class SermonAssetControllerTest extends TestCase
         config(['sermons.childrens_talks.public' => false]);
 
         $sermon = Sermon::factory()->create([
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'thumbnail_metadata' => [
                 'card_thumbnail_path' => 'thumbnails/card.webp',
             ],
@@ -339,9 +343,9 @@ class SermonAssetControllerTest extends TestCase
         Storage::fake('public');
         config(['sermons.childrens_talks.public' => false]);
 
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
         $sermon = Sermon::factory()->create([
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'audio_file_path' => 'sermons/childrens-talk.mp3',
         ]);
 
@@ -360,7 +364,7 @@ class SermonAssetControllerTest extends TestCase
         config(['sermons.childrens_talks.public' => true]);
 
         $sermon = Sermon::factory()->create([
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'audio_file_path' => 'sermons/childrens-talk.mp3',
         ]);
 
@@ -379,7 +383,7 @@ class SermonAssetControllerTest extends TestCase
         config(['sermons.childrens_talks.public' => true]);
 
         $sermon = Sermon::factory()->create([
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'video_file_path' => 'sermons/childrens-talk.mp4',
         ]);
 
@@ -395,7 +399,7 @@ class SermonAssetControllerTest extends TestCase
     public function it_serves_private_audio_file_as_binary_response_to_admin(): void
     {
         Storage::fake('local');
-        $admin = \App\Models\User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create();
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-sermon',
@@ -414,7 +418,7 @@ class SermonAssetControllerTest extends TestCase
     public function it_serves_private_video_file_as_binary_response_to_admin(): void
     {
         Storage::fake('local');
-        $admin = \App\Models\User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create();
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-video-sermon',
@@ -434,7 +438,7 @@ class SermonAssetControllerTest extends TestCase
     public function it_serves_private_thumbnail_file_as_binary_response_to_admin(): void
     {
         Storage::fake('local');
-        $admin = \App\Models\User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create();
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-thumb-sermon',
@@ -453,7 +457,7 @@ class SermonAssetControllerTest extends TestCase
     public function it_serves_private_card_thumbnail_file_as_binary_response_to_admin(): void
     {
         Storage::fake('local');
-        $admin = \App\Models\User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create();
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-card-thumb-sermon',
@@ -505,7 +509,7 @@ class SermonAssetControllerTest extends TestCase
 
         $sermon = Sermon::factory()->create([
             'slug' => 'private-ct-transcript',
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'transcript_file_path' => 'transcripts/ct.txt',
         ]);
 

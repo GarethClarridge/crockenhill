@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\SermonService;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SermonIndexRequest extends FormRequest
 {
@@ -23,13 +26,13 @@ class SermonIndexRequest extends FormRequest
      * Defense in Depth against malformed input and potential Denial of Service (DoS)
      * attacks by ensuring all inputs are bounded and correctly typed.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
             'search' => ['nullable', 'string', 'max:255'],
-            'service' => ['nullable', 'string', \Illuminate\Validation\Rule::enum(\App\Enums\SermonService::class)],
+            'service' => ['nullable', 'string', Rule::enum(SermonService::class)],
             'preacher' => ['nullable', 'string', 'max:255'],
             'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
             'series' => ['nullable', 'string', 'max:255'],

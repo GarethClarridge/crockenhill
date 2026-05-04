@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\ScripturePassageFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -28,7 +29,7 @@ use Illuminate\Support\Carbon;
  */
 class ScripturePassage extends Model
 {
-    /** @use HasFactory<\Database\Factories\ScripturePassageFactory> */
+    /** @use HasFactory<ScripturePassageFactory> */
     use HasFactory;
 
     protected $fillable = [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use App\Data\StandardProcessingResponse;
 use App\Enums\ApiTokenAbility;
 use App\Models\User;
 use App\Services\ProcessingResult;
@@ -173,7 +174,7 @@ class MediaUploadTest extends TestCase
 
         $mock = $this->createMock(UnifiedMediaProcessor::class);
         $mock->method('getStatus')
-            ->willReturn(\App\Data\StandardProcessingResponse::notFound($processingId));
+            ->willReturn(StandardProcessingResponse::notFound($processingId));
         $this->app->instance(UnifiedMediaProcessor::class, $mock);
 
         $token = $this->tokenFor($this->admin);
@@ -190,7 +191,7 @@ class MediaUploadTest extends TestCase
 
         $mock = $this->createMock(UnifiedMediaProcessor::class);
         $mock->method('getStatus')
-            ->willReturn(\App\Data\StandardProcessingResponse::found(
+            ->willReturn(StandardProcessingResponse::found(
                 processingId: $processingId,
                 status: 'processing',
                 currentStep: 'transcription',
@@ -272,7 +273,7 @@ class MediaUploadTest extends TestCase
     public function it_can_retry_failed_processing(): void
     {
         $processingId = 'aaaaaaaa-0000-0000-0000-000000000005';
-        $mockResult = \App\Services\ProcessingResult::success($processingId, 'Retry initiated');
+        $mockResult = ProcessingResult::success($processingId, 'Retry initiated');
 
         $mock = $this->createMock(UnifiedMediaProcessor::class);
         $mock->method('retry')->willReturn($mockResult);
@@ -290,7 +291,7 @@ class MediaUploadTest extends TestCase
     public function it_returns_422_when_retry_fails(): void
     {
         $processingId = 'aaaaaaaa-0000-0000-0000-000000000006';
-        $mockResult = \App\Services\ProcessingResult::failure($processingId, 'Processing ID not found', 'NOT_FOUND');
+        $mockResult = ProcessingResult::failure($processingId, 'Processing ID not found', 'NOT_FOUND');
 
         $mock = $this->createMock(UnifiedMediaProcessor::class);
         $mock->method('retry')->willReturn($mockResult);
@@ -365,7 +366,7 @@ class MediaUploadTest extends TestCase
         $mock->expects($this->once())
             ->method('getStatus')
             ->with($processingId)
-            ->willReturn(\App\Data\StandardProcessingResponse::found(
+            ->willReturn(StandardProcessingResponse::found(
                 processingId: $processingId,
                 status: 'processing',
                 currentStep: 'transcription',
@@ -391,7 +392,7 @@ class MediaUploadTest extends TestCase
         $mock->expects($this->once())
             ->method('getStatusWithLogs')
             ->with($processingId, true, 20)
-            ->willReturn(\App\Data\StandardProcessingResponse::found(
+            ->willReturn(StandardProcessingResponse::found(
                 processingId: $processingId,
                 status: 'processing',
                 currentStep: 'transcription',

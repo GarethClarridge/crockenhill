@@ -7,6 +7,7 @@ namespace Tests\Unit\Models;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -33,7 +34,7 @@ class CalendarEventTest extends TestCase
         $event = new CalendarEvent($data);
 
         foreach ($data as $key => $value) {
-            if ($value instanceof \Illuminate\Support\Carbon) {
+            if ($value instanceof Carbon) {
                 $this->assertEquals($value->timestamp, $event->$key->timestamp);
             } elseif ($key === 'status') {
                 $this->assertEquals($value, $event->$key->value);
@@ -52,8 +53,8 @@ class CalendarEventTest extends TestCase
             'is_categorized_automatically' => 1,
         ]);
 
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $event->start_datetime);
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $event->end_datetime);
+        $this->assertInstanceOf(Carbon::class, $event->start_datetime);
+        $this->assertInstanceOf(Carbon::class, $event->end_datetime);
         $this->assertIsBool($event->is_categorized_automatically);
         $this->assertTrue($event->is_categorized_automatically);
     }

@@ -1,5 +1,8 @@
 <?php
 
+use App\Services\SectionPublication\SermonPublicationHandler;
+use App\Services\SectionPublication\SongPublicationHandler;
+
 $defaultQueue = env('MEDIA_PROCESSING_QUEUE_DEFAULT', 'default');
 $audioQueue = env('MEDIA_PROCESSING_QUEUE_AUDIO', 'audio-processing');
 $videoQueue = env('MEDIA_PROCESSING_QUEUE_VIDEO', 'video-processing');
@@ -260,8 +263,8 @@ return [
     'section_publishing' => [
         'enabled' => env('SERVICE_SECTION_PUBLISHING_ENABLED', true),
         'handlers' => [
-            'childrens_talk' => \App\Services\SectionPublication\SermonPublicationHandler::class,
-            'song' => \App\Services\SectionPublication\SongPublicationHandler::class,
+            'childrens_talk' => SermonPublicationHandler::class,
+            'song' => SongPublicationHandler::class,
             // 'sermon' => \App\Services\SectionPublication\SermonPublicationHandler::class, // future
         ],
         'require_high_confidence' => env('SERVICE_SECTION_PUBLISH_REQUIRE_HIGH_CONFIDENCE', true),

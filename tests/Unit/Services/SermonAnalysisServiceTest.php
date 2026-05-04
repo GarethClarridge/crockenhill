@@ -11,10 +11,13 @@ use App\Services\SermonAnalysisPromptBuilder;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonAnalysisValidator;
 use App\Services\SermonProcessingLogger;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Psr7\Request;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use OpenAI\Exceptions\ErrorException;
 use OpenAI\Exceptions\TransporterException;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -85,7 +88,7 @@ class SermonAnalysisServiceTest extends TestCase
         $this->assertEquals('Grace Series', $result->series);
         $this->assertEquals('Ephesians 2:8-9', $result->reference);
         $this->assertCount(2, $result->points);
-        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 1);
+        OpenAI::assertSent(Chat::class, 1);
     }
 
     #[Test]
@@ -93,9 +96,9 @@ class SermonAnalysisServiceTest extends TestCase
     {
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
-        $clientException = new \GuzzleHttp\Exception\ConnectException(
+        $clientException = new ConnectException(
             'Network error',
-            new \GuzzleHttp\Psr7\Request('POST', 'test')
+            new Request('POST', 'test')
         );
 
         OpenAI::fake([
@@ -134,7 +137,7 @@ class SermonAnalysisServiceTest extends TestCase
 
         $this->service->analyzeSermon($transcript);
 
-        OpenAI::assertSent(\OpenAI\Resources\Chat::class, 1);
+        OpenAI::assertSent(Chat::class, 1);
     }
 
     #[Test]

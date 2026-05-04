@@ -7,6 +7,7 @@ namespace Tests\Unit\Jobs;
 use App\Jobs\ValidateAudioFile;
 use App\Models\MediaProcessingLog;
 use App\Services\AudioExtractionService;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\StorageAdapterHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -251,7 +252,7 @@ class ValidateAudioFileTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->audio()->cancelled()->create();
 
-        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+        $result = app(MediaProcessingRunTransitionService::class)
             ->markAsFailed($log, 'Audio validation failed: something went wrong');
 
         $this->assertFalse($result);

@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Security;
 
+use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
+use App\Livewire\Admin\ChurchServices\ShowChurchService;
+use App\Livewire\Admin\Meetings\ListMeetings;
+use App\Livewire\Admin\Pages\ListPages;
+use App\Livewire\Admin\Preachers\ListPreachers;
+use App\Livewire\Admin\Sermons\EditSermon;
+use App\Livewire\Admin\Sermons\ListSermons;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\Meeting;
@@ -45,7 +52,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
 
-        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Sermons\ListSermons::class)
+        $this->mountAsAdminThenActAsUser(ListSermons::class)
             ->call('delete', $sermon)
             ->assertForbidden();
 
@@ -58,7 +65,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create(['title' => 'Original Title']);
 
-        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Sermons\EditSermon::class, ['sermon' => $sermon])
+        $this->mountAsAdminThenActAsUser(EditSermon::class, ['sermon' => $sermon])
             ->set('form.title', 'Hacked Title')
             ->call('save')
             ->assertForbidden();
@@ -74,7 +81,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Meeting $meeting */
         $meeting = Meeting::factory()->create();
 
-        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Meetings\ListMeetings::class)
+        $this->mountAsAdminThenActAsUser(ListMeetings::class)
             ->call('delete', $meeting)
             ->assertForbidden();
 
@@ -87,7 +94,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Preacher $preacher */
         $preacher = Preacher::factory()->create();
 
-        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Preachers\ListPreachers::class)
+        $this->mountAsAdminThenActAsUser(ListPreachers::class)
             ->call('delete', $preacher)
             ->assertForbidden();
 
@@ -100,7 +107,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var Page $page */
         $page = Page::factory()->create();
 
-        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\Pages\ListPages::class)
+        $this->mountAsAdminThenActAsUser(ListPages::class)
             ->call('delete', $page)
             ->assertForbidden();
 
@@ -113,7 +120,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var InboundEmail $email */
         $email = InboundEmail::factory()->create();
 
-        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\ChurchServices\ReviewInboundEmails::class)
+        $this->mountAsAdminThenActAsUser(ReviewInboundEmails::class)
             ->call('approve', $email->id)
             ->assertForbidden();
     }
@@ -124,7 +131,7 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var ChurchService $service */
         $service = ChurchService::factory()->create();
 
-        $this->mountAsAdminThenActAsUser(\App\Livewire\Admin\ChurchServices\ShowChurchService::class, ['churchService' => $service])
+        $this->mountAsAdminThenActAsUser(ShowChurchService::class, ['churchService' => $service])
             ->call('acceptIncomingMerge')
             ->assertForbidden();
     }

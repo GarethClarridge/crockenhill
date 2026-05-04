@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -187,7 +188,7 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
 
         $section->section_type = $newType;
         $section->needs_manual_review = true;
-        $section->metadata = \App\Data\ServiceSectionMetadata::fromArray($metadata);
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         $section->save();
     }
 }

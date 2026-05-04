@@ -4,11 +4,13 @@ namespace Database\Factories;
 
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\MediaProcessingLog>
+ * @extends Factory<MediaProcessingLog>
  */
 class MediaProcessingLogFactory extends Factory
 {
@@ -178,7 +180,7 @@ class MediaProcessingLogFactory extends Factory
     /**
      * Associate the log with a specific owner user.
      */
-    public function withOwner(\App\Models\User $user): static
+    public function withOwner(User $user): static
     {
         return $this->state(fn (array $attributes) => [
             'owner_user_id' => $user->id,

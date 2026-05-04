@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\CalendarEvents;
 
+use App\Actions\CategorizeCalendarEvent;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
@@ -58,7 +59,7 @@ class ListCalendarEvents extends Component
         $event = CalendarEvent::find($eventId);
 
         if ($event) {
-            app(\App\Actions\CategorizeCalendarEvent::class)->execute($event, $meetingSlug);
+            app(CategorizeCalendarEvent::class)->execute($event, $meetingSlug);
         }
 
         $this->success('Event categorized');

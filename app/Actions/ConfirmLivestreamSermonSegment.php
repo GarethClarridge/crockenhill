@@ -8,9 +8,11 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\MediaProcessingRunTransitionService;
+use App\Services\ProcessingRunOrchestrator;
 use App\Services\VideoStorageService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ConfirmLivestreamSermonSegment
 {
@@ -66,7 +68,7 @@ class ConfirmLivestreamSermonSegment
             $this->processingRunTransitions->confirmSermonSegment($log, $segmentId, $user->id);
             $log->refresh();
 
-            \Illuminate\Support\Facades\Log::warning('Livestream sermon segment confirmed by admin', [
+            Log::warning('Livestream sermon segment confirmed by admin', [
                 'admin_id' => $user->id,
                 'processing_id' => $processingId,
                 'segment_id' => $segmentId,
@@ -78,7 +80,7 @@ class ConfirmLivestreamSermonSegment
 
         // Resolve the orchestrator after the transaction commits so we do not
         // hold a container-resolved collaborator across the DB lock boundary.
-        app(\App\Services\ProcessingRunOrchestrator::class)->resumeAfterManualReview($log);
+        app(ProcessingRunOrchestrator::class)->resumeAfterManualReview($log);
     }
 
     /**

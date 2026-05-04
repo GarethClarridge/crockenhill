@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Models;
 
+use App\Enums\MeetingFrequency;
 use App\Models\Meeting;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
@@ -19,17 +20,17 @@ class MeetingTest extends TestCase
     {
         // Test getFormattedDateTimeAttribute
         $date = Carbon::create(2023, 1, 15, 10, 30, 0);
-        $meetingWithDate = \App\Models\Meeting::factory()->onDate($date)->create();
+        $meetingWithDate = Meeting::factory()->onDate($date)->create();
         // Assuming a format like 'F j, Y, g:i A' (e.g., January 15, 2023, 10:30 AM)
         $this->assertEquals($date->format('F j, Y, g:i A'), $meetingWithDate->formatted_date_time);
         // Assumes: public function getFormattedDateTimeAttribute() { return $this->meeting_date ? $this->meeting_date->format('F j, Y, g:i A') : null; }
 
         // Test location (formerly location_address)
         $address = '123 Main St, Anytown, AT 12345';
-        $meetingWithAddress = \App\Models\Meeting::factory()->create(['location' => $address]);
+        $meetingWithAddress = Meeting::factory()->create(['location' => $address]);
         $this->assertEquals($address, $meetingWithAddress->location);
 
-        $meetingWithoutAddress = \App\Models\Meeting::factory()->create(['location' => null]);
+        $meetingWithoutAddress = Meeting::factory()->create(['location' => null]);
         $this->assertNull($meetingWithoutAddress->location);
     }
 
@@ -37,23 +38,23 @@ class MeetingTest extends TestCase
     public function meeting_mutators_and_casts()
     {
         // Test meeting_date casting to Carbon instance
-        $meetingWithDate = \App\Models\Meeting::factory()->onDate(Carbon::now())->create();
+        $meetingWithDate = Meeting::factory()->onDate(Carbon::now())->create();
         $this->assertInstanceOf(Carbon::class, $meetingWithDate->meeting_date);
         // Assumes: protected $casts = ['meeting_date' => 'datetime'];
 
         // Test is_recurring casting to boolean
-        $recurringMeeting = \App\Models\Meeting::factory()->recurring()->create();
+        $recurringMeeting = Meeting::factory()->recurring()->create();
         $this->assertTrue($recurringMeeting->is_recurring);
 
-        $nonRecurringMeeting = \App\Models\Meeting::factory()->notRecurring()->create();
+        $nonRecurringMeeting = Meeting::factory()->notRecurring()->create();
         $this->assertFalse($nonRecurringMeeting->is_recurring);
         // Assumes: protected $casts = ['is_recurring' => 'boolean'];
 
         // Test frequency (assuming it's a string, no special cast yet)
-        $meetingWithFrequency = \App\Models\Meeting::factory()->recurring('monthly')->create();
-        $this->assertEquals(\App\Enums\MeetingFrequency::Monthly, $meetingWithFrequency->frequency);
+        $meetingWithFrequency = Meeting::factory()->recurring('monthly')->create();
+        $this->assertEquals(MeetingFrequency::Monthly, $meetingWithFrequency->frequency);
 
-        $meetingWithoutFrequency = \App\Models\Meeting::factory()->notRecurring()->create();
+        $meetingWithoutFrequency = Meeting::factory()->notRecurring()->create();
         $this->assertNull($meetingWithoutFrequency->frequency);
     }
 
@@ -61,19 +62,19 @@ class MeetingTest extends TestCase
     public function meeting_scopes()
     {
         // Test isRecurring() scope
-        $recurringMeeting = \App\Models\Meeting::factory()->recurring()->create();
-        $nonRecurringMeeting = \App\Models\Meeting::factory()->notRecurring()->create();
+        $recurringMeeting = Meeting::factory()->recurring()->create();
+        $nonRecurringMeeting = Meeting::factory()->notRecurring()->create();
 
-        $recurringMeetings = \App\Models\Meeting::isRecurring()->get();
+        $recurringMeetings = Meeting::isRecurring()->get();
         $this->assertTrue($recurringMeetings->contains($recurringMeeting));
         $this->assertFalse($recurringMeetings->contains($nonRecurringMeeting));
         // Assumes: public function scopeIsRecurring($query) { return $query->where('is_recurring', true); }
 
         // Test upcoming() scope
-        $upcomingMeeting = \App\Models\Meeting::factory()->upcoming()->create();
-        $pastMeeting = \App\Models\Meeting::factory()->past()->create();
+        $upcomingMeeting = Meeting::factory()->upcoming()->create();
+        $pastMeeting = Meeting::factory()->past()->create();
 
-        $upcomingMeetings = \App\Models\Meeting::upcoming()->get();
+        $upcomingMeetings = Meeting::upcoming()->get();
         $this->assertTrue($upcomingMeetings->contains($upcomingMeeting));
         $this->assertFalse($upcomingMeetings->contains($pastMeeting));
         // Assumes: public function scopeUpcoming($query) { return $query->where('meeting_date', '>=', Carbon::now()); }
@@ -82,11 +83,11 @@ class MeetingTest extends TestCase
         $targetDate = Carbon::create(2023, 5, 10, 14, 0, 0);
         $otherDate = Carbon::create(2023, 5, 11);
 
-        $meetingOnTargetDate = \App\Models\Meeting::factory()->onDate($targetDate)->create();
-        $meetingOnTargetDateDifferentTime = \App\Models\Meeting::factory()->onDate($targetDate->copy()->setTime(18, 0, 0))->create();
-        $meetingOnOtherDate = \App\Models\Meeting::factory()->onDate($otherDate)->create();
+        $meetingOnTargetDate = Meeting::factory()->onDate($targetDate)->create();
+        $meetingOnTargetDateDifferentTime = Meeting::factory()->onDate($targetDate->copy()->setTime(18, 0, 0))->create();
+        $meetingOnOtherDate = Meeting::factory()->onDate($otherDate)->create();
 
-        $meetingsOnDate = \App\Models\Meeting::onDate($targetDate)->get();
+        $meetingsOnDate = Meeting::onDate($targetDate)->get();
         $this->assertCount(2, $meetingsOnDate); // Should find both meetings on the target date, regardless of time
         $this->assertTrue($meetingsOnDate->contains($meetingOnTargetDate));
         $this->assertTrue($meetingsOnDate->contains($meetingOnTargetDateDifferentTime));
@@ -103,7 +104,7 @@ class MeetingTest extends TestCase
         $today = Carbon::now();
         // Create a meeting that happened last week on the same weekday as today
         $lastWeekMeetingDate = $today->copy()->subWeek();
-        $weeklyMeeting = \App\Models\Meeting::factory()
+        $weeklyMeeting = Meeting::factory()
             ->recurring('weekly')
             ->onDate($lastWeekMeetingDate)
             ->create();
@@ -117,12 +118,12 @@ class MeetingTest extends TestCase
         $this->assertEquals($lastWeekMeetingDate->format('H:i:s'), $nextOccurrence->format('H:i:s')); // Should keep the same time
 
         // Test with a non-recurring meeting
-        $nonRecurringMeeting = \App\Models\Meeting::factory()->notRecurring()->onDate(Carbon::now()->subDays(5))->create();
+        $nonRecurringMeeting = Meeting::factory()->notRecurring()->onDate(Carbon::now()->subDays(5))->create();
         $this->assertNull($nonRecurringMeeting->getNextOccurrence());
 
         // Test with a recurring meeting whose start date is in the future
         $futureStartDate = Carbon::now()->addMonth();
-        $futureRecurringMeeting = \App\Models\Meeting::factory()
+        $futureRecurringMeeting = Meeting::factory()
             ->recurring('monthly')
             ->onDate($futureStartDate)
             ->create();

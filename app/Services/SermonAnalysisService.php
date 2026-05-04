@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use OpenAI\Exceptions\ErrorException;
 use OpenAI\Exceptions\TransporterException;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Chat\CreateResponse;
 
 class SermonAnalysisService implements SermonAnalysisInterface
 {
@@ -257,7 +258,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      *
      * @throws Exception
      */
-    private function parseAiResponse(\OpenAI\Responses\Chat\CreateResponse $response, string $processingId): array
+    private function parseAiResponse(CreateResponse $response, string $processingId): array
     {
         // Validate response structure
         if (empty($response->choices)) {
@@ -266,13 +267,13 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 'response_type' => gettype($response),
             ]);
 
-            throw new \Exception('Invalid response structure from OpenAI API');
+            throw new Exception('Invalid response structure from OpenAI API');
         }
 
         $content = $response->choices[0]->message->content ?? '';
 
         if (empty($content)) {
-            throw new \Exception('Received empty response from OpenAI API');
+            throw new Exception('Received empty response from OpenAI API');
         }
 
         // Parse JSON response
@@ -290,7 +291,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      *
      * @throws Exception
      */
-    private function executeAiRequest(string $prompt, string $model, string $processingId, int $attempt): \OpenAI\Responses\Chat\CreateResponse
+    private function executeAiRequest(string $prompt, string $model, string $processingId, int $attempt): CreateResponse
     {
         try {
             return OpenAI::chat()->create([
@@ -332,15 +333,15 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 }
             }
 
-            throw new \Exception('OpenAI API response malformed: '.$e->getMessage());
-        } catch (\Exception $e) {
+            throw new Exception('OpenAI API response malformed: '.$e->getMessage());
+        } catch (Exception $e) {
             Log::error('OpenAI API call failed', [
                 'processing_id' => $processingId,
                 'attempt' => $attempt,
                 'error' => $e->getMessage(),
                 'model' => $model,
             ]);
-            throw new \Exception('OpenAI API call failed: '.$e->getMessage());
+            throw new Exception('OpenAI API call failed: '.$e->getMessage());
         }
     }
 

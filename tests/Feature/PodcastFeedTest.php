@@ -7,11 +7,13 @@ namespace Tests\Feature;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use App\Services\PodcastFeedService;
 use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Group;
@@ -552,7 +554,7 @@ class PodcastFeedTest extends TestCase
 
         // Reset the SermonViewPresenter singleton so its in-memory memoization is cleared,
         // then get a fresh PodcastFeedService that will receive the new presenter instance
-        $this->app->forgetInstance(\App\Presenters\SermonViewPresenter::class);
+        $this->app->forgetInstance(SermonViewPresenter::class);
         $freshFeedService = app(PodcastFeedService::class);
 
         // Fresh feed fetch (no cache) should reflect the updated preacher name for our sermon
@@ -598,7 +600,7 @@ class PodcastFeedTest extends TestCase
     public function feed_route_is_named_correctly(): void
     {
         $this->assertTrue(
-            \Illuminate\Support\Facades\Route::has('podcast.feed'),
+            Route::has('podcast.feed'),
             'Podcast feed route should be named "podcast.feed"'
         );
     }

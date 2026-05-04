@@ -10,6 +10,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\ProcessingResult;
 use App\Services\ProcessingRunOrchestrator;
 use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -253,7 +254,7 @@ class MediaControllerTest extends TestCase
         $orchestrator->shouldReceive('retry')->andReturnUsing(function ($log) {
             $log->update(['status' => ProcessingStatus::Pending]);
 
-            return \App\Services\ProcessingResult::success($log->processing_id, 'Retrying');
+            return ProcessingResult::success($log->processing_id, 'Retrying');
         });
         $this->app->instance(ProcessingRunOrchestrator::class, $orchestrator);
 

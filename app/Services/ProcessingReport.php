@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ProcessingStatus;
+
 class ProcessingReport
 {
     /**
@@ -31,7 +33,7 @@ class ProcessingReport
         $status = $this->data['status'] ?? 'unknown';
 
         // Handle ProcessingStatus enum
-        if ($status instanceof \App\Enums\ProcessingStatus) {
+        if ($status instanceof ProcessingStatus) {
             return $status->value;
         }
 

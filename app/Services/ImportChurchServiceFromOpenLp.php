@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Data\OpenLpImportResult;
+use App\Data\OpenLpParseResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ImportChurchServiceFromOpenLp
 {
@@ -42,7 +44,7 @@ class ImportChurchServiceFromOpenLp
 
     private function importIntoExistingService(
         UploadedFile $uploadedFile,
-        \App\Data\OpenLpParseResult $parsed,
+        OpenLpParseResult $parsed,
         ChurchService $existingService,
     ): OpenLpImportResult {
         try {
@@ -88,7 +90,7 @@ class ImportChurchServiceFromOpenLp
             $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
         }
 
-        \Illuminate\Support\Facades\Log::warning('Church service imported from OpenLP (existing)', [
+        Log::warning('Church service imported from OpenLP (existing)', [
             'admin_id' => auth()->id(),
             'church_service_id' => $existingService->id,
             'filename' => $this->sanitizeForLog($uploadedFile->getClientOriginalName()),
@@ -106,7 +108,7 @@ class ImportChurchServiceFromOpenLp
 
     private function importAsNewService(
         UploadedFile $uploadedFile,
-        \App\Data\OpenLpParseResult $parsed,
+        OpenLpParseResult $parsed,
     ): OpenLpImportResult {
         $beforeSnapshot = [];
         $wasCreated = false;
@@ -159,7 +161,7 @@ class ImportChurchServiceFromOpenLp
             $syncResult,
         );
 
-        \Illuminate\Support\Facades\Log::warning('Church service imported from OpenLP (new)', [
+        Log::warning('Church service imported from OpenLP (new)', [
             'admin_id' => auth()->id(),
             'church_service_id' => $churchService->id,
             'filename' => $this->sanitizeForLog($uploadedFile->getClientOriginalName()),

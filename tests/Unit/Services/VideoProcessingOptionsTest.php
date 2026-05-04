@@ -9,6 +9,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\VideoProcessingOptions;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -114,7 +115,7 @@ class VideoProcessingOptionsTest extends TestCase
     {
         $rules = VideoProcessingOptions::validationRules(MediaType::Audio);
 
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             ['auto_trim' => true, 'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM],
             $rules
         );
@@ -131,7 +132,7 @@ class VideoProcessingOptionsTest extends TestCase
 
         $rules = VideoProcessingOptions::validationRules(MediaType::Video);
 
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             ['auto_trim' => true, 'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM],
             $rules
         );
@@ -146,7 +147,7 @@ class VideoProcessingOptionsTest extends TestCase
 
         $rules = VideoProcessingOptions::validationRules(MediaType::Video);
 
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             ['auto_trim' => true],
             $rules
         );

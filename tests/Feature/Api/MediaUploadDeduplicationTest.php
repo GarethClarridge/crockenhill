@@ -7,9 +7,11 @@ namespace Tests\Feature\Api;
 use App\Enums\ApiTokenAbility;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\ProcessingInitiator;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\MediaUploadScenario;
 use Tests\Support\ProcessingLogScenario;
@@ -393,8 +395,8 @@ class MediaUploadDeduplicationTest extends TestCase
         // simulating the race winner committing, then (2) throw the constraint
         // violation as our insert conflicts with that committed row.
         $this->partialMock(
-            \App\Services\ProcessingInitiator::class,
-            function (\Mockery\MockInterface $mock) use ($existingLog, $dedupKey) {
+            ProcessingInitiator::class,
+            function (MockInterface $mock) use ($existingLog, $dedupKey) {
                 $mock->shouldReceive('initiateProcessing')
                     ->once()
                     ->andReturnUsing(function () use ($existingLog, $dedupKey) {

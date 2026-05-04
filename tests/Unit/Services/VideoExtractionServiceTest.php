@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Exceptions\VideoProcessingException;
 use App\Services\AudioCompressionService;
+use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -44,7 +45,7 @@ class VideoExtractionServiceTest extends TestCase
             'upload_timeout' => 300,
         ]);
 
-        $this->service = new VideoExtractionService(app(AudioCompressionService::class), app(\App\Services\StorageAdapterHelper::class));
+        $this->service = new VideoExtractionService(app(AudioCompressionService::class), app(StorageAdapterHelper::class));
     }
 
     // ---- Constructor and instantiation ----
@@ -130,7 +131,7 @@ class VideoExtractionServiceTest extends TestCase
     {
         Config::set('filesystems.disks.public', ['driver' => 's3']);
         Config::set('media-processing.storage.sermon_disk', 'public');
-        $service = new VideoExtractionService(app(AudioCompressionService::class), app(\App\Services\StorageAdapterHelper::class));
+        $service = new VideoExtractionService(app(AudioCompressionService::class), app(StorageAdapterHelper::class));
 
         $method = (new \ReflectionClass($service))->getMethod('getProcessingOutputPath');
         $method->setAccessible(true);

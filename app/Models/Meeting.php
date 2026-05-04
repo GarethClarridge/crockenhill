@@ -7,6 +7,8 @@ namespace App\Models;
 use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Enums\PageArea;
+use App\Presenters\MeetingSitemapPresenter;
+use Database\Factories\MeetingFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -15,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\HasMedia;
@@ -60,7 +63,7 @@ use Spatie\Sitemap\Tags\Url;
  */
 class Meeting extends Model implements HasMedia, Sitemapable
 {
-    /** @use HasFactory<\Database\Factories\MeetingFactory> */
+    /** @use HasFactory<MeetingFactory> */
     use HasFactory;
 
     use InteractsWithMedia;
@@ -350,7 +353,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public static function getForAdminList(): \Illuminate\Support\Collection
     {
-        return \Illuminate\Support\Facades\Cache::flexible('admin_meeting_list', [86400, 172800], function (): \Illuminate\Support\Collection {
+        return Cache::flexible('admin_meeting_list', [86400, 172800], function (): \Illuminate\Support\Collection {
             return self::query()
                 ->select(['id', 'slug', 'page_id'])
                 ->with('page:id,heading')
@@ -424,7 +427,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public function toSitemapTag(): Url|string|array
     {
-        return app(\App\Presenters\MeetingSitemapPresenter::class)->toSitemapTag($this);
+        return app(MeetingSitemapPresenter::class)->toSitemapTag($this);
     }
 
     /**

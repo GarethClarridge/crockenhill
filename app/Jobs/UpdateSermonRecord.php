@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Data\SermonAnalysis;
 use App\Enums\ProcessingStatus;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\MediaProcessingRunTransitionService;
@@ -58,7 +59,7 @@ class UpdateSermonRecord implements ShouldQueue
             }
 
             // Get the processing log
-            /** @var \App\Models\MediaProcessingLog|null $processingLog */
+            /** @var MediaProcessingLog|null $processingLog */
             $processingLog = $sermon->processingLogs()->latest()->first();
             if (! $processingLog) {
                 throw new \Exception("Processing log not found for sermon ID: {$this->sermonId}");
@@ -121,7 +122,7 @@ class UpdateSermonRecord implements ShouldQueue
      */
     private function getOrGenerateAnalysis(
         Sermon $sermon,
-        \App\Models\MediaProcessingLog $processingLog,
+        MediaProcessingLog $processingLog,
         SermonTranscriptReader $transcriptReader,
     ): SermonAnalysis {
         $analysis = $processingLog->ai_analysis;
@@ -245,7 +246,7 @@ class UpdateSermonRecord implements ShouldQueue
         // Mark processing as failed if basic update also failed
         $sermon = Sermon::find($this->sermonId);
         if ($sermon) {
-            /** @var \App\Models\MediaProcessingLog|null $processingLog */
+            /** @var MediaProcessingLog|null $processingLog */
             $processingLog = $sermon->processingLogs()->latest()->first();
             if ($processingLog) {
                 app(MediaProcessingRunTransitionService::class)

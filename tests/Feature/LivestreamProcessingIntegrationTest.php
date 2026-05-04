@@ -13,9 +13,11 @@ use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractSermon;
+use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\MatchSongsFromTranscript;
+use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
@@ -120,8 +122,8 @@ class LivestreamProcessingIntegrationTest extends TestCase
         Bus::assertBatched(function (PendingBatch $batch) {
             $classes = $batch->jobs->map(fn ($job) => get_class($job))->all();
 
-            return in_array(\App\Jobs\PerformVisualAnalysis::class, $classes)
-                && in_array(\App\Jobs\GenerateRmsLog::class, $classes)
+            return in_array(PerformVisualAnalysis::class, $classes)
+                && in_array(GenerateRmsLog::class, $classes)
                 && count($classes) === 2;
         });
     }

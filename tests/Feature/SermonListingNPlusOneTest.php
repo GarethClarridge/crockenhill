@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use App\Services\SitemapService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -16,7 +17,7 @@ class SermonListingNPlusOneTest extends TestCase
 
     protected function tearDown(): void
     {
-        $sitemapService = app(\App\Services\SitemapService::class);
+        $sitemapService = app(SitemapService::class);
         $sitemapFile = $sitemapService->getFilePath();
 
         if (file_exists($sitemapFile)) {
@@ -62,7 +63,7 @@ class SermonListingNPlusOneTest extends TestCase
             'video_file_path' => 'videos/test.mp4',
         ]);
 
-        $sitemapService = app(\App\Services\SitemapService::class);
+        $sitemapService = app(SitemapService::class);
         $sitemapService->generate();
 
         $sitemapFile = $sitemapService->getFilePath();

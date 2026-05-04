@@ -12,6 +12,7 @@ use App\Services\GoogleCalendarSyncService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 
 class CalendarServiceTest extends TestCase
@@ -20,8 +21,8 @@ class CalendarServiceTest extends TestCase
 
     private CalendarService $service;
 
-    /** @var \PHPUnit\Framework\MockObject\MockObject&GoogleCalendarSyncService */
-    private \PHPUnit\Framework\MockObject\MockObject $googleSync;
+    /** @var MockObject&GoogleCalendarSyncService */
+    private MockObject $googleSync;
 
     protected function setUp(): void
     {

@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class EnsureMediaProcessingAccessTest extends TestCase
@@ -59,7 +60,7 @@ class EnsureMediaProcessingAccessTest extends TestCase
         $request = $this->makeRequest(null);
         $middleware = $this->makeMiddleware();
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Unauthorized action.');
 
         $middleware->handle($request, fn () => response('passed'));
@@ -76,7 +77,7 @@ class EnsureMediaProcessingAccessTest extends TestCase
         $request = $this->makeRequest($user);
         $middleware = $this->makeMiddleware();
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Unauthorized action.');
 
         $middleware->handle($request, fn () => response('passed'));
@@ -93,7 +94,7 @@ class EnsureMediaProcessingAccessTest extends TestCase
         $request = $this->makeRequest($admin);
         $middleware = $this->makeMiddleware();
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Your email address is not verified.');
 
         $middleware->handle($request, fn () => response('passed'));
@@ -139,7 +140,7 @@ class EnsureMediaProcessingAccessTest extends TestCase
         $request = $this->makeRequest($admin, $plaintext);
         $middleware = $this->makeMiddleware();
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Missing required token ability: '.ApiTokenAbility::MEDIA_PROCESS->value);
 
         $middleware->handle($request, fn () => response('passed'));

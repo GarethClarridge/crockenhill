@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Http\Requests\UpdateSermonRequest;
 use App\Livewire\Admin\Sermons\EditSermon;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -53,8 +57,8 @@ class SermonIntegrityTest extends TestCase
     #[Test]
     public function it_sets_livestream_processing_id_to_null_when_log_is_deleted()
     {
-        $log = \App\Models\MediaProcessingLog::factory()->create([
-            'processing_id' => \Illuminate\Support\Str::uuid()->toString(),
+        $log = MediaProcessingLog::factory()->create([
+            'processing_id' => Str::uuid()->toString(),
         ]);
 
         $sermon = Sermon::factory()->create([
@@ -146,11 +150,11 @@ class SermonIntegrityTest extends TestCase
     #[Test]
     public function sermon_editing_rejects_negative_duration_if_form_request_were_used(): void
     {
-        $request = new \App\Http\Requests\UpdateSermonRequest;
+        $request = new UpdateSermonRequest;
 
         $rules = $request->rules();
 
-        $validator = \Illuminate\Support\Facades\Validator::make([
+        $validator = Validator::make([
             'duration' => -1,
             'preacher_confidence' => 1.2,
             'segment_start_time' => -1,

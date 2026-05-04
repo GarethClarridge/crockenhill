@@ -6,6 +6,7 @@ namespace Tests\Feature\Warden;
 
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -59,7 +60,7 @@ class SermonScriptureFilterIntegrityTest extends TestCase
 
         $sermon = Sermon::factory()->create();
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('sermon_scripture_filters_bible_book_format_check');
 
         DB::table('sermon_scripture_filters')->insert([
@@ -80,7 +81,7 @@ class SermonScriptureFilterIntegrityTest extends TestCase
 
         $sermon = Sermon::factory()->create();
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('sermon_scripture_filters_bible_book_format_check');
 
         DB::table('sermon_scripture_filters')->insert([
@@ -101,7 +102,7 @@ class SermonScriptureFilterIntegrityTest extends TestCase
 
         $sermon = Sermon::factory()->create();
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('sermon_scripture_filters_bible_chapter_check');
 
         DB::table('sermon_scripture_filters')->insert([

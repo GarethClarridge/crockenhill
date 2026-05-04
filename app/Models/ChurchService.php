@@ -10,35 +10,38 @@ use App\Enums\ChurchServiceCanonicalConflictReason;
 use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Enums\ChurchServiceReviewState;
 use App\Enums\SermonService;
+use Database\Factories\ChurchServiceFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
- * @property \Illuminate\Support\Carbon $date
+ * @property Carbon $date
  * @property SermonService $service
  * @property string $source
  * @property string|null $original_filename
  * @property bool $needs_review
  * @property ChurchServiceReviewState $review_state
- * @property \Illuminate\Support\Carbon|null $manual_reviewed_at
+ * @property Carbon|null $manual_reviewed_at
  * @property int|null $manual_reviewed_by_user_id
- * @property \Illuminate\Support\Carbon|null $manual_review_reopened_at
+ * @property Carbon|null $manual_review_reopened_at
  * @property string|null $manual_review_reopened_by_source
  * @property ChurchServiceCanonicalConflictState $canonical_conflict_state
- * @property \Illuminate\Support\Carbon|null $canonical_conflict_detected_at
+ * @property Carbon|null $canonical_conflict_detected_at
  * @property string|null $canonical_conflict_incoming_source
  * @property bool|null $canonical_conflict_reviewed_previously
  * @property bool|null $canonical_conflict_canonical_changed
  * @property ChurchServiceCanonicalConflictReason|null $canonical_conflict_reason
  * @property ChurchServiceImportMetadata|null $import_metadata
  * @property string|null $pending_structure_merge_source
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ChurchServiceItem> $items
- * @property-read \Illuminate\Database\Eloquent\Collection<int, MediaProcessingLog> $mediaProcessingLogs
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Collection<int, ChurchServiceItem> $items
+ * @property-read Collection<int, MediaProcessingLog> $mediaProcessingLogs
  *
  * @method static \Database\Factories\ChurchServiceFactory factory(...$parameters)
  * @method static Builder<ChurchService> newModelQuery()
@@ -49,7 +52,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class ChurchService extends Model
 {
-    /** @use HasFactory<\Database\Factories\ChurchServiceFactory> */
+    /** @use HasFactory<ChurchServiceFactory> */
     use HasFactory;
 
     /**

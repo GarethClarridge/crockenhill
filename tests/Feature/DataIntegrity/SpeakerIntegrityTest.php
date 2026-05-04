@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
+use App\Livewire\Admin\Preachers\EditPreacher;
 use App\Models\Preacher;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -202,12 +205,12 @@ class SpeakerIntegrityTest extends TestCase
     #[Test]
     public function edit_preacher_component_validates_profile_before_recomputing(): void
     {
-        $admin = \App\Models\User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create();
         $preacher = Preacher::factory()->create();
         $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id]);
 
-        \Livewire\Livewire::actingAs($admin)
-            ->test(\App\Livewire\Admin\Preachers\EditPreacher::class, ['preacher' => $preacher])
+        Livewire::actingAs($admin)
+            ->test(EditPreacher::class, ['preacher' => $preacher])
             ->call('recomputeProfile', $profile->id)
             ->assertHasNoErrors();
     }

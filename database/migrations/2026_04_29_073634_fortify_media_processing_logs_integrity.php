@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -86,7 +87,7 @@ return new class extends Migration
                     'ALTER TABLE media_processing_logs ADD CONSTRAINT %s CHECK (sermon_start_time >= 0 AND (sermon_end_time >= sermon_start_time OR sermon_end_time IS NULL OR sermon_start_time IS NULL))',
                     self::OBSOLETE_TIMING_CHECK
                 ));
-            } catch (\Illuminate\Database\QueryException) {
+            } catch (QueryException) {
                 // Ignore if it fails
             }
         }

@@ -6,6 +6,7 @@ namespace Tests\Unit\Jobs;
 
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\MediaValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -211,7 +212,7 @@ class ValidateVideoFileTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->video()->cancelled()->create();
 
-        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+        $result = app(MediaProcessingRunTransitionService::class)
             ->markAsFailed($log, 'Video validation failed: something went wrong');
 
         $this->assertFalse($result);

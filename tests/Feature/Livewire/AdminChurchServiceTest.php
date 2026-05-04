@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire;
 
+use App\Enums\ChurchServiceItemSource;
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -555,7 +557,7 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         $matchingRun = $this->processingLogScenario()
-            ->as(\App\Enums\MediaType::Livestream)
+            ->as(MediaType::Livestream)
             ->state([
                 'extracted_date' => '2026-02-22',
                 'extracted_service' => SermonService::Morning,
@@ -563,7 +565,7 @@ class AdminChurchServiceTest extends TestCase
             ->create();
 
         $nonMatchingRun = $this->processingLogScenario()
-            ->as(\App\Enums\MediaType::Livestream)
+            ->as(MediaType::Livestream)
             ->state([
                 'extracted_date' => '2026-02-23',
                 'extracted_service' => SermonService::Morning,
@@ -824,7 +826,7 @@ class AdminChurchServiceTest extends TestCase
             'position' => 1,
             'type' => 'custom',
             'title' => 'Opening Prayer',
-            'source' => \App\Enums\ChurchServiceItemSource::Email,
+            'source' => ChurchServiceItemSource::Email,
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
@@ -849,7 +851,7 @@ class AdminChurchServiceTest extends TestCase
             'position' => 1,
             'type' => 'custom',
             'title' => 'Notices',
-            'source' => \App\Enums\ChurchServiceItemSource::OpenLp,
+            'source' => ChurchServiceItemSource::OpenLp,
         ]);
 
         $run = MediaProcessingLog::factory()->livestream()->create([

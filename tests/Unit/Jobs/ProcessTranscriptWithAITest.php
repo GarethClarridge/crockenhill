@@ -9,6 +9,7 @@ use App\Data\SermonAnalysis;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -66,7 +67,7 @@ class ProcessTranscriptWithAITest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
 
         $job = new ProcessTranscriptWithAI($log);
-        $job->handle($mockService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
 
         $sermon->refresh();
         $this->assertEquals('The Good Shepherd', $sermon->title);
@@ -101,7 +102,7 @@ class ProcessTranscriptWithAITest extends TestCase
         Log::shouldReceive('error')->atLeast()->once();
 
         $job = new ProcessTranscriptWithAI($log);
-        $job->handle($mockService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
 
         // Falls back to a simple analysis without throwing
         $log->refresh();
@@ -131,7 +132,7 @@ class ProcessTranscriptWithAITest extends TestCase
         Log::shouldReceive('error')->atLeast()->once();
 
         $job = new ProcessTranscriptWithAI($log);
-        $job->handle($mockService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
 
         // Should not throw - fallback was used
         $log->refresh();
@@ -169,7 +170,7 @@ class ProcessTranscriptWithAITest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
 
         $job = new ProcessTranscriptWithAI($log);
-        $job->handle($mockService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
 
         $sermon->refresh();
         // ID3 title should be preserved, not overwritten by AI
@@ -205,7 +206,7 @@ class ProcessTranscriptWithAITest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
 
         $job = new ProcessTranscriptWithAI($log);
-        $job->handle($mockService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
 
         $sermon->refresh();
         $this->assertEquals('A Proper Sermon Title', $sermon->title);
@@ -254,7 +255,7 @@ class ProcessTranscriptWithAITest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
 
         $job = new ProcessTranscriptWithAI($log);
-        $job->handle($mockService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
 
         $sermon->refresh();
         // Summary and points always updated from AI

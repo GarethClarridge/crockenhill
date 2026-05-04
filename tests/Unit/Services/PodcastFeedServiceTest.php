@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Data\PodcastFeedItemReadModel;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Sermon;
@@ -61,7 +62,7 @@ class PodcastFeedServiceTest extends TestCase
         $sermons = $this->service->getSermonsForFeed(SermonService::Morning);
 
         $this->assertCount(3, $sermons);
-        $sermons->each(fn ($feedItem) => $this->assertInstanceOf(\App\Data\PodcastFeedItemReadModel::class, $feedItem));
+        $sermons->each(fn ($feedItem) => $this->assertInstanceOf(PodcastFeedItemReadModel::class, $feedItem));
     }
 
     #[Test]

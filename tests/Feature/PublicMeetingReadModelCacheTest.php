@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\CalendarEventStatus;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\Page;
@@ -67,7 +68,7 @@ class PublicMeetingReadModelCacheTest extends TestCase
             'title' => 'Recent Past Event',
             'start_datetime' => now()->subMonths(6)->setHour(10),
             'end_datetime' => now()->subMonths(6)->setHour(11),
-            'status' => \App\Enums\CalendarEventStatus::Confirmed,
+            'status' => CalendarEventStatus::Confirmed,
         ]);
 
         $this->get('/community/past-events-meeting')
@@ -96,7 +97,7 @@ class PublicMeetingReadModelCacheTest extends TestCase
             'title' => 'Very Old Event',
             'start_datetime' => now()->subYears(3)->subDay()->setHour(10),
             'end_datetime' => now()->subYears(3)->subDay()->setHour(11),
-            'status' => \App\Enums\CalendarEventStatus::Confirmed,
+            'status' => CalendarEventStatus::Confirmed,
         ]);
 
         $this->get('/community/old-events-meeting')

@@ -7,8 +7,10 @@ namespace App\Services;
 use App\Data\SermonMetadata;
 use App\Enums\SermonService;
 use Carbon\Carbon;
+use FFMpeg\FFProbe;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Owenoj\LaravelGetId3\GetId3;
 
 class MetadataExtractionService
@@ -577,7 +579,7 @@ class MetadataExtractionService
             }
 
             // Strategy 1: Try to extract creation date from video metadata using FFprobe.
-            $ffprobe = \FFMpeg\FFProbe::create([
+            $ffprobe = FFProbe::create([
                 'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
                 'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
             ]);
@@ -709,18 +711,18 @@ class MetadataExtractionService
         try {
             // Try to determine which disk this might be on
             $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
-            if (\Illuminate\Support\Facades\Storage::disk($sermonDisk)->exists($filePath)) {
-                return \Illuminate\Support\Facades\Storage::disk($sermonDisk)->size($filePath);
+            if (Storage::disk($sermonDisk)->exists($filePath)) {
+                return Storage::disk($sermonDisk)->size($filePath);
             }
 
             $tempDisk = config('media-processing.storage.temp_disk', 'local');
-            if (\Illuminate\Support\Facades\Storage::disk($tempDisk)->exists($filePath)) {
-                return \Illuminate\Support\Facades\Storage::disk($tempDisk)->size($filePath);
+            if (Storage::disk($tempDisk)->exists($filePath)) {
+                return Storage::disk($tempDisk)->size($filePath);
             }
 
             // Try public disk as fallback
-            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($filePath)) {
-                return \Illuminate\Support\Facades\Storage::disk('public')->size($filePath);
+            if (Storage::disk('public')->exists($filePath)) {
+                return Storage::disk('public')->size($filePath);
             }
         } catch (\Exception $e) {
             Log::debug('Failed to get file size from storage', [

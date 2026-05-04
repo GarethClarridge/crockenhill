@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Spatie\GoogleCalendar\Event;
 
@@ -88,9 +89,9 @@ class GoogleCalendarSyncService
      * Extracted as a protected method so tests can substitute a known event list
      * without requiring a live Google Calendar connection.
      *
-     * @return \Illuminate\Support\Collection<int, Event>
+     * @return Collection<int, Event>
      */
-    protected function fetchEventsFromGoogle(Carbon $startDate, Carbon $endDate): \Illuminate\Support\Collection
+    protected function fetchEventsFromGoogle(Carbon $startDate, Carbon $endDate): Collection
     {
         return Event::get(
             $startDate,

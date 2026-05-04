@@ -181,7 +181,7 @@ class SubmitToProcessing implements ShouldQueue
 
             // Validate that the sermon record has a valid audio file path
             if ($sermonId) {
-                $sermon = \App\Models\Sermon::find($sermonId);
+                $sermon = Sermon::find($sermonId);
                 if ($sermon && $sermon->audio_file_path) {
                     // Verify the audio file is accessible for web serving
                     if (! Storage::disk('public')->exists($sermon->audio_file_path)) {

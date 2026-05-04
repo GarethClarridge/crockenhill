@@ -7,9 +7,12 @@ namespace Tests\Unit\Services;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
+use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Services\ChurchServiceCanonicalStateService;
+use App\Services\ChurchServiceCanonicalUpdateService;
 use App\Services\ChurchServiceItemSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -781,19 +784,19 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'title' => 'Detected Welcome',
         ]);
 
-        $canonicalState = app(\App\Services\ChurchServiceCanonicalStateService::class);
+        $canonicalState = app(ChurchServiceCanonicalStateService::class);
         $before = $canonicalState->snapshot($churchService->load('items'));
 
         $item->update(['title' => 'Detected Welcome (updated)']);
 
-        $updateService = app(\App\Services\ChurchServiceCanonicalUpdateService::class);
+        $updateService = app(ChurchServiceCanonicalUpdateService::class);
         $result = $updateService->finalize($churchService, $before, ChurchServiceItemSource::Livestream);
         $result->refresh();
 
         $this->assertSame('livestream', $result->import_metadata['canonical_conflict']['incoming_source']);
 
         Event::assertDispatched(
-            \App\Events\ChurchServiceCanonicalListChanged::class,
+            ChurchServiceCanonicalListChanged::class,
             fn ($event): bool => $event->churchServiceId === $result->id && $event->source === 'livestream'
         );
     }

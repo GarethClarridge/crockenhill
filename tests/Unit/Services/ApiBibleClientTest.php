@@ -293,7 +293,7 @@ class ApiBibleClientTest extends TestCase
 
         try {
             $this->client->searchPassage('John 3:16');
-        } catch (\App\Services\ApiBibleBudgetExhaustedException) {
+        } catch (ApiBibleBudgetExhaustedException) {
             // Expected
         }
 

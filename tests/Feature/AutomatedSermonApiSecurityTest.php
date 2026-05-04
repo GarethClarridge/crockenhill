@@ -7,10 +7,13 @@ namespace Tests\Feature;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\ProcessingResult;
+use App\Services\UnifiedMediaProcessor;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -146,13 +149,13 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_rejects_api_tokens_without_media_process_ability(): void
     {
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-token-ability',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         $forbiddenToken = $this->user->createToken('forbidden-media-token', ['read:only'])->plainTextToken;
         $file = UploadedFile::fake()->create('sermon.mp3', 64, 'audio/mpeg');
@@ -169,13 +172,13 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_allows_api_tokens_with_media_process_ability(): void
     {
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-token-ability',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         $allowedToken = $this->user->createToken('allowed-media-token', ['media:process'])->plainTextToken;
         $file = UploadedFile::fake()->create('sermon.mp3', 64, 'audio/mpeg');
@@ -213,13 +216,13 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_validates_file_mime_type_strictly(): void
     {
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-mime',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         // Try to upload a malicious file disguised as audio — the system accepts it
         // based on extension, and relies on not executing it rather than rejecting it
@@ -250,13 +253,13 @@ class AutomatedSermonApiSecurityTest extends TestCase
         // Path traversal components are stripped at the PHP level before any controller code runs
         $this->assertSame('passwd.mp3', $file->getClientOriginalName());
 
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-path',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         $response = $this->actingAs($this->user)
             ->postJson('/api/media/audio', [
@@ -319,13 +322,13 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_prevents_zip_bomb_attacks(): void
     {
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-zipbomb',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         // A file with a valid extension and size passes API validation regardless of content
         $suspiciousFile = UploadedFile::fake()->create('suspicious.mp3', 64, 'audio/mpeg');
@@ -342,15 +345,15 @@ class AutomatedSermonApiSecurityTest extends TestCase
     public function it_sanitizes_user_input_in_logs(): void
     {
         // Mock the unified media processor to keep this test focused on logging behavior.
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Sermon processing initiated successfully'
         );
         $mockProcessor->method('process')->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
-        \Illuminate\Support\Facades\Log::spy();
+        Log::spy();
 
         $maliciousFilename = "test\n[MALICIOUS LOG ENTRY]\nsermon.mp3";
         $file = UploadedFile::fake()->create($maliciousFilename, 64, 'audio/mpeg');
@@ -366,7 +369,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
                 'processing_id' => 'test-uuid-123',
             ]);
 
-        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')
+        Log::shouldHaveReceived('info')
             ->once()
             ->with('Media upload initiated', \Mockery::on(function ($context) {
                 if (! isset($context['filename'])) {
@@ -445,13 +448,13 @@ class AutomatedSermonApiSecurityTest extends TestCase
         RateLimiter::for('media-retry', fn () => Limit::perMinute(100)->by($this->user->id));
 
         // Mock the current retry entrypoint to avoid dispatching real work.
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Processing retry initiated successfully'
         );
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->method('retry')->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         // Test for race conditions by making concurrent requests
         $processingId = (string) Str::uuid();
@@ -477,13 +480,13 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_validates_content_type_headers(): void
     {
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-content-type',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         $file = UploadedFile::fake()->create('sermon.mp3', 64, 'audio/mpeg');
 
@@ -533,13 +536,13 @@ class AutomatedSermonApiSecurityTest extends TestCase
     public function it_limits_request_frequency(): void
     {
         // Mock UnifiedMediaProcessor to avoid actual processing on upload
-        $mockService = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockService = $this->createMock(UnifiedMediaProcessor::class);
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Sermon processing initiated successfully'
         );
         $mockService->method('process')->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockService);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockService);
 
         for ($i = 0; $i < 5; $i++) {
             $file = UploadedFile::fake()->create("sermon-{$i}.mp3", 64, 'audio/mpeg');

@@ -9,6 +9,7 @@ use App\Traits\SanitizesLogData;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
@@ -68,8 +69,8 @@ class Login extends Component
         if (Auth::attempt($credentials, $remember)) {
             $user = Auth::user();
 
-            if ($user instanceof \App\Models\User && $user->is_admin) {
-                \Illuminate\Support\Facades\Log::warning('Admin logged in', [
+            if ($user instanceof User && $user->is_admin) {
+                Log::warning('Admin logged in', [
                     'admin_id' => $user->id,
                     'email' => $user->email,
                     'ip' => request()->ip(),
@@ -87,7 +88,7 @@ class Login extends Component
         $user = User::where('email', (string) $credentials['email'])->first();
 
         if ($user instanceof User && $user->is_admin) {
-            \Illuminate\Support\Facades\Log::warning('Admin login attempt failed', [
+            Log::warning('Admin login attempt failed', [
                 'admin_id' => $user->id,
                 'email' => $this->sanitizeForLog($user->email),
                 'ip' => request()->ip(),

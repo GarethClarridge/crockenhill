@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
+use App\Livewire\Admin\Preachers\CreatePreacher;
+use App\Livewire\Admin\Preachers\EditPreacher;
 use App\Models\Preacher;
 use App\Models\User;
+use App\Services\PreacherResolutionService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Livewire\Livewire;
@@ -36,7 +39,7 @@ class PreacherIntegrityTest extends TestCase
         Preacher::factory()->create(['name' => 'Existing Preacher']);
 
         Livewire::actingAs($admin)
-            ->test(\App\Livewire\Admin\Preachers\CreatePreacher::class)
+            ->test(CreatePreacher::class)
             ->set('name', 'Existing Preacher')
             ->call('save')
             ->assertHasErrors(['name' => 'unique']);
@@ -49,7 +52,7 @@ class PreacherIntegrityTest extends TestCase
         $preacher = Preacher::factory()->create(['name' => 'Original Name']);
 
         Livewire::actingAs($admin)
-            ->test(\App\Livewire\Admin\Preachers\EditPreacher::class, ['preacher' => $preacher])
+            ->test(EditPreacher::class, ['preacher' => $preacher])
             ->set('bio', 'New bio content')
             ->call('save')
             ->assertHasNoErrors();
@@ -65,7 +68,7 @@ class PreacherIntegrityTest extends TestCase
             'slug' => 'canonical-name',
         ]);
 
-        $service = app(\App\Services\PreacherResolutionService::class);
+        $service = app(PreacherResolutionService::class);
 
         // Should find existing by name (ignoring case/whitespace as handled by service)
         $resolved = $service->resolve('  canonical name  ');
@@ -88,7 +91,7 @@ class PreacherIntegrityTest extends TestCase
             'is_active' => true,
         ]);
 
-        $service = app(\App\Services\PreacherResolutionService::class);
+        $service = app(PreacherResolutionService::class);
 
         // This call will trigger the catch block in findOrCreatePreacher
         $resolved = $service->resolve($name);

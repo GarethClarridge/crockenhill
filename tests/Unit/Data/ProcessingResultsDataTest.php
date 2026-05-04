@@ -6,6 +6,7 @@ namespace Tests\Unit\Data;
 
 use App\Data\ApiBiblePassageResult;
 use App\Data\LivestreamProcessingResult;
+use App\Data\LivestreamSegment;
 use App\Data\PodcastFeedItemReadModel;
 use App\Data\SpeakerEmbeddingResult;
 use App\Data\SpeakerMatchResult;
@@ -224,7 +225,7 @@ class ProcessingResultsDataTest extends TestCase
             fileFormat: 'mp4',
             sermonId: 99,
             segments: [
-                new \App\Data\LivestreamSegment(0.0, 600.0, 600.0, 'speech', 0.1, 0.3),
+                new LivestreamSegment(0.0, 600.0, 600.0, 'speech', 0.1, 0.3),
             ],
         );
 

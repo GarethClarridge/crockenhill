@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -42,7 +43,7 @@ class SermonAudioServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }
 
     #[Test]
@@ -90,7 +91,7 @@ class SermonAudioServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }
 
     #[Test]
@@ -110,6 +111,6 @@ class SermonAudioServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }
 }

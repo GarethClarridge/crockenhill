@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Sermons;
 
 use App\Actions\SaveSermonDetails;
+use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Livewire\Forms\SermonFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Services\SermonStorageService;
 use App\Services\ThumbnailGenerationService;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -33,8 +36,8 @@ class EditSermon extends Component
 
     public string $contentTypeLabel = 'Sermon';
 
-    /** @var \Illuminate\Support\Collection<int, string> */
-    public \Illuminate\Support\Collection $preacherOptions;
+    /** @var Collection<int, string> */
+    public Collection $preacherOptions;
 
     /** @var array<int, array{id: string, timestamp: float, timestamp_label: string, score: float, overlay_url: ?string, card_url: ?string, preview_url: ?string, is_selected: bool}> */
     public array $thumbnailCandidates = [];
@@ -48,9 +51,9 @@ class EditSermon extends Component
         $this->sermon = $sermon;
         $this->form->setSermon($sermon, $sermonViewPresenter);
 
-        $this->isChildrensTalk = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk;
+        $this->isChildrensTalk = $sermon->content_type === SermonContentType::ChildrensTalk;
         $this->contentTypeLabel = $sermon->content_type->label();
-        $this->preacherOptions = \App\Models\Preacher::active()->orderBy('name')->pluck('name', 'id');
+        $this->preacherOptions = Preacher::active()->orderBy('name')->pluck('name', 'id');
         $this->loadThumbnailCandidates();
     }
 

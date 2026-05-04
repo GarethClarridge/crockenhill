@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\ScripturePassage;
 use App\Services\ScriptureOperatorService;
 use Illuminate\Console\Command;
 
@@ -43,7 +44,7 @@ class RefreshScripturePassages extends Command
             dryRun: $dryRun,
             delayMs: $delayMs,
             progress: function (string $status, mixed $passage, string $detail): void {
-                if (! $passage instanceof \App\Models\ScripturePassage) {
+                if (! $passage instanceof ScripturePassage) {
                     return;
                 }
 

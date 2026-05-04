@@ -8,6 +8,7 @@ use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ProcessingStatus;
 use App\Livewire\Admin\ChurchServices\ProcessingReview;
 use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
+use App\Mail\ManualReviewRequired;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
@@ -291,7 +292,7 @@ class ProcessingReviewTest extends TestCase
             'current_step' => 'manual_review_required',
         ]);
 
-        $mail = new \App\Mail\ManualReviewRequired($log->processing_id, 'Test reason');
+        $mail = new ManualReviewRequired($log->processing_id, 'Test reason');
         $rendered = $mail->render();
 
         $expectedUrl = route('admin.services.processing.review', $log);
@@ -301,7 +302,7 @@ class ProcessingReviewTest extends TestCase
     #[Test]
     public function manual_review_email_falls_back_to_queue_url_when_log_not_found(): void
     {
-        $mail = new \App\Mail\ManualReviewRequired('nonexistent-id', 'Test reason');
+        $mail = new ManualReviewRequired('nonexistent-id', 'Test reason');
         $rendered = $mail->render();
 
         $expectedUrl = route('admin.services.processing.review.index');

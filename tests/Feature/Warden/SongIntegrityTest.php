@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Warden;
 
 use App\Models\Song;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -31,7 +32,7 @@ class SongIntegrityTest extends TestCase
     #[Test]
     public function database_rejects_null_song_slug(): void
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         // We use DB directly to bypass any Eloquent safeguards if they exist
         DB::table('songs')->insert([
@@ -49,7 +50,7 @@ class SongIntegrityTest extends TestCase
             $this->markTestSkipped('Database integrity tests require MySQL');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Song::factory()->create([
             'slug' => 'Invalid Slug!',
@@ -78,7 +79,7 @@ class SongIntegrityTest extends TestCase
             $migration = require database_path('migrations/2026_04_28_150435_fortify_song_slug_integrity.php');
             $migration->up();
 
-            $song = \App\Models\Song::where('canonical_key', 'repair-test-key')->first();
+            $song = Song::where('canonical_key', 'repair-test-key')->first();
             $this->assertEquals('invalid-slug-with-underscore', $song->slug);
         } finally {
             // Ensure constraint is restored even if something fails
@@ -98,7 +99,7 @@ class SongIntegrityTest extends TestCase
             $this->markTestSkipped('Database integrity tests require MySQL');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Song::factory()->create([
             'slug' => '',

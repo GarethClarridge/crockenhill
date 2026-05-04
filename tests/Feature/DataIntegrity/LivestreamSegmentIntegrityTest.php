@@ -8,6 +8,7 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -38,7 +39,7 @@ class LivestreamSegmentIntegrityTest extends TestCase
         $this->expectException(UniqueConstraintViolationException::class);
 
         // Bypass Eloquent and validation to test database constraint directly
-        \Illuminate\Support\Facades\DB::table('livestream_segments')->insert([
+        DB::table('livestream_segments')->insert([
             'media_processing_log_id' => $log->id,
             'segment_index' => 1,
             'start_time' => 10.0,

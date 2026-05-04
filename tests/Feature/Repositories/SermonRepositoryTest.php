@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Repositories;
 
+use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -75,11 +78,11 @@ class SermonRepositoryTest extends TestCase
 
         $preacherSermon = Sermon::factory()->create([
             'preacher_id' => $preacher->id,
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
         Sermon::factory()->create([
             'preacher_id' => $otherPreacher->id,
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         $result = $this->repository->getSermonsByPreacher($preacher);
@@ -140,13 +143,13 @@ class SermonRepositoryTest extends TestCase
         Sermon::query()->delete();
         Cache::forget('latest_sermons');
 
-        $today = \Illuminate\Support\Carbon::today();
+        $today = Carbon::today();
 
         // Create sermons for 7 distinct dates
         for ($i = 0; $i < 7; $i++) {
             Sermon::factory()->create([
                 'date' => $today->copy()->subDays($i),
-                'content_type' => \App\Enums\SermonContentType::Sermon,
+                'content_type' => SermonContentType::Sermon,
             ]);
         }
 
@@ -163,16 +166,16 @@ class SermonRepositoryTest extends TestCase
         Sermon::query()->delete();
         Cache::forget('latest_sermons');
 
-        $today = \Illuminate\Support\Carbon::today();
+        $today = Carbon::today();
 
         Sermon::factory()->create([
             'title' => 'Main Sermon',
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
             'date' => $today,
         ]);
         Sermon::factory()->create([
             'title' => "Children's Talk",
-            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'content_type' => SermonContentType::ChildrensTalk,
             'date' => $today,
         ]);
 
@@ -191,7 +194,7 @@ class SermonRepositoryTest extends TestCase
 
         Sermon::factory()->create([
             'title' => 'Original Title',
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         // First call caches
@@ -212,8 +215,8 @@ class SermonRepositoryTest extends TestCase
         Sermon::query()->delete();
         Cache::forget('all_sermons');
 
-        Sermon::factory()->create(['date' => '2024-01-01', 'content_type' => \App\Enums\SermonContentType::Sermon]);
-        Sermon::factory()->create(['date' => '2024-01-02', 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['date' => '2024-01-01', 'content_type' => SermonContentType::Sermon]);
+        Sermon::factory()->create(['date' => '2024-01-02', 'content_type' => SermonContentType::Sermon]);
 
         $result = $this->repository->getAllSermons();
 
@@ -229,7 +232,7 @@ class SermonRepositoryTest extends TestCase
 
         Sermon::factory()->create([
             'title' => 'Original All Title',
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         // First call caches
@@ -248,8 +251,8 @@ class SermonRepositoryTest extends TestCase
     public function it_returns_sermons_by_service(): void
     {
         Sermon::query()->delete();
-        Sermon::factory()->create(['service' => SermonService::Morning, 'content_type' => \App\Enums\SermonContentType::Sermon]);
-        Sermon::factory()->create(['service' => SermonService::Evening, 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => SermonService::Morning, 'content_type' => SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => SermonService::Evening, 'content_type' => SermonContentType::Sermon]);
 
         $result = $this->repository->getSermonsByService(SermonService::Morning);
 
@@ -266,7 +269,7 @@ class SermonRepositoryTest extends TestCase
         Sermon::factory()->create([
             'title' => 'Original Service Title',
             'service' => SermonService::Morning,
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         // First call caches
@@ -287,8 +290,8 @@ class SermonRepositoryTest extends TestCase
         Sermon::query()->delete();
         Cache::forget('sermon_series');
 
-        Sermon::factory()->create(['series' => 'Z Series', 'content_type' => \App\Enums\SermonContentType::Sermon]);
-        Sermon::factory()->create(['series' => 'A Series', 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['series' => 'Z Series', 'content_type' => SermonContentType::Sermon]);
+        Sermon::factory()->create(['series' => 'A Series', 'content_type' => SermonContentType::Sermon]);
 
         $result = $this->repository->getSeriesForDisplay();
 
@@ -343,7 +346,7 @@ class SermonRepositoryTest extends TestCase
 
         $result = $this->repository->getScriptureBooks();
 
-        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result);
+        $this->assertInstanceOf(Collection::class, $result);
         $this->assertTrue(Cache::has('sermon_scripture_books_all_all'));
     }
 
@@ -369,7 +372,7 @@ class SermonRepositoryTest extends TestCase
 
         $sermon = Sermon::factory()->create([
             'reference' => 'John 1',
-            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'content_type' => SermonContentType::Sermon,
         ]);
 
         $this->repository->getScriptureChapters($book);
@@ -387,7 +390,7 @@ class SermonRepositoryTest extends TestCase
 
         $result = $this->repository->getRecentSermonsForJsonLd();
 
-        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result);
+        $this->assertInstanceOf(Collection::class, $result);
         $this->assertTrue(Cache::has('sermons_jsonld_recent_100'));
     }
 

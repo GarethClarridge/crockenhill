@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Actions\ServiceReview;
 
+use App\Actions\Publication\ApproveSectionForPublication;
 use App\Actions\ServiceReview\BatchApproveServicePublications;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -303,10 +304,10 @@ class BatchApproveServicePublicationsTest extends TestCase
         Storage::disk('public')->put('sections/default-error/video.mp4', 'video');
         Storage::disk('public')->put('sections/default-error/audio.mp3', 'audio');
 
-        $mockApprove = $this->createMock(\App\Actions\Publication\ApproveSectionForPublication::class);
+        $mockApprove = $this->createMock(ApproveSectionForPublication::class);
         $mockApprove->method('approvalBlocker')->willReturn(null);
         $mockApprove->method('execute')->willReturn('  Some Unexpected Error Message  ');
-        $this->app->instance(\App\Actions\Publication\ApproveSectionForPublication::class, $mockApprove);
+        $this->app->instance(ApproveSectionForPublication::class, $mockApprove);
 
         $action = app(BatchApproveServicePublications::class);
         $result = $action->execute($service, $this->admin->id);

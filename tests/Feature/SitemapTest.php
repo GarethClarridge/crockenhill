@@ -7,9 +7,12 @@ namespace Tests\Feature;
 use App\Enums\SermonContentType;
 use App\Models\Meeting;
 use App\Models\Page;
+use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Services\SitemapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -94,7 +97,7 @@ class SitemapTest extends TestCase
     #[Test]
     public function sitemap_includes_preacher_urls(): void
     {
-        \App\Models\Preacher::factory()->create([
+        Preacher::factory()->create([
             'slug' => 'test-preacher',
             'is_active' => true,
         ]);
@@ -326,7 +329,7 @@ class SitemapTest extends TestCase
     #[Test]
     public function sitemap_uses_flexible_caching(): void
     {
-        $sitemapService = app(\App\Services\SitemapService::class);
+        $sitemapService = app(SitemapService::class);
         $filePath = $sitemapService->getFilePath();
 
         // Clear cache
@@ -349,7 +352,7 @@ class SitemapTest extends TestCase
     #[Test]
     public function sitemap_file_is_created_in_public_directory(): void
     {
-        $sitemapService = app(\App\Services\SitemapService::class);
+        $sitemapService = app(SitemapService::class);
 
         Cache::forget('sitemap');
 
@@ -364,7 +367,7 @@ class SitemapTest extends TestCase
     public function sitemap_route_is_named_correctly(): void
     {
         $this->assertTrue(
-            \Illuminate\Support\Facades\Route::has('sitemap'),
+            Route::has('sitemap'),
             'Sitemap route should be named "sitemap"'
         );
     }

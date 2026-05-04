@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
@@ -177,7 +178,7 @@ class CleanupOrphanedTempFiles extends Command
      * @param  array<string, true>  $protectedPaths
      * @return array{0: int, 1: int, 2: int} [files_deleted, files_skipped, total_size_bytes]
      */
-    private function cleanupDirectory(string $directory, \Carbon\Carbon $cutoffTime, bool $dryRun, array $protectedPaths, int $depth = 0): array
+    private function cleanupDirectory(string $directory, Carbon $cutoffTime, bool $dryRun, array $protectedPaths, int $depth = 0): array
     {
         $disk = Storage::disk('local');
         $deletedCount = 0;
@@ -197,7 +198,7 @@ class CleanupOrphanedTempFiles extends Command
             foreach ($files as $file) {
                 try {
                     $lastModified = $disk->lastModified($file);
-                    $fileTime = \Carbon\Carbon::createFromTimestamp($lastModified);
+                    $fileTime = Carbon::createFromTimestamp($lastModified);
 
                     if (! $fileTime->lt($cutoffTime)) {
                         continue;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -38,8 +39,8 @@ class SermonThumbnailUXTest extends TestCase
 
         $response = $this->get('/christ/sermons');
         $response->assertStatus(200);
-        $response->assertSee(app(\App\Presenters\SermonViewPresenter::class)->plainThumbnailUrl($sermon), false);
-        $response->assertDontSee(app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon), false);
+        $response->assertSee(app(SermonViewPresenter::class)->plainThumbnailUrl($sermon), false);
+        $response->assertDontSee(app(SermonViewPresenter::class)->cardThumbnailUrl($sermon), false);
         $response->assertSee('?v=', false);
         $response->assertSee('alt="Sermon: Sermon with Thumbnail"', false);
     }
@@ -76,7 +77,7 @@ class SermonThumbnailUXTest extends TestCase
         $response = $this->get('/christ/sermons');
 
         $response->assertStatus(200);
-        $response->assertSee(app(\App\Presenters\SermonViewPresenter::class)->plainThumbnailUrl($sermon), false);
+        $response->assertSee(app(SermonViewPresenter::class)->plainThumbnailUrl($sermon), false);
         $response->assertSee('data-sermon-card-thumbnail', false);
         $response->assertSee('data-sermon-card-title-fallback', false);
         $response->assertSee("onerror=\"this.onerror=null; const card = this.closest('[data-sermon-card]'); card?.querySelector('[data-sermon-card-thumbnail]')?.remove(); card?.querySelector('[data-sermon-card-title-fallback]')?.classList.remove('hidden');\"", false);
@@ -110,6 +111,6 @@ class SermonThumbnailUXTest extends TestCase
 
         $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
         $response->assertStatus(200);
-        $response->assertSee(app(\App\Presenters\SermonViewPresenter::class)->thumbnailUrl($sermon), false);
+        $response->assertSee(app(SermonViewPresenter::class)->thumbnailUrl($sermon), false);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -26,7 +27,7 @@ class SermonPrivateAssetTest extends TestCase
 
         Storage::disk('local')->put('private/sermons/audio/test.mp3', 'fake mp3 content');
 
-        $admin = \App\Models\User::factory()->crockenhillAdmin()->create();
+        $admin = User::factory()->crockenhillAdmin()->create();
         $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio");
 
         $response->assertStatus(200);
@@ -47,7 +48,7 @@ class SermonPrivateAssetTest extends TestCase
 
         Storage::disk('local')->put('private/thumbnails/test.webp', 'fake webp content');
 
-        $admin = \App\Models\User::factory()->crockenhillAdmin()->create();
+        $admin = User::factory()->crockenhillAdmin()->create();
         $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(200);
@@ -67,7 +68,7 @@ class SermonPrivateAssetTest extends TestCase
 
         Storage::disk('local')->put('private/thumbnails/test.jpg', 'fake jpg content');
 
-        $admin = \App\Models\User::factory()->crockenhillAdmin()->create();
+        $admin = User::factory()->crockenhillAdmin()->create();
         $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(200);
@@ -88,7 +89,7 @@ class SermonPrivateAssetTest extends TestCase
 
         Storage::disk('local')->put('private/thumbnails/card.png', 'fake png content');
 
-        $admin = \App\Models\User::factory()->crockenhillAdmin()->create();
+        $admin = User::factory()->crockenhillAdmin()->create();
         $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
         $response->assertStatus(200);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -65,7 +66,7 @@ class CleanupOrphanedTempFilesCommandTest extends TestCase
         touch(Storage::disk('local')->path($filePath), now()->subHours(48)->timestamp);
 
         MediaProcessingLog::factory()->create([
-            'status' => \App\Enums\ProcessingStatus::Started,
+            'status' => ProcessingStatus::Started,
             'source_file_path' => $filePath,
         ]);
 

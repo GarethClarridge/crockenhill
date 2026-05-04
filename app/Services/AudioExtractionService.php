@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\MediaType;
+use FFMpeg\FFMpeg;
+use FFMpeg\Format\Audio\Mp3;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -30,14 +32,14 @@ class AudioExtractionService
         $this->ensureDirectoryExists(dirname($outputPath));
 
         try {
-            $ffmpeg = \FFMpeg\FFMpeg::create([
+            $ffmpeg = FFMpeg::create([
                 'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
                 'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
             ]);
 
             $video = $ffmpeg->open($videoPath);
 
-            $format = new \FFMpeg\Format\Audio\Mp3;
+            $format = new Mp3;
             $format->setAudioKiloBitrate($audioConfig['bitrate'] ?? 48);
             $format->setAudioChannels($audioConfig['channels'] ?? 1);
 
@@ -84,14 +86,14 @@ class AudioExtractionService
         $compressedPath = storage_path('app/temp/'.Str::uuid().'_compressed.mp3');
 
         try {
-            $ffmpeg = \FFMpeg\FFMpeg::create([
+            $ffmpeg = FFMpeg::create([
                 'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
                 'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
             ]);
 
             $audio = $ffmpeg->open($inputPath);
 
-            $format = new \FFMpeg\Format\Audio\Mp3;
+            $format = new Mp3;
             $format->setAudioKiloBitrate($fallbackConfig['bitrate'] ?? 32);
             $format->setAudioChannels($fallbackConfig['channels'] ?? 1);
 

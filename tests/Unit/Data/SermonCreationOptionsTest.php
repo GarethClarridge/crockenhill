@@ -7,6 +7,7 @@ namespace Tests\Unit\Data;
 use App\Data\SermonCreationOptions;
 use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
+use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
@@ -54,14 +55,14 @@ class SermonCreationOptionsTest extends TestCase
             $section,
             $processingLog,
             date: '2026-05-10',
-            service: \App\Enums\SermonService::Morning
+            service: SermonService::Morning
         );
 
         $this->assertSame('sermons/audio/section-55.mp3', $options->audioFilePath);
         $this->assertSame('sermons/sections/55/video.mp4', $options->videoFilePath);
         $this->assertSame(SermonSourceType::Livestream, $options->sourceType);
         $this->assertSame('2026-05-10', $options->date);
-        $this->assertSame(\App\Enums\SermonService::Morning, $options->service);
+        $this->assertSame(SermonService::Morning, $options->service);
         $this->assertSame("Children's Talk", $options->customTitle);
         $this->assertSame(SermonContentType::ChildrensTalk, $options->contentType);
         $this->assertSame($preacher->id, $options->preacherId);

@@ -6,6 +6,7 @@ namespace App\Livewire\Traits;
 
 use App\Enums\MediaType;
 use App\Services\MediaValidationService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -132,7 +133,7 @@ trait WithUploadLifecycle
             $this->logInfo('Media processing started', [
                 'processing_id' => $this->processingId,
                 'media_type' => $this->mediaType,
-                'user_id' => \Illuminate\Support\Facades\Auth::id(),
+                'user_id' => Auth::id(),
             ]);
 
         } catch (ValidationException $e) {
@@ -142,7 +143,7 @@ trait WithUploadLifecycle
             $this->logError('Media processing preparation failed', [
                 'error' => $e->getMessage(),
                 'media_type' => $this->mediaType,
-                'user_id' => \Illuminate\Support\Facades\Auth::id(),
+                'user_id' => Auth::id(),
             ]);
 
             $this->handleUploadError('An unexpected error occurred: '.$e->getMessage());

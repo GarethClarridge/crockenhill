@@ -8,6 +8,7 @@ use App\Enums\ApiTokenAbility;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\User;
 use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -46,7 +47,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         ]);
 
         // Create authenticated user
-        $user = \App\Models\User::factory()->create(['is_admin' => true]);
+        $user = User::factory()->create(['is_admin' => true]);
 
         Sanctum::actingAs($user, [ApiTokenAbility::MEDIA_PROCESS->value]);
 
@@ -87,7 +88,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         ]);
 
         // Create authenticated user
-        $user = \App\Models\User::factory()->create(['is_admin' => true]);
+        $user = User::factory()->create(['is_admin' => true]);
 
         Sanctum::actingAs($user, [ApiTokenAbility::MEDIA_PROCESS->value]);
 
@@ -114,7 +115,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         ]);
 
         // Create authenticated user
-        $user = \App\Models\User::factory()->create(['is_admin' => true]);
+        $user = User::factory()->create(['is_admin' => true]);
 
         Sanctum::actingAs($user, [ApiTokenAbility::MEDIA_PROCESS->value]);
 

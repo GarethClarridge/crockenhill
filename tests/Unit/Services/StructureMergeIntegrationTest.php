@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Actions\ServiceReview\ResolvePendingStructureMerge;
+use App\Data\OosEmailParseResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
@@ -14,6 +15,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\User;
 use App\Services\ImportChurchServiceFromOpenLp;
 use App\Services\InboundEmailImportService;
 use App\Services\LivestreamChurchServiceProjectionService;
@@ -139,7 +141,7 @@ class StructureMergeIntegrationTest extends TestCase
             'status' => InboundEmailStatus::Pending,
         ]);
 
-        $parseResult = new \App\Data\OosEmailParseResult(
+        $parseResult = new OosEmailParseResult(
             date: '2026-03-22',
             service: SermonService::Morning,
             items: [
@@ -190,7 +192,7 @@ class StructureMergeIntegrationTest extends TestCase
             'status' => InboundEmailStatus::Pending,
         ]);
 
-        $parseResult = new \App\Data\OosEmailParseResult(
+        $parseResult = new OosEmailParseResult(
             date: '2026-03-22',
             service: SermonService::Morning,
             items: [
@@ -264,7 +266,7 @@ class StructureMergeIntegrationTest extends TestCase
         $this->assertSame('Amazing Grace', $items->first()->title);
 
         // 3. Admin accepts the incoming merge
-        $admin = \App\Models\User::factory()->create(['is_admin' => true]);
+        $admin = User::factory()->create(['is_admin' => true]);
         $churchService->refresh(); // reload to pick up staged merge metadata from the import
         $resolution = app(ResolvePendingStructureMerge::class)->execute($churchService, 'accept_incoming', $admin->id);
 
@@ -312,7 +314,7 @@ class StructureMergeIntegrationTest extends TestCase
 
         app(ImportChurchServiceFromOpenLp::class)->import($upload);
 
-        $admin = \App\Models\User::factory()->create(['is_admin' => true]);
+        $admin = User::factory()->create(['is_admin' => true]);
         $churchService->refresh(); // reload to pick up staged merge metadata from the import
         $resolution = app(ResolvePendingStructureMerge::class)->execute($churchService, 'keep_current', $admin->id);
 
@@ -395,7 +397,7 @@ class StructureMergeIntegrationTest extends TestCase
             'metadata' => ['livestream_projection' => ['processing_id' => 'test', 'service_section_id' => 1, 'source_segment_ids' => [], 'confidence_level' => 'high']],
         ]);
 
-        $admin = \App\Models\User::factory()->create(['is_admin' => true]);
+        $admin = User::factory()->create(['is_admin' => true]);
         $resolution = app(ResolvePendingStructureMerge::class)->execute($service, 'accept_incoming', $admin->id);
 
         $this->assertTrue($resolution->applied);

@@ -6,6 +6,8 @@ namespace Tests\Feature\Security;
 
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
+use App\Models\User;
+use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -61,11 +63,11 @@ class ChildrensTalkAssetSecurityTest extends TestCase
 
         Storage::disk('public')->put('sermons/childrens-talk.mp3', 'fake audio content');
 
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
 
         $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }
 
     #[Test]

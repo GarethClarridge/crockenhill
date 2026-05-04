@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire\Admin;
 
 use App\Data\ThumbnailResult;
+use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoQualityStatus;
@@ -165,7 +166,7 @@ class EditSermonTest extends TestCase
 
         $this->sermon->refresh();
         $this->assertEquals($preacher->id, $this->sermon->preacher_id);
-        $this->assertEquals(\App\Enums\PreacherSource::Manual, $this->sermon->preacher_source);
+        $this->assertEquals(PreacherSource::Manual, $this->sermon->preacher_source);
         $this->assertFalse($this->sermon->needs_preacher_review);
     }
 

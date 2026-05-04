@@ -7,6 +7,7 @@ namespace Tests\Feature\Warden;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
@@ -63,7 +64,7 @@ class TextIntegrityTest extends TestCase
     #[Test]
     public function empty_sermon_title_is_rejected_by_database()
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         // We use DB::table to bypass model mutators
         DB::table('sermons')->insert(
@@ -81,7 +82,7 @@ class TextIntegrityTest extends TestCase
     #[Test]
     public function untrimmed_sermon_title_is_rejected_by_database()
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         DB::table('sermons')->insert(
             array_merge(
@@ -98,7 +99,7 @@ class TextIntegrityTest extends TestCase
     #[Test]
     public function empty_preacher_name_is_rejected_by_database()
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         DB::table('preachers')->insert(
             array_merge(
@@ -111,7 +112,7 @@ class TextIntegrityTest extends TestCase
     #[Test]
     public function untrimmed_preacher_name_is_rejected_by_database()
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         DB::table('preachers')->insert(
             array_merge(

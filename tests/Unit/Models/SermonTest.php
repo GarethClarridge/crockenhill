@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Models;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonService;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Services\SermonExposurePolicy;
@@ -24,14 +26,14 @@ class SermonTest extends TestCase
     public function sermon_relationships()
     {
         // $serviceModel = \App\Models\Service::factory()->create(); // Not a direct relationship anymore
-        $sermon = \App\Models\Sermon::factory()->create([
+        $sermon = Sermon::factory()->create([
             'service' => 'morning', // Example enum value
         ]);
 
-        $this->assertInstanceOf(\App\Enums\SermonService::class, $sermon->service);
+        $this->assertInstanceOf(SermonService::class, $sermon->service);
         $this->assertContains($sermon->service, [
-            \App\Enums\SermonService::Morning,
-            \App\Enums\SermonService::Evening,
+            SermonService::Morning,
+            SermonService::Evening,
         ]);
         // $this->assertEquals($serviceModel->id, $sermon->service->id); // This was incorrect
 
@@ -47,7 +49,7 @@ class SermonTest extends TestCase
     {
         $date = Carbon::create(2023, 1, 15, 10, 0, 0);
         $testFilename = 'sermons/audio.mp3';
-        $sermon = \App\Models\Sermon::factory()->withDate($date)->create([ // Explicitly use App\Models
+        $sermon = Sermon::factory()->withDate($date)->create([ // Explicitly use App\Models
             'series' => 'My Sermon Series',
             'preacher' => 'John Doe',
             'audio_file_path' => $testFilename, // Changed audio_url to filename
@@ -79,8 +81,8 @@ class SermonTest extends TestCase
         $pointsArray = ['Point 1: Introduction', 'Point 2: Main Body', 'Point 3: Conclusion'];
         // $pointsJson = json_encode($pointsArray); // No longer needed
 
-        $sermonCreated = \App\Models\Sermon::factory()->create(['points' => $pointsArray]); // Pass array directly
-        $sermonFetched = \App\Models\Sermon::find($sermonCreated->id);
+        $sermonCreated = Sermon::factory()->create(['points' => $pointsArray]); // Pass array directly
+        $sermonFetched = Sermon::find($sermonCreated->id);
 
         Log::info('SermonTest - Raw points from DB for Sermon ID '.$sermonFetched->id.': '.print_r($sermonFetched->getAttributes()['points'], true));
         Log::info('SermonTest - Casted points type for Sermon ID '.$sermonFetched->id.': '.gettype($sermonFetched->points));
@@ -89,11 +91,11 @@ class SermonTest extends TestCase
         $this->assertEquals($pointsArray, $sermonFetched->points);
 
         // Test 'date' attribute casting to Carbon instance
-        $sermonWithDate = \App\Models\Sermon::factory()->create(['date' => '2023-03-15']);
+        $sermonWithDate = Sermon::factory()->create(['date' => '2023-03-15']);
         $this->assertInstanceOf(Carbon::class, $sermonWithDate->date);
 
         // Test 'points' from default factory creation (can be null or non-JSON text via faker->optional()->text())
-        $sermonFromFactory = \App\Models\Sermon::factory()->create();
+        $sermonFromFactory = Sermon::factory()->create();
         $this->assertInstanceOf(Carbon::class, $sermonFromFactory->date);
         // Check if points from factory are cast to array OR are null after accessor processing
         $this->assertTrue(
@@ -106,41 +108,41 @@ class SermonTest extends TestCase
     public function sermon_scopes()
     {
         // Test last12Months scope
-        $withinLast12Months = \App\Models\Sermon::factory()->withDate(Carbon::now()->subMonths(6))->create();
-        $olderThan12Months = \App\Models\Sermon::factory()->withDate(Carbon::now()->subMonths(15))->create();
-        $futureSermon = \App\Models\Sermon::factory()->withDate(Carbon::now()->addMonths(2))->create();
+        $withinLast12Months = Sermon::factory()->withDate(Carbon::now()->subMonths(6))->create();
+        $olderThan12Months = Sermon::factory()->withDate(Carbon::now()->subMonths(15))->create();
+        $futureSermon = Sermon::factory()->withDate(Carbon::now()->addMonths(2))->create();
 
-        $sermonsLast12Months = \App\Models\Sermon::last12Months()->get();
+        $sermonsLast12Months = Sermon::last12Months()->get();
         $this->assertTrue($sermonsLast12Months->contains($withinLast12Months));
         $this->assertTrue($sermonsLast12Months->contains($futureSermon));
         $this->assertFalse($sermonsLast12Months->contains($olderThan12Months));
 
         // Test forService scope
         $service1Date = Carbon::parse('2023-03-10');
-        $service1Type = \App\Enums\SermonService::Morning;
+        $service1Type = SermonService::Morning;
         $service2Date = Carbon::parse('2023-03-12');
-        $service2Type = \App\Enums\SermonService::Evening;
+        $service2Type = SermonService::Evening;
 
-        $sermonForService1 = \App\Models\Sermon::factory()->create([
+        $sermonForService1 = Sermon::factory()->create([
             'date' => $service1Date,
             'service' => $service1Type,
         ]);
-        $sermonForService2 = \App\Models\Sermon::factory()->create([
+        $sermonForService2 = Sermon::factory()->create([
             'date' => $service2Date,
             'service' => $service2Type,
         ]);
         // Another sermon on same date as service1 but different type
-        \App\Models\Sermon::factory()->create(['date' => $service1Date, 'service' => \App\Enums\SermonService::Evening]);
+        Sermon::factory()->create(['date' => $service1Date, 'service' => SermonService::Evening]);
 
         // The scopeForService filters by service type
-        $sermonsForService1ByType = \App\Models\Sermon::forService($service1Type)
+        $sermonsForService1ByType = Sermon::forService($service1Type)
             ->whereDate('date', $service1Date)
             ->get();
         $this->assertTrue($sermonsForService1ByType->contains($sermonForService1));
         $this->assertFalse($sermonsForService1ByType->contains($sermonForService2));
 
         // If we want to assert that sermons for morning services on a specific date are found:
-        $sermonsForMorningServiceOnDate = \App\Models\Sermon::forService(\App\Enums\SermonService::Morning)
+        $sermonsForMorningServiceOnDate = Sermon::forService(SermonService::Morning)
             ->whereDate('date', $service1Date)
             ->get();
         $this->assertTrue($sermonsForMorningServiceOnDate->contains($sermonForService1));
@@ -148,20 +150,20 @@ class SermonTest extends TestCase
         // Test inSeries scope
         $seriesATitle = 'The Beatitudes';
         $seriesBTitle = 'Fruit of the Spirit';
-        $sermonInSeriesA = \App\Models\Sermon::factory()->inSeries($seriesATitle)->create();
-        $sermonInSeriesB = \App\Models\Sermon::factory()->inSeries($seriesBTitle)->create();
+        $sermonInSeriesA = Sermon::factory()->inSeries($seriesATitle)->create();
+        $sermonInSeriesB = Sermon::factory()->inSeries($seriesBTitle)->create();
 
-        $sermonsInSeriesA = \App\Models\Sermon::inSeries($seriesATitle)->get();
+        $sermonsInSeriesA = Sermon::inSeries($seriesATitle)->get();
         $this->assertTrue($sermonsInSeriesA->contains($sermonInSeriesA));
         $this->assertFalse($sermonsInSeriesA->contains($sermonInSeriesB));
 
         // Test byPreacher scope
         $preacherXName = 'Rev. Dr. Smith';
         $preacherYName = 'Pastor Jones';
-        $sermonByPreacherX = \App\Models\Sermon::factory()->byPreacher($preacherXName)->create();
-        $sermonByPreacherY = \App\Models\Sermon::factory()->byPreacher($preacherYName)->create();
+        $sermonByPreacherX = Sermon::factory()->byPreacher($preacherXName)->create();
+        $sermonByPreacherY = Sermon::factory()->byPreacher($preacherYName)->create();
 
-        $sermonsByPreacherX = \App\Models\Sermon::byPreacher($preacherXName)->get();
+        $sermonsByPreacherX = Sermon::byPreacher($preacherXName)->get();
         $this->assertTrue($sermonsByPreacherX->contains($sermonByPreacherX));
         $this->assertFalse($sermonsByPreacherX->contains($sermonByPreacherY));
     }
@@ -275,11 +277,11 @@ class SermonTest extends TestCase
     #[Test]
     public function scope_order_by_preacher_name_orders_correctly(): void
     {
-        \App\Models\Preacher::query()->delete();
+        Preacher::query()->delete();
         Sermon::query()->delete();
 
-        $preacherAdam = \App\Models\Preacher::factory()->create(['name' => 'Adam']);
-        $preacherMark = \App\Models\Preacher::factory()->create(['name' => 'Mark']);
+        $preacherAdam = Preacher::factory()->create(['name' => 'Adam']);
+        $preacherMark = Preacher::factory()->create(['name' => 'Mark']);
 
         $sermonAdam = Sermon::factory()->create([
             'preacher' => 'Adam',

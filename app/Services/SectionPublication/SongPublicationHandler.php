@@ -6,6 +6,7 @@ namespace App\Services\SectionPublication;
 
 use App\Contracts\SectionPublicationHandler;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\AudioEnhancementService;
@@ -153,7 +154,7 @@ class SongPublicationHandler implements SectionPublicationHandler
 
     private function promoteExtractedVideo(ServiceSection $section, string $sourcePath): string
     {
-        /** @var \App\Models\ChurchServiceItem $item validated in publish() */
+        /** @var ChurchServiceItem $item validated in publish() */
         $item = $section->churchServiceItem;
         $targetPath = 'sermons/songs/'.$item->song_id.'/'.$section->id.'.mp4';
 
@@ -194,7 +195,7 @@ class SongPublicationHandler implements SectionPublicationHandler
      */
     private function promoteLocalFileAsVideo(ServiceSection $section, string $localFilePath): string
     {
-        /** @var \App\Models\ChurchServiceItem $item validated in publish() */
+        /** @var ChurchServiceItem $item validated in publish() */
         $item = $section->churchServiceItem;
         $targetPath = 'sermons/songs/'.$item->song_id.'/'.$section->id.'.mp4';
         $targetDisk = $this->sermonDisk();

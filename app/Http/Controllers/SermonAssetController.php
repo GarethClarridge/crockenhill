@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
+use App\Models\User;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;
@@ -243,7 +244,7 @@ class SermonAssetController extends Controller
      */
     private function authorizeAssetAccess(Sermon $sermon, string $assetType): ?RedirectResponse
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = Auth::user();
 
         // Security: Administrators are exempt from exposure policies to allow for review.

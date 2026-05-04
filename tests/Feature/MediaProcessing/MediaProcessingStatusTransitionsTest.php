@@ -9,6 +9,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -406,11 +407,11 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->audio()->failed()->create();
 
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->method('retry')->willReturn(
-            \App\Services\ProcessingResult::success($log->processing_id, 'Retry initiated')
+            ProcessingResult::success($log->processing_id, 'Retry initiated')
         );
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         $this->withToken($this->token)
             ->postJson("/api/media/processing/{$log->processing_id}/retry")

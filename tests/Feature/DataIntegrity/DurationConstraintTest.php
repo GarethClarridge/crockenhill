@@ -96,7 +96,7 @@ class DurationConstraintTest extends TestCase
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('livestream_segments_timing_check');
 
-        \App\Models\LivestreamSegment::factory()->create([
+        LivestreamSegment::factory()->create([
             'start_time' => -1.0,
         ]);
     }

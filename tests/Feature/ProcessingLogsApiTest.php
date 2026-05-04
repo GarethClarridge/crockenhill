@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\ProcessingLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -39,8 +41,8 @@ class ProcessingLogsApiTest extends TestCase
 
         // Bind custom ProcessingLogService with unique log file
         // Must happen before any HTTP requests so the DI-resolved service uses this file
-        $this->app->bind(\App\Services\ProcessingLogService::class, function () {
-            return new \App\Services\ProcessingLogService($this->originalLogFile);
+        $this->app->bind(ProcessingLogService::class, function () {
+            return new ProcessingLogService($this->originalLogFile);
         });
     }
 
@@ -187,7 +189,7 @@ class ProcessingLogsApiTest extends TestCase
 
         // Create a livestream processing log
         $this->processingLogScenario()
-            ->as(\App\Enums\MediaType::Livestream)
+            ->as(MediaType::Livestream)
             ->processing()
             ->state([
                 'processing_id' => $processingId,

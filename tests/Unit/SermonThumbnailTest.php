@@ -7,7 +7,9 @@ namespace Tests\Unit;
 use App\Data\ThumbnailMetadata;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
+use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -153,7 +155,7 @@ class SermonThumbnailTest extends TestCase
             'thumbnail_generated_at' => '2023-01-15 10:30:00',
         ]);
 
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $sermon->thumbnail_generated_at);
+        $this->assertInstanceOf(Carbon::class, $sermon->thumbnail_generated_at);
         $this->assertEquals('2023-01-15 10:30:00', $sermon->thumbnail_generated_at->format('Y-m-d H:i:s'));
     }
 
@@ -323,7 +325,7 @@ class SermonThumbnailTest extends TestCase
         config(['thumbnail-generation.storage.disk' => 'custom_disk']);
         // Refresh the internal cache of the singleton or instance if it exists
         // SermonViewPresenter uses SermonStorageService
-        app(\App\Services\SermonStorageService::class)->clearInternalCaches();
+        app(SermonStorageService::class)->clearInternalCaches();
 
         $thumbnailPath = 'sermons/thumbnails/custom-test.jpg';
         $sermon = Sermon::factory()->create(['thumbnail_file_path' => $thumbnailPath]);

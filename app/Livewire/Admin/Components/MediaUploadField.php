@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Spatie\MediaLibrary\HasMedia;
 
@@ -23,7 +24,7 @@ class MediaUploadField extends Component
 
     public string $collection = 'default';
 
-    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    /** @var TemporaryUploadedFile|null */
     public mixed $file = null;
 
     public bool $multiple = false;

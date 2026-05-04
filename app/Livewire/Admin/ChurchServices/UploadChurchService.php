@@ -12,6 +12,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Throwable;
 
@@ -19,7 +20,7 @@ class UploadChurchService extends Component
 {
     use WithAdminAuthorization, WithFileUploads, WithNotifications;
 
-    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    /** @var TemporaryUploadedFile|null */
     public mixed $file = null;
 
     public function mount(): void

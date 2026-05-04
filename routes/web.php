@@ -15,6 +15,34 @@ use App\Http\Controllers\PublicSongListController;
 use App\Http\Controllers\SermonAssetController;
 use App\Http\Controllers\SermonController;
 use App\Http\Controllers\SitemapController;
+use App\Livewire\Admin\CalendarEvents\EditCalendarEvent;
+use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
+use App\Livewire\Admin\ChurchServices\ListChurchServices;
+use App\Livewire\Admin\ChurchServices\ListSectionPublications;
+use App\Livewire\Admin\ChurchServices\ListSongs;
+use App\Livewire\Admin\ChurchServices\ManageChurchService;
+use App\Livewire\Admin\ChurchServices\ProcessingReview;
+use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
+use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
+use App\Livewire\Admin\ChurchServices\ServiceReviewDashboard;
+use App\Livewire\Admin\ChurchServices\ShowChurchService;
+use App\Livewire\Admin\ChurchServices\ShowSong;
+use App\Livewire\Admin\ChurchServices\SubmitEmailText;
+use App\Livewire\Admin\ChurchServices\UploadChurchService;
+use App\Livewire\Admin\Meetings\CreateMeeting;
+use App\Livewire\Admin\Meetings\EditMeeting;
+use App\Livewire\Admin\Meetings\ListMeetings;
+use App\Livewire\Admin\Pages\CreatePage;
+use App\Livewire\Admin\Pages\EditPage;
+use App\Livewire\Admin\Pages\ListPages;
+use App\Livewire\Admin\Preachers\CreatePreacher;
+use App\Livewire\Admin\Preachers\EditPreacher;
+use App\Livewire\Admin\Preachers\ListPreachers;
+use App\Livewire\Admin\Sermons\EditSermon;
+use App\Livewire\Admin\Sermons\ListSermons;
+use App\Livewire\Admin\Users\CreateUser;
+use App\Livewire\Admin\Users\EditUser;
+use App\Livewire\Admin\Users\ListUsers;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -139,54 +167,54 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->name('sermon-upload.store');
 
     // Pages
-    Route::get('/pages', App\Livewire\Admin\Pages\ListPages::class)->name('pages.index');
-    Route::get('/pages/create', App\Livewire\Admin\Pages\CreatePage::class)->name('pages.create');
-    Route::get('/pages/{page:slug}/edit', App\Livewire\Admin\Pages\EditPage::class)->name('pages.edit');
+    Route::get('/pages', ListPages::class)->name('pages.index');
+    Route::get('/pages/create', CreatePage::class)->name('pages.create');
+    Route::get('/pages/{page:slug}/edit', EditPage::class)->name('pages.edit');
 
     // Meetings
-    Route::get('/meetings', App\Livewire\Admin\Meetings\ListMeetings::class)->name('meetings.index');
-    Route::get('/meetings/create', App\Livewire\Admin\Meetings\CreateMeeting::class)->name('meetings.create');
-    Route::get('/meetings/{meeting:slug}/edit', App\Livewire\Admin\Meetings\EditMeeting::class)->name('meetings.edit');
+    Route::get('/meetings', ListMeetings::class)->name('meetings.index');
+    Route::get('/meetings/create', CreateMeeting::class)->name('meetings.create');
+    Route::get('/meetings/{meeting:slug}/edit', EditMeeting::class)->name('meetings.edit');
 
     // Sermons
-    Route::get('/sermons', App\Livewire\Admin\Sermons\ListSermons::class)->name('sermons.index');
-    Route::get('/sermons/{sermon:slug}/edit', App\Livewire\Admin\Sermons\EditSermon::class)->name('sermons.edit');
+    Route::get('/sermons', ListSermons::class)->name('sermons.index');
+    Route::get('/sermons/{sermon:slug}/edit', EditSermon::class)->name('sermons.edit');
     Route::get('/sermons/{sermon:slug}/thumbnails/{candidateId}/{variant}', [SermonThumbnailCandidateController::class, 'show'])
         ->where('variant', 'overlay|card|plain')
         ->name('sermons.thumbnails.preview');
 
     // Church Services
-    Route::get('/services', App\Livewire\Admin\ChurchServices\ListChurchServices::class)->name('services.index');
-    Route::get('/services/create', App\Livewire\Admin\ChurchServices\ManageChurchService::class)->name('services.create');
-    Route::get('/services/upload', App\Livewire\Admin\ChurchServices\UploadChurchService::class)->name('services.upload');
-    Route::get('/services/inbound-emails', App\Livewire\Admin\ChurchServices\ReviewInboundEmails::class)->name('services.inbound-emails');
-    Route::get('/services/submit-email', App\Livewire\Admin\ChurchServices\SubmitEmailText::class)->name('services.submit-email');
-    Route::get('/services/review', App\Livewire\Admin\ChurchServices\ServiceReviewDashboard::class)->name('services.review');
-    Route::get('/services/songs', App\Livewire\Admin\ChurchServices\ListSongs::class)->name('services.songs.index');
-    Route::get('/services/songs/{song}', App\Livewire\Admin\ChurchServices\ShowSong::class)->name('services.songs.show');
-    Route::get('/services/section-publications', App\Livewire\Admin\ChurchServices\ListSectionPublications::class)->name('services.section-publications');
+    Route::get('/services', ListChurchServices::class)->name('services.index');
+    Route::get('/services/create', ManageChurchService::class)->name('services.create');
+    Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
+    Route::get('/services/inbound-emails', ReviewInboundEmails::class)->name('services.inbound-emails');
+    Route::get('/services/submit-email', SubmitEmailText::class)->name('services.submit-email');
+    Route::get('/services/review', ServiceReviewDashboard::class)->name('services.review');
+    Route::get('/services/songs', ListSongs::class)->name('services.songs.index');
+    Route::get('/services/songs/{song}', ShowSong::class)->name('services.songs.show');
+    Route::get('/services/section-publications', ListSectionPublications::class)->name('services.section-publications');
     Route::get('/services/section-publications/{serviceSection}/preview/audio', [ServiceSectionCandidateMediaController::class, 'serveAudio'])
         ->name('services.section-publications.preview-audio');
     Route::get('/services/section-publications/{serviceSection}/preview/video', [ServiceSectionCandidateMediaController::class, 'serveVideo'])
         ->name('services.section-publications.preview-video');
-    Route::get('/services/processing/review', App\Livewire\Admin\ChurchServices\ProcessingReviewList::class)->name('services.processing.review.index');
-    Route::get('/services/processing/{processingLog}/review', App\Livewire\Admin\ChurchServices\ProcessingReview::class)->name('services.processing.review');
-    Route::get('/services/{churchService}/edit', App\Livewire\Admin\ChurchServices\ManageChurchService::class)->name('services.edit');
-    Route::get('/services/{churchService}', App\Livewire\Admin\ChurchServices\ShowChurchService::class)->name('services.show');
+    Route::get('/services/processing/review', ProcessingReviewList::class)->name('services.processing.review.index');
+    Route::get('/services/processing/{processingLog}/review', ProcessingReview::class)->name('services.processing.review');
+    Route::get('/services/{churchService}/edit', ManageChurchService::class)->name('services.edit');
+    Route::get('/services/{churchService}', ShowChurchService::class)->name('services.show');
 
     // Preachers
-    Route::get('/preachers', App\Livewire\Admin\Preachers\ListPreachers::class)->name('preachers.index');
-    Route::get('/preachers/create', App\Livewire\Admin\Preachers\CreatePreacher::class)->name('preachers.create');
-    Route::get('/preachers/{preacher:slug}/edit', App\Livewire\Admin\Preachers\EditPreacher::class)->name('preachers.edit');
+    Route::get('/preachers', ListPreachers::class)->name('preachers.index');
+    Route::get('/preachers/create', CreatePreacher::class)->name('preachers.create');
+    Route::get('/preachers/{preacher:slug}/edit', EditPreacher::class)->name('preachers.edit');
 
     // Calendar Events
-    Route::get('/calendar-events', App\Livewire\Admin\CalendarEvents\ListCalendarEvents::class)->name('calendar-events.index');
-    Route::get('/calendar-events/{calendarEvent}/edit', App\Livewire\Admin\CalendarEvents\EditCalendarEvent::class)->name('calendar-events.edit');
+    Route::get('/calendar-events', ListCalendarEvents::class)->name('calendar-events.index');
+    Route::get('/calendar-events/{calendarEvent}/edit', EditCalendarEvent::class)->name('calendar-events.edit');
 
     // Users
-    Route::get('/users', App\Livewire\Admin\Users\ListUsers::class)->name('users.index');
-    Route::get('/users/create', App\Livewire\Admin\Users\CreateUser::class)->name('users.create');
-    Route::get('/users/{user}/edit', App\Livewire\Admin\Users\EditUser::class)->name('users.edit');
+    Route::get('/users', ListUsers::class)->name('users.index');
+    Route::get('/users/create', CreateUser::class)->name('users.create');
+    Route::get('/users/{user}/edit', EditUser::class)->name('users.edit');
 });
 
 // "Members only" = authenticated + verified email.

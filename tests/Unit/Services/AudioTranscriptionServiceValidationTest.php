@@ -14,6 +14,7 @@ use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
+use OpenAI\Exceptions\ErrorException;
 use Tests\TestCase;
 
 class AudioTranscriptionServiceValidationTest extends TestCase
@@ -239,7 +240,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         // so isNonRetryableError() must use getStatusCode() — not getCode().
         $nonRetryableCodes = [400, 401, 413];
         foreach ($nonRetryableCodes as $code) {
-            $exception = new \OpenAI\Exceptions\ErrorException([
+            $exception = new ErrorException([
                 'message' => 'Test error',
                 'type' => 'test_error',
                 'code' => (string) $code,
@@ -258,7 +259,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
         $retryableCodes = [429, 500, 503];
         foreach ($retryableCodes as $code) {
-            $exception = new \OpenAI\Exceptions\ErrorException([
+            $exception = new ErrorException([
                 'message' => 'Transient error',
                 'type' => 'server_error',
                 'code' => null,

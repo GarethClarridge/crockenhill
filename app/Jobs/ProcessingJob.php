@@ -6,8 +6,10 @@ namespace App\Jobs;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
 use App\Services\MediaProcessingRunTransitionService;
+use Illuminate\Contracts\Queue\Job;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -185,7 +187,7 @@ abstract class ProcessingJob
         }
 
         // Also check the main processing log for CANCELLED status
-        $log = \App\Models\MediaProcessingLog::where('processing_id', $this->processingId)->first();
+        $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
 
         return $log?->isCancelled() ?? false;
     }
@@ -206,7 +208,7 @@ abstract class ProcessingJob
      */
     protected function captureQueueCorrelation(
         MediaProcessingLog $processingLog,
-        ?\Illuminate\Contracts\Queue\Job $job,
+        ?Job $job,
         int $attempts
     ): void {
         try {
@@ -232,7 +234,7 @@ abstract class ProcessingJob
      */
     protected function startProcessingJob(
         MediaProcessingLog $processingLog,
-        ?\Illuminate\Contracts\Queue\Job $job,
+        ?Job $job,
         int $attempts
     ): void {
         $this->initializeStepLogging($processingLog->processing_id);
@@ -244,12 +246,12 @@ abstract class ProcessingJob
      */
     protected function getProcessingIdFromSermon(int $sermonId): ?string
     {
-        $sermon = \App\Models\Sermon::find($sermonId);
+        $sermon = Sermon::find($sermonId);
         if (! $sermon) {
             return null;
         }
 
-        /** @var \App\Models\MediaProcessingLog|null $processingLog */
+        /** @var MediaProcessingLog|null $processingLog */
         $processingLog = $sermon->processingLogs()->latest()->first();
 
         return $processingLog?->processing_id;

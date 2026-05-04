@@ -14,7 +14,9 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\ProcessingPipelineBuilder;
+use App\Services\ProcessingRunFailureHandler;
 use App\Services\ProcessingRunOrchestrator;
 use App\Services\VideoStorageService;
 use Illuminate\Bus\PendingBatch;
@@ -99,7 +101,7 @@ class ProcessingRunOrchestratorTest extends TestCase
             ->once()
             ->with(Mockery::type('array'));
 
-        $this->app->forgetInstance(\App\Services\ProcessingRunFailureHandler::class);
+        $this->app->forgetInstance(ProcessingRunFailureHandler::class);
         $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         try {
@@ -134,7 +136,7 @@ class ProcessingRunOrchestratorTest extends TestCase
             ->once()
             ->with(Mockery::type('array'));
 
-        $this->app->forgetInstance(\App\Services\ProcessingRunFailureHandler::class);
+        $this->app->forgetInstance(ProcessingRunFailureHandler::class);
         $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         try {
@@ -260,7 +262,7 @@ class ProcessingRunOrchestratorTest extends TestCase
             ->once()
             ->with(Mockery::type('array'));
 
-        $this->app->forgetInstance(\App\Services\ProcessingRunFailureHandler::class);
+        $this->app->forgetInstance(ProcessingRunFailureHandler::class);
         $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         try {
@@ -359,7 +361,7 @@ class ProcessingRunOrchestratorTest extends TestCase
 
         $this->assertInstanceOf(PendingBatch::class, $pendingBatch);
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)->markAsCancelled(
+        app(MediaProcessingRunTransitionService::class)->markAsCancelled(
             $processingLog,
             'Processing cancelled by user'
         );

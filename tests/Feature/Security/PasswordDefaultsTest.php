@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Security;
 
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -31,7 +32,7 @@ class PasswordDefaultsTest extends TestCase
 
     private function validatePassword(string $password): bool
     {
-        return ! \Illuminate\Support\Facades\Validator::make(
+        return ! Validator::make(
             ['password' => $password],
             ['password' => Password::defaults()]
         )->fails();

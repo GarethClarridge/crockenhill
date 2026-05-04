@@ -7,7 +7,9 @@ namespace Tests\Unit;
 use App\Data\ThumbnailResult;
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
+use App\Services\SermonExposurePolicy;
 use App\Services\StorageAdapterHelper;
+use App\Services\ThumbnailCanvasComposer;
 use App\Services\ThumbnailForegroundExtractionService;
 use App\Services\ThumbnailGenerationService;
 use App\Services\ThumbnailTextHelper;
@@ -60,8 +62,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             $this->frameExtractionService,
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
-            app(\App\Services\ThumbnailCanvasComposer::class),
-            app(\App\Services\SermonExposurePolicy::class),
+            app(ThumbnailCanvasComposer::class),
+            app(SermonExposurePolicy::class),
         );
     }
 
@@ -95,8 +97,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             $this->frameExtractionService,
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
-            app(\App\Services\ThumbnailCanvasComposer::class),
-            app(\App\Services\SermonExposurePolicy::class),
+            app(ThumbnailCanvasComposer::class),
+            app(SermonExposurePolicy::class),
         );
 
         $sermon = Sermon::factory()->create([
@@ -132,7 +134,7 @@ class ThumbnailGenerationServiceTest extends TestCase
     #[Test]
     public function it_can_wrap_text_properly()
     {
-        $composer = app(\App\Services\ThumbnailCanvasComposer::class);
+        $composer = app(ThumbnailCanvasComposer::class);
         $reflection = new \ReflectionClass($composer);
         $method = $reflection->getMethod('wrapText');
         $method->setAccessible(true);
@@ -224,8 +226,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             $frameService,
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
-            app(\App\Services\ThumbnailCanvasComposer::class),
-            app(\App\Services\SermonExposurePolicy::class),
+            app(ThumbnailCanvasComposer::class),
+            app(SermonExposurePolicy::class),
         );
 
         // Create a temporary file
@@ -251,7 +253,7 @@ class ThumbnailGenerationServiceTest extends TestCase
     #[Test]
     public function it_handles_long_sermon_titles_with_proper_wrapping()
     {
-        $composer = app(\App\Services\ThumbnailCanvasComposer::class);
+        $composer = app(ThumbnailCanvasComposer::class);
         $reflection = new \ReflectionClass($composer);
         $method = $reflection->getMethod('wrapText');
         $method->setAccessible(true);
@@ -274,7 +276,7 @@ class ThumbnailGenerationServiceTest extends TestCase
     #[Test]
     public function it_handles_empty_titles_gracefully()
     {
-        $composer = app(\App\Services\ThumbnailCanvasComposer::class);
+        $composer = app(ThumbnailCanvasComposer::class);
         $reflection = new \ReflectionClass($composer);
         $method = $reflection->getMethod('wrapText');
         $method->setAccessible(true);
@@ -426,8 +428,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             $this->createMock(FrameExtractionService::class),
             app(StorageAdapterHelper::class),
             $extractor,
-            app(\App\Services\ThumbnailCanvasComposer::class),
-            app(\App\Services\SermonExposurePolicy::class),
+            app(ThumbnailCanvasComposer::class),
+            app(SermonExposurePolicy::class),
         );
     }
 

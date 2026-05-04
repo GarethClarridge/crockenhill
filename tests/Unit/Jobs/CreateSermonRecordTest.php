@@ -11,6 +11,7 @@ use App\Services\SermonCreationService;
 use App\Services\SermonProcessingLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -188,8 +189,8 @@ class CreateSermonRecordTest extends TestCase
 
         // The storeVideoForSermon() method tries to actually move the file.
         // We need to fake storage so the file "exists".
-        \Illuminate\Support\Facades\Storage::fake('local');
-        \Illuminate\Support\Facades\Storage::disk('local')
+        Storage::fake('local');
+        Storage::disk('local')
             ->put('temp/video-processing/extracted-sermon.mp4', 'fake video content');
 
         $job = new CreateSermonRecord($log);
@@ -227,8 +228,8 @@ class CreateSermonRecordTest extends TestCase
         Log::shouldReceive('info')->zeroOrMoreTimes();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
-        \Illuminate\Support\Facades\Storage::fake('local');
-        \Illuminate\Support\Facades\Storage::disk('local')
+        Storage::fake('local');
+        Storage::disk('local')
             ->put('temp/video-processing/original-upload.mp4', 'fake video content');
 
         $job = new CreateSermonRecord($log);

@@ -6,6 +6,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonSearchTest extends TestCase
@@ -18,7 +19,7 @@ class SermonSearchTest extends TestCase
         Sermon::query()->delete();
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_escapes_percent_wildcard_in_search(): void
     {
         Sermon::factory()->create(['title' => '100% Correct']);
@@ -36,7 +37,7 @@ class SermonSearchTest extends TestCase
         $this->assertEquals('100% Correct', $data[0]['title']);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_escapes_underscore_wildcard_in_search(): void
     {
         Sermon::factory()->create(['title' => 'Sermon_Special']);
@@ -54,7 +55,7 @@ class SermonSearchTest extends TestCase
         $this->assertEquals('Sermon_Special', $data[0]['title']);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_escapes_backslash_in_search(): void
     {
         Sermon::factory()->create(['title' => 'Path\To\Sermon']);
@@ -68,7 +69,7 @@ class SermonSearchTest extends TestCase
         $this->assertEquals('Path\To\Sermon', $data[0]['title']);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function it_still_performs_normal_searches_correctly(): void
     {
         Sermon::factory()->create(['title' => 'The Grace of God']);

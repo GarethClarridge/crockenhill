@@ -11,6 +11,7 @@ use App\Services\BritishEnglishConverter;
 use App\Services\SermonAnalysisPromptBuilder;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonAnalysisValidator;
+use App\Services\SermonProcessingLogger;
 use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use OpenAI\Exceptions\ErrorException;
@@ -38,7 +39,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
             'openai.api_key' => 'test-api-key',
         ]);
 
-        $logger = app(\App\Services\SermonProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $repository = app(SermonRepository::class);
         $this->validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
         $this->promptBuilder = new SermonAnalysisPromptBuilder($this->validator);
@@ -57,7 +58,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('OpenAI API key not configured');
 
-        $logger = app(\App\Services\SermonProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $repository = app(SermonRepository::class);
         $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
         $promptBuilder = new SermonAnalysisPromptBuilder($validator);
@@ -286,7 +287,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $serverError = new ErrorException(['message' => 'Internal Server Error', 'type' => 'server_error', 'code' => null], 500);
         OpenAI::fake([$serverError]);
 
-        $this->expectException(\Exception::class);
+        $this->expectException(Exception::class);
 
         $this->service->analyzeSermon($transcript);
     }

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
+use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\User;
 use App\Services\GetMediaProcessingStatus;
 use App\Services\LivestreamSegmentationService;
@@ -17,6 +20,8 @@ use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
 use App\Services\ProcessingRunOrchestrator;
 use App\Services\UnifiedMediaProcessor;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -102,7 +107,7 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $log = MediaProcessingLog::where('processing_id', $result->processingId)->first();
         $this->assertNotNull($log);
-        $this->assertEquals(\App\Enums\MediaType::Audio, $log->processing_type);
+        $this->assertEquals(MediaType::Audio, $log->processing_type);
         $this->assertEquals('sermon.mp3', $log->original_filename);
         $this->assertEquals(ProcessingStatus::Pending, $log->status);
     }
@@ -535,9 +540,9 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->pipelineBuilder
             ->method('buildDirectVideoPipeline')
             ->willReturnCallback(function ($processingLog) {
-                $sermon = \App\Models\Sermon::factory()->create();
+                $sermon = Sermon::factory()->create();
 
-                return [new \App\Jobs\UpdateSermonRecord($sermon->id)];
+                return [new UpdateSermonRecord($sermon->id)];
             });
 
         $result = $this->processor->process('video', $file);
@@ -584,7 +589,7 @@ class UnifiedMediaProcessorTest extends TestCase
             ->method('initiateProcessing')
             ->with(
                 $file,
-                \App\Enums\MediaType::Video,
+                MediaType::Video,
                 null,
                 $this->callback(function (array $attributes): bool {
                     return ($attributes['processing_metadata']['video_processing_mode'] ?? null) === MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM
@@ -624,9 +629,9 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->pipelineBuilder
             ->method('buildDirectVideoPipeline')
             ->willReturnCallback(function ($processingLog) {
-                $sermon = \App\Models\Sermon::factory()->create();
+                $sermon = Sermon::factory()->create();
 
-                return [new \App\Jobs\UpdateSermonRecord($sermon->id)];
+                return [new UpdateSermonRecord($sermon->id)];
             });
 
         $this->processor->process('video', $file);
@@ -679,9 +684,9 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->pipelineBuilder
             ->method('buildDirectVideoPipeline')
             ->willReturnCallback(function ($processingLog) {
-                $sermon = \App\Models\Sermon::factory()->create();
+                $sermon = Sermon::factory()->create();
 
-                return [new \App\Jobs\UpdateSermonRecord($sermon->id)];
+                return [new UpdateSermonRecord($sermon->id)];
             });
 
         $this->processor->process('video', $file);
@@ -694,9 +699,9 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 }
 
-class AudioStubJob implements \Illuminate\Contracts\Queue\ShouldQueue
+class AudioStubJob implements ShouldQueue
 {
-    use \Illuminate\Bus\Queueable, \Illuminate\Foundation\Bus\Dispatchable, \Illuminate\Queue\InteractsWithQueue;
+    use \Illuminate\Foundation\Bus\Dispatchable, \Illuminate\Queue\InteractsWithQueue, Queueable;
 
     public function handle(): void {}
 }

@@ -4,10 +4,11 @@ namespace Database\Factories;
 
 use App\Enums\SampleSource;
 use App\Models\SpeakerProfile;
+use App\Models\SpeakerSample;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SpeakerSample>
+ * @extends Factory<SpeakerSample>
  */
 class SpeakerSampleFactory extends Factory
 {

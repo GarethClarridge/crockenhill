@@ -17,6 +17,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class AnalyzeSegments implements ShouldQueue
 {
@@ -369,7 +370,7 @@ class AnalyzeSegments implements ShouldQueue
         $rmsSegments = $rmsAnalysis['segments'];
 
         // Get total duration from RMS log for sermon identification
-        $fullRmsLogPath = \Illuminate\Support\Facades\Storage::disk(config('media-processing.storage.temp_disk'))
+        $fullRmsLogPath = Storage::disk(config('media-processing.storage.temp_disk'))
             ->path($rmsLogPath);
         $logContent = file_get_contents($fullRmsLogPath);
         if ($logContent === false) {

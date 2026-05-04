@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
@@ -27,7 +28,7 @@ return new class extends Migration
         // Wrapped in try-catch: existing data may violate the constraint (handled by subsequent migration).
         try {
             DB::statement("ALTER TABLE preacher_aliases ADD CONSTRAINT preacher_aliases_alias_format_check CHECK (BINARY alias = LOWER(TRIM(alias)) AND alias != '')");
-        } catch (\Illuminate\Database\QueryException) {
+        } catch (QueryException) {
             // Data already in the table violates the constraint; skip silently.
         }
     }

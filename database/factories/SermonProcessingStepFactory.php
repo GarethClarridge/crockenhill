@@ -4,10 +4,11 @@ namespace Database\Factories;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SermonProcessingStep>
+ * @extends Factory<SermonProcessingStep>
  */
 class SermonProcessingStepFactory extends Factory
 {

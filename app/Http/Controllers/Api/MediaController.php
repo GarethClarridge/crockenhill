@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
+use App\Contracts\ProvidesSafeMessage;
 use App\Enums\MediaType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CancelMediaProcessingRequest;
@@ -12,6 +13,7 @@ use App\Http\Requests\ConfirmMediaSegmentRequest;
 use App\Http\Requests\MediaStatusRequest;
 use App\Http\Requests\ProcessMediaRequest;
 use App\Http\Requests\RetryMediaProcessingRequest;
+use App\Models\User;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoProcessingOptions;
 use App\Traits\SanitizesLogData;
@@ -106,7 +108,7 @@ class MediaController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $message = $e instanceof \App\Contracts\ProvidesSafeMessage
+            $message = $e instanceof ProvidesSafeMessage
                 ? $e->getSafeMessage()
                 : 'Status check failed due to an internal error.';
 
@@ -147,7 +149,7 @@ class MediaController extends Controller
      */
     public function confirmSegment(ConfirmMediaSegmentRequest $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         try {

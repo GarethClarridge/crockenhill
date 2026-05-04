@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
+use App\Enums\MeetingFrequency;
+use App\Enums\MeetingType;
+use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Meeting;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -44,11 +48,11 @@ class MeetingRecurringIntegrityTest extends TestCase
     {
         $meeting = Meeting::factory()->create([
             'is_recurring' => true,
-            'frequency' => \App\Enums\MeetingFrequency::Weekly,
+            'frequency' => MeetingFrequency::Weekly,
         ]);
 
         $this->assertTrue($meeting->is_recurring);
-        $this->assertEquals(\App\Enums\MeetingFrequency::Weekly, $meeting->frequency);
+        $this->assertEquals(MeetingFrequency::Weekly, $meeting->frequency);
     }
 
     #[Test]
@@ -66,12 +70,12 @@ class MeetingRecurringIntegrityTest extends TestCase
     #[Test]
     public function update_meeting_request_validates_recurring_frequency(): void
     {
-        $request = new \App\Http\Requests\UpdateMeetingRequest;
+        $request = new UpdateMeetingRequest;
         $rules = $request->rules();
 
-        $validator = \Illuminate\Support\Facades\Validator::make([
+        $validator = Validator::make([
             'slug' => 'test-meeting',
-            'type' => \App\Enums\MeetingType::Occasional->value,
+            'type' => MeetingType::Occasional->value,
             'day' => 'Monday',
             'who' => 'Everyone',
             'pictures' => true,
@@ -86,13 +90,13 @@ class MeetingRecurringIntegrityTest extends TestCase
     #[Test]
     public function update_meeting_request_validates_time_formats(): void
     {
-        $request = new \App\Http\Requests\UpdateMeetingRequest;
+        $request = new UpdateMeetingRequest;
         $rules = $request->rules();
 
         // Test valid format with seconds
-        $validator = \Illuminate\Support\Facades\Validator::make([
+        $validator = Validator::make([
             'slug' => 'test-meeting',
-            'type' => \App\Enums\MeetingType::Occasional->value,
+            'type' => MeetingType::Occasional->value,
             'day' => 'Monday',
             'who' => 'Everyone',
             'pictures' => true,
@@ -102,9 +106,9 @@ class MeetingRecurringIntegrityTest extends TestCase
         $this->assertFalse($validator->fails());
 
         // Test valid format H:i
-        $validator = \Illuminate\Support\Facades\Validator::make([
+        $validator = Validator::make([
             'slug' => 'test-meeting',
-            'type' => \App\Enums\MeetingType::Occasional->value,
+            'type' => MeetingType::Occasional->value,
             'day' => 'Monday',
             'who' => 'Everyone',
             'pictures' => true,
@@ -114,9 +118,9 @@ class MeetingRecurringIntegrityTest extends TestCase
         $this->assertFalse($validator->fails());
 
         // Test end_time after or equal to start_time
-        $validator = \Illuminate\Support\Facades\Validator::make([
+        $validator = Validator::make([
             'slug' => 'test-meeting',
-            'type' => \App\Enums\MeetingType::Occasional->value,
+            'type' => MeetingType::Occasional->value,
             'day' => 'Monday',
             'who' => 'Everyone',
             'pictures' => true,
@@ -127,9 +131,9 @@ class MeetingRecurringIntegrityTest extends TestCase
         $this->assertFalse($validator->fails());
 
         // Test end_time before start_time
-        $validator = \Illuminate\Support\Facades\Validator::make([
+        $validator = Validator::make([
             'slug' => 'test-meeting',
-            'type' => \App\Enums\MeetingType::Occasional->value,
+            'type' => MeetingType::Occasional->value,
             'day' => 'Monday',
             'who' => 'Everyone',
             'pictures' => true,

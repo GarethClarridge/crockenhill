@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\PageArea;
+use App\Models\Meeting;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
@@ -423,7 +424,7 @@ class RouteTest extends TestCase
     public function community_slug_renders_meeting_view_when_meeting_exists(): void
     {
         // Create a meeting with a known slug
-        $meeting = \App\Models\Meeting::factory()->create([
+        $meeting = Meeting::factory()->create([
             'slug' => 'test-meeting',
             'day' => 'Monday',
             'start_time' => '10:00:00',

@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class EnsureServiceTrackingAccessTest extends TestCase
@@ -58,7 +59,7 @@ class EnsureServiceTrackingAccessTest extends TestCase
     {
         $request = $this->makeRequest();
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Unauthorized action.');
 
         $this->makeMiddleware()->handle($request, fn () => response('passed'));
@@ -74,7 +75,7 @@ class EnsureServiceTrackingAccessTest extends TestCase
 
         $request = $this->makeRequest($user);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Unauthorized action.');
 
         $this->makeMiddleware()->handle($request, fn () => response('passed'));
@@ -90,7 +91,7 @@ class EnsureServiceTrackingAccessTest extends TestCase
 
         $request = $this->makeRequest($admin);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Your email address is not verified.');
 
         $this->makeMiddleware()->handle($request, fn () => response('passed'));
@@ -133,7 +134,7 @@ class EnsureServiceTrackingAccessTest extends TestCase
 
         $request = $this->makeRequest($admin, $plainTextToken);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Missing required token ability: '.ApiTokenAbility::SERVICE_UPLOAD->value);
 
         $this->makeMiddleware()->handle($request, fn () => response('passed'));

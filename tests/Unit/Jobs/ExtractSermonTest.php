@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Tests\Unit\Jobs;
 
 use App\Jobs\ExtractSermon;
+use App\Mail\ManualReviewRequired;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\SermonCandidateConfidenceService;
+use App\Services\SermonExtractionPlanResolver;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
@@ -781,7 +784,7 @@ class ExtractSermonTest extends TestCase
         $this->assertSame('failed', $log->status->value);
         $this->assertSame('manual_review_required', $log->current_step);
         $this->assertStringContainsString('Multiple speech blocks met the 20-minute sermon threshold.', $log->error_message ?? '');
-        Mail::assertQueued(\App\Mail\ManualReviewRequired::class);
+        Mail::assertQueued(ManualReviewRequired::class);
     }
 
     #[Test]
@@ -828,7 +831,7 @@ class ExtractSermonTest extends TestCase
         $this->assertSame('failed', $log->status->value);
         $this->assertSame('manual_review_required', $log->current_step);
         $this->assertStringContainsString('No speech block met the 20-minute sermon threshold.', $log->error_message ?? '');
-        Mail::assertQueued(\App\Mail\ManualReviewRequired::class);
+        Mail::assertQueued(ManualReviewRequired::class);
     }
 
     #[Test]
@@ -877,7 +880,7 @@ class ExtractSermonTest extends TestCase
         $this->assertSame('failed', $log->status->value);
         $this->assertSame('manual_review_required', $log->current_step);
         $this->assertStringContainsString('not at least 1.5x longer', $log->error_message ?? '');
-        Mail::assertQueued(\App\Mail\ManualReviewRequired::class);
+        Mail::assertQueued(ManualReviewRequired::class);
     }
 
     #[Test]
@@ -1002,8 +1005,8 @@ class ExtractSermonTest extends TestCase
             $mockExtractor,
             $mockStorage,
             app(StorageAdapterHelper::class),
-            app(\App\Services\SermonExtractionPlanResolver::class),
-            app(\App\Services\SermonCandidateConfidenceService::class)
+            app(SermonExtractionPlanResolver::class),
+            app(SermonCandidateConfidenceService::class)
         );
     }
 }

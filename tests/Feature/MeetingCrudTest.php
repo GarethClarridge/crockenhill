@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Meeting;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -31,7 +32,7 @@ class MeetingCrudTest extends TestCase
         parent::setUp();
 
         // Disable CSRF protection for these form tests
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+        $this->withoutMiddleware(ValidateCsrfToken::class);
 
         // Create admin user with unique email
         $this->adminUser = User::factory()->create([

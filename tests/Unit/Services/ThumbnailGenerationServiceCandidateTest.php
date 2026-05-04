@@ -7,7 +7,9 @@ namespace Tests\Unit\Services;
 use App\Data\ThumbnailResult;
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
+use App\Services\SermonExposurePolicy;
 use App\Services\StorageAdapterHelper;
+use App\Services\ThumbnailCanvasComposer;
 use App\Services\ThumbnailForegroundExtractionService;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,8 +98,8 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
             $frameExtractionService,
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
-            app(\App\Services\ThumbnailCanvasComposer::class),
-            app(\App\Services\SermonExposurePolicy::class),
+            app(ThumbnailCanvasComposer::class),
+            app(SermonExposurePolicy::class),
         );
 
         $result = $service->generateThumbnail($sermon, 'videos/test.mp4', 'public');
@@ -161,8 +163,8 @@ class ThumbnailGenerationServiceCandidateTest extends TestCase
                 $frameExtractionService,
                 app(StorageAdapterHelper::class),
                 app(ThumbnailForegroundExtractionService::class),
-                app(\App\Services\ThumbnailCanvasComposer::class),
-                app(\App\Services\SermonExposurePolicy::class),
+                app(ThumbnailCanvasComposer::class),
+                app(SermonExposurePolicy::class),
             ])
             ->onlyMethods(['createPlainThumbnail'])
             ->getMock();

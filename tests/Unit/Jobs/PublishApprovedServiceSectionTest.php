@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Services\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\SectionPublication\SermonPublicationHandler;
 use App\Services\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,7 +77,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $job = new PublishApprovedServiceSection($section->id);
         $job->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
+            app(SectionPublicationHandlerFactory::class),
         );
 
         $section->refresh();
@@ -128,7 +129,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $job = new PublishApprovedServiceSection($section->id);
         $job->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
+            app(SectionPublicationHandlerFactory::class),
         );
 
         $section->refresh();
@@ -183,7 +184,7 @@ class PublishApprovedServiceSectionTest extends TestCase
         $this->expectExceptionMessage('Section classification changed since approval');
 
         $job->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
+            app(SectionPublicationHandlerFactory::class),
         );
     }
 
@@ -212,7 +213,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $job = new PublishApprovedServiceSection($section->id);
         $job->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
+            app(SectionPublicationHandlerFactory::class),
         );
 
         $section->refresh();
@@ -274,7 +275,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $job = new PublishApprovedServiceSection($section->id);
         $job->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
+            app(SectionPublicationHandlerFactory::class),
         );
 
         $section->refresh();
@@ -338,7 +339,7 @@ class PublishApprovedServiceSectionTest extends TestCase
         $this->expectExceptionMessage("Children's talk speaker must be reviewed before publication");
 
         $job->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class),
+            app(SectionPublicationHandlerFactory::class),
         );
     }
 }

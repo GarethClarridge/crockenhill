@@ -10,6 +10,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\VideoExtractionService;
 use App\Traits\ChecksCancellation;
+use FFMpeg\FFProbe;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -145,7 +146,7 @@ class ExtractAudioFromVideo implements ShouldQueue
     private function getVideoDuration(string $videoPath): float
     {
         try {
-            $ffprobe = \FFMpeg\FFProbe::create([
+            $ffprobe = FFProbe::create([
                 'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
                 'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
             ]);

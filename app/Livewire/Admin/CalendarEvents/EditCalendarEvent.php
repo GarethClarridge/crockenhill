@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\CalendarEvents;
 
+use App\Actions\CategorizeCalendarEvent;
 use App\Enums\CalendarEventStatus;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
@@ -88,7 +89,7 @@ class EditCalendarEvent extends Component
         ]);
 
         if ($oldMeetingSlug !== $validated['meetingSlug']) {
-            app(\App\Actions\CategorizeCalendarEvent::class)->execute($this->calendarEvent, $validated['meetingSlug']);
+            app(CategorizeCalendarEvent::class)->execute($this->calendarEvent, $validated['meetingSlug']);
         }
 
         $this->success('Calendar event updated');

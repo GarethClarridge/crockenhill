@@ -9,6 +9,7 @@ use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 use Tests\TestCase;
 
@@ -22,7 +23,7 @@ class SitemapableTest extends TestCase
         $sermon = new Sermon;
 
         $this->assertInstanceOf(
-            \Spatie\Sitemap\Contracts\Sitemapable::class,
+            Sitemapable::class,
             $sermon,
             'Sermon model should implement Sitemapable interface'
         );
@@ -34,7 +35,7 @@ class SitemapableTest extends TestCase
         $page = new Page;
 
         $this->assertInstanceOf(
-            \Spatie\Sitemap\Contracts\Sitemapable::class,
+            Sitemapable::class,
             $page,
             'Page model should implement Sitemapable interface'
         );
@@ -46,7 +47,7 @@ class SitemapableTest extends TestCase
         $meeting = new Meeting;
 
         $this->assertInstanceOf(
-            \Spatie\Sitemap\Contracts\Sitemapable::class,
+            Sitemapable::class,
             $meeting,
             'Meeting model should implement Sitemapable interface'
         );

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Auth;
 
+use App\Livewire\Auth\Register;
+use App\Livewire\Auth\ResetPassword;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -18,7 +21,7 @@ class PasswordStrengthTest extends TestCase
     #[Test]
     public function registration_fails_with_weak_password(): void
     {
-        Livewire::test(\App\Livewire\Auth\Register::class)
+        Livewire::test(Register::class)
             ->set('name', 'Test User')
             ->set('email', 'test@example.com')
             ->set('password', 'weak')
@@ -34,7 +37,7 @@ class PasswordStrengthTest extends TestCase
     #[Test]
     public function registration_fails_with_password_lacking_numbers(): void
     {
-        Livewire::test(\App\Livewire\Auth\Register::class)
+        Livewire::test(Register::class)
             ->set('name', 'Test User')
             ->set('email', 'test@example.com')
             ->set('password', 'passwordwithoutnumbers')
@@ -46,9 +49,9 @@ class PasswordStrengthTest extends TestCase
     #[Test]
     public function registration_succeeds_with_strong_password(): void
     {
-        \Illuminate\Support\Facades\Notification::fake();
+        Notification::fake();
 
-        Livewire::test(\App\Livewire\Auth\Register::class)
+        Livewire::test(Register::class)
             ->set('name', 'Test User')
             ->set('email', 'test@example.com')
             ->set('password', 'StrongPass123!@#Unique')
@@ -67,7 +70,7 @@ class PasswordStrengthTest extends TestCase
         $user = User::factory()->create();
         $token = Password::createToken($user);
 
-        Livewire::test(\App\Livewire\Auth\ResetPassword::class, ['token' => $token])
+        Livewire::test(ResetPassword::class, ['token' => $token])
             ->set('email', $user->email)
             ->set('password', 'weak')
             ->set('password_confirmation', 'weak')

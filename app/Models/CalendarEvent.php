@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\CalendarEventStatus;
+use Database\Factories\CalendarEventFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -17,16 +20,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $description
  * @property string|null $speaker
  * @property string|null $location
- * @property \Illuminate\Support\Carbon $start_datetime
- * @property \Illuminate\Support\Carbon $end_datetime
- * @property \App\Enums\CalendarEventStatus $status
+ * @property Carbon $start_datetime
+ * @property Carbon $end_datetime
+ * @property CalendarEventStatus $status
  * @property bool $is_categorized_automatically
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 class CalendarEvent extends Model
 {
-    /** @use HasFactory<\Database\Factories\CalendarEventFactory> */
+    /** @use HasFactory<CalendarEventFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -53,7 +56,7 @@ class CalendarEvent extends Model
             'id' => 'integer',
             'start_datetime' => 'datetime',
             'end_datetime' => 'datetime',
-            'status' => \App\Enums\CalendarEventStatus::class,
+            'status' => CalendarEventStatus::class,
             'is_categorized_automatically' => 'boolean',
         ];
     }
@@ -67,7 +70,7 @@ class CalendarEvent extends Model
             'title' => ['required', 'string', 'max:255'],
             'speaker' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
-            'status' => ['required', 'string', 'in:'.implode(',', \App\Enums\CalendarEventStatus::values())],
+            'status' => ['required', 'string', 'in:'.implode(',', CalendarEventStatus::values())],
         ];
     }
 
@@ -112,6 +115,6 @@ class CalendarEvent extends Model
      */
     public function scopeConfirmed(Builder $query): Builder
     {
-        return $query->where('status', \App\Enums\CalendarEventStatus::Confirmed);
+        return $query->where('status', CalendarEventStatus::Confirmed);
     }
 }

@@ -8,6 +8,7 @@ use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonMetadataIntegrationService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -148,7 +149,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     {
         $sermon = Sermon::factory()->create();
 
-        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $this->expectException(ModelNotFoundException::class);
 
         $this->service->linkVideoToSermon('nonexistent-id', $sermon->id, 'sermons/1/video.mp4');
     }
@@ -158,7 +159,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->livestream()->processing()->create();
 
-        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $this->expectException(ModelNotFoundException::class);
 
         $this->service->linkVideoToSermon($log->processing_id, 99999, 'sermons/1/video.mp4');
     }

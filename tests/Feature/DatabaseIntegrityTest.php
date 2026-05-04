@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Preacher;
 use App\Models\Sermon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
@@ -29,7 +30,7 @@ class DatabaseIntegrityTest extends TestCase
             'points' => null, // Ensure points is not an array if it causes issues with DB::table insert
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('sermons_audio_file_path_format_check');
 
         DB::table('sermons')->insert($sermonData);
@@ -49,7 +50,7 @@ class DatabaseIntegrityTest extends TestCase
             'points' => null,
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('sermons_audio_file_path_format_check');
 
         DB::table('sermons')->insert($sermonData);

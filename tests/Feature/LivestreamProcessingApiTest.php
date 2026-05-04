@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Data\StandardProcessingResponse;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Services\LivestreamSegmentationService;
+use App\Services\ProcessingResult;
+use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
@@ -44,11 +50,11 @@ class LivestreamProcessingApiTest extends TestCase
         });
 
         // Mock UnifiedMediaProcessor for consistent test responses
-        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturnCallback(function () {
-            $testUuid = \Illuminate\Support\Str::uuid()->toString();
+            $testUuid = Str::uuid()->toString();
 
-            return \App\Services\ProcessingResult::success(
+            return ProcessingResult::success(
                 processingId: $testUuid,
                 message: 'Livestream processing initiated',
                 statusUrl: "/api/media/processing/{$testUuid}/status"
@@ -59,7 +65,7 @@ class LivestreamProcessingApiTest extends TestCase
         $mockProcessor->method('getStatus')->willReturnCallback(function ($processingId) {
             // Check if this is a hardcoded test ID
             if ($processingId === '12345678-1234-1234-1234-123456789abc') {
-                return \App\Data\StandardProcessingResponse::found(
+                return StandardProcessingResponse::found(
                     processingId: $processingId,
                     status: 'processing',
                     currentStep: 'video_analysis',
@@ -68,7 +74,7 @@ class LivestreamProcessingApiTest extends TestCase
             }
 
             // For dynamic test IDs, check the database
-            $livestreamLog = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
+            $livestreamLog = MediaProcessingLog::where('processing_id', $processingId)->first();
             if ($livestreamLog) {
                 $progressMap = [
                     'pending' => 0,
@@ -83,7 +89,7 @@ class LivestreamProcessingApiTest extends TestCase
                     $additionalData['video_file_path'] = $livestreamLog->video_file_path;
                 }
 
-                return \App\Data\StandardProcessingResponse::found(
+                return StandardProcessingResponse::found(
                     processingId: $processingId,
                     status: $livestreamLog->status->value,
                     currentStep: $livestreamLog->current_step ?? 'processing',
@@ -93,10 +99,10 @@ class LivestreamProcessingApiTest extends TestCase
                 );
             }
 
-            return \App\Data\StandardProcessingResponse::notFound();
+            return StandardProcessingResponse::notFound();
         });
 
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         Bus::fake();
 
@@ -291,7 +297,7 @@ class LivestreamProcessingApiTest extends TestCase
         ];
 
         foreach ($testCases as $testCase) {
-            $processingId = \Illuminate\Support\Str::uuid();
+            $processingId = Str::uuid();
             $processing = MediaProcessingLog::factory()->create([
                 'processing_id' => $processingId,
                 'status' => $testCase['status'],
@@ -345,7 +351,7 @@ class LivestreamProcessingApiTest extends TestCase
     {
         $user = User::factory()->create(['is_admin' => true]);
 
-        $processingId = \Illuminate\Support\Str::uuid();
+        $processingId = Str::uuid();
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => $processingId,
             'status' => 'processing',
@@ -369,16 +375,16 @@ class LivestreamProcessingApiTest extends TestCase
     #[Group('rate-limit')]
     public function test_api_rate_limiting()
     {
-        $this->withMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+        $this->withMiddleware(ThrottleRequests::class);
 
         // Mock the service to ensure we can test rate limiting behavior
-        $mockService = $this->createMock(\App\Services\LivestreamSegmentationService::class);
-        $mockResult = \App\Services\ProcessingResult::success(
+        $mockService = $this->createMock(LivestreamSegmentationService::class);
+        $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Livestream processing initiated successfully'
         );
         $mockService->method('startProcessing')->willReturn($mockResult);
-        $this->app->instance(\App\Services\LivestreamSegmentationService::class, $mockService);
+        $this->app->instance(LivestreamSegmentationService::class, $mockService);
 
         $user = User::factory()->create(['is_admin' => true]);
         $videoFile = UploadedFile::fake()->create('test.mp4', 1000, 'video/mp4');
@@ -455,19 +461,19 @@ class LivestreamProcessingApiTest extends TestCase
     public function test_api_handles_concurrent_uploads()
     {
         // Mock the service to avoid rate limiting issues
-        $mockService = $this->createMock(\App\Services\LivestreamSegmentationService::class);
+        $mockService = $this->createMock(LivestreamSegmentationService::class);
         $mockService->method('startProcessing')
             ->willReturnOnConsecutiveCalls(
-                \App\Services\ProcessingResult::success(
+                ProcessingResult::success(
                     processingId: 'uuid-1',
                     message: 'Processing started'
                 ),
-                \App\Services\ProcessingResult::success(
+                ProcessingResult::success(
                     processingId: 'uuid-2',
                     message: 'Processing started'
                 )
             );
-        $this->app->instance(\App\Services\LivestreamSegmentationService::class, $mockService);
+        $this->app->instance(LivestreamSegmentationService::class, $mockService);
 
         $user = User::factory()->create(['is_admin' => true]);
 

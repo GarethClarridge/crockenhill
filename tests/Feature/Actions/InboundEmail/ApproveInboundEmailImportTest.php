@@ -11,6 +11,7 @@ use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\User;
+use App\Services\InboundEmailImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -119,11 +120,11 @@ class ApproveInboundEmailImportTest extends TestCase
         // Stored result has a valid date/service/items so canApprove passes, but
         // the email body is malformed enough that the real import will throw.
         // We simulate this by directly mocking the import service to throw.
-        $importService = \Mockery::mock(\App\Services\InboundEmailImportService::class);
+        $importService = \Mockery::mock(InboundEmailImportService::class);
         $importService->shouldReceive('storedParseResult')->andReturn(null);
         $importService->shouldReceive('storeParseResult')->andReturn(null);
         $importService->shouldReceive('import')->andThrow(new \RuntimeException('Database exploded'));
-        $this->app->instance(\App\Services\InboundEmailImportService::class, $importService);
+        $this->app->instance(InboundEmailImportService::class, $importService);
 
         $email = InboundEmail::factory()->create([
             'subject' => 'Order of Service - 2026-06-22 AM',

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use App\Models\User;
+use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -57,7 +58,7 @@ class SentinelSecurityTest extends TestCase
         $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
 
         // We'll mock the processor to throw an exception with sensitive info
-        $this->mock(\App\Services\UnifiedMediaProcessor::class, function ($mock) {
+        $this->mock(UnifiedMediaProcessor::class, function ($mock) {
             $mock->shouldReceive('process')
                 ->andThrow(new \Exception('Sensitive database error or path: /secret/path'));
         });

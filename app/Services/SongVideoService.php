@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
@@ -81,7 +82,7 @@ class SongVideoService
     public function createFromExtraction(ServiceSection $section, string $videoPath): SongVideo
     {
         $item = $section->churchServiceItem;
-        if (! $item instanceof \App\Models\ChurchServiceItem || $item->song_id === null) {
+        if (! $item instanceof ChurchServiceItem || $item->song_id === null) {
             throw new \RuntimeException('createFromExtraction requires a section with a linked ChurchServiceItem and song_id');
         }
 

@@ -70,7 +70,7 @@ return new class extends Migration
         if (DB::getDriverName() === 'mysql') {
             try {
                 DB::statement(sprintf('ALTER TABLE pages DROP CHECK %s', self::SORT_ORDER_CHECK));
-            } catch (\Exception) {
+            } catch (Exception) {
                 // Ignore if constraint doesn't exist
             }
         }

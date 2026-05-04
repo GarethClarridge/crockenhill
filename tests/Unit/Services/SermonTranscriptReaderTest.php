@@ -7,6 +7,7 @@ namespace Tests\Unit\Services;
 use App\Models\Sermon;
 use App\Services\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -67,7 +68,7 @@ class SermonTranscriptReaderTest extends TestCase
     #[Test]
     public function it_caches_successful_transcript_reads_for_24_hours(): void
     {
-        \Illuminate\Support\Facades\Cache::spy();
+        Cache::spy();
         Storage::fake('local');
         Storage::put('transcripts/cache-test.md', 'Transcript content');
 
@@ -82,7 +83,7 @@ class SermonTranscriptReaderTest extends TestCase
         $timestamp = $sermon->updated_at->getTimestamp();
         $expectedKey = "sermon_transcript_{$hash}_{$timestamp}";
 
-        \Illuminate\Support\Facades\Cache::shouldHaveReceived('put')
+        Cache::shouldHaveReceived('put')
             ->once()
             ->with($expectedKey, 'Transcript content', 86400);
     }
@@ -140,7 +141,7 @@ class SermonTranscriptReaderTest extends TestCase
     #[Test]
     public function it_does_not_cache_failed_reads(): void
     {
-        \Illuminate\Support\Facades\Cache::spy();
+        Cache::spy();
         Storage::fake('local');
 
         $sermon = Sermon::factory()->create([
@@ -150,6 +151,6 @@ class SermonTranscriptReaderTest extends TestCase
         $reader = app(SermonTranscriptReader::class);
         $reader->read($sermon);
 
-        \Illuminate\Support\Facades\Cache::shouldNotHaveReceived('put');
+        Cache::shouldNotHaveReceived('put');
     }
 }

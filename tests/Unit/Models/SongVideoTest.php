@@ -9,6 +9,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -30,7 +31,7 @@ class SongVideoTest extends TestCase
     {
         $video = SongVideo::factory()->create(['recorded_date' => '2025-06-15']);
 
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $video->recorded_date);
+        $this->assertInstanceOf(Carbon::class, $video->recorded_date);
         $this->assertSame('2025-06-15', $video->recorded_date->format('Y-m-d'));
     }
 

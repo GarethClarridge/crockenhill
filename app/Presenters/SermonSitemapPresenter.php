@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use App\Models\Sermon;
+use Carbon\CarbonInterface;
 use Spatie\Sitemap\Tags\Url;
 
 class SermonSitemapPresenter
@@ -19,7 +20,7 @@ class SermonSitemapPresenter
      * Performance Optimization: Replaces expensive Carbon diffInDays call with
      * simple timestamp math to determine priority and change frequency.
      */
-    public function toSitemapTag(Sermon $sermon, ?\Carbon\CarbonInterface $now = null): Url
+    public function toSitemapTag(Sermon $sermon, ?CarbonInterface $now = null): Url
     {
         $nowTimestamp = $now?->getTimestamp() ?? time();
         $sermonTimestamp = $sermon->date->getTimestamp();
@@ -32,7 +33,7 @@ class SermonSitemapPresenter
 
         // Use updated_at if valid, otherwise fall back to date.
         // Note: old records may have invalid updated_at values (0000-00-00) that aren't null.
-        $lastModified = ($sermon->updated_at instanceof \Carbon\CarbonInterface && $sermon->updated_at->year > 0)
+        $lastModified = ($sermon->updated_at instanceof CarbonInterface && $sermon->updated_at->year > 0)
             ? $sermon->updated_at
             : $sermon->date;
 

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use App\Models\User;
+use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -35,7 +36,7 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     public function test_returns_404_when_sermon_has_no_thumbnail(): void
@@ -74,7 +75,7 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     public function test_serves_webp_thumbnails_with_correct_content_type(): void
@@ -89,7 +90,7 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     public function test_private_thumbnail_response_includes_no_store_cache_control(): void
@@ -128,7 +129,7 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getCardThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
 
     public function test_card_thumbnail_falls_back_to_plain_variant_when_card_path_is_not_set(): void
@@ -146,7 +147,7 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
-        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getCardThumbnailUrl($sermon));
+        $response->assertRedirect(app(SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
 
     public function test_card_thumbnail_returns_404_when_plain_variant_is_missing(): void

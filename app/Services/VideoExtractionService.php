@@ -9,6 +9,7 @@ use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Format\Video\X264;
+use FFMpeg\Media\Video;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -104,10 +105,10 @@ class VideoExtractionService
             // Use Laravel storage disk for consistency with other file operations
             $tempDisk = config('media-processing.storage.temp_disk', 'local');
             $relativePath = 'temp/'.Str::uuid().'.mp4';
-            $tempPath = \Illuminate\Support\Facades\Storage::disk($tempDisk)->path($relativePath);
+            $tempPath = Storage::disk($tempDisk)->path($relativePath);
 
             // Ensure temp directory exists using storage disk
-            \Illuminate\Support\Facades\Storage::disk($tempDisk)->makeDirectory(dirname($relativePath));
+            Storage::disk($tempDisk)->makeDirectory(dirname($relativePath));
 
             $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
             $duration = $endTime - $startTime;
@@ -439,7 +440,7 @@ class VideoExtractionService
             $permanentPath = $pathInfo['permanent_path'];
             $useS3Processing = $pathInfo['use_temp_processing'];
 
-            /** @var \FFMpeg\Media\Video $video */
+            /** @var Video $video */
             $video = $this->requireFfmpeg()->open($inputVideoPath);
 
             $format = new Mp3;

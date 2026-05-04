@@ -4,6 +4,24 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Presenters\MeetingSitemapPresenter;
+use App\Presenters\PageCardPresenter;
+use App\Presenters\PageImagePresenter;
+use App\Presenters\PageSitemapPresenter;
+use App\Presenters\PreacherSitemapPresenter;
+use App\Presenters\RelatedPagePresenter;
+use App\Presenters\SermonItemListPresenter;
+use App\Presenters\SermonSitemapPresenter;
+use App\Presenters\SermonViewPresenter;
+use App\Repositories\PageRepository;
+use App\Repositories\SermonRepository;
+use App\Services\PageImageCacheService;
+use App\Services\PublicMeetingReadModelCache;
+use App\Services\PublicPageReadModelCache;
+use App\Services\SermonExposurePolicy;
+use App\Services\SermonStorageService;
+use App\Services\SermonTranscriptReader;
+use App\Services\TranscriptStorageService;
 use App\Support\BibleCanon;
 use App\Support\ParallelTestingProcessLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -17,18 +35,18 @@ class AppServiceProvider extends ServiceProvider
          * Performance Optimization: Register core stateless repositories, services, and presenters
          * as singletons to reduce object instantiation overhead during the request cycle.
          */
-        $this->app->singleton(\App\Repositories\SermonRepository::class);
-        $this->app->singleton(\App\Repositories\PageRepository::class);
-        $this->app->singleton(\App\Services\PageImageCacheService::class);
-        $this->app->singleton(\App\Presenters\PageImagePresenter::class);
-        $this->app->singleton(\App\Presenters\PageCardPresenter::class);
-        $this->app->singleton(\App\Presenters\RelatedPagePresenter::class);
-        $this->app->singleton(\App\Services\PublicPageReadModelCache::class);
-        $this->app->singleton(\App\Services\PublicMeetingReadModelCache::class);
-        $this->app->singleton(\App\Presenters\SermonSitemapPresenter::class);
-        $this->app->singleton(\App\Presenters\PageSitemapPresenter::class);
-        $this->app->singleton(\App\Presenters\MeetingSitemapPresenter::class);
-        $this->app->singleton(\App\Presenters\PreacherSitemapPresenter::class);
+        $this->app->singleton(SermonRepository::class);
+        $this->app->singleton(PageRepository::class);
+        $this->app->singleton(PageImageCacheService::class);
+        $this->app->singleton(PageImagePresenter::class);
+        $this->app->singleton(PageCardPresenter::class);
+        $this->app->singleton(RelatedPagePresenter::class);
+        $this->app->singleton(PublicPageReadModelCache::class);
+        $this->app->singleton(PublicMeetingReadModelCache::class);
+        $this->app->singleton(SermonSitemapPresenter::class);
+        $this->app->singleton(PageSitemapPresenter::class);
+        $this->app->singleton(MeetingSitemapPresenter::class);
+        $this->app->singleton(PreacherSitemapPresenter::class);
         $this->app->singleton(BibleCanon::class);
 
         /**
@@ -36,12 +54,12 @@ class AppServiceProvider extends ServiceProvider
          * so they should be shared within a single request / job lifecycle without
          * leaking state across long-running workers.
          */
-        $this->app->scoped(\App\Services\SermonExposurePolicy::class);
-        $this->app->scoped(\App\Services\SermonStorageService::class);
-        $this->app->scoped(\App\Services\SermonTranscriptReader::class);
-        $this->app->scoped(\App\Services\TranscriptStorageService::class);
-        $this->app->scoped(\App\Presenters\SermonViewPresenter::class);
-        $this->app->scoped(\App\Presenters\SermonItemListPresenter::class);
+        $this->app->scoped(SermonExposurePolicy::class);
+        $this->app->scoped(SermonStorageService::class);
+        $this->app->scoped(SermonTranscriptReader::class);
+        $this->app->scoped(TranscriptStorageService::class);
+        $this->app->scoped(SermonViewPresenter::class);
+        $this->app->scoped(SermonItemListPresenter::class);
     }
 
     public function boot(): void

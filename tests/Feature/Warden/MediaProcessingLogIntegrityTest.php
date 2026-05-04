@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Warden;
 
 use App\Models\MediaProcessingLog;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
@@ -17,7 +18,7 @@ class MediaProcessingLogIntegrityTest extends TestCase
     #[Test]
     public function sermon_time_range_is_rejected_by_database_when_end_is_before_start()
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         DB::table('media_processing_logs')->insert(
             array_merge(
@@ -90,7 +91,7 @@ class MediaProcessingLogIntegrityTest extends TestCase
     #[Test]
     public function empty_original_filename_is_rejected_by_database()
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         DB::table('media_processing_logs')->insert(
             array_merge(
@@ -110,7 +111,7 @@ class MediaProcessingLogIntegrityTest extends TestCase
     #[Test]
     public function untrimmed_original_filename_is_rejected_by_database()
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         DB::table('media_processing_logs')->insert(
             array_merge(

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature\Security;
 
 use App\Jobs\AssessSermonVideoQuality;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -22,7 +25,7 @@ class JobUniquenessTest extends TestCase
 
         $job = new AssessSermonVideoQuality(sermonId: $sermon->id);
 
-        $this->assertInstanceOf(\Illuminate\Contracts\Queue\ShouldBeUnique::class, $job);
+        $this->assertInstanceOf(ShouldBeUnique::class, $job);
         $this->assertEquals((string) $sermon->id, $job->uniqueId());
         $this->assertEquals(3600, $job->uniqueFor);
     }
@@ -33,10 +36,10 @@ class JobUniquenessTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create();
 
-        /** @var \App\Models\MediaProcessingLog $processingLog */
-        $processingLog = \App\Models\MediaProcessingLog::factory()->create([
+        /** @var MediaProcessingLog $processingLog */
+        $processingLog = MediaProcessingLog::factory()->create([
             'sermon_id' => $sermon->id,
-            'processing_id' => \Illuminate\Support\Str::uuid()->toString(),
+            'processing_id' => Str::uuid()->toString(),
         ]);
 
         $job = new AssessSermonVideoQuality(processingLog: $processingLog);

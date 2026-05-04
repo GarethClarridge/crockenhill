@@ -9,6 +9,7 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 
 /**
  * Centralises storage adapter detection and the three recurring S3/local patterns:
@@ -30,7 +31,7 @@ class StorageAdapterHelper
         try {
             $adapter = $disk->getAdapter();
 
-            return $adapter instanceof \League\Flysystem\AwsS3V3\AwsS3V3Adapter;
+            return $adapter instanceof AwsS3V3Adapter;
         } catch (\Exception) {
             return false;
         }

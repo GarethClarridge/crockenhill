@@ -522,7 +522,7 @@ return new class extends Migration
 
         try {
             return Carbon::parse($value);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }

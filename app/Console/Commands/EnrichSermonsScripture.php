@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\Sermon;
 use App\Services\ScriptureOperatorService;
 use Illuminate\Console\Command;
 
@@ -45,7 +46,7 @@ class EnrichSermonsScripture extends Command
             queue: $useQueue,
             delayMs: $delayMs,
             progress: function (string $status, mixed $sermon, string $detail): void {
-                if (! $sermon instanceof \App\Models\Sermon) {
+                if (! $sermon instanceof Sermon) {
                     return;
                 }
 

@@ -12,6 +12,8 @@ use FFMpeg\FFProbe;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\Process\Exception\ProcessFailedException;
+use Symfony\Component\Process\Process;
 
 class VideoSegmentationService
 {
@@ -79,12 +81,12 @@ class VideoSegmentationService
                 '-',
             ];
 
-            $process = new \Symfony\Component\Process\Process($command);
+            $process = new Process($command);
             $process->setTimeout(7200); // 2 hour timeout for large files
             $process->run();
 
             if (! $process->isSuccessful()) {
-                throw new \Symfony\Component\Process\Exception\ProcessFailedException($process);
+                throw new ProcessFailedException($process);
             }
 
             if (! $this->fileExists($fullRmsLogPath, $rmsLogPath) || $this->getFileSize($fullRmsLogPath, $rmsLogPath) === 0) {

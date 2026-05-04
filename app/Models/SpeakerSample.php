@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\SampleSource;
+use Database\Factories\SpeakerSampleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * App\Models\SpeakerSample
@@ -21,8 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property ?float $quality_score
  * @property SampleSource $source
  * @property bool $approved
- * @property ?\Illuminate\Support\Carbon $created_at
- * @property ?\Illuminate\Support\Carbon $updated_at
+ * @property ?Carbon $created_at
+ * @property ?Carbon $updated_at
  *
  * @method static \Database\Factories\SpeakerSampleFactory factory(...$parameters)
  *
@@ -30,7 +33,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class SpeakerSample extends Model
 {
-    /** @use HasFactory<\Database\Factories\SpeakerSampleFactory> */
+    /** @use HasFactory<SpeakerSampleFactory> */
     use HasFactory;
 
     /**
@@ -93,7 +96,7 @@ class SpeakerSample extends Model
             'media_processing_log_id' => ['nullable', 'integer', 'exists:media_processing_logs,id'],
             'quality_score' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'duration_seconds' => ['sometimes', 'required', 'numeric', 'min:0'],
-            'source' => ['sometimes', 'required', \Illuminate\Validation\Rule::enum(SampleSource::class)],
+            'source' => ['sometimes', 'required', Rule::enum(SampleSource::class)],
         ];
     }
 }

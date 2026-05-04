@@ -21,6 +21,7 @@ use App\Livewire\Admin\Preachers\ListPreachers;
 use App\Livewire\Admin\Sermons\EditSermon;
 use App\Livewire\Admin\Sermons\ListSermons;
 use App\Livewire\Admin\Users\CreateUser;
+use App\Models\CalendarEvent;
 use App\Models\InboundEmail;
 use App\Models\Meeting;
 use App\Models\Page;
@@ -29,6 +30,7 @@ use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\User;
+use App\Services\CalendarService;
 use App\Services\GoogleCalendarSyncService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Log;
@@ -245,7 +247,7 @@ class AuditLoggingTest extends TestCase
     {
         Log::spy();
         Meeting::factory()->create(['slug' => 'new-meeting-slug']);
-        $event = \App\Models\CalendarEvent::factory()->create(['title' => 'Event Title']);
+        $event = CalendarEvent::factory()->create(['title' => 'Event Title']);
 
         Livewire::actingAs($this->admin)
             ->test(ListCalendarEvents::class)
@@ -267,7 +269,7 @@ class AuditLoggingTest extends TestCase
         Log::spy();
         Meeting::factory()->create(['slug' => 'old-slug']);
         Meeting::factory()->create(['slug' => 'new-slug']);
-        $event = \App\Models\CalendarEvent::factory()->create([
+        $event = CalendarEvent::factory()->create([
             'title' => 'Event Title',
             'meeting_slug' => 'old-slug',
             'status' => CalendarEventStatus::Confirmed,
@@ -300,10 +302,10 @@ class AuditLoggingTest extends TestCase
         });
 
         Meeting::factory()->create(['slug' => 'service-slug']);
-        $event = \App\Models\CalendarEvent::factory()->create(['title' => 'Service Event']);
+        $event = CalendarEvent::factory()->create(['title' => 'Service Event']);
 
         $this->actingAs($this->admin);
-        app(\App\Services\CalendarService::class)->manuallyCategorizeEvent($event->id, 'service-slug');
+        app(CalendarService::class)->manuallyCategorizeEvent($event->id, 'service-slug');
 
         $this->assertEquals('service-slug', $event->fresh()->meeting_slug);
 

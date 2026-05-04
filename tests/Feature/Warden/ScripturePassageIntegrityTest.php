@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Warden;
 
+use App\Data\ApiBiblePassageResult;
 use App\Models\ScripturePassage;
+use App\Services\ApiBibleClient;
+use App\Services\ScriptureHtmlSanitizer;
 use App\Services\ScriptureOperatorService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -22,7 +26,7 @@ class ScripturePassageIntegrityTest extends TestCase
             'normalized_reference' => 'JHN.3.16',
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         ScripturePassage::factory()->create([
             'bible_id' => 'de4e12af7f895db2-01',
@@ -33,7 +37,7 @@ class ScripturePassageIntegrityTest extends TestCase
     #[Test]
     public function it_validates_required_fields(): void
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         // bible_id is NOT NULL in database
         ScripturePassage::query()->insert([
@@ -65,7 +69,7 @@ class ScripturePassageIntegrityTest extends TestCase
             'normalized_reference' => 'JHN.3.16',
         ]);
 
-        $result = new \App\Data\ApiBiblePassageResult(
+        $result = new ApiBiblePassageResult(
             passageId: 'JHN.3.16',
             displayReference: 'John 3:16',
             htmlContent: '<p>For God so loved the world...</p>',
@@ -73,15 +77,15 @@ class ScripturePassageIntegrityTest extends TestCase
             fumsToken: null,
         );
 
-        $client = $this->createMock(\App\Services\ApiBibleClient::class);
+        $client = $this->createMock(ApiBibleClient::class);
         $client->method('hasDailyBudget')->willReturn(true);
         $client->method('fetchPassageById')->willReturn($result);
 
-        $sanitizer = $this->createMock(\App\Services\ScriptureHtmlSanitizer::class);
+        $sanitizer = $this->createMock(ScriptureHtmlSanitizer::class);
         $sanitizer->method('sanitize')->willReturn('<p>For God so loved the world...</p>');
 
-        $this->app->instance(\App\Services\ApiBibleClient::class, $client);
-        $this->app->instance(\App\Services\ScriptureHtmlSanitizer::class, $sanitizer);
+        $this->app->instance(ApiBibleClient::class, $client);
+        $this->app->instance(ScriptureHtmlSanitizer::class, $sanitizer);
 
         $service = $this->app->make(ScriptureOperatorService::class);
 

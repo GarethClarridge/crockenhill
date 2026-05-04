@@ -20,6 +20,7 @@ use App\Repositories\SermonRepository;
 use App\Services\AudioTranscriptionService;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonAnalysisService;
+use App\Services\SermonCreationService;
 use App\Services\SermonProcessingLogger;
 use App\Services\SermonTranscriptReader;
 use App\Services\UnifiedMediaProcessor;
@@ -89,7 +90,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Execute the job with dependency injection
         $logger = app(SermonProcessingLogger::class);
-        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $sermonCreationService = app(SermonCreationService::class);
         $job->handle($logger, $sermonCreationService);
 
         // Assert sermon record was created
@@ -133,12 +134,12 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Don't create processing log to trigger failure
         // Create a mock processing log for the job constructor
-        $processingLog = new \App\Models\MediaProcessingLog([
+        $processingLog = new MediaProcessingLog([
             'processing_id' => $processingId,
             'processing_type' => 'audio',
             'original_filename' => $metadata->filename,
             'source_file_path' => $storedFilePath,
-            'status' => \App\Enums\ProcessingStatus::Pending,
+            'status' => ProcessingStatus::Pending,
         ]);
         $job = new CreateSermonRecord($processingLog);
 
@@ -146,7 +147,7 @@ class SermonProcessingJobChainTest extends TestCase
         $this->expectExceptionMessage('Processing log not found');
 
         $logger = app(SermonProcessingLogger::class);
-        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $sermonCreationService = app(SermonCreationService::class);
         $job->handle($logger, $sermonCreationService);
     }
 
@@ -285,7 +286,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Create and execute the job
         $job = new ProcessTranscriptWithAI($processingLog);
-        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockAnalysisService, $this->app->make(SermonRepository::class));
 
         // Assert processing log was updated
         $processingLog->refresh();
@@ -326,7 +327,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Create and execute the job
         $job = new ProcessTranscriptWithAI($processingLog);
-        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockAnalysisService, $this->app->make(SermonRepository::class));
 
         // Assert processing log shows fallback was used
         $processingLog->refresh();
@@ -493,11 +494,11 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Create a job that will fail due to missing sermon data
         // Create processing log without valid sermon_id
-        $failureProcessingLog = new \App\Models\MediaProcessingLog([
+        $failureProcessingLog = new MediaProcessingLog([
             'processing_id' => 'failure-test-id',
             'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'status' => \App\Enums\ProcessingStatus::Processing,
+            'status' => ProcessingStatus::Processing,
             'current_step' => 'updating_sermon_record',
             'sermon_id' => 99999, // Non-existent sermon ID
         ]);
@@ -554,7 +555,7 @@ class SermonProcessingJobChainTest extends TestCase
         $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
         $createJob = new CreateSermonRecord($processingLog);
         $logger = app(SermonProcessingLogger::class);
-        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $sermonCreationService = app(SermonCreationService::class);
         $createJob->handle($logger, $sermonCreationService);
 
         // Verify sermon was created
@@ -644,7 +645,7 @@ class SermonProcessingJobChainTest extends TestCase
         $this->assertEquals(ProcessingStatus::Pending, $processingLog->status);
 
         // Test that we can retrieve the processing status
-        $statusResult = app(\App\Services\UnifiedMediaProcessor::class)->getStatus($processingId);
+        $statusResult = app(UnifiedMediaProcessor::class)->getStatus($processingId);
         $this->assertEquals($processingId, $statusResult->processingId);
         $this->assertEquals(ProcessingStatus::Pending->value, $statusResult->status);
     }
@@ -684,7 +685,7 @@ class SermonProcessingJobChainTest extends TestCase
         // Execute create sermon job
         $createJob = new CreateSermonRecord($processingLog);
         $logger = app(SermonProcessingLogger::class);
-        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $sermonCreationService = app(SermonCreationService::class);
         $createJob->handle($logger, $sermonCreationService);
 
         // Verify database state

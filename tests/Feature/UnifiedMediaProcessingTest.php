@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\LivestreamSegmentationService;
+use App\Services\ProcessingResult;
+use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoSegmentationService;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
@@ -21,7 +25,7 @@ class UnifiedMediaProcessingTest extends TestCase
         parent::setUp();
 
         // Disable CSRF protection for these form tests
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+        $this->withoutMiddleware(ValidateCsrfToken::class);
 
         // Mock the services to avoid actual video/audio processing in tests
         $this->mock(VideoSegmentationService::class, function ($mock) {
@@ -34,22 +38,22 @@ class UnifiedMediaProcessingTest extends TestCase
         });
 
         // Mock the UnifiedMediaProcessor to avoid FFmpeg and actual processing
-        $this->mock(\App\Services\UnifiedMediaProcessor::class, function ($mock) {
+        $this->mock(UnifiedMediaProcessor::class, function ($mock) {
             $mock->shouldReceive('process')->with('livestream', \Mockery::any())->andReturn(
-                \App\Services\ProcessingResult::success('livestream-id', 'Livestream processing started')
+                ProcessingResult::success('livestream-id', 'Livestream processing started')
             );
             $mock->shouldReceive('process')->with('video', \Mockery::any())->andReturn(
-                \App\Services\ProcessingResult::success('video-id', 'Video processing started')
+                ProcessingResult::success('video-id', 'Video processing started')
             );
             $mock->shouldReceive('process')->with('audio', \Mockery::any())->andReturn(
-                \App\Services\ProcessingResult::success('audio-id', 'Audio processing started')
+                ProcessingResult::success('audio-id', 'Audio processing started')
             );
         });
 
         // Mock LivestreamSegmentationService for direct service calls
-        $this->mock(\App\Services\LivestreamSegmentationService::class, function ($mock) {
+        $this->mock(LivestreamSegmentationService::class, function ($mock) {
             $mock->shouldReceive('startProcessing')->andReturn(
-                \App\Services\ProcessingResult::success('livestream-id', 'Livestream processing started')
+                ProcessingResult::success('livestream-id', 'Livestream processing started')
             );
         });
     }

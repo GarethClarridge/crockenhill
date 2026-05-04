@@ -8,6 +8,7 @@ use App\Actions\QueueScriptureEnrichment;
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\TranscriptStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -130,7 +131,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 'ai_fields_applied' => array_keys($updateData),
             ]);
 
-            if (! $sermon instanceof \App\Models\Sermon) {
+            if (! $sermon instanceof Sermon) {
                 throw new \Exception("No sermon found for processing log: {$this->processingLog->processing_id}");
             }
 

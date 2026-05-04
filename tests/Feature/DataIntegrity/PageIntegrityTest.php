@@ -10,6 +10,7 @@ use App\Models\Page;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -52,7 +53,7 @@ class PageIntegrityTest extends TestCase
         $this->expectException(UniqueConstraintViolationException::class);
 
         // Bypass Eloquent and validation to test database constraint directly
-        \Illuminate\Support\Facades\DB::table('pages')->insert([
+        DB::table('pages')->insert([
             'area' => PageArea::Church->value,
             'slug' => 'about',
             'heading' => 'Another About',

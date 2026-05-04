@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -20,7 +21,7 @@ return new class extends Migration
             if ($legacyRowCount > 0) {
                 // No model or service references this table; rows are orphaned legacy processing
                 // logs. Truncate before dropping so the migration is self-healing on deploy.
-                \Illuminate\Support\Facades\Log::warning(
+                Log::warning(
                     "Truncating {$legacyRowCount} orphaned row(s) from legacy livestream_processing_logs before dropping table."
                 );
                 DB::table('livestream_processing_logs')->truncate();

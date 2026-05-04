@@ -6,6 +6,22 @@ namespace App\Services;
 
 use App\Enums\ServiceSectionType;
 
+/**
+ * @phpstan-type ClassifiedSectionPayload array{
+ *     church_service_item_id: int|null,
+ *     section_type: string,
+ *     section_order: int,
+ *     title: ?string,
+ *     start_time: float,
+ *     end_time: float,
+ *     duration: float,
+ *     confidence: float,
+ *     status: string,
+ *     needs_manual_review: bool,
+ *     source_segment_ids: array<int, int>,
+ *     metadata: array<string, mixed>
+ * }
+ */
 class SongTitleHintExtractor
 {
     /**
@@ -49,34 +65,8 @@ class SongTitleHintExtractor
      * Extracts a title hint from the speech section's transcript and writes it into
      * the following audio-only song section's metadata as `song_title_hint`.
      *
-     * @param  array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }>  $sections  Rewritten section payloads from ClassifySpeechSections
-     * @return array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }> Sections with `song_title_hint` written into matching audio-only song sections
+     * @param  array<int, ClassifiedSectionPayload>  $sections  Rewritten section payloads from ClassifySpeechSections
+     * @return array<int, ClassifiedSectionPayload> Sections with `song_title_hint` written into matching audio-only song sections
      */
     public function extract(array $sections): array
     {
@@ -107,7 +97,7 @@ class SongTitleHintExtractor
 
             // Look ahead for the immediately following audio-only song section.
             if ($i + 1 < $count && $this->isAudioOnlySong($sections[$i + 1])) {
-                $sections[$i + 1]['metadata']['song_title_hint'] = $hint;
+                $sections[$i + 1] = $this->withSongTitleHint($sections[$i + 1], $hint);
             }
         }
 
@@ -118,7 +108,7 @@ class SongTitleHintExtractor
      * Returns true when a section is a speech-classified song announcement:
      * classified by AI transcript and typed as song by the AI.
      *
-     * @param  array{section_type: string, metadata: array<string, mixed>, ...}  $section
+     * @param  ClassifiedSectionPayload  $section
      */
     private function isTranscriptSongAnnouncement(array $section): bool
     {
@@ -137,7 +127,7 @@ class SongTitleHintExtractor
     /**
      * Returns true when a section is an RMS-detected audio-only song section.
      *
-     * @param  array{section_type: string, metadata: array<string, mixed>, ...}  $section
+     * @param  ClassifiedSectionPayload  $section
      */
     private function isAudioOnlySong(array $section): bool
     {
@@ -148,6 +138,22 @@ class SongTitleHintExtractor
         $classificationMode = $section['metadata']['classification_mode'] ?? null;
 
         return $classificationMode === 'audio_only';
+    }
+
+    /**
+     * @param  ClassifiedSectionPayload  $section
+     * @return ClassifiedSectionPayload
+     */
+    private function withSongTitleHint(array $section, string $hint): array
+    {
+        /** @var ClassifiedSectionPayload $updated */
+        $updated = array_replace($section, [
+            'metadata' => array_merge($section['metadata'], [
+                'song_title_hint' => $hint,
+            ]),
+        ]);
+
+        return $updated;
     }
 
     /**

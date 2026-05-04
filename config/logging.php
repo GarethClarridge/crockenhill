@@ -1,5 +1,7 @@
 <?php
 
+use App\Logging\SermonProcessingLogFormatter;
+
 return [
 
     /*
@@ -59,7 +61,7 @@ return [
             'path' => storage_path('logs/sermon-processing.log'),
             'level' => 'debug',
             'days' => 30,
-            'tap' => [App\Logging\SermonProcessingLogFormatter::class],
+            'tap' => [SermonProcessingLogFormatter::class],
         ],
 
         'performance' => [

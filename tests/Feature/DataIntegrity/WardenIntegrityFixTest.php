@@ -8,8 +8,10 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -35,7 +37,7 @@ class WardenIntegrityFixTest extends TestCase
     {
         $service = ChurchService::factory()->create();
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('church_service_items_title_format_check');
 
         DB::table('church_service_items')->insert([
@@ -53,7 +55,7 @@ class WardenIntegrityFixTest extends TestCase
     {
         $service = ChurchService::factory()->create();
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('church_service_items_title_format_check');
 
         DB::table('church_service_items')->insert([
@@ -71,7 +73,7 @@ class WardenIntegrityFixTest extends TestCase
     {
         $service = ChurchService::factory()->create();
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('church_service_items_type_format_check');
 
         DB::table('church_service_items')->insert([
@@ -95,7 +97,7 @@ class WardenIntegrityFixTest extends TestCase
 
         $rules = ChurchServiceItem::validationRules(churchServiceId: $service->id);
 
-        $validator = \Illuminate\Support\Facades\Validator::make(
+        $validator = Validator::make(
             ['church_service_id' => $service->id, 'position' => 1, 'title' => 'Test', 'type' => 'custom'],
             $rules
         );

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -52,7 +53,7 @@ class RegisterTest extends TestCase
         User::factory()->create(['email' => 'john@example.com']);
 
         // Try to create second user with same email
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         User::create([
             'name' => 'Jane Doe',
@@ -64,7 +65,7 @@ class RegisterTest extends TestCase
     #[Test]
     public function registration_fails_with_missing_name(): void
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         User::create([
             'email' => 'missingname@example.com',
             'password' => Hash::make('password123'),
@@ -74,7 +75,7 @@ class RegisterTest extends TestCase
     #[Test]
     public function registration_fails_with_missing_email(): void
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         User::create([
             'name' => 'No Email',
             'password' => Hash::make('password123'),
@@ -99,7 +100,7 @@ class RegisterTest extends TestCase
     #[Test]
     public function registration_fails_with_missing_password(): void
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         User::create([
             'name' => 'No Password',
             'email' => 'nopassword@example.com',

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
+use Psr\Log\LogLevel;
 use Tests\TestCase;
 
 class AdminUserTest extends TestCase
@@ -122,7 +123,7 @@ class AdminUserTest extends TestCase
 
         $this->assertTrue($user->fresh()->is_admin);
 
-        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status toggled'
+        Log::assertLogged(LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status toggled'
             && $context['admin_id'] === $admin->id
             && $context['target_user_id'] === $user->id
             && $context['new_is_admin'] === true);
@@ -133,7 +134,7 @@ class AdminUserTest extends TestCase
 
         $this->assertFalse($user->fresh()->is_admin);
 
-        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status toggled'
+        Log::assertLogged(LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status toggled'
             && $context['new_is_admin'] === false);
     }
 
@@ -166,7 +167,7 @@ class AdminUserTest extends TestCase
 
         $this->assertModelMissing($user);
 
-        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User deleted by admin'
+        Log::assertLogged(LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User deleted by admin'
             && $context['admin_id'] === $admin->id
             && $context['deleted_user_id'] === $user->id);
     }
@@ -404,7 +405,7 @@ class AdminUserTest extends TestCase
 
         $this->assertTrue($user->fresh()->is_admin);
 
-        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status changed via edit form'
+        Log::assertLogged(LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status changed via edit form'
             && $context['admin_id'] === $admin->id
             && $context['target_user_id'] === $user->id
             && $context['old_is_admin'] === false
@@ -417,7 +418,7 @@ class AdminUserTest extends TestCase
 
         $this->assertFalse($user->fresh()->is_admin);
 
-        Log::assertLogged(\Psr\Log\LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status changed via edit form'
+        Log::assertLogged(LogLevel::WARNING, fn (string $message, array $context): bool => $message === 'User admin status changed via edit form'
             && $context['new_is_admin'] === false);
     }
 

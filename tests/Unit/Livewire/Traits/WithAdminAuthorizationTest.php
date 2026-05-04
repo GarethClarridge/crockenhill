@@ -8,6 +8,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class WithAdminAuthorizationTest extends TestCase
@@ -57,7 +58,7 @@ class WithAdminAuthorizationTest extends TestCase
             }
         };
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Unauthorized');
 
         $authorizer->authorize();

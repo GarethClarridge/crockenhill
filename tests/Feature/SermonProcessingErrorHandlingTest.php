@@ -16,9 +16,12 @@ use App\Repositories\SermonRepository;
 use App\Services\AudioTranscriptionService;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonAnalysisService;
+use App\Services\SermonCreationService;
+use App\Services\SermonProcessingLogger;
 use App\Services\SermonTranscriptReader;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -62,8 +65,8 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         $this->expectException(\Exception::class);
 
-        $logger = app(\App\Services\SermonProcessingLogger::class);
-        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $logger = app(SermonProcessingLogger::class);
+        $sermonCreationService = app(SermonCreationService::class);
         $job->handle($logger, $sermonCreationService);
     }
 
@@ -147,7 +150,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $job = new ProcessTranscriptWithAI($processingLog);
 
         // Should not throw exception - applies graceful degradation instead
-        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockAnalysisService, $this->app->make(SermonRepository::class));
 
         // Verify graceful degradation was applied
         $processingLog->refresh();
@@ -178,7 +181,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             ->willThrowException(new \Exception('AI service unavailable'));
 
         $job = new ProcessTranscriptWithAI($processingLog);
-        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockAnalysisService, $this->app->make(SermonRepository::class));
 
         // Should not throw exception due to graceful degradation
         $processingLog->refresh();
@@ -316,7 +319,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             ->willThrowException(new \Exception('Rate limit exceeded. Please try again later.'));
 
         $job = new ProcessTranscriptWithAI($processingLog);
-        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
+        $job->handle($mockAnalysisService, $this->app->make(SermonRepository::class));
 
         // Should apply graceful degradation
         $processingLog->refresh();
@@ -326,10 +329,10 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_invalid_file_formats(): void
     {
-        $service = app(\App\Services\UnifiedMediaProcessor::class);
+        $service = app(UnifiedMediaProcessor::class);
 
         // Create invalid file (text file with audio extension)
-        $invalidFile = \Illuminate\Http\UploadedFile::fake()->create('invalid.mp3', 1024, 'text/plain');
+        $invalidFile = UploadedFile::fake()->create('invalid.mp3', 1024, 'text/plain');
 
         $result = $service->process('audio', $invalidFile);
 
@@ -341,10 +344,10 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_oversized_files(): void
     {
-        $service = app(\App\Services\UnifiedMediaProcessor::class);
+        $service = app(UnifiedMediaProcessor::class);
 
         // Create oversized file (larger than 100MB limit)
-        $oversizedFile = \Illuminate\Http\UploadedFile::fake()->create('large.mp3', 101 * 1024, 'audio/mpeg');
+        $oversizedFile = UploadedFile::fake()->create('large.mp3', 101 * 1024, 'audio/mpeg');
 
         $result = $service->process('audio', $oversizedFile);
 
@@ -356,10 +359,10 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_corrupted_files(): void
     {
-        $service = app(\App\Services\UnifiedMediaProcessor::class);
+        $service = app(UnifiedMediaProcessor::class);
 
         // Create corrupted file with proper MIME type but invalid content
-        $corruptedFile = \Illuminate\Http\UploadedFile::fake()->createWithContent('corrupted.mp3', 'invalid audio data');
+        $corruptedFile = UploadedFile::fake()->createWithContent('corrupted.mp3', 'invalid audio data');
 
         // Store the file so it exists when the service tries to process it
         Storage::put('corrupted.mp3', 'invalid audio data');
@@ -445,7 +448,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         ]);
 
         // Mark for manual review directly on the model
-        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+        $result = app(MediaProcessingRunTransitionService::class)
             ->markForManualReview($processingLog, 'manual_review_required', 'Requires human transcription');
 
         $this->assertTrue($result);
@@ -468,7 +471,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'error_message' => 'OpenAI API returned 429: Rate limit exceeded',
         ]);
 
-        $status = app(\App\Services\UnifiedMediaProcessor::class)->getStatus('detailed-error-test-id');
+        $status = app(UnifiedMediaProcessor::class)->getStatus('detailed-error-test-id');
 
         $this->assertTrue($status->found);
         $this->assertEquals('detailed-error-test-id', $status->processingId);

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -68,7 +69,7 @@ return new class extends Migration
                     self::CONSTRAINT_NAME,
                     self::SLUG_CHECK_PATTERN
                 ));
-            } catch (\Illuminate\Database\QueryException $e) {
+            } catch (QueryException $e) {
                 // If it fails, log it or handle it. In this context, we'll let it bubble up
                 // unless we want to be specifically defensive.
                 throw $e;

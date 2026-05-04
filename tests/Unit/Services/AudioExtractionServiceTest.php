@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Exceptions\InvalidFileException;
 use App\Services\AudioExtractionService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
@@ -84,7 +85,7 @@ class AudioExtractionServiceTest extends TestCase
     {
         $file = UploadedFile::fake()->create('sermon.ogg', 1024, 'audio/mpeg');
 
-        $this->expectException(\App\Exceptions\InvalidFileException::class);
+        $this->expectException(InvalidFileException::class);
         $this->expectExceptionMessage('Invalid file extension');
 
         $this->service->validateAudioFile($file);
@@ -95,7 +96,7 @@ class AudioExtractionServiceTest extends TestCase
     {
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/ogg');
 
-        $this->expectException(\App\Exceptions\InvalidFileException::class);
+        $this->expectException(InvalidFileException::class);
         $this->expectExceptionMessage('Invalid file type');
 
         $this->service->validateAudioFile($file);
@@ -108,7 +109,7 @@ class AudioExtractionServiceTest extends TestCase
 
         $file = UploadedFile::fake()->create('sermon.mp3', 10, 'audio/mpeg'); // 10KB
 
-        $this->expectException(\App\Exceptions\InvalidFileException::class);
+        $this->expectException(InvalidFileException::class);
         $this->expectExceptionMessage('exceeds maximum limit');
 
         $this->service->validateAudioFile($file);
@@ -119,7 +120,7 @@ class AudioExtractionServiceTest extends TestCase
     {
         $file = UploadedFile::fake()->create('document.pdf', 1024, 'audio/mpeg');
 
-        $this->expectException(\App\Exceptions\InvalidFileException::class);
+        $this->expectException(InvalidFileException::class);
         $this->expectExceptionMessage('Invalid file extension');
 
         $this->service->validateAudioFile($file);

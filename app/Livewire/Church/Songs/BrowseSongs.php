@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Church\Songs;
 
+use App\Models\Song;
 use App\Services\PublicSongCatalogService;
 use App\Services\SongLyricSnippetBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -37,7 +38,7 @@ class BrowseSongs extends Component
         $normalizedRange = $catalogService->normalizeRange($this->range);
         $tokens = $catalogService->tokenize($this->search);
 
-        /** @var LengthAwarePaginator<int, \App\Models\Song> $songs */
+        /** @var LengthAwarePaginator<int, Song> $songs */
         $songs = $catalogService->query($normalizedRange, $this->search)
             ->paginate(24)
             ->withQueryString();

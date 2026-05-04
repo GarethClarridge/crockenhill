@@ -8,6 +8,7 @@ use App\Data\PublicMeetingReadModel;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Presenters\MeetingShowPresenter;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -80,9 +81,9 @@ class PublicMeetingReadModelCache
      * Get past events within the recent window, applied fresh on each call so the window is never stale.
      * Events at or after the 2-year cutoff are included; older events are filtered out.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, CalendarEvent>
+     * @return Collection<int, CalendarEvent>
      */
-    public function getPastEventsForMeeting(Meeting $meeting): \Illuminate\Database\Eloquent\Collection
+    public function getPastEventsForMeeting(Meeting $meeting): Collection
     {
         $cutoff = now()->subYears(2)->startOfDay();
 
@@ -98,9 +99,9 @@ class PublicMeetingReadModelCache
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, CalendarEvent>
+     * @return Collection<int, CalendarEvent>
      */
-    private function upcomingEvents(Meeting $meeting): \Illuminate\Database\Eloquent\Collection
+    private function upcomingEvents(Meeting $meeting): Collection
     {
         return CalendarEvent::query()
             ->forCard()

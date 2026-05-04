@@ -8,6 +8,7 @@ use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\MediaProcessingLog;
+use App\Models\User;
 use App\Services\VideoStorageService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -49,7 +50,7 @@ class ProcessingReview extends Component
 
         $log = MediaProcessingLog::findOrFail($this->processingLogId);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = Auth::user();
 
         try {

@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\Sermon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Arr;
 use LogicException;
 
 /**
- * @mixin \App\Models\Sermon
+ * @mixin Sermon
  */
 class SermonResource extends JsonResource
 {

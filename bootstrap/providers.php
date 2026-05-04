@@ -1,13 +1,23 @@
 <?php
 
+use App\Providers\AiServiceProvider;
+use App\Providers\AppServiceProvider;
+use App\Providers\AuthServiceProvider;
+use App\Providers\ChurchServiceDomainServiceProvider;
+use App\Providers\MediaProcessingServiceProvider;
+use App\Providers\ModelObserverServiceProvider;
+use App\Providers\RateLimitServiceProvider;
+use App\Providers\UrlServiceProvider;
+use App\Providers\ViewServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\AiServiceProvider::class,
-    App\Providers\ChurchServiceDomainServiceProvider::class,
-    App\Providers\UrlServiceProvider::class,
-    App\Providers\AuthServiceProvider::class,
-    App\Providers\ViewServiceProvider::class,
-    App\Providers\ModelObserverServiceProvider::class,
-    App\Providers\RateLimitServiceProvider::class,
-    App\Providers\MediaProcessingServiceProvider::class,
+    AppServiceProvider::class,
+    AiServiceProvider::class,
+    ChurchServiceDomainServiceProvider::class,
+    UrlServiceProvider::class,
+    AuthServiceProvider::class,
+    ViewServiceProvider::class,
+    ModelObserverServiceProvider::class,
+    RateLimitServiceProvider::class,
+    MediaProcessingServiceProvider::class,
 ];

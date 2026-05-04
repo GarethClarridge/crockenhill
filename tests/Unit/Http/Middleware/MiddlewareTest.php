@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class MiddlewareTest extends TestCase
@@ -46,7 +47,7 @@ class MiddlewareTest extends TestCase
         $request = Request::create('/admin', 'GET');
         $middleware = new EnsureUserIsAdmin;
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Unauthorized action.');
 
         $middleware->handle($request, function () {});
@@ -61,7 +62,7 @@ class MiddlewareTest extends TestCase
         $request = Request::create('/admin', 'GET');
         $middleware = new EnsureUserIsAdmin;
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Unauthorized action.');
 
         $middleware->handle($request, function () {});
@@ -73,7 +74,7 @@ class MiddlewareTest extends TestCase
         $request = Request::create('/admin', 'GET');
         $middleware = new EnsureUserIsAdmin;
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         $this->expectExceptionMessage('Unauthorized action.');
 
         $middleware->handle($request, function () {});

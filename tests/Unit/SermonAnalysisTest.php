@@ -9,6 +9,7 @@ use App\Services\BritishEnglishConverter;
 use App\Services\SermonAnalysisPromptBuilder;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonAnalysisValidator;
+use App\Services\SermonProcessingLogger;
 use Exception;
 use Tests\TestCase;
 
@@ -18,7 +19,7 @@ class SermonAnalysisTest extends TestCase
     {
         config(['media-processing.analysis.openai_api_key' => 'test-api-key']);
 
-        $logger = app(\App\Services\SermonProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $repository = app(SermonRepository::class);
         $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
         $promptBuilder = new SermonAnalysisPromptBuilder($validator);
@@ -35,7 +36,7 @@ class SermonAnalysisTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('OpenAI API key not configured for analysis service');
 
-        $logger = app(\App\Services\SermonProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $repository = app(SermonRepository::class);
         $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
         $promptBuilder = new SermonAnalysisPromptBuilder($validator);

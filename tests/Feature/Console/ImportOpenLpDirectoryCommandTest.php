@@ -7,6 +7,7 @@ namespace Tests\Feature\Console;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
@@ -224,7 +225,7 @@ class ImportOpenLpDirectoryCommandTest extends TestCase
         return $directory;
     }
 
-    private function writeArchiveToDirectory(string $directory, \Illuminate\Http\UploadedFile $archive): void
+    private function writeArchiveToDirectory(string $directory, UploadedFile $archive): void
     {
         $targetPath = $directory.'/'.$archive->getClientOriginalName();
 

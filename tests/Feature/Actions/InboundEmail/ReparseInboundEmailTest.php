@@ -12,6 +12,7 @@ use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Tests\Traits\WithInboundEmailTestHelpers;
@@ -24,7 +25,7 @@ class ReparseInboundEmailTest extends TestCase
     #[Test]
     public function it_updates_stored_parsing_metadata_and_returns_null_on_success(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-03-12 11:30:00'));
+        $this->travelTo(Carbon::parse('2026-03-12 11:30:00'));
 
         $this->bindExtractor(new OosEmailItemExtractionResult(
             items: [

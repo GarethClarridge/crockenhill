@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractSermon;
 use App\Models\MediaProcessingLog;
+use App\Services\VideoExtractionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
@@ -96,7 +97,7 @@ class LivestreamAudioCompressionTest extends TestCase
     {
         // The extractOptimizedAudioFromSegment method was moved to VideoExtractionService
         // as part of the architectural cleanup
-        $extractionService = app(\App\Services\VideoExtractionService::class);
+        $extractionService = app(VideoExtractionService::class);
 
         $this->assertTrue(method_exists($extractionService, 'extractOptimizedAudioFromSegment'));
     }

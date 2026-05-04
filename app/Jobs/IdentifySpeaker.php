@@ -13,6 +13,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Queue\InteractsWithQueue;
@@ -125,7 +126,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
                 }
             }
 
-            /** @var \Illuminate\Database\Eloquent\Collection<int, SpeakerProfile> $profiles */
+            /** @var Collection<int, SpeakerProfile> $profiles */
             $profiles = $profilesQuery->get();
 
             if ($profiles->isEmpty()) {

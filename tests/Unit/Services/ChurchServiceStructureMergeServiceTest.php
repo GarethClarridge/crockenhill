@@ -7,8 +7,10 @@ namespace Tests\Unit\Services;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
+use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\Song;
 use App\Services\ChurchServiceItemSyncService;
 use App\Services\ChurchServiceStructureMergeService;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -123,7 +125,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
 
         $this->assertTrue($result->wasMerged);
 
-        Event::assertDispatched(\App\Events\ChurchServiceCanonicalListChanged::class);
+        Event::assertDispatched(ChurchServiceCanonicalListChanged::class);
     }
 
     #[Test]
@@ -143,7 +145,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
 
         $this->assertTrue($result->wasStaged);
 
-        Event::assertNotDispatched(\App\Events\ChurchServiceCanonicalListChanged::class);
+        Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);
     }
 
     #[Test]
@@ -191,7 +193,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
     #[Test]
     public function test_enrichment_of_high_confidence_item_auto_merges(): void
     {
-        $song = \App\Models\Song::factory()->create(['title' => 'Amazing Grace']);
+        $song = Song::factory()->create(['title' => 'Amazing Grace']);
 
         $churchService = $this->createLivestreamService([
             ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high', 'song_id' => null],

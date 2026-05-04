@@ -7,13 +7,18 @@ namespace Tests\Feature\Security;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Exceptions\InvalidFileException;
+use App\Exceptions\ProcessingException;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Repositories\SermonRepository;
+use App\Services\MediaValidationService;
 use App\Services\ProcessingRunFailureHandler;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -35,7 +40,7 @@ class InformationLeakageTest extends TestCase
         $this->actingAs($user);
 
         // We need to mock validateUploadedFile but allow rulesForType
-        $this->mock(\App\Services\MediaValidationService::class, function ($mock) {
+        $this->mock(MediaValidationService::class, function ($mock) {
             $mock->shouldReceive('rulesForType')
                 ->andReturn(['file' => 'required|file']);
 
@@ -70,7 +75,7 @@ class InformationLeakageTest extends TestCase
         $user = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
         $this->actingAs($user);
 
-        $this->mock(\App\Services\MediaValidationService::class, function ($mock) {
+        $this->mock(MediaValidationService::class, function ($mock) {
             $mock->shouldReceive('rulesForType')
                 ->andReturn(['file' => 'required|file']);
 
@@ -105,7 +110,7 @@ class InformationLeakageTest extends TestCase
         $this->actingAs($user);
 
         $processingLog = MediaProcessingLog::create([
-            'processing_id' => (string) \Illuminate\Support\Str::uuid(),
+            'processing_id' => (string) Str::uuid(),
             'processing_type' => MediaType::Audio,
             'original_filename' => 'test.mp3',
             'status' => ProcessingStatus::Pending,
@@ -137,9 +142,9 @@ class InformationLeakageTest extends TestCase
         // or just a test route if it was available.
         // Given we don't want to add routes, we'll use an existing one and mock a service it uses.
 
-        $this->mock(\App\Repositories\SermonRepository::class, function ($mock) {
+        $this->mock(SermonRepository::class, function ($mock) {
             $mock->shouldReceive('getSeriesForDisplay')
-                ->andThrow(new \App\Exceptions\ProcessingException('Controlled Safe Error'));
+                ->andThrow(new ProcessingException('Controlled Safe Error'));
         });
 
         // UnifiedMediaProcessor::getStatus can throw internal exceptions
@@ -149,7 +154,7 @@ class InformationLeakageTest extends TestCase
         // MediaController::status uses UnifiedMediaProcessor::getStatus
         $this->mock(UnifiedMediaProcessor::class, function ($mock) {
             $mock->shouldReceive('getStatus')
-                ->andThrow(new \App\Exceptions\ProcessingException('Controlled Safe API Error'));
+                ->andThrow(new ProcessingException('Controlled Safe API Error'));
         });
 
         $response = $this->getJson('/api/media/processing/00000000-0000-4000-8000-000000000000/status');
@@ -168,12 +173,12 @@ class InformationLeakageTest extends TestCase
 
         // Capture logs manually instead of using shouldReceive which is failing due to some reason
         $logs = [];
-        \Illuminate\Support\Facades\Log::listen(function ($level) use (&$logs) {
+        Log::listen(function ($level) use (&$logs) {
             $logs[] = $level;
         });
 
         $processingLog = MediaProcessingLog::create([
-            'processing_id' => (string) \Illuminate\Support\Str::uuid(),
+            'processing_id' => (string) Str::uuid(),
             'processing_type' => MediaType::Audio,
             'original_filename' => 'test.mp3',
             'status' => ProcessingStatus::Pending,

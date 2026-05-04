@@ -38,10 +38,10 @@ class PageFactory extends Factory
         return $this->isNavigation(false);
     }
 
-    public function inArea(string|\App\Enums\PageArea $area): Factory
+    public function inArea(string|PageArea $area): Factory
     {
-        $areaValue = $area instanceof \App\Enums\PageArea ? $area->value : $area;
-        if (! in_array($areaValue, \App\Enums\PageArea::values(), true)) {
+        $areaValue = $area instanceof PageArea ? $area->value : $area;
+        if (! in_array($areaValue, PageArea::values(), true)) {
             throw new \InvalidArgumentException("Invalid area: $areaValue");
         }
 

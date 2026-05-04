@@ -6,6 +6,7 @@ namespace App\Livewire\Sermons;
 
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Presenters\SermonItemListPresenter;
 use App\Repositories\SermonRepository;
 use App\Support\BibleCanon;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -189,7 +190,7 @@ class BrowseSermons extends Component
     #[Computed]
     public function jsonLdData(): array
     {
-        return app(\App\Presenters\SermonItemListPresenter::class)->toItemList(
+        return app(SermonItemListPresenter::class)->toItemList(
             $this->sermons->getCollection()
         );
     }

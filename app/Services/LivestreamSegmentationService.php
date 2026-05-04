@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Data\LivestreamProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
+use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use Exception;
 use Illuminate\Http\UploadedFile;
@@ -178,7 +179,7 @@ class LivestreamSegmentationService
     {
         $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
 
-        $segments = $processingLog->segments->map(function (\App\Models\LivestreamSegment $segment) {
+        $segments = $processingLog->segments->map(function (LivestreamSegment $segment) {
             return new \App\Data\LivestreamSegment(
                 startTime: (float) ($segment->start_time ?? 0.0),
                 endTime: (float) ($segment->end_time ?? 0.0),
@@ -194,7 +195,7 @@ class LivestreamSegmentationService
 
         $segmentsSummary = null;
         if ($processingLog->segments->isNotEmpty()) {
-            $segmentsSummary = \App\Models\LivestreamSegment::getSegmentsSummary($processingLog->id);
+            $segmentsSummary = LivestreamSegment::getSegmentsSummary($processingLog->id);
         }
 
         return new LivestreamProcessingResult(

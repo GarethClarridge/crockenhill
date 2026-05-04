@@ -3,10 +3,11 @@
 namespace Database\Factories;
 
 use App\Models\Preacher;
+use App\Models\SpeakerProfile;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SpeakerProfile>
+ * @extends Factory<SpeakerProfile>
  */
 class SpeakerProfileFactory extends Factory
 {

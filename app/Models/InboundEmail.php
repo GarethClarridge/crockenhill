@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\InboundEmailStatus;
+use Database\Factories\InboundEmailFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -16,11 +18,11 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $subject
  * @property string|null $body_plain
  * @property string|null $body_html
- * @property \Illuminate\Support\Carbon $received_at
+ * @property Carbon $received_at
  * @property InboundEmailStatus $status
  * @property array<string, mixed>|null $processing_metadata
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  *
  * @method static \Database\Factories\InboundEmailFactory factory(...$parameters)
  * @method static Builder<InboundEmail> newModelQuery()
@@ -31,7 +33,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class InboundEmail extends Model
 {
-    /** @use HasFactory<\Database\Factories\InboundEmailFactory> */
+    /** @use HasFactory<InboundEmailFactory> */
     use HasFactory;
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Song;
+use Illuminate\Database\Eloquent\Collection;
 
 class SongLyricsMatchingService
 {
@@ -85,7 +86,7 @@ class SongLyricsMatchingService
         $bestScore = 0.0;
         $bestSong = null;
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, Song> $songs */
+        /** @var Collection<int, Song> $songs */
         $songs = Song::query()
             ->whereNotNull('lyrics_plain')
             ->select(['id', 'title', 'lyrics_plain'])

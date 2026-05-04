@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\LivestreamSegmentClassification;
 use App\Enums\ProcessingStatus;
+use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -422,7 +423,7 @@ class SermonProcessingLogger
             'average_duration_minutes' => $recentProcessing
                 ->whereNotNull('completed_at')
                 ->whereNotNull('created_at')
-                ->avg(function (\App\Models\MediaProcessingLog $log): float {
+                ->avg(function (MediaProcessingLog $log): float {
                     $createdAt = $log->created_at;
                     $completedAt = $log->completed_at;
 
@@ -481,7 +482,7 @@ class SermonProcessingLogger
     }
 
     /**
-     * @param  Collection<int, \App\Models\LivestreamSegment>  $segments
+     * @param  Collection<int, LivestreamSegment>  $segments
      * @return array<string, mixed>
      */
     private function buildSegmentSummary(Collection $segments): array

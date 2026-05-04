@@ -7,9 +7,11 @@ namespace Tests\Feature\Api;
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ApiTokenAbility;
 use App\Enums\ProcessingStatus;
+use App\Jobs\ExtractSermon;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Queue;
@@ -50,7 +52,7 @@ class ConfirmSegmentApiTest extends TestCase
             'source_file_path' => $sourcePath,
         ]);
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)->markForManualReview(
+        app(MediaProcessingRunTransitionService::class)->markForManualReview(
             $log,
             reasonCode: 'multiple_qualifying_speech_blocks',
             reasonMessage: 'Multiple speech blocks qualified.',
@@ -144,7 +146,7 @@ class ConfirmSegmentApiTest extends TestCase
         $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
-        Queue::assertPushed(\App\Jobs\ExtractSermon::class, function (\App\Jobs\ExtractSermon $job): bool {
+        Queue::assertPushed(ExtractSermon::class, function (ExtractSermon $job): bool {
             return $job->queue === config('media-processing.queues.livestream', 'livestream-processing');
         });
     }

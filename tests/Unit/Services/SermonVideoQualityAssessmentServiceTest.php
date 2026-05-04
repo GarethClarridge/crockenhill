@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Data\SermonVideoQualityAssessmentResult;
 use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
@@ -149,7 +150,7 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
     /**
      * @param  list<string>  $frames
      */
-    private function assessWithFrames(array $frames): \App\Data\SermonVideoQualityAssessmentResult
+    private function assessWithFrames(array $frames): SermonVideoQualityAssessmentResult
     {
         Storage::disk('public')->put('sermons/video.mp4', 'video');
 

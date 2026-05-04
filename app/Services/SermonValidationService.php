@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SermonValidationService
@@ -214,7 +215,7 @@ class SermonValidationService
             }
         } catch (\Exception $e) {
             // If we can't check disk space, log but don't fail
-            \Illuminate\Support\Facades\Log::warning('Could not check disk space', [
+            Log::warning('Could not check disk space', [
                 'disk' => $disk,
                 'error' => $e->getMessage(),
             ]);

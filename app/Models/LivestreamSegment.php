@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\LivestreamSegmentClassification;
+use Database\Factories\LivestreamSegmentFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -28,12 +30,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property float|null $visual_confidence
  * @property int|null $visual_sample_count
  * @property string|null $calibration_method
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 class LivestreamSegment extends Model
 {
-    /** @use HasFactory<\Database\Factories\LivestreamSegmentFactory> */
+    /** @use HasFactory<LivestreamSegmentFactory> */
     use HasFactory;
 
     protected $fillable = [

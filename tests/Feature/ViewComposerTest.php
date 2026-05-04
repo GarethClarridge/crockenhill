@@ -8,6 +8,7 @@ use App\Enums\PageArea;
 use App\Enums\SermonService;
 use App\Models\Page;
 use App\Models\Sermon;
+use App\Models\User;
 use App\Presenters\RelatedPagePresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\View;
@@ -43,7 +44,7 @@ class ViewComposerTest extends TestCase
     {
         $page = Page::factory()->create([
             'slug' => 'about-us',
-            'area' => \App\Enums\PageArea::Church,
+            'area' => PageArea::Church,
             'heading' => 'About Our Church',
             'description' => 'Test Description',
         ]);
@@ -153,7 +154,7 @@ class ViewComposerTest extends TestCase
     #[Test]
     public function it_populates_header_with_members_link_for_authenticated_users(): void
     {
-        $user = \App\Models\User::factory()->create([
+        $user = User::factory()->create([
             'is_admin' => true,
             'email_verified_at' => now(),
         ]);

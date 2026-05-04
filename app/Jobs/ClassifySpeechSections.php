@@ -20,6 +20,22 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @phpstan-type SectionPayload array{
+ *     church_service_item_id: int|null,
+ *     section_type: string,
+ *     section_order: int,
+ *     title: ?string,
+ *     start_time: float,
+ *     end_time: float,
+ *     duration: float,
+ *     confidence: float,
+ *     status: string,
+ *     needs_manual_review: bool,
+ *     source_segment_ids: array<int, int>,
+ *     metadata: array<string, mixed>
+ * }
+ */
 class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
@@ -310,34 +326,8 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
      * After folding, if more than one sermon section remains, keep the longest as the primary
      * and demote any shorter ones (below the configured threshold) to childrens_talk.
      *
-     * @param  array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }>  $sections
-     * @return array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }>
+     * @param  array<int, SectionPayload>  $sections
+     * @return array<int, SectionPayload>
      */
     private function demoteSecondarySermons(array $sections): array
     {
@@ -371,26 +361,70 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
                 continue;
             }
 
-            $duration = (float) $sections[$index]['duration'];
+            $section = $sections[$index];
+            $duration = (float) $section['duration'];
 
             if ($duration < $maxChildrensTalkSeconds) {
-                $sections[$index]['section_type'] = ServiceSectionType::CHILDRENS_TALK->value;
-                $sections[$index]['needs_manual_review'] = false;
-                $sections[$index]['metadata'] = array_merge($sections[$index]['metadata'], [
-                    'confidence_level' => 'high',
-                    'review_reason' => 'demoted_secondary_sermon_to_childrens_talk',
-                    'review_flags' => ['heuristic_demotion'],
-                    'original_ai_classification' => ServiceSectionType::SERMON->value,
-                ]);
-            } else {
-                $sections[$index]['needs_manual_review'] = true;
-                $sections[$index]['metadata'] = array_merge($sections[$index]['metadata'], [
-                    'review_reason' => 'multiple_sermons_detected',
-                ]);
+                $sections[$index] = $this->demoteSectionToChildrensTalk($section);
+
+                continue;
             }
+
+            $sections[$index] = $this->flagSectionForMultipleSermonsReview($section);
         }
 
         return $sections;
+    }
+
+    /**
+     * @param  SectionPayload  $section
+     * @return SectionPayload
+     */
+    private function demoteSectionToChildrensTalk(array $section): array
+    {
+        return [
+            'church_service_item_id' => $section['church_service_item_id'],
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_order' => $section['section_order'],
+            'title' => $section['title'],
+            'start_time' => $section['start_time'],
+            'end_time' => $section['end_time'],
+            'duration' => $section['duration'],
+            'confidence' => $section['confidence'],
+            'status' => $section['status'],
+            'needs_manual_review' => false,
+            'source_segment_ids' => $section['source_segment_ids'],
+            'metadata' => array_merge($section['metadata'], [
+                'confidence_level' => 'high',
+                'review_reason' => 'demoted_secondary_sermon_to_childrens_talk',
+                'review_flags' => ['heuristic_demotion'],
+                'original_ai_classification' => ServiceSectionType::SERMON->value,
+            ]),
+        ];
+    }
+
+    /**
+     * @param  SectionPayload  $section
+     * @return SectionPayload
+     */
+    private function flagSectionForMultipleSermonsReview(array $section): array
+    {
+        return [
+            'church_service_item_id' => $section['church_service_item_id'],
+            'section_type' => $section['section_type'],
+            'section_order' => $section['section_order'],
+            'title' => $section['title'],
+            'start_time' => $section['start_time'],
+            'end_time' => $section['end_time'],
+            'duration' => $section['duration'],
+            'confidence' => $section['confidence'],
+            'status' => $section['status'],
+            'needs_manual_review' => true,
+            'source_segment_ids' => $section['source_segment_ids'],
+            'metadata' => array_merge($section['metadata'], [
+                'review_reason' => 'multiple_sermons_detected',
+            ]),
+        ];
     }
 
     /**

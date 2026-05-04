@@ -8,6 +8,7 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
@@ -65,7 +66,7 @@ class SlugIntegrityTest extends TestCase
             $this->markTestSkipped('Database integrity tests require MySQL');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Sermon::factory()->create([
             'slug' => 'invalid slug',
@@ -79,7 +80,7 @@ class SlugIntegrityTest extends TestCase
             $this->markTestSkipped('Database integrity tests require MySQL');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Preacher::factory()->create([
             'slug' => 'invalid slug',
@@ -93,7 +94,7 @@ class SlugIntegrityTest extends TestCase
             $this->markTestSkipped('Database integrity tests require MySQL');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Meeting::factory()->create([
             'slug' => 'invalid slug',
@@ -107,7 +108,7 @@ class SlugIntegrityTest extends TestCase
             $this->markTestSkipped('Database integrity tests require MySQL');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Page::factory()->create([
             'slug' => 'invalid slug',

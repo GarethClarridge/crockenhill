@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\SpeakerProfileFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * App\Models\SpeakerProfile
@@ -23,8 +25,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property ?float $accept_threshold
  * @property ?float $margin_threshold
  * @property bool $is_active
- * @property ?\Illuminate\Support\Carbon $created_at
- * @property ?\Illuminate\Support\Carbon $updated_at
+ * @property ?Carbon $created_at
+ * @property ?Carbon $updated_at
  *
  * @method static \Database\Factories\SpeakerProfileFactory factory(...$parameters)
  * @method static Builder|SpeakerProfile newModelQuery()
@@ -36,7 +38,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class SpeakerProfile extends Model
 {
-    /** @use HasFactory<\Database\Factories\SpeakerProfileFactory> */
+    /** @use HasFactory<SpeakerProfileFactory> */
     use HasFactory;
 
     /**

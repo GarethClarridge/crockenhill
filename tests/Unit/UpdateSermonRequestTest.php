@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Http\Requests\UpdateSermonRequest;
+use App\Models\Sermon;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -24,7 +26,7 @@ class UpdateSermonRequestTest extends TestCase
     public function authorize_allows_user_with_update_permission()
     {
         // Mock a sermon object
-        $sermon = \Mockery::mock(\App\Models\Sermon::class);
+        $sermon = \Mockery::mock(Sermon::class);
 
         // Mock a user object
         $user = \Mockery::mock(\stdClass::class);
@@ -34,7 +36,7 @@ class UpdateSermonRequestTest extends TestCase
             ->andReturn(true);
 
         // Create a partial mock of the request that overrides the route and user methods
-        $request = \Mockery::mock(\App\Http\Requests\UpdateSermonRequest::class)->makePartial();
+        $request = \Mockery::mock(UpdateSermonRequest::class)->makePartial();
         $request->shouldReceive('route')->with('sermon')->andReturn($sermon);
         $request->shouldReceive('user')->andReturn($user);
 
@@ -45,7 +47,7 @@ class UpdateSermonRequestTest extends TestCase
     public function authorize_denies_user_without_update_permission()
     {
         // Mock a sermon object
-        $sermon = \Mockery::mock(\App\Models\Sermon::class);
+        $sermon = \Mockery::mock(Sermon::class);
 
         // Mock a user object
         $user = \Mockery::mock(\stdClass::class);
@@ -55,7 +57,7 @@ class UpdateSermonRequestTest extends TestCase
             ->andReturn(false);
 
         // Create a partial mock of the request that overrides the route and user methods
-        $request = \Mockery::mock(\App\Http\Requests\UpdateSermonRequest::class)->makePartial();
+        $request = \Mockery::mock(UpdateSermonRequest::class)->makePartial();
         $request->shouldReceive('route')->with('sermon')->andReturn($sermon);
         $request->shouldReceive('user')->andReturn($user);
 
@@ -71,7 +73,7 @@ class UpdateSermonRequestTest extends TestCase
         // In this case, UpdateSermonRequest rules don't seem to depend on route params directly.
         // However, to be safe, an empty array for route parameters is passed.
         $this->request->setRouteResolver(function () {
-            $route = $this->getMockBuilder(\Illuminate\Routing\Route::class)
+            $route = $this->getMockBuilder(Route::class)
                 ->disableOriginalConstructor()
                 ->getMock();
             $route->method('parameters')->willReturn([]); // No route parameters needed for these rules

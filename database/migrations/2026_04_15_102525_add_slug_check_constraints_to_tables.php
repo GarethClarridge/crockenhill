@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -38,7 +39,7 @@ return new class extends Migration
                         $constraintName,
                         self::SLUG_CHECK_PATTERN
                     ));
-                } catch (\Illuminate\Database\QueryException) {
+                } catch (QueryException) {
                     // Data already in the table violates the constraint; skip silently.
                 }
             }

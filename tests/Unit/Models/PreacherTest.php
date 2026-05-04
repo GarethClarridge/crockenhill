@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Sitemap\Tags\Url;
 use Tests\TestCase;
 
 class PreacherTest extends TestCase
@@ -189,7 +190,7 @@ class PreacherTest extends TestCase
 
         $tag = $preacher->toSitemapTag();
 
-        $this->assertInstanceOf(\Spatie\Sitemap\Tags\Url::class, $tag);
+        $this->assertInstanceOf(Url::class, $tag);
         $this->assertStringContainsString('/christ/sermons/preachers/test-preacher', $tag->url);
         $this->assertEquals(0.6, $tag->priority);
         $this->assertEquals('monthly', $tag->changeFrequency);

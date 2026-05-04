@@ -8,6 +8,7 @@ use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\Rules\Unique;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -112,7 +113,7 @@ class PreacherAliasTest extends TestCase
         // Check for unique rule presence - specific implementation details might vary based on how Laravel constructs the rule object
         $foundUnique = false;
         foreach ($rules['alias'] as $rule) {
-            if ($rule instanceof \Illuminate\Validation\Rules\Unique) {
+            if ($rule instanceof Unique) {
                 $foundUnique = true;
                 break;
             }

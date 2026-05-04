@@ -12,11 +12,14 @@ use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Support\MediaAssetPath;
+use Database\Factories\ServiceSectionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -40,11 +43,11 @@ use Illuminate\Support\Facades\Storage;
  * @property int|null $published_sermon_id
  * @property string|null $extracted_video_path
  * @property string|null $extracted_audio_path
- * @property \Illuminate\Support\Carbon|null $published_at
- * @property \Illuminate\Support\Carbon|null $extracted_at
- * @property \Illuminate\Support\Carbon|null $unpublished_expires_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $published_at
+ * @property Carbon|null $extracted_at
+ * @property Carbon|null $unpublished_expires_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read ChurchServiceItem|null $churchServiceItem
  * @property-read Sermon|null $publishedSermon
  * @property-read MediaProcessingLog $processingLog
@@ -58,7 +61,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class ServiceSection extends Model
 {
-    /** @use HasFactory<\Database\Factories\ServiceSectionFactory> */
+    /** @use HasFactory<ServiceSectionFactory> */
     use HasFactory;
 
     /**
@@ -255,15 +258,15 @@ class ServiceSection extends Model
     public static function validationRules(): array
     {
         return [
-            'section_type' => ['required', \Illuminate\Validation\Rule::enum(ServiceSectionType::class)],
+            'section_type' => ['required', Rule::enum(ServiceSectionType::class)],
             'section_order' => ['required', 'integer', 'min:0'],
             'start_time' => ['required', 'numeric', 'min:0'],
             'end_time' => ['required', 'numeric', 'min:0', 'gt:start_time'],
             'duration' => ['required', 'numeric', 'min:0'],
-            'status' => ['required', \Illuminate\Validation\Rule::enum(ServiceSectionStatus::class)],
+            'status' => ['required', Rule::enum(ServiceSectionStatus::class)],
             'confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
-            'song_match_type' => ['nullable', \Illuminate\Validation\Rule::enum(ServiceSectionSongMatchType::class)],
-            'publication_status' => ['required', \Illuminate\Validation\Rule::enum(ServiceSectionPublicationStatus::class)],
+            'song_match_type' => ['nullable', Rule::enum(ServiceSectionSongMatchType::class)],
+            'publication_status' => ['required', Rule::enum(ServiceSectionPublicationStatus::class)],
         ];
     }
 

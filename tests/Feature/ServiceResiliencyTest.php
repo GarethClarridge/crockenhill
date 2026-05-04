@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Contracts\TranscriptionServiceInterface;
+use App\Exceptions\TranscriptionException;
 use App\Models\Sermon;
+use App\Services\AudioTranscriptionService;
 use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -19,16 +22,16 @@ class ServiceResiliencyTest extends TestCase
     public function it_handles_openai_timeout_gracefully(): void
     {
         // Mock the TranscriptionService directly since Facade mocking can be finicky in shared environments
-        $mockTranscription = \Mockery::mock(\App\Services\AudioTranscriptionService::class)->makePartial();
+        $mockTranscription = \Mockery::mock(AudioTranscriptionService::class)->makePartial();
         $mockTranscription->shouldReceive('transcribe')
-            ->andThrow(new \App\Exceptions\TranscriptionException('Timeout Error'));
+            ->andThrow(new TranscriptionException('Timeout Error'));
 
-        $this->app->instance(\App\Contracts\TranscriptionServiceInterface::class, $mockTranscription);
-        $this->app->instance(\App\Services\AudioTranscriptionService::class, $mockTranscription);
+        $this->app->instance(TranscriptionServiceInterface::class, $mockTranscription);
+        $this->app->instance(AudioTranscriptionService::class, $mockTranscription);
 
-        $service = $this->app->make(\App\Contracts\TranscriptionServiceInterface::class);
+        $service = $this->app->make(TranscriptionServiceInterface::class);
 
-        $this->expectException(\App\Exceptions\TranscriptionException::class);
+        $this->expectException(TranscriptionException::class);
         $service->transcribe('test.mp3');
     }
 

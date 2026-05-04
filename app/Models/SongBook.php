@@ -4,19 +4,22 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\SongBookFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int $source_book_id
  * @property string $name
  * @property string|null $publisher
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Song> $songs
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Collection<int, Song> $songs
  *
  * @method static \Database\Factories\SongBookFactory factory(...$parameters)
  * @method static Builder<SongBook> newModelQuery()
@@ -27,7 +30,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 class SongBook extends Model
 {
-    /** @use HasFactory<\Database\Factories\SongBookFactory> */
+    /** @use HasFactory<SongBookFactory> */
     use HasFactory;
 
     /**

@@ -9,10 +9,13 @@ use App\Jobs\CleanupTemporaryFiles;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
 use App\Services\LivestreamSegmentationService;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\MediaValidationService;
 use App\Services\MetadataExtractionService;
 use App\Services\ProcessingInitiator;
 use App\Services\ProcessingPipelineBuilder;
+use App\Services\ProcessingRunFailureHandler;
+use App\Services\ProcessingRunOrchestrator;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoSegmentationService;
 use App\Services\VideoStorageService;
@@ -117,7 +120,7 @@ class QueueCatchHandlerStateTest extends TestCase
         $this->app->instance(MetadataExtractionService::class, $metadataService);
         $this->app->instance(MediaValidationService::class, $mediaValidation);
         $this->app->instance(ProcessingPipelineBuilder::class, $pipelineBuilder);
-        $this->app->forgetInstance(\App\Services\ProcessingRunOrchestrator::class);
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
         $this->app->forgetInstance(UnifiedMediaProcessor::class);
 
         $processor = $this->app->make(UnifiedMediaProcessor::class);
@@ -138,7 +141,7 @@ class QueueCatchHandlerStateTest extends TestCase
             return true;
         });
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)->markAsCancelled(
+        app(MediaProcessingRunTransitionService::class)->markAsCancelled(
             $processingLog,
             'Processing cancelled by user'
         );
@@ -321,8 +324,8 @@ class QueueCatchHandlerStateTest extends TestCase
         // Bind the storage mock so the orchestrator/failure handler cleanup path uses it.
         $this->app->instance(VideoStorageService::class, $storageService);
         $this->app->instance(ProcessingPipelineBuilder::class, $pipelineBuilder);
-        $this->app->forgetInstance(\App\Services\ProcessingRunFailureHandler::class);
-        $this->app->forgetInstance(\App\Services\ProcessingRunOrchestrator::class);
+        $this->app->forgetInstance(ProcessingRunFailureHandler::class);
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         return new LivestreamSegmentationService(
             $storageService,

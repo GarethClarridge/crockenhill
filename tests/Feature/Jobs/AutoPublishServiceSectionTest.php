@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
+use App\Services\SectionPublication\SectionPublicationHandlerFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -56,7 +57,7 @@ class AutoPublishServiceSectionTest extends TestCase
         ]);
 
         (new AutoPublishServiceSection($section->id))->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class)
+            app(SectionPublicationHandlerFactory::class)
         );
 
         $section->refresh();
@@ -79,7 +80,7 @@ class AutoPublishServiceSectionTest extends TestCase
         $initialCount = SongVideo::count();
 
         (new AutoPublishServiceSection($section->id))->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class)
+            app(SectionPublicationHandlerFactory::class)
         );
 
         $this->assertEquals($initialCount, SongVideo::count());
@@ -96,7 +97,7 @@ class AutoPublishServiceSectionTest extends TestCase
         ]);
 
         (new AutoPublishServiceSection($section->id))->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class)
+            app(SectionPublicationHandlerFactory::class)
         );
 
         $section->refresh();
@@ -117,7 +118,7 @@ class AutoPublishServiceSectionTest extends TestCase
         $this->expectExceptionMessage('No publication handler registered');
 
         (new AutoPublishServiceSection($section->id))->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class)
+            app(SectionPublicationHandlerFactory::class)
         );
     }
 
@@ -125,7 +126,7 @@ class AutoPublishServiceSectionTest extends TestCase
     public function it_handles_missing_section_gracefully(): void
     {
         (new AutoPublishServiceSection(99999))->handle(
-            app(\App\Services\SectionPublication\SectionPublicationHandlerFactory::class)
+            app(SectionPublicationHandlerFactory::class)
         );
 
         // No exception — section simply not found.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Actions;
 
 use App\Actions\PrefillChurchServiceFromInboundEmail;
+use App\Data\OosEmailParseResult;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
 use App\Models\InboundEmail;
@@ -92,7 +93,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
             $mock->shouldReceive('parse')
                 ->once()
                 ->with(\Mockery::on(fn ($arg) => $arg instanceof InboundEmail && $arg->id === $inboundEmail->id))
-                ->andReturn(new \App\Data\OosEmailParseResult(
+                ->andReturn(new OosEmailParseResult(
                     date: '2026-06-01',
                     service: SermonService::Morning,
                     items: [

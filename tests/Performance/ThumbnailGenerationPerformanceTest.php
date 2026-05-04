@@ -6,6 +6,7 @@ namespace Tests\Performance;
 
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
+use App\Services\SermonExposurePolicy;
 use App\Services\StorageAdapterHelper;
 use App\Services\ThumbnailCanvasComposer;
 use App\Services\ThumbnailForegroundExtractionService;
@@ -48,7 +49,7 @@ class ThumbnailGenerationPerformanceTest extends TestCase
             app(StorageAdapterHelper::class),
             app(ThumbnailForegroundExtractionService::class),
             app(ThumbnailCanvasComposer::class),
-            app(\App\Services\SermonExposurePolicy::class),
+            app(SermonExposurePolicy::class),
         );
 
         $this->textHelper = app(ThumbnailTextHelper::class);

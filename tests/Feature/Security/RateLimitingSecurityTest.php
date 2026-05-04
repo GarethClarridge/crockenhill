@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature\Security;
 
 use App\Models\User;
+use App\Services\ProcessingResult;
+use App\Services\UnifiedMediaProcessor;
+use Illuminate\Cache\RateLimiter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -20,8 +24,8 @@ class RateLimitingSecurityTest extends TestCase
         parent::setUp();
 
         $this->app->bind(
-            \Illuminate\Routing\Middleware\ThrottleRequests::class,
-            fn ($app) => new \Illuminate\Routing\Middleware\ThrottleRequests($app->make(\Illuminate\Cache\RateLimiter::class))
+            ThrottleRequests::class,
+            fn ($app) => new ThrottleRequests($app->make(RateLimiter::class))
         );
     }
 
@@ -36,9 +40,9 @@ class RateLimitingSecurityTest extends TestCase
         ]);
 
         // Mock the processor to avoid actual processing overhead
-        $this->mock(\App\Services\UnifiedMediaProcessor::class, function ($mock) {
+        $this->mock(UnifiedMediaProcessor::class, function ($mock) {
             $mock->shouldReceive('process')->andReturn(
-                \App\Services\ProcessingResult::success('test-id', 'Started')
+                ProcessingResult::success('test-id', 'Started')
             );
         });
 
@@ -74,9 +78,9 @@ class RateLimitingSecurityTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $this->mock(\App\Services\UnifiedMediaProcessor::class, function ($mock) {
+        $this->mock(UnifiedMediaProcessor::class, function ($mock) {
             $mock->shouldReceive('process')->andReturn(
-                \App\Services\ProcessingResult::success('test-id', 'Started')
+                ProcessingResult::success('test-id', 'Started')
             );
         });
 

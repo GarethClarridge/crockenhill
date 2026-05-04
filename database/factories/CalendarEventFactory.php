@@ -2,10 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Enums\CalendarEventStatus;
+use App\Models\CalendarEvent;
+use App\Models\Meeting;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\CalendarEvent>
+ * @extends Factory<CalendarEvent>
  */
 class CalendarEventFactory extends Factory
 {
@@ -27,14 +30,14 @@ class CalendarEventFactory extends Factory
             'location' => $this->faker->city(),
             'start_datetime' => $start,
             'end_datetime' => (clone $start)->modify('+'.rand(0, 180).' minutes'),
-            'status' => \App\Enums\CalendarEventStatus::Confirmed,
+            'status' => CalendarEventStatus::Confirmed,
             'is_categorized_automatically' => false,
         ];
     }
 
     public function configure(): static
     {
-        return $this->afterMaking(function (\App\Models\CalendarEvent $event): void {
+        return $this->afterMaking(function (CalendarEvent $event): void {
             if ($event->end_datetime < $event->start_datetime) {
                 $event->end_datetime = $event->start_datetime->copy()->addHour();
             }
@@ -47,7 +50,7 @@ class CalendarEventFactory extends Factory
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => \App\Enums\CalendarEventStatus::Pending,
+            'status' => CalendarEventStatus::Pending,
         ]);
     }
 
@@ -96,7 +99,7 @@ class CalendarEventFactory extends Factory
     /**
      * Associate the event with a specific meeting.
      */
-    public function forMeeting(\App\Models\Meeting $meeting): static
+    public function forMeeting(Meeting $meeting): static
     {
         return $this->state(fn (array $attributes) => [
             'meeting_slug' => $meeting->slug,

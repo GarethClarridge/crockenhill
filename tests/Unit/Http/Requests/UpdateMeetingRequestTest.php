@@ -10,6 +10,7 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -98,7 +99,7 @@ class UpdateMeetingRequestTest extends TestCase
         }
 
         $this->request->setRouteResolver(function () use ($meeting) {
-            return \Mockery::mock(\Illuminate\Routing\Route::class, [
+            return \Mockery::mock(Route::class, [
                 'parameter' => $meeting,
                 'parameters' => $meeting ? ['meeting' => $meeting] : [],
             ]);
@@ -269,7 +270,7 @@ class UpdateMeetingRequestTest extends TestCase
         ];
 
         $this->request->setRouteResolver(function () use ($meeting) {
-            return \Mockery::mock(\Illuminate\Routing\Route::class, [
+            return \Mockery::mock(Route::class, [
                 'parameter' => $meeting,
             ]);
         });
@@ -322,7 +323,7 @@ class UpdateMeetingRequestTest extends TestCase
         $currentMeeting->update(['page_id' => $page->id]);
 
         $this->request->setRouteResolver(function () use ($currentMeeting) {
-            return \Mockery::mock(\Illuminate\Routing\Route::class, [
+            return \Mockery::mock(Route::class, [
                 'parameter' => $currentMeeting,
             ]);
         });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire;
 
+use App\Enums\ProcessingStatus;
 use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
@@ -26,6 +27,7 @@ use App\Jobs\TranscribeSpeechSegments;
 use App\Livewire\MediaUpload;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoSegmentationService;
 use App\Services\VideoStorageService;
@@ -121,7 +123,7 @@ class MediaUploadTest extends TestCase
         Storage::fake('local');
         $file = UploadedFile::fake()->create('sermon.mp3', 1024);
 
-        $mockResult = \App\Services\ProcessingResult::success($expectedId, 'Started');
+        $mockResult = ProcessingResult::success($expectedId, 'Started');
 
         $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->expects($this->once())
@@ -152,7 +154,7 @@ class MediaUploadTest extends TestCase
         $expectedId = '00000000-0000-0000-0000-000000000321';
         $file = UploadedFile::fake()->create('sermon.mp4', 2048, 'video/mp4');
 
-        $mockResult = \App\Services\ProcessingResult::success($expectedId, 'Started');
+        $mockResult = ProcessingResult::success($expectedId, 'Started');
 
         $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->expects($this->once())
@@ -186,7 +188,7 @@ class MediaUploadTest extends TestCase
 
         $file = UploadedFile::fake()->create('sermon.mp3', 1024);
 
-        $mockResult = \App\Services\ProcessingResult::failure('test-proc-id', 'System error', 'ERR_CODE');
+        $mockResult = ProcessingResult::failure('test-proc-id', 'System error', 'ERR_CODE');
 
         $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->expects($this->once())
@@ -211,7 +213,7 @@ class MediaUploadTest extends TestCase
         $expectedId = '00000000-0000-0000-0000-000000000123';
         $file = UploadedFile::fake()->create('sermon.mp3', 1024);
 
-        $mockResult = \App\Services\ProcessingResult::success($expectedId, 'Started');
+        $mockResult = ProcessingResult::success($expectedId, 'Started');
 
         $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->expects($this->once())
@@ -326,7 +328,7 @@ class MediaUploadTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create([
             'processing_id' => 'proc-manual-review',
             'owner_user_id' => $this->admin->id,
-            'status' => \App\Enums\ProcessingStatus::Failed,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
         ]);
 

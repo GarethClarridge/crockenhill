@@ -10,17 +10,21 @@ use App\Enums\MediaType;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaProcessingIdentityResolver;
+use App\Services\ProcessingRunOrchestrator;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ProcessingRunTimelineBuilder;
 use App\Support\ServiceTimelineBuilder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
+use Livewire\Features\SupportRedirects\Redirector;
 
 class ShowChurchService extends Component
 {
@@ -51,7 +55,7 @@ class ShowChurchService extends Component
         $pendingMerge = $this->churchService->import_metadata?->pendingStructureMerge;
         $hasPendingMerge = $pendingMerge !== null && $pendingMerge->incomingSource !== null;
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\ChurchServiceItem> $items */
+        /** @var Collection<int, ChurchServiceItem> $items */
         $items = $this->churchService->items;
         $serviceTimelines = ServiceTimelineBuilder::buildTimelines($processingRuns, $items);
 
@@ -98,7 +102,7 @@ class ShowChurchService extends Component
         ]);
 
         // Resolve on demand because Livewire serializes component state between requests.
-        app(\App\Services\ProcessingRunOrchestrator::class)->reclassify($processingLog);
+        app(ProcessingRunOrchestrator::class)->reclassify($processingLog);
 
         $this->success('Section reclassification queued');
     }
@@ -119,7 +123,7 @@ class ShowChurchService extends Component
         $this->resolvePendingMerge('keep_current');
     }
 
-    public function deleteUpload(int $processingLogId): \Livewire\Features\SupportRedirects\Redirector|RedirectResponse|null
+    public function deleteUpload(int $processingLogId): Redirector|RedirectResponse|null
     {
 
         $this->authorizeAdmin();

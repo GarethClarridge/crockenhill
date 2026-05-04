@@ -10,6 +10,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -26,7 +27,7 @@ class MediaAnalysisIntegrityTest extends TestCase
         $this->expectExceptionMessage('media_processing_logs_file_size_check');
 
         DB::table('media_processing_logs')->insert([
-            'processing_id' => \Illuminate\Support\Str::uuid()->toString(),
+            'processing_id' => Str::uuid()->toString(),
             'processing_type' => 'audio',
             'status' => 'pending',
             'original_filename' => 'test.mp3',
@@ -45,7 +46,7 @@ class MediaAnalysisIntegrityTest extends TestCase
         $this->expectExceptionMessage('media_processing_logs_visual_sample_count_check');
 
         DB::table('media_processing_logs')->insert([
-            'processing_id' => \Illuminate\Support\Str::uuid()->toString(),
+            'processing_id' => Str::uuid()->toString(),
             'processing_type' => 'video',
             'status' => 'pending',
             'original_filename' => 'test.mp4',
@@ -64,7 +65,7 @@ class MediaAnalysisIntegrityTest extends TestCase
         $this->expectExceptionMessage('media_processing_logs_visual_processing_time_check');
 
         DB::table('media_processing_logs')->insert([
-            'processing_id' => \Illuminate\Support\Str::uuid()->toString(),
+            'processing_id' => Str::uuid()->toString(),
             'processing_type' => 'video',
             'status' => 'pending',
             'original_filename' => 'test.mp4',

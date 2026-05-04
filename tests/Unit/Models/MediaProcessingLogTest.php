@@ -13,7 +13,9 @@ use App\Models\ChurchService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -156,7 +158,7 @@ class MediaProcessingLogTest extends TestCase
         $this->assertInstanceOf(SermonAnalysis::class, $log->ai_analysis);
         $this->assertInstanceOf(ProcessingMetadata::class, $log->processing_metadata);
         $this->assertIsFloat($log->duration);
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $log->started_at);
+        $this->assertInstanceOf(Carbon::class, $log->started_at);
     }
 
     #[Test]
@@ -307,16 +309,16 @@ class MediaProcessingLogTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Pending]);
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)->markAsProcessing($log, 'step1');
+        app(MediaProcessingRunTransitionService::class)->markAsProcessing($log, 'step1');
         $this->assertEquals(ProcessingStatus::Processing, $log->status);
         $this->assertEquals('step1', $log->current_step);
         $this->assertNotNull($log->started_at);
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)->markAsCompleted($log);
+        app(MediaProcessingRunTransitionService::class)->markAsCompleted($log);
         $this->assertEquals(ProcessingStatus::Completed, $log->status);
         $this->assertNotNull($log->completed_at);
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)->markAsFailed($log, 'Error occurred', 'step2');
+        app(MediaProcessingRunTransitionService::class)->markAsFailed($log, 'Error occurred', 'step2');
         $this->assertEquals(ProcessingStatus::Failed, $log->status);
         $this->assertEquals('Error occurred', $log->error_message);
         $this->assertEquals('step2', $log->current_step);
@@ -331,7 +333,7 @@ class MediaProcessingLogTest extends TestCase
             'error_message' => 'Notification failed: SMTP transport unavailable',
         ]);
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)->markAsCompleted(
+        app(MediaProcessingRunTransitionService::class)->markAsCompleted(
             $log,
             step: 'notification_failed',
             errorMessage: 'Notification failed: SMTP transport unavailable'
@@ -351,7 +353,7 @@ class MediaProcessingLogTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->cancelled()->create();
 
-        $result = app(\App\Services\MediaProcessingRunTransitionService::class)->markAsCompleted($log);
+        $result = app(MediaProcessingRunTransitionService::class)->markAsCompleted($log);
 
         $this->assertFalse($result);
         $log->refresh();
@@ -370,7 +372,7 @@ class MediaProcessingLogTest extends TestCase
             ['segment_id' => 2, 'start_time' => 1400.0, 'end_time' => 2300.0, 'duration' => 900.0],
         ];
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)
+        app(MediaProcessingRunTransitionService::class)
             ->markForManualReview($log, 'ratio_below_threshold', 'The longest speech block was not at least 1.5x longer.', $speechSegments);
         $log->refresh();
 
@@ -404,7 +406,7 @@ class MediaProcessingLogTest extends TestCase
             ],
         ]);
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)
+        app(MediaProcessingRunTransitionService::class)
             ->confirmSermonSegment($log, 3, 7);
 
         $log->refresh();
@@ -424,7 +426,7 @@ class MediaProcessingLogTest extends TestCase
 
         $this->assertFalse($log->requiresManualSermonReview());
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)
+        app(MediaProcessingRunTransitionService::class)
             ->markForManualReview($log, 'no_qualifying_speech_block', 'No speech block met the threshold.');
         $log->refresh();
 
@@ -482,11 +484,11 @@ class MediaProcessingLogTest extends TestCase
     public function it_confirms_sermon_segment_and_records_audit_data(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::Failed]);
-        app(\App\Services\MediaProcessingRunTransitionService::class)
+        app(MediaProcessingRunTransitionService::class)
             ->markForManualReview($log, 'ratio_below_threshold', 'Ratio below threshold.');
         $log->refresh();
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)->confirmSermonSegment($log, 42, 7);
+        app(MediaProcessingRunTransitionService::class)->confirmSermonSegment($log, 42, 7);
         $log->refresh();
 
         $this->assertSame(ProcessingStatus::Pending, $log->status);
@@ -507,11 +509,11 @@ class MediaProcessingLogTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
         $speechSegments = [['segment_id' => 10, 'start_time' => 0.0, 'end_time' => 1200.0, 'duration' => 1200.0]];
-        app(\App\Services\MediaProcessingRunTransitionService::class)
+        app(MediaProcessingRunTransitionService::class)
             ->markForManualReview($log, 'no_qualifying_speech_block', 'No qualifying block.', $speechSegments);
         $log->refresh();
 
-        app(\App\Services\MediaProcessingRunTransitionService::class)->confirmSermonSegment($log, 10, 1);
+        app(MediaProcessingRunTransitionService::class)->confirmSermonSegment($log, 10, 1);
         $log->refresh();
 
         $review = $log->manualReviewMetadata();
@@ -546,7 +548,7 @@ class MediaProcessingLogTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Cancelled]);
 
-        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+        $result = app(MediaProcessingRunTransitionService::class)
             ->markAsFailed($log, 'Should be ignored');
 
         $this->assertFalse($result);
@@ -560,7 +562,7 @@ class MediaProcessingLogTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Cancelled]);
 
-        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+        $result = app(MediaProcessingRunTransitionService::class)
             ->markAsCompleted($log, 'completed');
 
         $this->assertFalse($result);
@@ -573,7 +575,7 @@ class MediaProcessingLogTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Cancelled]);
 
-        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+        $result = app(MediaProcessingRunTransitionService::class)
             ->markAsProcessing($log, 'some_step');
 
         $this->assertFalse($result);

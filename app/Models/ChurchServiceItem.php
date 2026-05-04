@@ -6,12 +6,16 @@ namespace App\Models;
 
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionType;
+use Database\Factories\ChurchServiceItemFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -27,12 +31,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property array<string, mixed>|null $metadata
  * @property string|null $livestream_processing_id
  * @property int|null $livestream_service_section_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
  * @property-read ChurchService $churchService
  * @property-read Song|null $song
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ServiceSection> $serviceSections
+ * @property-read Collection<int, ServiceSection> $serviceSections
  *
  * @method static \Database\Factories\ChurchServiceItemFactory factory(...$parameters)
  * @method static Builder<ChurchServiceItem> newModelQuery()
@@ -43,7 +47,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class ChurchServiceItem extends Model
 {
-    /** @use HasFactory<\Database\Factories\ChurchServiceItemFactory> */
+    /** @use HasFactory<ChurchServiceItemFactory> */
     use HasFactory;
 
     use SoftDeletes;
@@ -86,7 +90,7 @@ class ChurchServiceItem extends Model
     public static function validationRules(?self $item = null, ?int $churchServiceId = null): array
     {
         $positionRule = ['required', 'integer', 'min:1'];
-        $uniquePosition = \Illuminate\Validation\Rule::unique('church_service_items', 'position')
+        $uniquePosition = Rule::unique('church_service_items', 'position')
             ->whereNull('deleted_at');
 
         if ($item) {
@@ -105,8 +109,8 @@ class ChurchServiceItem extends Model
             'position' => $positionRule,
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'max:50'],
-            'section_type' => ['nullable', \Illuminate\Validation\Rule::enum(ServiceSectionType::class)],
-            'source' => ['nullable', \Illuminate\Validation\Rule::enum(ChurchServiceItemSource::class)],
+            'section_type' => ['nullable', Rule::enum(ServiceSectionType::class)],
+            'source' => ['nullable', Rule::enum(ChurchServiceItemSource::class)],
             'song_id' => ['nullable', 'integer', 'exists:songs,id'],
         ];
     }

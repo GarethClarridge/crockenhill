@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Data\LivestreamProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
+use App\Jobs\CleanupTemporaryFiles;
 use App\Models\MediaProcessingLog;
 use App\Services\LivestreamSegmentationService;
 use App\Services\ProcessingInitiator;
@@ -109,9 +111,9 @@ class LivestreamSegmentationServiceTest extends TestCase
 
         $dummyLog = MediaProcessingLog::factory()->livestream()->pending()->make();
         $this->pipelineBuilder->shouldReceive('buildLivestreamParallelJobs')
-            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
+            ->andReturn([new CleanupTemporaryFiles($dummyLog)]);
         $this->pipelineBuilder->shouldReceive('buildLivestreamChainJobs')
-            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
+            ->andReturn([new CleanupTemporaryFiles($dummyLog)]);
     }
 
     // ---- Instantiation ----
@@ -202,9 +204,9 @@ class LivestreamSegmentationServiceTest extends TestCase
 
         $dummyLog = MediaProcessingLog::factory()->livestream()->pending()->make();
         $this->pipelineBuilder->shouldReceive('buildLivestreamParallelJobs')
-            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
+            ->andReturn([new CleanupTemporaryFiles($dummyLog)]);
         $this->pipelineBuilder->shouldReceive('buildLivestreamChainJobs')
-            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
+            ->andReturn([new CleanupTemporaryFiles($dummyLog)]);
 
         $result = $this->service->startProcessing($file);
 
@@ -225,13 +227,13 @@ class LivestreamSegmentationServiceTest extends TestCase
 
         $dummyLog = MediaProcessingLog::factory()->livestream()->pending()->make();
         $this->pipelineBuilder->shouldReceive('buildLivestreamParallelJobs')
-            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
+            ->andReturn([new CleanupTemporaryFiles($dummyLog)]);
         $this->pipelineBuilder->shouldReceive('buildLivestreamChainJobs')
-            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
+            ->andReturn([new CleanupTemporaryFiles($dummyLog)]);
 
         $result = $this->service->retryProcessing('retry-test-123');
 
-        $this->assertInstanceOf(\App\Data\LivestreamProcessingResult::class, $result);
+        $this->assertInstanceOf(LivestreamProcessingResult::class, $result);
         $this->assertEquals('pending', $result->status);
     }
 

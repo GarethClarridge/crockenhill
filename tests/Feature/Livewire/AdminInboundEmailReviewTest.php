@@ -13,6 +13,7 @@ use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -248,7 +249,7 @@ class AdminInboundEmailReviewTest extends TestCase
     public function reparse_action_updates_stored_parsing_metadata_and_does_not_import(): void
     {
         $this->actingAs($this->admin);
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-03-12 11:30:00'));
+        $this->travelTo(Carbon::parse('2026-03-12 11:30:00'));
         $baselineServiceCount = ChurchService::count();
 
         $this->bindExtractor(new OosEmailItemExtractionResult(

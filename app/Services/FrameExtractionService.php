@@ -7,6 +7,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
 
 class FrameExtractionService
 {
@@ -58,7 +59,7 @@ class FrameExtractionService
                 $fullTempPath,
             ];
 
-            $process = new \Symfony\Component\Process\Process($command);
+            $process = new Process($command);
             $process->setTimeout($this->ffmpegConfig['timeout']);
             $process->run();
 

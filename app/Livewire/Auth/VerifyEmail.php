@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +22,7 @@ class VerifyEmail extends Component
 
     public function mount(): Redirector|RedirectResponse|null
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = Auth::user();
 
         if ($user?->hasVerifiedEmail()) {
@@ -36,7 +37,7 @@ class VerifyEmail extends Component
         $this->resent = false;
         $this->error = '';
 
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = Auth::user();
 
         if ($user === null) {

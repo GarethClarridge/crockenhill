@@ -9,6 +9,7 @@ use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Models\User;
 use App\Services\InboundEmailImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
@@ -157,7 +158,7 @@ class InboundEmailImportServiceTest extends TestCase
     public function test_import_clears_needs_review_when_reviewer_approves(): void
     {
         $inboundEmail = InboundEmail::factory()->create();
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
 
         $parseResult = new OosEmailParseResult(
             date: '2025-03-09',
@@ -242,7 +243,7 @@ class InboundEmailImportServiceTest extends TestCase
     {
         $inboundEmail = InboundEmail::factory()->create(['status' => InboundEmailStatus::Pending->value]);
         $churchService = ChurchService::factory()->create();
-        $user = \App\Models\User::factory()->create();
+        $user = User::factory()->create();
 
         $this->service->markAsProcessedFromManualReview($inboundEmail, $churchService, $user->id);
 

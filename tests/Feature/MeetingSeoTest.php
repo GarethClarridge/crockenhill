@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\MeetingFrequency;
 use App\Enums\PageArea;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -19,7 +21,7 @@ class MeetingSeoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        \Illuminate\Support\Facades\Cache::flush();
+        Cache::flush();
     }
 
     #[Test]
@@ -39,7 +41,7 @@ class MeetingSeoTest extends TestCase
             'start_time' => '18:00:00',
             'end_time' => '20:00:00',
             'is_recurring' => true,
-            'frequency' => \App\Enums\MeetingFrequency::Weekly,
+            'frequency' => MeetingFrequency::Weekly,
         ]);
 
         $response = $this->get('/community/buzz-club');
@@ -97,7 +99,7 @@ class MeetingSeoTest extends TestCase
             'page_id' => $page->id,
             'slug' => 'test-meeting',
             'is_recurring' => true,
-            'frequency' => \App\Enums\MeetingFrequency::Weekly,
+            'frequency' => MeetingFrequency::Weekly,
         ]);
 
         $event = CalendarEvent::factory()->create([
@@ -138,7 +140,7 @@ class MeetingSeoTest extends TestCase
             'start_time' => '18:00:00',
             'end_time' => '19:30:00',
             'is_recurring' => true,
-            'frequency' => \App\Enums\MeetingFrequency::Weekly,
+            'frequency' => MeetingFrequency::Weekly,
         ]);
 
         $response = $this->get('/community/buzz-club');

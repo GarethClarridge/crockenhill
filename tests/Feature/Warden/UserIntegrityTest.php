@@ -6,6 +6,7 @@ namespace Tests\Feature\Warden;
 
 use App\Livewire\Auth\Register;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -23,7 +24,7 @@ class UserIntegrityTest extends TestCase
             $this->markTestSkipped('Database-level CHECK constraints are only tested on MySQL.');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('users_name_format_check');
 
         DB::table('users')->insert([
@@ -40,7 +41,7 @@ class UserIntegrityTest extends TestCase
             $this->markTestSkipped('Database-level CHECK constraints are only tested on MySQL.');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('users_name_format_check');
 
         DB::table('users')->insert([
@@ -57,7 +58,7 @@ class UserIntegrityTest extends TestCase
             $this->markTestSkipped('Database-level CHECK constraints are only tested on MySQL.');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('users_email_format_check');
 
         DB::table('users')->insert([
@@ -74,7 +75,7 @@ class UserIntegrityTest extends TestCase
             $this->markTestSkipped('Database-level CHECK constraints are only tested on MySQL.');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('users_email_format_check');
 
         DB::table('users')->insert([
@@ -91,7 +92,7 @@ class UserIntegrityTest extends TestCase
             $this->markTestSkipped('Database-level CHECK constraints are only tested on MySQL.');
         }
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('users_email_format_check');
 
         DB::table('users')->insert([

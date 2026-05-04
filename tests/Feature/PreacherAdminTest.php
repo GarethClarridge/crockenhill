@@ -8,10 +8,13 @@ use App\Contracts\SpeakerIdentificationInterface;
 use App\Livewire\Admin\Preachers\CreatePreacher;
 use App\Livewire\Admin\Preachers\EditPreacher;
 use App\Livewire\Admin\Preachers\ListPreachers;
+use App\Livewire\Admin\Sermons\ListSermons;
 use App\Models\Preacher;
+use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Mockery\MockInterface;
@@ -132,10 +135,10 @@ class PreacherAdminTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $needsReview = \App\Models\Sermon::factory()->create(['needs_preacher_review' => true, 'title' => 'Needs Review Sermon', 'date' => now()]);
-        \App\Models\Sermon::factory()->create(['needs_preacher_review' => false, 'title' => 'Fine Sermon', 'date' => now()]);
+        $needsReview = Sermon::factory()->create(['needs_preacher_review' => true, 'title' => 'Needs Review Sermon', 'date' => now()]);
+        Sermon::factory()->create(['needs_preacher_review' => false, 'title' => 'Fine Sermon', 'date' => now()]);
 
-        Livewire::test(\App\Livewire\Admin\Sermons\ListSermons::class)
+        Livewire::test(ListSermons::class)
             ->set('needsReviewFilter', true)
             ->assertSee('Needs Review Sermon')
             ->assertDontSee('Fine Sermon');
@@ -190,7 +193,7 @@ class PreacherAdminTest extends TestCase
         $otherPreacher = Preacher::factory()->create();
         $otherProfile = SpeakerProfile::factory()->create(['preacher_id' => $otherPreacher->id]);
 
-        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $this->expectException(ModelNotFoundException::class);
 
         Livewire::test(EditPreacher::class, ['preacher' => $preacher])
             ->call('recomputeProfile', $otherProfile->id);

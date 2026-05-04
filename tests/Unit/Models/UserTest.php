@@ -7,6 +7,7 @@ namespace Tests\Unit\Models;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Hash;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -81,7 +82,7 @@ class UserTest extends TestCase
         $this->assertIsBool($user->is_admin);
 
         // Testing password cast (hashed)
-        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('password', $user->password));
+        $this->assertTrue(Hash::check('password', $user->password));
     }
 
     #[Test]

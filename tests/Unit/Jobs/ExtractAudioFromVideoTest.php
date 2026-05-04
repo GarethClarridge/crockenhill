@@ -6,6 +6,7 @@ namespace Tests\Unit\Jobs;
 
 use App\Jobs\ExtractAudioFromVideo;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\VideoExtractionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -221,7 +222,7 @@ class ExtractAudioFromVideoTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->video()->cancelled()->create();
 
-        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+        $result = app(MediaProcessingRunTransitionService::class)
             ->markAsFailed($log, 'Audio extraction failed: something went wrong');
 
         $this->assertFalse($result);

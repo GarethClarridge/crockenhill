@@ -7,8 +7,10 @@ namespace Tests\Feature;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
@@ -173,12 +175,12 @@ class AutomatedSermonApiTest extends TestCase
     public function it_handles_processing_service_errors(): void
     {
         // Mock the UnifiedMediaProcessor to throw an exception
-        $mockService = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockService = $this->createMock(UnifiedMediaProcessor::class);
         $mockService->method('process')
             ->with('audio', $this->anything())
             ->willThrowException(new \Exception('Service unavailable'));
 
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockService);
+        $this->app->instance(UnifiedMediaProcessor::class, $mockService);
 
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 
@@ -347,7 +349,7 @@ class AutomatedSermonApiTest extends TestCase
 
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 
-        \Illuminate\Support\Facades\Log::spy();
+        Log::spy();
 
         $response = $this->actingAs($this->user)
             ->postJson('/api/media/audio', [
@@ -356,7 +358,7 @@ class AutomatedSermonApiTest extends TestCase
 
         $response->assertStatus(202);
 
-        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')
+        Log::shouldHaveReceived('info')
             ->with('Media upload initiated', \Mockery::type('array'));
     }
 

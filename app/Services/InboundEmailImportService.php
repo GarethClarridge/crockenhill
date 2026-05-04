@@ -12,6 +12,7 @@ use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 class InboundEmailImportService
@@ -191,7 +192,7 @@ class InboundEmailImportService
 
         $this->markEmailAsProcessed($inboundEmail, $mergeResult->churchService, $reviewedByUserId, $reviewMode);
 
-        \Illuminate\Support\Facades\Log::warning('Church service imported from email (existing)', [
+        Log::warning('Church service imported from email (existing)', [
             'admin_id' => $reviewedByUserId,
             'church_service_id' => $existingService->id,
             'email_id' => $inboundEmail->id,
@@ -242,7 +243,7 @@ class InboundEmailImportService
 
         $this->markEmailAsProcessed($inboundEmail, $churchService, $reviewedByUserId, $reviewMode);
 
-        \Illuminate\Support\Facades\Log::warning('Church service imported from email (new)', [
+        Log::warning('Church service imported from email (new)', [
             'admin_id' => $reviewedByUserId,
             'church_service_id' => $churchService->id,
             'email_id' => $inboundEmail->id,

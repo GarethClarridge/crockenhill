@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\MediaType;
+use App\Exceptions\InvalidFileException;
 use App\Services\MediaValidationService;
+use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -148,7 +150,7 @@ class MediaValidationServiceTest extends TestCase
     {
         $file = $this->createMockUploadedFile('sermon.mp3', 'audio/mpeg', 200 * 1024 * 1024);
 
-        $this->expectException(\App\Exceptions\InvalidFileException::class);
+        $this->expectException(InvalidFileException::class);
         $this->expectExceptionMessage('File size exceeds maximum limit');
 
         $this->service->validateUploadedFile(MediaType::Audio, $file);
@@ -159,7 +161,7 @@ class MediaValidationServiceTest extends TestCase
     {
         $file = $this->createMockUploadedFile('sermon.exe', 'application/octet-stream', 1 * 1024 * 1024);
 
-        $this->expectException(\App\Exceptions\InvalidFileException::class);
+        $this->expectException(InvalidFileException::class);
         $this->expectExceptionMessage('Invalid file type');
 
         $this->service->validateUploadedFile(MediaType::Audio, $file);
@@ -170,7 +172,7 @@ class MediaValidationServiceTest extends TestCase
     {
         $file = $this->createMockUploadedFile('sermon.flac', 'audio/mpeg', 1 * 1024 * 1024);
 
-        $this->expectException(\App\Exceptions\InvalidFileException::class);
+        $this->expectException(InvalidFileException::class);
         $this->expectExceptionMessage('Invalid file extension');
 
         $this->service->validateUploadedFile(MediaType::Audio, $file);
@@ -179,9 +181,9 @@ class MediaValidationServiceTest extends TestCase
     /**
      * Create a partial mock UploadedFile with controlled size/mime/extension/validity.
      */
-    private function createMockUploadedFile(string $name, string $mimeType, int $size): \Illuminate\Http\UploadedFile
+    private function createMockUploadedFile(string $name, string $mimeType, int $size): UploadedFile
     {
-        $file = $this->createMock(\Illuminate\Http\UploadedFile::class);
+        $file = $this->createMock(UploadedFile::class);
         $file->method('isValid')->willReturn(true);
         $file->method('getSize')->willReturn($size);
         $file->method('getMimeType')->willReturn($mimeType);

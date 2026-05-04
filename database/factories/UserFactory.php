@@ -25,7 +25,7 @@ class UserFactory extends Factory
     /**
      * Indicate that the user is an administrator.
      *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     * @return Factory
      */
     public function admin()
     {

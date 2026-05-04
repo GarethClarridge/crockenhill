@@ -6,6 +6,7 @@ namespace Tests\Unit\Models;
 
 use App\Enums\PageArea;
 use App\Models\Page;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -25,13 +26,13 @@ class PageTest extends TestCase
     public function page_accessors()
     {
         // Test getRouteAttribute
-        $page1 = \App\Models\Page::factory()->create([
+        $page1 = Page::factory()->create([
             'area' => PageArea::Christ->value,
             'slug' => 'about-us',
         ]);
         $this->assertEquals('/christ/about-us', $page1->route);
 
-        $page2 = \App\Models\Page::factory()->create([
+        $page2 = Page::factory()->create([
             'area' => PageArea::Community->value,
             'slug' => 'events',
         ]);
@@ -50,29 +51,29 @@ class PageTest extends TestCase
     public function page_mutators_and_casts()
     {
         // Test 'navigation' attribute casting to boolean
-        $pageNavTrue = \App\Models\Page::factory()->create(['navigation' => 1]);
+        $pageNavTrue = Page::factory()->create(['navigation' => 1]);
         $this->assertTrue($pageNavTrue->navigation);
 
-        $pageNavFalse = \App\Models\Page::factory()->create(['navigation' => 0]);
+        $pageNavFalse = Page::factory()->create(['navigation' => 0]);
         $this->assertFalse($pageNavFalse->navigation);
 
         // Test with actual boolean values from factory state
-        $pageNavTrueFromState = \App\Models\Page::factory()->isNavigation(true)->create();
+        $pageNavTrueFromState = Page::factory()->isNavigation(true)->create();
         $this->assertTrue($pageNavTrueFromState->navigation);
 
-        $pageNavFalseFromState = \App\Models\Page::factory()->isNavigation(false)->create();
+        $pageNavFalseFromState = Page::factory()->isNavigation(false)->create();
         $this->assertFalse($pageNavFalseFromState->navigation);
 
         // Test with factory's default random boolean
-        $pageFromFactory = \App\Models\Page::factory()->create();
+        $pageFromFactory = Page::factory()->create();
         $this->assertIsBool($pageFromFactory->navigation);
     }
 
     #[Test]
     public function page_admin_visibility_helper_reflects_the_legacy_enum_value(): void
     {
-        $adminOnlyPage = \App\Models\Page::factory()->create(['admin' => 'yes']);
-        $publicPage = \App\Models\Page::factory()->create(['admin' => 'no']);
+        $adminOnlyPage = Page::factory()->create(['admin' => 'yes']);
+        $publicPage = Page::factory()->create(['admin' => 'no']);
 
         $this->assertTrue($adminOnlyPage->isAdminOnly());
         $this->assertFalse($publicPage->isAdminOnly());
@@ -81,31 +82,31 @@ class PageTest extends TestCase
     #[Test]
     public function page_scopes()
     {
-        \App\Models\Page::query()->delete(); // Clear pages before this test
+        Page::query()->delete(); // Clear pages before this test
 
         // Test inArea() scope
-        $pageInChrist = \App\Models\Page::factory()->inArea(PageArea::Christ)->create(['navigation' => false]);
-        $pageInCommunity = \App\Models\Page::factory()->inArea(PageArea::Community)->create(['navigation' => false]);
-        $pageInChurch = \App\Models\Page::factory()->inArea(PageArea::Church)->create(['navigation' => false]);
+        $pageInChrist = Page::factory()->inArea(PageArea::Christ)->create(['navigation' => false]);
+        $pageInCommunity = Page::factory()->inArea(PageArea::Community)->create(['navigation' => false]);
+        $pageInChurch = Page::factory()->inArea(PageArea::Church)->create(['navigation' => false]);
 
-        $christPages = \App\Models\Page::inArea(PageArea::Christ)->get();
+        $christPages = Page::inArea(PageArea::Christ)->get();
         $this->assertCount(1, $christPages);
         $this->assertTrue($christPages->contains($pageInChrist));
         $this->assertFalse($christPages->contains($pageInCommunity));
         $this->assertFalse($christPages->contains($pageInChurch));
 
-        $communityPages = \App\Models\Page::inArea(PageArea::Community)->get();
+        $communityPages = Page::inArea(PageArea::Community)->get();
         $this->assertCount(1, $communityPages);
         $this->assertTrue($communityPages->contains($pageInCommunity));
         $this->assertFalse($communityPages->contains($pageInChrist));
 
         // Test isNavigation() scope
-        $navPage1 = \App\Models\Page::factory()->isNavigation()->create(); // navigation = true
-        $navPage2 = \App\Models\Page::factory()->isNavigation(true)->create(); // navigation = true
-        $nonNavPage1 = \App\Models\Page::factory()->isNotNavigation()->create(); // navigation = false
-        $nonNavPage2 = \App\Models\Page::factory()->isNavigation(false)->create(); // navigation = false
+        $navPage1 = Page::factory()->isNavigation()->create(); // navigation = true
+        $navPage2 = Page::factory()->isNavigation(true)->create(); // navigation = true
+        $nonNavPage1 = Page::factory()->isNotNavigation()->create(); // navigation = false
+        $nonNavPage2 = Page::factory()->isNavigation(false)->create(); // navigation = false
 
-        $navigationPages = \App\Models\Page::isNavigation()->get();
+        $navigationPages = Page::isNavigation()->get();
         $this->assertCount(2, $navigationPages);
         $this->assertTrue($navigationPages->contains($navPage1));
         $this->assertTrue($navigationPages->contains($navPage2));
@@ -119,7 +120,7 @@ class PageTest extends TestCase
         // This test specifically ensures that the PageController show method
         // can handle string parameters without throwing type errors
 
-        $page = \App\Models\Page::factory()->create([
+        $page = Page::factory()->create([
             'area' => PageArea::Christ->value,
             'slug' => 'test-slug',
             'heading' => 'Test Page',
@@ -143,7 +144,7 @@ class PageTest extends TestCase
     public function page_controller_show_method_returns_correct_data_structure()
     {
         // Test that the show method returns the expected data structure
-        $page = \App\Models\Page::factory()->create([
+        $page = Page::factory()->create([
             'area' => PageArea::Church->value,
             'slug' => 'about',
             'heading' => 'About Us',
@@ -187,7 +188,7 @@ This is about us.';
     public function page_controller_show_method_handles_missing_pages_gracefully()
     {
         // Test that the show method handles missing pages correctly
-        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $this->expectException(ModelNotFoundException::class);
 
         // This should throw a ModelNotFoundException
         Page::where('slug', 'nonexistent')

@@ -11,6 +11,7 @@ use App\Services\PublicPageVisibilityGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\RedirectResponse;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class PublicPageVisibilityGuardTest extends TestCase
@@ -49,7 +50,7 @@ class PublicPageVisibilityGuardTest extends TestCase
     {
         $page = Page::factory()->admin()->create();
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
 
         $this->guard->enforce($page);
     }
@@ -62,7 +63,7 @@ class PublicPageVisibilityGuardTest extends TestCase
 
         $page = Page::factory()->admin()->create();
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
 
         $this->guard->enforce($page);
     }
