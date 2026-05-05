@@ -80,8 +80,10 @@ class SermonSitemapPresenterTest extends TestCase
         $this->assertCount(1, $tag->videos);
         $this->assertCount(1, $tag->images);
         $this->assertEquals('Presenter Test Sermon', $tag->videos[0]->title);
-        $this->assertEquals('A test summary.', $tag->videos[0]->description);
+        $this->assertStringContainsString('Presenter Test Sermon', $tag->videos[0]->description);
+        $this->assertStringContainsString('A test summary.', $tag->videos[0]->description);
         $this->assertEquals(1800, $tag->videos[0]->options['duration']);
+        $this->assertEquals($sermon->date->toIso8601String(), $tag->videos[0]->options['publication_date']->toIso8601String());
     }
 
     #[Test]
@@ -125,7 +127,7 @@ class SermonSitemapPresenterTest extends TestCase
     }
 
     #[Test]
-    public function sermon_without_summary_falls_back_to_title_for_video_description(): void
+    public function sermon_without_summary_uses_presenter_meta_description_for_video_description(): void
     {
         Storage::fake('public');
         Storage::fake('sermons');
@@ -145,7 +147,7 @@ class SermonSitemapPresenterTest extends TestCase
         $tag = $this->presenter->toSitemapTag($sermon);
 
         $this->assertCount(1, $tag->videos);
-        $this->assertEquals('No Summary Sermon', $tag->videos[0]->description);
+        $this->assertStringContainsString('No Summary Sermon', $tag->videos[0]->description);
     }
 
     #[Test]
