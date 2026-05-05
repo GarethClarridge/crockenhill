@@ -36,9 +36,11 @@ class SubmitEmailText extends Component
      */
     protected function rules(): array
     {
+        $modelRules = InboundEmail::validationRules();
+
         return [
-            'from' => ['nullable', 'string', 'max:255'],
-            'subject' => ['nullable', 'string', 'max:255'],
+            'from' => ['nullable', ...$modelRules['from']],
+            'subject' => ['nullable', ...$modelRules['subject']],
             'bodyPlain' => ['required', 'string', 'min:20', 'max:50000'],
         ];
     }
@@ -71,7 +73,7 @@ class SubmitEmailText extends Component
             'body_plain' => $this->bodyPlain,
             'body_html' => null,
             'received_at' => now(),
-            'status' => InboundEmailStatus::Pending,
+            'status' => InboundEmailStatus::Pending->value,
         ]);
 
         ProcessInboundOosEmail::dispatch($inboundEmail);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\InboundEmail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -26,12 +27,14 @@ class StoreMailgunInboundEmailRequest extends FormRequest
      */
     public function rules(): array
     {
+        $modelRules = InboundEmail::validationRules();
+
         return [
             'timestamp' => ['required', 'string', 'max:50'],
             'token' => ['required', 'string', 'max:100'],
             'signature' => ['required', 'string', 'max:128'],
-            'from' => ['required', 'string', 'max:255'],
-            'subject' => ['required', 'string', 'max:255'],
+            'from' => $modelRules['from'],
+            'subject' => $modelRules['subject'],
             'Message-Id' => ['nullable', 'string', 'max:512'],
             'message-headers' => ['nullable', 'string', 'max:100000'],
             'body-plain' => ['nullable', 'string', 'max:500000'],

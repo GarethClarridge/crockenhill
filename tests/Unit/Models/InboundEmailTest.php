@@ -69,4 +69,72 @@ class InboundEmailTest extends TestCase
             $this->assertEquals($value, $email->{$key});
         }
     }
+
+    #[Test]
+    public function it_trims_from_and_subject(): void
+    {
+        $email = new InboundEmail([
+            'message_id' => '<trim@example.com>',
+            'from' => '  Sender <sender@example.com>  ',
+            'subject' => '  Test Subject  ',
+            'received_at' => now(),
+            'status' => InboundEmailStatus::Pending,
+        ]);
+
+        $email->save();
+
+        $this->assertEquals('Sender <sender@example.com>', $email->from);
+        $this->assertEquals('Test Subject', $email->subject);
+    }
+
+    #[Test]
+    public function it_database_rejects_empty_from(): void
+    {
+        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectExceptionMessage('inbound_emails_from_format_check');
+
+        \Illuminate\Support\Facades\DB::table('inbound_emails')->insert([
+            'message_id' => '<empty-from@example.com>',
+            'from' => '',
+            'subject' => 'Subject',
+            'received_at' => now(),
+            'status' => InboundEmailStatus::Pending->value,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    #[Test]
+    public function it_database_rejects_untrimmed_from(): void
+    {
+        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectExceptionMessage('inbound_emails_from_format_check');
+
+        \Illuminate\Support\Facades\DB::table('inbound_emails')->insert([
+            'message_id' => '<untrimmed-from@example.com>',
+            'from' => '  untrimmed  ',
+            'subject' => 'Subject',
+            'received_at' => now(),
+            'status' => InboundEmailStatus::Pending->value,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    #[Test]
+    public function it_database_rejects_empty_subject(): void
+    {
+        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectExceptionMessage('inbound_emails_subject_format_check');
+
+        \Illuminate\Support\Facades\DB::table('inbound_emails')->insert([
+            'message_id' => '<empty-subject@example.com>',
+            'from' => 'Sender',
+            'subject' => '',
+            'received_at' => now(),
+            'status' => InboundEmailStatus::Pending->value,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
 }

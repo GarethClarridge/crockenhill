@@ -7,9 +7,11 @@ namespace App\Models;
 use App\Enums\InboundEmailStatus;
 use Database\Factories\InboundEmailFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -59,6 +61,48 @@ class InboundEmail extends Model
             'received_at' => 'datetime',
             'status' => InboundEmailStatus::class,
             'processing_metadata' => 'array',
+        ];
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function from(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function subject(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return array<string, list<string|\Illuminate\Validation\Rules\Unique|\Illuminate\Validation\Rules\Enum>>
+     */
+    public static function validationRules(?self $inboundEmail = null): array
+    {
+        $uniqueMessageId = Rule::unique('inbound_emails', 'message_id');
+
+        if ($inboundEmail) {
+            $uniqueMessageId->ignore($inboundEmail->id);
+        }
+
+        return [
+            'message_id' => ['required', 'string', 'max:512', $uniqueMessageId],
+            'from' => ['required', 'string', 'max:255'],
+            'subject' => ['required', 'string', 'max:255'],
+            'body_plain' => ['nullable', 'string'],
+            'body_html' => ['nullable', 'string'],
+            'received_at' => ['required', 'date'],
+            'status' => ['required', Rule::enum(InboundEmailStatus::class)],
         ];
     }
 }
