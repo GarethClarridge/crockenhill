@@ -14,6 +14,9 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+/**
+ * @property-read string $seoTitle
+ */
 class BrowseSongs extends Component
 {
     use WithPagination;
@@ -38,7 +41,7 @@ class BrowseSongs extends Component
     public function seoTitle(): string
     {
         if ($this->search) {
-            return "Search: {$this->search}";
+            return "Search: {$this->search} | Songs";
         }
 
         return $this->range === PublicSongCatalogService::RANGE_RECENT
