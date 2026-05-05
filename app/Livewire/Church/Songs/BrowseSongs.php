@@ -9,6 +9,7 @@ use App\Services\PublicSongCatalogService;
 use App\Services\SongLyricSnippetBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -31,6 +32,18 @@ class BrowseSongs extends Component
     public function updatedRange(): void
     {
         $this->resetPage();
+    }
+
+    #[Computed]
+    public function seoTitle(): string
+    {
+        if ($this->search) {
+            return "Search: {$this->search}";
+        }
+
+        return $this->range === PublicSongCatalogService::RANGE_RECENT
+            ? 'Recent Songs'
+            : 'All Songs';
     }
 
     public function render(PublicSongCatalogService $catalogService, SongLyricSnippetBuilder $snippetBuilder): View
