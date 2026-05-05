@@ -83,7 +83,7 @@ class SermonSitemapPresenterTest extends TestCase
         $this->assertStringContainsString('Presenter Test Sermon', $tag->videos[0]->description);
         $this->assertStringContainsString('A test summary.', $tag->videos[0]->description);
         $this->assertEquals(1800, $tag->videos[0]->options['duration']);
-        $this->assertEquals($sermon->date->toIso8601String(), $tag->videos[0]->options['publication_date']->toIso8601String());
+        $this->assertEquals($sermon->date->toIso8601String(), $tag->videos[0]->options['publication_date']);
     }
 
     #[Test]

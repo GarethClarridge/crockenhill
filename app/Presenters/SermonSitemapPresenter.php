@@ -55,7 +55,7 @@ class SermonSitemapPresenter
 
         if ($videoUrl !== null && $thumbnailUrl !== null) {
             $videoOptions = [
-                'publication_date' => $sermon->date,
+                'publication_date' => $sermon->date->toIso8601String(),
             ];
             if ($sermon->duration && $sermon->duration > 0) {
                 $videoOptions['duration'] = (int) $sermon->duration;
