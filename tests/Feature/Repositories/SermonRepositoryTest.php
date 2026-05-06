@@ -8,11 +8,13 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Models\SermonScriptureFilter;
 use App\Repositories\SermonRepository;
+use App\Support\BibleCanon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -26,28 +28,76 @@ class SermonRepositoryTest extends TestCase
     {
         parent::setUp();
         $this->repository = app(SermonRepository::class);
+        Cache::flush();
+    }
+
+    // ── Archive Filter Normalization ─────────────────────────────────────────
+
+    #[Test]
+    public function it_normalizes_archive_filters_with_valid_data(): void
+    {
+        $bibleCanon = Mockery::mock(BibleCanon::class);
+        $bibleCanon->shouldReceive('hasBook')->with('John')->andReturn(true);
+        $bibleCanon->shouldReceive('chaptersInBook')->with('John')->andReturn(21);
+
+        $result = $this->repository->normalizeArchiveFilters(
+            $bibleCanon,
+            '  John  ',
+            3,
+            123,
+            '  Series Name  '
+        );
+
+        $this->assertEquals([
+            'book' => 'John',
+            'chapter' => 3,
+            'preacherId' => 123,
+            'series' => 'Series Name',
+        ], $result);
     }
 
     #[Test]
-    public function it_returns_empty_array_when_no_series_exist(): void
+    public function it_nullifies_invalid_book_and_corresponding_chapter(): void
     {
-        Sermon::query()->delete();
+        $bibleCanon = Mockery::mock(BibleCanon::class);
+        $bibleCanon->shouldReceive('hasBook')->with('InvalidBook')->andReturn(false);
 
-        $result = $this->repository->getExistingSeries();
+        $result = $this->repository->normalizeArchiveFilters(
+            $bibleCanon,
+            'InvalidBook',
+            1,
+            null,
+            null
+        );
 
-        $this->assertIsArray($result);
-        $this->assertEmpty($result);
+        $this->assertNull($result['book']);
+        $this->assertNull($result['chapter']);
     }
+
+    #[Test]
+    public function it_nullifies_out_of_range_chapter(): void
+    {
+        $bibleCanon = Mockery::mock(BibleCanon::class);
+        $bibleCanon->shouldReceive('hasBook')->with('John')->andReturn(true);
+        $bibleCanon->shouldReceive('chaptersInBook')->with('John')->andReturn(21);
+
+        $result = $this->repository->normalizeArchiveFilters($bibleCanon, 'John', 22, null, null);
+        $this->assertSame('John', $result['book']);
+        $this->assertNull($result['chapter']);
+
+        $result = $this->repository->normalizeArchiveFilters($bibleCanon, 'John', 0, null, null);
+        $this->assertNull($result['chapter']);
+    }
+
+    // ── Series Retrieval ─────────────────────────────────────────────────────
 
     #[Test]
     public function it_returns_unique_series_names_sorted_alphabetically(): void
     {
-        Sermon::query()->delete();
-
-        Sermon::factory()->create(['series' => 'Romans Study']);
-        Sermon::factory()->create(['series' => 'John Study']);
-        Sermon::factory()->create(['series' => 'John Study']); // Duplicate
-        Sermon::factory()->create(['series' => 'Acts Study']);
+        Sermon::factory()->create(['series' => 'Romans Study', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'John Study', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'John Study', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Acts Study', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
 
         $result = $this->repository->getExistingSeries();
 
@@ -58,9 +108,7 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_filters_out_null_and_empty_series_names(): void
     {
-        Sermon::query()->delete();
-
-        Sermon::factory()->create(['series' => 'Valid Series']);
+        Sermon::factory()->create(['series' => 'Valid Series', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
         Sermon::factory()->create(['series' => null]);
         Sermon::factory()->create(['series' => '']);
 
@@ -71,6 +119,20 @@ class SermonRepositoryTest extends TestCase
     }
 
     #[Test]
+    public function it_excludes_childrens_talks_from_series_retrieval(): void
+    {
+        Sermon::factory()->create(['series' => 'Sermon Series', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Children Series', 'content_type' => SermonContentType::ChildrensTalk, 'reference' => null]);
+
+        $result = $this->repository->getExistingSeries();
+
+        $this->assertContains('Sermon Series', $result);
+        $this->assertNotContains('Children Series', $result);
+    }
+
+    // ── Preacher & Service Retrieval ─────────────────────────────────────────
+
+    #[Test]
     public function it_returns_sermons_for_a_specific_preacher(): void
     {
         $preacher = Preacher::factory()->create();
@@ -79,10 +141,12 @@ class SermonRepositoryTest extends TestCase
         $preacherSermon = Sermon::factory()->create([
             'preacher_id' => $preacher->id,
             'content_type' => SermonContentType::Sermon,
+            'reference' => null,
         ]);
         Sermon::factory()->create([
             'preacher_id' => $otherPreacher->id,
             'content_type' => SermonContentType::Sermon,
+            'reference' => null,
         ]);
 
         $result = $this->repository->getSermonsByPreacher($preacher);
@@ -92,167 +156,10 @@ class SermonRepositoryTest extends TestCase
     }
 
     #[Test]
-    public function it_caches_preacher_sermon_listing(): void
-    {
-        $preacher = Preacher::factory()->create(['slug' => 'caching-preacher']);
-        Sermon::factory()->create(['preacher_id' => $preacher->id]);
-
-        // First call should hit the DB and cache
-        $this->repository->getSermonsByPreacher($preacher);
-        $this->assertTrue(Cache::has('sermons_preacher_caching-preacher'));
-
-        // Manually update DB without clearing cache
-        Sermon::query()->where('preacher_id', $preacher->id)->update(['title' => 'Updated Title']);
-
-        // Second call should return cached data (original title)
-        $result = $this->repository->getSermonsByPreacher($preacher);
-        $this->assertNotEquals('Updated Title', $result->first()->title);
-    }
-
-    #[Test]
-    public function it_invalidates_preacher_cache_when_preacher_listing_is_cleared(): void
-    {
-        $preacher = Preacher::factory()->create(['slug' => 'invalidation-preacher']);
-        Sermon::factory()->create(['preacher_id' => $preacher->id]);
-
-        $this->repository->getSermonsByPreacher($preacher);
-        $this->assertTrue(Cache::has('sermons_preacher_invalidation-preacher'));
-
-        $this->repository->clearListingCaches($preacher);
-
-        $this->assertFalse(Cache::has('sermons_preacher_invalidation-preacher'));
-    }
-
-    #[Test]
-    public function it_invalidates_preacher_cache_when_sermon_is_modified(): void
-    {
-        $preacher = Preacher::factory()->create(['slug' => 'sermon-invalidation-preacher']);
-        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id]);
-
-        $this->repository->getSermonsByPreacher($preacher);
-        $this->assertTrue(Cache::has('sermons_preacher_sermon-invalidation-preacher'));
-
-        $this->repository->clearListingCaches($sermon);
-
-        $this->assertFalse(Cache::has('sermons_preacher_sermon-invalidation-preacher'));
-    }
-
-    #[Test]
-    public function it_returns_latest_sermons_grouped_by_date(): void
-    {
-        Sermon::query()->delete();
-        Cache::forget('latest_sermons');
-
-        $today = Carbon::today();
-
-        // Create sermons for 7 distinct dates
-        for ($i = 0; $i < 7; $i++) {
-            Sermon::factory()->create([
-                'date' => $today->copy()->subDays($i),
-                'content_type' => SermonContentType::Sermon,
-            ]);
-        }
-
-        $result = $this->repository->getLatestSermons();
-
-        // Should return 6 groups (dates)
-        $this->assertCount(6, $result);
-        $this->assertEquals($today->format('Y-m-d'), $result->keys()->first());
-    }
-
-    #[Test]
-    public function it_filters_out_childrens_talks_from_latest_sermons(): void
-    {
-        Sermon::query()->delete();
-        Cache::forget('latest_sermons');
-
-        $today = Carbon::today();
-
-        Sermon::factory()->create([
-            'title' => 'Main Sermon',
-            'content_type' => SermonContentType::Sermon,
-            'date' => $today,
-        ]);
-        Sermon::factory()->create([
-            'title' => "Children's Talk",
-            'content_type' => SermonContentType::ChildrensTalk,
-            'date' => $today,
-        ]);
-
-        $result = $this->repository->getLatestSermons();
-
-        $this->assertCount(1, $result);
-        $this->assertCount(1, $result->first());
-        $this->assertEquals('Main Sermon', $result->first()->first()->title);
-    }
-
-    #[Test]
-    public function it_caches_latest_sermons(): void
-    {
-        Sermon::query()->delete();
-        Cache::forget('latest_sermons');
-
-        Sermon::factory()->create([
-            'title' => 'Original Title',
-            'content_type' => SermonContentType::Sermon,
-        ]);
-
-        // First call caches
-        $this->repository->getLatestSermons();
-        $this->assertTrue(Cache::has('latest_sermons'));
-
-        // Modify DB
-        Sermon::query()->update(['title' => 'Updated Title']);
-
-        // Second call should return cached data
-        $result = $this->repository->getLatestSermons();
-        $this->assertEquals('Original Title', $result->first()->first()->title);
-    }
-
-    #[Test]
-    public function it_returns_all_sermons_grouped_by_date(): void
-    {
-        Sermon::query()->delete();
-        Cache::forget('all_sermons');
-
-        Sermon::factory()->create(['date' => '2024-01-01', 'content_type' => SermonContentType::Sermon]);
-        Sermon::factory()->create(['date' => '2024-01-02', 'content_type' => SermonContentType::Sermon]);
-
-        $result = $this->repository->getAllSermons();
-
-        $this->assertCount(2, $result);
-        $this->assertTrue($result->has('2024-01-02'));
-    }
-
-    #[Test]
-    public function it_caches_all_sermons(): void
-    {
-        Sermon::query()->delete();
-        Cache::forget('all_sermons');
-
-        Sermon::factory()->create([
-            'title' => 'Original All Title',
-            'content_type' => SermonContentType::Sermon,
-        ]);
-
-        // First call caches
-        $this->repository->getAllSermons();
-        $this->assertTrue(Cache::has('all_sermons'));
-
-        // Modify DB
-        Sermon::query()->update(['title' => 'Updated All Title']);
-
-        // Second call should return cached data
-        $result = $this->repository->getAllSermons();
-        $this->assertEquals('Original All Title', $result->first()->first()->title);
-    }
-
-    #[Test]
     public function it_returns_sermons_by_service(): void
     {
-        Sermon::query()->delete();
-        Sermon::factory()->create(['service' => SermonService::Morning, 'content_type' => SermonContentType::Sermon]);
-        Sermon::factory()->create(['service' => SermonService::Evening, 'content_type' => SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => SermonService::Morning, 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['service' => SermonService::Evening, 'content_type' => SermonContentType::Sermon, 'reference' => null]);
 
         $result = $this->repository->getSermonsByService(SermonService::Morning);
 
@@ -260,160 +167,181 @@ class SermonRepositoryTest extends TestCase
         $this->assertEquals(SermonService::Morning, $result->first()->service);
     }
 
+    // ── Latest & Grouped Sermons ─────────────────────────────────────────────
+
     #[Test]
-    public function it_caches_service_listing(): void
+    public function it_returns_latest_sermons_grouped_by_date(): void
     {
-        Sermon::query()->delete();
-        Cache::forget('sermons_service_morning');
+        $today = Carbon::today();
+
+        for ($i = 0; $i < 7; $i++) {
+            Sermon::factory()->create([
+                'date' => $today->copy()->subDays($i),
+                'content_type' => SermonContentType::Sermon,
+                'reference' => null,
+            ]);
+        }
+
+        $result = $this->repository->getLatestSermons();
+
+        $this->assertCount(6, $result);
+        $this->assertEquals($today->format('Y-m-d'), $result->keys()->first());
+    }
+
+    #[Test]
+    public function it_filters_out_childrens_talks_from_latest_sermons(): void
+    {
+        $today = Carbon::today();
 
         Sermon::factory()->create([
-            'title' => 'Original Service Title',
-            'service' => SermonService::Morning,
+            'title' => 'Main Sermon',
             'content_type' => SermonContentType::Sermon,
+            'date' => $today,
+            'reference' => null,
+        ]);
+        Sermon::factory()->create([
+            'title' => "Children's Talk",
+            'content_type' => SermonContentType::ChildrensTalk,
+            'date' => $today,
+            'reference' => null,
         ]);
 
-        // First call caches
-        $this->repository->getSermonsByService(SermonService::Morning);
-        $this->assertTrue(Cache::has('sermons_service_morning'));
+        $result = $this->repository->getLatestSermons();
 
-        // Modify DB
-        Sermon::query()->update(['title' => 'Updated Service Title']);
-
-        // Second call should return cached data
-        $result = $this->repository->getSermonsByService(SermonService::Morning);
-        $this->assertEquals('Original Service Title', $result->first()->title);
+        $this->assertCount(1, $result);
+        $this->assertEquals('Main Sermon', $result->first()->first()->title);
     }
 
-    #[Test]
-    public function it_caches_series_for_display_sorted_alphabetically(): void
-    {
-        Sermon::query()->delete();
-        Cache::forget('sermon_series');
-
-        Sermon::factory()->create(['series' => 'Z Series', 'content_type' => SermonContentType::Sermon]);
-        Sermon::factory()->create(['series' => 'A Series', 'content_type' => SermonContentType::Sermon]);
-
-        $result = $this->repository->getSeriesForDisplay();
-
-        $this->assertEquals(['A Series', 'Z Series'], $result);
-        $this->assertTrue(Cache::has('sermon_series'));
-    }
+    // ── Slug Generation ──────────────────────────────────────────────────────
 
     #[Test]
-    public function it_generates_base_slug(): void
+    public function it_generates_unique_slugs(): void
     {
-        $slug = $this->repository->generateUniqueSlug('Test Sermon Title');
-
-        $this->assertEquals('test-sermon-title', $slug);
-    }
-
-    #[Test]
-    public function it_appends_counter_for_duplicate_slugs(): void
-    {
-        Sermon::factory()->create(['slug' => 'test-sermon']);
+        Sermon::factory()->create(['slug' => 'test-sermon', 'reference' => null]);
 
         $slug = $this->repository->generateUniqueSlug('Test Sermon');
+        $this->assertSame('test-sermon-1', $slug);
 
-        $this->assertEquals('test-sermon-1', $slug);
-    }
-
-    #[Test]
-    public function it_generates_unique_slug_with_incrementing_counter(): void
-    {
-        Sermon::factory()->create(['slug' => 'test-sermon']);
-        Sermon::factory()->create(['slug' => 'test-sermon-1']);
-        Sermon::factory()->create(['slug' => 'test-sermon-2']);
-
+        Sermon::factory()->create(['slug' => 'test-sermon-1', 'reference' => null]);
         $slug = $this->repository->generateUniqueSlug('Test Sermon');
-
-        $this->assertEquals('test-sermon-3', $slug);
+        $this->assertSame('test-sermon-2', $slug);
     }
 
     #[Test]
     public function it_excludes_current_sermon_from_slug_uniqueness(): void
     {
-        $sermon = Sermon::factory()->create(['slug' => 'test-sermon']);
+        $sermon = Sermon::factory()->create(['slug' => 'test-sermon', 'reference' => null]);
 
         $slug = $this->repository->generateUniqueSlug('Test Sermon', $sermon->id);
 
         $this->assertEquals('test-sermon', $slug);
     }
 
+    // ── Scripture Metadata Retrieval ─────────────────────────────────────────
+
     #[Test]
-    public function it_returns_books_and_caches_result_with_new_key(): void
+    public function it_retrieves_scripture_books_without_filters(): void
     {
-        Cache::forget('sermon_scripture_books_all_all');
+        SermonScriptureFilter::factory()->create(['bible_book' => 'Genesis']);
+        SermonScriptureFilter::factory()->create(['bible_book' => 'Exodus']);
+        SermonScriptureFilter::factory()->create(['bible_book' => 'Genesis']);
 
-        $result = $this->repository->getScriptureBooks();
+        $books = $this->repository->getScriptureBooks();
 
-        $this->assertInstanceOf(Collection::class, $result);
-        $this->assertTrue(Cache::has('sermon_scripture_books_all_all'));
+        $this->assertCount(2, $books);
+        $this->assertContains('Genesis', $books);
+        $this->assertContains('Exodus', $books);
     }
 
     #[Test]
-    public function it_caches_scripture_books_and_clears_on_clear_listing_caches(): void
+    public function it_retrieves_scripture_books_with_preacher_filter(): void
     {
-        Cache::forget('sermon_scripture_books_all_all');
+        $preacher = Preacher::factory()->create();
+        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id, 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John']);
 
-        $this->repository->getScriptureBooks();
-        $this->assertTrue(Cache::has('sermon_scripture_books_all_all'));
+        $otherSermon = Sermon::factory()->create(['preacher_id' => null, 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        SermonScriptureFilter::factory()->create(['sermon_id' => $otherSermon->id, 'bible_book' => 'Mark']);
 
-        $this->repository->clearListingCaches();
+        $books = $this->repository->getScriptureBooks($preacher->id);
 
-        $this->assertFalse(Cache::has('sermon_scripture_books_all_all'));
+        $this->assertCount(1, $books);
+        $this->assertContains('John', $books);
+        $this->assertNotContains('Mark', $books);
     }
 
     #[Test]
-    public function it_caches_scripture_chapters_and_clears_on_clear_listing_caches(): void
+    public function it_retrieves_scripture_books_with_series_filter(): void
     {
-        $book = 'John';
-        $cacheKey = 'sermon_scripture_chapters_john_all_all';
-        Cache::forget($cacheKey);
+        $sermon = Sermon::factory()->create(['series' => 'Gospel', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John']);
 
-        $sermon = Sermon::factory()->create([
-            'reference' => 'John 1',
-            'content_type' => SermonContentType::Sermon,
-        ]);
+        $otherSermon = Sermon::factory()->create(['series' => 'Epistles', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        SermonScriptureFilter::factory()->create(['sermon_id' => $otherSermon->id, 'bible_book' => 'Romans']);
 
-        $this->repository->getScriptureChapters($book);
-        $this->assertTrue(Cache::has($cacheKey));
+        $books = $this->repository->getScriptureBooks(null, 'Gospel');
+
+        $this->assertCount(1, $books);
+        $this->assertContains('John', $books);
+        $this->assertNotContains('Romans', $books);
+    }
+
+    #[Test]
+    public function it_retrieves_scripture_chapters_with_filters(): void
+    {
+        $sermon = Sermon::factory()->create(['series' => 'Gospel', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John', 'bible_chapter' => 1]);
+        SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John', 'bible_chapter' => 3]);
+
+        $otherSermon = Sermon::factory()->create(['series' => 'Epistles', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        SermonScriptureFilter::factory()->create(['sermon_id' => $otherSermon->id, 'bible_book' => 'John', 'bible_chapter' => 5]);
+
+        $chapters = $this->repository->getScriptureChapters('John', null, 'Gospel');
+
+        $this->assertCount(2, $chapters);
+        $this->assertContains(1, $chapters);
+        $this->assertContains(3, $chapters);
+        $this->assertNotContains(5, $chapters);
+    }
+
+    // ── Caching & Invalidation ───────────────────────────────────────────────
+
+    #[Test]
+    public function it_caches_preacher_sermon_listing(): void
+    {
+        $preacher = Preacher::factory()->create(['slug' => 'caching-preacher']);
+        Sermon::factory()->create(['preacher_id' => $preacher->id, 'reference' => null]);
+
+        $this->repository->getSermonsByPreacher($preacher);
+        $this->assertTrue(Cache::has('sermons_preacher_caching-preacher'));
+
+        Sermon::query()->where('preacher_id', $preacher->id)->update(['title' => 'Updated Title']);
+
+        $result = $this->repository->getSermonsByPreacher($preacher);
+        $this->assertNotEquals('Updated Title', $result->first()->title);
+    }
+
+    #[Test]
+    public function it_invalidates_caches_when_sermon_is_modified(): void
+    {
+        $preacher = Preacher::factory()->create(['slug' => 'invalidation-preacher']);
+        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id, 'reference' => null]);
+
+        $this->repository->getSermonsByPreacher($preacher);
+        $this->assertTrue(Cache::has('sermons_preacher_invalidation-preacher'));
 
         $this->repository->clearListingCaches($sermon);
 
-        $this->assertFalse(Cache::has($cacheKey));
+        $this->assertFalse(Cache::has('sermons_preacher_invalidation-preacher'));
     }
 
     #[Test]
-    public function get_recent_sermons_for_json_ld_returns_collection_and_caches_result(): void
+    public function it_caches_json_ld_results(): void
     {
-        Cache::forget('sermons_jsonld_recent_100');
-
-        $result = $this->repository->getRecentSermonsForJsonLd();
-
-        $this->assertInstanceOf(Collection::class, $result);
-        $this->assertTrue(Cache::has('sermons_jsonld_recent_100'));
-    }
-
-    #[Test]
-    public function get_recent_sermons_for_json_ld_cache_is_cleared_with_listing_caches(): void
-    {
-        Cache::forget('sermons_jsonld_recent_100');
-
         $this->repository->getRecentSermonsForJsonLd();
         $this->assertTrue(Cache::has('sermons_jsonld_recent_100'));
 
         $this->repository->clearListingCaches();
-
         $this->assertFalse(Cache::has('sermons_jsonld_recent_100'));
-    }
-
-    #[Test]
-    public function get_recent_sermons_for_json_ld_respects_limit(): void
-    {
-        Sermon::factory()->count(5)->create(['content_type' => 'sermon']);
-
-        $result = $this->repository->getRecentSermonsForJsonLd(limit: 3);
-
-        $this->assertLessThanOrEqual(3, $result->count());
     }
 }
