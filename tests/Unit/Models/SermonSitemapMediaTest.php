@@ -27,7 +27,7 @@ class SermonSitemapMediaTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make([
             'title' => 'Sitemap Media Test Sermon',
-            'summary' => 'This is a test summary for the sitemap.',
+            'meta_description' => 'This is a test meta description for the sitemap.',
             'video_file_path' => 'videos/test-sermon.mp4',
             'thumbnail_file_path' => 'thumbnails/test-sermon.jpg',
             'duration' => 1800,
@@ -35,9 +35,6 @@ class SermonSitemapMediaTest extends TestCase
             'slug' => 'test-sermon',
         ]);
 
-        // hasThumbnail() now trusts the database column, so no physical file is needed
-
-        // Generate the sitemap tag
         $tag = $sermon->toSitemapTag();
 
         $this->assertInstanceOf(Url::class, $tag);
@@ -46,7 +43,7 @@ class SermonSitemapMediaTest extends TestCase
         $this->assertCount(1, $tag->videos);
         $video = $tag->videos[0];
         $this->assertEquals('Sitemap Media Test Sermon', $video->title);
-        $this->assertStringContainsString('This is a test summary for the sitemap.', $video->description);
+        $this->assertEquals('This is a test meta description for the sitemap.', $video->description);
         $this->assertEquals(1800, $video->options['duration']);
         $this->assertStringContainsString('videos/test-sermon.mp4', $video->contentLoc);
         $this->assertStringContainsString('thumbnails/test-sermon.jpg', $video->thumbnailLoc);
