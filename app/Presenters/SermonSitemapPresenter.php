@@ -54,7 +54,9 @@ class SermonSitemapPresenter
         $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
 
         if ($videoUrl !== null && $thumbnailUrl !== null) {
-            $videoOptions = [];
+            $videoOptions = [
+                'publication_date' => $sermon->date->toIso8601String(),
+            ];
             if ($sermon->duration && $sermon->duration > 0) {
                 $videoOptions['duration'] = (int) $sermon->duration;
             }
@@ -62,7 +64,7 @@ class SermonSitemapPresenter
             $url->addVideo(
                 $thumbnailUrl,
                 $sermon->title,
-                $sermon->summary ?? $sermon->title,
+                $this->sermonViewPresenter->metaDescription($sermon),
                 $videoUrl,
                 null,
                 $videoOptions
@@ -72,7 +74,7 @@ class SermonSitemapPresenter
         if ($thumbnailUrl !== null) {
             $url->addImage(
                 $thumbnailUrl,
-                $sermon->meta_description,
+                $this->sermonViewPresenter->metaDescription($sermon),
                 '',
                 $sermon->title
             );

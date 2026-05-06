@@ -51,6 +51,7 @@ class SitemapService
         $this->addMeetings($sitemap);
         $this->addPreachers($sitemap);
         $this->addSeries($sitemap);
+        $this->addBooks($sitemap);
 
         $sitemap->writeToFile($sitemapPath);
 
@@ -63,54 +64,54 @@ class SitemapService
     private function addStaticUrls(Sitemap $sitemap): void
     {
         $sitemap
-            ->add(Url::create('/')
+            ->add(Url::create(route('Home'))
                 ->setPriority(1.0)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
                 ->addImage(asset('/images/homepage/may2024wide.webp'), 'Crockenhill Baptist Church'))
-            ->add(Url::create('/christ')
+            ->add(Url::create(route('christ'))
                 ->setPriority(0.9)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
                 ->addImage(asset('/images/homepage/may2024wide.webp'), 'Learn about Jesus Christ at Crockenhill Baptist Church'))
-            ->add(Url::create('/christmas')
+            ->add(Url::create(route('christmas'))
                 ->setPriority(0.8)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
                 ->addImage(asset('/images/homepage/christmas2023.webp'), 'Christmas at Crockenhill Baptist Church'))
-            ->add(Url::create('/church')
+            ->add(Url::create(route('church'))
                 ->setPriority(0.9)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
                 ->addImage(asset('/images/homepage/may2024wide.webp'), 'About Crockenhill Baptist Church'))
-            ->add(Url::create('/community')
+            ->add(Url::create(route('community'))
                 ->setPriority(0.9)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
                 ->addImage(asset('/images/homepage/may2024wide.webp'), 'Community activities at Crockenhill Baptist Church'))
-            ->add(Url::create('/calendar')
+            ->add(Url::create(route('calendar.index'))
                 ->setPriority(0.5)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
                 ->addImage(asset('/images/homepage/may2024wide.webp'), 'Church Calendar'))
-            ->add(Url::create('/christ/sermons')
+            ->add(Url::create(route('sermons.index'))
                 ->setPriority(0.8)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
                 ->addImage(asset('/images/headings/large/sermons.webp'), 'Sermons at Crockenhill Baptist Church'))
-            ->add(Url::create('/christ/sermons/preachers')
+            ->add(Url::create(route('sermons.preachers'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
                 ->addImage(asset('/images/headings/large/sermons.webp'), 'Preachers at Crockenhill Baptist Church'))
-            ->add(Url::create('/christ/sermons/series')
+            ->add(Url::create(route('sermons.series'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
                 ->addImage(asset('/images/headings/large/sermons.webp'), 'Sermon Series'))
-            ->add(Url::create('/christ/sermons/morning')
+            ->add(Url::create(route('sermons.service', 'morning'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
                 ->addImage(asset('/images/headings/large/sermons.webp'), 'Sunday Morning Services'))
-            ->add(Url::create('/christ/sermons/evening')
+            ->add(Url::create(route('sermons.service', 'evening'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
                 ->addImage(asset('/images/headings/large/sermons.webp'), 'Sunday Evening Services'));
 
         if ($this->exposurePolicy->childrensTalksArePublic()) {
             $sitemap->add(
-                Url::create('/christ/childrens-corner')
+                Url::create(route('childrens-corner.index'))
                     ->setPriority(0.7)
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
             );
@@ -197,7 +198,21 @@ class SitemapService
     {
         foreach ($this->sermonRepository->getSeriesForDisplay() as $series) {
             $sitemap->add(
-                Url::create('/christ/sermons/series/'.Str::slug($series))
+                Url::create(route('sermons.series.show', ['series' => Str::slug($series)]))
+                    ->setPriority(0.6)
+                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
+            );
+        }
+    }
+
+    /**
+     * Add sermon archive URLs for Bible books to the sitemap.
+     */
+    private function addBooks(Sitemap $sitemap): void
+    {
+        foreach ($this->sermonRepository->getScriptureBooks() as $book) {
+            $sitemap->add(
+                Url::create(route('sermons.index', ['book' => $book]))
                     ->setPriority(0.6)
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
             );
