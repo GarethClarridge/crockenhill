@@ -107,6 +107,34 @@ $sermon->save();
 public function test_sermon_loads(): void {
     // Missing: what about non-existent sermons? Unauthorized access? Edge cases?
 }
+
+// ❌ BAD: Asserting exact log message strings — these break on rephrasing
+Log::shouldReceive('warning')->once()->with('New meeting created by admin', ...);
+// Instead: assert the observable outcome (model in DB, redirect, response status)
+
+// ❌ BAD: Asserting internal cache key names — these break on internal refactoring
+$this->assertTrue(Cache::has('sermons_preacher_caching-preacher'));
+// Instead: assert that a second call returns the same result as the first,
+// or that clearListingCaches() causes a DB query on the next call
+
+// ❌ BAD: DatabaseTransactions on a pure DTO unit test
+class CalendarCategorizationResultTest extends TestCase
+{
+    use DatabaseTransactions; // ❌ unnecessary — DTO has no DB dependency
+    public function test_it_holds_event(): void {
+        $event = CalendarEvent::factory()->create(); // ❌ DB hit for a value-object test
+        $result = new CalendarCategorizationResult($event, true);
+        $this->assertSame($event, $result->event);
+    }
+}
+// Instead: use `new CalendarEvent()` (unpersisted) or a simple stub
+
+// ❌ BAD: Using ReflectionClass to inspect private properties
+$reflection = new \ReflectionClass($job);
+$prop = $reflection->getProperty('processingLogId');
+$prop->setAccessible(true);
+$this->assertEquals(123, $prop->getValue($job));
+// Instead: add a public accessor method, or assert the DB state the job produces
 ```
 
 
@@ -134,6 +162,10 @@ public function test_sermon_loads(): void {
 - Create tests that depend on external services (OpenAI, S3) without mocking
 - Write tests that depend on execution order
 - Change application code to make tests pass (unless there's a genuine bug)
+- Assert exact log message strings or internal log payload key names — test observable behaviour instead
+- Assert internal cache key strings — test that the caching *works* (second call returns same value), not what the key is named
+- Use `DatabaseTransactions` or `factory()->create()` in unit tests for pure value objects (DTOs, readonly classes) — use `new Model()` (unpersisted) or a stub
+- Use `ReflectionClass` to inspect private properties — add a public accessor or test the output the code produces instead
 
 
 ## Philosophy

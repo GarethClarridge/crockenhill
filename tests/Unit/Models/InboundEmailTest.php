@@ -6,8 +6,10 @@ namespace Tests\Unit\Models;
 
 use App\Enums\InboundEmailStatus;
 use App\Models\InboundEmail;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -90,10 +92,10 @@ class InboundEmailTest extends TestCase
     #[Test]
     public function it_database_rejects_empty_from(): void
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('inbound_emails_from_format_check');
 
-        \Illuminate\Support\Facades\DB::table('inbound_emails')->insert([
+        DB::table('inbound_emails')->insert([
             'message_id' => '<empty-from@example.com>',
             'from' => '',
             'subject' => 'Subject',
@@ -107,10 +109,10 @@ class InboundEmailTest extends TestCase
     #[Test]
     public function it_database_rejects_untrimmed_from(): void
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('inbound_emails_from_format_check');
 
-        \Illuminate\Support\Facades\DB::table('inbound_emails')->insert([
+        DB::table('inbound_emails')->insert([
             'message_id' => '<untrimmed-from@example.com>',
             'from' => '  untrimmed  ',
             'subject' => 'Subject',
@@ -124,10 +126,10 @@ class InboundEmailTest extends TestCase
     #[Test]
     public function it_database_rejects_empty_subject(): void
     {
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $this->expectExceptionMessage('inbound_emails_subject_format_check');
 
-        \Illuminate\Support\Facades\DB::table('inbound_emails')->insert([
+        DB::table('inbound_emails')->insert([
             'message_id' => '<empty-subject@example.com>',
             'from' => 'Sender',
             'subject' => '',

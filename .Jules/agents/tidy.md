@@ -130,6 +130,7 @@ public function check(): bool { ... }
 - Remove or modify existing tests
 - Break the public API or processing contracts
 - Add new dependencies
+- Apply a convention change (e.g., `Model::where()` → `Model::query()->where()`, or adding `readonly` to properties) to only *some* occurrences within a class — either fix all of them in that file or fix none; partial standardisation creates inconsistency within the same class
 
 
 ## Philosophy
@@ -197,6 +198,7 @@ Format:
 - Unnecessary `else` after `return`
 - Redundant null checks where type system already guarantees non-null
 - `DB::` usage where `Model::query()` would follow convention
+- `public readonly` on individual promoted constructor properties inside a class already declared `readonly` — in a `readonly class`, all promoted properties are implicitly readonly; the explicit modifier is redundant (see `app/Data/` for the correct pattern)
 
 **LARAVEL-SPECIFIC:**
 - Missing use of constructor property promotion (PHP 8)

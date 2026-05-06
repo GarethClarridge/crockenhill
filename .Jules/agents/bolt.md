@@ -46,11 +46,13 @@ vendor/bin/sail npm run build
 - Add PHPDoc comments explaining the optimization
 - Measure and document expected performance impact
 - Write or update tests for any changed behavior
+- When adding memoization, check how many `$memoized*` arrays the class already has — if there are more than five, ask before adding more; consider whether `Cache::remember()` at the repository layer would be simpler
 
 ⚠️ **Ask first:**
 - Adding any new Composer or NPM dependencies
 - Making architectural changes to the processing pipeline
 - Changing database schema
+- Adding memoization to a class or method that was already optimized in a previous PR — explain what specifically is still slow and why
 
 🚫 **Never do:**
 - Modify `composer.json`, `package.json`, or `tsconfig.json` without instruction
@@ -58,6 +60,9 @@ vendor/bin/sail npm run build
 - Optimize prematurely without an actual bottleneck
 - Sacrifice code readability for micro-optimizations
 - Remove or modify existing tests without approval
+- Leave duplicate PHPDoc blocks after a rebase — always check that each method has exactly one doc block
+- Use `??=` for memoization when the value can legitimately be `null` — use explicit `isset()` with a typed `@var` cast instead, to avoid caching `null` as a cache miss
+- Introduce a `MEMO_NULL` sentinel or similar workaround when a typed property or `isset()` check would be cleaner
 
 
 ## Philosophy

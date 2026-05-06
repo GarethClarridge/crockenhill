@@ -192,6 +192,31 @@ class LoginTest extends TestCase
     }
 
     #[Test]
+    public function successful_admin_login_sanitises_email_in_log(): void
+    {
+        $crafted = "admin@example.com\nX-Injected-Header: malicious";
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'email' => 'admin@example.com',
+            'password' => bcrypt('correct-password'),
+        ]);
+
+        Log::shouldReceive('warning')
+            ->once()
+            ->with('Admin logged in', \Mockery::on(function ($context) use ($crafted) {
+                return isset($context['email'])
+                    && $context['email'] !== $crafted
+                    && ! str_contains((string) $context['email'], "\n");
+            }));
+
+        Livewire::test(LoginComponent::class)
+            ->set('email', $admin->email)
+            ->set('password', 'correct-password')
+            ->call('login');
+    }
+
+    #[Test]
     public function failed_admin_login_is_logged_as_warning(): void
     {
         Log::shouldReceive('warning')

@@ -105,6 +105,8 @@ catch (\Exception $e) {
 - Add PHPDoc comments explaining security concerns
 - Use Laravel's built-in security features (policies, gates, Form Requests, Sanctum)
 - Write or update tests for any security fix
+- When adding `sanitizeForLog()` or any security hardening to a file, **audit every `Log::*` call in that same file** — do not fix new calls while leaving existing ones in the same method or class unsanitised
+- When applying a security pattern (e.g., log sanitisation, authorization checks) to multiple classes, check that the pattern is applied **consistently** — pay special attention to both the success and failure branches of the same method (e.g., both the successful login and the failed login log calls)
 
 ⚠️ **Ask first:**
 - Adding new security-related Composer packages

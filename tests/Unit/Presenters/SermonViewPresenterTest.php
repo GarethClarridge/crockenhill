@@ -579,4 +579,32 @@ class SermonViewPresenterTest extends TestCase
         $this->assertNotNull($second);
         $this->assertStringContainsString('jane.jpg', $second);
     }
+
+    #[Test]
+    public function clear_internal_caches_causes_recomputation_on_next_call(): void
+    {
+        // Use a sermon with a known duration so the null-caching path is exercised
+        $sermon = Sermon::factory()->create([
+            'duration' => null,
+            'reference' => 'Romans 8:28',
+            'audio_file_path' => null,
+        ]);
+
+        // Prime all caches — null is a valid cached result here
+        $this->assertNull($this->presenter->formattedDuration($sermon));
+        $this->assertNull($this->presenter->durationIso8601($sermon));
+        $this->assertNull($this->presenter->audioUrl($sermon));
+        $this->assertSame('Romans 8:28', $this->presenter->displayReference($sermon));
+
+        // Now mutate the model directly (bypassing cache) and clear caches
+        $sermon->duration = 3600; // 1 hour
+        $sermon->reference = 'John 3:16';
+
+        $this->presenter->clearInternalCaches();
+
+        // Re-computation must reflect the mutated values, not the old cached nulls
+        $this->assertSame('1h 0m', $this->presenter->formattedDuration($sermon));
+        $this->assertSame('PT1H', $this->presenter->durationIso8601($sermon));
+        $this->assertSame('John 3:16', $this->presenter->displayReference($sermon));
+    }
 }

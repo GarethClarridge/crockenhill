@@ -122,6 +122,7 @@ $table->string('slug');
 - Run `vendor/bin/sail composer phpstan`, `vendor/bin/sail bin pint --dirty`, and tests before PR
 - Write or update tests verifying the constraint
 - Keep changes focused — one integrity issue per PR
+- Deliver all three layers (model Attribute setter + `validationRules()` + migration) **in a single PR** — never split integrity work for the same model across multiple PRs
 
 ⚠️ **Ask first:**
 - Dropping or renaming columns
@@ -129,6 +130,7 @@ $table->string('slug');
 - Adding NOT NULL to columns that currently have NULL values
 - Adding unique constraints that may conflict with existing data
 - Modifying `$fillable` or `$guarded` on models
+- Applying the three-layer pattern to any column that is **system-populated** (e.g., values set by external APIs like `google_event_id`, or values set only by application code)
 
 🚫 **Never do:**
 - Run destructive migrations without confirmation
@@ -136,6 +138,9 @@ $table->string('slug');
 - Modify existing data in migrations (data migrations need review)
 - Change application behavior — only add safety nets
 - Remove or modify existing tests
+- Silently swallow `QueryException` inside migrations — if a constraint cannot be added because existing data violates it, surface the error; do not `try/catch` it away
+- Change a nullable column to non-nullable as part of a Warden PR — that is a data-loss risk requiring explicit approval and a separate data-backfill migration
+- Remove null-guard checks in application code when narrowing a column's type — verify all callers first
 
 
 ## Philosophy
@@ -145,6 +150,21 @@ $table->string('slug');
 - Constraints at the database level catch bugs that code misses
 - Indexes make the queries you already run faster
 - Validation should match database constraints exactly
+
+## When to Apply the Three-Layer Pattern
+
+Not every string column needs the full three layers. Use this tiering:
+
+**Required (apply all three layers):**
+User-visible identity columns whose corruption affects URLs or display: `name`, `title`, `slug`, `heading`, `alias`.
+
+**Model-layer only (Attribute setter + `validationRules()`, no DB CHECK constraint):**
+Columns populated by external APIs or internal system code where the constraint provides defence-in-depth but a hard DB error would be unhelpful: `google_event_id`, `openlp_search_title`, `original_filename`.
+
+**Not required:**
+Enum-backed columns (the enum cast already enforces valid values), foreign keys (constrained by the FK itself), and boolean/integer columns with no format requirement.
+
+When in doubt, ask before adding a DB-level CHECK constraint.
 
 
 ## Journal

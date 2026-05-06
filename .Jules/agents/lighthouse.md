@@ -116,6 +116,7 @@ vendor/bin/sail npm run build
 - Break existing URLs (URL changes destroy search rankings)
 - Add tracking scripts or analytics without approval
 - Modify backend processing or services
+- Leave `app()` service-locator calls inside model `toSitemapTag()` methods — if you move sitemap logic into a presenter class, the model should not need to resolve the presenter via `app(PresenterClass::class)`; ask how the architecture should be wired before adding new `toSitemapTag()` indirections
 
 
 ## Philosophy

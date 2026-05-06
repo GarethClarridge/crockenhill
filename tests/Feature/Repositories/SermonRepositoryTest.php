@@ -309,40 +309,51 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_caches_preacher_sermon_listing(): void
     {
-        $preacher = Preacher::factory()->create(['slug' => 'caching-preacher']);
-        Sermon::factory()->create(['preacher_id' => $preacher->id, 'reference' => null]);
+        $preacher = Preacher::factory()->create();
+        Sermon::factory()->create(['preacher_id' => $preacher->id, 'title' => 'Original Title', 'reference' => null]);
 
-        $this->repository->getSermonsByPreacher($preacher);
-        $this->assertTrue(Cache::has('sermons_preacher_caching-preacher'));
+        $first = $this->repository->getSermonsByPreacher($preacher);
 
+        // Bypass observers so the cache is not auto-cleared by the update.
         Sermon::query()->where('preacher_id', $preacher->id)->update(['title' => 'Updated Title']);
 
-        $result = $this->repository->getSermonsByPreacher($preacher);
-        $this->assertNotEquals('Updated Title', $result->first()->title);
+        $cached = $this->repository->getSermonsByPreacher($preacher);
+        $this->assertEquals($first->first()->title, $cached->first()->title, 'Cache should serve the stale result before invalidation');
+        $this->assertNotEquals('Updated Title', $cached->first()->title);
     }
 
     #[Test]
     public function it_invalidates_caches_when_sermon_is_modified(): void
     {
-        $preacher = Preacher::factory()->create(['slug' => 'invalidation-preacher']);
-        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id, 'reference' => null]);
+        $preacher = Preacher::factory()->create();
+        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id, 'title' => 'Before Clear', 'reference' => null]);
 
         $this->repository->getSermonsByPreacher($preacher);
-        $this->assertTrue(Cache::has('sermons_preacher_invalidation-preacher'));
+
+        // Bypass observers so only explicit clearListingCaches() drives the invalidation.
+        Sermon::query()->where('id', $sermon->id)->update(['title' => 'After Clear']);
 
         $this->repository->clearListingCaches($sermon);
 
-        $this->assertFalse(Cache::has('sermons_preacher_invalidation-preacher'));
+        $fresh = $this->repository->getSermonsByPreacher($preacher);
+        $this->assertEquals('After Clear', $fresh->first()->title, 'Cache should return fresh data after clearListingCaches()');
     }
 
     #[Test]
     public function it_caches_json_ld_results(): void
     {
-        $this->repository->getRecentSermonsForJsonLd();
-        $this->assertTrue(Cache::has('sermons_jsonld_recent_100'));
+        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon, 'reference' => null]);
+        $first = $this->repository->getRecentSermonsForJsonLd();
+
+        Sermon::query()->where('id', $sermon->id)->update(['title' => 'Injected Title']);
+
+        $cached = $this->repository->getRecentSermonsForJsonLd();
+        $this->assertNotEquals('Injected Title', $cached->first()->title, 'Cache should serve stale JSON-LD data before invalidation');
 
         $this->repository->clearListingCaches();
-        $this->assertFalse(Cache::has('sermons_jsonld_recent_100'));
+
+        $fresh = $this->repository->getRecentSermonsForJsonLd();
+        $this->assertEquals('Injected Title', $fresh->first()->title, 'Cache should return fresh data after clearListingCaches()');
     }
 
     #[Test]
@@ -400,6 +411,9 @@ class SermonRepositoryTest extends TestCase
             array_search('Z Series', $result),
             array_search('A Series', $result)
         );
-        $this->assertTrue(Cache::has('sermon_series'));
+
+        // Verify the cache is serving the result: a second call without DB changes returns identical data.
+        $cached = $this->repository->getSeriesForDisplay();
+        $this->assertSame($result, $cached, 'Second call should return the cached series list');
     }
 }

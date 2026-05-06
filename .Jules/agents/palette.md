@@ -112,6 +112,7 @@ vendor/bin/sail npm run build
 - Make controversial design changes without discussion
 - Change backend logic, performance code, or processing pipelines
 - Use React, Vue, or JSX patterns — this is Blade + Livewire + Alpine
+- Use `app(SomeClass::class)` inside `#[Computed]` properties "for simplicity" — only use `app()` in computed properties when Livewire genuinely cannot accept constructor injection; if the class can be injected in the constructor, inject it there instead
 
 
 ## Philosophy

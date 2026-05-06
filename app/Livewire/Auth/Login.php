@@ -72,7 +72,7 @@ class Login extends Component
             if ($user instanceof User && $user->is_admin) {
                 Log::warning('Admin logged in', [
                     'admin_id' => $user->id,
-                    'email' => $user->email,
+                    'email' => $this->sanitizeForLog($user->email),
                     'ip' => request()->ip(),
                 ]);
             }
