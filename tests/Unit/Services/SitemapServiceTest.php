@@ -97,4 +97,48 @@ class SitemapServiceTest extends TestCase
             }
         }
     }
+
+    #[Test]
+    public function generate_includes_bible_book_archive_urls_in_sitemap(): void
+    {
+        $filePath = tempnam(sys_get_temp_dir(), 'sitemap').'.xml';
+
+        $exposurePolicy = $this->createMock(SermonExposurePolicy::class);
+        $exposurePolicy->method('childrensTalksArePublic')->willReturn(false);
+
+        $sermonRepository = $this->createMock(SermonRepository::class);
+        $sermonRepository->method('getLatestSermons')->willReturn(collect());
+        $sermonRepository->method('getSermonsByService')->willReturn(collect());
+        $sermonRepository->method('getAllSermons')->willReturn(collect());
+        $sermonRepository->method('getExistingSeries')->willReturn([]);
+        $sermonRepository->method('getSeriesForDisplay')->willReturn([]);
+        $sermonRepository->method('getScriptureBooks')->willReturn(collect(['Genesis', 'John']));
+
+        $service = $this->getMockBuilder(SitemapService::class)
+            ->setConstructorArgs([
+                $exposurePolicy,
+                $sermonRepository,
+                $this->createMock(PageSitemapPresenter::class),
+                $this->createMock(SermonSitemapPresenter::class),
+                $this->createMock(MeetingSitemapPresenter::class),
+                $this->createMock(PreacherSitemapPresenter::class),
+            ])
+            ->onlyMethods(['getFilePath'])
+            ->getMock();
+
+        $service->method('getFilePath')->willReturn($filePath);
+
+        try {
+            $service->generate();
+
+            $this->assertFileExists($filePath);
+            $xml = file_get_contents($filePath);
+            $this->assertStringContainsString('book=Genesis', $xml);
+            $this->assertStringContainsString('book=John', $xml);
+        } finally {
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
+    }
 }
