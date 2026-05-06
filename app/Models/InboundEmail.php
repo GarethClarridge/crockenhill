@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\InboundEmailStatus;
 use Database\Factories\InboundEmailFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -59,6 +60,37 @@ class InboundEmail extends Model
             'received_at' => 'datetime',
             'status' => InboundEmailStatus::class,
             'processing_metadata' => 'array',
+        ];
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function from(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function subject(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'from' => ['required', 'string', 'max:255'],
+            'subject' => ['required', 'string', 'max:255'],
         ];
     }
 }
