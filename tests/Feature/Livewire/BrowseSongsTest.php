@@ -184,7 +184,7 @@ class BrowseSongsTest extends TestCase
     }
 
     #[Test]
-    public function recent_range_with_no_songs_shows_recent_empty_state(): void
+    public function recent_range_with_no_songs_shows_recent_empty_state_with_action(): void
     {
         $this->actingAs($this->user);
 
@@ -193,7 +193,35 @@ class BrowseSongsTest extends TestCase
 
         Livewire::test(BrowseSongs::class)
             ->set('range', PublicSongCatalogService::RANGE_RECENT)
-            ->assertSee('No songs sung in the last 3 years');
+            ->assertSee('No songs sung in the last 3 years')
+            ->assertSee('Show all time')
+            ->call('$set', 'range', PublicSongCatalogService::RANGE_ALL)
+            ->assertSet('range', PublicSongCatalogService::RANGE_ALL);
+    }
+
+    #[Test]
+    public function active_search_with_no_results_shows_clear_search_action(): void
+    {
+        $this->actingAs($this->user);
+
+        Livewire::test(BrowseSongs::class)
+            ->set('search', 'xyzzy_no_match_expected')
+            ->assertSee('Clear search')
+            ->call('$set', 'search', '')
+            ->assertSet('search', '');
+    }
+
+    // ── accessibility ─────────────────────────────────────────────────────
+
+    #[Test]
+    public function component_includes_skip_to_results_link(): void
+    {
+        $this->actingAs($this->user);
+
+        Livewire::test(BrowseSongs::class)
+            ->assertSee('Skip to results')
+            ->assertSee('id="song-results"', false)
+            ->assertSee('tabindex="-1"', false);
     }
 
     // ── zero-usage copy ───────────────────────────────────────────────────

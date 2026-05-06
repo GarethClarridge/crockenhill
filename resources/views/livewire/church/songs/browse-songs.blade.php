@@ -1,7 +1,22 @@
-<div>
-    <style>
-        mark { background: none; font-weight: 700; font-style: normal; padding: 0; }
-    </style>
+<div
+    x-init="
+        function updateTitle(search, range) {
+            if (search) {
+                document.title = 'Search: ' + search + ' | Songs | Crockenhill Baptist Church';
+            } else if (range === 'recent') {
+                document.title = 'Recent Songs | Crockenhill Baptist Church';
+            } else {
+                document.title = 'All Songs | Crockenhill Baptist Church';
+            }
+        }
+        $wire.$watch('search', (val) => updateTitle(val, $wire.range));
+        $wire.$watch('range', (val) => updateTitle($wire.search, val));
+    "
+    class="[&_mark]:bg-transparent [&_mark]:font-bold [&_mark]:not-italic [&_mark]:p-0"
+>
+    <a href="#song-results" @click.prevent="document.getElementById('song-results').focus()" class="sr-only focus:not-sr-only focus:absolute focus:z-30 focus:m-4 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-cbc-teal-dark focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-cbc-teal">
+        Skip to results
+    </a>
 
     {{-- Search and filter bar --}}
     <section class="space-y-4 pb-8">
@@ -21,6 +36,7 @@
         <div class="flex flex-wrap items-center justify-center gap-3">
             <button
                 wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_ALL }}')"
+                wire:loading.attr="disabled"
                 type="button"
                 @class([
                     'inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2',
@@ -33,6 +49,7 @@
             </button>
             <button
                 wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_RECENT }}')"
+                wire:loading.attr="disabled"
                 type="button"
                 @class([
                     'inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2',
@@ -47,18 +64,28 @@
     </section>
 
     {{-- Results area --}}
-    <div wire:loading.class="opacity-60 pointer-events-none" wire:target="search, range">
+    <div id="song-results" tabindex="-1" wire:loading.class="opacity-60 pointer-events-none" wire:target="search, range" class="focus:outline-none">
 
         {{-- Empty state --}}
         @if ($songs->isEmpty())
             <section class="pt-2">
                 @if ($search !== '')
                     <x-card heading="No songs match your search">
-                        <p>Try different words, or clear the search to browse the full catalogue.</p>
+                        <p class="text-gray-600">Try different words, or clear the search to browse the full catalogue.</p>
+                        <div class="mt-4">
+                            <x-form-button type="button" variant="outline" size="sm" icon="x-mark" wire:click="$set('search', '')">
+                                Clear search
+                            </x-form-button>
+                        </div>
                     </x-card>
                 @else
                     <x-card heading="No songs sung in the last 3 years">
-                        <p>We do not have any worship song usage to show for the last 3 years. Switch to <strong>All time</strong> to browse the full catalogue.</p>
+                        <p class="text-gray-600">We do not have any worship song usage to show for the last 3 years. Switch to <strong>All time</strong> to browse the full catalogue.</p>
+                        <div class="mt-4">
+                            <x-form-button type="button" variant="outline" size="sm" icon="clock" wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_ALL }}')">
+                                Show all time
+                            </x-form-button>
+                        </div>
                     </x-card>
                 @endif
             </section>
