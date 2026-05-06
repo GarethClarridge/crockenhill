@@ -140,6 +140,23 @@ class SitemapService
     }
 
     /**
+     * Add Bible book filtered sermon archive URLs to the sitemap.
+     */
+    private function addBooks(Sitemap $sitemap): void
+    {
+        $books = $this->sermonRepository->getScriptureBooks();
+
+        foreach ($books as $book) {
+            $sitemap->add(
+                Url::create(route('sermons.index', ['book' => $book]))
+                    ->setPriority(0.7)
+                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+                    ->addImage(asset('/images/headings/large/sermons.webp'), "Sermons on {$book}")
+            );
+        }
+    }
+
+    /**
      * Add dynamic page URLs to the sitemap.
      */
     private function addPages(Sitemap $sitemap): void
@@ -199,20 +216,6 @@ class SitemapService
         foreach ($this->sermonRepository->getSeriesForDisplay() as $series) {
             $sitemap->add(
                 Url::create(route('sermons.series.show', ['series' => Str::slug($series)]))
-                    ->setPriority(0.6)
-                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
-            );
-        }
-    }
-
-    /**
-     * Add sermon archive URLs for Bible books to the sitemap.
-     */
-    private function addBooks(Sitemap $sitemap): void
-    {
-        foreach ($this->sermonRepository->getScriptureBooks() as $book) {
-            $sitemap->add(
-                Url::create(route('sermons.index', ['book' => $book]))
                     ->setPriority(0.6)
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
             );

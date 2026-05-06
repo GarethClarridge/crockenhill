@@ -89,8 +89,8 @@ class InboundEmail extends Model
     public static function validationRules(): array
     {
         return [
-            'from' => ['required', 'string', 'max:255'],
-            'subject' => ['required', 'string', 'max:255'],
+            'from' => ['string', 'max:255'],
+            'subject' => ['string', 'max:255'],
         ];
     }
 }
