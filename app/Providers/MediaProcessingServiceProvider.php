@@ -58,6 +58,4 @@ class MediaProcessingServiceProvider extends ServiceProvider
         });
 
     }
-
-    public function boot(): void {}
 }
