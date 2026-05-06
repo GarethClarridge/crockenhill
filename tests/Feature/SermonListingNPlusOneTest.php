@@ -55,8 +55,7 @@ class SermonListingNPlusOneTest extends TestCase
     {
         // Force the thumbnail generation to be mocked if needed, but we mostly care about the text content
         Sermon::factory()->create([
-            'meta_description' => null,
-            'summary' => 'Sitemap unique summary for this test.',
+            'meta_description' => 'Sitemap unique meta description for this test.',
             'show_summary' => true,
             'thumbnail_file_path' => 'thumbnails/test.jpg',
             'thumbnail_generated_at' => now(),
@@ -71,7 +70,7 @@ class SermonListingNPlusOneTest extends TestCase
         $content = file_get_contents($sitemapFile);
 
         // Sitemap entries for sermons include <video:description> and <image:caption>
-        // Both use meta_description or summary
-        $this->assertStringContainsString('Sitemap unique summary', $content);
+        // Both use metaDescription() — a stored meta_description takes priority over derived text
+        $this->assertStringContainsString('Sitemap unique meta description for this test', $content);
     }
 }
