@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -85,24 +84,13 @@ class InboundEmail extends Model
     }
 
     /**
-     * @return array<string, list<string|\Illuminate\Validation\Rules\Unique|\Illuminate\Validation\Rules\Enum>>
+     * @return array<string, list<string>>
      */
-    public static function validationRules(?self $inboundEmail = null): array
+    public static function validationRules(): array
     {
-        $uniqueMessageId = Rule::unique('inbound_emails', 'message_id');
-
-        if ($inboundEmail) {
-            $uniqueMessageId->ignore($inboundEmail->id);
-        }
-
         return [
-            'message_id' => ['required', 'string', 'max:512', $uniqueMessageId],
             'from' => ['required', 'string', 'max:255'],
             'subject' => ['required', 'string', 'max:255'],
-            'body_plain' => ['nullable', 'string'],
-            'body_html' => ['nullable', 'string'],
-            'received_at' => ['required', 'date'],
-            'status' => ['required', Rule::enum(InboundEmailStatus::class)],
         ];
     }
 }

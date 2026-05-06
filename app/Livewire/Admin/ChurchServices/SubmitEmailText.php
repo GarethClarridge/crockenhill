@@ -73,7 +73,7 @@ class SubmitEmailText extends Component
             'body_plain' => $this->bodyPlain,
             'body_html' => null,
             'received_at' => now(),
-            'status' => InboundEmailStatus::Pending->value,
+            'status' => InboundEmailStatus::Pending,
         ]);
 
         ProcessInboundOosEmail::dispatch($inboundEmail);
