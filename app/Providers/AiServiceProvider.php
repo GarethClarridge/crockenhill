@@ -41,6 +41,4 @@ class AiServiceProvider extends ServiceProvider
 
         $this->app->bind(OosEmailItemExtractor::class, OpenAiOosEmailItemExtractor::class);
     }
-
-    public function boot(): void {}
 }
