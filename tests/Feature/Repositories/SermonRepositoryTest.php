@@ -344,4 +344,62 @@ class SermonRepositoryTest extends TestCase
         $this->repository->clearListingCaches();
         $this->assertFalse(Cache::has('sermons_jsonld_recent_100'));
     }
+
+    #[Test]
+    public function it_respects_limit_for_json_ld(): void
+    {
+        Sermon::factory()->count(5)->create(['content_type' => SermonContentType::Sermon, 'reference' => null]);
+
+        $result = $this->repository->getRecentSermonsForJsonLd(limit: 3);
+
+        $this->assertLessThanOrEqual(3, $result->count());
+    }
+
+    #[Test]
+    public function it_nullifies_whitespace_only_book_in_archive_filters(): void
+    {
+        $bibleCanon = Mockery::mock(BibleCanon::class);
+        // Whitespace-only book is normalised to null before hasBook is ever called.
+        $bibleCanon->shouldNotReceive('hasBook');
+
+        $result = $this->repository->normalizeArchiveFilters(
+            $bibleCanon,
+            '   ',
+            null,
+            null,
+            '   '
+        );
+
+        $this->assertNull($result['book']);
+        $this->assertNull($result['series']);
+    }
+
+    #[Test]
+    public function it_returns_all_sermons_grouped_by_date(): void
+    {
+        Sermon::factory()->create(['date' => '2024-01-01', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['date' => '2024-01-02', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+
+        $result = $this->repository->getAllSermons();
+
+        $this->assertTrue($result->has('2024-01-02'));
+        $this->assertTrue($result->has('2024-01-01'));
+    }
+
+    #[Test]
+    public function it_caches_series_for_display_sorted_alphabetically(): void
+    {
+        Sermon::factory()->create(['series' => 'Z Series', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'A Series', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+
+        $result = $this->repository->getSeriesForDisplay();
+
+        $this->assertContains('A Series', $result);
+        $this->assertContains('Z Series', $result);
+        $this->assertLessThan(
+            array_search('Z Series', $result),
+            array_search('A Series', $result)
+        );
+        $this->assertTrue(Cache::has('sermon_series'));
+    }
 }
