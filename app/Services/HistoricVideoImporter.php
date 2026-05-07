@@ -68,6 +68,8 @@ class HistoricVideoImporter
         int $perFileTimeoutSeconds,
         int $limit,
         ?\Closure $onProgress = null,
+        ?Carbon $from = null,
+        ?Carbon $until = null,
     ): array {
         $metrics = [
             'dispatched' => 0,
@@ -134,6 +136,13 @@ class HistoricVideoImporter
             $date = $item['date'];
             $service = $item['service'];
 
+            if (($from !== null && $date->lt($from)) || ($until !== null && $date->gt($until))) {
+                $metrics['bytes_skipped'] += $bytes;
+                $onProgress?->__invoke('[skip-date-range]', $label, null);
+
+                continue;
+            }
+
             if (! $force) {
                 $existenceTag = $this->checkExistence($date, $service);
 
@@ -177,36 +186,38 @@ class HistoricVideoImporter
             }
 
             try {
-                $result = $this->dispatchItem($item, $noConcat, $reEncodeMismatched);
+                $results = $this->dispatchItem($item, $noConcat, $reEncodeMismatched);
 
-                if ($result['tag'] === 'error') {
-                    $metrics['errors']++;
-                    $onProgress?->__invoke('[error]', $label, $result['detail']);
+                foreach ($results as $result) {
+                    if ($result['tag'] === 'error') {
+                        $metrics['errors']++;
+                        $onProgress?->__invoke('[error]', $label, $result['detail']);
 
-                    continue;
-                }
+                        continue;
+                    }
 
-                $processingId = $result['processing_id'];
-                $inflight[] = $processingId;
+                    $processingId = $result['processing_id'];
+                    $inflight[] = $processingId;
 
-                match ($result['tag']) {
-                    'concat' => $metrics['concatenated']++,
-                    'concat-reencoded' => $metrics['concatenated_reencoded']++,
-                    default => null,
-                };
+                    match ($result['tag']) {
+                        'concat' => $metrics['concatenated']++,
+                        'concat-reencoded' => $metrics['concatenated_reencoded']++,
+                        default => null,
+                    };
 
-                $metrics['dispatched']++;
-                $metrics['bytes_processed'] += $bytes;
-                $dispatched++;
-                $onProgress?->__invoke("[{$result['tag']}]", $label, "dispatched → processing_id={$processingId}");
+                    $metrics['dispatched']++;
+                    $metrics['bytes_processed'] += $bytes;
+                    $dispatched++;
+                    $onProgress?->__invoke("[{$result['tag']}]", $label, "dispatched → processing_id={$processingId}");
 
-                if ($delay > 0) {
-                    sleep($delay);
-                }
+                    if ($delay > 0) {
+                        sleep($delay);
+                    }
 
-                if (count($inflight) >= $parallel) {
-                    $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds);
-                    $inflight = [];
+                    if (count($inflight) >= $parallel) {
+                        $this->waitForInflight($inflight, $pollIntervalSeconds, $perFileTimeoutSeconds);
+                        $inflight = [];
+                    }
                 }
             } catch (\Throwable $e) {
                 $metrics['errors']++;
@@ -507,28 +518,37 @@ class HistoricVideoImporter
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @return array{tag: string, processing_id: string, detail: string|null}
      */
+    /**
+     * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     * @return list<array{tag: string, processing_id: string, detail: string|null}>
+     */
     private function dispatchItem(array $item, bool $noConcat, bool $reEncodeMismatched): array
     {
         $files = $item['files'];
 
         if (count($files) > 1 && ! $noConcat) {
-            return $this->dispatchMultiSegment($item, $reEncodeMismatched);
+            return [$this->dispatchMultiSegment($item, $reEncodeMismatched)];
         }
 
-        $path = $files[0];
-        $file = new UploadedFile($path, basename($path), null, null, true);
+        // With --no-concat, dispatch every segment individually so none are silently dropped.
+        $results = [];
+        foreach ($files as $path) {
+            $file = new UploadedFile($path, basename($path), null, null, true);
 
-        $result = $this->processor->process(
-            type: 'livestream',
-            file: $file,
-            clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
-        );
+            $result = $this->processor->process(
+                type: 'livestream',
+                file: $file,
+                clientFileDate: $item['client_file_date'] !== '' ? $item['client_file_date'] : null,
+            );
 
-        if (! $result->success) {
-            return ['tag' => 'error', 'processing_id' => '', 'detail' => $result->message];
+            if (! $result->success) {
+                $results[] = ['tag' => 'error', 'processing_id' => '', 'detail' => $result->message];
+            } else {
+                $results[] = ['tag' => 'livestream', 'processing_id' => $result->processingId, 'detail' => null];
+            }
         }
 
-        return ['tag' => 'livestream', 'processing_id' => $result->processingId, 'detail' => null];
+        return $results;
     }
 
     /**
@@ -670,6 +690,8 @@ class HistoricVideoImporter
      */
     private function concatWithReencode(array $item): array
     {
+        $this->ensureTempDir();
+
         $inputs = implode(' ', array_map(fn (string $f) => '-i '.escapeshellarg($f), $item['files']));
         $filterInputs = implode('', array_map(fn (int $i) => "[{$i}:v][{$i}:a]", array_keys($item['files'])));
         $segmentCount = count($item['files']);

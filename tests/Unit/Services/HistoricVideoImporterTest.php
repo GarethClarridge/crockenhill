@@ -90,12 +90,24 @@ class HistoricVideoImporterTest extends TestCase
     {
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 18-38-15.mkv');
 
-        $processor = $this->mockProcessorSuccess();
+        $capturedClientDate = null;
+
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->withArgs(function (string $type, mixed $file, ?string $clientFileDate) use (&$capturedClientDate): bool {
+                $capturedClientDate = $clientFileDate;
+
+                return true;
+            })
+            ->andReturn(ProcessingResult::success(
+                processingId: 'test-processing-'.uniqid(),
+                message: 'ok',
+                statusUrl: 'http://localhost/status/test',
+            ));
 
         $this->runImportWithProcessor($processor);
 
-        $processor->shouldHaveReceived('process')
-            ->withArgs(fn ($type, $file, $clientDate) => str_contains($clientDate ?? '', '18:38'));
+        $this->assertTrue(str_contains($capturedClientDate ?? '', '18:38'));
     }
 
     // -------------------------------------------------------------------------
@@ -114,11 +126,11 @@ class HistoricVideoImporterTest extends TestCase
 
         $processor = $this->mockProcessorSuccess();
 
-        // noConcat: true so multi-segment groups still dispatch (using only the first file each)
+        // noConcat: true dispatches every segment individually — both morning files + the evening file
         $metrics = $this->runImportWithProcessor($processor, noConcat: true);
 
-        // Two dispatches: one for the morning group, one for the evening group
-        $this->assertSame(2, $metrics['dispatched']);
+        // Three dispatches: two morning segments + one evening segment
+        $this->assertSame(3, $metrics['dispatched']);
     }
 
     #[Test]

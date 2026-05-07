@@ -382,27 +382,6 @@ class TranscribeAudioTest extends TestCase
     }
 
     #[Test]
-    public function it_skips_transcription_when_feature_flag_is_disabled(): void
-    {
-        config(['media-processing.transcription.enabled' => false]);
-
-        $log = MediaProcessingLog::factory()->audio()->processing()->create([
-            'source_file_path' => 'sermons/audio/test.mp3',
-        ]);
-
-        $mockService = $this->createMock(TranscriptionServiceInterface::class);
-        $mockService->expects($this->never())->method('transcribe');
-
-        Log::shouldReceive('info')->atLeast()->once();
-
-        $job = new TranscribeAudio($log);
-        $job->handle($mockService);
-
-        $log->refresh();
-        $this->assertEquals('transcription_skipped', $log->current_step);
-    }
-
-    #[Test]
     public function it_applies_without_overlapping_middleware_per_processing_id(): void
     {
         $log = MediaProcessingLog::factory()->audio()->pending()->make([

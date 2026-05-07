@@ -58,14 +58,6 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
                 return;
             }
 
-            // Gate: feature flag
-            if (! config('media-processing.transcription.enabled', true)) {
-                $this->updateProcessingRunStep($this->processingLog, 'transcription_skipped');
-                $this->logStepComplete('transcribing', 'Skipped: transcription disabled');
-
-                return;
-            }
-
             // Log step start and update processing log
             $this->logStepStart('transcribing', 'Starting audio transcription');
             $this->updateProcessingRunStep($this->processingLog, 'transcribing_audio');
@@ -108,7 +100,11 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
                 throw new \Exception("No sermon found for processing log: {$this->processingLog->processing_id}");
             }
 
-            $sermon->update(['transcript_file_path' => $transcriptPath]);
+            // Only set if the sermon doesn't already have a transcript from a richer prior run
+            if ($sermon->transcript_file_path === null) {
+                $sermon->update(['transcript_file_path' => $transcriptPath]);
+            }
+
             $transcriptAttachedToSermon = true;
 
             // Update processing log and mark step as complete

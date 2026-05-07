@@ -62,13 +62,10 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             $this->logStepStart('analyzing', 'Starting AI analysis');
             $this->updateProcessingRunStep($this->processingLog, 'analyzing_transcript');
 
-            // Get transcript — skip cleanly if transcription was disabled upstream
+            // Get transcript
             $transcriptPath = $this->processingLog->transcript_file_path;
             if (empty($transcriptPath)) {
-                $this->updateProcessingRunStep($this->processingLog, 'ai_analysis_skipped');
-                $this->logStepComplete('analyzing', 'Skipped: no transcript available');
-
-                return;
+                throw new \Exception('No transcript path available');
             }
 
             $transcript = $this->loadTranscriptFromStorage($transcriptPath);
@@ -95,35 +92,40 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             // Store in processing log
             $this->processingLog->update(['ai_analysis' => $analysis]);
 
-            // Update sermon - preserve ID3 metadata, only fill in missing fields with AI data
+            // Update sermon - preserve any existing curated content; only fill in missing fields with AI data.
+            // The sermon may already have been created by a richer prior pipeline run (upsert enrichment),
+            // so we treat non-null sermon fields as authoritative regardless of what ID3 tags say.
             $sermon = $this->processingLog->sermon;
             $updateData = [];
 
-            // Get ID3 metadata from processing log if available
+            if (! $sermon instanceof Sermon) {
+                throw new \Exception("No sermon found for processing log: {$this->processingLog->processing_id}");
+            }
+
+            // Get ID3 metadata from processing log if available (still used as the primary non-AI source)
             $id3Metadata = $this->processingLog->processing_metadata?->id3Metadata;
 
-            // Only update title if not set by ID3 tags OR if ID3 title looks like a filename
+            // Only update title if neither ID3 nor an existing curated title is present
             $id3Title = $id3Metadata?->title;
-            $hasValidId3Title = $id3Title !== null
-                && ! $this->looksLikeFilename($id3Title);
+            $hasValidId3Title = $id3Title !== null && ! $this->looksLikeFilename($id3Title);
 
-            if (! $hasValidId3Title) {
+            if (! $hasValidId3Title && $this->looksLikeFilename($sermon->title)) {
                 $updateData['title'] = $analysis->title;
             }
 
-            // Only update series if not set by ID3 tags
-            if ($id3Metadata?->series === null) {
+            // Only update series if not already set on the sermon or in ID3 tags
+            if ($sermon->series === null && $id3Metadata?->series === null) {
                 $updateData['series'] = $analysis->series;
             }
 
-            // Only update reference if not set by ID3 tags
-            if ($id3Metadata?->reference === null) {
+            // Only update reference if not already set on the sermon or in ID3 tags
+            if ($sermon->reference === null && $id3Metadata?->reference === null) {
                 $updateData['reference'] = $analysis->reference;
                 // Clear any stale passage link so the old text is not shown while re-enrichment runs
                 $updateData['scripture_passage_id'] = null;
             }
 
-            // Always update summary and points (ID3 tags don't contain these)
+            // Always update summary and points — no human-edit path exists for these fields
             $updateData['summary'] = $analysis->summary;
             $updateData['points'] = $analysis->points;
 
@@ -133,10 +135,6 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 'id3_fields_preserved' => $id3Metadata ? array_keys(array_filter($id3Metadata->toArray())) : [],
                 'ai_fields_applied' => array_keys($updateData),
             ]);
-
-            if (! $sermon instanceof Sermon) {
-                throw new \Exception("No sermon found for processing log: {$this->processingLog->processing_id}");
-            }
 
             $sermon->update($updateData);
 

@@ -104,11 +104,7 @@ class ImportHistoricVideoBatchCommand extends Command
                 pollIntervalSeconds: $pollInterval,
                 perFileTimeoutSeconds: $perFileTimeout,
                 limit: $limit,
-                onProgress: function (string $tag, string $label, ?string $detail) use ($from, $until): void {
-                    if (! $this->isWithinDateRange($label, $from, $until)) {
-                        return;
-                    }
-
+                onProgress: function (string $tag, string $label, ?string $detail): void {
                     $line = "{$tag} {$label}";
 
                     if ($detail !== null) {
@@ -117,6 +113,8 @@ class ImportHistoricVideoBatchCommand extends Command
 
                     $this->line($line);
                 },
+                from: $from instanceof Carbon ? $from : null,
+                until: $until instanceof Carbon ? $until : null,
             );
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
@@ -197,38 +195,6 @@ class ImportHistoricVideoBatchCommand extends Command
 
             return false;
         }
-    }
-
-    private function isWithinDateRange(string $label, ?Carbon $from, ?Carbon $until): bool
-    {
-        if ($from === null && $until === null) {
-            return true;
-        }
-
-        // Extract date from label (e.g. "2023-12-10 → morning ...")
-        if (! preg_match('/(\d{4}-\d{2}-\d{2})/', $label, $m)) {
-            return true;
-        }
-
-        try {
-            $date = Carbon::createFromFormat('Y-m-d', $m[1]);
-        } catch (Throwable) {
-            return true;
-        }
-
-        if (! $date instanceof Carbon) {
-            return true;
-        }
-
-        if ($from !== null && $date->lt($from)) {
-            return false;
-        }
-
-        if ($until !== null && $date->gt($until)) {
-            return false;
-        }
-
-        return true;
     }
 
     private function formatBytes(int $bytes): string

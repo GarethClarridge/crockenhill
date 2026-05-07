@@ -81,7 +81,7 @@ class ProcessTranscriptWithAITest extends TestCase
     }
 
     #[Test]
-    public function it_skips_cleanly_when_transcript_path_is_empty(): void
+    public function it_uses_fallback_when_transcript_path_is_empty(): void
     {
         Storage::fake();
 
@@ -93,16 +93,21 @@ class ProcessTranscriptWithAITest extends TestCase
         ]);
 
         $mockService = $this->createMock(SermonAnalysisInterface::class);
-        $mockService->expects($this->never())->method('analyzeSermon');
+        // analyzeSermon should NOT be called when transcript path is null
+        // (it throws before getting there, then uses fallback)
+        $mockService->expects($this->never())
+            ->method('analyzeSermon');
 
         Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->atLeast()->once();
 
         $job = new ProcessTranscriptWithAI($log);
         $job->handle($mockService, $this->app->make(SermonRepository::class));
 
+        // Falls back to a simple analysis without throwing
         $log->refresh();
-        $this->assertEquals('ai_analysis_skipped', $log->current_step);
-        $this->assertFalse($log->is_degraded_completion);
+        $this->assertEquals('ai_analysis_fallback', $log->current_step);
+        $this->assertTrue($log->is_degraded_completion);
     }
 
     #[Test]

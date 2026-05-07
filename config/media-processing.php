@@ -117,10 +117,6 @@ return [
     | Speaker Identification
     |--------------------------------------------------------------------------
     */
-    'transcription' => [
-        'enabled' => env('TRANSCRIPTION_ENABLED', true),
-    ],
-
     'speaker_identification' => [
         'enabled' => env('SPEAKER_IDENTIFICATION_ENABLED', false),
         'mode' => env('SPEAKER_IDENTIFICATION_MODE', 'shadow'),
