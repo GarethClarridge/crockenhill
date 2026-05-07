@@ -112,6 +112,12 @@
             /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
         @endphp
 
+        @if ($this->hasActiveFilters())
+            <script type="application/ld+json">
+            {!! json_encode($this->jsonLdData, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+            </script>
+        @endif
+
         @if ($sermons->total() > 0)
             <div class="mx-auto mt-4 max-w-7xl px-6 text-sm text-gray-500" aria-live="polite">
                 @if ($sermons->hasPages())
