@@ -12,6 +12,7 @@ use App\Models\SermonScriptureFilter;
 use App\Services\SermonScriptureFilterIndexService;
 use App\Support\BibleCanon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -251,6 +252,22 @@ class SermonRepository
         if ($model instanceof Preacher) {
             Cache::forget($this->preacherCacheKey($model));
         }
+    }
+
+    /**
+     * Find a sermon by date, service, and content type.
+     * Used for the upsert decision in SermonCreationService.
+     */
+    public function findByDateAndServiceAndContentType(
+        Carbon $date,
+        SermonService $service,
+        SermonContentType $contentType,
+    ): ?Sermon {
+        return Sermon::query()
+            ->where('date', $date->toDateString())
+            ->where('service', $service)
+            ->where('content_type', $contentType)
+            ->first();
     }
 
     /**

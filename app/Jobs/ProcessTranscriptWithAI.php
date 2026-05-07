@@ -62,10 +62,13 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             $this->logStepStart('analyzing', 'Starting AI analysis');
             $this->updateProcessingRunStep($this->processingLog, 'analyzing_transcript');
 
-            // Get transcript
+            // Get transcript — skip cleanly if transcription was disabled upstream
             $transcriptPath = $this->processingLog->transcript_file_path;
             if (empty($transcriptPath)) {
-                throw new \Exception('No transcript path available');
+                $this->updateProcessingRunStep($this->processingLog, 'ai_analysis_skipped');
+                $this->logStepComplete('analyzing', 'Skipped: no transcript available');
+
+                return;
             }
 
             $transcript = $this->loadTranscriptFromStorage($transcriptPath);

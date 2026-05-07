@@ -58,6 +58,14 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
                 return;
             }
 
+            // Gate: feature flag
+            if (! config('media-processing.transcription.enabled', true)) {
+                $this->updateProcessingRunStep($this->processingLog, 'transcription_skipped');
+                $this->logStepComplete('transcribing', 'Skipped: transcription disabled');
+
+                return;
+            }
+
             // Log step start and update processing log
             $this->logStepStart('transcribing', 'Starting audio transcription');
             $this->updateProcessingRunStep($this->processingLog, 'transcribing_audio');

@@ -2,6 +2,10 @@
 
 Updated 2026-04-16 after consolidating every document in `docs/april-2026-review`.
 
+**Last verified: 2026-05-06.** Verification status blocks have been added to every item after a comprehensive code-level audit. Legend: ✅ Complete · ⚠️ Partial · ❌ Missing · 🐛 Bug found.
+
+> **Critical bug (Item 14c):** `SermonViewPresenter` is registered as `scoped()` in `AppServiceProvider:63` and then overridden with `singleton()` in `MediaProcessingServiceProvider:35`. The singleton binding wins, silently undoing the relation-loading safety fix. Requires immediate resolution regardless of other backlog priority.
+
 This backlog turns the fifteen April 2026 review documents into one prioritised implementation plan. Overlapping findings have been merged into root-cause workstreams so the codebase can be improved once at the right seam instead of being patched repeatedly at symptom level.
 
 ## Review Inputs
@@ -137,6 +141,14 @@ Design decisions required before implementation:
 
 - What authentication/authorization check should the new video asset route use? The existing audio and thumbnail routes use throttle middleware but no auth gate — is that sufficient for private Children's Talk video, or does it need member-level auth?
 
+**Verification (2026-05-06):**
+
+- ✅ `sermons.video` guarded route added — `SermonAssetController::serveVideo()` at `:99`, route at `routes/web.php:115` with `throttle:media-video`.
+- ✅ `SermonViewPresenter` resolves private audio/video/thumbnail to named guarded routes via `SermonStorageService` delivery methods.
+- ✅ `SermonAssetController` explicitly rejects `/storage/` paths for private assets at `:85`, `:122`, `:162`.
+- ✅ Card thumbnails, detail page, API outputs, and schema/meta all resolved through guarded routes.
+- ⚠️ Regression tests cover authenticated access to private assets but do not assert that the full Children's Corner page renders with guarded route URLs rather than raw storage paths.
+
 Primary review coverage:
 
 - Architectural Boundary Review
@@ -167,6 +179,14 @@ Design decisions required before implementation:
 - What is the persistent enforcement mechanism? Options include: admin route-group middleware using `EnsureUserIsAdmin` (already exists), a Livewire middleware/mount hook registered centrally, or a base admin component class. Each has different trade-offs for Livewire full-page components vs. nested components.
 - Should the `WithAdminAuthorization` trait be kept as a safety net (belt-and-braces) or fully removed once persistent enforcement is proven?
 
+**Verification (2026-05-06):**
+
+- ✅ `EnsureUserIsAdmin` middleware applied to admin route group at `routes/web.php:153` (`auth`, `verified`, `admin`).
+- ✅ Members-only routes consistently use `auth` + `verified` — members area at `:221`, songs at `:225`, Children's Corner at `:66`.
+- ✅ Wrapper surfaces use `canAccessAdmin()` not raw `is_admin` — confirmed in `SermonAssetController:251`, `PublicPageVisibilityGuard:45`.
+- ⚠️ Pass 1 complete (middleware in place). Pass 2 — removing redundant `authorizeAdmin()` calls from Livewire `mount()` — not done. `ListSermons:24`, `EditSermon:47`, `ManageChurchService:43` and ~29 other admin components still call it.
+- ❌ No focused tests for the verified-member boundary (unverified user denied) or the unverified-admin case on wrapper/admin content.
+
 Primary review coverage:
 
 - Architectural Boundary Review
@@ -195,6 +215,13 @@ Design decisions required before implementation:
 
 - What is the atomicity mechanism? Options include: a database unique constraint on the composite dedupe key (simplest, race-proof), a Redis/cache lock with TTL (faster but requires cache availability), or a `SELECT ... FOR UPDATE` advisory lock (database-only but more complex). The choice affects the test strategy — unique constraints produce database exceptions, locks produce application-level retries.
 - Should the dedupe key include the uploading user, or only the processing profile and file hash? This determines whether two admins uploading the same file is treated as one run or two.
+
+**Verification (2026-05-06):**
+
+- ⚠️ A `dedup_key` column exists on `media_processing_logs`, but it is unclear whether the key includes caller scope and processing profile or only file hash. No code was found confirming `processing_type` or video mode forms part of the key.
+- ❌ No `UNIQUE` constraint on `dedup_key` and no Redis/advisory lock enforcement found. Dedupe is still best-effort preflight lookup, not atomic.
+- ❌ No evidence that `/api/media/video` and `/api/media/livestream` produce separate dedupe scopes.
+- ❌ No tests for cross-pipeline, cross-owner, or concurrent identical upload scenarios.
 
 Primary review coverage:
 
@@ -235,6 +262,15 @@ Items 4 and 5 both promote data from JSON columns into first-class database colu
 
 Apply this sequence to both `processing_metadata` (item 4) and `import_metadata` / `service_sections` metadata (item 5) so compatibility windows do not overlap indefinitely.
 
+**Verification (2026-05-06):**
+
+- ✅ `extracted_date` and `extracted_service` exist as columns on `media_processing_logs` (`MediaProcessingLog:40`) and are written by new runs.
+- ✅ `MediaProcessingIdentityResolver` reads only dedicated columns at `:20–21` — no JSON fallback reads found.
+- ✅ Dedicated columns for `queue_name`, `job_id`, `attempt_count` in place (`MediaProcessingLog:137`).
+- ✅ AI degraded completion tracked via `is_degraded_completion` boolean (`MediaProcessingLog:68`); set by `ProcessTranscriptWithAI:199`.
+- ⚠️ A `ProcessingMetadata` data class exists, but `processing_metadata` is still used as an open-ended JSON scratchpad without enforced schema validation.
+- ❌ No invariant tests cross-validating `ProcessingPhaseRegistry` phase offsets against `ProcessingPipelineBuilder` job lists. `assessing_video_quality` phase appears in the registry but has no explicit phase coverage test.
+
 Primary review coverage:
 
 - JSON Metadata Contracts And Model / Data-Integrity Boundary Review
@@ -254,6 +290,12 @@ Backlog:
 - Split "remove this upload's projection/publication link" from "delete the sermon row" so a linked sermon can survive upload cleanup when it was created or curated elsewhere.
 - Add a regression test where a broken upload section points at a sermon not owned by that upload and assert that the sermon survives while the upload-owned records are removed.
 - Review file cleanup ownership rules alongside record ownership so cross-disk fallback reads do not become cross-disk orphan leaks during destructive cleanup.
+
+**Verification (2026-05-06):**
+
+- ✅ `DeleteLivestreamUpload::loadOwnedSermons()` at `:152` queries only sermons where `livestream_processing_id` matches the run — no ownership-by-reference inference.
+- ✅ Projection link deletion and sermon row deletion are separate steps at `:87–95`.
+- ❌ No regression test asserting that a sermon not owned by the processing run survives when a broken upload cleanup runs.
 
 Primary review coverage:
 
@@ -280,6 +322,14 @@ Backlog:
 
 This item shares a JSON promotion migration strategy with item 4. See "Shared JSON promotion strategy" under item 4 for the coordinated approach to compatibility windows and cutover sequencing.
 
+**Verification (2026-05-06):**
+
+- ✅ `pending_structure_merge_source` promoted to first-class column (migration `2026_04_23_123518` with backfill).
+- ✅ Livestream projection provenance (`livestream_processing_id`, `livestream_service_section_id`) exists as explicit columns on `church_service_items`.
+- ✅ `service_sections.confidence` is an explicit column (`ServiceSection:34`); no JSON fallback in usage.
+- ✅ `song_match_type`, `matched_item_id`, `expected_item_id` exist as first-class columns on `service_sections`.
+- ❌ No schema or integrity tests asserting the promoted columns are the sole authority and JSON copies have not silently reappeared.
+
 Primary review coverage:
 
 - JSON Metadata Contracts And Model / Data-Integrity Boundary Review
@@ -304,6 +354,12 @@ Design decisions required before implementation:
 - Should constraint violations trigger a retry-with-resequence, or a user-facing error?
 - Are there any remaining write paths outside the main sync flow that need explicit transaction or exception handling around the existing unique index?
 
+**Verification (2026-05-06):**
+
+- ❌ No `UNIQUE` constraint found on `(church_service_id, active_position)` on `church_service_items`. The backlog's stated invariant does not exist at the database level.
+- ❌ No consistent constraint-violation recovery pattern found in write paths.
+- ❌ No tests for duplicate-position rejection or recovery.
+
 Primary review coverage:
 
 - Architectural Boundary Review
@@ -323,6 +379,13 @@ Backlog:
 - Keep the unified controller surface, but collapse duplicate ability and authorization checks so route middleware and request authorization tell one story.
 - Reuse or align existing upload validation rules so admin and API entrypoints do not drift.
 - Add or update endpoint-level request and authorization tests around the boundary rules that remain.
+
+**Verification (2026-05-06):**
+
+- ✅ `processingId` UUID validation centralised in `MediaProcessingRequest::assertProcessingIdShape()` at `:42`.
+- ✅ Authorization de-duplicated at request level — admin check and token ability at `MediaProcessingRequest:18`.
+- ⚠️ Admin upload uses `ProcessMediaRequest`; API uses `MediaProcessingRequest`. These are separate classes with no shared validation rules — the alignment requirement is not met.
+- ⚠️ Endpoint-level tests exist for some routes but full coverage of cancel, retry, and confirm-segment authorization was not confirmed.
 
 Primary review coverage:
 
@@ -345,6 +408,13 @@ Backlog:
 - Refactor `ManageChurchService` away from a large array-transport layer into `Livewire\Form` objects and smaller structured input boundaries.
 - Stop mutating write buffers during `ServiceReviewDashboard::render()` and make seeded edit state explicit.
 
+**Verification (2026-05-06):**
+
+- ✅ Sermon-edit `save()` at `EditSermon:70` calls `SaveSermonDetails` action (metadata only); `selectThumbnailCandidate()` at `:81` is a separate method.
+- ✅ Calendar-event categorisation routes through `CategorizeCalendarEvent` action via `CalendarAdminController:159`.
+- ⚠️ `ManageChurchService` uses `ChurchServiceFormData` at `:31`, but items are still transported as arrays at `:41` — not fully using `Livewire\Form` objects as specified.
+- ⚠️ `ServiceReviewDashboard::render()` mutation status could not be confirmed from available code — requires direct inspection.
+
 Primary review coverage:
 
 - Laravel / PHP Standards And Boundary Review
@@ -365,6 +435,12 @@ Backlog:
 - Move church-service workflow screens onto `x-admin.page`, `x-admin.list-shell`, `x-admin.form-shell`, `x-admin.filter-bar`, and `x-admin.empty-state` where appropriate.
 - Reduce duplicated page shells, filter wrappers, empty states, and ad hoc action rows across the church-service admin cluster.
 
+**Verification (2026-05-06):**
+
+- ⚠️ The `x-admin.*` component library exists and is used across other admin screens, but adoption specifically across all church-service admin screens was not confirmed.
+- ⚠️ Reduced duplication across church-service shells is partially in place but not fully verified.
+- ❌ `ShowChurchService` read-model extraction and timeline partial split could not be confirmed — requires direct template inspection.
+
 Primary review coverage:
 
 - Livewire Responsibilities and Blade/View Composition Review
@@ -384,6 +460,15 @@ Backlog:
 - Replace `$wire.entangle(...)` as the default shared-toggle contract where Livewire already owns the truth.
 - Replace `x-admin.form-shell` save-hotkey DOM guessing with an explicit save target contract.
 - Remove `page_editor.js` from the shared bundle or isolate it behind a page-specific entrypoint if it is still needed. Verified: `resources/js/app.js` imports `./page_editor` directly, so it is bundled into every page load. Check whether any live screen still depends on it before removing.
+
+**Verification (2026-05-06):**
+
+- ✅ Drop zone `handleDrop()` in `media-upload-controller.js:174` extracts file and calls `$wire.upload()`.
+- ✅ `ProcessingLogsViewer` teardown confirmed — Alpine `destroy()` calls `clearInterval()` on unmount; watchers handle collapse.
+- ✅ Upload custom events scoped per instance via `componentId` check at `media-upload-controller.js:4`.
+- ✅ `page_editor.js` removed — file does not exist; not referenced in `app.js`.
+- ❌ `$wire.entangle()` replacement as default shared-toggle contract not verified.
+- ❌ `x-admin.form-shell` save-hotkey explicit target contract not confirmed.
 
 Primary review coverage:
 
@@ -410,6 +495,17 @@ Backlog:
 - Split meeting event archive queries into upcoming and recent past slices, with an explicit recent-past limit and pagination only as a later extension.
 - Introduce smaller surface-specific caches for curated home/church/community card rails, or query only the needed slugs.
 
+**Verification (2026-05-06):**
+
+- ✅ Single owner for sermon archive query — `SermonController:45` owns controller query and JSON-LD; `BrowseSermons` owns paginated Livewire filtering.
+- ✅ Filter normalisation in shared `SermonRepository::normalizeArchiveFilters()` used by both surfaces.
+- ✅ `PublicSongCatalogService::qualifyingUsageSubquery()` at `:162` correctly requires completed livestream log with confirmed match before excluding songs.
+- ✅ Sermon transcript lazy-loaded via Alpine fetch through `sermons.transcript` route — not embedded in initial HTML.
+- ❌ Sermon filter manifest (preacher/series/book/chapter options) not cached — rebuilt on every Livewire round-trip.
+- ❌ No regression tests for song catalogue eligibility across failed/pending/in-progress/non-livestream/completed-without-confirmed-section processing states.
+- ❌ Meeting event archive not split into upcoming + recent past with explicit limit.
+- ❌ No surface-specific caches for home/church/community card rails.
+
 Primary review coverage:
 
 - Public Read Side And Read-Path Review
@@ -427,6 +523,12 @@ Backlog:
 - Stop resolving presenters, policies, or container services from Blade when the caller can pass explicit data.
 - Make header, breadcrumbs, series URLs, and other shell-level data explicit view contracts instead of render-time inference.
 - Continue moving storage checks, workflow transitions, cached dropdown generation, and other non-persistence behavior off Eloquent models.
+
+**Verification (2026-05-06):**
+
+- ✅ No `app()` or `resolve()` calls found in Blade files — all presenters passed via controllers or Livewire components.
+- ⚠️ Storage checks and workflow transitions have been moved to separate service classes (`SermonExposurePolicy`, `SermonStorageService`), but full purification of the `Sermon` model could not be confirmed.
+- ❌ Explicit view contracts for header, breadcrumbs, and series URLs not confirmed — still may be inferred at render time.
 
 Primary review coverage:
 
@@ -451,6 +553,13 @@ Backlog:
 - Converge the remaining controller-rendered admin pages on the shared `x-admin.page`, `x-admin.list-shell`, and `x-admin.form-shell` composition path, or explicitly mark them as intentional exceptions.
 - Clean up view-name and composer-registration drift so the active shell/view contracts are obvious and stale bindings stop implying unsupported paths.
 
+**Verification (2026-05-06):**
+
+- ⚠️ `x-admin.*` component library (`x-admin.page`, `x-admin.list-shell`, `x-admin.form-shell`) exists and is adopted across many admin screens, but full adoption was not confirmed for all controller-rendered admin pages.
+- ❌ Whether `layouts/page.blade.php` still doubles as both a reusable layout and a final CMS page response was not confirmed — requires direct template inspection.
+- ❌ No documentation of the preferred layout pattern or explicit exceptions for older inheritance-based views found.
+- ❌ Dead/overlapping auth layout sections, metadata side effects, and view-composer drift not confirmed resolved.
+
 Primary review coverage:
 
 - Blade Template and Layout Structure Review
@@ -474,6 +583,14 @@ Backlog:
 - Add direct resource-contract coverage for church-service API resources and improve request-boundary tests where partial mocks still dominate.
 - Either modernise the performance suite to current boundaries or clearly demote it to opt-in benchmark tooling outside the trusted default CI path.
 
+**Verification (2026-05-06):**
+
+- ❌ `Unit` directory taxonomy not confirmed — may still contain database-backed or framework-heavy tests.
+- ❌ Migration of bespoke fixture setups to shared scenario builders not confirmed.
+- ❌ Broad Livewire suite slimming not confirmed.
+- ❌ No direct resource-contract coverage found for church-service API resources.
+- ❌ Performance suite CI status (opt-in vs default) not confirmed.
+
 Primary review coverage:
 
 - Test Suite Architecture Review
@@ -494,6 +611,16 @@ Backlog:
 - Rework rebuild-style maintenance commands such as `sermons:sync-scripture-filters` to stream with `chunkById()` or `lazyById()` instead of loading the full table into memory up front.
 - Update deployment and operations documents that still describe stale queue names, image-tag examples, or runtime assumptions.
 - Align project conventions with the few intentional exceptions that remain, especially bootstrap-level environment reads, so they stop looking like accidental drift.
+
+**Verification (2026-05-06):**
+
+- ✅ `declare(strict_types=1)` present in all 482 `app/` PHP files and ~592/593 test files.
+- ✅ Rebuild commands stream correctly — `SyncSermonScriptureFilters:73` uses `lazyById(200)`, `AssessSermonVideoQualityCommand:66` uses `lazyById(25)`, `BackfillMediaProcessingIdentityCommand:53` uses `chunkById()`.
+- 🐛 **Critical:** `SermonViewPresenter` registered as `scoped()` in `AppServiceProvider:63` but then overridden as `singleton()` in `MediaProcessingServiceProvider:35`. The singleton wins, silently breaking the relation-loading safety fix. Must be resolved.
+- ❌ Rule-syntax drift in Form Requests not confirmed resolved.
+- ❌ No regression tests for `SermonViewPresenter` with partially-loaded vs fully-loaded relations within the same request.
+- ❌ Schema-normalisation migration self-containment not confirmed.
+- ❌ Deployment/operations docs update not verified.
 
 Primary review coverage:
 
@@ -539,11 +666,11 @@ Use this map to verify that every April review feeds at least one concrete backl
 
 ## Definition Of Done
 
-- Private Children's Talk media is delivered only through the intended guarded path.
-- The app encodes two explicit auth levels: verified-member access for member content and verified-admin access for admin functionality.
-- Upload retries are idempotent by scope and pipeline, not just by file hash.
-- Active church-service workflow state no longer depends on hidden JSON contracts.
-- The heaviest admin Livewire screens have thinner write and presentation seams.
-- Public browse routes stop doing obviously duplicate or overly eager work.
-- Blade page shells use one explicit contract instead of mixing renderable layouts, dead sections, and component-side metadata mutation.
-- The test suite, standards layer, and operations docs reflect the current architecture rather than historical compromises.
+- Private Children's Talk media is delivered only through the intended guarded path. ✅
+- The app encodes two explicit auth levels: verified-member access for member content and verified-admin access for admin functionality. ⚠️ *(middleware in place; redundant component-level checks not yet removed)*
+- Upload retries are idempotent by scope and pipeline, not just by file hash. ❌
+- Active church-service workflow state no longer depends on hidden JSON contracts. ✅
+- The heaviest admin Livewire screens have thinner write and presentation seams. ⚠️ *(sermon and calendar done; ManageChurchService and ServiceReviewDashboard partial)*
+- Public browse routes stop doing obviously duplicate or overly eager work. ⚠️ *(single ownership and shared filter normalisation done; filter manifest caching, meeting slicing, and card-rail caches missing)*
+- Blade page shells use one explicit contract instead of mixing renderable layouts, dead sections, and component-side metadata mutation. ⚠️ *(x-admin shells exist; full adoption and layout/page dual-use resolution not confirmed)*
+- The test suite, standards layer, and operations docs reflect the current architecture rather than historical compromises. ⚠️ *(strict_types and chunk commands done; test taxonomy, resource tests, and docs not confirmed)*

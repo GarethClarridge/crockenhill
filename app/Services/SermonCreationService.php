@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Data\SermonCreationOptions;
+use App\Enums\MediaType;
 use App\Enums\PreacherSource;
 use App\Enums\SermonService;
+use App\Enums\SermonSourceType;
 use App\Enums\TitleGenerationStrategy;
+use App\Enums\UpsertAction;
+use App\Exceptions\SermonRichnessDowngradeException;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -23,25 +28,80 @@ class SermonCreationService
     ) {}
 
     /**
-     * Create a sermon record with all necessary metadata
+     * Create or upsert a sermon record using the richness-aware decision matrix.
+     *
+     * Existing sermon + incoming pipeline → Create / Enrich / Replace / Reject
+     * based on which source is richer (Livestream > Video > Audio).
      */
     public function createSermon(
         MediaProcessingLog $processingLog,
         SermonCreationOptions $options
     ): Sermon {
-        // Extract date using cascading strategy
-        $sermonDate = $options->date ?? $this->extractDate(
-            $processingLog,
-            $options->originalFilename
+        $sermonDate = $options->date ?? $this->extractDate($processingLog, $options->originalFilename);
+        $service = $options->service ?? $this->extractServiceType($processingLog, $options->originalFilename);
+
+        $carbonDate = Carbon::parse($sermonDate);
+
+        $existing = $this->sermonRepository->findByDateAndServiceAndContentType(
+            $carbonDate,
+            $service,
+            $options->contentType,
         );
 
-        // Extract service type using cascading strategy
-        $service = $options->service ?? $this->extractServiceType(
-            $processingLog,
-            $options->originalFilename
-        );
+        if ($existing === null) {
+            return $this->createFresh($processingLog, $options, $sermonDate, $service);
+        }
 
-        // Generate title based on strategy, with ID3 taking priority
+        $action = $this->decideUpsertAction($existing, $processingLog->processing_type);
+
+        return match ($action) {
+            UpsertAction::Create => $this->createFresh($processingLog, $options, $sermonDate, $service),
+            UpsertAction::Enrich => $this->enrichExisting($existing, $processingLog, $options),
+            UpsertAction::Replace => $this->replaceExisting($existing, $processingLog, $options),
+            UpsertAction::Reject => throw new SermonRichnessDowngradeException(
+                $carbonDate,
+                $service,
+                $this->detectExistingRichness($existing),
+                $processingLog->processing_type,
+            ),
+        };
+    }
+
+    private function decideUpsertAction(Sermon $existing, MediaType $incomingType): UpsertAction
+    {
+        $existingRichness = $this->detectExistingRichness($existing);
+
+        return match (true) {
+            // Incoming is richer → Enrich
+            $existingRichness === MediaType::Audio && $incomingType === MediaType::Video => UpsertAction::Enrich,
+            $existingRichness === MediaType::Audio && $incomingType === MediaType::Livestream => UpsertAction::Enrich,
+            $existingRichness === MediaType::Video && $incomingType === MediaType::Livestream => UpsertAction::Enrich,
+            // Same richness → Replace
+            $existingRichness === $incomingType => UpsertAction::Replace,
+            // Incoming would downgrade → Reject
+            default => UpsertAction::Reject,
+        };
+    }
+
+    private function detectExistingRichness(Sermon $existing): MediaType
+    {
+        if ($existing->livestream_processing_id !== null) {
+            return MediaType::Livestream;
+        }
+
+        if ($existing->video_file_path !== null) {
+            return MediaType::Video;
+        }
+
+        return MediaType::Audio;
+    }
+
+    private function createFresh(
+        MediaProcessingLog $processingLog,
+        SermonCreationOptions $options,
+        string $sermonDate,
+        SermonService $service,
+    ): Sermon {
         $title = $this->generateTitle(
             $options->titleStrategy,
             [
@@ -55,7 +115,6 @@ class SermonCreationService
             ]
         );
 
-        // Generate unique slug
         $slug = $this->sermonRepository->generateUniqueSlug($title);
 
         [
@@ -66,7 +125,6 @@ class SermonCreationService
             'needs_review' => $needsReview,
         ] = $this->resolvePreacherAssignment($options);
 
-        // Build sermon data
         $sermonData = [
             'title' => $title,
             'audio_file_path' => $options->audioFilePath,
@@ -84,7 +142,6 @@ class SermonCreationService
             'duration' => $options->duration,
         ];
 
-        // Add optional fields if present
         if ($options->videoFilePath) {
             $sermonData['video_file_path'] = $options->videoFilePath;
         }
@@ -97,26 +154,169 @@ class SermonCreationService
             $sermonData['livestream_processing_id'] = $options->livestreamProcessingId;
         }
 
-        // Add series with cascading priority: ID3 → AI
         if ($options->id3Series) {
             $sermonData['series'] = $options->id3Series;
         } elseif ($options->aiAnalysis && isset($options->aiAnalysis['series'])) {
             $sermonData['series'] = $options->aiAnalysis['series'];
         }
 
-        // Add reference with cascading priority: ID3 → AI
         if ($options->id3Reference) {
             $sermonData['reference'] = $options->id3Reference;
         } elseif ($options->aiAnalysis && isset($options->aiAnalysis['reference'])) {
             $sermonData['reference'] = $options->aiAnalysis['reference'];
         }
 
-        // Add AI analysis points (ID3 tags don't typically contain sermon points)
         if ($options->aiAnalysis && isset($options->aiAnalysis['points'])) {
             $sermonData['points'] = $options->aiAnalysis['points'];
         }
 
         return Sermon::query()->create($sermonData);
+    }
+
+    /**
+     * Enrich an existing sermon with richer incoming media.
+     * Strictly additive — never overwrites slug, title, audio, or manually-set fields.
+     */
+    private function enrichExisting(
+        Sermon $existing,
+        MediaProcessingLog $processingLog,
+        SermonCreationOptions $options,
+    ): Sermon {
+        $updates = [];
+
+        if ($options->videoFilePath) {
+            $updates['video_file_path'] = $options->videoFilePath;
+        }
+
+        if ($options->livestreamProcessingId) {
+            $updates['livestream_processing_id'] = $options->livestreamProcessingId;
+        }
+
+        if ($options->segmentStartTime !== null) {
+            $updates['segment_start_time'] = $options->segmentStartTime;
+        }
+
+        if ($options->segmentEndTime !== null) {
+            $updates['segment_end_time'] = $options->segmentEndTime;
+        }
+
+        $updates['source_type'] = $this->upgradeSourceType($existing->source_type, $options->sourceType);
+
+        if ($options->transcriptFilePath && $existing->transcript_file_path === null) {
+            $updates['transcript_file_path'] = $options->transcriptFilePath;
+        }
+
+        if ($options->duration !== null && $existing->duration === null) {
+            $updates['duration'] = $options->duration;
+        }
+
+        if ($options->id3Series && $existing->series === null) {
+            $updates['series'] = $options->id3Series;
+        } elseif ($options->aiAnalysis && isset($options->aiAnalysis['series']) && $existing->series === null) {
+            $updates['series'] = $options->aiAnalysis['series'];
+        }
+
+        if ($options->id3Reference && $existing->reference === null) {
+            $updates['reference'] = $options->id3Reference;
+        } elseif ($options->aiAnalysis && isset($options->aiAnalysis['reference']) && $existing->reference === null) {
+            $updates['reference'] = $options->aiAnalysis['reference'];
+        }
+
+        if ($existing->preacher_source === PreacherSource::Default) {
+            $resolved = $this->resolvePreacherAssignment($options);
+            if ($resolved['preacher_source'] !== PreacherSource::Default) {
+                $updates['preacher'] = $resolved['preacher_model']->name;
+                $updates['preacher_id'] = $resolved['preacher_model']->id;
+                $updates['preacher_source'] = $resolved['preacher_source'];
+                $updates['preacher_confidence'] = $resolved['preacher_confidence'];
+            }
+        }
+
+        $existing->update($updates);
+
+        return $existing->fresh() ?? $existing;
+    }
+
+    /**
+     * Replace mutable media and AI-derived fields on an existing same-richness sermon.
+     * Never replaces slug, date, service, title, notes, or manually-edited fields.
+     */
+    private function replaceExisting(
+        Sermon $existing,
+        MediaProcessingLog $processingLog,
+        SermonCreationOptions $options,
+    ): Sermon {
+        $updates = [];
+
+        if ($options->audioFilePath) {
+            $updates['audio_file_path'] = $options->audioFilePath;
+        }
+
+        if ($options->videoFilePath) {
+            $updates['video_file_path'] = $options->videoFilePath;
+        }
+
+        if ($options->transcriptFilePath) {
+            $updates['transcript_file_path'] = $options->transcriptFilePath;
+        }
+
+        if ($options->livestreamProcessingId) {
+            $updates['livestream_processing_id'] = $options->livestreamProcessingId;
+        }
+
+        if ($options->segmentStartTime !== null) {
+            $updates['segment_start_time'] = $options->segmentStartTime;
+        }
+
+        if ($options->segmentEndTime !== null) {
+            $updates['segment_end_time'] = $options->segmentEndTime;
+        }
+
+        if ($options->duration !== null) {
+            $updates['duration'] = $options->duration;
+        }
+
+        $aiDerivedFields = [
+            'series' => $options->id3Series ?? ($options->aiAnalysis['series'] ?? null),
+            'reference' => $options->id3Reference ?? ($options->aiAnalysis['reference'] ?? null),
+            'points' => $options->aiAnalysis['points'] ?? null,
+            'summary' => $options->aiAnalysis['summary'] ?? null,
+        ];
+
+        foreach ($aiDerivedFields as $field => $value) {
+            if ($value !== null) {
+                $updates[$field] = $value;
+            }
+        }
+
+        if ($existing->preacher_source !== PreacherSource::Manual) {
+            $resolved = $this->resolvePreacherAssignment($options);
+            $updates['preacher'] = $resolved['preacher_model']->name;
+            $updates['preacher_id'] = $resolved['preacher_model']->id;
+            $updates['preacher_source'] = $resolved['preacher_source'];
+            $updates['preacher_confidence'] = $resolved['preacher_confidence'];
+        }
+
+        if ($updates !== []) {
+            $existing->update($updates);
+        }
+
+        return $existing->fresh() ?? $existing;
+    }
+
+    private function upgradeSourceType(?SermonSourceType $existing, SermonSourceType $incoming): SermonSourceType
+    {
+        $rank = [
+            SermonSourceType::Manual->value => 0,
+            SermonSourceType::AudioUpload->value => 1,
+            SermonSourceType::VideoUpload->value => 2,
+            SermonSourceType::Livestream->value => 3,
+        ];
+
+        $existingRank = $rank[($existing ?? SermonSourceType::Manual)->value];
+        $incomingRank = $rank[$incoming->value];
+
+        return $incomingRank > $existingRank ? $incoming : ($existing ?? $incoming);
     }
 
     /**
