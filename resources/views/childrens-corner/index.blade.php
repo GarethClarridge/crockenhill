@@ -5,7 +5,17 @@
 @section('meta_description', $description)
 
 @section('meta_tags')
-    <x-meta-tags :title="$heading" :description="$description" />
+    <x-meta-tags
+        :title="$heading"
+        :description="$description"
+        :image="asset('/images/homepage/may2024wide.webp')"
+        image-alt="Crockenhill Baptist Church members outside the church building"
+    />
+    <x-schema.webpage
+        :heading="$heading"
+        :description="$description"
+        :image="asset('/images/homepage/may2024wide.webp')"
+    />
 
     {{-- JSON-LD ItemList --}}
     @if (isset($json_ld_data))

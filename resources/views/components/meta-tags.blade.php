@@ -77,6 +77,9 @@
 <meta name="twitter:title" content="{{ $fullTitle }}">
 <meta name="twitter:description" content="{{ $metaDescription }}">
 <meta name="twitter:image" content="{{ $metaImage }}">
+@if($imageAlt)
+<meta name="twitter:image:alt" content="{{ $imageAlt }}">
+@endif
 @if($label1 && $data1)
 <meta name="twitter:label1" content="{{ $label1 }}">
 <meta name="twitter:data1" content="{{ $data1 }}">

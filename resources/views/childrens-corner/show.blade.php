@@ -19,6 +19,11 @@
     />
 
     <x-schema.sermon :$sermon :$sermonView :$metaDescription />
+    <x-schema.webpage
+        :heading="$fullTitle"
+        :description="$metaDescription ?: $sermon->title"
+        :image="$sermonView['thumbnail_url']"
+    />
 @endsection
 
 @section('dynamic_content')
