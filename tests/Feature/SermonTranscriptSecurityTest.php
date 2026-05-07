@@ -66,7 +66,7 @@ class SermonTranscriptSecurityTest extends TestCase
     }
 
     #[Test]
-    public function transcript_endpoint_escapes_html_in_rendered_output(): void
+    public function transcript_endpoint_strips_html_in_rendered_output(): void
     {
         Storage::fake('public');
 
@@ -87,7 +87,8 @@ class SermonTranscriptSecurityTest extends TestCase
 
         $response->assertOk();
         $response->assertDontSee('</script><script>alert("x")</script>', false);
-        // Confirms angle brackets are HTML-entity encoded in the rendered markdown output
-        $response->assertSee('&lt;/script&gt;', false);
+        // Confirms HTML tags are stripped entirely by SafeMarkdownRenderer
+        $response->assertDontSee('&lt;/script&gt;', false);
+        $response->assertSee('Text alert("x")');
     }
 }

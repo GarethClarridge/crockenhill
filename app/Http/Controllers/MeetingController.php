@@ -9,6 +9,7 @@ use App\Models\Meeting;
 use App\Presenters\RelatedPagePresenter;
 use App\Services\PublicMeetingReadModelCache;
 use App\Services\PublicPageVisibilityGuard;
+use App\Traits\SanitizesLogData;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\View;
 
 class MeetingController extends Controller
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly PublicMeetingReadModelCache $publicMeetingReadModelCache,
         private readonly RelatedPagePresenter $relatedPagePresenter,
@@ -90,7 +93,7 @@ class MeetingController extends Controller
         Log::warning('Meeting updated by admin', [
             'admin_id' => auth()->id(),
             'meeting_id' => $meeting->id,
-            'slug' => $fresh instanceof Meeting ? $fresh->slug : $meeting->slug,
+            'slug' => $this->sanitizeForLog($fresh instanceof Meeting ? (string) $fresh->slug : (string) $meeting->slug),
         ]);
 
         $backUrl = Session::get('backUrl');
@@ -111,7 +114,7 @@ class MeetingController extends Controller
         Log::warning('Meeting deleted by admin', [
             'admin_id' => auth()->id(),
             'meeting_id' => $meeting->id,
-            'slug' => $meeting->slug,
+            'slug' => $this->sanitizeForLog((string) $meeting->slug),
         ]);
 
         $meetingSlug = $meeting->slug;
