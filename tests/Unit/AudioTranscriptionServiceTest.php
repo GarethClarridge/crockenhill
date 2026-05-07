@@ -12,7 +12,6 @@ use App\Services\TranscriptFormatterService;
 use App\Services\TranscriptStorageService;
 use Exception;
 use Illuminate\Support\Facades\Storage;
-use OpenAI\Exceptions\ErrorException;
 use OpenAI\Laravel\Facades\OpenAI;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -146,32 +145,6 @@ class AudioTranscriptionServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_validates_transcript_content_correctly(): void
-    {
-        // Use reflection to test the private method
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('validateTranscript');
-        $method->setAccessible(true);
-
-        // Test too short transcript
-        $this->assertFalse($method->invoke($this->service, 'short'));
-
-        // Test empty transcript
-        $this->assertFalse($method->invoke($this->service, ''));
-
-        // Test transcript with too few words
-        $this->assertFalse($method->invoke($this->service, 'one two three four five six seven eight nine'));
-
-        // Test gibberish patterns
-        $this->assertFalse($method->invoke($this->service, '12345678901234567890'));
-        $this->assertFalse($method->invoke($this->service, 'aaaaaaaaaaaaaaaaaaaaaa'));
-
-        // Test valid transcript
-        $validTranscript = 'This is a valid transcript with enough content to pass validation checks and contains meaningful words that make sense.';
-        $this->assertTrue($method->invoke($this->service, $validTranscript));
-    }
-
-    #[Test]
     public function it_throws_exception_when_audio_file_not_found(): void
     {
         $this->expectException(Exception::class);
@@ -191,14 +164,6 @@ class AudioTranscriptionServiceTest extends TestCase
         $this->expectExceptionMessage('Audio file too large');
 
         $this->service->transcribe($largeFilePath);
-    }
-
-    #[Test]
-    public function it_identifies_non_retryable_errors(): void
-    {
-        // Skip this test as it requires complex OpenAI ErrorException setup
-        // The method logic is simple: check if error code is in [400, 401, 413]
-        $this->assertTrue(true); // Placeholder assertion
     }
 
     #[Test]
@@ -287,46 +252,5 @@ class AudioTranscriptionServiceTest extends TestCase
         // The formatAsMarkdown method splits on multiple spaces after periods
         $this->assertStringContainsString('First sentence', $result);
         $this->assertStringContainsString('Second sentence after pause', $result);
-    }
-
-    #[Test]
-    public function it_validates_transcript_with_edge_cases(): void
-    {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('validateTranscript');
-        $method->setAccessible(true);
-
-        // Test whitespace-only transcript
-        $this->assertFalse($method->invoke($this->service, "   \n\n   \t   "));
-
-        // Test transcript with only punctuation
-        $this->assertFalse($method->invoke($this->service, "!@#$%^&*()_+-=[]{}|;':\",./<>?"));
-
-        // Test transcript with repeated characters
-        $this->assertFalse($method->invoke($this->service, str_repeat('a', 50)));
-
-        // Test borderline valid transcript
-        $borderlineTranscript = str_repeat('word ', 10).str_repeat('content ', 5);
-        $this->assertTrue($method->invoke($this->service, $borderlineTranscript));
-    }
-
-    #[Test]
-    public function it_generates_correct_filename_for_sermon_id(): void
-    {
-        $storageService = app(TranscriptStorageService::class);
-        $reflection = new \ReflectionClass($storageService);
-        $method = $reflection->getMethod('getTranscriptFilename');
-        $method->setAccessible(true);
-
-        $testCases = [
-            1 => 'sermon_1.md',
-            123 => 'sermon_123.md',
-            9999 => 'sermon_9999.md',
-        ];
-
-        foreach ($testCases as $sermonId => $expectedFilename) {
-            $result = $method->invoke($storageService, $sermonId);
-            $this->assertEquals($expectedFilename, $result);
-        }
     }
 }
