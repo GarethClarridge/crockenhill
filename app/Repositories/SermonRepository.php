@@ -19,6 +19,11 @@ use Illuminate\Support\Str;
 
 class SermonRepository
 {
+    /**
+     * @var array<int, string>|null
+     */
+    private ?array $memoizedKnownBooksWithCachedChapters = null;
+
     public function __construct(
         private readonly SermonScriptureFilterIndexService $indexService,
     ) {}
@@ -381,11 +386,15 @@ class SermonRepository
         $preacherId = (int) $preacherId ?: null;
         $series = filled($series) ? (string) $series : null;
 
-        /** @var array<int, string> $knownBooks */
-        $knownBooks = Cache::get('sermon_scripture_books_with_cached_chapters', []);
-        if (! in_array($book, $knownBooks, true)) {
-            $knownBooks[] = $book;
-            Cache::put('sermon_scripture_books_with_cached_chapters', $knownBooks, 172800);
+        if ($this->memoizedKnownBooksWithCachedChapters === null) {
+            /** @var array<int, string> $knownBooks */
+            $knownBooks = Cache::get('sermon_scripture_books_with_cached_chapters', []);
+            $this->memoizedKnownBooksWithCachedChapters = $knownBooks;
+        }
+
+        if (! in_array($book, $this->memoizedKnownBooksWithCachedChapters, true)) {
+            $this->memoizedKnownBooksWithCachedChapters[] = $book;
+            Cache::put('sermon_scripture_books_with_cached_chapters', $this->memoizedKnownBooksWithCachedChapters, 172800);
         }
 
         $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');

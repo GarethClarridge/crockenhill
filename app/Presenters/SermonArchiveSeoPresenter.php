@@ -9,6 +9,11 @@ use App\Models\Preacher;
 class SermonArchiveSeoPresenter
 {
     /**
+     * @var array<int, ?string>
+     */
+    private array $memoizedPreacherNames = [];
+
+    /**
      * Generate SEO title based on filters.
      *
      * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
@@ -26,9 +31,9 @@ class SermonArchiveSeoPresenter
         }
 
         if ($filters['preacherId']) {
-            $preacher = Preacher::find($filters['preacherId']);
-            if ($preacher) {
-                $parts[] = $preacher->name;
+            $preacherName = $this->preacherName((int) $filters['preacherId']);
+            if ($preacherName) {
+                $parts[] = $preacherName;
             }
         }
 
@@ -58,9 +63,9 @@ class SermonArchiveSeoPresenter
         }
 
         if ($filters['preacherId']) {
-            $preacher = Preacher::find($filters['preacherId']);
-            if ($preacher) {
-                $parts[] = "by {$preacher->name}";
+            $preacherName = $this->preacherName((int) $filters['preacherId']);
+            if ($preacherName) {
+                $parts[] = "by {$preacherName}";
             }
         }
 
@@ -69,6 +74,21 @@ class SermonArchiveSeoPresenter
         }
 
         return 'Browse sermons from Crockenhill Baptist Church '.implode(' ', $parts).'.';
+    }
+
+    /**
+     * Get the preacher name for the given ID, using request-level memoization
+     * and the cached public preacher list to avoid redundant DB lookups.
+     */
+    private function preacherName(int $preacherId): ?string
+    {
+        if (isset($this->memoizedPreacherNames[$preacherId])) {
+            return $this->memoizedPreacherNames[$preacherId];
+        }
+
+        $preacher = Preacher::getForPublicList()->firstWhere('id', $preacherId);
+
+        return $this->memoizedPreacherNames[$preacherId] = $preacher?->name;
     }
 
     /**

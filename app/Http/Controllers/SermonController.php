@@ -64,7 +64,6 @@ class SermonController extends Controller
             'heading' => $this->seoPresenter->title($filters),
             'description' => $this->seoPresenter->description($filters),
             'canonical_url' => $this->seoPresenter->canonical($filters, $request->integer('page', 1)),
-            'json_ld_data' => $this->itemListPresenter->toItemList($recentSermons),
             'area' => 'christ',
             'links' => $this->sermonLinks('sermons'),
             'slug' => 'sermons',
