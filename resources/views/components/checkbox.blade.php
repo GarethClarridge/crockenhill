@@ -1,4 +1,4 @@
-@props(['label' => null, 'hint' => null, 'checked' => false])
+@props(['label' => null, 'hint' => null, 'checked' => false, 'required' => false])
 
 @php
 $modelName = $attributes->wire('model')->value();
@@ -22,6 +22,7 @@ $describedBy = implode(' ', $describedBy);
                 'id' => $id
             ]) }}
             @checked($checked)
+            @if($required) required aria-required="true" @endif
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
         />

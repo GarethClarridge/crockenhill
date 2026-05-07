@@ -18,6 +18,8 @@ if ($hint) $describedBy[] = $id . '-hint';
 if ($hasError) $describedBy[] = $id . '-error';
 if ($maxlength) $describedBy[] = $id . '-counter';
 $describedBy = implode(' ', $describedBy);
+
+$clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input'));
 @endphp
 
 <div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }}, focused: false, showPassword: false }"
@@ -52,6 +54,7 @@ $describedBy = implode(' ', $describedBy);
                 :type="showPassword ? 'text' : 'password'"
             @endif
             @if($maxlength) maxlength="{{ $maxlength }}" @endif
+            @if($required) required aria-required="true" @endif
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
             @if($clearable && $modelName)
@@ -70,8 +73,8 @@ $describedBy = implode(' ', $describedBy);
 
         @if($clearable && $modelName)
             <button type="button"
-                aria-label="Clear input"
-                title="Clear input"
+                aria-label="{{ $clearLabel }}"
+                title="{{ $clearLabel }}"
                 wire:click="$set('{{ $modelName }}', '')"
                 @click="count = 0; $nextTick(() => $refs.input.focus())"
                 class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded"

@@ -33,6 +33,7 @@ $describedBy = implode(' ', $describedBy);
                 'aria-label' => (!$label && $attributes->get('placeholder')) ? $attributes->get('placeholder') : null
             ]) }}
             @if($maxlength) maxlength="{{ $maxlength }}" @endif
+            @if($required) required aria-required="true" @endif
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
         >{{ $slot }}</textarea>
