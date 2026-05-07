@@ -91,7 +91,7 @@ class SermonAdminController extends Controller
         } catch (\Exception $e) {
             Log::error('Sermon upload failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
                 'user_id' => $request->user()?->id,
             ]);
 
