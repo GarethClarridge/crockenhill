@@ -149,7 +149,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             return $result;
         } finally {
             // Clean up temporary S3 download file if we created one
-            if ($isS3Disk && file_exists($fullPath) && $fullPath !== $processedFilePath) {
+            if ($isS3Disk && file_exists($fullPath)) {
                 unlink($fullPath);
             }
 
