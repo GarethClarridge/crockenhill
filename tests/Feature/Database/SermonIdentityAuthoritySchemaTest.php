@@ -119,6 +119,7 @@ class SermonIdentityAuthoritySchemaTest extends TestCase
             'preacher_id' => null,
         ]);
 
+        DB::statement('ALTER TABLE sermons ALTER CHECK sermons_preacher_format_check NOT ENFORCED');
         DB::table('sermons')->where('id', $sermon->id)->update([
             'preacher' => '',
             'preacher_id' => null,

@@ -6,8 +6,10 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Models\Preacher;
+use App\Models\Sermon;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class SermonFactory extends Factory
@@ -84,6 +86,29 @@ class SermonFactory extends Factory
             'preacher_id' => $preacher->id,
             'preacher_source' => 'manual',
         ]);
+    }
+
+    /**
+     * Creates a sermon with a raw preacher value that bypasses the DB CHECK constraint.
+     * Use in tests that need to simulate pre-constraint dirty data (blank/whitespace preachers).
+     */
+    public function withRawPreacher(string $preacher): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'preacher' => 'Placeholder',
+        ])->afterCreating(function (Sermon $model) use ($preacher): void {
+            if (DB::getDriverName() === 'mysql') {
+                DB::statement(
+                    'ALTER TABLE sermons ALTER CHECK sermons_preacher_format_check NOT ENFORCED'
+                );
+            }
+
+            DB::table('sermons')
+                ->where('id', $model->id)
+                ->update(['preacher' => $preacher]);
+
+            $model->preacher = $preacher;
+        });
     }
 
     /**

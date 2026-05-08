@@ -78,6 +78,7 @@ class SongCatalogSyncService
             }
         });
 
+        /** @var array{path:string,dry_run:bool,source_songs:int,canonical_groups:int,duplicate_groups:int,duplicate_rows:int,songs_upserted:int,songs_created:int,songs_updated:int,songs_restored:int,song_authors_upserted:int,song_books_upserted:int,song_author_links_synced:int,song_book_links_synced:int,groups_with_parse_warnings:int} $metrics */
         return $metrics;
     }
 
@@ -178,7 +179,14 @@ class SongCatalogSyncService
     }
 
     /**
-     * @param  array<string, list<array<string, mixed>>>  $songGroups
+     * @param  array{
+     *     songs:list<array<string,mixed>>,
+     *     authors:list<array<string,mixed>>,
+     *     author_links:list<array<string,mixed>>,
+     *     books:list<array<string,mixed>>,
+     *     book_links:list<array<string,mixed>>
+     * }  $sourceData
+     * @param  array<string, list<array<string,mixed>>>  $songGroups
      * @return array{
      *     path:string,
      *     dry_run:bool,

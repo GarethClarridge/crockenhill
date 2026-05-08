@@ -17,8 +17,7 @@ class PreacherCutoverCommandTest extends TestCase
 
     public function test_cutover_skips_blank_preacher_names_and_defaults_whitespace_sermons(): void
     {
-        $blankNameSermon = Sermon::factory()->create([
-            'preacher' => '   ',
+        $blankNameSermon = Sermon::factory()->withRawPreacher('   ')->create([
             'preacher_id' => null,
             'preacher_source' => null,
             'needs_preacher_review' => false,

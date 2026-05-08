@@ -77,8 +77,7 @@ class SermonDisplayTest extends TestCase
     #[Test]
     public function it_returns_null_when_preacher_name_is_empty_or_whitespace(): void
     {
-        $sermon = Sermon::factory()->create([
-            'preacher' => '  ',
+        $sermon = Sermon::factory()->withRawPreacher('  ')->create([
             'preacher_id' => null,
         ]);
 

@@ -18,8 +18,7 @@ class PreacherCutoverServiceTest extends TestCase
 
     public function test_it_links_sermons_and_defaults_blank_names_through_shared_service(): void
     {
-        $blankSermon = Sermon::factory()->create([
-            'preacher' => '   ',
+        $blankSermon = Sermon::factory()->withRawPreacher('   ')->create([
             'preacher_id' => null,
             'preacher_source' => null,
             'needs_preacher_review' => false,
