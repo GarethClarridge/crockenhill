@@ -111,6 +111,8 @@ class SermonCreationOptions
             segmentStartTime: $metadata['segment_start_time'] ?? null,
             segmentEndTime: $metadata['segment_end_time'] ?? null,
             titleStrategy: TitleGenerationStrategy::FilenameOnly,
+            service: $log->extracted_service,
+            date: $log->extracted_date?->toDateString(),
         );
     }
 

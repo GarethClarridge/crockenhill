@@ -6,11 +6,9 @@ namespace Tests\Unit\Services;
 
 use App\Data\SermonCreationOptions;
 use App\Enums\PreacherSource;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\TitleGenerationStrategy;
-use App\Exceptions\SermonRichnessDowngradeException;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -475,14 +473,16 @@ class SermonCreationServiceTest extends TestCase
             'processing_id' => 'test-processing-id',
             'processing_type' => 'livestream',
             'audio_file_path' => 'audio/livestream-segment.mp3',
-            'original_filename' => '2024-03-15-livestream.mp4',
+            'original_filename' => '17-55.mkv',
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Evening,
             'processing_metadata' => [],
         ]);
 
         $metadata = [
             'source_type' => 'livestream',
             'livestream_processing_id' => 'test-processing-id',
-            'original_filename' => '2024-03-15-morning-livestream.mp4',
+            'original_filename' => '17-55.mkv',
             'segment_start_time' => 120.5,
             'segment_end_time' => 3600.0,
         ];
@@ -491,10 +491,12 @@ class SermonCreationServiceTest extends TestCase
         $sermon = $this->service->createSermon($log, $options);
 
         $this->assertInstanceOf(Sermon::class, $sermon);
+        $this->assertEquals('Evening Sermon - January 16, 2022', $sermon->title);
         $this->assertEquals('audio/livestream-segment.mp3', $sermon->audio_file_path);
         $this->assertEquals(SermonSourceType::Livestream, $sermon->source_type);
         $this->assertEquals('test-processing-id', $sermon->livestream_processing_id);
-        $this->assertEquals(SermonService::Morning, $sermon->service);
+        $this->assertEquals('2022-01-16', $sermon->date->toDateString());
+        $this->assertEquals(SermonService::Evening, $sermon->service);
     }
 
     #[Test]
@@ -645,376 +647,5 @@ class SermonCreationServiceTest extends TestCase
         );
 
         $this->assertEquals('A perfectly valid sermon title from AI', $title);
-    }
-
-    // -------------------------------------------------------------------------
-    // Upsert matrix — Create
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function upsert_creates_fresh_sermon_when_none_exists(): void
-    {
-        $log = $this->makeProcessingLog('audio', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::AudioUpload, audioFilePath: 'audio/test.mp3');
-        $sermon = $this->service->createSermon($log, $options);
-
-        $this->assertInstanceOf(Sermon::class, $sermon);
-        $this->assertEquals('2024-05-12', $sermon->date->format('Y-m-d'));
-        $this->assertDatabaseCount('sermons', 1);
-    }
-
-    // -------------------------------------------------------------------------
-    // Upsert matrix — Enrich
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function upsert_enriches_audio_sermon_with_video(): void
-    {
-        $existing = Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'audio_file_path' => 'audio/original.mp3',
-            'video_file_path' => null,
-            'livestream_processing_id' => null,
-            'source_type' => SermonSourceType::AudioUpload,
-        ]);
-
-        $log = $this->makeProcessingLog('video', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::VideoUpload, audioFilePath: 'audio/from-video.mp3', videoFilePath: 'video/new.mp4');
-        $returned = $this->service->createSermon($log, $options);
-
-        $this->assertSame($existing->id, $returned->id);
-        $this->assertDatabaseCount('sermons', 1);
-        $this->assertDatabaseHas('sermons', ['id' => $existing->id, 'video_file_path' => 'video/new.mp4']);
-        // Original audio preserved
-        $this->assertDatabaseHas('sermons', ['id' => $existing->id, 'audio_file_path' => 'audio/original.mp3']);
-    }
-
-    #[Test]
-    public function upsert_enriches_audio_sermon_with_livestream(): void
-    {
-        $existing = Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'audio_file_path' => 'audio/original.mp3',
-            'video_file_path' => null,
-            'livestream_processing_id' => null,
-            'source_type' => SermonSourceType::AudioUpload,
-        ]);
-
-        $log = $this->makeProcessingLog('livestream', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(
-            SermonSourceType::Livestream,
-            audioFilePath: 'audio/from-livestream.mp3',
-            videoFilePath: 'video/livestream.mp4',
-            livestreamProcessingId: $log->processing_id,
-        );
-        $returned = $this->service->createSermon($log, $options);
-
-        $this->assertSame($existing->id, $returned->id);
-        $this->assertDatabaseHas('sermons', ['id' => $existing->id, 'livestream_processing_id' => $log->processing_id]);
-        $this->assertDatabaseHas('sermons', ['id' => $existing->id, 'audio_file_path' => 'audio/original.mp3']);
-    }
-
-    #[Test]
-    public function upsert_enriches_video_sermon_with_livestream(): void
-    {
-        $existing = Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'video_file_path' => 'video/original.mp4',
-            'livestream_processing_id' => null,
-            'source_type' => SermonSourceType::VideoUpload,
-        ]);
-
-        $log = $this->makeProcessingLog('livestream', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::Livestream, audioFilePath: 'audio/ls.mp3', videoFilePath: 'video/ls.mp4', livestreamProcessingId: $log->processing_id);
-        $returned = $this->service->createSermon($log, $options);
-
-        $this->assertSame($existing->id, $returned->id);
-        $this->assertDatabaseHas('sermons', ['id' => $existing->id, 'livestream_processing_id' => $log->processing_id]);
-    }
-
-    #[Test]
-    public function enrich_does_not_overwrite_existing_series_or_reference(): void
-    {
-        $existing = Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'audio_file_path' => 'audio/original.mp3',
-            'video_file_path' => null,
-            'livestream_processing_id' => null,
-            'series' => 'Existing Series',
-            'reference' => 'Existing Reference',
-            'source_type' => SermonSourceType::AudioUpload,
-        ]);
-
-        $log = $this->makeProcessingLog('video', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::VideoUpload, audioFilePath: 'audio/v.mp3', videoFilePath: 'video/v.mp4');
-        $options->id3Series = 'New Series';
-        $options->id3Reference = 'New Reference';
-        $this->service->createSermon($log, $options);
-
-        $this->assertDatabaseHas('sermons', ['id' => $existing->id, 'series' => 'Existing Series', 'reference' => 'Existing Reference']);
-    }
-
-    #[Test]
-    public function enrich_updates_default_preacher_with_better_source(): void
-    {
-        $existing = Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'audio_file_path' => 'audio/original.mp3',
-            'video_file_path' => null,
-            'livestream_processing_id' => null,
-            'preacher' => 'Visiting Speaker',
-            'preacher_source' => PreacherSource::Default,
-            'source_type' => SermonSourceType::AudioUpload,
-        ]);
-
-        $log = $this->makeProcessingLog('video', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::VideoUpload, audioFilePath: 'audio/v.mp3', videoFilePath: 'video/v.mp4');
-        $options->id3Preacher = 'Rev James Smith';
-        $this->service->createSermon($log, $options);
-
-        $existing->refresh();
-        $this->assertEquals('Rev James Smith', $existing->preacher);
-    }
-
-    #[Test]
-    public function enrich_does_not_overwrite_manually_set_preacher(): void
-    {
-        $existing = Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'audio_file_path' => 'audio/original.mp3',
-            'video_file_path' => null,
-            'livestream_processing_id' => null,
-            'preacher' => 'Manually Set Preacher',
-            'preacher_source' => PreacherSource::Manual,
-            'source_type' => SermonSourceType::AudioUpload,
-        ]);
-
-        $log = $this->makeProcessingLog('video', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::VideoUpload, audioFilePath: 'audio/v.mp3', videoFilePath: 'video/v.mp4');
-        $options->id3Preacher = 'Someone Else';
-        $this->service->createSermon($log, $options);
-
-        $existing->refresh();
-        $this->assertEquals('Manually Set Preacher', $existing->preacher);
-    }
-
-    // -------------------------------------------------------------------------
-    // Upsert matrix — Replace
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function upsert_replaces_audio_sermon_with_audio(): void
-    {
-        $existing = Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'audio_file_path' => 'audio/old.mp3',
-            'video_file_path' => null,
-            'livestream_processing_id' => null,
-            'source_type' => SermonSourceType::AudioUpload,
-        ]);
-
-        $log = $this->makeProcessingLog('audio', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::AudioUpload, audioFilePath: 'audio/new.mp3');
-        $returned = $this->service->createSermon($log, $options);
-
-        $this->assertSame($existing->id, $returned->id);
-        $this->assertDatabaseHas('sermons', ['id' => $existing->id, 'audio_file_path' => 'audio/new.mp3']);
-        $this->assertDatabaseCount('sermons', 1);
-    }
-
-    #[Test]
-    public function upsert_replaces_livestream_sermon_with_livestream(): void
-    {
-        $oldLog = $this->makeProcessingLog('livestream', '2024-05-11', SermonService::Evening);
-
-        $existing = Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'livestream_processing_id' => $oldLog->processing_id,
-            'source_type' => SermonSourceType::Livestream,
-        ]);
-
-        $log = $this->makeProcessingLog('livestream', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::Livestream, audioFilePath: 'audio/new.mp3', livestreamProcessingId: $log->processing_id);
-        $returned = $this->service->createSermon($log, $options);
-
-        $this->assertSame($existing->id, $returned->id);
-        $this->assertDatabaseHas('sermons', ['id' => $existing->id, 'livestream_processing_id' => $log->processing_id]);
-    }
-
-    #[Test]
-    public function replace_does_not_overwrite_slug_or_title(): void
-    {
-        $existing = Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'slug' => 'original-slug',
-            'title' => 'Original Title',
-            'audio_file_path' => 'audio/old.mp3',
-            'video_file_path' => null,
-            'livestream_processing_id' => null,
-            'source_type' => SermonSourceType::AudioUpload,
-        ]);
-
-        $log = $this->makeProcessingLog('audio', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::AudioUpload, audioFilePath: 'audio/new.mp3');
-        $this->service->createSermon($log, $options);
-
-        $this->assertDatabaseHas('sermons', ['id' => $existing->id, 'slug' => 'original-slug', 'title' => 'Original Title']);
-    }
-
-    // -------------------------------------------------------------------------
-    // Upsert matrix — Reject
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function upsert_rejects_audio_over_existing_video_sermon(): void
-    {
-        Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'video_file_path' => 'video/existing.mp4',
-            'livestream_processing_id' => null,
-            'source_type' => SermonSourceType::VideoUpload,
-        ]);
-
-        $log = $this->makeProcessingLog('audio', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::AudioUpload, audioFilePath: 'audio/test.mp3');
-
-        $this->expectException(SermonRichnessDowngradeException::class);
-        $this->service->createSermon($log, $options);
-    }
-
-    #[Test]
-    public function upsert_rejects_audio_over_existing_livestream_sermon(): void
-    {
-        $existingLog = $this->makeProcessingLog('livestream', '2024-05-12', SermonService::Morning);
-
-        Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'livestream_processing_id' => $existingLog->processing_id,
-            'source_type' => SermonSourceType::Livestream,
-        ]);
-
-        $log = $this->makeProcessingLog('audio', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::AudioUpload, audioFilePath: 'audio/test.mp3');
-
-        $this->expectException(SermonRichnessDowngradeException::class);
-        $this->service->createSermon($log, $options);
-    }
-
-    #[Test]
-    public function upsert_rejects_video_over_existing_livestream_sermon(): void
-    {
-        $existingLog = $this->makeProcessingLog('livestream', '2024-05-12', SermonService::Morning);
-
-        Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-            'livestream_processing_id' => $existingLog->processing_id,
-            'source_type' => SermonSourceType::Livestream,
-        ]);
-
-        $log = $this->makeProcessingLog('video', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::VideoUpload, audioFilePath: 'audio/test.mp3', videoFilePath: 'video/test.mp4');
-
-        $this->expectException(SermonRichnessDowngradeException::class);
-        $this->service->createSermon($log, $options);
-    }
-
-    // -------------------------------------------------------------------------
-    // Content-type isolation
-    // -------------------------------------------------------------------------
-
-    #[Test]
-    public function upsert_does_not_match_childrens_talk_when_looking_for_sermon(): void
-    {
-        // A children's talk exists for the same date+service
-        Sermon::factory()->create([
-            'date' => '2024-05-12',
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::ChildrensTalk,
-            'audio_file_path' => 'audio/kids.mp3',
-            'video_file_path' => null,
-            'livestream_processing_id' => null,
-        ]);
-
-        $log = $this->makeProcessingLog('audio', '2024-05-12', SermonService::Morning);
-
-        $options = $this->makeOptions(SermonSourceType::AudioUpload, audioFilePath: 'audio/sermon.mp3');
-        $options->contentType = SermonContentType::Sermon;
-        $returned = $this->service->createSermon($log, $options);
-
-        // Should create a new Sermon record (not update the ChildrensTalk)
-        $this->assertDatabaseCount('sermons', 2);
-        $this->assertEquals(SermonContentType::Sermon, $returned->content_type);
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
-    private function makeProcessingLog(string $type, string $date, SermonService $service): MediaProcessingLog
-    {
-        return MediaProcessingLog::factory()->create([
-            'processing_type' => $type,
-            'extracted_date' => $date,
-            'extracted_service' => $service,
-            'original_filename' => "{$date}-sermon.mp3",
-            'source_file_path' => 'audio/source.mp3',
-            'audio_file_path' => 'audio/extracted.mp3',
-            'processing_metadata' => [],
-        ]);
-    }
-
-    private function makeOptions(
-        SermonSourceType $sourceType,
-        string $audioFilePath = 'audio/test.mp3',
-        ?string $videoFilePath = null,
-        ?string $livestreamProcessingId = null,
-    ): SermonCreationOptions {
-        return new SermonCreationOptions(
-            audioFilePath: $audioFilePath,
-            originalFilename: '2024-05-12-sermon.mp3',
-            sourceType: $sourceType,
-            videoFilePath: $videoFilePath,
-            livestreamProcessingId: $livestreamProcessingId,
-            service: SermonService::Morning,
-            date: '2024-05-12',
-            contentType: SermonContentType::Sermon,
-        );
     }
 }

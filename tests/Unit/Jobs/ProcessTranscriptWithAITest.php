@@ -51,7 +51,10 @@ class ProcessTranscriptWithAITest extends TestCase
         Storage::fake();
         Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
 
-        $sermon = Sermon::factory()->create(['title' => 'Untitled Sermon']);
+        $sermon = Sermon::factory()->create([
+            'title' => 'Untitled Sermon',
+            'reference' => null,
+        ]);
         $log = MediaProcessingLog::factory()->audio()->processing()->create([
             'sermon_id' => $sermon->id,
             'transcript_file_path' => 'transcripts/1/transcript.txt',
@@ -194,6 +197,34 @@ class ProcessTranscriptWithAITest extends TestCase
                     'reference' => null,
                 ],
             ],
+        ]);
+
+        $analysis = $this->createAnalysis('A Proper Sermon Title');
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willReturn($analysis);
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $sermon->refresh();
+        $this->assertEquals('A Proper Sermon Title', $sermon->title);
+    }
+
+    #[Test]
+    public function it_replaces_bare_time_titles_with_the_ai_title(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create(['title' => '18 08']);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
         ]);
 
         $analysis = $this->createAnalysis('A Proper Sermon Title');

@@ -254,19 +254,38 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
      */
     private function looksLikeFilename(string $title): bool
     {
+        $normalizedTitle = trim($title);
+
+        if (preg_match('/^untitled(?:\s+sermon)?$/i', $normalizedTitle) === 1) {
+            return true;
+        }
+
+        if (preg_match('/^(morning|evening|other)\s+sermon\s+-\s+/i', $normalizedTitle) === 1) {
+            return true;
+        }
+
+        if (preg_match('/^sermon\s+-\s+/i', $normalizedTitle) === 1) {
+            return true;
+        }
+
         // Check for file extension
-        if (preg_match('/\.(mp3|wav|m4a|mp4|mov|avi|mkv|flac|aac|ogg)$/i', $title)) {
+        if (preg_match('/\.(mp3|wav|m4a|mp4|mov|avi|mkv|flac|aac|ogg)$/i', $normalizedTitle)) {
+            return true;
+        }
+
+        // Check for bare time-like titles created from raw filenames, e.g. "18 08" or "10 31 2"
+        if (preg_match('/^\d{1,2}(?:\s+\d{2})+(?:\s+\d+)?$/', $normalizedTitle)) {
             return true;
         }
 
         // Check for hash-like patterns (long strings of random characters)
         // Look for 20+ contiguous lowercase letters/numbers without spaces
-        if (preg_match('/[a-z0-9]{20,}/i', $title)) {
+        if (preg_match('/[a-z0-9]{20,}/i', $normalizedTitle)) {
             return true;
         }
 
         // Check for UUID-like patterns
-        if (preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $title)) {
+        if (preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $normalizedTitle)) {
             return true;
         }
 

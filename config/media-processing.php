@@ -36,7 +36,7 @@ return [
             'description' => 'Direct sermon video files',
         ],
         'livestream' => [
-            'max_file_size' => 2 * 1024 * 1024 * 1024, // 2GB
+            'max_file_size' => (int) env('MEDIA_PROCESSING_LIVESTREAM_MAX_FILE_SIZE', 8 * 1024 * 1024 * 1024), // 8GB
             'allowed_extensions' => ['mp4', 'mov', 'avi', 'mkv', 'webm'],
             'allowed_mimes' => ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'],
             'queue' => $livestreamQueue,
