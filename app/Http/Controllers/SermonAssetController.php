@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Services\SafeMarkdownRenderer;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;
@@ -27,6 +28,7 @@ class SermonAssetController extends Controller
         private readonly SermonStorageService $storageService,
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonTranscriptReader $transcriptReader,
+        private readonly SafeMarkdownRenderer $markdownRenderer,
     ) {}
 
     /**
@@ -46,10 +48,7 @@ class SermonAssetController extends Controller
             abort(404, 'Transcript not found.');
         }
 
-        $html = (string) Str::markdown($transcript, [
-            'html_input' => 'escape',
-            'allow_unsafe_links' => false,
-        ]);
+        $html = $this->markdownRenderer->convert($transcript);
 
         return response($html, 200, [
             'Content-Type' => 'text/html; charset=UTF-8',

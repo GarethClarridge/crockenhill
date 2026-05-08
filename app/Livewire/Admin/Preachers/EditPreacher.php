@@ -8,6 +8,7 @@ use App\Contracts\SpeakerIdentificationInterface;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
+use App\Traits\SanitizesLogData;
 use App\Models\PreacherAlias;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
@@ -18,7 +19,7 @@ use Livewire\Component;
 
 class EditPreacher extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use SanitizesLogData, WithAdminAuthorization, WithNotifications;
 
     public Preacher $preacher;
 
@@ -83,8 +84,8 @@ class EditPreacher extends Component
         Log::warning('Preacher updated by admin', [
             'admin_id' => auth()->id(),
             'preacher_id' => $this->preacher->id,
-            'name' => ($fresh instanceof Preacher ? $fresh->name : $this->preacher->name),
-            'slug' => ($fresh instanceof Preacher ? $fresh->slug : $this->preacher->slug),
+            'name' => $this->sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->name : (string) $this->preacher->name),
+            'slug' => $this->sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->slug : (string) $this->preacher->slug),
         ]);
 
         $this->success('Preacher updated');
@@ -125,9 +126,9 @@ class EditPreacher extends Component
             Log::warning('Preacher alias removed by admin', [
                 'admin_id' => auth()->id(),
                 'preacher_id' => $this->preacher->id,
-                'preacher_name' => $this->preacher->name,
+                'preacher_name' => $this->sanitizeForLog((string) $this->preacher->name),
                 'alias_id' => $alias->id,
-                'alias' => $alias->alias,
+                'alias' => $this->sanitizeForLog((string) $alias->alias),
             ]);
 
             $alias->delete();
@@ -188,7 +189,7 @@ class EditPreacher extends Component
             Log::warning('Speaker profile deactivated by admin', [
                 'admin_id' => auth()->id(),
                 'preacher_id' => $this->preacher->id,
-                'preacher_name' => $this->preacher->name,
+                'preacher_name' => $this->sanitizeForLog((string) $this->preacher->name),
                 'profile_id' => $profile->id,
             ]);
 
