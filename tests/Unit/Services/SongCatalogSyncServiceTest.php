@@ -147,13 +147,34 @@ class SongCatalogSyncServiceTest extends TestCase
 
         $this->service->sync($path, dryRun: false);
 
-        Song::where('title', 'Great Is Thy Faithfulness')->delete();
+        Song::query()->where('title', 'Great Is Thy Faithfulness')->delete();
         $this->assertSoftDeleted('songs', ['title' => 'Great Is Thy Faithfulness']);
 
         $metrics = $this->service->sync($path, dryRun: false);
 
         $this->assertSame(1, $metrics['songs_restored']);
         $this->assertDatabaseHas('songs', ['title' => 'Great Is Thy Faithfulness', 'deleted_at' => null]);
+    }
+
+    #[Test]
+    public function it_supports_multi_role_authors_for_a_single_song(): void
+    {
+        $path = $this->createSqliteWithMultiRoleAuthor('In Christ Alone', 'in christ alone');
+
+        $metrics = $this->service->sync($path, dryRun: false);
+
+        $this->assertSame(2, $metrics['song_author_links_synced']);
+
+        $song = Song::query()->where('title', 'In Christ Alone')->firstOrFail();
+        $this->assertCount(2, $song->authors);
+        $this->assertDatabaseHas('song_author_song', [
+            'song_id' => $song->id,
+            'author_type' => 'Lyricist',
+        ]);
+        $this->assertDatabaseHas('song_author_song', [
+            'song_id' => $song->id,
+            'author_type' => 'Composer',
+        ]);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -179,6 +200,27 @@ class SongCatalogSyncServiceTest extends TestCase
 
         $pdo->exec("INSERT INTO songs (id, title, alternate_title, lyrics, verse_order, copyright, comments, ccli_number, search_title, last_modified)
             VALUES (1, '$title', NULL, '', NULL, NULL, NULL, NULL, '$searchTitle', '2026-01-01 10:00:00')");
+
+        return $path;
+    }
+
+    private function createSqliteWithMultiRoleAuthor(string $title, string $searchTitle): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'songs_test_').'.db';
+        $this->tempFiles[] = $path;
+
+        $pdo = new \PDO('sqlite:'.$path);
+        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+        $this->createSqliteSchema($pdo);
+
+        $pdo->exec("INSERT INTO songs (id, title, alternate_title, lyrics, verse_order, copyright, comments, ccli_number, search_title, last_modified)
+            VALUES (1, '$title', NULL, '', NULL, NULL, NULL, NULL, '$searchTitle', '2026-01-01 10:00:00')");
+
+        $pdo->exec("INSERT INTO authors (id, display_name) VALUES (1, 'Stuart Townend')");
+
+        $pdo->exec("INSERT INTO authors_songs (song_id, author_id, author_type) VALUES (1, 1, 'Lyricist')");
+        $pdo->exec("INSERT INTO authors_songs (song_id, author_id, author_type) VALUES (1, 1, 'Composer')");
 
         return $path;
     }

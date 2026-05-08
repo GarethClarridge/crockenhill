@@ -41,14 +41,166 @@ class SongCatalogSyncService
      */
     public function sync(?string $path = null, bool $dryRun = false): array
     {
+        $state = $this->prepareSyncState($path);
+        $metrics = $this->initializeMetrics($state['resolvedPath'], $dryRun, $state['sourceData'], $state['songGroups']);
+
+        if ($dryRun) {
+            return $this->buildDryRunMetrics(
+                $metrics,
+                $state['sourceData'],
+                $state['songGroups'],
+                $state['existingSongs'],
+                $state['legacyReconciliationMap']
+            );
+        }
+
+        DB::transaction(function () use (&$metrics, $state): void {
+            $sourceData = $state['sourceData'];
+            $songGroups = $state['songGroups'];
+            $legacyReconciliationMap = $state['legacyReconciliationMap'];
+
+            [$authorIdMap, $authorUpsertedCount] = $this->upsertSongAuthors($sourceData['authors']);
+            $metrics['song_authors_upserted'] = $authorUpsertedCount;
+
+            [$bookIdMap, $bookUpsertedCount] = $this->upsertSongBooks($sourceData['books']);
+            $metrics['song_books_upserted'] = $bookUpsertedCount;
+
+            foreach ($songGroups as $canonicalKey => $groupRows) {
+                $this->processSongGroup(
+                    $canonicalKey,
+                    $groupRows,
+                    $sourceData,
+                    $authorIdMap,
+                    $bookIdMap,
+                    $legacyReconciliationMap,
+                    $metrics
+                );
+            }
+        });
+
+        return $metrics;
+    }
+
+    /**
+     * Prepare source data and existing state for synchronization.
+     *
+     * @return array{
+     *     resolvedPath: string,
+     *     sourceData: array{
+     *         songs: list<array<string, mixed>>,
+     *         authors: list<array<string, mixed>>,
+     *         author_links: list<array<string, mixed>>,
+     *         books: list<array<string, mixed>>,
+     *         book_links: list<array<string, mixed>>
+     *     },
+     *     songGroups: array<string, list<array<string, mixed>>>,
+     *     existingSongs: array<string, array{song_id: int, deleted: bool}>,
+     *     legacyReconciliationMap: array<string, array{song_id: int, deleted: bool}>
+     * }
+     */
+    private function prepareSyncState(?string $path): array
+    {
         $resolvedPath = $this->resolvePath($path);
         $sourceData = $this->loadSourceData($resolvedPath);
         $songGroups = $this->groupSongsByCanonicalKey($sourceData['songs']);
         $existingSongs = $this->existingSongsByCanonicalKey(array_keys($songGroups));
         $legacyReconciliationMap = $this->buildLegacyReconciliationMap($songGroups, $existingSongs);
 
+        return [
+            'resolvedPath' => $resolvedPath,
+            'sourceData' => $sourceData,
+            'songGroups' => $songGroups,
+            'existingSongs' => $existingSongs,
+            'legacyReconciliationMap' => $legacyReconciliationMap,
+        ];
+    }
+
+    /**
+     * Process a single song group during synchronization.
+     *
+     * @param  list<array<string, mixed>>  $groupRows
+     * @param  array{
+     *     songs: list<array<string, mixed>>,
+     *     authors: list<array<string, mixed>>,
+     *     author_links: list<array<string, mixed>>,
+     *     books: list<array<string, mixed>>,
+     *     book_links: list<array<string, mixed>>
+     * }  $sourceData
+     * @param  array<int, int>  $authorIdMap
+     * @param  array<int, int>  $bookIdMap
+     * @param  array<string, array{song_id: int, deleted: bool}>  $legacyReconciliationMap
+     * @param  array<string, mixed>  $metrics
+     */
+    private function processSongGroup(
+        string $canonicalKey,
+        array $groupRows,
+        array $sourceData,
+        array $authorIdMap,
+        array $bookIdMap,
+        array $legacyReconciliationMap,
+        array &$metrics
+    ): void {
+        [$song, $created, $restored, $parseWarnings] = $this->upsertSongFromGroup(
+            $canonicalKey,
+            $groupRows,
+            $legacyReconciliationMap[$canonicalKey]['song_id'] ?? null
+        );
+
+        $metrics['songs_upserted']++;
+
+        if ($created) {
+            $metrics['songs_created']++;
+        } else {
+            $metrics['songs_updated']++;
+        }
+
+        if ($restored) {
+            $metrics['songs_restored']++;
+        }
+
+        if ($parseWarnings > 0) {
+            $metrics['groups_with_parse_warnings']++;
+        }
+
+        $authorPivotRows = $this->buildAuthorPivotRows($song->id, $groupRows, $sourceData['author_links'], $authorIdMap);
+        DB::table('song_author_song')->where('song_id', $song->id)->delete();
+        if ($authorPivotRows !== []) {
+            DB::table('song_author_song')->insert($authorPivotRows);
+        }
+        $metrics['song_author_links_synced'] += count($authorPivotRows);
+
+        $bookPivotRows = $this->buildBookPivotRows($song->id, $groupRows, $sourceData['book_links'], $bookIdMap);
+        DB::table('song_book_song')->where('song_id', $song->id)->delete();
+        if ($bookPivotRows !== []) {
+            DB::table('song_book_song')->insert($bookPivotRows);
+        }
+        $metrics['song_book_links_synced'] += count($bookPivotRows);
+    }
+
+    /**
+     * @param  array<string, list<array<string, mixed>>>  $songGroups
+     * @return array{
+     *     path:string,
+     *     dry_run:bool,
+     *     source_songs:int,
+     *     canonical_groups:int,
+     *     duplicate_groups:int,
+     *     duplicate_rows:int,
+     *     songs_upserted:int,
+     *     songs_created:int,
+     *     songs_updated:int,
+     *     songs_restored:int,
+     *     song_authors_upserted:int,
+     *     song_books_upserted:int,
+     *     song_author_links_synced:int,
+     *     song_book_links_synced:int,
+     *     groups_with_parse_warnings:int
+     * }
+     */
+    private function initializeMetrics(string $path, bool $dryRun, array $sourceData, array $songGroups): array
+    {
         $metrics = [
-            'path' => $resolvedPath,
+            'path' => $path,
             'dry_run' => $dryRun,
             'source_songs' => count($sourceData['songs']),
             'canonical_groups' => count($songGroups),
@@ -71,62 +223,6 @@ class SongCatalogSyncService
                 $metrics['duplicate_rows'] += count($groupRows) - 1;
             }
         }
-
-        if ($dryRun) {
-            return $this->buildDryRunMetrics(
-                $metrics,
-                $sourceData,
-                $songGroups,
-                $existingSongs,
-                $legacyReconciliationMap
-            );
-        }
-
-        DB::transaction(function () use (&$metrics, $sourceData, $songGroups, $legacyReconciliationMap): void {
-            [$authorIdMap, $authorUpsertedCount] = $this->upsertSongAuthors($sourceData['authors']);
-            $metrics['song_authors_upserted'] = $authorUpsertedCount;
-
-            [$bookIdMap, $bookUpsertedCount] = $this->upsertSongBooks($sourceData['books']);
-            $metrics['song_books_upserted'] = $bookUpsertedCount;
-
-            foreach ($songGroups as $canonicalKey => $groupRows) {
-                [$song, $created, $restored, $parseWarnings] = $this->upsertSongFromGroup(
-                    $canonicalKey,
-                    $groupRows,
-                    $legacyReconciliationMap[$canonicalKey]['song_id'] ?? null
-                );
-
-                $metrics['songs_upserted']++;
-
-                if ($created) {
-                    $metrics['songs_created']++;
-                } else {
-                    $metrics['songs_updated']++;
-                }
-
-                if ($restored) {
-                    $metrics['songs_restored']++;
-                }
-
-                if ($parseWarnings > 0) {
-                    $metrics['groups_with_parse_warnings']++;
-                }
-
-                $authorPivotRows = $this->buildAuthorPivotRows($song->id, $groupRows, $sourceData['author_links'], $authorIdMap);
-                DB::table('song_author_song')->where('song_id', $song->id)->delete();
-                if ($authorPivotRows !== []) {
-                    DB::table('song_author_song')->insert($authorPivotRows);
-                }
-                $metrics['song_author_links_synced'] += count($authorPivotRows);
-
-                $bookPivotRows = $this->buildBookPivotRows($song->id, $groupRows, $sourceData['book_links'], $bookIdMap);
-                DB::table('song_book_song')->where('song_id', $song->id)->delete();
-                if ($bookPivotRows !== []) {
-                    DB::table('song_book_song')->insert($bookPivotRows);
-                }
-                $metrics['song_book_links_synced'] += count($bookPivotRows);
-            }
-        });
 
         return $metrics;
     }
@@ -244,7 +340,8 @@ class SongCatalogSyncService
         }
 
         /** @var array<string, array{song_id:int, deleted:bool}> $songs */
-        $songs = Song::withTrashed()
+        $songs = Song::query()
+            ->withTrashed()
             ->whereIn('canonical_key', $canonicalKeys)
             ->get(['id', 'canonical_key', 'deleted_at'])
             ->mapWithKeys(static fn (Song $song): array => [
@@ -499,11 +596,12 @@ class SongCatalogSyncService
         $song = null;
 
         if ($reconciledSongId !== null) {
-            $song = Song::withTrashed()->find($reconciledSongId);
+            $song = Song::query()->withTrashed()->find($reconciledSongId);
         }
 
         if (! $song instanceof Song) {
-            $song = Song::withTrashed()
+            $song = Song::query()
+                ->withTrashed()
                 ->where('canonical_key', $canonicalKey)
                 ->first();
         }
@@ -545,12 +643,50 @@ class SongCatalogSyncService
             return [];
         }
 
-        $legacyByPraiseAndTitle = [];
-        $legacyByTitle = [];
-        $legacyStateById = [];
+        $lookupState = $this->prepareLegacyLookupState($legacySongs);
+
+        $acceptedMatches = [];
+        $reservedLegacyIds = [];
+
+        // Phase 1: Match by Praise number AND Title
+        $this->matchLegacySongsByPraiseAndTitle(
+            $songGroups,
+            $existingSongs,
+            $lookupState,
+            $acceptedMatches,
+            $reservedLegacyIds
+        );
+
+        // Phase 2: Match by Title only (excluding already matched)
+        $this->matchLegacySongsByTitleOnly(
+            $songGroups,
+            $existingSongs,
+            $lookupState,
+            $acceptedMatches,
+            $reservedLegacyIds
+        );
+
+        return $acceptedMatches;
+    }
+
+    /**
+     * Prepare lookups for legacy song reconciliation.
+     *
+     * @param  list<Song>  $legacySongs
+     * @return array{
+     *     byPraiseAndTitle: array<string, list<int>>,
+     *     byTitle: array<string, list<int>>,
+     *     stateById: array<int, array{song_id: int, deleted: bool}>
+     * }
+     */
+    private function prepareLegacyLookupState(array $legacySongs): array
+    {
+        $byPraiseAndTitle = [];
+        $byTitle = [];
+        $stateById = [];
 
         foreach ($legacySongs as $legacySong) {
-            $legacyStateById[$legacySong->id] = [
+            $stateById[$legacySong->id] = [
                 'song_id' => $legacySong->id,
                 'deleted' => $legacySong->deleted_at !== null,
             ];
@@ -559,17 +695,41 @@ class SongCatalogSyncService
             $praiseNumber = $this->normalizedPraiseNumber($legacySong->getAttribute('praise_number'));
 
             foreach ($titleVariants as $titleVariant) {
-                $legacyByTitle[$titleVariant][] = $legacySong->id;
+                $byTitle[$titleVariant][] = $legacySong->id;
 
                 if ($praiseNumber !== null) {
-                    $legacyByPraiseAndTitle[$praiseNumber.'|'.$titleVariant][] = $legacySong->id;
+                    $byPraiseAndTitle[$praiseNumber.'|'.$titleVariant][] = $legacySong->id;
                 }
             }
         }
 
-        $acceptedMatches = [];
-        $reservedLegacyIds = [];
+        return [
+            'byPraiseAndTitle' => $byPraiseAndTitle,
+            'byTitle' => $byTitle,
+            'stateById' => $stateById,
+        ];
+    }
 
+    /**
+     * Match legacy songs using both praise number and title.
+     *
+     * @param  array<string, list<array<string, mixed>>>  $songGroups
+     * @param  array<string, array{song_id: int, deleted: bool}>  $existingSongs
+     * @param  array{
+     *     byPraiseAndTitle: array<string, list<int>>,
+     *     byTitle: array<string, list<int>>,
+     *     stateById: array<int, array{song_id: int, deleted: bool}>
+     * }  $lookupState
+     * @param  array<string, array{song_id: int, deleted: bool}>  $acceptedMatches
+     * @param  array<int, bool>  $reservedLegacyIds
+     */
+    private function matchLegacySongsByPraiseAndTitle(
+        array $songGroups,
+        array $existingSongs,
+        array $lookupState,
+        array &$acceptedMatches,
+        array &$reservedLegacyIds
+    ): void {
         $praiseCandidates = [];
 
         foreach ($songGroups as $canonicalKey => $groupRows) {
@@ -577,7 +737,7 @@ class SongCatalogSyncService
                 continue;
             }
 
-            $candidateIds = $this->candidateLegacySongIdsByPraiseAndTitle($groupRows, $legacyByPraiseAndTitle);
+            $candidateIds = $this->candidateLegacySongIdsByPraiseAndTitle($groupRows, $lookupState['byPraiseAndTitle']);
 
             if (count($candidateIds) === 1) {
                 $praiseCandidates[$canonicalKey] = $candidateIds[0];
@@ -585,10 +745,31 @@ class SongCatalogSyncService
         }
 
         foreach ($this->acceptUniqueCandidateMatches($praiseCandidates) as $canonicalKey => $legacySongId) {
-            $acceptedMatches[$canonicalKey] = $legacyStateById[$legacySongId];
+            $acceptedMatches[$canonicalKey] = $lookupState['stateById'][$legacySongId];
             $reservedLegacyIds[$legacySongId] = true;
         }
+    }
 
+    /**
+     * Match legacy songs using title only.
+     *
+     * @param  array<string, list<array<string, mixed>>>  $songGroups
+     * @param  array<string, array{song_id: int, deleted: bool}>  $existingSongs
+     * @param  array{
+     *     byPraiseAndTitle: array<string, list<int>>,
+     *     byTitle: array<string, list<int>>,
+     *     stateById: array<int, array{song_id: int, deleted: bool}>
+     * }  $lookupState
+     * @param  array<string, array{song_id: int, deleted: bool}>  $acceptedMatches
+     * @param  array<int, bool>  $reservedLegacyIds
+     */
+    private function matchLegacySongsByTitleOnly(
+        array $songGroups,
+        array $existingSongs,
+        array $lookupState,
+        array &$acceptedMatches,
+        array &$reservedLegacyIds
+    ): void {
         $titleCandidates = [];
 
         foreach ($songGroups as $canonicalKey => $groupRows) {
@@ -596,7 +777,7 @@ class SongCatalogSyncService
                 continue;
             }
 
-            $candidateIds = $this->candidateLegacySongIdsByTitle($groupRows, $legacyByTitle, $reservedLegacyIds);
+            $candidateIds = $this->candidateLegacySongIdsByTitle($groupRows, $lookupState['byTitle'], $reservedLegacyIds);
 
             if (count($candidateIds) === 1) {
                 $titleCandidates[$canonicalKey] = $candidateIds[0];
@@ -604,10 +785,8 @@ class SongCatalogSyncService
         }
 
         foreach ($this->acceptUniqueCandidateMatches($titleCandidates) as $canonicalKey => $legacySongId) {
-            $acceptedMatches[$canonicalKey] = $legacyStateById[$legacySongId];
+            $acceptedMatches[$canonicalKey] = $lookupState['stateById'][$legacySongId];
         }
-
-        return $acceptedMatches;
     }
 
     /**
@@ -630,7 +809,8 @@ class SongCatalogSyncService
         }
 
         /** @var list<Song> $legacySongs */
-        $legacySongs = Song::withTrashed()
+        $legacySongs = Song::query()
+            ->withTrashed()
             ->where(function ($query): void {
                 $query->whereNull('canonical_key')
                     ->orWhere('canonical_key', '')
@@ -1230,7 +1410,7 @@ class SongCatalogSyncService
         $suffix = 2;
 
         while (true) {
-            $query = Song::withTrashed()->where('slug', $slug);
+            $query = Song::query()->withTrashed()->where('slug', $slug);
             if ($excludeId !== null) {
                 $query->where('id', '!=', $excludeId);
             }
