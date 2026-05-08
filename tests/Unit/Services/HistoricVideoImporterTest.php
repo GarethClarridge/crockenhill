@@ -8,6 +8,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Services\HistoricVideoImporter;
 use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
@@ -334,6 +335,41 @@ class HistoricVideoImporterTest extends TestCase
     // -------------------------------------------------------------------------
 
     #[Test]
+    public function it_processes_newer_videos_first_within_the_same_priority_group(): void
+    {
+        $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
+        $this->createFakeVideo($this->temporaryDirectory.'/2024-01-21 10-15-00.mkv');
+
+        $processedClientDates = [];
+        $processor = $this->mockProcessorCapturingClientDates($processedClientDates);
+
+        $metrics = $this->runImportWithProcessor($processor, limit: 1);
+
+        $this->assertSame(1, $metrics['dispatched']);
+        $this->assertSame(['2024-01-21 10:15:00'], $processedClientDates);
+    }
+
+    #[Test]
+    public function it_prioritises_services_that_do_not_yet_have_a_sermon(): void
+    {
+        $this->createFakeVideo($this->temporaryDirectory.'/2023-01-15 10-30-00.mkv');
+        $this->createFakeVideo($this->temporaryDirectory.'/2024-01-14 10-30-00.mkv');
+
+        Sermon::factory()->create([
+            'date' => '2024-01-14',
+            'service' => SermonService::Morning,
+        ]);
+
+        $processedClientDates = [];
+        $processor = $this->mockProcessorCapturingClientDates($processedClientDates);
+
+        $metrics = $this->runImportWithProcessor($processor, limit: 1);
+
+        $this->assertSame(1, $metrics['dispatched']);
+        $this->assertSame(['2023-01-15 10:30:00'], $processedClientDates);
+    }
+
+    #[Test]
     public function limit_restricts_number_of_dispatched_files(): void
     {
         $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
@@ -378,6 +414,27 @@ class HistoricVideoImporterTest extends TestCase
                 message: 'ok',
                 statusUrl: 'http://localhost/status/test',
             ));
+
+        return $processor;
+    }
+
+    /**
+     * @param  list<string|null>  $processedClientDates
+     * @return MockInterface&UnifiedMediaProcessor
+     */
+    private function mockProcessorCapturingClientDates(array &$processedClientDates): MockInterface
+    {
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->andReturnUsing(function (string $type, mixed $file, ?string $clientFileDate) use (&$processedClientDates): ProcessingResult {
+                $processedClientDates[] = $clientFileDate;
+
+                return ProcessingResult::success(
+                    processingId: 'test-processing-'.uniqid(),
+                    message: 'ok',
+                    statusUrl: 'http://localhost/status/test',
+                );
+            });
 
         return $processor;
     }

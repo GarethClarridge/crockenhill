@@ -35,6 +35,7 @@ class LocalWhisperTranscriptionServiceTest extends TestCase
         config(['media-processing.storage.sermon_disk' => 'local']);
         config(['media-processing.storage.transcript_disk' => 'local']);
         config(['media-processing.transcription.local_whisper_url' => 'http://whisper:8000']);
+        config(['media-processing.transcription.local_whisper_transcription_path' => '/v1/audio/transcriptions']);
         config(['media-processing.transcription.local_whisper_model' => 'small']);
         config(['media-processing.transcription.local_whisper_timeout' => 60]);
         config(['media-processing.audio_extraction.transcription_optimized.max_file_size' => 25 * 1024 * 1024]);
@@ -109,6 +110,47 @@ class LocalWhisperTranscriptionServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_accepts_openai_style_json_transcription_responses(): void
+    {
+        $transcript = 'This sermon explains Romans chapter eight and the assurance believers have in Christ.';
+
+        Http::fake([
+            'http://whisper:8000/v1/audio/transcriptions' => Http::response(['text' => $transcript], 200),
+        ]);
+
+        Storage::disk('local')->put('sermon-json.mp3', str_repeat('x', 100));
+
+        $result = $this->service->transcribe('sermon-json.mp3', 'test-id');
+
+        $this->assertIsString($result);
+        $this->assertStringContainsString('assurance believers have in Christ', $result);
+    }
+
+    #[Test]
+    public function it_can_target_a_custom_whisper_cpp_transcription_path(): void
+    {
+        config([
+            'media-processing.transcription.local_whisper_url' => 'http://host.docker.internal:2022/',
+            'media-processing.transcription.local_whisper_transcription_path' => 'inference',
+        ]);
+
+        $transcript = 'This sermon explains the grace of God with enough words to satisfy validation.';
+
+        Http::fake([
+            'http://host.docker.internal:2022/inference' => Http::response($transcript, 200),
+        ]);
+
+        Storage::disk('local')->put('sermon-custom-path.mp3', str_repeat('x', 100));
+
+        $this->service->transcribe('sermon-custom-path.mp3', 'test-id');
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'http://host.docker.internal:2022/inference'
+                && $request->isMultipart();
+        });
+    }
+
+    #[Test]
     public function it_throws_exception_on_server_error(): void
     {
         Http::fake([
@@ -168,6 +210,51 @@ class LocalWhisperTranscriptionServiceTest extends TestCase
         $this->expectExceptionMessage('Local Whisper connection failed');
 
         $this->service->transcribe('test-audio.mp3', 'test-id');
+    }
+
+    #[Test]
+    public function it_allows_short_individual_chunks_when_the_reassembled_transcript_is_valid(): void
+    {
+        $service = $this->serviceWithChunkingEnabled([
+            'This first chunk contains enough sermon words to pass validation on its own without any trouble.',
+            'This second chunk also contains enough meaningful sermon words for a valid assembled transcript.',
+            'Amen.',
+        ]);
+
+        $sourcePath = $this->createTemporaryAudioFile('chunked-source.mp3');
+
+        try {
+            $result = $service->transcribe($sourcePath, 'test-id');
+        } finally {
+            if (file_exists($sourcePath)) {
+                unlink($sourcePath);
+            }
+        }
+
+        $this->assertStringContainsString('first chunk contains enough sermon words', $result);
+        $this->assertStringContainsString('Amen.', $result);
+    }
+
+    #[Test]
+    public function it_rejects_chunked_transcription_when_the_reassembled_transcript_is_invalid(): void
+    {
+        $service = $this->serviceWithChunkingEnabled([
+            'Amen.',
+            'Amen.',
+        ]);
+
+        $sourcePath = $this->createTemporaryAudioFile('invalid-chunked-source.mp3');
+
+        try {
+            $this->expectException(TranscriptionException::class);
+            $this->expectExceptionMessage('reassembled chunk content appears invalid');
+
+            $service->transcribe($sourcePath, 'test-id');
+        } finally {
+            if (file_exists($sourcePath)) {
+                unlink($sourcePath);
+            }
+        }
     }
 
     #[Test]
@@ -267,5 +354,59 @@ class LocalWhisperTranscriptionServiceTest extends TestCase
 
         $this->assertIsString($result);
         $this->assertStringContainsString('Christ reigns over all things', $result);
+    }
+
+    /**
+     * @param  list<string>  $chunkResponses
+     */
+    private function serviceWithChunkingEnabled(array $chunkResponses): LocalWhisperTranscriptionService
+    {
+        $chunkPaths = [];
+        foreach (array_keys($chunkResponses) as $index) {
+            $chunkPaths[] = $this->createTemporaryAudioFile("chunk-{$index}.mp3");
+        }
+
+        Http::fake([
+            'http://whisper:8000/v1/audio/transcriptions' => Http::sequence(
+                array_map(
+                    fn (string $transcript) => Http::response($transcript, 200),
+                    $chunkResponses,
+                ),
+            ),
+        ]);
+
+        $chunkingService = Mockery::mock(AudioChunkingService::class);
+        $chunkingService->shouldReceive('getAudioDuration')->andReturn(800.0);
+        $chunkingService->shouldReceive('needsChunking')->andReturn(true);
+        $chunkingService->shouldReceive('getChunkDurationMinutes')->andReturn(6);
+        $chunkingService->shouldReceive('getChunkOverlapSeconds')->andReturn(15);
+        $chunkingService->shouldReceive('createAudioChunks')->andReturn($chunkPaths);
+        $chunkingService->shouldReceive('cleanupChunkFiles')->with($chunkPaths, 'test-id')->once();
+        $chunkingService->shouldReceive('reassembleTranscripts')
+            ->andReturnUsing(function (array $transcripts): string {
+                usort($transcripts, fn (array $left, array $right): int => $left['index'] <=> $right['index']);
+
+                return trim(implode("\n\n", array_column($transcripts, 'transcript')));
+            });
+
+        return new LocalWhisperTranscriptionService(
+            app(SermonProcessingLogger::class),
+            app(TranscriptStorageService::class),
+            $chunkingService,
+            new TranscriptFormatterService(app(BritishEnglishConverter::class)),
+        );
+    }
+
+    private function createTemporaryAudioFile(string $filename): string
+    {
+        $tempDirectory = storage_path('app/temp/tests');
+        if (! is_dir($tempDirectory)) {
+            mkdir($tempDirectory, 0755, true);
+        }
+
+        $path = "{$tempDirectory}/{$filename}";
+        file_put_contents($path, str_repeat('x', 100));
+
+        return $path;
     }
 }

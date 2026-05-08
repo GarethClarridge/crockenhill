@@ -16,6 +16,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Services\ChurchServiceReviewSynchronizer;
+use App\Services\LocalWhisperTranscriptionService;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\SongLyricOcrService;
 use App\Services\SongLyricsMatchingService;
@@ -71,7 +72,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper,
         TranscriptionServiceInterface $transcriptionService,
-        SongLyricOcrService $ocrService
+        SongLyricOcrService $ocrService,
+        ?LocalWhisperTranscriptionService $localWhisperTranscriptionService = null
     ): void {
         if (! (bool) config('media-processing.song_matching.enabled', true)) {
             $this->initializeStepLogging($this->processingLog->processing_id);
@@ -160,7 +162,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                         $localSourcePath,
                         $lyricsMatchingService,
                         $videoExtractor,
-                        $transcriptionService
+                        $transcriptionService,
+                        $localWhisperTranscriptionService
                     )) {
                         $matchedCount++;
                     }
@@ -290,7 +293,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         string $localSourcePath,
         SongLyricsMatchingService $lyricsMatchingService,
         VideoExtractionService $videoExtractor,
-        TranscriptionServiceInterface $transcriptionService
+        TranscriptionServiceInterface $transcriptionService,
+        ?LocalWhisperTranscriptionService $localWhisperTranscriptionService
     ): bool {
         $openingSeconds = (int) config('media-processing.song_matching.song_opening_transcription_seconds', 30);
         $endTime = min((float) $section->start_time + $openingSeconds, (float) $section->end_time);
@@ -308,7 +312,9 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             );
 
             $audioPath = $audioResult['audio_path'];
-            $openingTranscript = $transcriptionService->transcribe(
+            $openingTranscript = $this->transcribeSongOpening(
+                $transcriptionService,
+                $localWhisperTranscriptionService,
                 $audioPath,
                 $this->processingLog->processing_id.'-song-'.$section->id.'-opening',
                 $this->sermonDisk()
@@ -341,6 +347,35 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         }
 
         return false;
+    }
+
+    private function transcribeSongOpening(
+        TranscriptionServiceInterface $transcriptionService,
+        ?LocalWhisperTranscriptionService $localWhisperTranscriptionService,
+        string $audioPath,
+        string $processingId,
+        string $disk
+    ): string {
+        if (
+            (bool) config('media-processing.song_matching.use_local_whisper_for_song_openings', false)
+            && config('app.env') === 'local'
+            && config('media-processing.transcription.service') === 'local'
+            && $localWhisperTranscriptionService instanceof LocalWhisperTranscriptionService
+        ) {
+            return $localWhisperTranscriptionService->transcribeWithConfiguration(
+                $audioPath,
+                $processingId,
+                $disk,
+                [
+                    'url' => (string) config('media-processing.song_matching.song_opening_local_whisper_url', 'http://whisper:8000'),
+                    'transcription_path' => (string) config('media-processing.song_matching.song_opening_local_whisper_transcription_path', '/v1/audio/transcriptions'),
+                    'model' => (string) config('media-processing.song_matching.song_opening_local_whisper_model', config('media-processing.transcription.local_whisper_model', 'small')),
+                    'timeout' => max(1, (int) config('media-processing.song_matching.song_opening_local_whisper_timeout', config('media-processing.transcription.local_whisper_timeout', 1800))),
+                ],
+            );
+        }
+
+        return $transcriptionService->transcribe($audioPath, $processingId, $disk);
     }
 
     /**

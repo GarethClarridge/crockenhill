@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Services\ChurchServiceReviewSynchronizer;
+use App\Services\LocalWhisperTranscriptionService;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\SongLyricOcrService;
 use App\Services\SongLyricsMatchingService;
@@ -328,6 +329,154 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertIsArray($match);
         $this->assertSame($song->id, $match['song_id']);
         $this->assertSame('lyrics', $match['match_source']);
+    }
+
+    #[Test]
+    public function it_uses_cpu_local_whisper_for_song_openings_only_in_local_environment(): void
+    {
+        Config::set('app.env', 'local');
+        Config::set('media-processing.transcription.service', 'local');
+        Config::set('media-processing.song_matching.transcribe_song_openings', true);
+        Config::set('media-processing.song_matching.use_local_whisper_for_song_openings', true);
+        Config::set('media-processing.song_matching.song_opening_local_whisper_url', 'http://whisper:8000');
+        Config::set('media-processing.song_matching.song_opening_local_whisper_transcription_path', '/v1/audio/transcriptions');
+        Config::set('media-processing.song_matching.song_opening_local_whisper_model', 'small');
+        Config::set('media-processing.song_matching.song_opening_local_whisper_timeout', 1800);
+
+        $song = Song::factory()->create([
+            'title' => 'Great Is Thy Faithfulness',
+            'canonical_key' => 'great is thy faithfulness',
+            'lyrics_plain' => 'Great is thy faithfulness O God my Father morning by morning new mercies I see',
+        ]);
+
+        $sourceFile = 'temp/service_source.mp4';
+        Storage::disk('local')->put($sourceFile, 'fake-video-content');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'source_file_path' => $sourceFile,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'start_time' => 100.0,
+            'end_time' => 280.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        $this->mock(VideoExtractionService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('extractOptimizedAudio')
+                ->once()
+                ->andReturn(['audio_path' => 'temp/song_opening.mp3']);
+        });
+
+        $transcriptionService = \Mockery::mock(TranscriptionServiceInterface::class);
+        $transcriptionService->shouldNotReceive('transcribe');
+
+        $localWhisper = \Mockery::mock(LocalWhisperTranscriptionService::class);
+        $localWhisper->shouldReceive('transcribeWithConfiguration')
+            ->once()
+            ->with(
+                'temp/song_opening.mp3',
+                $log->processing_id.'-song-'.$section->id.'-opening',
+                'local',
+                [
+                    'url' => 'http://whisper:8000',
+                    'transcription_path' => '/v1/audio/transcriptions',
+                    'model' => 'small',
+                    'timeout' => 1800,
+                ],
+            )
+            ->andReturn('Great is thy faithfulness O God my Father morning by morning new mercies I see');
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            $transcriptionService,
+            app(SongLyricOcrService::class),
+            $localWhisper,
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
+    }
+
+    #[Test]
+    public function it_uses_the_normal_transcription_service_for_song_openings_outside_local_environment(): void
+    {
+        Config::set('app.env', 'production');
+        Config::set('media-processing.transcription.service', 'openai');
+        Config::set('media-processing.song_matching.transcribe_song_openings', true);
+        Config::set('media-processing.song_matching.use_local_whisper_for_song_openings', true);
+
+        $song = Song::factory()->create([
+            'title' => 'To God Be the Glory',
+            'canonical_key' => 'to god be the glory',
+            'lyrics_plain' => 'To God be the glory great things he hath done so loved he the world',
+        ]);
+
+        $sourceFile = 'temp/service_source.mp4';
+        Storage::disk('local')->put($sourceFile, 'fake-video-content');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'source_file_path' => $sourceFile,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'start_time' => 100.0,
+            'end_time' => 280.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        $this->mock(VideoExtractionService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('extractOptimizedAudio')
+                ->once()
+                ->andReturn(['audio_path' => 'temp/song_opening.mp3']);
+        });
+
+        $transcriptionService = \Mockery::mock(TranscriptionServiceInterface::class);
+        $transcriptionService->shouldReceive('transcribe')
+            ->once()
+            ->with('temp/song_opening.mp3', $log->processing_id.'-song-'.$section->id.'-opening', 'local')
+            ->andReturn('To God be the glory great things he hath done so loved he the world');
+
+        $localWhisper = \Mockery::mock(LocalWhisperTranscriptionService::class);
+        $localWhisper->shouldNotReceive('transcribeWithConfiguration');
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            $transcriptionService,
+            app(SongLyricOcrService::class),
+            $localWhisper,
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
     }
 
     // ---- Review bookkeeping is refreshed ----

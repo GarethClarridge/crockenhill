@@ -53,9 +53,10 @@ class ConfigValidationTest extends TestCase
     {
         $redisRetryAfter = (int) config('queue.connections.redis.retry_after', 0);
         $databaseRetryAfter = (int) config('queue.connections.database.retry_after', 0);
+        $transcriptionJobTimeout = (int) config('media-processing.transcription.job_timeout', 1800);
 
-        $this->assertGreaterThanOrEqual(1800, $redisRetryAfter, 'Redis retry_after must exceed transcription timeout');
-        $this->assertGreaterThanOrEqual(1800, $databaseRetryAfter, 'Database retry_after must exceed transcription timeout');
+        $this->assertGreaterThanOrEqual($transcriptionJobTimeout, $redisRetryAfter, 'Redis retry_after must exceed transcription timeout');
+        $this->assertGreaterThanOrEqual($transcriptionJobTimeout, $databaseRetryAfter, 'Database retry_after must exceed transcription timeout');
     }
 
     #[Test]
@@ -76,6 +77,15 @@ class ConfigValidationTest extends TestCase
             config('media-processing.transcription.service_type'),
             'The deprecated service_type key must not exist in config'
         );
+    }
+
+    #[Test]
+    public function local_whisper_defaults_to_serialized_long_running_requests(): void
+    {
+        $this->assertSame('/v1/audio/transcriptions', config('media-processing.transcription.local_whisper_transcription_path'));
+        $this->assertGreaterThanOrEqual(1800, (int) config('media-processing.transcription.local_whisper_timeout'));
+        $this->assertTrue((bool) config('media-processing.transcription.local_whisper_serialize'));
+        $this->assertGreaterThanOrEqual(5, (int) config('media-processing.transcription.local_whisper_lock_release_after'));
     }
 
     #[Test]

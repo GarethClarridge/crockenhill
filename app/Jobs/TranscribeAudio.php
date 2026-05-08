@@ -28,14 +28,16 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
     /**
      * The maximum number of seconds the job can run.
      */
-    public int $timeout = 1800; // 30 minutes for transcription
+    public int $timeout = 1800; // 30 minutes for transcription by default
 
     /**
      * Create a new job instance.
      */
     public function __construct(
         public readonly MediaProcessingLog $processingLog,
-    ) {}
+    ) {
+        $this->timeout = max(60, (int) config('media-processing.transcription.job_timeout', 1800));
+    }
 
     /**
      * Execute the job.
@@ -257,10 +259,22 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
      */
     public function middleware(): array
     {
-        return [
+        $middleware = [
             (new WithoutOverlapping('transcribe-audio-'.$this->processingLog->processing_id))
                 ->releaseAfter(30)
                 ->expireAfter($this->timeout + 120),
         ];
+
+        if (
+            config('media-processing.transcription.service') === 'local'
+            && (bool) config('media-processing.transcription.local_whisper_serialize', true)
+        ) {
+            $middleware[] = (new WithoutOverlapping('local-whisper-transcription'))
+                ->shared()
+                ->releaseAfter(max(5, (int) config('media-processing.transcription.local_whisper_lock_release_after', 60)))
+                ->expireAfter($this->timeout + 120);
+        }
+
+        return $middleware;
     }
 }

@@ -8,6 +8,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -92,7 +93,11 @@ class HistoricVideoImporter
         $inflight = [];
         $dispatched = 0;
 
-        foreach ($this->buildWorkItems($directory, $minSizeMb, $includeUnclassified, $defaultYear) as $item) {
+        $workItems = $this->prioritiseWorkItems(
+            iterator_to_array($this->buildWorkItems($directory, $minSizeMb, $includeUnclassified, $defaultYear), false),
+        );
+
+        foreach ($workItems as $item) {
             if ($limit > 0 && $dispatched >= $limit) {
                 break;
             }
@@ -234,6 +239,116 @@ class HistoricVideoImporter
         }
 
         return $metrics;
+    }
+
+    /**
+     * Process services that do not yet have a sermon first, newest recordings first within each group.
+     *
+     * @param  list<array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}>  $items
+     * @return list<array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}>
+     */
+    private function prioritiseWorkItems(array $items): array
+    {
+        if (count($items) < 2) {
+            return $items;
+        }
+
+        $existingSermonKeys = $this->existingSermonKeys($items);
+        $indexedItems = array_map(
+            fn (array $item, int $index): array => ['item' => $item, 'index' => $index],
+            $items,
+            array_keys($items),
+        );
+
+        usort($indexedItems, function (array $left, array $right) use ($existingSermonKeys): int {
+            $leftItem = $left['item'];
+            $rightItem = $right['item'];
+
+            $processableComparison = $this->processableRank($leftItem) <=> $this->processableRank($rightItem);
+            if ($processableComparison !== 0) {
+                return $processableComparison;
+            }
+
+            $sermonComparison = $this->existingSermonRank($leftItem, $existingSermonKeys) <=> $this->existingSermonRank($rightItem, $existingSermonKeys);
+            if ($sermonComparison !== 0) {
+                return $sermonComparison;
+            }
+
+            $dateComparison = $rightItem['date']->getTimestamp() <=> $leftItem['date']->getTimestamp();
+            if ($dateComparison !== 0) {
+                return $dateComparison;
+            }
+
+            return $left['index'] <=> $right['index'];
+        });
+
+        return array_map(fn (array $indexed): array => $indexed['item'], $indexedItems);
+    }
+
+    /**
+     * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     */
+    private function processableRank(array $item): int
+    {
+        return str_starts_with($item['tag'], 'skip-') ? 1 : 0;
+    }
+
+    /**
+     * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
+     * @param  array<string, true>  $existingSermonKeys
+     */
+    private function existingSermonRank(array $item, array $existingSermonKeys): int
+    {
+        if ($this->processableRank($item) !== 0) {
+            return 0;
+        }
+
+        return isset($existingSermonKeys[$this->sermonKey($item['date'], $item['service'])]) ? 1 : 0;
+    }
+
+    /**
+     * @param  list<array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}>  $items
+     * @return array<string, true>
+     */
+    private function existingSermonKeys(array $items): array
+    {
+        $dates = [];
+        $services = [];
+
+        foreach ($items as $item) {
+            if ($this->processableRank($item) !== 0) {
+                continue;
+            }
+
+            $dates[$item['date']->toDateString()] = true;
+            $services[$item['service']->value] = true;
+        }
+
+        if ($dates === [] || $services === []) {
+            return [];
+        }
+
+        $keys = [];
+
+        Sermon::query()
+            ->whereSermon()
+            ->whereIn('date', array_keys($dates))
+            ->whereIn('service', array_keys($services))
+            ->get(['date', 'service'])
+            ->each(function (Sermon $sermon) use (&$keys): void {
+                if (! $sermon->service instanceof SermonService) {
+                    return;
+                }
+
+                $keys[$this->sermonKey($sermon->date, $sermon->service)] = true;
+            });
+
+        return $keys;
+    }
+
+    private function sermonKey(Carbon $date, SermonService $service): string
+    {
+        return $date->toDateString().'|'.$service->value;
     }
 
     /**

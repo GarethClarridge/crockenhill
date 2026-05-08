@@ -33,6 +33,17 @@ class TranscribeAudioTest extends TestCase
     }
 
     #[Test]
+    public function it_can_configure_the_transcription_job_timeout(): void
+    {
+        config(['media-processing.transcription.job_timeout' => 5400]);
+
+        $log = MediaProcessingLog::factory()->audio()->pending()->make();
+        $job = new TranscribeAudio($log);
+
+        $this->assertEquals(5400, $job->timeout);
+    }
+
+    #[Test]
     public function it_transcribes_audio_file_and_updates_processing_log(): void
     {
         $sermon = Sermon::factory()->create();
@@ -393,5 +404,28 @@ class TranscribeAudioTest extends TestCase
 
         $this->assertCount(1, $middleware);
         $this->assertInstanceOf(WithoutOverlapping::class, $middleware[0]);
+    }
+
+    #[Test]
+    public function it_serializes_local_whisper_transcription_jobs_by_default(): void
+    {
+        config([
+            'media-processing.transcription.service' => 'local',
+            'media-processing.transcription.local_whisper_serialize' => true,
+            'media-processing.transcription.local_whisper_lock_release_after' => 75,
+        ]);
+
+        $log = MediaProcessingLog::factory()->audio()->pending()->make([
+            'processing_id' => 'proc-local-whisper-lock',
+        ]);
+
+        $job = new TranscribeAudio($log);
+        $middleware = $job->middleware();
+
+        $this->assertCount(2, $middleware);
+        $this->assertInstanceOf(WithoutOverlapping::class, $middleware[1]);
+        $this->assertSame('local-whisper-transcription', $middleware[1]->key);
+        $this->assertTrue($middleware[1]->shareKey);
+        $this->assertSame(75, $middleware[1]->releaseAfter);
     }
 }

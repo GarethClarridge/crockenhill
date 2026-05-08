@@ -9,6 +9,7 @@ use App\Exceptions\TranscriptionException;
 use App\Traits\DetectsStorageType;
 use App\Traits\HandlesTranscriptStorage;
 use Exception;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -99,6 +100,41 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
         }
     }
 
+    /**
+     * @param  array{
+     *     url?: string,
+     *     transcription_path?: string,
+     *     model?: string,
+     *     timeout?: int,
+     * }  $configuration
+     */
+    public function transcribeWithConfiguration(
+        string $audioFilePath,
+        string $processingId,
+        ?string $disk,
+        array $configuration,
+    ): string {
+        $originalConfig = [
+            'media-processing.transcription.local_whisper_url' => config('media-processing.transcription.local_whisper_url'),
+            'media-processing.transcription.local_whisper_transcription_path' => config('media-processing.transcription.local_whisper_transcription_path'),
+            'media-processing.transcription.local_whisper_model' => config('media-processing.transcription.local_whisper_model'),
+            'media-processing.transcription.local_whisper_timeout' => config('media-processing.transcription.local_whisper_timeout'),
+        ];
+
+        config(array_filter([
+            'media-processing.transcription.local_whisper_url' => $configuration['url'] ?? null,
+            'media-processing.transcription.local_whisper_transcription_path' => $configuration['transcription_path'] ?? null,
+            'media-processing.transcription.local_whisper_model' => $configuration['model'] ?? null,
+            'media-processing.transcription.local_whisper_timeout' => $configuration['timeout'] ?? null,
+        ], fn (mixed $value): bool => $value !== null));
+
+        try {
+            return $this->transcribe($audioFilePath, $processingId, $disk);
+        } finally {
+            config($originalConfig);
+        }
+    }
+
     private function isAbsolutePath(string $path): bool
     {
         return str_starts_with($path, DIRECTORY_SEPARATOR)
@@ -110,20 +146,27 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
      *
      * @throws TranscriptionException When the server call fails or returns invalid content
      */
-    private function transcribeFile(string $filePath, string $processingId): string
-    {
+    private function transcribeFile(
+        string $filePath,
+        string $processingId,
+        bool $failOnInvalidTranscript = true,
+        string $validationContext = 'transcript',
+    ): string {
         $baseUrl = config('media-processing.transcription.local_whisper_url');
+        $transcriptionPath = config('media-processing.transcription.local_whisper_transcription_path', '/v1/audio/transcriptions');
         $model = config('media-processing.transcription.local_whisper_model');
         $timeout = config('media-processing.transcription.local_whisper_timeout');
+        $endpoint = $this->transcriptionEndpoint((string) $baseUrl, (string) $transcriptionPath);
 
         $this->logger->logProcessingStep(
             $processingId,
             'local_whisper_api_call',
             'started',
-            ['file' => basename($filePath), 'model' => $model]
+            ['file' => basename($filePath), 'model' => $model, 'endpoint' => $endpoint]
         );
 
         $apiStartTime = microtime(true);
+        $fileHandle = null;
 
         try {
             $fileHandle = fopen($filePath, 'r');
@@ -134,7 +177,7 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
 
             $response = Http::timeout($timeout)
                 ->attach('file', $fileHandle, basename($filePath))
-                ->post("{$baseUrl}/v1/audio/transcriptions", [
+                ->post($endpoint, [
                     'model' => $model,
                     'language' => 'en',
                     'response_format' => 'text',
@@ -158,6 +201,10 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
                 0,
                 $e
             );
+        } finally {
+            if (is_resource($fileHandle)) {
+                fclose($fileHandle);
+            }
         }
 
         $apiTime = microtime(true) - $apiStartTime;
@@ -188,13 +235,22 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
             ['model' => $model]
         );
 
-        $transcript = trim($response->body());
+        $transcript = trim($this->extractTranscript($response));
 
-        if (empty($transcript)) {
+        if (empty($transcript) && $failOnInvalidTranscript) {
             throw new TranscriptionException('Local Whisper returned an empty transcript');
         }
 
-        if (! $this->validateTranscript($transcript)) {
+        if (empty($transcript)) {
+            Log::warning('Local Whisper returned an empty chunk transcript', [
+                'context' => $validationContext,
+                'file' => basename($filePath),
+            ]);
+        }
+
+        $isValidTranscript = $this->validateTranscript($transcript, $validationContext);
+
+        if (! $isValidTranscript && $failOnInvalidTranscript) {
             throw new TranscriptionException('Local Whisper transcript validation failed — content appears invalid');
         }
 
@@ -205,10 +261,33 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
             [
                 'transcript_length' => strlen($transcript),
                 'word_count' => str_word_count($transcript),
+                'validation_warning' => ! $isValidTranscript,
             ]
         );
 
         return $this->formatter->formatAsMarkdown($transcript);
+    }
+
+    private function transcriptionEndpoint(string $baseUrl, string $transcriptionPath): string
+    {
+        return rtrim($baseUrl, '/').'/'.ltrim($transcriptionPath, '/');
+    }
+
+    private function extractTranscript(Response $response): string
+    {
+        $body = trim($response->body());
+
+        if (! str_starts_with($body, '{')) {
+            return $body;
+        }
+
+        $payload = $response->json();
+
+        if (is_array($payload) && is_string($payload['text'] ?? null)) {
+            return trim($payload['text']);
+        }
+
+        return $body;
     }
 
     /**
@@ -252,7 +331,12 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
                     ]
                 );
 
-                $chunkTranscript = $this->transcribeFile($chunkPath, $processingId);
+                $chunkTranscript = $this->transcribeFile(
+                    $chunkPath,
+                    $processingId,
+                    failOnInvalidTranscript: false,
+                    validationContext: "chunk {$chunkNumber} of {$totalChunks}",
+                );
                 $transcripts[] = [
                     'index' => $index,
                     'transcript' => $chunkTranscript,
@@ -273,6 +357,11 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
             $this->chunkingService->cleanupChunkFiles($chunks, $processingId);
 
             $reassembled = $this->chunkingService->reassembleTranscripts($transcripts, $processingId);
+
+            if (! $this->validateTranscript($reassembled, 'reassembled chunk transcript')) {
+                throw new TranscriptionException('Local Whisper transcript validation failed — reassembled chunk content appears invalid');
+            }
+
             $finalTranscript = $this->formatter->formatAsMarkdown($reassembled);
 
             $this->logger->logProcessingStep(
@@ -348,18 +437,24 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
         }
     }
 
-    private function validateTranscript(string $transcript): bool
+    private function validateTranscript(string $transcript, string $context = 'transcript'): bool
     {
         $transcript = trim($transcript);
+        $metadata = [
+            'context' => $context,
+            'length' => strlen($transcript),
+            'word_count' => str_word_count($transcript),
+            'excerpt' => str($transcript)->limit(240)->toString(),
+        ];
 
         if (strlen($transcript) < 50) {
-            Log::warning('Local Whisper transcript too short', ['length' => strlen($transcript)]);
+            Log::warning('Local Whisper transcript too short', $metadata);
 
             return false;
         }
 
         if (str_word_count($transcript) < 10) {
-            Log::warning('Local Whisper transcript has too few words', ['word_count' => str_word_count($transcript)]);
+            Log::warning('Local Whisper transcript has too few words', $metadata);
 
             return false;
         }
@@ -371,7 +466,10 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
 
         foreach ($gibberishPatterns as $pattern) {
             if (preg_match($pattern, $transcript)) {
-                Log::warning('Local Whisper transcript appears to contain gibberish', ['pattern' => $pattern]);
+                Log::warning('Local Whisper transcript appears to contain gibberish', [
+                    ...$metadata,
+                    'pattern' => $pattern,
+                ]);
 
                 return false;
             }

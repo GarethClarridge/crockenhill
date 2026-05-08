@@ -43,6 +43,8 @@ class TranscriptionRetryOwnershipTest extends TestCase
     #[Test]
     public function job_uses_without_overlapping_middleware_to_prevent_concurrent_retries(): void
     {
+        config(['media-processing.transcription.service' => 'mock']);
+
         $log = MediaProcessingLog::factory()->audio()->pending()->make([
             'processing_id' => 'proc-abc',
         ]);
