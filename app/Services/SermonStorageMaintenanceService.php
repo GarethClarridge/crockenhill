@@ -206,76 +206,50 @@ class SermonStorageMaintenanceService
         string $sourceDisk = 'public',
         string $targetDisk = 'do_spaces',
         bool $force = false,
+        ?string $pathPrefix = null,
+        ?string $startAfter = null,
         ?callable $progress = null,
     ): array {
-        $summary = $this->blankMigrationSummary();
-        $items = [];
+        $pathPrefix = $this->normalizePathPrefix($pathPrefix) ?? 'sermons';
 
-        foreach (Storage::disk($sourceDisk)->allFiles('sermons') as $file) {
-            $summary['examined']++;
+        return $this->migrateFiles(
+            files: $this->filterPaths(
+                Storage::disk($sourceDisk)->allFiles($pathPrefix),
+                $startAfter,
+            ),
+            dryRun: $dryRun,
+            sourceDisk: $sourceDisk,
+            targetDisk: $targetDisk,
+            force: $force,
+            progress: $progress,
+        );
+    }
 
-            if (! $force && Storage::disk($targetDisk)->exists($file)) {
-                $summary['skipped']++;
-                $item = [
-                    'status' => 'skip',
-                    'label' => "{$file} already exists on {$targetDisk}",
-                ];
-                $items[] = $item;
-                if ($progress !== null) {
-                    $progress($item);
-                }
-
-                continue;
-            }
-
-            if ($dryRun) {
-                $summary['migrated']++;
-                $item = [
-                    'status' => 'dry-run',
-                    'label' => $force
-                        ? "Would migrate {$file} to {$targetDisk} (force overwrite enabled)"
-                        : "Would migrate {$file} to {$targetDisk}",
-                ];
-                $items[] = $item;
-                if ($progress !== null) {
-                    $progress($item);
-                }
-
-                continue;
-            }
-
-            try {
-                $this->copyFile($sourceDisk, $file, $targetDisk, $file);
-
-                $summary['migrated']++;
-                $item = [
-                    'status' => 'ok',
-                    'label' => $force
-                        ? "Migrated {$file} with overwrite"
-                        : "Migrated {$file}",
-                ];
-                $items[] = $item;
-                if ($progress !== null) {
-                    $progress($item);
-                }
-            } catch (\Throwable $exception) {
-                $summary['failed']++;
-                $item = [
-                    'status' => 'error',
-                    'label' => "{$file} failed: {$exception->getMessage()}",
-                ];
-                $items[] = $item;
-                if ($progress !== null) {
-                    $progress($item);
-                }
-            }
-        }
-
-        return [
-            'dry_run' => $dryRun,
-            'summary' => $summary,
-            'items' => $items,
-        ];
+    /**
+     * @param  ?callable(MigrationItem): void  $progress
+     * @return array{
+     *     dry_run: bool,
+     *     summary: MigrationSummary,
+     *     items: list<MigrationItem>
+     * }
+     */
+    public function migrateReferencedSermonAudio(
+        bool $dryRun,
+        string $sourceDisk = 'public',
+        string $targetDisk = 'do_spaces',
+        bool $force = false,
+        ?string $pathPrefix = null,
+        ?string $startAfter = null,
+        ?callable $progress = null,
+    ): array {
+        return $this->migrateFiles(
+            files: $this->referencedSermonAudioPaths($pathPrefix, $startAfter),
+            dryRun: $dryRun,
+            sourceDisk: $sourceDisk,
+            targetDisk: $targetDisk,
+            force: $force,
+            progress: $progress,
+        );
     }
 
     /**
@@ -431,9 +405,16 @@ class SermonStorageMaintenanceService
             ->count();
     }
 
-    public function countLocalFiles(string $sourceDisk = 'public'): int
+    public function countLocalFiles(string $sourceDisk = 'public', ?string $pathPrefix = null, ?string $startAfter = null): int
     {
-        return count(Storage::disk($sourceDisk)->allFiles('sermons'));
+        $pathPrefix = $this->normalizePathPrefix($pathPrefix) ?? 'sermons';
+
+        return count($this->filterPaths(Storage::disk($sourceDisk)->allFiles($pathPrefix), $startAfter));
+    }
+
+    public function countReferencedSermonAudioCandidates(?string $pathPrefix = null, ?string $startAfter = null): int
+    {
+        return count($this->referencedSermonAudioPaths($pathPrefix, $startAfter));
     }
 
     public function countVerifiableSermons(): int
@@ -499,5 +480,174 @@ class SermonStorageMaintenanceService
         $driver = config("filesystems.disks.{$disk}.driver");
 
         return $driver === 's3';
+    }
+
+    /**
+     * @param  iterable<string>  $files
+     * @param  ?callable(MigrationItem): void  $progress
+     * @return array{
+     *     dry_run: bool,
+     *     summary: MigrationSummary,
+     *     items: list<MigrationItem>
+     * }
+     */
+    private function migrateFiles(
+        iterable $files,
+        bool $dryRun,
+        string $sourceDisk,
+        string $targetDisk,
+        bool $force,
+        ?callable $progress = null,
+    ): array {
+        $summary = $this->blankMigrationSummary();
+        $items = [];
+
+        foreach ($files as $file) {
+            $summary['examined']++;
+
+            if (! $force) {
+                try {
+                    $targetExists = $this->targetFileExists($targetDisk, $file);
+                } catch (\Throwable $exception) {
+                    $summary['failed']++;
+                    $item = [
+                        'status' => 'error',
+                        'label' => "{$file} failed during target existence check: {$exception->getMessage()}",
+                    ];
+                    $items[] = $item;
+                    if ($progress !== null) {
+                        $progress($item);
+                    }
+
+                    continue;
+                }
+
+                if ($targetExists) {
+                    $summary['skipped']++;
+                    $item = [
+                        'status' => 'skip',
+                        'label' => "{$file} already exists on {$targetDisk}",
+                    ];
+                    $items[] = $item;
+                    if ($progress !== null) {
+                        $progress($item);
+                    }
+
+                    continue;
+                }
+            }
+
+            if ($dryRun) {
+                $summary['migrated']++;
+                $item = [
+                    'status' => 'dry-run',
+                    'label' => $force
+                        ? "Would migrate {$file} to {$targetDisk} (force overwrite enabled)"
+                        : "Would migrate {$file} to {$targetDisk}",
+                ];
+                $items[] = $item;
+                if ($progress !== null) {
+                    $progress($item);
+                }
+
+                continue;
+            }
+
+            try {
+                $this->copyFile($sourceDisk, $file, $targetDisk, $file);
+
+                $summary['migrated']++;
+                $item = [
+                    'status' => 'ok',
+                    'label' => $force
+                        ? "Migrated {$file} with overwrite"
+                        : "Migrated {$file}",
+                ];
+                $items[] = $item;
+                if ($progress !== null) {
+                    $progress($item);
+                }
+            } catch (\Throwable $exception) {
+                $summary['failed']++;
+                $item = [
+                    'status' => 'error',
+                    'label' => "{$file} failed: {$exception->getMessage()}",
+                ];
+                $items[] = $item;
+                if ($progress !== null) {
+                    $progress($item);
+                }
+            }
+        }
+
+        return [
+            'dry_run' => $dryRun,
+            'summary' => $summary,
+            'items' => $items,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function referencedSermonAudioPaths(?string $pathPrefix = null, ?string $startAfter = null): array
+    {
+        $pathPrefix = $this->normalizePathPrefix($pathPrefix);
+        $startAfter = $this->normalizePathPrefix($startAfter);
+
+        /** @var list<string> $paths */
+        $paths = Sermon::query()
+            ->whereNotNull('audio_file_path')
+            ->where('audio_file_path', '!=', '')
+            ->when(
+                $pathPrefix !== null,
+                fn ($query) => $query->where('audio_file_path', 'like', "{$pathPrefix}%")
+            )
+            ->when(
+                $startAfter !== null,
+                fn ($query) => $query->where('audio_file_path', '>', $startAfter)
+            )
+            ->orderBy('audio_file_path')
+            ->pluck('audio_file_path')
+            ->filter(fn (mixed $path): bool => is_string($path) && $path !== '' && str_contains($path, '/'))
+            ->unique()
+            ->values()
+            ->all();
+
+        return $paths;
+    }
+
+    private function normalizePathPrefix(?string $pathPrefix): ?string
+    {
+        if (! is_string($pathPrefix) || trim($pathPrefix) === '') {
+            return null;
+        }
+
+        return trim(trim($pathPrefix), '/');
+    }
+
+    protected function targetFileExists(string $targetDisk, string $path): bool
+    {
+        return Storage::disk($targetDisk)->exists($path);
+    }
+
+    /**
+     * @param  array<int, string>  $paths
+     * @return list<string>
+     */
+    private function filterPaths(array $paths, ?string $startAfter = null): array
+    {
+        $startAfter = $this->normalizePathPrefix($startAfter);
+
+        sort($paths, SORT_STRING);
+
+        if ($startAfter === null) {
+            return $paths;
+        }
+
+        return array_values(array_filter(
+            $paths,
+            fn (string $path): bool => $path > $startAfter,
+        ));
     }
 }
