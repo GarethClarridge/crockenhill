@@ -210,6 +210,21 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
+     * Preacher name attribute.
+     *
+     * Note: The relationship is named 'preacherProfile' to avoid conflict with
+     * this attribute setter which ensures the denormalized name is trimmed.
+     *
+     * @return Attribute<string, string>
+     */
+    protected function preacher(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
+        );
+    }
+
+    /**
      * @return Attribute<?string, ?string>
      */
     protected function series(): Attribute
@@ -249,7 +264,7 @@ class Sermon extends Model implements Sitemapable
             'service' => ['nullable', Rule::enum(SermonService::class)],
             'series' => ['nullable', 'string', 'max:255'],
             'reference' => ['nullable', 'string', 'max:255'],
-            'preacher' => ['required', 'string', 'max:255'],
+            'preacher' => ['required', 'string', 'max:255'], // Matches database varchar length and non-empty constraint
             'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
             'preacher_source' => ['nullable', Rule::enum(PreacherSource::class)],
             'preacher_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],

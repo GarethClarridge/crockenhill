@@ -11,6 +11,11 @@
     :image="asset('/images/homepage/may2024wide.webp')"
     image-alt="Crockenhill Baptist Church members outside the church building"
 />
+<x-schema.webpage
+    heading="Church Calendar"
+    description="Upcoming events at Crockenhill Baptist Church."
+    :image="asset('/images/homepage/may2024wide.webp')"
+/>
 
 {{-- JSON-LD Events --}}
 @if($allEvents->isNotEmpty())

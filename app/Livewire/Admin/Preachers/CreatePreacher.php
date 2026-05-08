@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\Preachers;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -14,7 +15,7 @@ use Livewire\Component;
 
 class CreatePreacher extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use SanitizesLogData, WithAdminAuthorization, WithNotifications;
 
     public string $name = '';
 
@@ -67,8 +68,8 @@ class CreatePreacher extends Component
         Log::warning('New preacher created by admin', [
             'admin_id' => auth()->id(),
             'preacher_id' => $preacher->id,
-            'name' => $preacher->name,
-            'slug' => $preacher->slug,
+            'name' => $this->sanitizeForLog((string) $preacher->name),
+            'slug' => $this->sanitizeForLog((string) $preacher->slug),
         ]);
 
         $this->success('Preacher created', redirectTo: route('admin.preachers.index'));

@@ -32,7 +32,7 @@ class SermonAdminController extends Controller
         Log::warning('Sermon deleted by admin', [
             'admin_id' => auth()->id(),
             'sermon_id' => $sermon->id,
-            'title' => $sermon->title,
+            'title' => $this->sanitizeForLog((string) $sermon->title),
         ]);
 
         $sermon->delete();
@@ -90,8 +90,8 @@ class SermonAdminController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Sermon upload failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
                 'user_id' => $request->user()?->id,
             ]);
 

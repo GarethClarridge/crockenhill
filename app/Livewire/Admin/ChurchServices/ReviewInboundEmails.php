@@ -13,6 +13,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\InboundEmail;
 use App\Traits\EscapesLikeWildcards;
+use App\Traits\SanitizesLogData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +25,7 @@ use Livewire\WithPagination;
 class ReviewInboundEmails extends Component
 {
     use EscapesLikeWildcards;
+    use SanitizesLogData;
     use WithAdminAuthorization;
     use WithNotifications;
     use WithPagination;
@@ -159,9 +161,9 @@ class ReviewInboundEmails extends Component
         Log::warning('Inbound email rejected by admin', [
             'admin_id' => $userId,
             'inbound_email_id' => $inboundEmail->id,
-            'message_id' => $inboundEmail->message_id,
-            'from' => $inboundEmail->from,
-            'subject' => $inboundEmail->subject,
+            'message_id' => $this->sanitizeForLog((string) $inboundEmail->message_id),
+            'from' => $this->sanitizeForLog((string) $inboundEmail->from),
+            'subject' => $this->sanitizeForLog((string) $inboundEmail->subject),
         ]);
 
         $action->execute($inboundEmail, $userId);

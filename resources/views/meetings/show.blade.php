@@ -13,6 +13,13 @@
     :title="$heading . ' | ' . $meeting->day . ($meeting->start_time ? ' ' . $meeting->start_time->format('g:ia') : '')"
     :description="$description ?? $heading"
     :image="$headingpicture"
+    :image-alt="'Meeting: ' . $heading"
+/>
+
+<x-schema.webpage
+    :heading="$heading"
+    :description="$description ?? $heading"
+    :image="$headingpicture"
 />
 
 {{-- JSON-LD Recurring Event --}}

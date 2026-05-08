@@ -37,6 +37,7 @@ $hasPublicVideo = filled($sermonView['video_url']);
 <x-schema.webpage
   :heading="$fullTitle"
   :description="$description ?? $metaDescription"
+  :image="$sermonView['thumbnail_url']"
 />
 @endsection
 

@@ -28,6 +28,7 @@ $describedBy = implode(' ', $describedBy);
                 'id' => $id,
                 'aria-label' => (!$label && $placeholder) ? $placeholder : null
             ]) }}
+            @if($required) required aria-required="true" @endif
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
             @if($modelName)

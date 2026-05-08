@@ -18,60 +18,99 @@ class BreadcrumbPresenter
      */
     public function items(string $area, string $heading): array
     {
-        $items = [];
-        $items[] = ['name' => 'Home', 'item' => url('/')];
+        $items = [['name' => 'Home', 'item' => url('/')]];
 
         if ($this->request->segment(1) === 'admin') {
-            $items[] = ['name' => 'Church', 'item' => url('church')];
-            $items[] = ['name' => 'Members', 'item' => url('church/members')];
-
-            if (count($this->request->segments()) >= 2) {
-                $section = $this->request->segment(2);
-                $sectionName = match ($section) {
-                    'pages' => 'Pages',
-                    'sermons' => 'Sermons',
-                    'meetings' => 'Meetings',
-                    'calendar-events' => 'Calendar Events',
-                    'sermon-upload' => 'Upload Sermon',
-                    default => Str::title(str_replace('-', ' ', (string) $section)),
-                };
-
-                if (count($this->request->segments()) >= 3) {
-                    $segment3 = $this->request->segment(3);
-
-                    if ($segment3 === 'songs') {
-                        $items[] = ['name' => 'Songs', 'item' => url('admin/services/songs')];
-                    } else {
-                        $items[] = ['name' => $sectionName, 'item' => url('admin/'.$section)];
-                    }
-                }
-            }
-        } elseif (count($this->request->segments()) >= 2 || $area !== '') {
-            $items[] = ['name' => Str::title($area), 'item' => url($area)];
-
-            if (
-                count($this->request->segments()) >= 3 ||
-                (count($this->request->segments()) === 2 && $this->request->segment(2) !== null)
-            ) {
-                if ($this->request->segment(2) === 'sermons') {
-                    $items[] = ['name' => 'Sermons', 'item' => url('christ/sermons')];
-
-                    $seg3 = (string) $this->request->segment(3);
-                    if ($seg3 === 'preachers' && $this->request->segment(4) !== null) {
-                        $items[] = ['name' => 'Preachers', 'item' => url('christ/sermons/preachers')];
-                    } elseif ($seg3 === 'series' && $this->request->segment(4) !== null) {
-                        $items[] = ['name' => 'Series', 'item' => url('christ/sermons/series')];
-                    }
-                } elseif ($this->request->segment(2) === 'members') {
-                    $items[] = ['name' => 'Members', 'item' => url('church/members')];
-                } elseif ($this->request->segment(2) === 'childrens-corner') {
-                    $items[] = ['name' => "Children's Corner", 'item' => url('christ/childrens-corner')];
-                }
-            }
+            $items = array_merge($items, $this->buildAdminItems());
+        } elseif ($this->request->segment(1) !== null || $area !== '') {
+            $items = array_merge($items, $this->buildPublicItems($area));
         }
 
         if (end($items)['item'] !== url()->current()) {
             $items[] = ['name' => $heading, 'item' => url()->current()];
+        }
+
+        return $items;
+    }
+
+    /**
+     * Build the breadcrumb items for the admin area.
+     *
+     * @return list<array{name: string, item: string}>
+     */
+    private function buildAdminItems(): array
+    {
+        $items = [
+            ['name' => 'Church', 'item' => url('church')],
+            ['name' => 'Members', 'item' => url('church/members')],
+        ];
+
+        $section = (string) $this->request->segment(2);
+        if ($section === '') {
+            return $items;
+        }
+
+        $sectionName = $this->getAdminSectionName($section);
+
+        if (count($this->request->segments()) >= 3) {
+            $segment3 = $this->request->segment(3);
+
+            if ($segment3 === 'songs') {
+                $items[] = ['name' => 'Songs', 'item' => url('admin/services/songs')];
+            } else {
+                $items[] = ['name' => $sectionName, 'item' => url('admin/'.$section)];
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * Resolve the display name for an admin section.
+     */
+    private function getAdminSectionName(string $section): string
+    {
+        return match ($section) {
+            'pages' => 'Pages',
+            'sermons' => 'Sermons',
+            'meetings' => 'Meetings',
+            'calendar-events' => 'Calendar Events',
+            'sermon-upload' => 'Upload Sermon',
+            default => Str::title(str_replace('-', ' ', $section)),
+        };
+    }
+
+    /**
+     * Build the breadcrumb items for the public area.
+     *
+     * @return list<array{name: string, item: string}>
+     */
+    private function buildPublicItems(string $area): array
+    {
+        $items = [];
+
+        if ($area !== '') {
+            $items[] = ['name' => Str::title($area), 'item' => url($area)];
+        }
+
+        $segment2 = $this->request->segment(2);
+        if ($segment2 === null) {
+            return $items;
+        }
+
+        if ($segment2 === 'sermons') {
+            $items[] = ['name' => 'Sermons', 'item' => url('christ/sermons')];
+
+            $segment3 = (string) $this->request->segment(3);
+            if ($segment3 === 'preachers' && $this->request->segment(4) !== null) {
+                $items[] = ['name' => 'Preachers', 'item' => url('christ/sermons/preachers')];
+            } elseif ($segment3 === 'series' && $this->request->segment(4) !== null) {
+                $items[] = ['name' => 'Series', 'item' => url('christ/sermons/series')];
+            }
+        } elseif ($segment2 === 'members') {
+            $items[] = ['name' => 'Members', 'item' => url('church/members')];
+        } elseif ($segment2 === 'childrens-corner') {
+            $items[] = ['name' => "Children's Corner", 'item' => url('christ/childrens-corner')];
         }
 
         return $items;
