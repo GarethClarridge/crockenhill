@@ -210,6 +210,16 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
+     * @return Attribute<string, string>
+     */
+    protected function preacher(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
      * @return Attribute<?string, ?string>
      */
     protected function series(): Attribute
