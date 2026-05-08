@@ -368,6 +368,9 @@ class AnalyzeSegments implements ShouldQueue
         $rmsAnalysis = $segmentationService->analyzeSegments($rmsLogPath);
         /** @var array<int, LivestreamSegment> $rmsSegments */
         $rmsSegments = $rmsAnalysis['segments'];
+        /** @var array<string, mixed> $thresholdMetadata */
+        $thresholdMetadata = $rmsAnalysis['threshold_metadata'] ?? [];
+        $fallbackThreshold = $this->resolveVisualFallbackThreshold($thresholdMetadata);
 
         // Get total duration from RMS log for sermon identification
         $fullRmsLogPath = Storage::disk(config('media-processing.storage.temp_disk'))
@@ -381,24 +384,45 @@ class AnalyzeSegments implements ShouldQueue
 
         // Process each visual cluster to create song segments
         foreach ($visualClusters as $cluster) {
-            // Calibrate threshold for this song
-            $calibration = $segmentationService->calibratePerSongThreshold($rmsLogPath, $cluster);
+            $calibrationMetadata = [];
+            $threshold = $fallbackThreshold;
+
+            try {
+                $calibration = $segmentationService->calibratePerSongThreshold($rmsLogPath, $cluster);
+                $threshold = (float) $calibration['threshold'];
+                $calibrationMetadata = [
+                    'calibration_method' => 'per_song_visual',
+                    'song_avg_rms' => $calibration['song_avg_rms'],
+                    'speech_avg_rms' => $calibration['speech_avg_rms'],
+                ];
+            } catch (\Throwable $exception) {
+                Log::warning('Visual-guided calibration failed; falling back to baseline RMS threshold', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'cluster_start' => $cluster['start_estimate'],
+                    'cluster_end' => $cluster['end_estimate'],
+                    'fallback_threshold' => $fallbackThreshold,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                $calibrationMetadata = [
+                    'calibration_method' => 'baseline_rms_fallback',
+                    'calibration_error' => $exception->getMessage(),
+                    'fallback_threshold_used' => $fallbackThreshold,
+                ];
+            }
 
             // Detect precise boundaries
             $segment = $segmentationService->detectBoundariesForCluster(
                 $rmsLogPath,
                 $cluster,
-                $calibration['threshold']
+                $threshold
             );
 
             // Update segment order
             $segment->segmentOrder = $segmentOrder++;
 
             // Add metadata about calibration
-            $segment->metadata = array_merge($segment->metadata ?? [], [
-                'song_avg_rms' => $calibration['song_avg_rms'],
-                'speech_avg_rms' => $calibration['speech_avg_rms'],
-            ]);
+            $segment->metadata = array_merge($segment->metadata ?? [], $calibrationMetadata);
 
             $visualSegments[] = $segment;
         }
@@ -418,6 +442,20 @@ class AnalyzeSegments implements ShouldQueue
         }
 
         return $segments;
+    }
+
+    /**
+     * @param  array<string, mixed>  $thresholdMetadata
+     */
+    private function resolveVisualFallbackThreshold(array $thresholdMetadata): float
+    {
+        $threshold = $thresholdMetadata['threshold'] ?? $thresholdMetadata['threshold_used'] ?? null;
+
+        if (is_numeric($threshold)) {
+            return (float) $threshold;
+        }
+
+        return (float) config('media-processing.segmentation.rms_threshold', -45.0);
     }
 
     /**

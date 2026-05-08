@@ -56,8 +56,8 @@ class MediaValidationServiceTest extends TestCase
         $this->assertArrayHasKey('file', $rules);
         $this->assertStringContainsString('mimes:mp4,mov,avi,mkv,webm', $rules['file']);
 
-        // 2GB = 2097152 KB
-        $this->assertStringContainsString('max:2097152', $rules['file']);
+        // 8GB = 8388608 KB
+        $this->assertStringContainsString('max:8388608', $rules['file']);
     }
 
     #[Test]
@@ -75,7 +75,7 @@ class MediaValidationServiceTest extends TestCase
     #[Test]
     public function it_returns_human_readable_size_for_livestream(): void
     {
-        $this->assertEquals('2.00 GB', $this->service->maxFileSizeForDisplay(MediaType::Livestream));
+        $this->assertEquals('8.00 GB', $this->service->maxFileSizeForDisplay(MediaType::Livestream));
     }
 
     #[Test]
@@ -99,7 +99,7 @@ class MediaValidationServiceTest extends TestCase
     {
         $this->assertEquals(100 * 1024 * 1024, $this->service->maxFileSizeBytes(MediaType::Audio));
         $this->assertEquals(1024 * 1024 * 1024, $this->service->maxFileSizeBytes(MediaType::Video));
-        $this->assertEquals(2 * 1024 * 1024 * 1024, $this->service->maxFileSizeBytes(MediaType::Livestream));
+        $this->assertEquals(8 * 1024 * 1024 * 1024, $this->service->maxFileSizeBytes(MediaType::Livestream));
     }
 
     #[Test]

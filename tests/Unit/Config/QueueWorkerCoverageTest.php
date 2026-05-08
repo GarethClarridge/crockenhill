@@ -72,10 +72,19 @@ class QueueWorkerCoverageTest extends TestCase
         $content = file_get_contents($path);
         $this->assertNotFalse($content, "Failed to read queue worker definition at {$path}");
 
-        preg_match('/--queue=([^\s]+)/', $content, $matches);
+        preg_match_all('/--queue=([^\s]+)/', $content, $matches);
 
-        $this->assertArrayHasKey(1, $matches, "No --queue definition found in {$path}");
+        $this->assertNotEmpty($matches[1], "No --queue definition found in {$path}");
 
-        return array_values(array_filter(array_map('trim', explode(',', $matches[1]))));
+        $queues = [];
+        foreach ($matches[1] as $queueList) {
+            foreach (array_map('trim', explode(',', $queueList)) as $queue) {
+                if ($queue !== '') {
+                    $queues[] = $queue;
+                }
+            }
+        }
+
+        return array_values(array_unique($queues));
     }
 }

@@ -145,6 +145,34 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_persists_the_sermon_video_to_permanent_storage(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+        ]);
+
+        $sermon = Sermon::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'video_file_path' => 'temp/sermon-video.mp4',
+        ]);
+
+        Storage::disk('local')->put('temp/sermon-video.mp4', str_repeat('video-bytes', 128));
+
+        $service = $this->partialMock(SermonMetadataIntegrationService::class, function ($mock): void {
+            $mock->shouldReceive('validateVideoFile')->once()->andReturnTrue();
+        });
+
+        $finalPath = $service->storeVideoForSermon($log->processing_id, $sermon->id);
+
+        $this->assertSame("sermons/{$sermon->id}/video.mp4", $finalPath);
+        Storage::disk('public')->assertExists($finalPath);
+    }
+
+    #[Test]
     public function it_throws_exception_for_nonexistent_processing_id(): void
     {
         $sermon = Sermon::factory()->create();

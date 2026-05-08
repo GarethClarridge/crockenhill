@@ -584,6 +584,14 @@ class MediaProcessingLog extends Model
             $tempFiles[] = (string) $this->enhanced_audio_file_path;
         }
 
+        if (filled($this->rms_log_path)) {
+            $tempFiles[] = (string) $this->rms_log_path;
+        }
+
+        if (filled($this->video_file_path) && str_contains((string) $this->video_file_path, 'temp/')) {
+            $tempFiles[] = (string) $this->video_file_path;
+        }
+
         $metadata = $this->processing_metadata?->toArray() ?? [];
 
         foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {

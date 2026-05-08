@@ -94,6 +94,17 @@ class AudioEnhancementService
 
         $measuredStats = $this->measureLoudness($inputPath, $processingId, $targetLufs, $truePeak, $lra);
 
+        if ($measuredStats !== null && $this->isAlreadyWithinTolerance($measuredStats['input_i'], $targetLufs)) {
+            Log::info('AudioEnhancementService: measured loudness within tolerance, skipping encode pass', [
+                'processing_id' => $processingId,
+                'measured_lufs' => $measuredStats['input_i'],
+                'target_lufs' => $targetLufs,
+                'tolerance_lufs' => config('media-processing.audio_enhancement.skip_tolerance_lufs', 2.0),
+            ]);
+
+            return empty($filters) ? null : implode(',', $filters);
+        }
+
         if ($measuredStats !== null) {
             $filters[] = sprintf(
                 'loudnorm=I=%.1f:TP=%.1f:LRA=%.1f:measured_I=%.2f:measured_TP=%.2f:measured_LRA=%.2f:measured_thresh=%.2f:offset=%.2f:linear=true',
@@ -112,6 +123,21 @@ class AudioEnhancementService
         }
 
         return implode(',', $filters);
+    }
+
+    /**
+     * Returns true when the measured integrated loudness is already within the configured
+     * tolerance of the target, meaning re-encoding would produce negligible audible change.
+     */
+    private function isAlreadyWithinTolerance(float $measuredLufs, float $targetLufs): bool
+    {
+        if (! config('media-processing.audio_enhancement.skip_if_within_tolerance', true)) {
+            return false;
+        }
+
+        $tolerance = (float) config('media-processing.audio_enhancement.skip_tolerance_lufs', 2.0);
+
+        return abs($measuredLufs - $targetLufs) <= $tolerance;
     }
 
     /**

@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\FrameExtractionService;
 use App\Services\SermonExposurePolicy;
 use App\Services\ThumbnailGenerationService;
 use App\Traits\ChecksCancellation;
@@ -68,11 +69,14 @@ class GenerateThumbnail implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(ThumbnailGenerationService $thumbnailService): void
+    public function handle(ThumbnailGenerationService $thumbnailService, FrameExtractionService $frameExtractionService): void
     {
         if ($this->abortIfCancelled('GenerateThumbnail')) {
             return;
         }
+
+        // Read the cached local path written by AssessSermonVideoQuality to avoid a second S3 download.
+        $cachedLocalVideoPath = $this->resolveCachedLocalVideoPath();
 
         try {
             $this->resolveFromProcessingLog();
@@ -91,6 +95,7 @@ class GenerateThumbnail implements ShouldQueue
                 'sermon_id' => $this->sermonId,
                 'video_path' => $this->videoPath,
                 'processing_id' => $this->processingLog->processing_id ?? 'direct',
+                'using_cached_video' => $cachedLocalVideoPath !== null,
             ]);
 
             // Get the sermon record
@@ -113,19 +118,24 @@ class GenerateThumbnail implements ShouldQueue
                 return;
             }
 
-            // Verify video file exists using storage-aware method
-            if (! $this->videoFileExists()) {
-                Log::warning('Video file not found for thumbnail generation', [
-                    'sermon_id' => $this->sermonId,
-                    'video_path' => $this->videoPath,
-                    'disk' => $this->disk,
-                ]);
+            // When AssessSermonVideoQuality already downloaded the video, use that local copy.
+            // Otherwise fall through to the standard storage-aware path in the service.
+            if ($cachedLocalVideoPath !== null && file_exists($cachedLocalVideoPath)) {
+                $result = $thumbnailService->generateThumbnail($sermon, $cachedLocalVideoPath, disk: null);
+            } else {
+                // Verify video file exists using storage-aware method
+                if (! $this->videoFileExists()) {
+                    Log::warning('Video file not found for thumbnail generation', [
+                        'sermon_id' => $this->sermonId,
+                        'video_path' => $this->videoPath,
+                        'disk' => $this->disk,
+                    ]);
 
-                return;
+                    return;
+                }
+
+                $result = $thumbnailService->generateThumbnail($sermon, $this->videoPath, $this->disk);
             }
-
-            // Generate thumbnail using the service
-            $result = $thumbnailService->generateThumbnail($sermon, $this->videoPath, $this->disk);
 
             if ($result->success) {
                 // Update sermon record with thumbnail information
@@ -156,8 +166,9 @@ class GenerateThumbnail implements ShouldQueue
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
-            // Don't re-throw the exception - thumbnails are non-critical
+        } finally {
+            // Clean up the cached local video passed from AssessSermonVideoQuality
+            $frameExtractionService->cleanupDownloadedVideo($cachedLocalVideoPath);
         }
     }
 
@@ -223,6 +234,14 @@ class GenerateThumbnail implements ShouldQueue
         }
     }
 
+    private function resolveCachedLocalVideoPath(): ?string
+    {
+        $metadata = $this->processingLog->processing_metadata?->toArray() ?? [];
+        $path = $metadata['cached_local_video_path'] ?? null;
+
+        return is_string($path) && $path !== '' ? $path : null;
+    }
+
     /**
      * Check if video file exists using storage-aware method
      *
@@ -283,8 +302,6 @@ class GenerateThumbnail implements ShouldQueue
      */
     public function retryUntil(): \DateTime
     {
-        // Keep expiry comfortably beyond normal queue wait times so a delayed
-        // thumbnail job does not fail the main processing chain pre-emptively.
-        return now()->addDay();
+        return now()->addDay()->toDateTime();
     }
 }

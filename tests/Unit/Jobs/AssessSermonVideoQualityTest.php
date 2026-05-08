@@ -9,6 +9,8 @@ use App\Enums\SermonVideoQualityStatus;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\FrameExtractionService;
+use App\Services\SermonExposurePolicy;
 use App\Services\SermonVideoQualityAssessmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -27,21 +29,26 @@ class AssessSermonVideoQualityTest extends TestCase
             'video_file_path' => 'sermons/video.mp4',
         ]);
 
+        $assessmentResult = new SermonVideoQualityAssessmentResult(
+            status: SermonVideoQualityStatus::Rejected,
+            reason: 'mostly_black',
+            sampleCount: 8,
+            sampleTimestamps: [24.0, 48.0],
+            blankFrameRatio: 1.0,
+            frozenPairRatio: 0.0,
+            lowDetailRatio: 1.0,
+            aggregateScore: 0.01,
+        );
+
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
         $service->expects($this->once())
-            ->method('assess')
-            ->willReturn(new SermonVideoQualityAssessmentResult(
-                status: SermonVideoQualityStatus::Rejected,
-                reason: 'mostly_black',
-                sampleCount: 8,
-                sampleTimestamps: [24.0, 48.0],
-                blankFrameRatio: 1.0,
-                frozenPairRatio: 0.0,
-                lowDetailRatio: 1.0,
-                aggregateScore: 0.01,
-            ));
+            ->method('assessAndRetainLocalPath')
+            ->willReturn(['result' => $assessmentResult, 'localVideoPath' => null]);
 
-        (new AssessSermonVideoQuality($log))->handle($service);
+        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $exposurePolicy = $this->createMock(SermonExposurePolicy::class);
+
+        (new AssessSermonVideoQuality($log))->handle($service, $frameExtractionService, $exposurePolicy);
 
         $sermon->refresh();
         $log->refresh();
@@ -59,9 +66,12 @@ class AssessSermonVideoQualityTest extends TestCase
         $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
 
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
-        $service->method('assess')->willThrowException(new \RuntimeException('boom'));
+        $service->method('assessAndRetainLocalPath')->willThrowException(new \RuntimeException('boom'));
 
-        (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle($service);
+        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $exposurePolicy = $this->createMock(SermonExposurePolicy::class);
+
+        (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle($service, $frameExtractionService, $exposurePolicy);
 
         $sermon->refresh();
 

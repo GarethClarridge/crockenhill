@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Jobs;
 
+use App\Jobs\StoreSermonVideo;
 use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonCreationService;
-use App\Services\SermonMetadataIntegrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -45,7 +45,6 @@ class SubmitToProcessingTest extends TestCase
             'audio_file_path' => null,
         ]);
 
-        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
         $mockCreationService = $this->createMock(SermonCreationService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
@@ -56,7 +55,7 @@ class SubmitToProcessingTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Sermon audio path not found in processing log');
 
-        $job->handle($mockMetadataService, $mockCreationService);
+        $job->handle($mockCreationService);
     }
 
     #[Test]
@@ -68,7 +67,6 @@ class SubmitToProcessingTest extends TestCase
             'audio_file_path' => 'sermons/audio/missing-file.mp3',
         ]);
 
-        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
         $mockCreationService = $this->createMock(SermonCreationService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
@@ -82,11 +80,11 @@ class SubmitToProcessingTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessageMatches('/Sermon audio file not found/');
 
-        $job->handle($mockMetadataService, $mockCreationService);
+        $job->handle($mockCreationService);
     }
 
     #[Test]
-    public function it_creates_sermon_record_and_stores_video(): void
+    public function it_creates_sermon_record_and_dispatches_store_sermon_video(): void
     {
         Storage::fake('public');
         Storage::disk('public')->put('sermons/audio/test-audio.mp3', 'fake-audio-content');
@@ -101,14 +99,6 @@ class SubmitToProcessingTest extends TestCase
 
         $createdSermon = Sermon::factory()->create();
 
-        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
-        $mockMetadataService->expects($this->once())
-            ->method('storeVideoForSermon')
-            ->with($log->processing_id, $createdSermon->id)
-            ->willReturn('sermons/'.$createdSermon->id.'/video.mp4');
-        $mockMetadataService->expects($this->once())
-            ->method('linkVideoToSermon');
-
         $mockCreationService = $this->createMock(SermonCreationService::class);
         $mockCreationService->expects($this->once())
             ->method('createSermon')
@@ -118,12 +108,15 @@ class SubmitToProcessingTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new SubmitToProcessing($log);
-        $job->handle($mockMetadataService, $mockCreationService);
+        $job->handle($mockCreationService);
 
         $log->refresh();
         $this->assertEquals($createdSermon->id, $log->sermon_id);
         $this->assertEquals('transcription', $log->current_step);
-        Queue::assertNothingPushed();
+
+        Queue::assertPushed(StoreSermonVideo::class, function (StoreSermonVideo $job) use ($createdSermon): bool {
+            return $job->sermonId === $createdSermon->id;
+        });
     }
 
     #[Test]
@@ -148,15 +141,6 @@ class SubmitToProcessingTest extends TestCase
             'sermon_end_time' => 2100.0,
         ]);
 
-        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
-        $mockMetadataService->expects($this->once())
-            ->method('storeVideoForSermon')
-            ->with($log->processing_id, $sermon->id)
-            ->willReturn('sermons/'.$sermon->id.'/video.mp4');
-        $mockMetadataService->expects($this->once())
-            ->method('linkVideoToSermon')
-            ->with($log->processing_id, $sermon->id, 'sermons/'.$sermon->id.'/video.mp4');
-
         $mockCreationService = $this->createMock(SermonCreationService::class);
         $mockCreationService->expects($this->never())->method('createSermon');
 
@@ -164,7 +148,7 @@ class SubmitToProcessingTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new SubmitToProcessing($log);
-        $job->handle($mockMetadataService, $mockCreationService);
+        $job->handle($mockCreationService);
 
         $log->refresh();
         $sermon->refresh();
@@ -174,6 +158,8 @@ class SubmitToProcessingTest extends TestCase
         $this->assertSame($log->processing_id, $sermon->livestream_processing_id);
         $this->assertSame('transcription', $log->current_step);
         $this->assertSame(1, Sermon::query()->where('livestream_processing_id', $log->processing_id)->count());
+
+        Queue::assertPushed(StoreSermonVideo::class);
     }
 
     #[Test]
@@ -195,16 +181,15 @@ class SubmitToProcessingTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
 
-        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
-        $mockMetadataService->expects($this->never())->method('storeVideoForSermon');
-
         $mockCreationService = $this->createMock(SermonCreationService::class);
         $mockCreationService->expects($this->never())->method('createSermon');
 
         Log::shouldReceive('info')->once()->with('SubmitToProcessing job skipped: processing cancelled', \Mockery::any());
 
         $job = new SubmitToProcessing($log);
-        $job->handle($mockMetadataService, $mockCreationService);
+        $job->handle($mockCreationService);
+
+        Queue::assertNotPushed(StoreSermonVideo::class);
     }
 
     #[Test]
@@ -257,15 +242,6 @@ class SubmitToProcessingTest extends TestCase
             'livestream_processing_id' => $log->processing_id,
         ]);
 
-        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
-        $mockMetadataService->expects($this->once())
-            ->method('storeVideoForSermon')
-            ->with($log->processing_id, $sermon->id)
-            ->willReturn('sermons/'.$sermon->id.'/video.mp4');
-        $mockMetadataService->expects($this->once())
-            ->method('linkVideoToSermon')
-            ->with($log->processing_id, $sermon->id, 'sermons/'.$sermon->id.'/video.mp4');
-
         $mockCreationService = $this->createMock(SermonCreationService::class);
         $mockCreationService->expects($this->never())->method('createSermon');
 
@@ -273,7 +249,7 @@ class SubmitToProcessingTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new SubmitToProcessing($log);
-        $job->handle($mockMetadataService, $mockCreationService);
+        $job->handle($mockCreationService);
 
         $log->refresh();
         $sermon->refresh();
@@ -282,5 +258,7 @@ class SubmitToProcessingTest extends TestCase
         $this->assertSame('sermons/audio/mixed-state.mp3', $sermon->audio_file_path);
         $this->assertSame($log->processing_id, $sermon->livestream_processing_id);
         $this->assertSame(1, Sermon::query()->where('livestream_processing_id', $log->processing_id)->count());
+
+        Queue::assertPushed(StoreSermonVideo::class);
     }
 }

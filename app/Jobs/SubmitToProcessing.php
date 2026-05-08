@@ -11,7 +11,6 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonCreationService;
-use App\Services\SermonMetadataIntegrationService;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -33,7 +32,6 @@ class SubmitToProcessing implements ShouldQueue
     ) {}
 
     public function handle(
-        SermonMetadataIntegrationService $metadataIntegrationService,
         SermonCreationService $sermonCreationService,
         ?MediaProcessingRunTransitionService $processingRunTransitions = null
     ): void {
@@ -163,21 +161,9 @@ class SubmitToProcessing implements ShouldQueue
                 ]);
             }
 
-            // Store video in permanent location
-            $finalVideoPath = $metadataIntegrationService->storeVideoForSermon(
-                $this->processingLog->processing_id,
-                $sermonId
-            );
-
-            // Link video to sermon record
-            $metadataIntegrationService->linkVideoToSermon(
-                $this->processingLog->processing_id,
-                $sermonId,
-                $finalVideoPath
-            );
-
-            // Note: Thumbnail generation will be handled by the next job in the chain
-            // Store video path in processing metadata for thumbnail generation job
+            // Dispatch video upload independently so it does not block audio processing.
+            // AssessSermonVideoQuality and GenerateThumbnail both handle a missing video_file_path gracefully.
+            dispatch(new StoreSermonVideo($this->processingLog, $sermonId));
 
             // Validate that the sermon record has a valid audio file path
             if ($sermonId) {
@@ -199,17 +185,13 @@ class SubmitToProcessing implements ShouldQueue
                 'current_step' => ProcessingStep::Transcription->value,
                 'processing_metadata' => array_merge(
                     $this->processingLog->processing_metadata?->toArray() ?? [],
-                    [
-                        'final_video_path' => $finalVideoPath,
-                        'sermon_creation_completed_at' => now()->toISOString(),
-                    ]
+                    ['sermon_creation_completed_at' => now()->toISOString()]
                 ),
             ]);
 
             Log::info('Sermon creation from livestream completed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'sermon_id' => $sermonId,
-                'final_video_path' => $finalVideoPath,
             ]);
 
             // Job chain will automatically proceed to transcription job

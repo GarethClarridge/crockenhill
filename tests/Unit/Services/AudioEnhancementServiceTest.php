@@ -252,4 +252,65 @@ class AudioEnhancementServiceTest extends TestCase
 
         $this->assertNull($result);
     }
+
+    // ---- skip-if-within-tolerance ----
+
+    #[Test]
+    public function build_filter_chain_skips_loudnorm_encode_when_measured_lufs_within_tolerance(): void
+    {
+        Config::set('media-processing.audio_enhancement.noise_reduction', false);
+        Config::set('media-processing.audio_enhancement.dynamic_norm', false);
+        Config::set('media-processing.audio_enhancement.skip_if_within_tolerance', true);
+        Config::set('media-processing.audio_enhancement.skip_tolerance_lufs', 2.0);
+        Config::set('media-processing.audio_enhancement.target_lufs', -16.0);
+
+        // Inject measured stats that are within ±2 LUFS of -16.0
+        $method = new \ReflectionMethod(AudioEnhancementService::class, 'isAlreadyWithinTolerance');
+
+        $this->assertTrue($method->invoke($this->service, -16.0, -16.0)); // exact match
+        $this->assertTrue($method->invoke($this->service, -15.0, -16.0)); // 1 LUFS above
+        $this->assertTrue($method->invoke($this->service, -18.0, -16.0)); // 2 LUFS below (boundary)
+        $this->assertFalse($method->invoke($this->service, -18.1, -16.0)); // just outside tolerance
+        $this->assertFalse($method->invoke($this->service, -13.9, -16.0)); // just outside tolerance (above)
+    }
+
+    #[Test]
+    public function build_filter_chain_does_not_skip_when_skip_tolerance_disabled(): void
+    {
+        Config::set('media-processing.audio_enhancement.skip_if_within_tolerance', false);
+
+        $method = new \ReflectionMethod(AudioEnhancementService::class, 'isAlreadyWithinTolerance');
+
+        // Even when measured loudness exactly matches target, should not skip
+        $this->assertFalse($method->invoke($this->service, -16.0, -16.0));
+    }
+
+    #[Test]
+    public function build_filter_chain_returns_null_when_loudness_within_tolerance_and_no_other_filters(): void
+    {
+        Config::set('media-processing.audio_enhancement.noise_reduction', false);
+        Config::set('media-processing.audio_enhancement.dynamic_norm', false);
+        Config::set('media-processing.audio_enhancement.loudness_norm', true);
+        Config::set('media-processing.audio_enhancement.skip_if_within_tolerance', true);
+        Config::set('media-processing.audio_enhancement.skip_tolerance_lufs', 2.0);
+        Config::set('media-processing.audio_enhancement.target_lufs', -16.0);
+
+        // Partial mock: make measureLoudness return stats within tolerance
+        $service = $this->getMockBuilder(AudioEnhancementService::class)
+            ->onlyMethods(['measureLoudness'])
+            ->getMock();
+
+        $service->method('measureLoudness')->willReturn([
+            'input_i' => -15.5, // within ±2 of -16.0
+            'input_tp' => -2.0,
+            'input_lra' => 9.0,
+            'input_thresh' => -25.0,
+            'target_offset' => 0.0,
+        ]);
+
+        $result = $service->buildFilterChain('/some/file.mp3', 'test-id');
+
+        // No other filters active + within tolerance → null (skip encode)
+        $this->assertNull($result);
+    }
 }

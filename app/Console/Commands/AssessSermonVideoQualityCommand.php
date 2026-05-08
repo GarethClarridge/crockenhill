@@ -7,7 +7,6 @@ namespace App\Console\Commands;
 use App\Enums\SermonVideoQualityStatus;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Models\Sermon;
-use App\Services\SermonVideoQualityAssessmentService;
 use Illuminate\Console\Command;
 
 class AssessSermonVideoQualityCommand extends Command
@@ -23,7 +22,7 @@ class AssessSermonVideoQualityCommand extends Command
 
     protected $description = 'Assess sermon video quality for one sermon or a tightly controlled backfill batch';
 
-    public function handle(SermonVideoQualityAssessmentService $assessmentService): int
+    public function handle(): int
     {
         $query = Sermon::query()
             ->withVideo()
@@ -80,7 +79,7 @@ class AssessSermonVideoQualityCommand extends Command
                 continue;
             }
 
-            (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle($assessmentService);
+            app()->call([new AssessSermonVideoQuality(sermonId: $sermon->id), 'handle']);
             $this->line("Assessed sermon #{$sermon->id}: {$sermon->title}");
         }
 

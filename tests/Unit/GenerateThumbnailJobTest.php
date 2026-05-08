@@ -10,6 +10,7 @@ use App\Enums\SermonVideoQualityStatus;
 use App\Jobs\GenerateThumbnail;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\FrameExtractionService;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -97,7 +98,7 @@ class GenerateThumbnailJobTest extends TestCase
         Log::shouldReceive('warning')->never();
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertSame('sermons/thumbnails/test.jpg', $sermon->thumbnail_file_path);
@@ -126,7 +127,7 @@ class GenerateThumbnailJobTest extends TestCase
         Log::shouldReceive('warning')->atLeast()->once();
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -153,7 +154,7 @@ class GenerateThumbnailJobTest extends TestCase
         );
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
     }
 
     #[Test]
@@ -178,7 +179,7 @@ class GenerateThumbnailJobTest extends TestCase
         );
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
     }
 
     #[Test]
@@ -199,7 +200,7 @@ class GenerateThumbnailJobTest extends TestCase
         Log::shouldReceive('warning')->never();
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -225,7 +226,7 @@ class GenerateThumbnailJobTest extends TestCase
         Log::shouldReceive('warning')->atLeast()->once();
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -259,7 +260,7 @@ class GenerateThumbnailJobTest extends TestCase
         Log::shouldReceive('warning')->atLeast()->once();
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
     }
 
     #[Test]
@@ -324,7 +325,7 @@ class GenerateThumbnailJobTest extends TestCase
         Log::shouldReceive('info')->once()->with('GenerateThumbnail job skipped: processing cancelled', \Mockery::any());
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
     }
 
     private function createProcessingLog(

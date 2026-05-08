@@ -153,6 +153,9 @@ return [
         'target_lufs' => (float) env('AUDIO_ENHANCEMENT_TARGET_LUFS', -16.0),
         'true_peak' => (float) env('AUDIO_ENHANCEMENT_TRUE_PEAK', -1.5),
         'lra' => (float) env('AUDIO_ENHANCEMENT_LRA', 11.0),
+        // Skip the encode pass when measured loudness is already within this many LUFS of the target.
+        'skip_if_within_tolerance' => env('AUDIO_ENHANCEMENT_SKIP_IF_WITHIN_TOLERANCE', true),
+        'skip_tolerance_lufs' => (float) env('AUDIO_ENHANCEMENT_SKIP_TOLERANCE_LUFS', 2.0),
     ],
 
     /*

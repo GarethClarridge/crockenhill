@@ -50,7 +50,37 @@ services:
             - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
         command: >
             php artisan queue:work redis
-            --queue=video-processing,audio-processing,sermon-processing,livestream-processing,speaker-identification,default
+            --queue=audio-processing,sermon-processing,speaker-identification,default
+            --sleep=1
+            --tries=3
+            --timeout=7200
+            --memory=${QUEUE_WORKER_MEMORY:-2048}
+        networks:
+            - sail
+        depends_on:
+            - mysql
+            - redis
+    queue.worker-video:
+        build:
+            context: './docker/8.4'
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: 'sail-8.4/app'
+        restart: unless-stopped
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+        volumes:
+            - '.:/var/www/html'
+            - '/Volumes/CBC drive/ServiceVideos:/mnt/cbc-service-videos:ro'
+            - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
+        command: >
+            php artisan queue:work redis
+            --queue=video-processing,livestream-processing
             --sleep=1
             --tries=3
             --timeout=7200

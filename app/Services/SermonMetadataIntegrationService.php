@@ -8,7 +8,6 @@ use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Number;
@@ -72,6 +71,20 @@ class SermonMetadataIntegrationService
         if (! $videoPath) {
             throw new \Exception("No sermon video found for processing ID: {$processingId}");
         }
+
+        if (! $this->validateVideoFile($videoPath)) {
+            throw new \RuntimeException("Sermon video is not a valid upload candidate: {$videoPath}");
+        }
+
+        $sourceFileSize = filesize($videoPath);
+
+        Log::info('Preparing sermon video for permanent storage', [
+            'processing_id' => $processingId,
+            'sermon_id' => $sermonId,
+            'source_path' => $videoPath,
+            'source_size_bytes' => $sourceFileSize === false ? null : $sourceFileSize,
+            'sermon_disk' => config('media-processing.storage.sermon_disk', 'public'),
+        ]);
 
         // Simple organization by sermon ID
         $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId);
@@ -170,8 +183,10 @@ class SermonMetadataIntegrationService
      */
     private function organizeVideoFile(string $videoPath, int $sermonId): string
     {
+        $sermonDiskName = config('media-processing.storage.sermon_disk', 'public');
+
         // Get the sermon storage disk
-        $sermonDisk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
+        $sermonDisk = Storage::disk($sermonDiskName);
 
         // Create directory structure based on sermon ID
         $directory = "sermons/{$sermonId}";
@@ -181,17 +196,34 @@ class SermonMetadataIntegrationService
         // Ensure the directory exists
         $sermonDisk->makeDirectory($directory);
 
-        // Copy the video file to the final location
-        $sermonDisk->putFileAs(
-            $directory,
-            new File($videoPath),
-            $filename
-        );
+        $stream = fopen($videoPath, 'rb');
+
+        if ($stream === false) {
+            throw new \RuntimeException("Unable to open sermon video for upload: {$videoPath}");
+        }
+
+        try {
+            $uploaded = $sermonDisk->put($finalPath, $stream);
+        } finally {
+            fclose($stream);
+        }
+
+        if ($uploaded === false || ! $sermonDisk->exists($finalPath)) {
+            throw new \RuntimeException("Failed to persist sermon video to {$sermonDiskName}: {$finalPath}");
+        }
+
+        $storedFileSize = $sermonDisk->size($finalPath);
+
+        if ($storedFileSize === 0) {
+            throw new \RuntimeException("Persisted sermon video has zero size on {$sermonDiskName}: {$finalPath}");
+        }
 
         Log::info('Video file organized', [
             'source_path' => $videoPath,
             'final_path' => $finalPath,
             'sermon_id' => $sermonId,
+            'disk' => $sermonDiskName,
+            'stored_size_bytes' => $storedFileSize,
         ]);
 
         return $finalPath;

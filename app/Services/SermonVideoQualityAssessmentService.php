@@ -64,6 +64,50 @@ class SermonVideoQualityAssessmentService
         }
     }
 
+    /**
+     * Assess video quality and, when the video was downloaded from S3, return the local temp path
+     * so the caller can pass it to the next job (e.g. GenerateThumbnail) and avoid a second download.
+     *
+     * The caller is responsible for cleaning up the returned local path via
+     * FrameExtractionService::cleanupDownloadedVideo().
+     *
+     * @return array{result: SermonVideoQualityAssessmentResult, localVideoPath: string|null}
+     */
+    public function assessAndRetainLocalPath(Sermon $sermon, ?string $videoPath = null, ?string $disk = null): array
+    {
+        $videoPath ??= $sermon->video_file_path;
+        $disk ??= (string) config('media-processing.storage.sermon_disk', 'public');
+
+        if (! is_string($videoPath) || $videoPath === '') {
+            return ['result' => SermonVideoQualityAssessmentResult::failed('missing_video_path'), 'localVideoPath' => null];
+        }
+
+        if (! $this->frameExtractionService->videoFileExists($videoPath, $disk)) {
+            return ['result' => SermonVideoQualityAssessmentResult::failed('missing_video_file'), 'localVideoPath' => null];
+        }
+
+        try {
+            $localVideoPath = $this->frameExtractionService->ensureLocalVideoPath($videoPath, $disk);
+            $isS3Download = $disk && $this->storageHelper->isS3CompatibleDisk(Storage::disk($disk));
+
+            $result = $this->assessLocalVideo($localVideoPath);
+
+            return [
+                'result' => $result,
+                'localVideoPath' => $isS3Download ? $localVideoPath : null,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Sermon video quality assessment failed', [
+                'sermon_id' => $sermon->id,
+                'video_path' => $videoPath,
+                'disk' => $disk,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['result' => SermonVideoQualityAssessmentResult::failed(), 'localVideoPath' => null];
+        }
+    }
+
     public function assessLocalVideo(string $localVideoPath): SermonVideoQualityAssessmentResult
     {
         $metadata = $this->frameExtractionService->getVideoMetadata($localVideoPath);

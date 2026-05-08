@@ -278,6 +278,28 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
+    public function it_includes_rms_logs_and_temp_video_paths_in_temporary_file_paths(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->make([
+            'source_file_path' => 'livestream/temp/original.mkv',
+            'enhanced_audio_file_path' => '/tmp/enhanced.mp3',
+            'video_file_path' => 'temp/sermon-video.mp4',
+            'rms_log_path' => 'temp/rms.log',
+            'processing_metadata' => [
+                'temp_video_path' => 'temp/segment-video.mp4',
+            ],
+        ]);
+
+        $this->assertSame([
+            'livestream/temp/original.mkv',
+            '/tmp/enhanced.mp3',
+            'temp/rms.log',
+            'temp/sermon-video.mp4',
+            'temp/segment-video.mp4',
+        ], $log->temporaryFilePaths());
+    }
+
+    #[Test]
     public function it_defines_status_scopes(): void
     {
         $processing = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Processing]);

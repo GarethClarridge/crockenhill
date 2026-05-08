@@ -7,6 +7,8 @@ namespace App\Jobs;
 use App\Data\SermonVideoQualityAssessmentResult;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\FrameExtractionService;
+use App\Services\SermonExposurePolicy;
 use App\Services\SermonVideoQualityAssessmentService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -33,8 +35,11 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
         private ?int $sermonId = null,
     ) {}
 
-    public function handle(SermonVideoQualityAssessmentService $assessmentService): void
-    {
+    public function handle(
+        SermonVideoQualityAssessmentService $assessmentService,
+        FrameExtractionService $frameExtractionService,
+        SermonExposurePolicy $exposurePolicy,
+    ): void {
         $startedAt = microtime(true);
         $processingLog = $this->processingLog?->fresh();
 
@@ -81,13 +86,17 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
             return;
         }
 
+        $localVideoPath = null;
+
         try {
             $this->logStepStart('assessing_video_quality', 'Assessing sermon video quality');
 
-            $result = $assessmentService->assess(
+            $disk = (string) config('media-processing.storage.sermon_disk', 'public');
+
+            ['result' => $result, 'localVideoPath' => $localVideoPath] = $assessmentService->assessAndRetainLocalPath(
                 sermon: $sermon,
                 videoPath: $sermon->video_file_path,
-                disk: (string) config('media-processing.storage.sermon_disk', 'public'),
+                disk: $disk,
             );
 
             $this->persistResult($sermon, $processingLog, $result);
@@ -103,6 +112,18 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
                 'aggregate_score' => $result->aggregateScore,
                 'runtime_ms' => (int) round((microtime(true) - $startedAt) * 1000),
             ]);
+
+            // If thumbnail generation will run next, keep the local temp file and pass the path
+            // forward via processing_metadata so GenerateThumbnail avoids a second S3 download.
+            if ($localVideoPath !== null && $processingLog !== null && $exposurePolicy->shouldGenerateVideoThumbnail($sermon)) {
+                $processingLog->update([
+                    'processing_metadata' => array_merge(
+                        $processingLog->processing_metadata?->toArray() ?? [],
+                        ['cached_local_video_path' => $localVideoPath],
+                    ),
+                ]);
+                $localVideoPath = null; // GenerateThumbnail now owns cleanup
+            }
         } catch (\Throwable $e) {
             $result = SermonVideoQualityAssessmentResult::failed();
             $this->persistResult($sermon, $processingLog, $result);
@@ -115,6 +136,9 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
                 'error' => $e->getMessage(),
                 'runtime_ms' => (int) round((microtime(true) - $startedAt) * 1000),
             ]);
+        } finally {
+            // Clean up only if we still own the file (thumbnail generation won't run)
+            $frameExtractionService->cleanupDownloadedVideo($localVideoPath);
         }
     }
 

@@ -315,7 +315,17 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->createMockRmsLog('temp/rms.log', 600.0);
 
         $mockService = Mockery::mock(VideoSegmentationService::class);
-        $this->mockBaselineRmsAnalysis($mockService, 600.0);
+        $this->mockBaselineRmsAnalysis($mockService, 600.0, [
+            new LivestreamSegmentData(
+                startTime: 0.0,
+                endTime: 70.0,
+                duration: 70.0,
+                classification: 'song',
+                avgRms: -40.0,
+                peakRms: -35.0,
+                segmentOrder: 0,
+            ),
+        ]);
 
         $mockService->shouldReceive('calibratePerSongThreshold')->andReturn([
             'threshold' => -40.0,
@@ -355,6 +365,72 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->assertEquals(0.92, $songSegment->visual_confidence);
         $this->assertEquals(5, $songSegment->visual_sample_count);
         $this->assertEquals('per_song_visual', $songSegment->calibration_method);
+    }
+
+    #[Test]
+    public function it_falls_back_to_the_baseline_threshold_when_per_song_calibration_has_no_rms_data(): void
+    {
+        Storage::fake('local');
+
+        $songClusters = [
+            [
+                'start_estimate' => 0.0,
+                'end_estimate' => 60.0,
+                'samples' => [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
+                'confidence' => 0.57,
+            ],
+        ];
+
+        $processingLog = MediaProcessingLog::factory()->create([
+            'rms_log_path' => 'temp/rms.log',
+            'song_clusters' => $songClusters,
+            'status' => 'processing',
+        ]);
+
+        $this->createMockRmsLog('temp/rms.log', 600.0);
+
+        $mockService = Mockery::mock(VideoSegmentationService::class);
+        $this->mockBaselineRmsAnalysis($mockService, 600.0);
+
+        $mockService->shouldReceive('calibratePerSongThreshold')
+            ->once()
+            ->andThrow(new \RuntimeException('No RMS data found for song period'));
+
+        $mockService->shouldReceive('detectBoundariesForCluster')
+            ->once()
+            ->andReturn(new LivestreamSegmentData(
+                startTime: 0.0,
+                endTime: 73.0,
+                duration: 73.0,
+                classification: 'song',
+                avgRms: -40.0,
+                peakRms: -35.0,
+                segmentOrder: 0,
+                metadata: [
+                    'visual_confidence' => 0.57,
+                    'boundary_method' => 'visual_only',
+                ],
+            ));
+
+        Log::spy();
+
+        $job = new AnalyzeSegments($processingLog);
+        $job->handle($mockService);
+
+        Log::shouldHaveReceived('warning')
+            ->with('Visual-guided calibration failed; falling back to baseline RMS threshold', Mockery::on(function (array $context) use ($processingLog): bool {
+                return $context['processing_id'] === $processingLog->processing_id
+                    && $context['fallback_threshold'] === -45.0
+                    && str_contains($context['error'], 'No RMS data found');
+            }))
+            ->once();
+
+        $processingLog->refresh();
+
+        $this->assertNotSame('failed', $processingLog->status->value);
+        $this->assertGreaterThan(0, LivestreamSegment::query()->where('media_processing_log_id', $processingLog->id)->count());
+        $this->assertNotNull($processingLog->sermon_start_time);
+        $this->assertNotNull($processingLog->sermon_end_time);
     }
 
     #[Test]
