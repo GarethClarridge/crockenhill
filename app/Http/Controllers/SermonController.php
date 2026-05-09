@@ -38,9 +38,9 @@ class SermonController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * The BrowseSermons Livewire component owns the paginated sermon query and filter
-     * normalization. The controller renders the page shell and a bounded JSON-LD payload
-     * sourced from the most recent sermons.
+     * The BrowseSermons Livewire component owns the paginated sermon query, filter
+     * normalization, and structured data generation. The controller only renders
+     * the initial page shell and SEO metadata.
      */
     public function index(Request $request): View
     {
@@ -53,18 +53,10 @@ class SermonController extends Controller
             $request->query('series'),
         );
 
-        $recentSermons = $this->sermonRepository->publicBrowseQuery(
-            book: $filters['book'],
-            chapter: $filters['chapter'],
-            preacherId: $filters['preacherId'],
-            series: $filters['series'],
-        )->limit(24)->get();
-
         return view('sermons.index', [
             'heading' => $this->seoPresenter->title($filters),
             'description' => $this->seoPresenter->description($filters),
             'canonical_url' => $this->seoPresenter->canonical($filters, $request->integer('page', 1)),
-            'json_ld_data' => $this->itemListPresenter->toItemList($recentSermons),
             'area' => 'christ',
             'links' => $this->sermonLinks('sermons'),
             'slug' => 'sermons',

@@ -9,14 +9,33 @@ use App\Models\Preacher;
 class SermonArchiveSeoPresenter
 {
     /**
+     * @var array<string, string>
+     */
+    private array $memoizedTitles = [];
+
+    /**
+     * @var array<string, string>
+     */
+    private array $memoizedDescriptions = [];
+
+    /**
      * Generate SEO title based on filters.
+     *
+     * Performance Optimization: Memoizes title generation and utilizes cached
+     * preacher listing to avoid redundant DB queries during title assembly.
      *
      * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
      */
     public function title(array $filters): string
     {
+        $key = md5(serialize($filters));
+
+        if (isset($this->memoizedTitles[$key])) {
+            return $this->memoizedTitles[$key];
+        }
+
         if (! array_filter($filters)) {
-            return 'Sermons';
+            return $this->memoizedTitles[$key] = 'Sermons';
         }
 
         $parts = [];
@@ -26,9 +45,9 @@ class SermonArchiveSeoPresenter
         }
 
         if ($filters['preacherId']) {
-            $preacher = Preacher::find($filters['preacherId']);
-            if ($preacher) {
-                $parts[] = $preacher->name;
+            $preacherName = $this->resolvePreacherName((int) $filters['preacherId']);
+            if ($preacherName) {
+                $parts[] = $preacherName;
             }
         }
 
@@ -36,18 +55,27 @@ class SermonArchiveSeoPresenter
             $parts[] = $filters['series'];
         }
 
-        return implode(' | ', $parts).' | Sermons';
+        return $this->memoizedTitles[$key] = implode(' | ', $parts).' | Sermons';
     }
 
     /**
      * Generate SEO description based on filters.
      *
+     * Performance Optimization: Memoizes description generation and utilizes
+     * cached preacher listing to avoid redundant DB queries during assembly.
+     *
      * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
      */
     public function description(array $filters): string
     {
+        $key = md5(serialize($filters));
+
+        if (isset($this->memoizedDescriptions[$key])) {
+            return $this->memoizedDescriptions[$key];
+        }
+
         if (! array_filter($filters)) {
-            return 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.';
+            return $this->memoizedDescriptions[$key] = 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.';
         }
 
         $parts = [];
@@ -58,9 +86,9 @@ class SermonArchiveSeoPresenter
         }
 
         if ($filters['preacherId']) {
-            $preacher = Preacher::find($filters['preacherId']);
-            if ($preacher) {
-                $parts[] = "by {$preacher->name}";
+            $preacherName = $this->resolvePreacherName((int) $filters['preacherId']);
+            if ($preacherName) {
+                $parts[] = "by {$preacherName}";
             }
         }
 
@@ -68,7 +96,15 @@ class SermonArchiveSeoPresenter
             $parts[] = "in the {$filters['series']} series";
         }
 
-        return 'Browse sermons from Crockenhill Baptist Church '.implode(' ', $parts).'.';
+        return $this->memoizedDescriptions[$key] = 'Browse sermons from Crockenhill Baptist Church '.implode(' ', $parts).'.';
+    }
+
+    /**
+     * Resolve a preacher name from the cached public listing.
+     */
+    private function resolvePreacherName(int $preacherId): ?string
+    {
+        return Preacher::getForPublicList()->firstWhere('id', $preacherId)?->name;
     }
 
     /**
