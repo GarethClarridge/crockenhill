@@ -19,6 +19,11 @@ class SermonArchiveSeoPresenter
     private array $memoizedDescriptions = [];
 
     /**
+     * @var array<int, ?string>
+     */
+    private array $memoizedPreacherNames = [];
+
+    /**
      * Generate SEO title based on filters.
      *
      * Performance Optimization: Memoizes title generation and utilizes cached
@@ -100,11 +105,26 @@ class SermonArchiveSeoPresenter
     }
 
     /**
-     * Resolve a preacher name from the cached public listing.
+     * Resolve a preacher name from the cached public listing or database.
+     *
+     * Performance Optimization: Memoizes preacher name lookups to avoid redundant
+     * collection traversal and database queries within a single request.
      */
     private function resolvePreacherName(int $preacherId): ?string
     {
-        return Preacher::getForPublicList()->firstWhere('id', $preacherId)?->name;
+        if (array_key_exists($preacherId, $this->memoizedPreacherNames)) {
+            return $this->memoizedPreacherNames[$preacherId];
+        }
+
+        // Try the cached public list first (optimized for the common case)
+        $preacherName = Preacher::getForPublicList()->firstWhere('id', $preacherId)?->name;
+
+        // Fallback to database for inactive or non-public preachers
+        if ($preacherName === null) {
+            $preacherName = Preacher::query()->find($preacherId)?->name;
+        }
+
+        return $this->memoizedPreacherNames[$preacherId] = $preacherName;
     }
 
     /**
