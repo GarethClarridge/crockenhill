@@ -10,6 +10,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
+use App\Models\SpeakerSample;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -98,7 +99,8 @@ class SchemaGuardrailAudit
      */
     public function speakerSampleDuplicates(): array
     {
-        return DB::table('speaker_samples')
+        return SpeakerSample::query()
+            ->toBase()
             ->whereNotNull('sermon_id')
             ->selectRaw('speaker_profile_id, sermon_id, source, COUNT(*) as duplicate_count')
             ->groupBy('speaker_profile_id', 'sermon_id', 'source')
@@ -156,7 +158,8 @@ class SchemaGuardrailAudit
             ServiceSectionStatus::cases()
         );
 
-        return DB::table('service_sections')
+        return ServiceSection::query()
+            ->toBase()
             ->selectRaw('status, COUNT(*) as row_count')
             ->where(function ($query) use ($allowedStatuses): void {
                 $query->whereNull('status')
@@ -182,7 +185,8 @@ class SchemaGuardrailAudit
             ServiceSectionPublicationStatus::cases()
         );
 
-        return DB::table('service_sections')
+        return ServiceSection::query()
+            ->toBase()
             ->selectRaw('publication_status, COUNT(*) as row_count')
             ->where(function ($query) use ($allowedStatuses): void {
                 $query->whereNull('publication_status')
