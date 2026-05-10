@@ -53,18 +53,10 @@ class SermonController extends Controller
             $request->query('series'),
         );
 
-        $recentSermons = $this->sermonRepository->publicBrowseQuery(
-            book: $filters['book'],
-            chapter: $filters['chapter'],
-            preacherId: $filters['preacherId'],
-            series: $filters['series'],
-        )->limit(24)->get();
-
         return view('sermons.index', [
             'heading' => $this->seoPresenter->title($filters),
             'description' => $this->seoPresenter->description($filters),
             'canonical_url' => $this->seoPresenter->canonical($filters, $request->integer('page', 1)),
-            'json_ld_data' => $this->itemListPresenter->toItemList($recentSermons),
             'area' => 'christ',
             'links' => $this->sermonLinks('sermons'),
             'slug' => 'sermons',

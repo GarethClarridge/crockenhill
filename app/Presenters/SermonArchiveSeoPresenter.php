@@ -9,6 +9,11 @@ use App\Models\Preacher;
 class SermonArchiveSeoPresenter
 {
     /**
+     * @var array<int, ?string>
+     */
+    private array $memoizedPreacherNames = [];
+
+    /**
      * Generate SEO title based on filters.
      *
      * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
@@ -26,9 +31,9 @@ class SermonArchiveSeoPresenter
         }
 
         if ($filters['preacherId']) {
-            $preacher = Preacher::find($filters['preacherId']);
-            if ($preacher) {
-                $parts[] = $preacher->name;
+            $preacherName = $this->resolvePreacherName($filters['preacherId']);
+            if ($preacherName) {
+                $parts[] = $preacherName;
             }
         }
 
@@ -58,9 +63,9 @@ class SermonArchiveSeoPresenter
         }
 
         if ($filters['preacherId']) {
-            $preacher = Preacher::find($filters['preacherId']);
-            if ($preacher) {
-                $parts[] = "by {$preacher->name}";
+            $preacherName = $this->resolvePreacherName($filters['preacherId']);
+            if ($preacherName) {
+                $parts[] = "by {$preacherName}";
             }
         }
 
@@ -87,5 +92,32 @@ class SermonArchiveSeoPresenter
         ]);
 
         return route('sermons.index', $params);
+    }
+
+    /**
+     * Resolve a preacher name from ID, utilizing identity-based request-level memoization
+     * and the cached public preacher collection to avoid redundant DB queries.
+     *
+     * Performance Optimization: Checks the cached 'public_preacher_list' first (which
+     * is already loaded in most archive requests) before falling back to a direct
+     * database find() for inactive/legacy preachers.
+     */
+    private function resolvePreacherName(int $preacherId): ?string
+    {
+        if (isset($this->memoizedPreacherNames[$preacherId])) {
+            return $this->memoizedPreacherNames[$preacherId];
+        }
+
+        // Try the cached public collection first (it's memoized at the model layer)
+        $preacher = Preacher::getForPublicList()->firstWhere('id', $preacherId);
+
+        if ($preacher) {
+            return $this->memoizedPreacherNames[$preacherId] = $preacher->name;
+        }
+
+        // Fallback to direct lookup for inactive preachers
+        $preacher = Preacher::find($preacherId);
+
+        return $this->memoizedPreacherNames[$preacherId] = $preacher?->name;
     }
 }
