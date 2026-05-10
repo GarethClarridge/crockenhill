@@ -54,7 +54,8 @@ class EmailVerificationTest extends TestCase
         $verificationUrl = URL::route('verification.verify', [
             'id' => $user->id,
             'hash' => sha1($user->getEmailForVerification()),
-        ]).'&signature=invalid';
+            'signature' => 'invalid',
+        ]);
 
         $response = $this->actingAs($user)->get($verificationUrl);
 
