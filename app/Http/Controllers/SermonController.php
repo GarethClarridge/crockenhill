@@ -39,8 +39,7 @@ class SermonController extends Controller
      * Display a listing of the resource.
      *
      * The BrowseSermons Livewire component owns the paginated sermon query and filter
-     * normalization. The controller renders the page shell and a bounded JSON-LD payload
-     * sourced from the most recent sermons.
+     * normalization. The controller renders the page shell and handles SEO metadata.
      */
     public function index(Request $request): View
     {
