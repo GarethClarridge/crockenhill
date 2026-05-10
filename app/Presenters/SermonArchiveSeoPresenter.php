@@ -19,7 +19,7 @@ class SermonArchiveSeoPresenter
     private array $memoizedDescriptions = [];
 
     /**
-     * @var array<int, ?string>
+     * @var array<string, ?string>
      */
     private array $memoizedPreacherNames = [];
 
@@ -40,7 +40,7 @@ class SermonArchiveSeoPresenter
      */
     public function title(array $filters): string
     {
-        $key = 't_'.md5(serialize($filters));
+        $key = 't|'.($filters['book'] ?? '').'|'.($filters['chapter'] ?? '').'|'.($filters['preacherId'] ?? '').'|'.($filters['series'] ?? '');
 
         if (isset($this->computed[$key])) {
             /** @var string */
@@ -49,24 +49,24 @@ class SermonArchiveSeoPresenter
 
         $this->computed[$key] = true;
 
-        if (! array_filter($filters)) {
+        if ($filters['book'] === null && $filters['preacherId'] === null && $filters['series'] === null) {
             return $this->memoizedTitles[$key] = 'Sermons';
         }
 
         $parts = [];
 
-        if ($filters['book']) {
-            $parts[] = $filters['chapter'] ? "{$filters['book']} {$filters['chapter']}" : $filters['book'];
+        if ($filters['book'] !== null) {
+            $parts[] = $filters['chapter'] !== null ? "{$filters['book']} {$filters['chapter']}" : $filters['book'];
         }
 
-        if ($filters['preacherId']) {
+        if ($filters['preacherId'] !== null) {
             $preacherName = $this->resolvePreacherName((int) $filters['preacherId']);
             if ($preacherName) {
                 $parts[] = $preacherName;
             }
         }
 
-        if ($filters['series']) {
+        if ($filters['series'] !== null) {
             $parts[] = $filters['series'];
         }
 
@@ -83,7 +83,7 @@ class SermonArchiveSeoPresenter
      */
     public function description(array $filters): string
     {
-        $key = 'd_'.md5(serialize($filters));
+        $key = 'd|'.($filters['book'] ?? '').'|'.($filters['chapter'] ?? '').'|'.($filters['preacherId'] ?? '').'|'.($filters['series'] ?? '');
 
         if (isset($this->computed[$key])) {
             /** @var string */
@@ -92,25 +92,25 @@ class SermonArchiveSeoPresenter
 
         $this->computed[$key] = true;
 
-        if (! array_filter($filters)) {
+        if ($filters['book'] === null && $filters['preacherId'] === null && $filters['series'] === null) {
             return $this->memoizedDescriptions[$key] = 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.';
         }
 
         $parts = [];
 
-        if ($filters['book']) {
-            $scripture = $filters['chapter'] ? "{$filters['book']} {$filters['chapter']}" : $filters['book'];
+        if ($filters['book'] !== null) {
+            $scripture = $filters['chapter'] !== null ? "{$filters['book']} {$filters['chapter']}" : $filters['book'];
             $parts[] = "on {$scripture}";
         }
 
-        if ($filters['preacherId']) {
+        if ($filters['preacherId'] !== null) {
             $preacherName = $this->resolvePreacherName((int) $filters['preacherId']);
             if ($preacherName) {
                 $parts[] = "by {$preacherName}";
             }
         }
 
-        if ($filters['series']) {
+        if ($filters['series'] !== null) {
             $parts[] = "in the {$filters['series']} series";
         }
 
@@ -125,14 +125,14 @@ class SermonArchiveSeoPresenter
      */
     private function resolvePreacherName(int $preacherId): ?string
     {
-        $compKey = "p_{$preacherId}";
+        $key = "p|{$preacherId}";
 
-        if (isset($this->computed[$compKey])) {
+        if (isset($this->computed[$key])) {
             /** @var string|null */
-            return $this->memoizedPreacherNames[$preacherId];
+            return $this->memoizedPreacherNames[$key];
         }
 
-        $this->computed[$compKey] = true;
+        $this->computed[$key] = true;
 
         // Try the cached public list first (optimized for the common case)
         $preacherName = Preacher::getForPublicList()->firstWhere('id', $preacherId)?->name;
@@ -142,7 +142,7 @@ class SermonArchiveSeoPresenter
             $preacherName = Preacher::query()->find($preacherId)?->name;
         }
 
-        return $this->memoizedPreacherNames[$preacherId] = $preacherName;
+        return $this->memoizedPreacherNames[$key] = $preacherName;
     }
 
     /**
