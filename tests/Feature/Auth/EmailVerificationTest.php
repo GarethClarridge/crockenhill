@@ -40,8 +40,25 @@ class EmailVerificationTest extends TestCase
             'hash' => 'invalid-hash',
         ]);
 
-        $this->actingAs($user)->get($verificationUrl);
+        $response = $this->actingAs($user)->get($verificationUrl);
 
+        $response->assertForbidden();
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
+    }
+
+    #[Test]
+    public function email_is_not_verified_with_invalid_signature(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => null]);
+
+        $verificationUrl = URL::route('verification.verify', [
+            'id' => $user->id,
+            'hash' => sha1($user->getEmailForVerification()),
+        ]).'&signature=invalid';
+
+        $response = $this->actingAs($user)->get($verificationUrl);
+
+        $response->assertForbidden();
         $this->assertFalse($user->fresh()->hasVerifiedEmail());
     }
 
@@ -56,8 +73,9 @@ class EmailVerificationTest extends TestCase
             'hash' => sha1($user->getEmailForVerification()),
         ]);
 
-        $this->actingAs($user)->get($verificationUrl);
+        $response = $this->actingAs($user)->get($verificationUrl);
 
+        $response->assertForbidden();
         $this->assertFalse($user->fresh()->hasVerifiedEmail());
         $this->assertFalse($otherUser->fresh()->hasVerifiedEmail());
     }
