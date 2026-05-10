@@ -58,6 +58,11 @@ class CreateUser extends Component
         );
     }
 
+    /**
+     * Store a newly created user in storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function save(): void
     {
 

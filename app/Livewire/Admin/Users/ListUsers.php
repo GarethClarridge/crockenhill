@@ -10,6 +10,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\User;
 use App\Traits\EscapesLikeWildcards;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -18,7 +19,7 @@ use Livewire\WithPagination;
 
 class ListUsers extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'created_at';
 
@@ -66,6 +67,11 @@ class ListUsers extends Component
         ];
     }
 
+    /**
+     * Remove the specified user from storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function delete(User $user): void
     {
 
@@ -82,11 +88,16 @@ class ListUsers extends Component
         Log::warning('User deleted by admin', [
             'admin_id' => auth()->id(),
             'deleted_user_id' => $user->id,
-            'deleted_user_email' => $user->email,
+            'deleted_user_email' => $this->sanitizeForLog((string) $user->email),
         ]);
         $this->success('User deleted');
     }
 
+    /**
+     * Toggle administrative privileges for a user.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function toggleAdmin(User $user): void
     {
 
@@ -105,7 +116,7 @@ class ListUsers extends Component
         Log::warning('User admin status toggled', [
             'admin_id' => auth()->id(),
             'target_user_id' => $user->id,
-            'target_user_email' => $user->email,
+            'target_user_email' => $this->sanitizeForLog((string) $user->email),
             'new_is_admin' => $user->is_admin,
         ]);
 

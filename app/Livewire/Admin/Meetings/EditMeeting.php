@@ -9,13 +9,14 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithPageOptions;
 use App\Models\Meeting;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
 
 class EditMeeting extends Component
 {
-    use WithAdminAuthorization;
+    use SanitizesLogData, WithAdminAuthorization;
     use WithNotifications;
     use WithPageOptions;
 
@@ -41,7 +42,7 @@ class EditMeeting extends Component
         Log::warning('Meeting updated by admin', [
             'admin_id' => auth()->id(),
             'meeting_id' => $this->meeting->id,
-            'slug' => ($fresh instanceof Meeting ? $fresh->slug : $this->meeting->slug),
+            'slug' => $this->sanitizeForLog($fresh instanceof Meeting ? (string) $fresh->slug : (string) $this->meeting->slug),
         ]);
 
         $this->success('Meeting updated');

@@ -69,6 +69,11 @@ class EditUser extends Component
         $this->isAdmin = $user->is_admin;
     }
 
+    /**
+     * Update the specified user in storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function save(): void
     {
 

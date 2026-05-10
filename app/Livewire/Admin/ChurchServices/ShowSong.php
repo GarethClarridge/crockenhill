@@ -9,6 +9,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\SongVideoService;
+use App\Traits\SanitizesLogData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -16,7 +17,7 @@ use Livewire\Component;
 
 class ShowSong extends Component
 {
-    use WithAdminAuthorization;
+    use SanitizesLogData, WithAdminAuthorization;
 
     public Song $song;
 
@@ -90,6 +91,11 @@ class ShowSong extends Component
         app(SongVideoService::class)->unfeatureVideo($video);
     }
 
+    /**
+     * Delete a video associated with the song.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function deleteVideo(int $videoId): void
     {
         $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
@@ -98,7 +104,7 @@ class ShowSong extends Component
             'admin_id' => auth()->id(),
             'video_id' => $video->id,
             'song_id' => $this->song->id,
-            'song_title' => $this->song->title,
+            'song_title' => $this->sanitizeForLog((string) $this->song->title),
         ]);
 
         app(SongVideoService::class)->deleteVideo($video);

@@ -82,6 +82,8 @@ class MeetingController extends Controller
 
     /**
      * Update the specified resource in storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      */
     public function update(UpdateMeetingRequest $request, Meeting $meeting): RedirectResponse
     {
@@ -106,6 +108,8 @@ class MeetingController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      */
     public function destroy(Meeting $meeting): RedirectResponse
     {

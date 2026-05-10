@@ -24,6 +24,8 @@ class SermonAdminController extends Controller
 
     /**
      * Remove the specified resource from storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      */
     public function destroy(Sermon $sermon): RedirectResponse
     {
@@ -57,6 +59,9 @@ class SermonAdminController extends Controller
 
     /**
      * Process media upload through unified processing service
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     * Stack traces are sanitized to prevent information leakage.
      */
     public function processMedia(ProcessMediaRequest $request): RedirectResponse
     {
@@ -76,7 +81,7 @@ class SermonAdminController extends Controller
                     'admin_id' => auth()->id(),
                     'type' => $type,
                     'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
-                    'processing_id' => $result->processingId,
+                    'processing_id' => $this->sanitizeForLog((string) $result->processingId),
                 ]);
 
                 return redirect()

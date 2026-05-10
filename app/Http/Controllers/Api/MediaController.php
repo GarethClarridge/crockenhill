@@ -30,6 +30,9 @@ class MediaController extends Controller
 
     /**
      * Upload and process media file - handles all types (audio, video, livestream)
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     * Stack traces are sanitized to prevent information leakage.
      */
     public function upload(ProcessMediaRequest $request, string $type): JsonResponse
     {
@@ -83,6 +86,9 @@ class MediaController extends Controller
 
     /**
      * Get processing status - unified for all media types
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     * Stack traces are sanitized to prevent information leakage.
      */
     public function status(MediaStatusRequest $request, string $processingId): JsonResponse
     {
@@ -119,6 +125,9 @@ class MediaController extends Controller
 
     /**
      * Cancel processing
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     * Stack traces are sanitized to prevent information leakage.
      */
     public function cancel(CancelMediaProcessingRequest $request, string $processingId): JsonResponse
     {
@@ -147,6 +156,9 @@ class MediaController extends Controller
 
     /**
      * Confirm a sermon segment for a livestream run awaiting manual review
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     * Stack traces are sanitized to prevent information leakage.
      */
     public function confirmSegment(ConfirmMediaSegmentRequest $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
     {
@@ -183,6 +195,9 @@ class MediaController extends Controller
 
     /**
      * Retry processing
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     * Stack traces are sanitized to prevent information leakage.
      */
     public function retry(RetryMediaProcessingRequest $request, string $processingId): JsonResponse
     {

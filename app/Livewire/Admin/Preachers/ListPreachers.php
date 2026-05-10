@@ -10,6 +10,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
 use App\Traits\EscapesLikeWildcards;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -18,7 +19,7 @@ use Livewire\WithPagination;
 
 class ListPreachers extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'name';
 
@@ -64,6 +65,11 @@ class ListPreachers extends Component
         ];
     }
 
+    /**
+     * Remove the specified preacher from storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function delete(Preacher $preacher): void
     {
 
@@ -72,7 +78,7 @@ class ListPreachers extends Component
         Log::warning('Preacher deleted by admin', [
             'admin_id' => auth()->id(),
             'preacher_id' => $preacher->id,
-            'name' => $preacher->name,
+            'name' => $this->sanitizeForLog((string) $preacher->name),
         ]);
 
         $preacher->delete();
