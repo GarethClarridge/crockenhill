@@ -14,6 +14,7 @@ use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Traits\EscapesLikeWildcards;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
@@ -23,7 +24,7 @@ use Livewire\WithPagination;
 
 class ListSermons extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     private SermonViewPresenter $sermonViewPresenter;
 
@@ -122,6 +123,11 @@ class ListSermons extends Component
         ];
     }
 
+    /**
+     * Remove the specified sermon from storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function delete(Sermon $sermon): void
     {
 
@@ -130,7 +136,7 @@ class ListSermons extends Component
         Log::warning('Sermon deleted by admin', [
             'admin_id' => auth()->id(),
             'sermon_id' => $sermon->id,
-            'title' => $sermon->title,
+            'title' => $this->sanitizeForLog((string) $sermon->title),
         ]);
 
         $sermon->delete();

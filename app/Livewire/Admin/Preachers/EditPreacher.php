@@ -8,10 +8,10 @@ use App\Contracts\SpeakerIdentificationInterface;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
-use App\Traits\SanitizesLogData;
 use App\Models\PreacherAlias;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -66,6 +66,11 @@ class EditPreacher extends Component
         $this->slug = Str::slug($this->name);
     }
 
+    /**
+     * Update the specified preacher in storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function save(): void
     {
 
@@ -113,6 +118,11 @@ class EditPreacher extends Component
         $this->preacher->refresh();
     }
 
+    /**
+     * Remove an alias from the preacher.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function removeAlias(int $aliasId): void
     {
 
@@ -176,6 +186,11 @@ class EditPreacher extends Component
         $this->preacher->refresh();
     }
 
+    /**
+     * Deactivate a speaker profile.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function removeProfile(int $profileId): void
     {
 

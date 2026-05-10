@@ -11,6 +11,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Page;
 use App\Traits\EscapesLikeWildcards;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -19,7 +20,7 @@ use Livewire\WithPagination;
 
 class ListPages extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
@@ -76,6 +77,11 @@ class ListPages extends Component
         ];
     }
 
+    /**
+     * Remove the specified page from storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function delete(Page $page): void
     {
 
@@ -84,13 +90,18 @@ class ListPages extends Component
         Log::warning('Page deleted by admin', [
             'admin_id' => auth()->id(),
             'page_id' => $page->id,
-            'heading' => $page->heading,
+            'heading' => $this->sanitizeForLog((string) $page->heading),
         ]);
 
         $page->delete();
         $this->success('Page deleted');
     }
 
+    /**
+     * Remove selected pages from storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function deleteSelected(): void
     {
         $this->authorizeAdmin();
@@ -111,8 +122,8 @@ class ListPages extends Component
             'admin_id' => auth()->id(),
             'pages' => $pages->map(fn (Page $page) => [
                 'id' => $page->id,
-                'heading' => $page->heading,
-                'slug' => $page->slug,
+                'heading' => $this->sanitizeForLog((string) $page->heading),
+                'slug' => $this->sanitizeForLog((string) $page->slug),
             ])->all(),
         ]);
 

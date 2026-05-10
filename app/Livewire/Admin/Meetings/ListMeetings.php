@@ -11,6 +11,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Meeting;
 use App\Traits\EscapesLikeWildcards;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -19,7 +20,7 @@ use Livewire\WithPagination;
 
 class ListMeetings extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
@@ -78,6 +79,11 @@ class ListMeetings extends Component
         ];
     }
 
+    /**
+     * Remove the specified meeting from storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function delete(Meeting $meeting): void
     {
 
@@ -86,7 +92,7 @@ class ListMeetings extends Component
         Log::warning('Meeting deleted by admin', [
             'admin_id' => auth()->id(),
             'meeting_id' => $meeting->id,
-            'slug' => $meeting->slug,
+            'slug' => $this->sanitizeForLog((string) $meeting->slug),
         ]);
 
         $meeting->delete();

@@ -29,6 +29,11 @@ class EditPage extends Component
         $this->form->setPage($page);
     }
 
+    /**
+     * Update the specified page in storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function save(): void
     {
         $this->authorizeAdmin();

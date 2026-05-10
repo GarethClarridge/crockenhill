@@ -51,6 +51,11 @@ class CreatePreacher extends Component
         $this->slug = Str::slug($this->name);
     }
 
+    /**
+     * Store a newly created preacher in storage.
+     *
+     * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     */
     public function save(): void
     {
 
