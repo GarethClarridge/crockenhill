@@ -1,6 +1,8 @@
 <x-admin.list-shell
     title="Users"
     description="Manage user accounts"
+    :paginator="$users"
+    itemsName="user"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.users.create') }}" variant="primary" icon="plus" inline>
@@ -32,7 +34,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $users->links() }}
+        {{ $users->links(data: ['scrollTo' => '#admin-list-results']) }}
     </x-slot:pagination>
 
     <table class="min-w-full divide-y divide-gray-200">
