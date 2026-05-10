@@ -18,7 +18,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
     public function it_resolves_preacher_name_from_public_list()
     {
         $preacher = Preacher::factory()->create(['name' => 'Active Preacher', 'is_active' => true]);
-        $presenter = new SermonArchiveSeoPresenter();
+        $presenter = new SermonArchiveSeoPresenter;
 
         $filters = ['book' => null, 'chapter' => null, 'preacherId' => $preacher->id, 'series' => null];
 
@@ -30,7 +30,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
     public function it_resolves_preacher_name_from_database_fallback_for_inactive_preachers()
     {
         $preacher = Preacher::factory()->create(['name' => 'Inactive Preacher', 'is_active' => false]);
-        $presenter = new SermonArchiveSeoPresenter();
+        $presenter = new SermonArchiveSeoPresenter;
 
         $filters = ['book' => null, 'chapter' => null, 'preacherId' => $preacher->id, 'series' => null];
 
@@ -42,7 +42,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
     public function it_memoizes_preacher_lookups()
     {
         $preacher = Preacher::factory()->create(['name' => 'Memo Test', 'is_active' => true]);
-        $presenter = new SermonArchiveSeoPresenter();
+        $presenter = new SermonArchiveSeoPresenter;
         $filters = ['book' => null, 'chapter' => null, 'preacherId' => $preacher->id, 'series' => null];
 
         // First call populates memo

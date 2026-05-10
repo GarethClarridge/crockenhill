@@ -24,6 +24,13 @@ class SermonArchiveSeoPresenter
     private array $memoizedPreacherNames = [];
 
     /**
+     * Tracks which keys have been computed, allowing null to be a legitimate cached result.
+     *
+     * @var array<string, true>
+     */
+    private array $computed = [];
+
+    /**
      * Generate SEO title based on filters.
      *
      * Performance Optimization: Memoizes title generation and utilizes cached
@@ -33,11 +40,14 @@ class SermonArchiveSeoPresenter
      */
     public function title(array $filters): string
     {
-        $key = md5(serialize($filters));
+        $key = 't_'.md5(serialize($filters));
 
-        if (isset($this->memoizedTitles[$key])) {
+        if (isset($this->computed[$key])) {
+            /** @var string */
             return $this->memoizedTitles[$key];
         }
+
+        $this->computed[$key] = true;
 
         if (! array_filter($filters)) {
             return $this->memoizedTitles[$key] = 'Sermons';
@@ -73,11 +83,14 @@ class SermonArchiveSeoPresenter
      */
     public function description(array $filters): string
     {
-        $key = md5(serialize($filters));
+        $key = 'd_'.md5(serialize($filters));
 
-        if (isset($this->memoizedDescriptions[$key])) {
+        if (isset($this->computed[$key])) {
+            /** @var string */
             return $this->memoizedDescriptions[$key];
         }
+
+        $this->computed[$key] = true;
 
         if (! array_filter($filters)) {
             return $this->memoizedDescriptions[$key] = 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.';
@@ -112,9 +125,14 @@ class SermonArchiveSeoPresenter
      */
     private function resolvePreacherName(int $preacherId): ?string
     {
-        if (array_key_exists($preacherId, $this->memoizedPreacherNames)) {
+        $compKey = "p_{$preacherId}";
+
+        if (isset($this->computed[$compKey])) {
+            /** @var string|null */
             return $this->memoizedPreacherNames[$preacherId];
         }
+
+        $this->computed[$compKey] = true;
 
         // Try the cached public list first (optimized for the common case)
         $preacherName = Preacher::getForPublicList()->firstWhere('id', $preacherId)?->name;
@@ -125,6 +143,18 @@ class SermonArchiveSeoPresenter
         }
 
         return $this->memoizedPreacherNames[$preacherId] = $preacherName;
+    }
+
+    /**
+     * Clear all internal request-level caches.
+     * Useful for long-running processes or testing.
+     */
+    public function clearInternalCaches(): void
+    {
+        $this->memoizedTitles = [];
+        $this->memoizedDescriptions = [];
+        $this->memoizedPreacherNames = [];
+        $this->computed = [];
     }
 
     /**
