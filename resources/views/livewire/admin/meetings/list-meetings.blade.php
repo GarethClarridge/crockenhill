@@ -1,6 +1,7 @@
 <x-admin.list-shell
     title="Meetings"
     description="Manage church meetings and events"
+    :items="$meetings"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.meetings.create') }}" variant="primary" icon="plus" inline>
@@ -37,7 +38,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $meetings->links() }}
+        {{ $meetings->links(data: ['scrollTo' => '#admin-results']) }}
     </x-slot:pagination>
 
     <table class="min-w-full divide-y divide-gray-200">

@@ -1,6 +1,7 @@
 <x-admin.list-shell
     title="Preachers"
     description="Manage preachers and their aliases"
+    :items="$preachers"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.preachers.create') }}" variant="primary" icon="plus" inline>
@@ -20,7 +21,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $preachers->links() }}
+        {{ $preachers->links(data: ['scrollTo' => '#admin-results']) }}
     </x-slot:pagination>
 
     <table class="min-w-full divide-y divide-gray-200">

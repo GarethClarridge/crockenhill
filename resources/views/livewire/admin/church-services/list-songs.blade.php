@@ -1,6 +1,7 @@
 <x-admin.list-shell
     title="Songs"
     description="Most-used songs linked from imported service orders"
+    :items="$songs"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
@@ -53,7 +54,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $songs->links() }}
+        {{ $songs->links(data: ['scrollTo' => '#admin-results']) }}
     </x-slot:pagination>
 
     @php

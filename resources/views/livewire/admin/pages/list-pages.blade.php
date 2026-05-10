@@ -1,6 +1,7 @@
 <x-admin.list-shell
     title="Pages"
     description="Manage website pages"
+    :items="$pages"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.pages.create') }}" variant="primary" icon="plus" inline>
@@ -36,7 +37,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $pages->links() }}
+        {{ $pages->links(data: ['scrollTo' => '#admin-results']) }}
     </x-slot:pagination>
 
     <table class="min-w-full divide-y divide-gray-200">

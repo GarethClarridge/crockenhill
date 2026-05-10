@@ -1,6 +1,7 @@
 <x-admin.list-shell
     title="Sermons &amp; Talks"
     description="Manage sermon recordings and published children's talks."
+    :items="$sermons"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.sermon-upload.create') }}" variant="primary" icon="cloud-arrow-up" inline>
@@ -32,7 +33,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $sermons->links() }}
+        {{ $sermons->links(data: ['scrollTo' => '#admin-results']) }}
     </x-slot:pagination>
 
     <table class="min-w-full divide-y divide-gray-200">

@@ -1,6 +1,7 @@
 <x-admin.list-shell
     title="Services"
     description="View imported order-of-service records"
+    :items="$churchServices"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
@@ -59,7 +60,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $churchServices->links() }}
+        {{ $churchServices->links(data: ['scrollTo' => '#admin-results']) }}
     </x-slot:pagination>
 
     <table class="min-w-full divide-y divide-gray-200">

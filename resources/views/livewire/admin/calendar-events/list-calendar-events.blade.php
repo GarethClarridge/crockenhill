@@ -1,6 +1,7 @@
 <x-admin.list-shell
     title="Calendar Events"
     description="Manage and categorize calendar events"
+    :items="$events"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.calendar.sync') }}" variant="secondary" icon="arrow-path" inline>
@@ -31,7 +32,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $events->links() }}
+        {{ $events->links(data: ['scrollTo' => '#admin-results']) }}
     </x-slot:pagination>
 
     <table class="min-w-full divide-y divide-gray-200">

@@ -1,6 +1,7 @@
 <x-admin.list-shell
     title="Inbound email review"
     description="Review low-confidence or failed order-of-service emails before they become canonical."
+    :items="$inboundEmails"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
@@ -235,6 +236,6 @@
         </table>
 
     <x-slot:pagination>
-        {{ $inboundEmails->links() }}
+        {{ $inboundEmails->links(data: ['scrollTo' => '#admin-results']) }}
     </x-slot:pagination>
 </x-admin.list-shell>
