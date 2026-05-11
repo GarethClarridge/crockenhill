@@ -19,6 +19,15 @@ use Illuminate\Support\Str;
 
 class SermonRepository
 {
+    /** @var array<int, string>|null */
+    private ?array $memoizedSeries = null;
+
+    /** @var array<string, Collection<int, string>> */
+    private array $memoizedBooks = [];
+
+    /** @var array<string, Collection<int, int>> */
+    private array $memoizedChapters = [];
+
     public function __construct(
         private readonly SermonScriptureFilterIndexService $indexService,
     ) {}
@@ -229,6 +238,10 @@ class SermonRepository
         Cache::forget('sermon_scripture_books_all_all');
         Cache::forget('sermons_jsonld_recent_100');
 
+        $this->memoizedSeries = null;
+        $this->memoizedBooks = [];
+        $this->memoizedChapters = [];
+
         if ($model instanceof Sermon) {
             $this->clearScriptureChapterCaches($model);
 
@@ -325,7 +338,11 @@ class SermonRepository
      */
     public function getSeriesForDisplay(): array
     {
-        return Cache::flexible('sermon_series', [86400, 172800], function (): array {
+        if ($this->memoizedSeries !== null) {
+            return $this->memoizedSeries;
+        }
+
+        return $this->memoizedSeries = Cache::flexible('sermon_series', [86400, 172800], function (): array {
             $series = $this->getExistingSeries();
             sort($series);
 
@@ -348,7 +365,11 @@ class SermonRepository
 
         $cacheKey = 'sermon_scripture_books_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
-        return Cache::flexible($cacheKey, [86400, 172800], function () use ($preacherId, $series): Collection {
+        if (isset($this->memoizedBooks[$cacheKey])) {
+            return $this->memoizedBooks[$cacheKey];
+        }
+
+        return $this->memoizedBooks[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($preacherId, $series): Collection {
             $query = SermonScriptureFilter::query();
 
             if ($preacherId === null && $series === null) {
@@ -381,16 +402,13 @@ class SermonRepository
         $preacherId = (int) $preacherId ?: null;
         $series = filled($series) ? (string) $series : null;
 
-        /** @var array<int, string> $knownBooks */
-        $knownBooks = Cache::get('sermon_scripture_books_with_cached_chapters', []);
-        if (! in_array($book, $knownBooks, true)) {
-            $knownBooks[] = $book;
-            Cache::put('sermon_scripture_books_with_cached_chapters', $knownBooks, 172800);
-        }
-
         $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
-        return Cache::flexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
+        if (isset($this->memoizedChapters[$cacheKey])) {
+            return $this->memoizedChapters[$cacheKey];
+        }
+
+        return $this->memoizedChapters[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
             $query = SermonScriptureFilter::query()->where('bible_book', $book);
 
             if ($preacherId === null && $series === null) {

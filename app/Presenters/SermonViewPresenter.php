@@ -274,17 +274,17 @@ class SermonViewPresenter
             return null;
         }
 
-        // If the relation is explicitly loaded, always use it as the source of truth and update memo
+        if (isset($this->computed["img_{$identityKey}"])) {
+            return $this->memoizedPreacherImageUrls[$identityKey];
+        }
+
+        // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('preacherProfile')) {
             $url = $sermon->preacherProfile?->profile_image_url;
             $this->computed["img_{$identityKey}"] = true;
             $this->memoizedPreacherImageUrls[$identityKey] = $url;
 
             return $url;
-        }
-
-        if (isset($this->computed["img_{$identityKey}"])) {
-            return $this->memoizedPreacherImageUrls[$identityKey];
         }
 
         return null;
@@ -365,17 +365,17 @@ class SermonViewPresenter
             return null;
         }
 
-        // If the relation is explicitly loaded, always use it as the source of truth and update memo
+        if (isset($this->computed["url_{$identityKey}"])) {
+            return $this->memoizedPreacherUrls[$identityKey];
+        }
+
+        // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
             $url = route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
             $this->computed["url_{$identityKey}"] = true;
             $this->memoizedPreacherUrls[$identityKey] = $url;
 
             return $url;
-        }
-
-        if (isset($this->computed["url_{$identityKey}"])) {
-            return $this->memoizedPreacherUrls[$identityKey];
         }
 
         // Fall back to the unloaded path: derive URL from displayPreacherName
@@ -630,12 +630,6 @@ class SermonViewPresenter
      */
     public function displayPreacherName(Sermon $sermon): ?string
     {
-        // If the relation is explicitly loaded, always use it as the source of truth
-        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
-            return $sermon->preacherProfile->name ?: null;
-        }
-
-        // Fall back to the unloaded path: cache the string fallback
         $identityKey = $sermon->preacher_id !== null
             ? "id_{$sermon->preacher_id}"
             : (string) $sermon->preacher;
@@ -648,6 +642,15 @@ class SermonViewPresenter
             return $this->memoizedPreacherNames[$identityKey];
         }
 
+        // If the relation is explicitly loaded, use it as the source of truth and update memo
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            $name = $sermon->preacherProfile->name ?: null;
+            $this->computed["name_{$identityKey}"] = true;
+
+            return $this->memoizedPreacherNames[$identityKey] = $name;
+        }
+
+        // Fall back to the unloaded path: cache the string fallback
         $preacherName = trim((string) $sermon->preacher);
 
         $this->computed["name_{$identityKey}"] = true;
@@ -673,16 +676,6 @@ class SermonViewPresenter
      */
     public function displayReference(Sermon $sermon): ?string
     {
-        // If the relation is explicitly loaded, always use it as the source of truth
-        if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
-            $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
-
-            if (trim((string) $displayReference) !== '') {
-                return $displayReference;
-            }
-        }
-
-        // Fall back to the unloaded path: cache the string fallback
         $identityKey = $sermon->scripture_passage_id !== null
             ? "id_{$sermon->scripture_passage_id}"
             : (string) $sermon->reference;
@@ -695,6 +688,18 @@ class SermonViewPresenter
             return $this->memoizedReferences[$identityKey];
         }
 
+        // If the relation is explicitly loaded, use it as the source of truth and update memo
+        if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
+            $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
+
+            if (trim((string) $displayReference) !== '') {
+                $this->computed["ref_{$identityKey}"] = true;
+
+                return $this->memoizedReferences[$identityKey] = $displayReference;
+            }
+        }
+
+        // Fall back to the unloaded path: cache the string fallback
         $reference = trim((string) $sermon->reference);
 
         $this->computed["ref_{$identityKey}"] = true;
