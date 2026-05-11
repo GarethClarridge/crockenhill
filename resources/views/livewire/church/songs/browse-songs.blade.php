@@ -183,7 +183,7 @@
 
                 @if ($songs->hasPages())
                     <div class="mx-auto mt-8 max-w-2xl">
-                        {{ $songs->links() }}
+                        {{ $songs->links(data: ['scrollTo' => '#song-results']) }}
                     </div>
                 @endif
             </section>

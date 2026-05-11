@@ -31,7 +31,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $events->links() }}
+        {{ $events->links(data: ['scrollTo' => '#admin-list-results']) }}
     </x-slot:pagination>
 
     <table class="min-w-full divide-y divide-gray-200">
