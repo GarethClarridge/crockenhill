@@ -53,7 +53,7 @@
     </x-slot:filters>
 
     <x-slot:pagination>
-        {{ $songs->links() }}
+        {{ $songs->links(data: ['scrollTo' => '#admin-list-results']) }}
     </x-slot:pagination>
 
     @php

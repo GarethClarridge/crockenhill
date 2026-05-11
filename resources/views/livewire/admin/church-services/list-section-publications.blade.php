@@ -33,7 +33,7 @@
             class="w-56" />
     </div>
 
-    <x-card>
+    <x-card id="admin-list-results" tabindex="-1" class="focus:outline-none">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -161,7 +161,7 @@
         </div>
 
         <div class="mt-4">
-            {{ $sections->links() }}
+            {{ $sections->links(data: ['scrollTo' => '#admin-list-results']) }}
         </div>
     </x-card>
 </div>

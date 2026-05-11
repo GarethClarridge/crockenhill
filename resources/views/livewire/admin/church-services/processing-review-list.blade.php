@@ -6,7 +6,7 @@
         </div>
     </div>
 
-    <x-card>
+    <x-card id="admin-list-results" tabindex="-1" class="focus:outline-none">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -105,7 +105,7 @@
 
         @if($pendingReviews->hasPages())
             <div class="mt-4">
-                {{ $pendingReviews->links() }}
+                {{ $pendingReviews->links(data: ['scrollTo' => '#admin-list-results']) }}
             </div>
         @endif
     </x-card>

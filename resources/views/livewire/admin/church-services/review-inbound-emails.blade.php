@@ -235,6 +235,6 @@
         </table>
 
     <x-slot:pagination>
-        {{ $inboundEmails->links() }}
+        {{ $inboundEmails->links(data: ['scrollTo' => '#admin-list-results']) }}
     </x-slot:pagination>
 </x-admin.list-shell>
