@@ -10,6 +10,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
+use App\Models\SpeakerSample;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -77,6 +78,7 @@ class SchemaGuardrailAudit
     public function speakerProfileDuplicates(): array
     {
         return SpeakerProfile::query()
+            ->toBase()
             ->selectRaw('preacher_id, provider, model_version, COUNT(*) as duplicate_count')
             ->groupBy('preacher_id', 'provider', 'model_version')
             ->havingRaw('COUNT(*) > 1')
@@ -84,11 +86,11 @@ class SchemaGuardrailAudit
             ->orderBy('provider')
             ->orderBy('model_version')
             ->get()
-            ->map(fn (SpeakerProfile $row): array => [
+            ->map(fn (object $row): array => [
                 'preacher_id' => (int) $row->preacher_id,
                 'provider' => (string) $row->provider,
                 'model_version' => (string) $row->model_version,
-                'duplicate_count' => (int) $row->getAttribute('duplicate_count'),
+                'duplicate_count' => (int) $row->duplicate_count,
             ])
             ->all();
     }
@@ -98,7 +100,8 @@ class SchemaGuardrailAudit
      */
     public function speakerSampleDuplicates(): array
     {
-        return DB::table('speaker_samples')
+        return SpeakerSample::query()
+            ->toBase()
             ->whereNotNull('sermon_id')
             ->selectRaw('speaker_profile_id, sermon_id, source, COUNT(*) as duplicate_count')
             ->groupBy('speaker_profile_id', 'sermon_id', 'source')
@@ -131,6 +134,7 @@ class SchemaGuardrailAudit
     public function duplicateActiveChurchServiceItemPositions(): array
     {
         return ChurchServiceItem::query()
+            ->toBase()
             ->selectRaw('church_service_id, position, COUNT(*) as row_count')
             ->whereNull('deleted_at')
             ->groupBy('church_service_id', 'position')
@@ -138,10 +142,10 @@ class SchemaGuardrailAudit
             ->orderBy('church_service_id')
             ->orderBy('position')
             ->get()
-            ->map(fn (ChurchServiceItem $row): array => [
+            ->map(fn (object $row): array => [
                 'church_service_id' => (int) $row->church_service_id,
                 'position' => (int) $row->position,
-                'row_count' => (int) $row->getAttribute('row_count'),
+                'row_count' => (int) $row->row_count,
             ])
             ->all();
     }
@@ -156,7 +160,8 @@ class SchemaGuardrailAudit
             ServiceSectionStatus::cases()
         );
 
-        return DB::table('service_sections')
+        return ServiceSection::query()
+            ->toBase()
             ->selectRaw('status, COUNT(*) as row_count')
             ->where(function ($query) use ($allowedStatuses): void {
                 $query->whereNull('status')
@@ -182,7 +187,8 @@ class SchemaGuardrailAudit
             ServiceSectionPublicationStatus::cases()
         );
 
-        return DB::table('service_sections')
+        return ServiceSection::query()
+            ->toBase()
             ->selectRaw('publication_status, COUNT(*) as row_count')
             ->where(function ($query) use ($allowedStatuses): void {
                 $query->whereNull('publication_status')
@@ -249,6 +255,7 @@ class SchemaGuardrailAudit
             return 0;
         }
 
+        // We use DB::table here as the table is deprecated and may not have a model.
         return DB::table('livestream_processing_logs')->count();
     }
 }
