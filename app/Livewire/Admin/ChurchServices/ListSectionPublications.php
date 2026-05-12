@@ -29,6 +29,8 @@ class ListSectionPublications extends Component
     #[Url(except: 'pending_approval')]
     public string $publicationStatus = ServiceSectionPublicationStatus::PENDING_APPROVAL->value;
 
+    public bool $hasFilters = false;
+
     public function mount(): void
     {
         $this->abortIfDisabled();
@@ -44,11 +46,20 @@ class ListSectionPublications extends Component
         $this->resetPage();
     }
 
+    public function resetFilters(): void
+    {
+        $this->reset(['search']);
+        $this->publicationStatus = ServiceSectionPublicationStatus::PENDING_APPROVAL->value;
+        $this->resetPage();
+    }
+
     public function render(): View
     {
         $search = trim($this->search);
         $escapedSearch = $this->escapeLike($search);
         $searchPattern = '%'.$escapedSearch.'%';
+        $this->hasFilters = $search !== ''
+            || $this->publicationStatus !== ServiceSectionPublicationStatus::PENDING_APPROVAL->value;
 
         $sections = ServiceSection::query()
             ->with([
