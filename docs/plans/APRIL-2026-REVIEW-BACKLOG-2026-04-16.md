@@ -2,7 +2,7 @@
 
 Updated 2026-04-16 after consolidating every document in `docs/april-2026-review`.
 
-**Last verified: 2026-05-06.** Verification status blocks have been added to every item after a comprehensive code-level audit. Legend: ✅ Complete · ⚠️ Partial · ❌ Missing · 🐛 Bug found.
+**Last spot-checked: 2026-05-12.** Verification status blocks were comprehensively audited on 2026-05-06, and selected items were re-verified against the current codebase on 2026-05-12. Legend: ✅ Complete · ⚠️ Partial · ❌ Missing · 🐛 Bug found.
 
 > **Critical bug (Item 14c):** `SermonViewPresenter` is registered as `scoped()` in `AppServiceProvider:63` and then overridden with `singleton()` in `MediaProcessingServiceProvider:35`. The singleton binding wins, silently undoing the relation-loading safety fix. Requires immediate resolution regardless of other backlog priority.
 
@@ -179,13 +179,13 @@ Design decisions required before implementation:
 - What is the persistent enforcement mechanism? Options include: admin route-group middleware using `EnsureUserIsAdmin` (already exists), a Livewire middleware/mount hook registered centrally, or a base admin component class. Each has different trade-offs for Livewire full-page components vs. nested components.
 - Should the `WithAdminAuthorization` trait be kept as a safety net (belt-and-braces) or fully removed once persistent enforcement is proven?
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
 - ✅ `EnsureUserIsAdmin` middleware applied to admin route group at `routes/web.php:153` (`auth`, `verified`, `admin`).
 - ✅ Members-only routes consistently use `auth` + `verified` — members area at `:221`, songs at `:225`, Children's Corner at `:66`.
 - ✅ Wrapper surfaces use `canAccessAdmin()` not raw `is_admin` — confirmed in `SermonAssetController:251`, `PublicPageVisibilityGuard:45`.
-- ⚠️ Pass 1 complete (middleware in place). Pass 2 — removing redundant `authorizeAdmin()` calls from Livewire `mount()` — not done. `ListSermons:24`, `EditSermon:47`, `ManageChurchService:43` and ~29 other admin components still call it.
-- ❌ No focused tests for the verified-member boundary (unverified user denied) or the unverified-admin case on wrapper/admin content.
+- ✅ Pass 2 complete: routed admin Livewire `mount()` methods rely on the persistent `auth`, `verified`, and `admin` route middleware. Mutating Livewire actions keep `authorizeAdmin()` as a safety net where they perform writes.
+- ✅ Focused tests now cover the verified-member and unverified-admin boundaries — see `tests/Feature/MembersAreaAccessModelTest.php`, `tests/Feature/PageSecurityTest.php`, and `tests/Feature/Admin/AdminLivewireAuthorizationTest.php`.
 
 Primary review coverage:
 
@@ -216,12 +216,12 @@ Design decisions required before implementation:
 - What is the atomicity mechanism? Options include: a database unique constraint on the composite dedupe key (simplest, race-proof), a Redis/cache lock with TTL (faster but requires cache availability), or a `SELECT ... FOR UPDATE` advisory lock (database-only but more complex). The choice affects the test strategy — unique constraints produce database exceptions, locks produce application-level retries.
 - Should the dedupe key include the uploading user, or only the processing profile and file hash? This determines whether two admins uploading the same file is treated as one run or two.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
-- ⚠️ A `dedup_key` column exists on `media_processing_logs`, but it is unclear whether the key includes caller scope and processing profile or only file hash. No code was found confirming `processing_type` or video mode forms part of the key.
-- ❌ No `UNIQUE` constraint on `dedup_key` and no Redis/advisory lock enforcement found. Dedupe is still best-effort preflight lookup, not atomic.
-- ❌ No evidence that `/api/media/video` and `/api/media/livestream` produce separate dedupe scopes.
-- ❌ No tests for cross-pipeline, cross-owner, or concurrent identical upload scenarios.
+- ✅ `dedup_key` now includes caller scope, processing type, and requested video mode via `MediaProcessingLog::makeDedupKey()` and `UnifiedMediaProcessor`.
+- ✅ `media_processing_logs_dedup_key_unique` enforces one in-flight run per scoped key; terminal transitions clear the key and retry restores it from the owned run.
+- ✅ `/api/media/video` and `/api/media/livestream` produce separate dedupe scopes, and auto-trim video requests are isolated from full-video requests.
+- ✅ Regression tests cover same-owner reuse, cross-pipeline isolation, cross-owner isolation, concurrent identical uploads, terminal-key release, and retry-key restoration.
 
 Primary review coverage:
 
@@ -291,11 +291,11 @@ Backlog:
 - Add a regression test where a broken upload section points at a sermon not owned by that upload and assert that the sermon survives while the upload-owned records are removed.
 - Review file cleanup ownership rules alongside record ownership so cross-disk fallback reads do not become cross-disk orphan leaks during destructive cleanup.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
 - ✅ `DeleteLivestreamUpload::loadOwnedSermons()` at `:152` queries only sermons where `livestream_processing_id` matches the run — no ownership-by-reference inference.
 - ✅ Projection link deletion and sermon row deletion are separate steps at `:87–95`.
-- ❌ No regression test asserting that a sermon not owned by the processing run survives when a broken upload cleanup runs.
+- ✅ Regression coverage now asserts a foreign sermon referenced by both `media_processing_logs.sermon_id` and `service_sections.published_sermon_id` survives upload cleanup while the upload-owned sermon, projection item, section, and owned file are removed.
 
 Primary review coverage:
 
@@ -501,9 +501,9 @@ Backlog:
 - ✅ Filter normalisation in shared `SermonRepository::normalizeArchiveFilters()` used by both surfaces.
 - ✅ `PublicSongCatalogService::qualifyingUsageSubquery()` at `:162` correctly requires completed livestream log with confirmed match before excluding songs.
 - ✅ Sermon transcript lazy-loaded via Alpine fetch through `sermons.transcript` route — not embedded in initial HTML.
-- ❌ Sermon filter manifest (preacher/series/book/chapter options) not cached — rebuilt on every Livewire round-trip.
+- ✅ Sermon filter manifest inputs are cached/memoized — `Preacher::getForPublicList()` uses `public_preacher_list`, and `SermonRepository` caches `sermon_series`, `sermon_scripture_books_*`, and `sermon_scripture_chapters_*`.
 - ❌ No regression tests for song catalogue eligibility across failed/pending/in-progress/non-livestream/completed-without-confirmed-section processing states.
-- ❌ Meeting event archive not split into upcoming + recent past with explicit limit.
+- ⚠️ Meeting event archive output now separates upcoming and past events and caps past items at 20 in `resources/views/meetings/events.blade.php`, but the controller/service boundary still passes one combined event collection rather than query-level slices.
 - ❌ No surface-specific caches for home/church/community card rails.
 
 Primary review coverage:
@@ -667,10 +667,10 @@ Use this map to verify that every April review feeds at least one concrete backl
 ## Definition Of Done
 
 - Private Children's Talk media is delivered only through the intended guarded path. ✅
-- The app encodes two explicit auth levels: verified-member access for member content and verified-admin access for admin functionality. ⚠️ *(middleware in place; redundant component-level checks not yet removed)*
-- Upload retries are idempotent by scope and pipeline, not just by file hash. ❌
+- The app encodes two explicit auth levels: verified-member access for member content and verified-admin access for admin functionality. ✅
+- Upload retries are idempotent by scope and pipeline, not just by file hash. ✅
 - Active church-service workflow state no longer depends on hidden JSON contracts. ✅
 - The heaviest admin Livewire screens have thinner write and presentation seams. ⚠️ *(sermon and calendar done; ManageChurchService and ServiceReviewDashboard partial)*
-- Public browse routes stop doing obviously duplicate or overly eager work. ⚠️ *(single ownership and shared filter normalisation done; filter manifest caching, meeting slicing, and card-rail caches missing)*
+- Public browse routes stop doing obviously duplicate or overly eager work. ⚠️ *(single ownership, shared filter normalisation, transcript lazy-loading, and filter manifest caching done; meeting archive query splitting and card-rail caches still incomplete)*
 - Blade page shells use one explicit contract instead of mixing renderable layouts, dead sections, and component-side metadata mutation. ⚠️ *(x-admin shells exist; full adoption and layout/page dual-use resolution not confirmed)*
 - The test suite, standards layer, and operations docs reflect the current architecture rather than historical compromises. ⚠️ *(strict_types and chunk commands done; test taxonomy, resource tests, and docs not confirmed)*
