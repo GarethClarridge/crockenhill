@@ -398,7 +398,7 @@
 
             {{-- x-admin.form-shell --}}
             <div>
-                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-admin.form-shell — 2/3 + 1/3 form layout (props: title, description; slots: actions, sidebar)</p>
+                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-admin.form-shell — 2/3 + 1/3 form layout (props: title, description, save-action; slots: actions, sidebar)</p>
                 <x-admin.form-shell
                     title="Edit Page"
                     description="Update page content and settings."
@@ -653,7 +653,7 @@
         <div class="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
             <div class="space-y-4">
                 <p class="text-xs uppercase tracking-widest text-gray-400">Livewire mode: <code>wire:model="..."</code> — Plain Blade mode: <code>name="..." :checked="true/false"</code></p>
-                <p class="text-sm text-gray-500 italic">Livewire entangle requires a live component — shown in structure only below.</p>
+                <p class="text-sm text-gray-500 italic">Livewire mode requires a live component — plain Blade examples are shown below.</p>
                 <x-toggle label="Plain Blade toggle (off)" name="show_notes" />
                 <x-toggle label="Plain Blade toggle (on)" name="featured" :checked="true" />
                 <x-toggle label="With hint" name="navigation" hint="Displays in the main navigation menu." />

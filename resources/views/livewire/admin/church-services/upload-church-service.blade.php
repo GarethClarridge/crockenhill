@@ -1,4 +1,4 @@
-<x-admin.form-shell title="Upload Service">
+<x-admin.form-shell title="Upload Service" save-action="save">
     <x-slot:actions>
         <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
             Back to services
@@ -12,7 +12,7 @@
         <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
             Submit email text
         </x-button>
-        <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray" data-form-action>
+        <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray">
             Import
         </x-form-button>
     </x-slot:actions>

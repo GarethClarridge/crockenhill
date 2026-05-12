@@ -1,6 +1,7 @@
 <x-admin.form-shell
     title="Submit email text"
     description="Paste an order-of-service email into the same parsing pipeline used by inbound mail."
+    save-action="submit"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.services.inbound-emails') }}" variant="outline" inline>
@@ -15,7 +16,6 @@
                 variant="primary"
                 wire:click="submit"
                 icon="paper-airplane"
-                data-form-action
             >
                 Submit for parsing
             </x-form-button>

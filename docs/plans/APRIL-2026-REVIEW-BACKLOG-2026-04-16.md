@@ -465,14 +465,14 @@ Backlog:
 - Replace `x-admin.form-shell` save-hotkey DOM guessing with an explicit save target contract.
 - Remove `page_editor.js` from the shared bundle or isolate it behind a page-specific entrypoint if it is still needed. Verified: `resources/js/app.js` imports `./page_editor` directly, so it is bundled into every page load. Check whether any live screen still depends on it before removing.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
 - ✅ Drop zone `handleDrop()` in `media-upload-controller.js:174` extracts file and calls `$wire.upload()`.
 - ✅ `ProcessingLogsViewer` teardown confirmed — Alpine `destroy()` calls `clearInterval()` on unmount; watchers handle collapse.
 - ✅ Upload custom events scoped per instance via `componentId` check at `media-upload-controller.js:4`.
 - ✅ `page_editor.js` removed — file does not exist; not referenced in `app.js`.
-- ❌ `$wire.entangle()` replacement as default shared-toggle contract not verified.
-- ❌ `x-admin.form-shell` save-hotkey explicit target contract not confirmed.
+- ✅ `$wire.entangle()` removed from admin Livewire views; page, meeting, and sermon forms now keep shared state in Livewire form objects, with regression coverage for generated slugs and recurring-frequency clearing.
+- ✅ `x-admin.form-shell` save hotkeys now require an explicit `save-action` target and no longer query the DOM for `data-form-action`; covered by `tests/Feature/Components/AdminFormShellTest.php`.
 
 Primary review coverage:
 

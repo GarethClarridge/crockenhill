@@ -85,6 +85,21 @@ class EditSermonTest extends TestCase
     }
 
     #[Test]
+    public function generated_slug_tracks_title_until_slug_is_edited_manually(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->set('form.title', 'First Sermon Title')
+            ->assertSet('form.slug', 'first-sermon-title')
+            ->set('form.title', 'Second Sermon Title')
+            ->assertSet('form.slug', 'second-sermon-title')
+            ->set('form.slug', 'custom-sermon-slug')
+            ->set('form.title', 'Third Sermon Title')
+            ->assertSet('form.slug', 'custom-sermon-slug');
+    }
+
+    #[Test]
     public function it_renders_saved_thumbnail_candidates(): void
     {
         $this->actingAs($this->admin);

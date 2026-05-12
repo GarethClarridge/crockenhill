@@ -128,6 +128,18 @@ class CreateMeetingTest extends TestCase
     }
 
     #[Test]
+    public function it_clears_frequency_when_recurring_is_disabled(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateMeeting::class)
+            ->set('form.isRecurring', true)
+            ->set('form.frequency', MeetingFrequency::Weekly->value)
+            ->set('form.isRecurring', false)
+            ->assertSet('form.frequency', null);
+    }
+
+    #[Test]
     public function it_can_create_a_recurring_meeting(): void
     {
         $this->actingAs($this->admin);

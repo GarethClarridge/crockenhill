@@ -31,6 +31,8 @@ class PageFormData extends Form
 
     public ?int $sortOrder = null;
 
+    public string $lastGeneratedSlug = '';
+
     public function setPage(Page $page): void
     {
         $this->page = $page;
@@ -45,6 +47,8 @@ class PageFormData extends Form
             'markdown' => $page->markdown ?? '',
             'sortOrder' => $page->sort_order,
         ]);
+
+        $this->lastGeneratedSlug = (string) Str::slug($this->heading);
     }
 
     /**
@@ -68,9 +72,13 @@ class PageFormData extends Form
 
     public function updatedHeading(string $value): void
     {
-        if (empty($this->slug)) {
-            $this->slug = Str::slug($value);
+        $generatedSlug = (string) Str::slug($value);
+
+        if ($this->slug === '' || $this->slug === $this->lastGeneratedSlug) {
+            $this->slug = $generatedSlug;
         }
+
+        $this->lastGeneratedSlug = $generatedSlug;
     }
 
     public function store(): Page

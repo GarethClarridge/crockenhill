@@ -1,11 +1,12 @@
 <x-admin.form-shell
     title="Edit Calendar Event"
+    save-action="save"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.calendar-events.index') }}" variant="outline" inline>
             Cancel
         </x-button>
-        <x-form-button variant="primary" wire:click="save" icon="check" data-form-action>
+        <x-form-button variant="primary" wire:click="save" icon="check">
             Save
         </x-form-button>
     </x-slot:actions>

@@ -186,6 +186,21 @@ class AdminPageTest extends TestCase
     }
 
     #[Test]
+    public function create_page_tracks_generated_slug_until_slug_is_edited_manually(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreatePage::class)
+            ->set('form.heading', 'First Heading')
+            ->assertSet('form.slug', 'first-heading')
+            ->set('form.heading', 'Second Heading')
+            ->assertSet('form.slug', 'second-heading')
+            ->set('form.slug', 'custom-manual-slug')
+            ->set('form.heading', 'Third Heading')
+            ->assertSet('form.slug', 'custom-manual-slug');
+    }
+
+    #[Test]
     public function create_page_validates_required_fields(): void
     {
         $this->actingAs($this->admin);
