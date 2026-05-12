@@ -271,4 +271,27 @@ class BrowseSongsTest extends TestCase
             ->assertSee('Unique Title')
             ->assertSee('<mark>Unique</mark> in lyrics', false);
     }
+
+    #[Test]
+    public function search_input_has_slash_shortcut(): void
+    {
+        $this->actingAs($this->user);
+
+        Livewire::test(BrowseSongs::class)
+            ->assertSee('keydown.window.slash', false)
+            ->assertSee('<kbd', false)
+            ->assertSee('/');
+    }
+
+    #[Test]
+    public function each_song_card_has_copy_link_button(): void
+    {
+        $this->actingAs($this->user);
+
+        Song::factory()->create(['title' => 'Copyable Song']);
+
+        Livewire::test(BrowseSongs::class)
+            ->set('range', PublicSongCatalogService::RANGE_ALL)
+            ->assertSee('Copy link to Copyable Song');
+    }
 }
