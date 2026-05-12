@@ -7,6 +7,7 @@ namespace Tests\Feature\Livewire\Sermons;
 use App\Livewire\Sermons\BrowseSermons;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Models\SermonScriptureFilter;
 use App\Services\SermonScriptureFilterIndexService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -22,6 +23,11 @@ class BrowseSermonsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        SermonScriptureFilter::query()->delete();
+        Sermon::query()->delete();
+        Preacher::query()->delete();
+
         $this->indexService = app(SermonScriptureFilterIndexService::class);
     }
 

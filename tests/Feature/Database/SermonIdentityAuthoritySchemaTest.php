@@ -8,14 +8,14 @@ use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonIdentityAuthoritySchemaTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseMigrations;
 
     #[Test]
     public function the_migration_backfills_canonical_sermon_identity_links_and_documents_cache_columns(): void

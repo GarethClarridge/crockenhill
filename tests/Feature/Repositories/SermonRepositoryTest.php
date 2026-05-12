@@ -27,6 +27,11 @@ class SermonRepositoryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        SermonScriptureFilter::query()->delete();
+        Sermon::query()->delete();
+        Preacher::query()->delete();
+
         $this->repository = app(SermonRepository::class);
         Cache::flush();
     }

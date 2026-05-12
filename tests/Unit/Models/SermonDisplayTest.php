@@ -9,13 +9,13 @@ use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonDisplayTest extends TestCase
 {
-    use DatabaseTransactions;
+    use DatabaseMigrations;
 
     private SermonViewPresenter $presenter;
 

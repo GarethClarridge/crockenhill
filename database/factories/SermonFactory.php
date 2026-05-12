@@ -90,22 +90,19 @@ class SermonFactory extends Factory
 
     /**
      * Creates a sermon with a raw preacher value that bypasses the DB CHECK constraint.
-     * Use in tests that need to simulate pre-constraint dirty data (blank/whitespace preachers).
+     * Only safe when the test uses DatabaseMigrations (no wrapping transaction), since
+     * ALTER TABLE auto-commits any open transaction.
      */
     public function withRawPreacher(string $preacher): static
     {
-        return $this->state(fn (array $attributes) => [
-            'preacher' => 'Placeholder',
-        ])->afterCreating(function (Sermon $model) use ($preacher): void {
+        return $this->afterCreating(function (Sermon $model) use ($preacher): void {
             if (DB::getDriverName() === 'mysql') {
-                DB::statement(
-                    'ALTER TABLE sermons ALTER CHECK sermons_preacher_format_check NOT ENFORCED'
-                );
+                DB::statement('ALTER TABLE sermons ALTER CHECK sermons_preacher_format_check NOT ENFORCED');
+                DB::table('sermons')->where('id', $model->id)->update(['preacher' => $preacher]);
+                // Cannot re-enforce while violating rows exist; constraint is restored on next migrate:fresh.
+            } else {
+                DB::table('sermons')->where('id', $model->id)->update(['preacher' => $preacher]);
             }
-
-            DB::table('sermons')
-                ->where('id', $model->id)
-                ->update(['preacher' => $preacher]);
 
             $model->preacher = $preacher;
         });

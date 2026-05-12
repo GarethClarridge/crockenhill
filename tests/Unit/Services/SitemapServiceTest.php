@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Models\Meeting;
+use App\Models\Page;
+use App\Models\Preacher;
+use App\Models\Sermon;
 use App\Presenters\MeetingSitemapPresenter;
 use App\Presenters\PageSitemapPresenter;
 use App\Presenters\PreacherSitemapPresenter;
@@ -22,6 +26,11 @@ class SitemapServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Meeting::query()->delete();
+        Sermon::query()->delete();
+        Preacher::query()->delete();
+        Page::query()->delete();
 
         $exposurePolicy = $this->createMock(SermonExposurePolicy::class);
         $sermonRepository = $this->createMock(SermonRepository::class);

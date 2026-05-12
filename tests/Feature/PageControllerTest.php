@@ -14,6 +14,15 @@ class PageControllerTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Page::query()
+            ->whereIn('slug', ['sermons', 'standard-page', 'free-bible', 'some-page', 'admin-only'])
+            ->delete();
+    }
+
     #[Test]
     public function show_page_returns_200_for_valid_area_with_landing_page(): void
     {

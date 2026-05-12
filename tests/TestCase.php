@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Cache;
 
@@ -42,6 +43,8 @@ abstract class TestCase extends BaseTestCase
             $this->artisan('view:clear');
             self::$viewCacheCleared = true;
         }
+
+        $this->app->forgetInstance(SermonRepository::class);
 
         Cache::flush();
     }
