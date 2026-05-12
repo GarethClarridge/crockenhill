@@ -11,6 +11,7 @@ use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -64,7 +65,8 @@ class UnifiedMediaProcessor
 
         $fileHash = $this->computeFileHash($file);
         $videoMode = VideoProcessingOptions::resolveMode($options);
-        $dedupKey = $fileHash !== null ? $this->buildDedupKey($fileHash, $mediaType, $videoMode) : null;
+        $ownerUserId = $this->authenticatedOwnerUserId();
+        $dedupKey = $fileHash !== null ? $this->buildDedupKey($fileHash, $mediaType, $videoMode, $ownerUserId) : null;
 
         $duplicate = $this->findActiveDuplicate($dedupKey);
 
@@ -243,9 +245,24 @@ class UnifiedMediaProcessor
         return $hash !== false ? $hash : null;
     }
 
-    private function buildDedupKey(string $fileHash, MediaType $mediaType, string $videoMode): string
+    private function buildDedupKey(string $fileHash, MediaType $mediaType, string $videoMode, ?int $ownerUserId): string
     {
-        return MediaProcessingLog::makeDedupKey($fileHash, $mediaType, $videoMode);
+        return MediaProcessingLog::makeDedupKey($fileHash, $mediaType, $videoMode, $ownerUserId);
+    }
+
+    private function authenticatedOwnerUserId(): ?int
+    {
+        $userId = Auth::id();
+
+        if (is_int($userId)) {
+            return $userId;
+        }
+
+        if (is_string($userId) && ctype_digit($userId)) {
+            return (int) $userId;
+        }
+
+        return null;
     }
 
     private function findActiveDuplicate(?string $dedupKey): ?ProcessingResult

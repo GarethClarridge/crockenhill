@@ -129,13 +129,21 @@ class ChildrensCornerPagesTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
 
+        $audioPath = 'private/sermons/audio/private-media-little-listeners.mp3';
+        $videoPath = 'private/sermons/video/private-media-little-listeners.mp4';
+        $thumbnailPath = 'private/thumbnails/private-media-little-listeners.jpg';
+        $plainThumbnailPath = 'private/thumbnails/private-media-little-listeners-plain.jpg';
+
         $talk = Sermon::factory()->create([
             'title' => 'Private Media Little Listeners',
             'slug' => 'private-media-little-listeners',
             'content_type' => SermonContentType::ChildrensTalk,
-            'audio_file_path' => 'private/sermons/audio/private-media-little-listeners.mp3',
-            'video_file_path' => 'private/sermons/video/private-media-little-listeners.mp4',
-            'thumbnail_file_path' => 'private/thumbnails/private-media-little-listeners.jpg',
+            'audio_file_path' => $audioPath,
+            'video_file_path' => $videoPath,
+            'thumbnail_file_path' => $thumbnailPath,
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => $plainThumbnailPath,
+            ],
         ]);
 
         $response = $this->get(route('childrens-corner.show', $talk));
@@ -145,6 +153,36 @@ class ChildrensCornerPagesTest extends TestCase
         $response->assertSee(route('sermons.video', $talk), false);
         $response->assertSee(route('sermons.thumbnail', $talk), false);
         $response->assertDontSee('/storage/private/', false);
+        $response->assertDontSee($audioPath, false);
+        $response->assertDontSee($videoPath, false);
+        $response->assertDontSee($thumbnailPath, false);
+        $response->assertDontSee($plainThumbnailPath, false);
+    }
+
+    #[Test]
+    public function detail_page_keeps_public_media_assets_on_direct_public_urls(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $talk = Sermon::factory()->create([
+            'title' => 'Public Media Little Listeners',
+            'slug' => 'public-media-little-listeners',
+            'content_type' => SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'sermons/audio/public-media-little-listeners.mp3',
+            'video_file_path' => 'sermons/video/public-media-little-listeners.mp4',
+            'thumbnail_file_path' => 'thumbnails/public-media-little-listeners.jpg',
+        ]);
+
+        $presented = app(SermonViewPresenter::class)->present($talk);
+        $response = $this->get(route('childrens-corner.show', $talk));
+
+        $response->assertOk();
+        $response->assertSee($presented['audio_url'], false);
+        $response->assertSee($presented['video_url'], false);
+        $response->assertSee($presented['thumbnail_url'], false);
+        $response->assertDontSee(route('sermons.audio', $talk), false);
+        $response->assertDontSee(route('sermons.video', $talk), false);
+        $response->assertDontSee(route('sermons.thumbnail', $talk), false);
     }
 
     #[Test]
