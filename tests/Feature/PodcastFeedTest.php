@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Presenters\SermonViewPresenter;
 use App\Services\PodcastFeedService;
 use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -552,9 +551,8 @@ class PodcastFeedTest extends TestCase
         DB::table('sermons')->where('preacher_id', $preacher->id)->update(['preacher' => 'Updated preacher']);
         $feedService->clearCache();
 
-        // Reset the SermonViewPresenter singleton so its in-memory memoization is cleared,
-        // then get a fresh PodcastFeedService that will receive the new presenter instance
-        $this->app->forgetInstance(SermonViewPresenter::class);
+        // Resolve a fresh feed service after clearing cache. The scoped presenter must prefer
+        // the loaded preacher relation over any earlier fallback memoization from this test.
         $freshFeedService = app(PodcastFeedService::class);
 
         // Fresh feed fetch (no cache) should reflect the updated preacher name for our sermon

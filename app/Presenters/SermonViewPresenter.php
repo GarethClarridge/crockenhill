@@ -274,10 +274,6 @@ class SermonViewPresenter
             return null;
         }
 
-        if (isset($this->computed["img_{$identityKey}"])) {
-            return $this->memoizedPreacherImageUrls[$identityKey];
-        }
-
         // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('preacherProfile')) {
             $url = $sermon->preacherProfile?->profile_image_url;
@@ -285,6 +281,10 @@ class SermonViewPresenter
             $this->memoizedPreacherImageUrls[$identityKey] = $url;
 
             return $url;
+        }
+
+        if (isset($this->computed["img_{$identityKey}"])) {
+            return $this->memoizedPreacherImageUrls[$identityKey];
         }
 
         return null;
@@ -365,10 +365,6 @@ class SermonViewPresenter
             return null;
         }
 
-        if (isset($this->computed["url_{$identityKey}"])) {
-            return $this->memoizedPreacherUrls[$identityKey];
-        }
-
         // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
             $url = route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
@@ -376,6 +372,10 @@ class SermonViewPresenter
             $this->memoizedPreacherUrls[$identityKey] = $url;
 
             return $url;
+        }
+
+        if (isset($this->computed["url_{$identityKey}"])) {
+            return $this->memoizedPreacherUrls[$identityKey];
         }
 
         // Fall back to the unloaded path: derive URL from displayPreacherName
@@ -638,16 +638,16 @@ class SermonViewPresenter
             return null;
         }
 
-        if (isset($this->computed["name_{$identityKey}"])) {
-            return $this->memoizedPreacherNames[$identityKey];
-        }
-
         // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
             $name = $sermon->preacherProfile->name ?: null;
             $this->computed["name_{$identityKey}"] = true;
 
             return $this->memoizedPreacherNames[$identityKey] = $name;
+        }
+
+        if (isset($this->computed["name_{$identityKey}"])) {
+            return $this->memoizedPreacherNames[$identityKey];
         }
 
         // Fall back to the unloaded path: cache the string fallback
@@ -684,10 +684,6 @@ class SermonViewPresenter
             return null;
         }
 
-        if (isset($this->computed["ref_{$identityKey}"])) {
-            return $this->memoizedReferences[$identityKey];
-        }
-
         // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
             $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
@@ -697,6 +693,10 @@ class SermonViewPresenter
 
                 return $this->memoizedReferences[$identityKey] = $displayReference;
             }
+        }
+
+        if (isset($this->computed["ref_{$identityKey}"])) {
+            return $this->memoizedReferences[$identityKey];
         }
 
         // Fall back to the unloaded path: cache the string fallback

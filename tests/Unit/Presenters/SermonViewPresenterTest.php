@@ -14,6 +14,7 @@ use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -515,49 +516,65 @@ class SermonViewPresenterTest extends TestCase
     #[Test]
     public function display_preacher_name_prefers_loaded_relation_over_string_fallback(): void
     {
-        // The preacher string attribute is always synced to Preacher::name at save time,
-        // so the meaningful regression here is that the loaded relation is consulted first
-        // rather than using the memoized string fallback from a prior call.
         $preacher = Preacher::factory()->create(['name' => 'Dr. Jane Smith']);
         $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id]);
+        DB::table('sermons')->where('id', $sermon->id)->update(['preacher' => 'Legacy Name']);
 
-        // First call with no relation loaded — uses the string fallback path
         $this->presenter->clearInternalCaches();
         $first = $this->presenter->displayPreacherName($sermon->fresh());
+        $this->assertSame('Legacy Name', $first);
 
-        // Second call with the relation loaded — must return the relation value, not a stale memoised one
         $loaded = $sermon->fresh();
         $loaded->load('preacherProfile');
         $second = $this->presenter->displayPreacherName($loaded);
 
-        $this->assertSame($first, $second, 'Loaded and unloaded paths must agree on the preacher name');
         $this->assertSame('Dr. Jane Smith', $second);
     }
 
     #[Test]
-    public function display_reference_returns_relation_display_reference_and_falls_back_to_raw_string(): void
+    public function preacher_image_url_prefers_loaded_relation_over_cached_unloaded_null(): void
     {
-        // With relation loaded: display_reference from ScripturePassage is returned
+        $preacher = Preacher::factory()->create([
+            'name' => 'Pastor Jane',
+            'image_path' => 'preachers/jane.jpg',
+        ]);
+        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id]);
+
+        $this->presenter->clearInternalCaches();
+        $this->assertNull($this->presenter->preacherImageUrl($sermon->fresh()));
+
+        $loaded = $sermon->fresh();
+        $loaded->load('preacherProfile');
+
+        $url = $this->presenter->preacherImageUrl($loaded);
+
+        $this->assertNotNull($url);
+        $this->assertStringContainsString('preachers/jane.jpg', $url);
+    }
+
+    #[Test]
+    public function display_reference_prefers_loaded_relation_over_string_fallback(): void
+    {
         $passage = ScripturePassage::factory()->create([
             'display_reference' => 'Romans 3:23-28',
             'normalized_reference' => 'Romans 3:23-28',
         ]);
-        $loaded = Sermon::factory()->create([
+        $sermon = Sermon::factory()->create([
             'scripture_passage_id' => $passage->id,
-            'reference' => 'Romans 3:23-28',
-        ])->fresh();
-        $loaded->load('scripturePassage');
+            'reference' => 'Romans',
+        ]);
+        DB::table('sermons')->where('id', $sermon->id)->update(['reference' => 'Romans']);
 
         $this->presenter->clearInternalCaches();
-        $this->assertSame('Romans 3:23-28', $this->presenter->displayReference($loaded));
+        $first = $this->presenter->displayReference($sermon->fresh());
+        $this->assertSame('Romans', $first);
 
-        // Without relation loaded: falls back to the raw reference string on the sermon
-        $unloaded = Sermon::factory()->create([
-            'scripture_passage_id' => null,
-            'reference' => 'John 3:16',
-        ])->fresh();
+        $loaded = $sermon->fresh();
+        $loaded->load('scripturePassage');
 
-        $this->assertSame('John 3:16', $this->presenter->displayReference($unloaded));
+        $second = $this->presenter->displayReference($loaded);
+
+        $this->assertSame('Romans 3:23-28', $second);
     }
 
     #[Test]
