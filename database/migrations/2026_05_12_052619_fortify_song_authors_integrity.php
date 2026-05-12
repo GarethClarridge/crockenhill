@@ -20,10 +20,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (DB::getDriverName() !== 'mysql') {
-            return;
-        }
-
         // 1. Data Cleanup: Normalize existing data before adding constraints
         DB::table('song_authors')->update([
             'display_name' => DB::raw('TRIM(display_name)'),
@@ -36,10 +32,14 @@ return new class extends Migration
             ->where('display_name', '')
             ->update(['display_name' => DB::raw("CONCAT('Author ', id)")]);
 
-        // 2. Ensure display_name is non-nullable
+        // 2. Ensure display_name is non-nullable (portable schema change)
         Schema::table('song_authors', function (Blueprint $table) {
             $table->string('display_name')->nullable(false)->change();
         });
+
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
 
         // 3. Drop legacy constraint if it exists (from 2026_04_04_150531_add_integrity_checks_to_song_catalog_tables)
         $this->dropConstraintIfExists('song_authors', 'song_authors_display_name_check');
@@ -67,13 +67,17 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::table('song_authors', function (Blueprint $table) {
+            $table->string('display_name')->nullable()->change();
+        });
+
         if (DB::getDriverName() !== 'mysql') {
             return;
         }
 
-        DB::statement(sprintf('ALTER TABLE song_authors DROP CHECK %s', self::DISPLAY_NAME_CHECK));
-        DB::statement(sprintf('ALTER TABLE song_authors DROP CHECK %s', self::FIRST_NAME_CHECK));
-        DB::statement(sprintf('ALTER TABLE song_authors DROP CHECK %s', self::LAST_NAME_CHECK));
+        DB::statement(sprintf('ALTER TABLE song_authors DROP CHECK IF EXISTS %s', self::DISPLAY_NAME_CHECK));
+        DB::statement(sprintf('ALTER TABLE song_authors DROP CHECK IF EXISTS %s', self::FIRST_NAME_CHECK));
+        DB::statement(sprintf('ALTER TABLE song_authors DROP CHECK IF EXISTS %s', self::LAST_NAME_CHECK));
 
         // Restore legacy constraint
         DB::statement("ALTER TABLE song_authors ADD CONSTRAINT song_authors_display_name_check CHECK (display_name <> '')");
