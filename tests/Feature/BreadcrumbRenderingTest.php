@@ -102,6 +102,34 @@ class BreadcrumbRenderingTest extends TestCase
     }
 
     #[Test]
+    public function presenter_builds_songs_trail_for_song_detail_page(): void
+    {
+        $this->get('/church/songs/amazing-grace');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('church', 'Amazing Grace');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Church', $names);
+        $this->assertContains('Songs', $names);
+        $this->assertContains('Amazing Grace', $names);
+    }
+
+    #[Test]
+    public function presenter_builds_meeting_events_trail_for_meeting_events_page(): void
+    {
+        $this->get('/meetings/buzz-club/events');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('community', 'Buzz Club - All Events');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Community', $names);
+        $this->assertContains('Buzz Club', $names);
+        $this->assertContains('Buzz Club - All Events', $names);
+    }
+
+    #[Test]
     public function presenter_builds_admin_trail_for_admin_subsection(): void
     {
         $this->get('/admin/sermons/edit');
@@ -198,6 +226,15 @@ class BreadcrumbRenderingTest extends TestCase
     public function sermon_index_page_serves_breadcrumb_json_ld(): void
     {
         $response = $this->get('/christ/sermons');
+
+        $response->assertStatus(200);
+        $response->assertSee('BreadcrumbList', false);
+    }
+
+    #[Test]
+    public function calendar_page_serves_breadcrumb_json_ld(): void
+    {
+        $response = $this->get('/calendar');
 
         $response->assertStatus(200);
         $response->assertSee('BreadcrumbList', false);

@@ -17,6 +17,8 @@
     :image="asset('/images/homepage/may2024wide.webp')"
 />
 
+<x-breadcrumbs :area="$area" :heading="$heading" json-only />
+
 {{-- JSON-LD Events --}}
 @if($allEvents->isNotEmpty())
 <script type="application/ld+json">

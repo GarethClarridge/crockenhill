@@ -13,6 +13,8 @@
     heading="Songs"
     description="Browse the songs most often sung at Crockenhill Baptist Church."
 />
+
+<x-breadcrumbs :area="$area" :heading="$heading" json-only />
 @endsection
 
 @section('dynamic_content')

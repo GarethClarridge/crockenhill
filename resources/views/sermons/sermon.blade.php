@@ -39,6 +39,8 @@ $hasPublicVideo = filled($sermonView['video_url']);
   :description="$description ?? $metaDescription"
   :image="$sermonView['thumbnail_url']"
 />
+
+<x-breadcrumbs :area="$area" :heading="$sermon->title" json-only />
 @endsection
 
 @section('dynamic_content')

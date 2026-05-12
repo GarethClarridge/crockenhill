@@ -24,6 +24,8 @@
         :description="$metaDescription ?: $sermon->title"
         :image="$sermonView['thumbnail_url']"
     />
+
+    <x-breadcrumbs :area="$area" :heading="$sermon->title" json-only />
 @endsection
 
 @section('dynamic_content')

@@ -17,6 +17,8 @@
     :image="$share_image"
 />
 
+<x-breadcrumbs :area="$area" :heading="$heading" json-only />
+
 <x-schema.person :$preacher />
 
 {{-- JSON-LD Sermon List --}}
