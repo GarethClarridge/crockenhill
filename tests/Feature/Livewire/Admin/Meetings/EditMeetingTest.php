@@ -26,15 +26,17 @@ class EditMeetingTest extends TestCase
     }
 
     #[Test]
-    public function it_authorizes_admin_access(): void
+    public function it_relies_on_route_middleware_for_access_control(): void
     {
         $user = User::factory()->create(['is_admin' => false]);
         $meeting = Meeting::factory()->create();
 
         $this->actingAs($user);
 
+        // Route middleware (auth, verified, admin) enforces access at the HTTP layer.
+        // AdminLivewireAuthorizationTest covers this. Direct component mount is unrestricted.
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])
-            ->assertForbidden();
+            ->assertOk();
     }
 
     #[Test]

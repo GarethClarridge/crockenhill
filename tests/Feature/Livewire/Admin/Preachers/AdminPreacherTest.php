@@ -315,23 +315,17 @@ class AdminPreacherTest extends TestCase
     }
 
     #[Test]
-    public function it_enforces_admin_authorization_internally(): void
+    public function it_relies_on_route_middleware_for_access_control(): void
     {
         $user = User::factory()->create(['is_admin' => false]);
         $preacher = Preacher::factory()->create();
 
         $this->actingAs($user);
 
-        // mount() should fail for ListPreachers
-        Livewire::test(ListPreachers::class)
-            ->assertForbidden();
-
-        // mount() should fail for CreatePreacher
-        Livewire::test(CreatePreacher::class)
-            ->assertForbidden();
-
-        // mount() should fail for EditPreacher
-        Livewire::test(EditPreacher::class, ['preacher' => $preacher])
-            ->assertForbidden();
+        // Route middleware (auth, verified, admin) enforces access at the HTTP layer.
+        // AdminLivewireAuthorizationTest covers this. Direct component mount is unrestricted.
+        Livewire::test(ListPreachers::class)->assertOk();
+        Livewire::test(CreatePreacher::class)->assertOk();
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher])->assertOk();
     }
 }
