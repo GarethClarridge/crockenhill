@@ -4,32 +4,26 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Enums\ApiTokenAbility;
+use App\Support\MediaProcessingAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureMediaProcessingAccess
 {
+    public function __construct(
+        private MediaProcessingAccess $mediaProcessingAccess,
+    ) {}
+
     /**
      * Enforce privileged access for media processing APIs.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        $denialMessage = $this->mediaProcessingAccess->denialMessage($request);
 
-        if (! $user?->is_admin) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        if (! $user->canAccessAdmin()) {
-            abort(403, 'Your email address is not verified.');
-        }
-
-        // Session-authenticated first-party clients have no bearer token;
-        // ability checks apply when a PAT is used.
-        if ($request->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::MEDIA_PROCESS->value)) {
-            abort(403, 'Missing required token ability: '.ApiTokenAbility::MEDIA_PROCESS->value);
+        if ($denialMessage !== null) {
+            abort(403, $denialMessage);
         }
 
         return $next($request);

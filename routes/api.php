@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\ApiTokenAbility;
 use App\Http\Controllers\Api\ChurchServiceController;
 use App\Http\Controllers\Api\MailgunInboundWebhookController;
 use App\Http\Controllers\Api\MediaController;
@@ -55,7 +54,6 @@ Route::prefix('media')->name('api.media.')->group(function () {
         ->where('type', 'audio|video|livestream')
         ->middleware([
             'auth:sanctum',
-            'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
             'media.process',
             'throttle:media-upload',
         ])
@@ -63,7 +61,7 @@ Route::prefix('media')->name('api.media.')->group(function () {
 });
 
 // Processing management routes
-Route::middleware(['auth:sanctum', 'ability:'.ApiTokenAbility::MEDIA_PROCESS->value, 'media.process'])
+Route::middleware(['auth:sanctum', 'media.process'])
     ->name('api.media.processing.')
     ->group(function () {
         Route::get('media/processing/{processingId}/status', [MediaController::class, 'status'])

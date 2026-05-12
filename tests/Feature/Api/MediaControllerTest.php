@@ -151,8 +151,7 @@ class MediaControllerTest extends TestCase
             ]);
 
         $response->assertStatus(403);
-        // Sanctum's default message for MissingAbilityException is 'Invalid ability provided.'
-        $response->assertJsonPath('message', 'Invalid ability provided.');
+        $response->assertJsonPath('message', 'Missing required token ability: media:process');
     }
 
     // --- status() ---

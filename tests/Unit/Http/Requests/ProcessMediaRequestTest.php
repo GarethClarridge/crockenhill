@@ -6,6 +6,7 @@ namespace Tests\Unit\Http\Requests;
 
 use App\Http\Requests\ProcessMediaRequest;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -136,5 +137,23 @@ class ProcessMediaRequestTest extends TestCase
 
         $this->assertFalse($validator->passes());
         $this->assertTrue($validator->errors()->has('file'));
+    }
+
+    #[Test]
+    public function route_type_and_body_type_use_the_same_upload_rules_and_messages(): void
+    {
+        $adminRequest = $this->makeRequest(['type' => 'video']);
+        $apiRequest = ProcessMediaRequest::create('/api/media/video', 'POST', []);
+        $apiRequest->setContainer($this->app);
+        $apiRequest->setRouteResolver(function (): Route {
+            $route = new Route('POST', 'api/media/{type}', []);
+            $route->bind(ProcessMediaRequest::create('/api/media/video', 'POST'));
+
+            return $route;
+        });
+
+        $this->assertSame($adminRequest->rules()['file'], $apiRequest->rules()['file']);
+        $this->assertSame($adminRequest->messages()['file.max'], $apiRequest->messages()['file.max']);
+        $this->assertSame($adminRequest->messages()['file.mimes'], $apiRequest->messages()['file.mimes']);
     }
 }

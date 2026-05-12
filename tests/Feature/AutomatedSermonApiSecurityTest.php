@@ -92,6 +92,18 @@ class AutomatedSermonApiSecurityTest extends TestCase
     }
 
     #[Test]
+    public function it_prevents_unauthorized_access_to_confirm_segment_endpoint(): void
+    {
+        $processingId = (string) Str::uuid();
+
+        $response = $this->postJson("/api/media/processing/{$processingId}/confirm-segment", [
+            'segment_id' => 1,
+        ]);
+
+        $response->assertStatus(401);
+    }
+
+    #[Test]
     public function it_rejects_non_admin_authenticated_users(): void
     {
         $nonAdminUser = User::factory()->create([
@@ -120,10 +132,13 @@ class AutomatedSermonApiSecurityTest extends TestCase
             ['GET', "/api/media/processing/{$processingId}/status"],
             ['POST', "/api/media/processing/{$processingId}/retry"],
             ['DELETE', "/api/media/processing/{$processingId}"],
+            ['POST', "/api/media/processing/{$processingId}/confirm-segment"],
         ];
 
         foreach ($endpoints as [$method, $url]) {
-            $response = $this->actingAs($nonAdminUser)->json($method, $url);
+            $response = $this->actingAs($nonAdminUser)->json($method, $url, [
+                'segment_id' => 1,
+            ]);
 
             $response->assertStatus(403);
         }
@@ -202,12 +217,15 @@ class AutomatedSermonApiSecurityTest extends TestCase
             ['GET', "/api/media/processing/{$processingId}/status"],
             ['POST', "/api/media/processing/{$processingId}/retry"],
             ['DELETE', "/api/media/processing/{$processingId}"],
+            ['POST', "/api/media/processing/{$processingId}/confirm-segment"],
         ];
 
         foreach ($endpoints as [$method, $url]) {
             $response = $this
                 ->withHeader('Authorization', 'Bearer '.$forbiddenToken)
-                ->json($method, $url);
+                ->json($method, $url, [
+                    'segment_id' => 1,
+                ]);
 
             $response->assertStatus(403);
         }

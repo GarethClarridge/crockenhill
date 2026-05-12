@@ -48,7 +48,7 @@ class ProcessMediaRequest extends MediaProcessingRequest
      */
     public function messages(): array
     {
-        $type = $this->input('type');
+        $type = $this->route('type') ?? $this->input('type');
         $mediaType = is_string($type) ? MediaType::tryFrom($type) : null;
         $validation = $this->validationService();
 

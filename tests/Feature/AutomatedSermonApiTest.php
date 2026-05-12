@@ -390,7 +390,9 @@ class AutomatedSermonApiTest extends TestCase
         $invalidId = 'x';
         $endpoints = [
             ['GET', "/api/media/processing/{$invalidId}/status"],
+            ['DELETE', "/api/media/processing/{$invalidId}"],
             ['POST', "/api/media/processing/{$invalidId}/retry"],
+            ['POST', "/api/media/processing/{$invalidId}/confirm-segment"],
         ];
 
         foreach ($endpoints as [$method, $url]) {

@@ -7,6 +7,7 @@ namespace Tests\Unit\Http\Middleware;
 use App\Enums\ApiTokenAbility;
 use App\Http\Middleware\EnsureMediaProcessingAccess;
 use App\Models\User;
+use App\Support\MediaProcessingAccess;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -20,7 +21,7 @@ class EnsureMediaProcessingAccessTest extends TestCase
 
     private function makeMiddleware(): EnsureMediaProcessingAccess
     {
-        return new EnsureMediaProcessingAccess;
+        return new EnsureMediaProcessingAccess(new MediaProcessingAccess);
     }
 
     private function makeRequest(?User $user = null, ?string $bearerToken = null): Request
@@ -95,7 +96,7 @@ class EnsureMediaProcessingAccessTest extends TestCase
         $middleware = $this->makeMiddleware();
 
         $this->expectException(HttpException::class);
-        $this->expectExceptionMessage('Your email address is not verified.');
+        $this->expectExceptionMessage('Unauthorized action.');
 
         $middleware->handle($request, fn () => response('passed'));
     }

@@ -354,11 +354,12 @@ Design decisions required before implementation:
 - Should constraint violations trigger a retry-with-resequence, or a user-facing error?
 - Are there any remaining write paths outside the main sync flow that need explicit transaction or exception handling around the existing unique index?
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
-- ❌ No `UNIQUE` constraint found on `(church_service_id, active_position)` on `church_service_items`. The backlog's stated invariant does not exist at the database level.
-- ❌ No consistent constraint-violation recovery pattern found in write paths.
-- ❌ No tests for duplicate-position rejection or recovery.
+- ✅ `church_service_items.active_position` exists as a stored generated column, with `church_service_items_active_position_unique` enforcing active-row ordering uniqueness per service.
+- ✅ `ChurchServiceItem::validationRules()` no longer duplicates the uniqueness invariant in application validation; required positive integer validation remains, and the database owns duplicate-position rejection.
+- ✅ Main write paths now use predictable handling: the sync service rejects duplicate incoming positions and still resequences active rows as recovery logic, while admin save and structure merge translate database constraint violations into clear ordering-conflict errors.
+- ✅ Focused tests cover the schema invariant, duplicate-position database rejection, admin-save conflict handling, sync duplicate handling, and structure-merge conflict handling.
 
 Primary review coverage:
 
