@@ -16,7 +16,7 @@ final class ProcessingRunTimelineBuilder
      * Build processing step timelines for all runs, keyed by run ID.
      *
      * @param  EloquentCollection<int, MediaProcessingLog>  $processingRuns
-     * @return array<int, array<int, array<string, mixed>>>
+     * @return array<int, list<array<string, mixed>>>
      */
     public static function buildAll(EloquentCollection $processingRuns): array
     {
@@ -28,7 +28,7 @@ final class ProcessingRunTimelineBuilder
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return list<array<string, mixed>>
      */
     public static function buildForRun(MediaProcessingLog $processingRun): array
     {

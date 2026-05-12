@@ -468,9 +468,11 @@ class MediaProcessingLog extends Model
         return $this->usesSegmentationPipeline();
     }
 
-    public static function makeDedupKey(string $fileHash, MediaType $mediaType, string $videoMode): string
+    public static function makeDedupKey(string $fileHash, MediaType $mediaType, string $videoMode, ?int $ownerUserId): string
     {
-        return "{$fileHash}:{$mediaType->value}:{$videoMode}";
+        $callerScope = $ownerUserId === null ? 'system' : "user:{$ownerUserId}";
+
+        return "{$fileHash}:{$callerScope}:{$mediaType->value}:{$videoMode}";
     }
 
     public function buildDedupKey(): ?string
@@ -479,7 +481,12 @@ class MediaProcessingLog extends Model
             return null;
         }
 
-        return self::makeDedupKey($this->file_hash, $this->processing_type, $this->videoProcessingMode());
+        return self::makeDedupKey(
+            $this->file_hash,
+            $this->processing_type,
+            $this->videoProcessingMode(),
+            $this->owner_user_id
+        );
     }
 
     public function processingPipelineProfile(): string

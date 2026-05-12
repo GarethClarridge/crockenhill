@@ -19,6 +19,7 @@ class TargetedSchemaGuardrailsTest extends TestCase
     {
         $this->assertTrue(Schema::hasIndex('livestream_segments', 'livestream_segments_log_order_index'));
         $this->assertTrue(Schema::hasIndex('livestream_segments', 'livestream_segments_log_classification_time_index'));
+        $this->assertTrue(Schema::hasIndex('media_processing_logs', 'media_processing_logs_dedup_key_unique'));
         $this->assertTrue(Schema::hasIndex('media_processing_logs', 'media_processing_logs_review_queue_index'));
         $this->assertTrue(Schema::hasIndex('speaker_samples', 'speaker_samples_profile_approved_index'));
         $this->assertTrue(Schema::hasIndex('speaker_samples', 'speaker_samples_profile_sermon_source_unique'));

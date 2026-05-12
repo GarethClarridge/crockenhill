@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Models\User;
 use App\Services\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -118,9 +119,13 @@ class MediaProcessingRunTransitionServiceTest extends TestCase
     #[Test]
     public function it_resets_a_run_for_retry(): void
     {
+        $owner = User::factory()->create();
+        $hash = str_repeat('b', 64);
         $log = MediaProcessingLog::factory()->failed()->create([
             'current_step' => 'transcribing_audio_failed',
             'error_message' => 'API timeout',
+            'file_hash' => $hash,
+            'owner_user_id' => $owner->id,
             'started_at' => now()->subMinute(),
             'completed_at' => now(),
         ]);
@@ -134,5 +139,9 @@ class MediaProcessingRunTransitionServiceTest extends TestCase
         $this->assertNull($log->error_message);
         $this->assertNull($log->started_at);
         $this->assertNull($log->completed_at);
+        $this->assertSame(
+            MediaProcessingLog::makeDedupKey($hash, $log->processing_type, $log->videoProcessingMode(), $owner->id),
+            $log->dedup_key
+        );
     }
 }

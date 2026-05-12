@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Api;
 
 use App\Enums\ApiTokenAbility;
+use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\ProcessingInitiator;
@@ -55,9 +56,10 @@ class MediaUploadDeduplicationTest extends TestCase
         $hash = hash('sha256', self::AUDIO_CONTENT);
         $existingLog = ProcessingLogScenario::audio()
             ->pending()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
-                'dedup_key' => "{$hash}:audio:full_video",
+                'dedup_key' => $this->dedupKey($hash, MediaType::Audio),
             ])
             ->create();
 
@@ -79,9 +81,10 @@ class MediaUploadDeduplicationTest extends TestCase
         $hash = hash('sha256', self::AUDIO_CONTENT);
         $existingLog = ProcessingLogScenario::audio()
             ->processing()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
-                'dedup_key' => "{$hash}:audio:full_video",
+                'dedup_key' => $this->dedupKey($hash, MediaType::Audio),
             ])
             ->create();
 
@@ -147,9 +150,10 @@ class MediaUploadDeduplicationTest extends TestCase
         $hash = hash('sha256', self::VIDEO_CONTENT);
         $existingLog = ProcessingLogScenario::video()
             ->pending()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
-                'dedup_key' => "{$hash}:video:full_video",
+                'dedup_key' => $this->dedupKey($hash, MediaType::Video),
             ])
             ->create();
 
@@ -195,9 +199,10 @@ class MediaUploadDeduplicationTest extends TestCase
         $hash = hash('sha256', self::LIVESTREAM_CONTENT);
         $existingLog = ProcessingLogScenario::livestream()
             ->pending()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
-                'dedup_key' => "{$hash}:livestream:full_video",
+                'dedup_key' => $this->dedupKey($hash, MediaType::Livestream),
             ])
             ->create();
 
@@ -219,9 +224,10 @@ class MediaUploadDeduplicationTest extends TestCase
         $hash = hash('sha256', self::LIVESTREAM_CONTENT);
         $existingLog = ProcessingLogScenario::livestream()
             ->processing()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
-                'dedup_key' => "{$hash}:livestream:full_video",
+                'dedup_key' => $this->dedupKey($hash, MediaType::Livestream),
             ])
             ->create();
 
@@ -268,9 +274,10 @@ class MediaUploadDeduplicationTest extends TestCase
 
         ProcessingLogScenario::video()
             ->pending()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
-                'dedup_key' => "{$hash}:video:full_video",
+                'dedup_key' => $this->dedupKey($hash, MediaType::Video),
             ])
             ->create();
 
@@ -293,9 +300,10 @@ class MediaUploadDeduplicationTest extends TestCase
 
         ProcessingLogScenario::livestream()
             ->pending()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
-                'dedup_key' => "{$hash}:livestream:full_video",
+                'dedup_key' => $this->dedupKey($hash, MediaType::Livestream),
             ])
             ->create();
 
@@ -322,9 +330,10 @@ class MediaUploadDeduplicationTest extends TestCase
 
         ProcessingLogScenario::video()
             ->pending()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
-                'dedup_key' => "{$hash}:video:full_video",
+                'dedup_key' => $this->dedupKey($hash, MediaType::Video),
             ])
             ->create();
 
@@ -339,11 +348,11 @@ class MediaUploadDeduplicationTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Cross-owner dedup (same file + same pipeline → shared run)
+    // Cross-owner isolation
     // -------------------------------------------------------------------------
 
     #[Test]
-    public function it_returns_same_run_when_second_admin_uploads_identical_file_to_same_pipeline(): void
+    public function it_creates_separate_run_when_second_admin_uploads_identical_file_to_same_pipeline(): void
     {
         Bus::fake();
 
@@ -355,18 +364,23 @@ class MediaUploadDeduplicationTest extends TestCase
             ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
-                'dedup_key' => "{$hash}:audio:full_video",
+                'dedup_key' => $this->dedupKey($hash, MediaType::Audio),
             ])
             ->create();
 
         $file = MediaUploadScenario::withContent('sermon.mp3', self::AUDIO_CONTENT, 'audio/mpeg');
 
-        $this->withToken($this->tokenFor($secondAdmin))
+        $response = $this->withToken($this->tokenFor($secondAdmin))
             ->postJson('/api/media/audio', ['file' => $file])
-            ->assertStatus(202)
-            ->assertJsonFragment(['processing_id' => $existingLog->processing_id]);
+            ->assertStatus(202);
 
-        $this->assertDatabaseCount('media_processing_logs', 1);
+        $this->assertNotSame($existingLog->processing_id, $response->json('processing_id'));
+        $this->assertDatabaseCount('media_processing_logs', 2);
+        $this->assertDatabaseHas('media_processing_logs', [
+            'processing_id' => $response->json('processing_id'),
+            'owner_user_id' => $secondAdmin->id,
+            'dedup_key' => $this->dedupKey($hash, MediaType::Audio, owner: $secondAdmin),
+        ]);
     }
 
     // -------------------------------------------------------------------------
@@ -379,12 +393,13 @@ class MediaUploadDeduplicationTest extends TestCase
         Bus::fake();
 
         $hash = hash('sha256', self::AUDIO_CONTENT);
-        $dedupKey = "{$hash}:audio:full_video";
+        $dedupKey = $this->dedupKey($hash, MediaType::Audio);
 
         // Create the race winner's log without a dedup_key so the preflight
         // check passes (simulating both requests reading null simultaneously).
         $existingLog = ProcessingLogScenario::audio()
             ->pending()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
                 'dedup_key' => null,
@@ -451,7 +466,7 @@ class MediaUploadDeduplicationTest extends TestCase
             ->first();
 
         $this->assertNotNull($newLog);
-        $this->assertSame("{$hash}:audio:full_video", $newLog->dedup_key);
+        $this->assertSame($this->dedupKey($hash, MediaType::Audio), $newLog->dedup_key);
     }
 
     // -------------------------------------------------------------------------
@@ -495,11 +510,12 @@ class MediaUploadDeduplicationTest extends TestCase
         Bus::fake();
 
         $hash = hash('sha256', self::AUDIO_CONTENT);
-        $dedupKey = "{$hash}:audio:full_video";
+        $dedupKey = $this->dedupKey($hash, MediaType::Audio);
 
         // Simulates a run that was failed, then retried: resetForRetry restores dedup_key
         $retriedLog = ProcessingLogScenario::audio()
             ->pending()
+            ->withOwner($this->admin)
             ->state([
                 'file_hash' => $hash,
                 'dedup_key' => $dedupKey,
@@ -519,6 +535,15 @@ class MediaUploadDeduplicationTest extends TestCase
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private function dedupKey(
+        string $hash,
+        MediaType $type,
+        string $videoMode = MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO,
+        ?User $owner = null
+    ): string {
+        return MediaProcessingLog::makeDedupKey($hash, $type, $videoMode, $owner?->id ?? $this->admin->id);
+    }
 
     private function tokenFor(User $user): string
     {

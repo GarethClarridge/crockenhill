@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\ChurchService;
@@ -112,7 +113,7 @@ class DeleteLivestreamUpload
                     continue;
                 }
 
-                $this->refreshServiceMetadata($service, $processingId);
+                $this->refreshServiceMetadata($service);
             }
 
             return [
@@ -371,17 +372,17 @@ class DeleteLivestreamUpload
             && ! $service->mediaProcessingLogs()->exists();
     }
 
-    private function refreshServiceMetadata(ChurchService $service, string $processingId): void
+    private function refreshServiceMetadata(ChurchService $service): void
     {
-        $importMetadata = $service->import_metadata?->toArray() ?? [];
-        $projection = is_array($importMetadata['livestream_projection'] ?? null)
-            ? $importMetadata['livestream_projection']
-            : [];
+        $hasRemainingLivestreamItems = $service->items()
+            ->where('source', ChurchServiceItemSource::Livestream->value)
+            ->exists();
 
-        if (($projection['processing_id'] ?? null) !== $processingId) {
+        if ($hasRemainingLivestreamItems) {
             return;
         }
 
+        $importMetadata = $service->import_metadata?->toArray() ?? [];
         unset($importMetadata['livestream_projection']);
 
         $service->forceFill([

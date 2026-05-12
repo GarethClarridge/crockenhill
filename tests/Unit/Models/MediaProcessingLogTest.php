@@ -13,6 +13,7 @@ use App\Models\ChurchService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\User;
 use App\Services\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -242,6 +243,34 @@ class MediaProcessingLogTest extends TestCase
 
         $this->assertTrue($livestream->usesSegmentationPipeline());
         $this->assertSame('livestream', $livestream->processingPipelineProfile());
+    }
+
+    #[Test]
+    public function it_builds_dedup_keys_with_caller_scope_and_processing_profile(): void
+    {
+        $owner = User::factory()->create();
+        $hash = str_repeat('a', 64);
+        $autoTrimLog = MediaProcessingLog::factory()->video()->make([
+            'file_hash' => $hash,
+            'owner_user_id' => $owner->id,
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'trim_requested' => true,
+            ],
+        ]);
+        $systemLog = MediaProcessingLog::factory()->audio()->make([
+            'file_hash' => $hash,
+            'owner_user_id' => null,
+        ]);
+
+        $this->assertSame(
+            "{$hash}:user:{$owner->id}:video:auto_trim",
+            $autoTrimLog->buildDedupKey()
+        );
+        $this->assertSame(
+            "{$hash}:system:audio:full_video",
+            $systemLog->buildDedupKey()
+        );
     }
 
     #[Test]
