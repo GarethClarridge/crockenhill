@@ -196,4 +196,8 @@
         @endif
 
     </div>{{-- end wire:loading wrapper --}}
+
+    <script type="application/ld+json">
+    {!! json_encode($this->jsonLdData, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+    </script>
 </div>
