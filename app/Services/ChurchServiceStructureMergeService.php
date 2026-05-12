@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Data\StructureMergeResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
+use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -138,7 +139,6 @@ class ChurchServiceStructureMergeService
         );
 
         $pendingMerge = [
-            'incoming_source' => $incomingSource->value,
             'created_at' => now()->toIso8601String(),
             'confidence' => [
                 'current' => $this->summariseConfidence($existingSnapshots),
@@ -258,13 +258,13 @@ class ChurchServiceStructureMergeService
         $hasLow = false;
 
         foreach ($snapshots as $snapshot) {
-            $metadata = is_array($snapshot['metadata'] ?? null) ? $snapshot['metadata'] : [];
-            $projection = is_array($metadata['livestream_projection'] ?? null) ? $metadata['livestream_projection'] : [];
-            $confidence = $projection['confidence_level'] ?? 'unknown';
+            $confidence = is_numeric($snapshot['confidence'] ?? null)
+                ? ServiceSectionConfidence::levelFor((float) $snapshot['confidence'])
+                : 'unknown';
 
             if ($confidence === 'high') {
                 $hasHigh = true;
-            } else {
+            } elseif ($confidence !== 'unknown') {
                 $hasLow = true;
             }
         }

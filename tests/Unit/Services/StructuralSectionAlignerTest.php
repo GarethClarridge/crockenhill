@@ -49,8 +49,9 @@ class StructuralSectionAlignerTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
+            'section_type' => ServiceSectionType::WELCOME,
             'title' => 'Welcome',
-            'metadata' => ['section_type' => 'welcome'],
+            'metadata' => null,
         ]);
 
         // Detected section with matching type
@@ -82,8 +83,9 @@ class StructuralSectionAlignerTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
+            'section_type' => ServiceSectionType::PRAYER,
             'title' => 'Opening Prayer',
-            'metadata' => ['section_type' => 'prayer'],
+            'metadata' => null,
         ]);
 
         // Detected section is a notices — type clash, no lookahead match

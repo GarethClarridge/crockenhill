@@ -1,5 +1,6 @@
 @php
     /** @var \App\Data\PendingStructureMergeMetadata $pendingMerge */
+    /** @var string $pendingMergeSource */
 @endphp
 
 <x-card>
@@ -13,7 +14,7 @@
                     </span>
                 </div>
                 <p class="mt-1 text-sm text-gray-500">
-                    Incoming <span class="font-medium text-gray-700 uppercase">{{ $pendingMerge->incomingSource }}</span> data
+                    Incoming <span class="font-medium text-gray-700 uppercase">{{ $pendingMergeSource }}</span> data
                     conflicts with existing livestream-detected items.
                     {{ count($pendingMerge->conflicts) }} {{ \Illuminate\Support\Str::plural('conflict', count($pendingMerge->conflicts)) }} require your review.
                 </p>
@@ -25,7 +26,7 @@
                     variant="primary"
                     size="sm"
                     wire:click="acceptIncomingMerge"
-                    wire:confirm="Accept the incoming {{ strtoupper($pendingMerge->incomingSource ?? '') }} items? This will replace the current livestream-detected structure."
+                    wire:confirm="Accept the incoming {{ strtoupper($pendingMergeSource) }} items? This will replace the current livestream-detected structure."
                 >
                     Accept incoming
                 </x-form-button>
@@ -35,7 +36,7 @@
                     variant="outline"
                     size="sm"
                     wire:click="keepCurrentStructure"
-                    wire:confirm="Keep the current structure and discard the incoming {{ strtoupper($pendingMerge->incomingSource ?? '') }} data?"
+                    wire:confirm="Keep the current structure and discard the incoming {{ strtoupper($pendingMergeSource) }} data?"
                 >
                     Keep current
                 </x-form-button>
@@ -119,7 +120,7 @@
                             @if(is_array($incomingItem))
                                 <div class="rounded-lg border border-cbc-teal/20 bg-cbc-teal-light/5 p-3">
                                     <p class="text-xs font-medium uppercase tracking-wider text-gray-500 mb-2">
-                                        Incoming ({{ strtoupper($pendingMerge->incomingSource ?? 'unknown') }})
+                                        Incoming ({{ strtoupper($pendingMergeSource) }})
                                     </p>
                                     <p class="text-sm font-medium text-gray-900">{{ $incomingItem['title'] ?? 'Untitled' }}</p>
                                     <div class="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">

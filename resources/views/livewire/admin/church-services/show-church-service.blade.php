@@ -1,4 +1,7 @@
-<x-admin.page :title="$churchService->date->format('j M Y').' '.$churchService->service->label()">
+<x-admin.page
+    :title="$churchService->date->format('j M Y').' '.$churchService->service->label()"
+    description="Review the planned service, processing runs, and publication state."
+>
     <x-slot:actions>
         <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
             Review dashboard
@@ -19,26 +22,22 @@
             @if($pendingMerge)
                 @include('livewire.admin.church-services.partials.pending-structure-merge', [
                     'pendingMerge' => $pendingMerge,
+                    'pendingMergeSource' => $pendingMergeSource,
                 ])
             @endif
 
-            @if($processingRuns->isEmpty())
+            @if($processingRunViews === [])
                 @include('livewire.admin.church-services.partials.planned-only-list', [
                     'items' => $churchService->items,
                 ])
             @else
                 <x-card heading="Classified livestream runs">
                     <div class="space-y-4">
-                        @forelse($processingRuns as $processingRun)
-                            @include('livewire.admin.church-services.partials.unified-timeline', [
-                                'run'                => $processingRun,
-                                'serviceTimeline'    => $serviceTimelines[$processingRun->id] ?? [],
-                                'serviceFlow'        => $serviceFlows[$processingRun->id] ?? [],
-                                'processingTimeline' => $processingTimelines[$processingRun->id] ?? [],
+                        @foreach($processingRunViews as $processingRunView)
+                            @include('livewire.admin.church-services.partials.processing-run-card', [
+                                'processingRunView' => $processingRunView,
                             ])
-                        @empty
-                            <p class="text-sm text-gray-500">No related livestream runs found for this service.</p>
-                        @endforelse
+                        @endforeach
                     </div>
                 </x-card>
             @endif

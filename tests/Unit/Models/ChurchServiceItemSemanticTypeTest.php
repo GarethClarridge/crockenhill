@@ -27,7 +27,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
     }
 
     #[Test]
-    public function it_returns_section_type_from_metadata_if_no_explicit_property_is_set(): void
+    public function it_ignores_legacy_metadata_section_type_when_no_explicit_property_is_set(): void
     {
         $item = ChurchServiceItem::factory()->make([
             'section_type' => null,
@@ -36,7 +36,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Notices',
         ]);
 
-        $this->assertSame(ServiceSectionType::PRAYER, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::SONG, $item->semanticSectionType());
     }
 
     #[Test]

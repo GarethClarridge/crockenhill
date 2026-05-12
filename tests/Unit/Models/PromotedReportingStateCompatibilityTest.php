@@ -17,7 +17,7 @@ class PromotedReportingStateCompatibilityTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function church_service_item_semantic_section_type_supports_column_and_legacy_fallbacks(): void
+    public function church_service_item_semantic_section_type_reads_columns_before_inference(): void
     {
         $columnBacked = ChurchServiceItem::factory()->make([
             'type' => 'custom',
@@ -29,6 +29,7 @@ class PromotedReportingStateCompatibilityTest extends TestCase
             'type' => 'custom',
             'section_type' => null,
             'metadata' => ['section_type' => ServiceSectionType::SERMON->value],
+            'title' => 'Welcome',
         ]);
 
         $legacyInference = ChurchServiceItem::factory()->make([
@@ -39,7 +40,7 @@ class PromotedReportingStateCompatibilityTest extends TestCase
         ]);
 
         $this->assertSame(ServiceSectionType::WELCOME, $columnBacked->semanticSectionType());
-        $this->assertSame(ServiceSectionType::SERMON, $legacyMetadata->semanticSectionType());
+        $this->assertSame(ServiceSectionType::WELCOME, $legacyMetadata->semanticSectionType());
         $this->assertSame(ServiceSectionType::BIBLE_READING, $legacyInference->semanticSectionType());
     }
 

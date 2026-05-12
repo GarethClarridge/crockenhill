@@ -188,8 +188,6 @@ class StructureMergePolicyTest extends TestCase
             'confidence' => $confidenceMap[$confidence] ?? 0.0,
             'metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => 'test',
-                    'service_section_id' => $position,
                     'source_segment_ids' => [],
                     'confidence_level' => $confidence,
                 ],
@@ -217,8 +215,6 @@ class StructureMergePolicyTest extends TestCase
             'confidence' => $confidenceMap[$confidence] ?? 0.0,
             'metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => 'test',
-                    'service_section_id' => $position,
                     'source_segment_ids' => [],
                     'confidence_level' => $confidence,
                 ],

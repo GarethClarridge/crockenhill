@@ -21,12 +21,12 @@ class PresentationItemClassifierTest extends TestCase
         $this->classifier = new PresentationItemClassifier;
     }
 
-    // ── Tier 1: explicit metadata section_type ───────────────────────────────
+    // ── Tier 1: explicit section_type column ───────────────────────────────
 
     #[Test]
-    public function it_returns_explicit_decision_when_metadata_section_type_is_set(): void
+    public function it_returns_explicit_decision_when_section_type_column_is_set(): void
     {
-        $item = $this->makeItem(title: 'Anything', metadata: ['section_type' => 'childrens_talk']);
+        $item = $this->makeItem(title: 'Anything', sectionType: ServiceSectionType::CHILDRENS_TALK);
         $result = $this->classifyOne($item);
 
         $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $result['resolved_type']);
@@ -36,7 +36,7 @@ class PresentationItemClassifierTest extends TestCase
     }
 
     #[Test]
-    public function it_falls_through_to_tier_two_when_metadata_section_type_is_invalid(): void
+    public function it_falls_through_to_tier_two_when_legacy_metadata_section_type_exists(): void
     {
         $item = $this->makeItem(title: 'Children', metadata: ['section_type' => 'not_a_real_type']);
         $result = $this->classifyOne($item);
@@ -205,6 +205,7 @@ class PresentationItemClassifierTest extends TestCase
         int $id = 1,
         int $position = 1,
         array $metadata = [],
+        ?ServiceSectionType $sectionType = null,
     ): ChurchServiceItem {
         $item = new ChurchServiceItem;
         $item->id = $id;
@@ -212,6 +213,7 @@ class PresentationItemClassifierTest extends TestCase
         $item->title = $title;
         $item->position = $position;
         $item->metadata = $metadata;
+        $item->section_type = $sectionType;
 
         return $item;
     }

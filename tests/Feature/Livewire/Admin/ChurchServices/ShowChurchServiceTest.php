@@ -6,13 +6,17 @@ namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Livewire\Admin\ChurchServices\ListSectionPublications;
+use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
+use App\Livewire\Admin\ChurchServices\SubmitEmailText;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Presenters\ChurchServiceShowPresenter;
 use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -47,6 +51,93 @@ class ShowChurchServiceTest extends TestCase
     // -------------------------------------------------------------------------
     // Failure parity
     // -------------------------------------------------------------------------
+
+    #[Test]
+    public function it_builds_the_service_show_read_model_outside_the_livewire_component(): void
+    {
+        $processingId = '55555555-5555-5555-5555-555555555555';
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-05-03',
+            'service' => SermonService::Morning->value,
+            'pending_structure_merge_source' => null,
+            'import_metadata' => [
+                'confidence_score' => 0.52,
+                'warnings' => ['Check the incoming order before publishing.'],
+                'livestream_projection' => [
+                    'processing_id' => $processingId,
+                ],
+                'pending_structure_merge' => [
+                    'incoming_source' => 'openlp',
+                    'created_at' => now()->toIso8601String(),
+                    'confidence' => ['current' => 'high', 'incoming' => 'medium'],
+                    'conflicts' => [
+                        ['type' => 'title_conflict'],
+                    ],
+                    'proposed_items' => [
+                        ['position' => 1, 'type' => 'songs', 'title' => 'Opening song'],
+                    ],
+                    'classification' => ['auto_merge' => [], 'review_required' => [0], 'unmatched_incoming' => []],
+                ],
+            ],
+        ]);
+
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'title' => 'Sermon',
+            'livestream_processing_id' => $processingId,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'processing_id' => $processingId,
+            'church_service_id' => null,
+            'extracted_date' => null,
+            'extracted_service' => null,
+        ]);
+
+        $readModel = app(ChurchServiceShowPresenter::class)->present($churchService);
+
+        $this->assertSame(['Check the incoming order before publishing.'], $readModel->warnings);
+        $this->assertSame(0.52, $readModel->confidenceScore);
+        $this->assertCount(1, $readModel->processingRunViews);
+        $this->assertTrue($readModel->processingRunViews[0]->run->is($run));
+        $this->assertNull($readModel->pendingMerge);
+        $this->assertNull($readModel->pendingMergeSource);
+
+        $churchService->forceFill(['pending_structure_merge_source' => 'openlp'])->save();
+
+        $freshChurchService = $churchService->fresh();
+        $this->assertInstanceOf(ChurchService::class, $freshChurchService);
+
+        $readModel = app(ChurchServiceShowPresenter::class)->present($freshChurchService);
+
+        $this->assertNotNull($readModel->pendingMerge);
+        $this->assertSame('openlp', $readModel->pendingMergeSource);
+    }
+
+    #[Test]
+    public function church_service_workflow_pages_use_the_shared_admin_composition_components(): void
+    {
+        config(['media-processing.section_publishing.enabled' => true]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ListSectionPublications::class)
+            ->assertSeeHtml('id="admin-list-results"')
+            ->assertSeeHtml('wire:loading.class.delay.200ms="opacity-50"')
+            ->assertSee('No section publications found');
+
+        Livewire::actingAs($this->admin)
+            ->test(ProcessingReviewList::class)
+            ->assertSeeHtml('id="admin-list-results"')
+            ->assertSeeHtml('wire:loading.class.delay.200ms="opacity-50"')
+            ->assertSee('No sermon processing runs');
+
+        Livewire::actingAs($this->admin)
+            ->test(SubmitEmailText::class)
+            ->assertSee('Submit email text')
+            ->assertSeeHtml('data-form-action');
+    }
 
     #[Test]
     public function it_marks_the_run_as_failed_and_sends_notification_when_reclassification_chain_fails(): void
@@ -100,7 +191,7 @@ class ShowChurchServiceTest extends TestCase
             'needs_review' => true,
             'import_metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => $processingId,
+                    'projected_at' => now()->toIso8601String(),
                 ],
             ],
         ]);
@@ -130,8 +221,7 @@ class ShowChurchServiceTest extends TestCase
             'livestream_processing_id' => $processingId,
             'metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => $processingId,
-                    'service_section_id' => 300,
+                    'confidence_level' => 'high',
                 ],
             ],
         ]);
@@ -149,7 +239,7 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_shows_repaired_runs_found_via_service_projection_metadata(): void
+    public function it_shows_repaired_runs_found_via_item_projection_columns(): void
     {
         $processingId = '44444444-4444-4444-4444-444444444444';
 
@@ -159,7 +249,7 @@ class ShowChurchServiceTest extends TestCase
             'source' => 'livestream',
             'import_metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => $processingId,
+                    'projected_at' => now()->toIso8601String(),
                 ],
             ],
         ]);
@@ -168,10 +258,10 @@ class ShowChurchServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'title' => 'Sermon',
+            'livestream_processing_id' => $processingId,
             'metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => $processingId,
-                    'service_section_id' => 400,
+                    'confidence_level' => 'high',
                 ],
             ],
         ]);

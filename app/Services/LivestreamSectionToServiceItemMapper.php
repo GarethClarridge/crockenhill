@@ -52,7 +52,7 @@ class LivestreamSectionToServiceItemMapper
                 'song_id' => null,
                 'livestream_processing_id' => $processingId,
                 'livestream_service_section_id' => $section->id,
-                'metadata' => $this->buildMetadata($section, $processingId),
+                'metadata' => $this->buildMetadata($section),
             ];
         }
 
@@ -105,7 +105,7 @@ class LivestreamSectionToServiceItemMapper
      *
      * @return array{livestream_projection: array{source_segment_ids: array<int, int>, confidence_level: string, needs_manual_review: bool}}
      */
-    private function buildMetadata(ServiceSection $section, string $processingId): array
+    private function buildMetadata(ServiceSection $section): array
     {
         return [
             'livestream_projection' => [

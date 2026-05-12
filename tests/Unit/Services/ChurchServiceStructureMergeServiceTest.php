@@ -10,6 +10,8 @@ use App\Enums\ServiceSectionType;
 use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Services\ChurchServiceItemSyncService;
 use App\Services\ChurchServiceStructureMergeService;
@@ -79,6 +81,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
         $this->assertSame('openlp', $churchService->pending_structure_merge_source);
         $importMetadata = $churchService->import_metadata?->toArray() ?? [];
         $this->assertArrayHasKey('pending_structure_merge', $importMetadata);
+        $this->assertArrayNotHasKey('incoming_source', $importMetadata['pending_structure_merge']);
         $this->assertNotEmpty($importMetadata['pending_structure_merge']['conflicts']);
         $this->assertNotEmpty($importMetadata['pending_structure_merge']['proposed_items']);
     }
@@ -101,7 +104,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
         ]);
 
         $incomingItems = [
-            ['position' => 1, 'type' => 'songs', 'title' => 'Livestream Song', 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => ['livestream_projection' => ['confidence_level' => 'high', 'processing_id' => 'test', 'service_section_id' => 1, 'source_segment_ids' => []]]],
+            ['position' => 1, 'type' => 'songs', 'title' => 'Livestream Song', 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => ['livestream_projection' => ['confidence_level' => 'high', 'source_segment_ids' => []]]],
         ];
 
         $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::Livestream);
@@ -256,7 +259,7 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
         $importMetadata = $churchService->fresh()->import_metadata?->toArray() ?? [];
         $pending = $importMetadata['pending_structure_merge'];
 
-        $this->assertSame('openlp', $pending['incoming_source']);
+        $this->assertArrayNotHasKey('incoming_source', $pending);
         $this->assertArrayHasKey('created_at', $pending);
         $this->assertArrayHasKey('confidence', $pending);
         $this->assertCount(2, $pending['proposed_items']);
@@ -275,6 +278,10 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
             'source' => ChurchServiceItemSource::Livestream->value,
         ]);
 
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
         foreach ($items as $index => $item) {
             $sectionType = $item['section_type'] ?? null;
 
@@ -286,22 +293,37 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
                 };
             }
 
-            ChurchServiceItem::factory()->livestream()->create([
+            $section = ServiceSection::factory()->create([
+                'media_processing_log_id' => $processingLog->id,
+                'church_service_item_id' => null,
+                'section_type' => $sectionType,
+                'section_order' => $index + 1,
+                'title' => $item['title'],
+                'confidence' => match ($item['confidence']) {
+                    'high' => 0.9,
+                    'low' => 0.2,
+                    default => 0.1,
+                },
+            ]);
+
+            $serviceItem = ChurchServiceItem::factory()->livestream()->create([
                 'church_service_id' => $churchService->id,
                 'position' => $index + 1,
                 'type' => $item['type'],
                 'section_type' => $sectionType,
                 'title' => $item['title'],
                 'song_id' => $item['song_id'] ?? null,
+                'livestream_processing_id' => $processingLog->processing_id,
+                'livestream_service_section_id' => $section->id,
                 'metadata' => [
                     'livestream_projection' => [
-                        'processing_id' => 'test-projection',
-                        'service_section_id' => $index + 1,
                         'source_segment_ids' => [],
                         'confidence_level' => $item['confidence'],
                     ],
                 ],
             ]);
+
+            $section->forceFill(['church_service_item_id' => $serviceItem->id])->save();
         }
 
         return $churchService;

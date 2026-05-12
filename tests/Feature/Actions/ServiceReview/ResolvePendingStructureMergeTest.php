@@ -214,9 +214,9 @@ class ResolvePendingStructureMergeTest extends TestCase
             'service' => SermonService::Morning->value,
             'source' => ChurchServiceItemSource::Livestream->value,
             'needs_review' => true,
+            'pending_structure_merge_source' => ChurchServiceItemSource::OpenLp->value,
             'import_metadata' => array_merge($extraMetadata, [
                 'pending_structure_merge' => [
-                    'incoming_source' => 'openlp',
                     'created_at' => now()->toIso8601String(),
                     'confidence' => [
                         'current' => 'high',
@@ -255,8 +255,6 @@ class ResolvePendingStructureMergeTest extends TestCase
             'section_type' => ServiceSectionType::SONG,
             'metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => 'test',
-                    'service_section_id' => 1,
                     'source_segment_ids' => [],
                     'confidence_level' => 'high',
                 ],
@@ -271,8 +269,6 @@ class ResolvePendingStructureMergeTest extends TestCase
             'section_type' => ServiceSectionType::SERMON,
             'metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => 'test',
-                    'service_section_id' => 2,
                     'source_segment_ids' => [],
                     'confidence_level' => 'high',
                 ],

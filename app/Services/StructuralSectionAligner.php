@@ -285,10 +285,8 @@ class StructuralSectionAligner
      */
     private function resolvedItemType(ChurchServiceItem $item, array $presentationDecisions = []): ServiceSectionType
     {
-        $explicitSectionType = $item->explicitMetadataSectionType();
-
-        if ($explicitSectionType instanceof ServiceSectionType) {
-            return $explicitSectionType;
+        if ($item->section_type instanceof ServiceSectionType) {
+            return $item->section_type;
         }
 
         $itemType = strtolower($item->type);

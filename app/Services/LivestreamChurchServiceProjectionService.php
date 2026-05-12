@@ -84,7 +84,6 @@ class LivestreamChurchServiceProjectionService
         $result = DB::transaction(function () use ($processingLog, $sections, $itemPayloads, $churchService, $identity, $isNewService): array {
             $projectionMetadata = [
                 'projected_at' => now()->toIso8601String(),
-                'processing_id' => $processingLog->processing_id,
                 'confidence_summary' => $this->buildConfidenceSummary($itemPayloads),
             ];
 

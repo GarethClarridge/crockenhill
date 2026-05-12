@@ -14,7 +14,7 @@ class PresentationItemClassifier
      * Classifies presentation items using an evidence-tiered decision model.
      *
      * Evidence tiers (from strongest to weakest):
-     * - explicit: metadata.section_type is set → use that type directly, no review required
+     * - explicit: section_type column is set → use that type directly, no review required
      * - strong:   title clearly names a childrens talk or notices → reclassify, flag for review
      * - weak:     position only → resolve to OTHER, attach a suspected_type hint, no reclassification
      *
@@ -70,17 +70,14 @@ class PresentationItemClassifier
      */
     private function makeDecision(ChurchServiceItem $item, int $firstSongPosition): array
     {
-        // Historical compatibility: legacy rows may still carry an explicit metadata override
-        // until the transition window closes.
-        $explicit = $item->explicitMetadataSectionType();
-        if ($explicit instanceof ServiceSectionType) {
+        if ($item->section_type instanceof ServiceSectionType) {
             return [
-                'resolved_type' => $explicit,
+                'resolved_type' => $item->section_type,
                 'suspected_type' => null,
                 'evidence' => 'explicit',
                 'requires_review' => false,
                 'review_flag' => null,
-                'reason' => 'explicit_metadata_section_type',
+                'reason' => 'explicit_section_type',
             ];
         }
 

@@ -31,8 +31,9 @@ class ResolvePendingStructureMerge
         int $userId,
     ): StructureMergeResolution {
         $pendingMerge = $churchService->import_metadata?->pendingStructureMerge;
+        $incomingSource = $churchService->pending_structure_merge_source;
 
-        if ($pendingMerge === null || $pendingMerge->incomingSource === null) {
+        if ($pendingMerge === null || ! is_string($incomingSource) || trim($incomingSource) === '') {
             return new StructureMergeResolution(
                 churchService: $churchService,
                 resolution: $resolution,
@@ -41,8 +42,10 @@ class ResolvePendingStructureMerge
             );
         }
 
+        $incomingSource = trim($incomingSource);
+
         return match ($resolution) {
-            'accept_incoming' => $this->acceptIncoming($churchService, $pendingMerge->proposedItems, $pendingMerge->incomingSource, $userId),
+            'accept_incoming' => $this->acceptIncoming($churchService, $pendingMerge->proposedItems, $incomingSource, $userId),
             'keep_current' => $this->keepCurrent($churchService, $userId),
             default => new StructureMergeResolution(
                 churchService: $churchService,
@@ -108,7 +111,9 @@ class ResolvePendingStructureMerge
         ChurchService $churchService,
         int $userId,
     ): StructureMergeResolution {
-        $incomingSource = $churchService->import_metadata?->pendingStructureMerge->incomingSource ?? 'unknown';
+        $incomingSource = is_string($churchService->pending_structure_merge_source)
+            ? $churchService->pending_structure_merge_source
+            : 'unknown';
 
         $this->clearPendingMerge($churchService, 'keep_current', $userId, preserveNeedsReview: false);
 
@@ -145,7 +150,7 @@ class ResolvePendingStructureMerge
             'resolution' => $resolution,
             'resolved_at' => now()->toIso8601String(),
             'resolved_by_user_id' => $userId,
-            'original_incoming_source' => $importMetadata['pending_structure_merge']['incoming_source'] ?? null,
+            'original_incoming_source' => $churchService->pending_structure_merge_source,
             'conflict_count' => count($importMetadata['pending_structure_merge']['conflicts'] ?? []),
         ];
 

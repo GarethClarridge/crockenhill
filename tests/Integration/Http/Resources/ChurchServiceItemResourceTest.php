@@ -55,7 +55,7 @@ class ChurchServiceItemResourceTest extends TestCase
     #[Test]
     public function it_includes_metadata_when_present(): void
     {
-        $metadata = ['livestream_projection' => ['processing_id' => 'test-id', 'confidence_level' => 'high']];
+        $metadata = ['livestream_projection' => ['confidence_level' => 'high']];
 
         $item = ChurchServiceItem::factory()->create(['metadata' => $metadata]);
 

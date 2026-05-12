@@ -51,10 +51,7 @@ final class PendingStructureMergeMetadata extends JsonData
     public function toArray(): array
     {
         $data = $this->raw;
-
-        if ($this->incomingSource !== null) {
-            $data['incoming_source'] = $this->incomingSource;
-        }
+        unset($data['incoming_source']);
 
         if ($this->createdAt !== null) {
             $data['created_at'] = $this->createdAt;

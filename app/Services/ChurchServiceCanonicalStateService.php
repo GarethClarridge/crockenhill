@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\ServiceSection;
 
 class ChurchServiceCanonicalStateService
 {
@@ -21,6 +22,8 @@ class ChurchServiceCanonicalStateService
         $items = $churchService->relationLoaded('items')
             ? $churchService->items
             : $churchService->items()->orderBy('position')->orderBy('id')->get();
+
+        $items->loadMissing('livestreamServiceSection');
 
         return $items
             ->map(fn (ChurchServiceItem $item): array => [
@@ -147,19 +150,17 @@ class ChurchServiceCanonicalStateService
 
     private function extractItemConfidence(ChurchServiceItem $item): ?float
     {
+        if (
+            $item->relationLoaded('livestreamServiceSection')
+            && $item->livestreamServiceSection instanceof ServiceSection
+        ) {
+            return $item->livestreamServiceSection->confidence;
+        }
+
         if ($item->relationLoaded('serviceSections') && $item->serviceSections->isNotEmpty()) {
             return (float) ($item->serviceSections->first()->confidence ?? 0.0);
         }
 
-        $metadata = $item->metadata ?? [];
-        $livestreamProjection = $metadata['livestream_projection'] ?? [];
-        $confidenceLevel = $livestreamProjection['confidence_level'] ?? null;
-
-        return match ($confidenceLevel) {
-            'high' => 0.90,
-            'medium' => 0.50,
-            'low' => 0.20,
-            default => null,
-        };
+        return null;
     }
 }

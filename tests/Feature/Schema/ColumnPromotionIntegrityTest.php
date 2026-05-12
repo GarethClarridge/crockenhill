@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Schema;
 
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\LivestreamSectionToServiceItemMapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
@@ -92,12 +95,53 @@ class ColumnPromotionIntegrityTest extends TestCase
             'song_match_type' => null,
             'matched_item_id' => $item1->id,
             'expected_item_id' => $item2->id,
+            'metadata' => [
+                'oos_alignment' => [
+                    'song_match_type' => 'confirmed',
+                    'matched_item_id' => $item1->id,
+                    'expected_item_id' => $item2->id,
+                    'song_match_strategy' => 'title_hint',
+                ],
+            ],
         ]);
 
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $metadata = $section->metadata?->toArray() ?? [];
+        $alignment = is_array($metadata['oos_alignment'] ?? null) ? $metadata['oos_alignment'] : [];
 
-        $this->assertArrayNotHasKey('song_match_type', $metadata);
-        $this->assertArrayNotHasKey('matched_item_id', $metadata);
-        $this->assertArrayNotHasKey('expected_item_id', $metadata);
+        $this->assertArrayNotHasKey('song_match_type', $alignment);
+        $this->assertArrayNotHasKey('matched_item_id', $alignment);
+        $this->assertArrayNotHasKey('expected_item_id', $alignment);
+        $this->assertSame('title_hint', $alignment['song_match_strategy']);
+    }
+
+    #[Test]
+    public function livestream_projection_metadata_does_not_duplicate_promoted_provenance_columns(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => 'projection-column-authority',
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG,
+            'section_order' => 1,
+            'title' => 'Projected Song',
+            'confidence' => 0.9,
+            'source_segment_ids' => [10, 11],
+        ]);
+
+        $payloads = app(LivestreamSectionToServiceItemMapper::class)->map(
+            ServiceSection::query()->whereKey($section->id)->get(),
+            $processingLog->processing_id,
+        );
+
+        $projection = $payloads[0]['metadata']['livestream_projection'];
+
+        $this->assertSame($processingLog->processing_id, $payloads[0]['livestream_processing_id']);
+        $this->assertSame($section->id, $payloads[0]['livestream_service_section_id']);
+        $this->assertArrayNotHasKey('processing_id', $projection);
+        $this->assertArrayNotHasKey('service_section_id', $projection);
+        $this->assertSame([10, 11], $projection['source_segment_ids']);
     }
 }

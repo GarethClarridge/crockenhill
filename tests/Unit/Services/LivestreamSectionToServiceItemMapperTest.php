@@ -206,7 +206,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
     }
 
     #[Test]
-    public function test_preserves_section_id_in_metadata(): void
+    public function test_preserves_projection_provenance_in_columns_only(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create();
 
@@ -227,6 +227,9 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         $result = $this->mapper->map($sections, $log->processing_id);
 
         $this->assertSame($section->id, $result[0]['livestream_service_section_id']);
+        $this->assertSame($log->processing_id, $result[0]['livestream_processing_id']);
+        $this->assertArrayNotHasKey('service_section_id', $result[0]['metadata']['livestream_projection']);
+        $this->assertArrayNotHasKey('processing_id', $result[0]['metadata']['livestream_projection']);
         $this->assertSame([5, 6, 7], $result[0]['metadata']['livestream_projection']['source_segment_ids']);
     }
 

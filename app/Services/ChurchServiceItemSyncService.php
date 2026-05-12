@@ -225,6 +225,7 @@ class ChurchServiceItemSyncService
         }
 
         $sectionType = $this->resolveSectionType($item, $type, $title, $metadata);
+        $metadata = $this->metadataWithoutPromotedSectionType($metadata);
 
         return [
             'position' => $position,
@@ -597,9 +598,24 @@ class ChurchServiceItemSyncService
     {
         $base = $base ?? [];
         $overlay = $overlay ?? [];
-        $merged = array_merge($base, $overlay);
+        $merged = $this->metadataWithoutPromotedSectionType(array_merge($base, $overlay)) ?? [];
 
         return $merged !== [] ? $merged : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     * @return array<string, mixed>|null
+     */
+    private function metadataWithoutPromotedSectionType(?array $metadata): ?array
+    {
+        if ($metadata === null) {
+            return null;
+        }
+
+        unset($metadata['section_type'], $metadata['email_type']);
+
+        return $metadata === [] ? null : $metadata;
     }
 
     /**

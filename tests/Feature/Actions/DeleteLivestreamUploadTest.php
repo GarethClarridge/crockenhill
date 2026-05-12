@@ -50,7 +50,7 @@ class DeleteLivestreamUploadTest extends TestCase
             'needs_review' => true,
             'import_metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => $processingId,
+                    'projected_at' => now()->toIso8601String(),
                 ],
                 'review_triggers' => ['manual_review_sections'],
             ],
@@ -110,8 +110,6 @@ class DeleteLivestreamUploadTest extends TestCase
             'livestream_service_section_id' => $section->id,
             'metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => $processingId,
-                    'service_section_id' => $section->id,
                     'confidence_level' => 'high',
                     'needs_manual_review' => false,
                 ],
@@ -173,7 +171,7 @@ class DeleteLivestreamUploadTest extends TestCase
             'needs_review' => true,
             'import_metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => $processingId,
+                    'projected_at' => now()->toIso8601String(),
                 ],
             ],
         ]);
@@ -203,8 +201,6 @@ class DeleteLivestreamUploadTest extends TestCase
             'livestream_service_section_id' => $section->id,
             'metadata' => [
                 'livestream_projection' => [
-                    'processing_id' => $processingId,
-                    'service_section_id' => $section->id,
                     'confidence_level' => 'high',
                     'needs_manual_review' => false,
                 ],

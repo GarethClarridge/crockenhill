@@ -146,7 +146,7 @@ class StructureMergeIntegrationTest extends TestCase
             service: SermonService::Morning,
             items: [
                 ['position' => 1, 'type' => 'songs', 'title' => 'Different Song', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
-                ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => ['section_type' => ServiceSectionType::PRAYER->value]],
+                ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
             ],
             confidenceScore: 0.9,
             needsReview: false,
@@ -367,6 +367,7 @@ class StructureMergeIntegrationTest extends TestCase
             'service' => SermonService::Morning->value,
             'source' => ChurchServiceItemSource::Livestream->value,
             'needs_review' => true,
+            'pending_structure_merge_source' => ChurchServiceItemSource::OpenLp->value,
             'import_metadata' => [
                 // Simulate a previously-reviewed service so finalize will reopen review
                 'manual_review' => [
@@ -374,7 +375,6 @@ class StructureMergeIntegrationTest extends TestCase
                     'reviewed_by_user_id' => 1,
                 ],
                 'pending_structure_merge' => [
-                    'incoming_source' => 'openlp',
                     'created_at' => now()->toIso8601String(),
                     'confidence' => ['current' => 'high', 'incoming' => 'high'],
                     'conflicts' => [
@@ -394,7 +394,7 @@ class StructureMergeIntegrationTest extends TestCase
             'type' => 'songs',
             'title' => 'Old Song',
             'section_type' => ServiceSectionType::SONG,
-            'metadata' => ['livestream_projection' => ['processing_id' => 'test', 'service_section_id' => 1, 'source_segment_ids' => [], 'confidence_level' => 'high']],
+            'metadata' => ['livestream_projection' => ['source_segment_ids' => [], 'confidence_level' => 'high']],
         ]);
 
         $admin = User::factory()->create(['is_admin' => true]);
@@ -416,6 +416,10 @@ class StructureMergeIntegrationTest extends TestCase
             'source' => ChurchServiceItemSource::Livestream->value,
         ]);
 
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
         foreach ($items as $index => $item) {
             $sectionType = $item['section_type'] ?? match ($item['type']) {
                 'songs' => ServiceSectionType::SONG,
@@ -423,22 +427,36 @@ class StructureMergeIntegrationTest extends TestCase
                 default => ServiceSectionType::inferFromTitle($item['title']),
             };
 
-            ChurchServiceItem::factory()->livestream()->create([
+            $section = ServiceSection::factory()->create([
+                'media_processing_log_id' => $processingLog->id,
+                'church_service_item_id' => null,
+                'section_type' => $sectionType,
+                'section_order' => $index + 1,
+                'title' => $item['title'],
+                'confidence' => match ($item['confidence']) {
+                    'high' => 0.9,
+                    'low' => 0.2,
+                    default => 0.1,
+                },
+            ]);
+
+            $serviceItem = ChurchServiceItem::factory()->livestream()->create([
                 'church_service_id' => $churchService->id,
                 'position' => $index + 1,
                 'type' => $item['type'],
                 'section_type' => $sectionType,
                 'title' => $item['title'],
-                'livestream_processing_id' => 'test-projection',
+                'livestream_processing_id' => $processingLog->processing_id,
+                'livestream_service_section_id' => $section->id,
                 'metadata' => [
                     'livestream_projection' => [
-                        'processing_id' => 'test-projection',
-                        'service_section_id' => $index + 1,
                         'source_segment_ids' => [],
                         'confidence_level' => $item['confidence'],
                     ],
                 ],
             ]);
+
+            $section->forceFill(['church_service_item_id' => $serviceItem->id])->save();
         }
 
         return $churchService;

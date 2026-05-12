@@ -51,7 +51,7 @@
                                     Service needs review
                                 </span>
                             @endif
-                            @if($group['service']?->import_metadata?->pendingStructureMerge?->incomingSource)
+                            @if($group['service']?->pending_structure_merge_source)
                                 <a href="{{ route('admin.services.show', $group['service']) }}" class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 no-underline hover:bg-amber-200" wire:navigate>
                                     Pending merge
                                 </a>

@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\ServiceSection;
 use App\Support\ServiceSectionConfidence;
 
 class StructureMergePolicy
@@ -160,6 +161,7 @@ class StructureMergePolicy
     {
         return $churchService->items()
             ->where('source', ChurchServiceItemSource::Livestream->value)
+            ->with('livestreamServiceSection:id,confidence')
             ->get()
             ->contains(fn (ChurchServiceItem $item): bool => $this->itemConfidenceLevel($this->itemToSnapshot($item)) === 'high');
     }
@@ -357,16 +359,9 @@ class StructureMergePolicy
      */
     private function itemToSnapshot(ChurchServiceItem $item): array
     {
-        // Extract confidence from livestream projection metadata if present
-        $metadata = $item->metadata ?? [];
-        $livestreamProjection = $metadata['livestream_projection'] ?? [];
-        $confidenceLevel = $livestreamProjection['confidence_level'] ?? null;
-        $confidence = match ($confidenceLevel) {
-            'high' => 0.90,
-            'medium' => 0.50,
-            'low' => 0.20,
-            default => 0.0,
-        };
+        $confidence = $item->livestreamServiceSection instanceof ServiceSection
+            ? $item->livestreamServiceSection->confidence
+            : null;
 
         return [
             'id' => $item->id,

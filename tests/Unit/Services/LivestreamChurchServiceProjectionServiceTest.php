@@ -273,7 +273,9 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $importMetadata = $churchService->import_metadata?->toArray() ?? [];
 
         $this->assertArrayHasKey('livestream_projection', $importMetadata);
-        $this->assertSame($log->processing_id, $importMetadata['livestream_projection']['processing_id']);
+        $this->assertArrayHasKey('projected_at', $importMetadata['livestream_projection']);
+        $this->assertArrayHasKey('confidence_summary', $importMetadata['livestream_projection']);
+        $this->assertArrayNotHasKey('processing_id', $importMetadata['livestream_projection']);
     }
 
     #[Test]
@@ -293,6 +295,8 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertSame($log->processing_id, $item->livestream_processing_id);
         $this->assertArrayHasKey('livestream_projection', $item->metadata);
         $this->assertSame('high', $item->metadata['livestream_projection']['confidence_level']);
+        $this->assertArrayNotHasKey('processing_id', $item->metadata['livestream_projection']);
+        $this->assertArrayNotHasKey('service_section_id', $item->metadata['livestream_projection']);
     }
 
     #[Test]

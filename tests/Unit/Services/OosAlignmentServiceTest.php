@@ -909,8 +909,9 @@ class OosAlignmentServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 2,
             'type' => 'presentations',
+            'section_type' => ServiceSectionType::CHILDRENS_TALK,
             'title' => 'Slides',
-            'metadata' => ['section_type' => 'childrens_talk'],
+            'metadata' => null,
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
@@ -934,7 +935,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $section->refresh();
 
-        // Explicit metadata.section_type → trusted, no review flag
+        // Explicit section_type column → trusted, no review flag
         $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $section->section_type);
         $this->assertFalse($section->needs_manual_review);
         $this->assertNotContains('inferred_childrens_talk', $section->metadata['review_flags'] ?? []);
@@ -1128,10 +1129,13 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertContains('inferred_childrens_talk', $talkSection->metadata['review_flags'] ?? []);
         $this->assertTrue($talkSection->needs_manual_review);
 
-        // Update the OoS item to use explicit metadata instead — now no review needed
-        $talkItem->forceFill(['metadata' => ['section_type' => 'childrens_talk']])->saveQuietly();
+        // Update the OoS item to use explicit promoted state instead — now no review needed
+        $talkItem->forceFill([
+            'section_type' => ServiceSectionType::CHILDRENS_TALK,
+            'metadata' => null,
+        ])->saveQuietly();
 
-        // Second alignment: explicit metadata → no review flag
+        // Second alignment: explicit column → no review flag
         app(OosAlignmentService::class)->alignForProcessingLog($processingLog->fresh(), $churchService->fresh());
 
         $talkSection->refresh();

@@ -298,8 +298,8 @@ class SongSectionAligner
     /**
      * Returns true if this item should participate in song alignment.
      *
-     * Respects the metadata.section_type override so that items explicitly typed via
-     * metadata are handled consistently with StructuralSectionAligner::resolvedItemType().
+     * Respects the promoted section_type column so explicitly typed items are handled
+     * consistently with StructuralSectionAligner::resolvedItemType().
      */
     private function isSongItem(ChurchServiceItem $item): bool
     {

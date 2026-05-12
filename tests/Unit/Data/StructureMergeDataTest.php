@@ -77,7 +77,7 @@ class StructureMergeDataTest extends TestCase
     }
 
     #[Test]
-    public function pending_merge_round_trips_via_to_array(): void
+    public function pending_merge_does_not_write_promoted_source_to_array(): void
     {
         $metadata = PendingStructureMergeMetadata::fromArray([
             'incoming_source' => 'oos_email',
@@ -86,7 +86,7 @@ class StructureMergeDataTest extends TestCase
         ]);
 
         $arr = $metadata->toArray();
-        $this->assertSame('oos_email', $arr['incoming_source']);
+        $this->assertArrayNotHasKey('incoming_source', $arr);
         $this->assertSame(['current' => 'high', 'incoming' => 'low'], $arr['confidence']);
         $this->assertCount(1, $arr['conflicts']);
     }

@@ -322,13 +322,14 @@ Backlog:
 
 This item shares a JSON promotion migration strategy with item 4. See "Shared JSON promotion strategy" under item 4 for the coordinated approach to compatibility windows and cutover sequencing.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
-- ✅ `pending_structure_merge_source` promoted to first-class column (migration `2026_04_23_123518` with backfill).
-- ✅ Livestream projection provenance (`livestream_processing_id`, `livestream_service_section_id`) exists as explicit columns on `church_service_items`.
-- ✅ `service_sections.confidence` is an explicit column (`ServiceSection:34`); no JSON fallback in usage.
-- ✅ `song_match_type`, `matched_item_id`, `expected_item_id` exist as first-class columns on `service_sections`.
-- ❌ No schema or integrity tests asserting the promoted columns are the sole authority and JSON copies have not silently reappeared.
+- ✅ `pending_structure_merge_source` is the workflow source authority; pending-merge metadata no longer reserializes `incoming_source`.
+- ✅ Livestream projection provenance (`livestream_processing_id`, `livestream_service_section_id`) is written and read from explicit columns, not JSON metadata copies.
+- ✅ `service_sections.confidence` is the runtime confidence authority; confidence labels are derived for display from the numeric column.
+- ✅ `song_match_type`, `matched_item_id`, and `expected_item_id` are first-class OOS-alignment columns with no JSON fallback in runtime reads.
+- ✅ Promoted section classification reads from `church_service_items.section_type`; legacy `metadata.section_type` is ignored after cutover.
+- ✅ Schema and integrity tests assert promoted columns remain the sole authority and JSON copies do not silently reappear.
 
 Primary review coverage:
 
@@ -437,11 +438,12 @@ Backlog:
 - Move church-service workflow screens onto `x-admin.page`, `x-admin.list-shell`, `x-admin.form-shell`, `x-admin.filter-bar`, and `x-admin.empty-state` where appropriate.
 - Reduce duplicated page shells, filter wrappers, empty states, and ad hoc action rows across the church-service admin cluster.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
-- ⚠️ The `x-admin.*` component library exists and is used across other admin screens, but adoption specifically across all church-service admin screens was not confirmed.
-- ⚠️ Reduced duplication across church-service shells is partially in place but not fully verified.
-- ❌ `ShowChurchService` read-model extraction and timeline partial split could not be confirmed — requires direct template inspection.
+- ✅ `ShowChurchService` read-model assembly now lives in `ChurchServiceShowPresenter`, `ChurchServiceShowReadModel`, `ChurchServiceProcessingRunView`, and `ChurchServiceProcessingRunQuery`; mutating actions remain on the Livewire component and use the query only for service/run matching.
+- ✅ The former unified timeline partial was split into `processing-run-card`, `processing-run-header`, `processing-run-review-actions`, `service-flow-row`, and `timeline-alignment-table-row` presentation units with explicit row/run contracts.
+- ✅ Remaining church-service workflow hotspots now use the shared admin composition layer: `SubmitEmailText` uses `x-admin.form-shell`, and `ProcessingReviewList`/`ListSectionPublications` use `x-admin.list-shell`, `x-admin.filter-bar`, and `x-admin.empty-state` where appropriate.
+- ✅ Focused regression coverage was added in `tests/Feature/Livewire/Admin/ChurchServices/ShowChurchServiceTest.php`.
 
 Primary review coverage:
 

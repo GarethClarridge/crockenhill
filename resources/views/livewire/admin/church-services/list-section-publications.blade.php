@@ -1,24 +1,23 @@
-<div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-            <h1 class="font-display text-3xl">Section Publications</h1>
-            <p class="text-gray-600">Review and publish extracted service sections</p>
-        </div>
+<x-admin.list-shell
+    title="Section Publications"
+    description="Review and publish extracted service sections"
+    :paginator="$sections"
+    items-name="section"
+>
+    <x-slot:actions>
+        <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
+            Review dashboard
+        </x-button>
+        <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
+            Song catalog
+        </x-button>
+        <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
+            Back to services
+        </x-button>
+    </x-slot:actions>
 
-        <div class="flex gap-2">
-            <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
-                Review dashboard
-            </x-button>
-            <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-                Song catalog
-            </x-button>
-            <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-                Back to services
-            </x-button>
-        </div>
-    </div>
-
-    <div class="flex flex-wrap gap-4">
+    <x-slot:filters>
+        <x-admin.filter-bar>
         <x-input
             placeholder="Search title, section type, or run ID..."
             wire:model.live.debounce="search"
@@ -31,11 +30,14 @@
             wire:model.live="publicationStatus"
             :options="collect($statuses)->map(fn($status) => ['id' => $status->value, 'name' => $status->label()])->toArray()"
             class="w-56" />
-    </div>
+        </x-admin.filter-bar>
+    </x-slot:filters>
 
-    <x-card id="admin-list-results" tabindex="-1" class="focus:outline-none">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+    <x-slot:pagination>
+        {{ $sections->links(data: ['scrollTo' => '#admin-list-results']) }}
+    </x-slot:pagination>
+
+    <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Run</th>
@@ -53,7 +55,7 @@
                             $processingMetadata = is_array($section->processingLog->processing_metadata ?? null) ? $section->processingLog->processing_metadata : [];
                             $serviceDate = $section->processingLog->extracted_date?->toDateString() ?? $processingMetadata['extracted_date'] ?? 'Unknown';
                             $serviceType = $section->processingLog->extracted_service?->label() ?? \Illuminate\Support\Str::title((string) ($processingMetadata['extracted_service'] ?? 'unknown'));
-                            $confidence = $section->metadata['confidence_level'] ?? 'unknown';
+                            $confidence = \App\Support\ServiceSectionConfidence::levelFor($section->confidence ?? 0.0);
                             $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
                         @endphp
                         <tr wire:key="section-publication-{{ $section->id }}" class="hover:bg-gray-50">
@@ -150,18 +152,13 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
-                                No section publications found.
-                            </td>
-                        </tr>
+                        <x-admin.empty-state
+                            :colspan="7"
+                            :hasFilters="$hasFilters"
+                            title="No section publications found"
+                            description="There are no extracted service sections matching the current publication filters."
+                        />
                     @endforelse
                 </tbody>
             </table>
-        </div>
-
-        <div class="mt-4">
-            {{ $sections->links(data: ['scrollTo' => '#admin-list-results']) }}
-        </div>
-    </x-card>
-</div>
+</x-admin.list-shell>
