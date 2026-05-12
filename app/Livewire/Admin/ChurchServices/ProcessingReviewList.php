@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
-use App\Livewire\Traits\WithAdminAuthorization;
 use App\Models\MediaProcessingLog;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -12,13 +11,7 @@ use Livewire\WithPagination;
 
 class ProcessingReviewList extends Component
 {
-    use WithAdminAuthorization, WithPagination;
-
-    public function mount(): void
-    {
-
-        $this->authorizeAdmin();
-    }
+    use WithPagination;
 
     public function render(): View
     {

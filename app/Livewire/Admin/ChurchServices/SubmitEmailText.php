@@ -26,8 +26,6 @@ class SubmitEmailText extends Component
 
     public function mount(): void
     {
-
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
 

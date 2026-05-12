@@ -10,15 +10,10 @@ use App\Enums\MediaType;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
-use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Presenters\ChurchServiceShowPresenter;
+use App\Queries\ChurchServiceProcessingRunQuery;
 use App\Services\ProcessingRunOrchestrator;
-use App\Support\ChurchServiceProcessingTimeline;
-use App\Support\ProcessingRunTimelineBuilder;
-use App\Support\ServiceTimelineBuilder;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -34,8 +29,6 @@ class ShowChurchService extends Component
 
     public function mount(ChurchService $churchService): void
     {
-
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $this->churchService = $churchService->load([
@@ -48,32 +41,13 @@ class ShowChurchService extends Component
 
     public function render(): View
     {
-        $importMetadata = $this->churchService->import_metadata?->toArray() ?? [];
-        $warnings = is_array($importMetadata['warnings'] ?? null) ? $importMetadata['warnings'] : [];
-        $confidenceScore = $importMetadata['confidence_score'] ?? null;
-        $processingRuns = $this->relatedProcessingRuns();
-        $pendingMerge = $this->churchService->import_metadata?->pendingStructureMerge;
-        $hasPendingMerge = $pendingMerge !== null && $pendingMerge->incomingSource !== null;
+        $readModel = app(ChurchServiceShowPresenter::class)->present($this->churchService);
 
-        /** @var Collection<int, ChurchServiceItem> $items */
-        $items = $this->churchService->items;
-        $serviceTimelines = ServiceTimelineBuilder::buildTimelines($processingRuns, $items);
-
-        return view('livewire.admin.church-services.show-church-service', [
-            'importMetadata' => $importMetadata,
-            'warnings' => $warnings,
-            'confidenceScore' => is_numeric($confidenceScore) ? (float) $confidenceScore : null,
-            'processingRuns' => $processingRuns,
-            'processingTimelines' => ProcessingRunTimelineBuilder::buildAll($processingRuns),
-            'serviceTimelines' => $serviceTimelines,
-            'serviceFlows' => ServiceTimelineBuilder::buildFlows($serviceTimelines, $processingRuns),
-            'pendingMerge' => $hasPendingMerge ? $pendingMerge : null,
-        ]);
+        return view('livewire.admin.church-services.show-church-service', $readModel->toViewData());
     }
 
     public function reclassify(int $processingLogId): void
     {
-
         $this->authorizeAdmin();
 
         $processingLog = MediaProcessingLog::query()->find($processingLogId);
@@ -109,7 +83,6 @@ class ShowChurchService extends Component
 
     public function acceptIncomingMerge(): void
     {
-
         $this->authorizeAdmin();
 
         $this->resolvePendingMerge('accept_incoming');
@@ -117,7 +90,6 @@ class ShowChurchService extends Component
 
     public function keepCurrentStructure(): void
     {
-
         $this->authorizeAdmin();
 
         $this->resolvePendingMerge('keep_current');
@@ -125,7 +97,6 @@ class ShowChurchService extends Component
 
     public function deleteUpload(int $processingLogId): Redirector|RedirectResponse|null
     {
-
         $this->authorizeAdmin();
 
         $processingLog = MediaProcessingLog::query()->find($processingLogId);
@@ -210,64 +181,9 @@ class ShowChurchService extends Component
         $this->success($label.'. Merge resolved.');
     }
 
-    /**
-     * @return EloquentCollection<int, MediaProcessingLog>
-     */
-    private function relatedProcessingRuns(): EloquentCollection
-    {
-        $serviceDate = $this->churchService->date->toDateString();
-        $serviceType = $this->churchService->service;
-        $resolver = $this->identityResolver();
-        $fallbackProcessingIds = $this->fallbackProcessingIdsForService();
-
-        $query = MediaProcessingLog::query()
-            ->livestream()
-            ->with([
-                'serviceSections' => fn ($query) => $query
-                    ->with([
-                        'publishedSermon:id,title,slug,content_type',
-                        'churchServiceItem' => fn ($q) => $q->withTrashed()->with('song:id,title'),
-                    ])
-                    ->orderBy('section_order')
-                    ->orderBy('id'),
-                'processingSteps' => fn ($query) => $query
-                    ->whereIn('step', ChurchServiceProcessingTimeline::stepKeys())
-                    ->orderBy('started_at')
-                    ->orderBy('id'),
-            ])
-            ->where(function ($query) use ($resolver, $serviceDate, $serviceType, $fallbackProcessingIds): void {
-                $resolver->scopeMatchesIdentity($query, $serviceDate, $serviceType);
-
-                $query->orWhere('church_service_id', $this->churchService->id);
-
-                if ($fallbackProcessingIds !== []) {
-                    $query->orWhereIn('processing_id', $fallbackProcessingIds);
-                }
-            })
-            ->orderByDesc('created_at');
-
-        return $query->get();
-    }
-
     private function processingLogMatchesService(MediaProcessingLog $processingLog): bool
     {
-        $serviceDate = $this->churchService->date->toDateString();
-        $serviceType = $this->churchService->service;
-
-        if ($this->identityResolver()->matchesService($processingLog, $serviceDate, $serviceType)) {
-            return true;
-        }
-
-        if ($processingLog->church_service_id === $this->churchService->id) {
-            return true;
-        }
-
-        return in_array($processingLog->processing_id, $this->fallbackProcessingIdsForService(), true);
-    }
-
-    private function identityResolver(): MediaProcessingIdentityResolver
-    {
-        return app(MediaProcessingIdentityResolver::class);
+        return app(ChurchServiceProcessingRunQuery::class)->matchesService($processingLog, $this->churchService);
     }
 
     private function abortIfDisabled(): void
@@ -275,27 +191,5 @@ class ShowChurchService extends Component
         if (! (bool) config('service-tracking.enabled', true)) {
             abort(404);
         }
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function fallbackProcessingIdsForService(): array
-    {
-        $processingIds = [];
-
-        foreach ($this->churchService->items as $item) {
-            if (is_string($item->livestream_processing_id) && trim($item->livestream_processing_id) !== '') {
-                $processingIds[] = $item->livestream_processing_id;
-            }
-        }
-
-        $serviceMetadata = $this->churchService->import_metadata?->toArray() ?? [];
-        $serviceProjection = $serviceMetadata['livestream_projection'] ?? [];
-        if (is_string($serviceProjection['processing_id'] ?? null) && trim($serviceProjection['processing_id']) !== '') {
-            $processingIds[] = $serviceProjection['processing_id'];
-        }
-
-        return array_values(array_unique($processingIds));
     }
 }

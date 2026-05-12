@@ -21,11 +21,6 @@ class CreateMeeting extends Component
 
     public MeetingFormData $form;
 
-    public function mount(): void
-    {
-        $this->authorizeAdmin();
-    }
-
     public function save(): void
     {
         $this->authorizeAdmin();

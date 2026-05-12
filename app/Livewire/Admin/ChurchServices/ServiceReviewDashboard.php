@@ -70,8 +70,6 @@ class ServiceReviewDashboard extends Component
 
     public function mount(): void
     {
-
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $groups = $this->dashboardQuery->reviewGroups();

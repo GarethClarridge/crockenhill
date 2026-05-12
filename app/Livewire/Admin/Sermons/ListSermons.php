@@ -72,11 +72,6 @@ class ListSermons extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function mount(): void
-    {
-        $this->authorizeAdmin();
-    }
-
     public function updatedServiceFilter(): void
     {
         $this->resetPage();

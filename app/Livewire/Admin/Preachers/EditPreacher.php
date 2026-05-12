@@ -35,9 +35,6 @@ class EditPreacher extends Component
 
     public function mount(Preacher $preacher): void
     {
-
-        $this->authorizeAdmin();
-
         $this->preacher = $preacher;
         $this->name = $preacher->name;
         $this->slug = $preacher->slug;

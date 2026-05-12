@@ -30,12 +30,6 @@ class CreateUser extends Component
 
     public bool $sendVerification = true;
 
-    public function mount(): void
-    {
-
-        $this->authorizeAdmin();
-    }
-
     /**
      * @return array<string, mixed>
      */

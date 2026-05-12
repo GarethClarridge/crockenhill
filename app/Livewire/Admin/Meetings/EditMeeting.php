@@ -26,8 +26,6 @@ class EditMeeting extends Component
 
     public function mount(Meeting $meeting): void
     {
-        $this->authorizeAdmin();
-
         $this->meeting = $meeting;
         $this->form->setMeeting($meeting);
     }

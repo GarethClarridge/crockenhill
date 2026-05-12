@@ -50,11 +50,6 @@ class ListPages extends Component
     /** @var array<int, int|string> */
     public array $selected = [];
 
-    public function mount(): void
-    {
-        $this->authorizeAdmin();
-    }
-
     public function updatedAreaFilter(): void
     {
         $this->resetPage();

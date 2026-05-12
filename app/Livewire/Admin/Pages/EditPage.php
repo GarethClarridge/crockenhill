@@ -23,8 +23,6 @@ class EditPage extends Component
 
     public function mount(Page $page): void
     {
-        $this->authorizeAdmin();
-
         $this->page = $page;
         $this->form->setPage($page);
     }

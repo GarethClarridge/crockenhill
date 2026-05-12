@@ -52,11 +52,6 @@ class ListMeetings extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function mount(): void
-    {
-        $this->authorizeAdmin();
-    }
-
     public function updatedTypeFilter(): void
     {
         $this->resetPage();

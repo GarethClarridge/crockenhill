@@ -46,8 +46,6 @@ class EditSermon extends Component
 
     public function mount(Sermon $sermon, SermonViewPresenter $sermonViewPresenter): void
     {
-        $this->authorizeAdmin();
-
         $this->sermon = $sermon;
         $this->form->setSermon($sermon, $sermonViewPresenter);
 

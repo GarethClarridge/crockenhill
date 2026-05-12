@@ -60,9 +60,6 @@ class EditUser extends Component
 
     public function mount(User $user): void
     {
-
-        $this->authorizeAdmin();
-
         $this->user = $user;
         $this->name = $user->name;
         $this->email = $user->email;

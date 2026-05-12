@@ -31,9 +31,6 @@ class ProcessingReview extends Component
 
     public function mount(MediaProcessingLog $processingLog): void
     {
-
-        $this->authorizeAdmin();
-
         if (! $processingLog->canUseManualSermonReview()) {
             abort(404);
         }

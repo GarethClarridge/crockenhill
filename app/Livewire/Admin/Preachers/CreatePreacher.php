@@ -40,12 +40,6 @@ class CreatePreacher extends Component
         ];
     }
 
-    public function mount(): void
-    {
-
-        $this->authorizeAdmin();
-    }
-
     public function updatedName(): void
     {
         $this->slug = Str::slug($this->name);

@@ -38,8 +38,6 @@ class ReviewInboundEmails extends Component
 
     public function mount(): void
     {
-
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
 

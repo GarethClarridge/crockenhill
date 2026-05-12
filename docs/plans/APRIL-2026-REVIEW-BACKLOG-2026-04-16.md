@@ -141,7 +141,7 @@ Design decisions required before implementation:
 
 - What authentication/authorization check should the new video asset route use? The existing audio and thumbnail routes use throttle middleware but no auth gate — is that sufficient for private Children's Talk video, or does it need member-level auth?
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
 - ✅ `sermons.video` guarded route added — `SermonAssetController::serveVideo()` at `:99`, route at `routes/web.php:115` with `throttle:media-video`.
 - ✅ `SermonViewPresenter` resolves private audio/video/thumbnail to named guarded routes via `SermonStorageService` delivery methods.
@@ -380,12 +380,13 @@ Backlog:
 - Reuse or align existing upload validation rules so admin and API entrypoints do not drift.
 - Add or update endpoint-level request and authorization tests around the boundary rules that remain.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
-- ✅ `processingId` UUID validation centralised in `MediaProcessingRequest::assertProcessingIdShape()` at `:42`.
-- ✅ Authorization de-duplicated at request level — admin check and token ability at `MediaProcessingRequest:18`.
-- ⚠️ Admin upload uses `ProcessMediaRequest`; API uses `MediaProcessingRequest`. These are separate classes with no shared validation rules — the alignment requirement is not met.
-- ⚠️ Endpoint-level tests exist for some routes but full coverage of cancel, retry, and confirm-segment authorization was not confirmed.
+- ✅ Dedicated Form Requests remain in place for upload, status, cancel, retry, and confirm-segment endpoints.
+- ✅ `processingId` UUID validation centralised in `MediaProcessingRequest::assertProcessingIdShape()`.
+- ✅ Media-processing admin/token authorization now resolves through `MediaProcessingAccess`, which is shared by `media.process` middleware and `MediaProcessingRequest`.
+- ✅ Admin and API uploads both use `ProcessMediaRequest`; route-supplied API media types now resolve the same upload rules and validation messages as body-supplied admin media types.
+- ✅ Endpoint-level tests cover malformed processing IDs across status, cancel, retry, and confirm-segment, plus unauthenticated, non-admin, and missing-ability authorization coverage for the processing-management endpoints.
 
 Primary review coverage:
 
@@ -502,9 +503,9 @@ Backlog:
 - ✅ `PublicSongCatalogService::qualifyingUsageSubquery()` at `:162` correctly requires completed livestream log with confirmed match before excluding songs.
 - ✅ Sermon transcript lazy-loaded via Alpine fetch through `sermons.transcript` route — not embedded in initial HTML.
 - ✅ Sermon filter manifest inputs are cached/memoized — `Preacher::getForPublicList()` uses `public_preacher_list`, and `SermonRepository` caches `sermon_series`, `sermon_scripture_books_*`, and `sermon_scripture_chapters_*`.
-- ❌ No regression tests for song catalogue eligibility across failed/pending/in-progress/non-livestream/completed-without-confirmed-section processing states.
-- ⚠️ Meeting event archive output now separates upcoming and past events and caps past items at 20 in `resources/views/meetings/events.blade.php`, but the controller/service boundary still passes one combined event collection rather than query-level slices.
-- ❌ No surface-specific caches for home/church/community card rails.
+- ✅ Regression tests cover song catalogue eligibility across failed, pending, in-progress, non-livestream, and completed-without-confirmed-section processing states in `tests/Feature/PublicSongCatalogServiceTest.php`.
+- ✅ Meeting event archive queries are split at the service/controller boundary via `CalendarService::getUpcomingEventsForMeeting()` and `CalendarService::getRecentPastEventsForMeeting()`, with the recent past slice capped at 20 visible events.
+- ✅ Home/church/community card rails use targeted surface cache keys (`page_card_rail_home`, `page_card_rail_community`, `page_card_rail_church`) and query only their curated slugs.
 
 Primary review coverage:
 
@@ -671,6 +672,6 @@ Use this map to verify that every April review feeds at least one concrete backl
 - Upload retries are idempotent by scope and pipeline, not just by file hash. ✅
 - Active church-service workflow state no longer depends on hidden JSON contracts. ✅
 - The heaviest admin Livewire screens have thinner write and presentation seams. ⚠️ *(sermon and calendar done; ManageChurchService and ServiceReviewDashboard partial)*
-- Public browse routes stop doing obviously duplicate or overly eager work. ⚠️ *(single ownership, shared filter normalisation, transcript lazy-loading, and filter manifest caching done; meeting archive query splitting and card-rail caches still incomplete)*
+- Public browse routes stop doing obviously duplicate or overly eager work. ✅
 - Blade page shells use one explicit contract instead of mixing renderable layouts, dead sections, and component-side metadata mutation. ⚠️ *(x-admin shells exist; full adoption and layout/page dual-use resolution not confirmed)*
 - The test suite, standards layer, and operations docs reflect the current architecture rather than historical compromises. ⚠️ *(strict_types and chunk commands done; test taxonomy, resource tests, and docs not confirmed)*

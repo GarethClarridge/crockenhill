@@ -47,12 +47,6 @@ class ListUsers extends Component
     #[Url(except: self::DEFAULT_SORT_DIRECTION)]
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function mount(): void
-    {
-
-        $this->authorizeAdmin();
-    }
-
     /**
      * @return array<string, mixed>
      */

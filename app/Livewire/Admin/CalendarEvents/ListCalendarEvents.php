@@ -32,12 +32,6 @@ class ListCalendarEvents extends Component
     #[Url(except: true)]
     public bool $upcomingOnly = true;
 
-    public function mount(): void
-    {
-
-        $this->authorizeAdmin();
-    }
-
     /**
      * @return array<string, mixed>
      */

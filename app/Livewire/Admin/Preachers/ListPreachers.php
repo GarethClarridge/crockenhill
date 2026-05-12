@@ -44,11 +44,6 @@ class ListPreachers extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function mount(): void
-    {
-        $this->authorizeAdmin();
-    }
-
     public function updatedActiveFilter(): void
     {
         $this->resetPage();

@@ -18,11 +18,6 @@ class CreatePage extends Component
 
     public PageFormData $form;
 
-    public function mount(): void
-    {
-        $this->authorizeAdmin();
-    }
-
     /**
      * Store a newly created page in storage.
      *

@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route as LaravelRoute;
 use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class AdminLivewireAuthorizationTest extends TestCase
@@ -50,15 +51,7 @@ class AdminLivewireAuthorizationTest extends TestCase
     #[Test]
     public function every_routed_admin_livewire_component_uses_auth_verified_and_admin_middleware(): void
     {
-        $routes = collect(Route::getRoutes()->getRoutes())
-            ->filter(function (LaravelRoute $route): bool {
-                $uses = $route->getAction('uses');
-
-                return is_string($uses)
-                    && str_starts_with($route->uri(), 'admin/')
-                    && str_starts_with($uses, 'App\\Livewire\\Admin\\');
-            })
-            ->values();
+        $routes = $this->routedAdminLivewireRoutes();
 
         $this->assertNotEmpty($routes);
 
@@ -69,6 +62,39 @@ class AdminLivewireAuthorizationTest extends TestCase
             $this->assertContains('auth', $middleware, $label);
             $this->assertContains('verified', $middleware, $label);
             $this->assertContains('admin', $middleware, $label);
+        }
+    }
+
+    #[Test]
+    public function routed_admin_livewire_mount_methods_rely_on_route_middleware(): void
+    {
+        $componentClasses = $this->routedAdminLivewireComponentClasses();
+
+        $this->assertNotEmpty($componentClasses);
+
+        foreach ($componentClasses as $componentClass) {
+            if (! method_exists($componentClass, 'mount')) {
+                continue;
+            }
+
+            $method = new ReflectionMethod($componentClass, 'mount');
+            $fileName = $method->getFileName();
+            $this->assertIsString($fileName);
+
+            $sourceLines = file($fileName);
+            $this->assertIsArray($sourceLines);
+
+            $methodSource = implode('', array_slice(
+                $sourceLines,
+                $method->getStartLine() - 1,
+                $method->getEndLine() - $method->getStartLine() + 1,
+            ));
+
+            $this->assertStringNotContainsString(
+                'authorizeAdmin(',
+                $methodSource,
+                "{$componentClass}::mount() should rely on the admin route middleware."
+            );
         }
     }
 
@@ -149,5 +175,59 @@ class AdminLivewireAuthorizationTest extends TestCase
             ['admin.users.create', []],
             ['admin.users.edit', ['user' => $user]],
         ];
+    }
+
+    /**
+     * @return list<LaravelRoute>
+     */
+    private function routedAdminLivewireRoutes(): array
+    {
+        return collect(Route::getRoutes()->getRoutes())
+            ->filter(function (LaravelRoute $route): bool {
+                return str_starts_with($route->uri(), 'admin/')
+                    && $this->routedAdminLivewireComponentClass($route) !== null;
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<class-string>
+     */
+    private function routedAdminLivewireComponentClasses(): array
+    {
+        $classes = [];
+
+        foreach ($this->routedAdminLivewireRoutes() as $route) {
+            $componentClass = $this->routedAdminLivewireComponentClass($route);
+
+            if ($componentClass !== null) {
+                $classes[] = $componentClass;
+            }
+        }
+
+        return array_values(array_unique($classes));
+    }
+
+    /**
+     * @return class-string|null
+     */
+    private function routedAdminLivewireComponentClass(LaravelRoute $route): ?string
+    {
+        $uses = $route->getAction('uses');
+        if (! is_string($uses)) {
+            return null;
+        }
+
+        $componentClass = explode('@', $uses, 2)[0];
+        if (! str_starts_with($componentClass, 'App\\Livewire\\Admin\\')) {
+            return null;
+        }
+
+        if (! class_exists($componentClass)) {
+            return null;
+        }
+
+        return $componentClass;
     }
 }

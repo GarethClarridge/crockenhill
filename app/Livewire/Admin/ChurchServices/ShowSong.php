@@ -23,8 +23,6 @@ class ShowSong extends Component
 
     public function mount(Song $song): void
     {
-
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $this->song = $song->load([
@@ -81,12 +79,16 @@ class ShowSong extends Component
 
     public function featureVideo(int $videoId): void
     {
+        $this->authorizeAdmin();
+
         $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
         app(SongVideoService::class)->featureVideo($video);
     }
 
     public function unfeatureVideo(int $videoId): void
     {
+        $this->authorizeAdmin();
+
         $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
         app(SongVideoService::class)->unfeatureVideo($video);
     }
@@ -98,6 +100,8 @@ class ShowSong extends Component
      */
     public function deleteVideo(int $videoId): void
     {
+        $this->authorizeAdmin();
+
         $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
 
         Log::warning('Song video deleted by admin', [

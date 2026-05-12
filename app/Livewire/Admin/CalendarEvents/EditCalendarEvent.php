@@ -63,9 +63,6 @@ class EditCalendarEvent extends Component
 
     public function mount(CalendarEvent $calendarEvent): void
     {
-
-        $this->authorizeAdmin();
-
         $this->calendarEvent = $calendarEvent;
         $this->title = $calendarEvent->title;
         $this->description = $calendarEvent->description;
