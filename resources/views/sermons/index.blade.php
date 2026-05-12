@@ -19,6 +19,8 @@
     :description="$description"
     :image="asset('/images/headings/large/sermons.webp')"
 />
+
+<x-breadcrumbs :area="$area" :heading="$heading" json-only />
 @endsection
 
 @section('dynamic_content')

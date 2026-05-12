@@ -111,6 +111,11 @@ class BreadcrumbPresenter
             $items[] = ['name' => 'Members', 'item' => url('church/members')];
         } elseif ($segment2 === 'childrens-corner') {
             $items[] = ['name' => "Children's Corner", 'item' => url('christ/childrens-corner')];
+        } elseif ($segment2 === 'songs' && $this->request->segment(3) !== null) {
+            $items[] = ['name' => 'Songs', 'item' => url('church/songs')];
+        } elseif ($this->request->segment(1) === 'meetings' && $this->request->segment(3) === 'events') {
+            $meetingSlug = (string) $segment2;
+            $items[] = ['name' => Str::title(str_replace('-', ' ', $meetingSlug)), 'item' => url('community/'.$meetingSlug)];
         }
 
         return $items;

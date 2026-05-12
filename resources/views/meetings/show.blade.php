@@ -22,6 +22,8 @@
     :image="$headingpicture"
 />
 
+<x-breadcrumbs :area="$area" :heading="$heading" json-only />
+
 {{-- JSON-LD Recurring Event --}}
 @if($meeting->is_recurring && $meeting->frequency)
 <script type="application/ld+json">

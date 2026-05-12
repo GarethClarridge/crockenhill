@@ -17,6 +17,8 @@
     :image="asset('/images/headings/large/sermons.webp')"
 />
 
+<x-breadcrumbs :area="$area" :heading="$heading" json-only />
+
 {{-- JSON-LD Series List --}}
 @if(isset($json_ld_data))
 <script type="application/ld+json">

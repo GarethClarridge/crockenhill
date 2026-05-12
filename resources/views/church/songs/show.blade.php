@@ -15,6 +15,8 @@
     :heading="$heading"
     :description="$description"
 />
+
+<x-breadcrumbs :area="$area" :heading="$heading" json-only />
 <x-schema.music-composition :$song />
 @stop
 

@@ -14,6 +14,8 @@
     :description="$description"
 />
 
+<x-breadcrumbs :area="$area" :heading="$heading" json-only />
+
 {{-- JSON-LD Events List --}}
 @if($events->isNotEmpty())
 <script type="application/ld+json">
