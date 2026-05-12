@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class GenerateProdSermonPatchCommand extends Command
 {
@@ -53,6 +54,7 @@ class GenerateProdSermonPatchCommand extends Command
         $updates = [];
         $inserts = [];
         $skipped = 0;
+        $reservedInsertSlugs = $this->buildReservedInsertSlugs($prodSermons);
 
         foreach ($localSermons as $local) {
             $key = $local->date.'|'.$local->service;
@@ -69,7 +71,7 @@ class GenerateProdSermonPatchCommand extends Command
                 }
             } else {
                 // No prod counterpart — insert as new row, dropping preacher_id
-                $inserts[] = $this->buildInsertStatement($local);
+                $inserts[] = $this->buildInsertStatement($local, $reservedInsertSlugs);
             }
         }
 
@@ -136,7 +138,10 @@ class GenerateProdSermonPatchCommand extends Command
         return "UPDATE `sermons` SET {$set} WHERE `id` = {$prodId};";
     }
 
-    private function buildInsertStatement(object $local): string
+    /**
+     * @param  array<string, bool>  $reservedInsertSlugs
+     */
+    private function buildInsertStatement(object $local, array &$reservedInsertSlugs): string
     {
         $fields = [
             'date', 'service', 'content_type', 'audio_file_path',
@@ -146,9 +151,17 @@ class GenerateProdSermonPatchCommand extends Command
         ];
 
         $columns = implode(', ', array_map(fn (string $f) => "`{$f}`", $fields));
-        $values = implode(', ', array_map(fn (string $f) => $this->sqlValue($local->$f ?? null), $fields));
+        $values = [];
 
-        return "INSERT INTO `sermons` ({$columns}) VALUES ({$values});";
+        foreach ($fields as $field) {
+            $value = $field === 'slug'
+                ? $this->reserveInsertSlug($local, $reservedInsertSlugs)
+                : $local->$field ?? null;
+
+            $values[] = $this->sqlValue($value);
+        }
+
+        return 'INSERT INTO `sermons` ('.$columns.') VALUES ('.implode(', ', $values).');';
     }
 
     private function sqlValue(mixed $value): string
@@ -210,9 +223,9 @@ class GenerateProdSermonPatchCommand extends Command
             return [];
         }
 
-        $match = preg_match('/INSERT INTO `sermons` VALUES (.*?);/s', $sql, $matches);
+        $statements = $this->extractInsertStatements($sql);
 
-        if (! $match) {
+        if ($statements === []) {
             return [];
         }
 
@@ -228,28 +241,128 @@ class GenerateProdSermonPatchCommand extends Command
             'thumbnail_metadata', 'summary', 'meta_description', 'show_summary',
         ];
 
-        $rowsStr = $matches[1];
-        $rawRows = $this->extractRows($rowsStr);
         $sermons = [];
 
-        foreach ($rawRows as $raw) {
-            $fields = str_getcsv($raw);
+        foreach ($statements as $rowsStr) {
+            $rawRows = $this->extractRows($rowsStr);
 
-            if (count($fields) < count($cols)) {
-                continue;
+            foreach ($rawRows as $raw) {
+                $fields = str_getcsv($raw);
+
+                if (count($fields) < count($cols)) {
+                    continue;
+                }
+
+                $row = [];
+
+                foreach ($cols as $i => $col) {
+                    $v = trim($fields[$i] ?? '');
+                    $row[$col] = ($v === 'NULL') ? null : trim($v, "'");
+                }
+
+                $sermons[] = $row;
             }
-
-            $row = [];
-
-            foreach ($cols as $i => $col) {
-                $v = trim($fields[$i] ?? '');
-                $row[$col] = ($v === 'NULL') ? null : trim($v, "'");
-            }
-
-            $sermons[] = $row;
         }
 
         return $sermons;
+    }
+
+    /**
+     * @param  list<array<string, string|null>>  $prodSermons
+     * @return array<string, bool>
+     */
+    private function buildReservedInsertSlugs(array $prodSermons): array
+    {
+        $reservedSlugs = [];
+
+        foreach ($prodSermons as $row) {
+            $slug = $row['slug'] ?? null;
+
+            if (! is_string($slug) || trim($slug) === '') {
+                continue;
+            }
+
+            $reservedSlugs[$this->normalizeSlugKey($slug)] = true;
+        }
+
+        return $reservedSlugs;
+    }
+
+    /**
+     * @param  array<string, bool>  $reservedInsertSlugs
+     */
+    private function reserveInsertSlug(object $local, array &$reservedInsertSlugs): string
+    {
+        $existingSlug = trim((string) ($local->slug ?? ''));
+
+        if ($existingSlug !== '' && ! isset($reservedInsertSlugs[$this->normalizeSlugKey($existingSlug)])) {
+            $reservedInsertSlugs[$this->normalizeSlugKey($existingSlug)] = true;
+
+            return $existingSlug;
+        }
+
+        $baseSlug = $this->resolveSlugBase($local, $existingSlug);
+        $candidate = $baseSlug;
+        $suffix = 1;
+
+        while (isset($reservedInsertSlugs[$this->normalizeSlugKey($candidate)])) {
+            $candidate = "{$baseSlug}-{$suffix}";
+            $suffix++;
+        }
+
+        $reservedInsertSlugs[$this->normalizeSlugKey($candidate)] = true;
+
+        return $candidate;
+    }
+
+    private function resolveSlugBase(object $local, string $existingSlug): string
+    {
+        $titleSlug = Str::slug(trim((string) ($local->title ?? '')));
+
+        if ($titleSlug !== '') {
+            return $titleSlug;
+        }
+
+        if ($existingSlug !== '') {
+            return $existingSlug;
+        }
+
+        $fallbackParts = array_filter([
+            'legacy-sermon',
+            $local->date ?? null,
+            $local->service ?? null,
+        ]);
+
+        return Str::slug(implode(' ', $fallbackParts)) ?: 'legacy-sermon';
+    }
+
+    private function normalizeSlugKey(string $slug): string
+    {
+        return Str::lower(trim($slug));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function extractInsertStatements(string $sql): array
+    {
+        $needle = 'INSERT INTO `sermons` VALUES ';
+        $statements = [];
+        $offset = 0;
+
+        while (($start = strpos($sql, $needle, $offset)) !== false) {
+            $valuesOffset = $start + strlen($needle);
+            $end = $this->findStatementTerminator($sql, $valuesOffset);
+
+            if ($end === null) {
+                break;
+            }
+
+            $statements[] = substr($sql, $valuesOffset, $end - $valuesOffset);
+            $offset = $end + 1;
+        }
+
+        return $statements;
     }
 
     /** @return list<string> */
@@ -258,16 +371,22 @@ class GenerateProdSermonPatchCommand extends Command
         $rows = [];
         $depth = 0;
         $start = null;
+        $inString = false;
+        $isEscaped = false;
 
         for ($i = 0; $i < strlen($rowsStr); $i++) {
             $char = $rowsStr[$i];
 
-            if ($char === '(' && $depth === 0) {
+            if ($char === "'" && ! $isEscaped) {
+                $inString = ! $inString;
+            }
+
+            if (! $inString && $char === '(' && $depth === 0) {
                 $depth = 1;
                 $start = $i + 1;
-            } elseif ($char === '(') {
+            } elseif (! $inString && $char === '(') {
                 $depth++;
-            } elseif ($char === ')') {
+            } elseif (! $inString && $char === ')') {
                 $depth--;
 
                 if ($depth === 0 && $start !== null) {
@@ -275,9 +394,33 @@ class GenerateProdSermonPatchCommand extends Command
                     $start = null;
                 }
             }
+
+            $isEscaped = $char === '\\' && ! $isEscaped;
         }
 
         return $rows;
+    }
+
+    private function findStatementTerminator(string $sql, int $offset): ?int
+    {
+        $inString = false;
+        $isEscaped = false;
+
+        for ($i = $offset; $i < strlen($sql); $i++) {
+            $char = $sql[$i];
+
+            if ($char === "'" && ! $isEscaped) {
+                $inString = ! $inString;
+            }
+
+            if (! $inString && $char === ';') {
+                return $i;
+            }
+
+            $isEscaped = $char === '\\' && ! $isEscaped;
+        }
+
+        return null;
     }
 
     private function resolveDumpPath(): ?string
