@@ -198,18 +198,20 @@ class SermonStorageMaintenanceServiceTest extends TestCase
     #[Test]
     public function it_counts_storage_candidates_accurately(): void
     {
-        // Legacy: filetype is set, audio_file_path does NOT contain a slash
-        Sermon::factory()->create(['filetype' => 'mp3', 'audio_file_path' => 'legacyfile']);
+        // Legacy: audio_file_path does NOT contain a slash
+        Sermon::factory()->create(['audio_file_path' => 'legacyfile']);
+
+        // Storage: audio_file_path contains a slash
+        Sermon::factory()->create(['audio_file_path' => 'sermons/storage.mp3']);
 
         // Processing: transcript_file_path or video_file_path is set
         Sermon::factory()->create([
             'transcript_file_path' => 'transcripts/test.txt',
             'audio_file_path' => null,
-            'filetype' => 'mp3',
         ]);
 
         $this->assertEquals(1, $this->service->countStorageCandidates(['legacy']));
-        // Note: 'storage' pattern requires NULL filetype which is currently prevented by schema.
+        $this->assertEquals(1, $this->service->countStorageCandidates(['storage']));
         $this->assertEquals(1, $this->service->countStorageCandidates(['processing']));
     }
 
