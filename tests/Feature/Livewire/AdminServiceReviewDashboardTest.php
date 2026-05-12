@@ -165,6 +165,44 @@ class AdminServiceReviewDashboardTest extends TestCase
     }
 
     #[Test]
+    public function render_does_not_seed_edit_buffers_for_new_review_rows(): void
+    {
+        $this->actingAs($this->admin);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-31',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        $existingSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 1,
+            'title' => 'Existing review row',
+            'needs_manual_review' => true,
+        ]);
+
+        $component = Livewire::test(ServiceReviewDashboard::class)
+            ->assertSee('Existing review row');
+
+        $this->assertArrayHasKey($existingSection->id, $component->get('sectionEdits'));
+
+        $newSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_order' => 2,
+            'title' => 'New review row',
+            'needs_manual_review' => true,
+        ]);
+
+        $component
+            ->call('$refresh')
+            ->assertSee('New review row');
+
+        $this->assertArrayNotHasKey($newSection->id, $component->get('sectionEdits'));
+    }
+
+    #[Test]
     public function approve_and_reject_actions_update_publication_status(): void
     {
         Queue::fake();

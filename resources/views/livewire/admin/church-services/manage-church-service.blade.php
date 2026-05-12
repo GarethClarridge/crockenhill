@@ -1,6 +1,7 @@
 <x-admin.form-shell
     :title="$isEditing ? 'Edit service' : 'Create service'"
     :description="$isEditing ? 'Update the canonical order of service for this date and slot.' : 'Create a service manually when email or OpenLP is not available.'"
+    save-action="save"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
@@ -11,7 +12,7 @@
                 View service
             </x-button>
         @endif
-        <x-form-button variant="primary" wire:click="save" icon="check" data-form-action>
+        <x-form-button variant="primary" wire:click="save" icon="check">
             {{ $isEditing ? 'Save changes' : 'Create service' }}
         </x-form-button>
     </x-slot:actions>
@@ -21,12 +22,12 @@
             <x-input
                 label="Date"
                 type="date"
-                wire:model.live="date"
+                wire:model.live="form.date"
                 required />
 
             <x-select
                 label="Service"
-                wire:model.live="service"
+                wire:model.live="form.service"
                 :options="$serviceOptions"
                 placeholder="Choose a service"
                 required />
@@ -35,6 +36,12 @@
 
     <x-card heading="Service items">
         <div class="space-y-4">
+            @error('form.items')
+                <p class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+                    {{ $message }}
+                </p>
+            @enderror
+
             @foreach($items as $index => $item)
                 <div wire:key="{{ $item['key'] }}" class="rounded-lg border border-gray-200 p-4">
                     <div class="flex items-start justify-between gap-4">
@@ -76,7 +83,7 @@
                         <div class="md:col-span-2">
                             <x-select
                                 label="Type"
-                                wire:model.live="items.{{ $index }}.section_type"
+                                wire:model.live="form.items.{{ $index }}.section_type"
                                 :options="$sectionTypeOptions"
                                 required />
                         </div>
@@ -84,7 +91,7 @@
                         <div class="md:col-span-3">
                             <x-input
                                 label="{{ $item['section_type'] === \App\Enums\ServiceSectionType::SONG->value ? 'Song title' : 'Title' }}"
-                                wire:model.live.debounce.300ms="items.{{ $index }}.title"
+                                wire:model.live.debounce.300ms="form.items.{{ $index }}.title"
                                 required />
                         </div>
                     </div>
