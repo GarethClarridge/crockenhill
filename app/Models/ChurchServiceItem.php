@@ -36,6 +36,7 @@ use Illuminate\Validation\Rule;
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  * @property-read ChurchService $churchService
+ * @property-read ServiceSection|null $livestreamServiceSection
  * @property-read Song|null $song
  * @property-read Collection<int, ServiceSection> $serviceSections
  *
@@ -148,24 +149,9 @@ class ChurchServiceItem extends Model
      */
     public static function validationRules(?self $item = null, ?int $churchServiceId = null): array
     {
-        $positionRule = ['required', 'integer', 'min:1'];
-        $uniquePosition = Rule::unique('church_service_items', 'position')
-            ->whereNull('deleted_at');
-
-        if ($item) {
-            $uniquePosition->ignore($item->id);
-            $churchServiceId ??= $item->church_service_id;
-        }
-
-        if ($churchServiceId) {
-            $uniquePosition->where('church_service_id', $churchServiceId);
-        }
-
-        $positionRule[] = $uniquePosition;
-
         return [
             'church_service_id' => ['required', 'integer', 'exists:church_services,id'],
-            'position' => $positionRule,
+            'position' => ['required', 'integer', 'min:1'],
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'max:50'],
             'section_type' => ['nullable', Rule::enum(ServiceSectionType::class)],
@@ -184,27 +170,11 @@ class ChurchServiceItem extends Model
             return $this->section_type;
         }
 
-        $explicitMetadataType = $this->explicitMetadataSectionType();
-
-        if ($explicitMetadataType instanceof ServiceSectionType) {
-            return $explicitMetadataType;
-        }
-
         return match (strtolower($this->type)) {
             'songs' => ServiceSectionType::SONG,
             'bibles' => ServiceSectionType::BIBLE_READING,
             default => ServiceSectionType::inferFromTitle($this->title),
         };
-    }
-
-    public function explicitMetadataSectionType(): ?ServiceSectionType
-    {
-        $metadata = is_array($this->metadata) ? $this->metadata : [];
-        $metadataType = $metadata['section_type'] ?? null;
-
-        return is_string($metadataType)
-            ? ServiceSectionType::tryFrom($metadataType)
-            : null;
     }
 
     /**
@@ -221,6 +191,14 @@ class ChurchServiceItem extends Model
     public function song(): BelongsTo
     {
         return $this->belongsTo(Song::class);
+    }
+
+    /**
+     * @return BelongsTo<ServiceSection, $this>
+     */
+    public function livestreamServiceSection(): BelongsTo
+    {
+        return $this->belongsTo(ServiceSection::class, 'livestream_service_section_id');
     }
 
     /**

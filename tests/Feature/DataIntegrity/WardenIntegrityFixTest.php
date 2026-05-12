@@ -87,22 +87,32 @@ class WardenIntegrityFixTest extends TestCase
     }
 
     #[Test]
-    public function it_enforces_position_uniqueness_validation(): void
+    public function it_defers_position_uniqueness_to_the_database_constraint(): void
     {
         $service = ChurchService::factory()->create();
-        $item = ChurchServiceItem::factory()->create([
+        ChurchServiceItem::factory()->create([
             'church_service_id' => $service->id,
             'position' => 1,
         ]);
 
-        $rules = ChurchServiceItem::validationRules(churchServiceId: $service->id);
-
         $validator = Validator::make(
             ['church_service_id' => $service->id, 'position' => 1, 'title' => 'Test', 'type' => 'custom'],
-            $rules
+            ChurchServiceItem::validationRules(churchServiceId: $service->id)
         );
 
-        $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('position', $validator->errors()->toArray());
+        $this->assertFalse($validator->fails());
+
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('church_service_items_active_position_unique');
+
+        DB::table('church_service_items')->insert([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => null,
+            'title' => 'Duplicate position',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

@@ -410,12 +410,12 @@ Backlog:
 - Refactor `ManageChurchService` away from a large array-transport layer into `Livewire\Form` objects and smaller structured input boundaries.
 - Stop mutating write buffers during `ServiceReviewDashboard::render()` and make seeded edit state explicit.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
 - ✅ Sermon-edit `save()` at `EditSermon:70` calls `SaveSermonDetails` action (metadata only); `selectThumbnailCandidate()` at `:81` is a separate method.
 - ✅ Calendar-event categorisation routes through `CategorizeCalendarEvent` action via `CalendarAdminController:159`.
-- ⚠️ `ManageChurchService` uses `ChurchServiceFormData` at `:31`, but items are still transported as arrays at `:41` — not fully using `Livewire\Form` objects as specified.
-- ⚠️ `ServiceReviewDashboard::render()` mutation status could not be confirmed from available code — requires direct inspection.
+- ✅ `ManageChurchService` now keeps service details and item editing inside `ChurchServiceFormData`; the Livewire component no longer exposes a public `items` array and acts as an action/render coordinator.
+- ✅ `ServiceReviewDashboard` seeds edit buffers explicitly during `mount()` and `saveSection()` refreshes, while `render()` only reads dashboard groups and options. Regression coverage asserts render does not seed new edit-buffer rows.
 
 Primary review coverage:
 
@@ -672,7 +672,7 @@ Use this map to verify that every April review feeds at least one concrete backl
 - The app encodes two explicit auth levels: verified-member access for member content and verified-admin access for admin functionality. ✅
 - Upload retries are idempotent by scope and pipeline, not just by file hash. ✅
 - Active church-service workflow state no longer depends on hidden JSON contracts. ✅
-- The heaviest admin Livewire screens have thinner write and presentation seams. ⚠️ *(sermon and calendar done; ManageChurchService and ServiceReviewDashboard partial)*
+- The heaviest admin Livewire screens have thinner write and presentation seams. ✅
 - Public browse routes stop doing obviously duplicate or overly eager work. ✅
 - Blade page shells use one explicit contract instead of mixing renderable layouts, dead sections, and component-side metadata mutation. ⚠️ *(x-admin shells exist; full adoption and layout/page dual-use resolution not confirmed)*
 - The test suite, standards layer, and operations docs reflect the current architecture rather than historical compromises. ⚠️ *(strict_types and chunk commands done; test taxonomy, resource tests, and docs not confirmed)*

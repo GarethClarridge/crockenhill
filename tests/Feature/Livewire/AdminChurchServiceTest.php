@@ -214,16 +214,16 @@ class AdminChurchServiceTest extends TestCase
         $component = Livewire::test(ManageChurchService::class)
             ->set('form.date', '2026-05-03')
             ->set('form.service', SermonService::Morning->value)
-            ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
-            ->set('items.0.title', 'Welcome and Call to Worship')
+            ->set('form.items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->set('form.items.0.title', 'Welcome and Call to Worship')
             ->call('addItem')
-            ->set('items.1.section_type', ServiceSectionType::SONG->value)
-            ->set('items.1.title', 'Blessed')
+            ->set('form.items.1.section_type', ServiceSectionType::SONG->value)
+            ->set('form.items.1.title', 'Blessed')
             ->assertSee('Blessed Assurance')
             ->call('selectSong', 1, $song->id)
             ->call('addItem')
-            ->set('items.2.section_type', ServiceSectionType::BIBLE_READING->value)
-            ->set('items.2.title', 'John 3:16-21')
+            ->set('form.items.2.section_type', ServiceSectionType::BIBLE_READING->value)
+            ->set('form.items.2.title', 'John 3:16-21')
             ->call('save');
 
         $service = ChurchService::query()
@@ -250,6 +250,23 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function manual_service_items_are_managed_inside_the_form_object(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ManageChurchService::class)
+            ->assertSet('form.items.0.section_type', ServiceSectionType::SONG->value)
+            ->call('addItem')
+            ->set('form.items.1.section_type', ServiceSectionType::WELCOME->value)
+            ->set('form.items.1.title', 'Welcome')
+            ->call('removeItem', 0)
+            ->assertSet('form.items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->assertSet('form.items.0.title', 'Welcome');
+
+        $this->assertFalse((new \ReflectionClass(ManageChurchService::class))->hasProperty('items'));
+    }
+
+    #[Test]
     public function manual_save_emits_one_canonical_list_changed_event(): void
     {
         Event::fake([ChurchServiceCanonicalListChanged::class]);
@@ -258,8 +275,8 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ManageChurchService::class)
             ->set('form.date', '2026-05-03')
             ->set('form.service', SermonService::Morning->value)
-            ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
-            ->set('items.0.title', 'Welcome and Call to Worship')
+            ->set('form.items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->set('form.items.0.title', 'Welcome and Call to Worship')
             ->call('save');
 
         $service = ChurchService::query()->firstOrFail();
@@ -323,14 +340,14 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         $component = Livewire::test(ManageChurchService::class, ['churchService' => $service])
-            ->assertSet('items.0.section_type', ServiceSectionType::WELCOME->value)
-            ->assertSet('items.1.section_type', ServiceSectionType::PRAYER->value)
+            ->assertSet('form.items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->assertSet('form.items.1.section_type', ServiceSectionType::PRAYER->value)
             ->call('moveItemDown', 0)
             ->call('removeItem', 2)
-            ->set('items.1.title', 'Welcome and Notices')
+            ->set('form.items.1.title', 'Welcome and Notices')
             ->call('addItem')
-            ->set('items.2.section_type', ServiceSectionType::SONG->value)
-            ->set('items.2.title', 'Closing')
+            ->set('form.items.2.section_type', ServiceSectionType::SONG->value)
+            ->set('form.items.2.title', 'Closing')
             ->assertSee('Closing Song')
             ->call('selectSong', 2, $song->id)
             ->call('save');
@@ -388,7 +405,7 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ManageChurchService::class, ['churchService' => $service])
-            ->set('items.0.title', 'Welcome and Notices')
+            ->set('form.items.0.title', 'Welcome and Notices')
             ->call('save')
             ->assertRedirect(route('admin.services.show', $service));
 
@@ -450,12 +467,12 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ManageChurchService::class)
-            ->set('items.0.section_type', ServiceSectionType::SONG->value)
-            ->set('items.0.title', 'Living')
+            ->set('form.items.0.section_type', ServiceSectionType::SONG->value)
+            ->set('form.items.0.title', 'Living')
             ->assertSee('Living Hope')
             ->call('selectSong', 0, $song->id)
-            ->assertSet('items.0.song_id', $song->id)
-            ->assertSet('items.0.title', 'Living Hope');
+            ->assertSet('form.items.0.song_id', $song->id)
+            ->assertSet('form.items.0.title', 'Living Hope');
     }
 
     #[Test]
@@ -469,8 +486,8 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ManageChurchService::class)
-            ->set('items.0.section_type', ServiceSectionType::SONG->value)
-            ->set('items.0.title', '%%')
+            ->set('form.items.0.section_type', ServiceSectionType::SONG->value)
+            ->set('form.items.0.title', '%%')
             ->assertDontSee('Living Hope');
     }
 
@@ -487,8 +504,8 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ManageChurchService::class)
             ->set('form.date', '2026-05-17')
             ->set('form.service', SermonService::Morning->value)
-            ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
-            ->set('items.0.title', 'Welcome')
+            ->set('form.items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->set('form.items.0.title', 'Welcome')
             ->call('save')
             ->assertHasErrors(['form.date' => ['unique']]);
     }
@@ -1006,9 +1023,9 @@ class AdminChurchServiceTest extends TestCase
                 'date' => '2026-03-23',
                 'service' => SermonService::Morning,
                 'needs_review' => true,
+                'pending_structure_merge_source' => ChurchServiceItemSource::OpenLp->value,
                 'import_metadata' => [
                     'pending_structure_merge' => [
-                        'incoming_source' => 'openlp',
                         'created_at' => now()->toIso8601String(),
                         'confidence' => ['current' => 'high', 'incoming' => 'high'],
                         'conflicts' => [
@@ -1076,7 +1093,6 @@ class AdminChurchServiceTest extends TestCase
                 'pending_structure_merge_source' => 'UPLOAD',
                 'import_metadata' => [
                     'pending_structure_merge' => [
-                        'incoming_source' => 'openlp',
                         'created_at' => now()->toIso8601String(),
                         'confidence' => ['current' => 'high', 'incoming' => 'high'],
                         'conflicts' => [],
