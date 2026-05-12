@@ -8,6 +8,7 @@ use App\Enums\PageArea;
 use App\Models\Page;
 use App\Services\PageCardService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -20,6 +21,8 @@ class PageCardServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->forgetPageCardCaches();
+
         $this->service = app(PageCardService::class);
     }
 
@@ -53,6 +56,45 @@ class PageCardServiceTest extends TestCase
         $results = $this->service->forHome();
 
         $this->assertCount(2, $results);
+        $this->assertTrue($results->contains('slug', 'sunday-evenings'));
+        $this->assertTrue($results->contains('slug', 'bible-study'));
+        $this->assertFalse($results->contains('slug', 'unrelated-page'));
+    }
+
+    #[Test]
+    public function it_uses_a_surface_specific_cache_for_home_cards(): void
+    {
+        $this->forgetFlexibleCache('page_card_rail_home');
+        $this->forgetFlexibleCache('page_links_community');
+
+        $this->deletePagesForSlugs([
+            'sunday-evenings',
+            'bible-study',
+            'unrelated-page',
+        ]);
+
+        Page::factory()->create([
+            'slug' => 'sunday-evenings',
+            'area' => PageArea::Community,
+            'admin' => 'no',
+        ]);
+
+        Page::factory()->create([
+            'slug' => 'bible-study',
+            'area' => PageArea::Community,
+            'admin' => 'no',
+        ]);
+
+        Page::factory()->create([
+            'slug' => 'unrelated-page',
+            'area' => PageArea::Community,
+            'admin' => 'no',
+        ]);
+
+        $results = $this->service->forHome();
+
+        $this->assertTrue(Cache::has('page_card_rail_home'));
+        $this->assertFalse(Cache::has('page_links_community'));
         $this->assertTrue($results->contains('slug', 'sunday-evenings'));
         $this->assertTrue($results->contains('slug', 'bible-study'));
         $this->assertFalse($results->contains('slug', 'unrelated-page'));
@@ -206,5 +248,24 @@ class PageCardServiceTest extends TestCase
     private function deletePagesForSlugs(array $slugs): void
     {
         Page::query()->whereIn('slug', $slugs)->delete();
+    }
+
+    private function forgetFlexibleCache(string $cacheKey): void
+    {
+        Cache::forget($cacheKey);
+        Cache::forget("illuminate:cache:flexible:created:{$cacheKey}");
+    }
+
+    private function forgetPageCardCaches(): void
+    {
+        foreach ([
+            'page_card_rail_home',
+            'page_card_rail_community',
+            'page_card_rail_church',
+            'page_links_church',
+            'page_links_community',
+        ] as $cacheKey) {
+            $this->forgetFlexibleCache($cacheKey);
+        }
     }
 }

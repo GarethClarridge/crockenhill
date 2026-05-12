@@ -12,6 +12,37 @@ use Illuminate\Support\Collection;
 
 class PageCardService
 {
+    /**
+     * @var list<string>
+     */
+    private const HOME_CARD_SLUGS = [
+        'sunday-evenings',
+        'bible-study',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    private const COMMUNITY_CARD_SLUGS = [
+        'coffee-cup',
+        'baby-talk',
+        'sunday-mornings',
+        'family-talk',
+        'buzz-club',
+        'christianity-explored',
+        'bible-study',
+        'carols-in-the-chequers',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    private const CHURCH_CARD_SLUGS = [
+        'sunday-mornings',
+        'sunday-evenings',
+        'bible-study',
+    ];
+
     public function __construct(
         private readonly PageCardPresenter $pageCardPresenter,
         private readonly PageRepository $pageRepository
@@ -22,10 +53,7 @@ class PageCardService
      */
     public function forHome(): Collection
     {
-        return $this->communityPages([
-            'sunday-evenings',
-            'bible-study',
-        ]);
+        return $this->communityPages(self::HOME_CARD_SLUGS, 'page_card_rail_home');
     }
 
     /**
@@ -33,16 +61,7 @@ class PageCardService
      */
     public function forCommunity(): Collection
     {
-        return $this->communityPages([
-            'coffee-cup',
-            'baby-talk',
-            'sunday-mornings',
-            'family-talk',
-            'buzz-club',
-            'christianity-explored',
-            'bible-study',
-            'carols-in-the-chequers',
-        ]);
+        return $this->communityPages(self::COMMUNITY_CARD_SLUGS, 'page_card_rail_community');
     }
 
     /**
@@ -50,11 +69,7 @@ class PageCardService
      */
     public function forChurch(): Collection
     {
-        return $this->communityPages([
-            'sunday-mornings',
-            'sunday-evenings',
-            'bible-study',
-        ]);
+        return $this->communityPages(self::CHURCH_CARD_SLUGS, 'page_card_rail_church');
     }
 
     /**
@@ -80,16 +95,9 @@ class PageCardService
      * @param  list<string>  $slugs
      * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
      */
-    private function communityPages(array $slugs): Collection
+    private function communityPages(array $slugs, string $cacheKey): Collection
     {
-        /**
-         * Performance Optimization: Use PageRepository to fetch cached area links.
-         */
-        $pages = $this->pageRepository->getAllLinksForArea(PageArea::Community)
-            ->filter(function (Page $page) use ($slugs) {
-                return in_array($page->slug, $slugs, true);
-            })
-            ->values();
+        $pages = $this->pageRepository->getLinksForAreaSlugs(PageArea::Community, $slugs, $cacheKey);
 
         return $this->pageCardPresenter->presentCollection($pages);
     }

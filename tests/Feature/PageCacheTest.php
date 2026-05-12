@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Page;
 use App\Repositories\PageRepository;
+use App\Services\PageCardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
@@ -108,5 +109,28 @@ class PageCacheTest extends TestCase
 
         $this->assertFalse(Cache::has('page_links_church'));
         $this->assertTrue(Cache::has('page_links_community'));
+    }
+
+    #[Test]
+    public function page_card_rail_caches_are_invalidated_when_pages_change(): void
+    {
+        Cache::forget('page_card_rail_home');
+        Cache::forget('illuminate:cache:flexible:created:page_card_rail_home');
+
+        Page::query()->where('slug', 'sunday-evenings')->delete();
+
+        $page = Page::factory()->create([
+            'slug' => 'sunday-evenings',
+            'area' => 'community',
+            'admin' => 'no',
+        ]);
+
+        app(PageCardService::class)->forHome();
+
+        $this->assertTrue(Cache::has('page_card_rail_home'));
+
+        $page->update(['heading' => 'Updated Sunday Evenings']);
+
+        $this->assertFalse(Cache::has('page_card_rail_home'));
     }
 }

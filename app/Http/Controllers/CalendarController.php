@@ -39,14 +39,21 @@ class CalendarController extends Controller
 
     public function eventsForMeeting(Meeting $meeting): View
     {
-        $events = $this->calendarService->getEventsForMeeting($meeting->slug)
-            ->sortBy('start_datetime');
+        $pastEventsLimit = 20;
+        $upcomingEvents = $this->calendarService->getUpcomingEventsForMeeting($meeting->slug);
+        $recentPastEvents = $this->calendarService
+            ->getRecentPastEventsForMeeting($meeting->slug, $pastEventsLimit + 1);
+        $pastEvents = $recentPastEvents->take($pastEventsLimit)->values();
 
         $meetingName = $meeting->heading ?? Str::title(str_replace('-', ' ', $meeting->slug));
 
         return view('meetings.events', [
             'meeting' => $meeting,
-            'events' => $events,
+            'upcomingEvents' => $upcomingEvents,
+            'pastEvents' => $pastEvents,
+            'hasMorePastEvents' => $recentPastEvents->count() > $pastEventsLimit,
+            'schemaEvents' => $upcomingEvents->concat($pastEvents)->values(),
+            'pastEventsLimit' => $pastEventsLimit,
             'heading' => $meetingName.' - All Events',
             'description' => "View all upcoming and past calendar events for {$meetingName} at Crockenhill Baptist Church.",
             'content' => '',

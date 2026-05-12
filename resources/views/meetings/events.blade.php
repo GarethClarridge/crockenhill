@@ -17,12 +17,12 @@
 <x-breadcrumbs :area="$area" :heading="$heading" json-only />
 
 {{-- JSON-LD Events List --}}
-@if($events->isNotEmpty())
+@if($schemaEvents->isNotEmpty())
 <script type="application/ld+json">
 {!! json_encode([
     '@context' => 'https://schema.org',
     '@type' => 'ItemList',
-    'itemListElement' => $events->values()->map(function ($event, $index) {
+    'itemListElement' => $schemaEvents->values()->map(function ($event, $index) {
         $eventData = [
             '@type' => 'ListItem',
             'position' => $index + 1,
@@ -70,13 +70,8 @@
   <p><a href="{{ route('meetings.show', $meeting) }}" wire:navigate class="text-blue-600 hover:underline">&larr; Back to {{ $meeting->heading }}</a></p>
 </div>
 
-@if($events->count() > 0)
-  @php
-    $upcomingEvents = $events->where('start_datetime', '>=', now());
-    $pastEvents = $events->where('start_datetime', '<', now())->sortByDesc('start_datetime');
-  @endphp
-  
-  @if($upcomingEvents->count() > 0)
+@if($upcomingEvents->isNotEmpty() || $pastEvents->isNotEmpty())
+  @if($upcomingEvents->isNotEmpty())
     <div class="mb-8">
       <h2 class="text-2xl font-bold text-gray-900 mb-4">Upcoming Events</h2>
       <div class="space-y-4">
@@ -93,11 +88,11 @@
     </div>
   @endif
   
-  @if($pastEvents->count() > 0)
+  @if($pastEvents->isNotEmpty())
     <div>
       <h2 class="text-2xl font-bold text-gray-900 mb-4">Past Events</h2>
       <div class="space-y-3">
-        @foreach($pastEvents->take(20) as $event)
+        @foreach($pastEvents as $event)
           <x-calendar-event-card 
             :event="$event" 
             :meeting="$meeting"
@@ -106,9 +101,9 @@
             date-format="M j, Y"
           />
         @endforeach
-        
-        @if($pastEvents->count() > 20)
-          <p class="text-sm text-gray-500 text-center">Showing 20 most recent past events</p>
+
+        @if($hasMorePastEvents)
+          <p class="text-sm text-gray-500 text-center">Showing {{ $pastEventsLimit }} most recent past events</p>
         @endif
       </div>
     </div>

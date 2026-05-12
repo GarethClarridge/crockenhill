@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -13,6 +14,13 @@ use Tests\TestCase;
 class CalendarControllerTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     #[Test]
     public function calendar_index_shows_upcoming_confirmed_events(): void
@@ -110,6 +118,51 @@ class CalendarControllerTest extends TestCase
         $response->assertDontSee('Tentative Meeting Event');
         $response->assertDontSee('Cancelled Event');
         $response->assertDontSee('Other Meeting Event');
+    }
+
+    #[Test]
+    public function events_for_meeting_renders_upcoming_events_and_only_the_recent_past_slice(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 12, 12, 0, 0));
+
+        $meeting = Meeting::factory()->create(['slug' => 'specific-meeting']);
+        Meeting::factory()->create(['slug' => 'other-meeting']);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'specific-meeting',
+            'title' => 'Upcoming Meeting Event',
+            'status' => 'confirmed',
+            'start_datetime' => now()->addDay(),
+            'end_datetime' => now()->addDay()->addHour(),
+        ]);
+
+        for ($day = 1; $day <= 21; $day++) {
+            CalendarEvent::factory()->create([
+                'meeting_slug' => 'specific-meeting',
+                'title' => "Past Meeting Event {$day}",
+                'status' => 'confirmed',
+                'start_datetime' => now()->subDays($day),
+                'end_datetime' => now()->subDays($day)->addHour(),
+            ]);
+        }
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'other-meeting',
+            'title' => 'Other Meeting Past Event',
+            'status' => 'confirmed',
+            'start_datetime' => now()->subDay(),
+            'end_datetime' => now()->subDay()->addHour(),
+        ]);
+
+        $response = $this->get(route('meetings.events', $meeting));
+
+        $response->assertStatus(200);
+        $response->assertSee('Upcoming Meeting Event');
+        $response->assertSee('Past Meeting Event 1');
+        $response->assertSee('Past Meeting Event 20');
+        $response->assertDontSee('Past Meeting Event 21');
+        $response->assertDontSee('Other Meeting Past Event');
+        $response->assertSee('Showing 20 most recent past events');
     }
 
     #[Test]

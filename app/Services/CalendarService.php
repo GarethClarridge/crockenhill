@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\CalendarEvent;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -20,10 +21,7 @@ class CalendarService
      */
     public function getEventsForMeeting(string $meetingSlug, ?Carbon $startDate = null, ?Carbon $endDate = null): Collection
     {
-        $query = CalendarEvent::query()
-            ->forCard()
-            ->where('meeting_slug', $meetingSlug)
-            ->confirmed()
+        $query = $this->meetingEventsQuery($meetingSlug)
             ->orderBy('start_datetime');
 
         if ($startDate) {
@@ -35,6 +33,29 @@ class CalendarService
         }
 
         return $query->get();
+    }
+
+    /**
+     * @return Collection<int, CalendarEvent>
+     */
+    public function getUpcomingEventsForMeeting(string $meetingSlug, ?Carbon $from = null): Collection
+    {
+        return $this->meetingEventsQuery($meetingSlug)
+            ->where('start_datetime', '>=', $from ?? now())
+            ->orderBy('start_datetime')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, CalendarEvent>
+     */
+    public function getRecentPastEventsForMeeting(string $meetingSlug, int $limit = 20, ?Carbon $before = null): Collection
+    {
+        return $this->meetingEventsQuery($meetingSlug)
+            ->where('start_datetime', '<', $before ?? now())
+            ->orderByDesc('start_datetime')
+            ->limit($limit)
+            ->get();
     }
 
     /**
@@ -107,5 +128,16 @@ class CalendarService
         $googleSynced = $this->googleSync->removeCategorizationFromGoogle($event->google_event_id);
 
         return new CalendarCategorizationResult($event, $googleSynced);
+    }
+
+    /**
+     * @return Builder<CalendarEvent>
+     */
+    private function meetingEventsQuery(string $meetingSlug): Builder
+    {
+        return CalendarEvent::query()
+            ->forCard()
+            ->where('meeting_slug', $meetingSlug)
+            ->confirmed();
     }
 }

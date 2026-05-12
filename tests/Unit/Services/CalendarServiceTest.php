@@ -129,6 +129,95 @@ class CalendarServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_upcoming_events_for_a_meeting_ordered_ascending(): void
+    {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+        Meeting::factory()->create(['slug' => 'other-meeting']);
+
+        $now = Carbon::create(2026, 5, 12, 12, 0, 0);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'title' => 'Later Upcoming Event',
+            'start_datetime' => $now->copy()->addDays(5),
+            'end_datetime' => $now->copy()->addDays(5)->addHour(),
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'title' => 'Soon Upcoming Event',
+            'start_datetime' => $now->copy()->addDay(),
+            'end_datetime' => $now->copy()->addDay()->addHour(),
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'title' => 'Past Event',
+            'start_datetime' => $now->copy()->subDay(),
+            'end_datetime' => $now->copy()->subDay()->addHour(),
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'other-meeting',
+            'title' => 'Other Meeting Event',
+            'start_datetime' => $now->copy()->addDay(),
+            'end_datetime' => $now->copy()->addDay()->addHour(),
+        ]);
+
+        $events = $this->service->getUpcomingEventsForMeeting('sunday-morning', $now);
+
+        $this->assertSame(['Soon Upcoming Event', 'Later Upcoming Event'], $events->pluck('title')->all());
+    }
+
+    #[Test]
+    public function it_returns_recent_past_events_for_a_meeting_with_an_explicit_limit(): void
+    {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+        Meeting::factory()->create(['slug' => 'other-meeting']);
+
+        $now = Carbon::create(2026, 5, 12, 12, 0, 0);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'title' => 'Newest Past Event',
+            'start_datetime' => $now->copy()->subDay(),
+            'end_datetime' => $now->copy()->subDay()->addHour(),
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'title' => 'Second Past Event',
+            'start_datetime' => $now->copy()->subDays(2),
+            'end_datetime' => $now->copy()->subDays(2)->addHour(),
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'title' => 'Older Past Event',
+            'start_datetime' => $now->copy()->subDays(3),
+            'end_datetime' => $now->copy()->subDays(3)->addHour(),
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'title' => 'Upcoming Event',
+            'start_datetime' => $now->copy()->addDay(),
+            'end_datetime' => $now->copy()->addDay()->addHour(),
+        ]);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'other-meeting',
+            'title' => 'Other Meeting Past Event',
+            'start_datetime' => $now->copy()->subDay(),
+            'end_datetime' => $now->copy()->subDay()->addHour(),
+        ]);
+
+        $events = $this->service->getRecentPastEventsForMeeting('sunday-morning', 2, $now);
+
+        $this->assertSame(['Newest Past Event', 'Second Past Event'], $events->pluck('title')->all());
+    }
+
+    #[Test]
     public function it_returns_all_upcoming_events(): void
     {
         Meeting::factory()->create(['slug' => 'sunday-morning']);

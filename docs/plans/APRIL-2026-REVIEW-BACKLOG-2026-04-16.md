@@ -499,7 +499,7 @@ Backlog:
 - Split meeting event archive queries into upcoming and recent past slices, with an explicit recent-past limit and pagination only as a later extension.
 - Introduce smaller surface-specific caches for curated home/church/community card rails, or query only the needed slugs.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-12):**
 
 - ✅ Single owner for sermon archive query — `SermonController:45` owns controller query and JSON-LD; `BrowseSermons` owns paginated Livewire filtering.
 - ✅ Filter normalisation in shared `SermonRepository::normalizeArchiveFilters()` used by both surfaces.
