@@ -45,11 +45,13 @@ class SermonStorageMaintenanceService
         foreach ($patterns as $pattern) {
             $query = match ($pattern) {
                 'legacy' => Sermon::query()
-                    ->whereNotNull('filetype')
+                    ->whereNotNull('audio_file_path')
+                    ->where('audio_file_path', '!=', '')
                     ->whereRaw('audio_file_path NOT LIKE "%/%"'),
                 'storage' => Sermon::query()
-                    ->whereRaw('audio_file_path LIKE "%/%"')
-                    ->whereNull('filetype'),
+                    ->whereNotNull('audio_file_path')
+                    ->where('audio_file_path', '!=', '')
+                    ->whereRaw('audio_file_path LIKE "%/%"'),
                 'processing' => Sermon::query()
                     ->where(function ($query): void {
                         $query->whereNotNull('transcript_file_path')
@@ -377,12 +379,14 @@ class SermonStorageMaintenanceService
         foreach ($patterns as $pattern) {
             $count += match ($pattern) {
                 'legacy' => Sermon::query()
-                    ->whereNotNull('filetype')
+                    ->whereNotNull('audio_file_path')
+                    ->where('audio_file_path', '!=', '')
                     ->whereRaw('audio_file_path NOT LIKE "%/%"')
                     ->count(),
                 'storage' => Sermon::query()
+                    ->whereNotNull('audio_file_path')
+                    ->where('audio_file_path', '!=', '')
                     ->whereRaw('audio_file_path LIKE "%/%"')
-                    ->whereNull('filetype')
                     ->count(),
                 'processing' => Sermon::query()
                     ->where(function ($query): void {
