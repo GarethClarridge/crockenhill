@@ -28,6 +28,7 @@
                 icon="magnifying-glass"
                 clearable
                 autofocus
+                shortcut="slash"
                 class="text-lg py-4"
             />
         </div>
@@ -105,11 +106,16 @@
 
                         <div class="flex flex-col flex-1 p-6 @if (!empty($snippetsBySongId[$song->id])) pb-0 @endif">
                             <div class="flex items-start justify-between gap-4">
-                                <a class="group" href="{{ $songUrl }}" wire:navigate tabindex="-1">
-                                    <h2 class="font-display text-3xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
-                                        {{ $song->title }}
-                                    </h2>
-                                </a>
+                                <div class="flex flex-col gap-2">
+                                    <a class="group" href="{{ $songUrl }}" wire:navigate tabindex="-1">
+                                        <h2 class="font-display text-3xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
+                                            {{ $song->title }}
+                                        </h2>
+                                    </a>
+                                    <div class="relative z-10">
+                                        <x-clipboard-button :url="$songUrl" hideLabel label="Copy link to {{ $song->title }}" title="Copy link to clipboard" />
+                                    </div>
+                                </div>
 
                                 <div class="shrink-0 rounded-2xl bg-cbc-teal-dark px-4 py-3 text-center text-white shadow-sm">
                                     <p class="text-xs uppercase tracking-[0.2em] text-white/75">Uses</p>
