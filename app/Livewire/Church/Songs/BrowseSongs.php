@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Church\Songs;
 
 use App\Models\Song;
+use App\Presenters\SongItemListPresenter;
 use App\Services\PublicSongCatalogService;
 use App\Services\SongLyricSnippetBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -16,6 +17,8 @@ use Livewire\WithPagination;
 
 /**
  * @property-read string $seoTitle
+ * @property-read array<string, mixed> $jsonLdData
+ * @property-read LengthAwarePaginator<int, Song> $songs
  */
 class BrowseSongs extends Component
 {
@@ -49,15 +52,35 @@ class BrowseSongs extends Component
             : 'All Songs';
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    #[Computed]
+    public function jsonLdData(): array
+    {
+        return app(SongItemListPresenter::class)->toItemList($this->songs->getCollection());
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, Song>
+     */
+    #[Computed]
+    public function songs(): LengthAwarePaginator
+    {
+        $normalizedRange = app(PublicSongCatalogService::class)->normalizeRange($this->range);
+
+        return app(PublicSongCatalogService::class)->query($normalizedRange, $this->search)
+            ->paginate(24)
+            ->withQueryString();
+    }
+
     public function render(PublicSongCatalogService $catalogService, SongLyricSnippetBuilder $snippetBuilder): View
     {
         $normalizedRange = $catalogService->normalizeRange($this->range);
         $tokens = $catalogService->tokenize($this->search);
 
         /** @var LengthAwarePaginator<int, Song> $songs */
-        $songs = $catalogService->query($normalizedRange, $this->search)
-            ->paginate(24)
-            ->withQueryString();
+        $songs = $this->songs;
 
         // Build lyric snippets only when a search is active and only for songs
         // whose match may be in the lyrics (not already explained by title alone).

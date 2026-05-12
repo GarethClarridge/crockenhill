@@ -16,7 +16,7 @@ class SongSeoTest extends TestCase
     use DatabaseTransactions;
 
     #[Test]
-    public function song_index_has_correct_metadata()
+    public function song_index_has_correct_metadata(): void
     {
         $user = User::factory()->create();
 
@@ -32,7 +32,7 @@ class SongSeoTest extends TestCase
     }
 
     #[Test]
-    public function song_detail_page_has_correct_metadata_and_structured_data()
+    public function song_detail_page_has_correct_metadata_and_structured_data(): void
     {
         $user = User::factory()->create();
         $author = SongAuthor::factory()->create(['display_name' => 'Stuart Townend']);
@@ -55,5 +55,42 @@ class SongSeoTest extends TestCase
         $response->assertSee('"url": "http://localhost/church/songs/in-christ-alone"', false);
         $response->assertSee('"@type": "Person"', false);
         $response->assertSee('"name": "Stuart Townend"', false);
+    }
+
+    #[Test]
+    public function song_index_has_item_list_structured_data(): void
+    {
+        $user = User::factory()->create();
+        $author = SongAuthor::factory()->create(['display_name' => 'Author Name']);
+        $songs = Song::factory()->count(3)->create();
+
+        foreach ($songs as $song) {
+            $song->authors()->attach($author);
+        }
+
+        $response = $this->actingAs($user)->get(route('church.songs.index', ['range' => 'all']));
+
+        $response->assertStatus(200);
+        $response->assertSee('"@type": "ItemList"', false);
+        $response->assertSee('"numberOfItems": 3', false);
+        $response->assertSee('"@type": "MusicComposition"', false);
+        $response->assertSee($songs->first()->title);
+        $response->assertSee('Author Name');
+    }
+
+    #[Test]
+    public function song_search_results_have_correct_item_list_count(): void
+    {
+        $user = User::factory()->create();
+        Song::factory()->create(['title' => 'Amazing Grace']);
+        Song::factory()->create(['title' => 'How Great Thou Art']);
+
+        $response = $this->actingAs($user)->get(route('church.songs.index', ['q' => 'Grace', 'range' => 'all']));
+
+        $response->assertStatus(200);
+        $response->assertSee('"@type": "ItemList"', false);
+        $response->assertSee('"numberOfItems": 1', false);
+        $response->assertSee('Amazing Grace');
+        $response->assertDontSee('How Great Thou Art');
     }
 }
