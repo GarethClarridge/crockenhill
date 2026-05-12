@@ -67,20 +67,18 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() === 'mysql') {
+            $this->dropConstraintIfExists('song_authors', self::DISPLAY_NAME_CHECK);
+            $this->dropConstraintIfExists('song_authors', self::FIRST_NAME_CHECK);
+            $this->dropConstraintIfExists('song_authors', self::LAST_NAME_CHECK);
+
+            // Restore legacy constraint
+            DB::statement("ALTER TABLE song_authors ADD CONSTRAINT song_authors_display_name_check CHECK (display_name <> '')");
+        }
+
         Schema::table('song_authors', function (Blueprint $table) {
             $table->string('display_name')->nullable()->change();
         });
-
-        if (DB::getDriverName() !== 'mysql') {
-            return;
-        }
-
-        DB::statement(sprintf('ALTER TABLE song_authors DROP CHECK IF EXISTS %s', self::DISPLAY_NAME_CHECK));
-        DB::statement(sprintf('ALTER TABLE song_authors DROP CHECK IF EXISTS %s', self::FIRST_NAME_CHECK));
-        DB::statement(sprintf('ALTER TABLE song_authors DROP CHECK IF EXISTS %s', self::LAST_NAME_CHECK));
-
-        // Restore legacy constraint
-        DB::statement("ALTER TABLE song_authors ADD CONSTRAINT song_authors_display_name_check CHECK (display_name <> '')");
     }
 
     private function dropConstraintIfExists(string $table, string $constraint): void
