@@ -182,7 +182,7 @@ class SermonValidationService
             }
 
             // Check slug uniqueness (if sermon ID provided, exclude it)
-            $slugQuery = Sermon::where('slug', $data['slug']);
+            $slugQuery = Sermon::query()->where('slug', $data['slug']);
             if (! empty($data['sermon_id'])) {
                 $slugQuery->where('id', '!=', $data['sermon_id']);
             }

@@ -32,8 +32,8 @@ class SermonMetadataIntegrationService
     public function linkVideoToSermon(string $processingId, int $sermonId, string $finalVideoPath): void
     {
         /** @var MediaProcessingLog $processing */
-        $processing = MediaProcessingLog::where('processing_id', $processingId)->firstOrFail();
-        $sermon = Sermon::findOrFail($sermonId);
+        $processing = MediaProcessingLog::query()->where('processing_id', $processingId)->firstOrFail();
+        $sermon = Sermon::query()->findOrFail($sermonId);
 
         // Update sermon record with livestream information using data from processing log
         $sermon->update([
@@ -101,7 +101,7 @@ class SermonMetadataIntegrationService
     private function extractSermonVideo(string $processingId): ?string
     {
         // First check if the processing log already has the sermon video path
-        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
 
         if ($processing && $processing->video_file_path) {
             // The path from ExtractSermon job is now a relative path, check temp disk first
@@ -289,7 +289,7 @@ class SermonMetadataIntegrationService
      */
     public function getVideoInfo(int $sermonId): array
     {
-        $sermon = Sermon::with('livestreamProcessing.segments')->find($sermonId);
+        $sermon = Sermon::query()->with('livestreamProcessing.segments')->find($sermonId);
 
         if (! $sermon) {
             return ['has_video' => false];
@@ -323,7 +323,7 @@ class SermonMetadataIntegrationService
      */
     public function getVideoPreviewData(int $sermonId): array
     {
-        $sermon = Sermon::find($sermonId);
+        $sermon = Sermon::query()->find($sermonId);
 
         if (! $sermon || ! $sermon->hasVideo()) {
             return ['has_video' => false];
