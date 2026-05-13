@@ -14,7 +14,6 @@ use App\Enums\SermonSourceType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Presenters\SermonSitemapPresenter;
-use App\Presenters\SermonViewPresenter;
 use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -86,9 +85,6 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?float $audio_length
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
- * @property-read string $human_date
- * @property-read ?string $series_url
- * @property-read string $meta_description
  * @property-read ?string $plain_thumbnail_file_path
  * @property-read ?string $card_thumbnail_file_path
  * @property-read list<ThumbnailCandidate> $thumbnail_candidates
@@ -277,16 +273,6 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @return Attribute<string, never>
-     */
-    protected function humanDate(): Attribute
-    {
-        return Attribute::make(
-            get: fn (): string => app(SermonViewPresenter::class)->humanDate($this)
-        )->shouldCache();
-    }
-
-    /**
      * @return Attribute<?string, never>
      */
     protected function plainThumbnailFilePath(): Attribute
@@ -332,16 +318,6 @@ class Sermon extends Model implements Sitemapable
         return Attribute::make(
             get: fn (): ?array => $this->thumbnail_metadata?->selectedCandidate()
         );
-    }
-
-    /**
-     * @return Attribute<?string, never>
-     */
-    protected function seriesUrl(): Attribute
-    {
-        return Attribute::make(
-            get: fn (): ?string => app(SermonViewPresenter::class)->seriesUrl($this)
-        )->shouldCache();
     }
 
     /**
@@ -826,19 +802,6 @@ class Sermon extends Model implements Sitemapable
                 $direction
             )
             ->orderBy('preacher', $direction);
-    }
-
-    /**
-     * Get the SEO meta description for the sermon.
-     * Delegates to SermonViewPresenter for assembly logic.
-     *
-     * @return Attribute<string, never>
-     */
-    protected function metaDescription(): Attribute
-    {
-        return Attribute::make(
-            get: fn (): string => app(SermonViewPresenter::class)->metaDescription($this)
-        )->shouldCache();
     }
 
     /**

@@ -526,11 +526,13 @@ Backlog:
 - Make header, breadcrumbs, series URLs, and other shell-level data explicit view contracts instead of render-time inference.
 - Continue moving storage checks, workflow transitions, cached dropdown generation, and other non-persistence behavior off Eloquent models.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-13):**
 
-- ✅ No `app()` or `resolve()` calls found in Blade files — all presenters passed via controllers or Livewire components.
-- ⚠️ Storage checks and workflow transitions have been moved to separate service classes (`SermonExposurePolicy`, `SermonStorageService`), but full purification of the `Sermon` model could not be confirmed.
-- ❌ Explicit view contracts for header, breadcrumbs, and series URLs not confirmed — still may be inferred at render time.
+- ✅ No `app()` or `resolve()` calls in Blade files.
+- ✅ `Sermon` model no longer uses `app(SermonViewPresenter::class)` for presentation accessors. The `human_date`, `series_url`, and `meta_description` accessors that delegated to the presenter via service location have been removed (`app/Models/Sermon.php`). Presentation lookups now go through `SermonViewPresenter::humanDate()`, `::seriesUrl()`, `::metaDescription()` directly; `$sermon->meta_description` now returns the raw DB column (writable via `$fillable`).
+- ✅ `x-breadcrumbs` is now a class-based component (`App\View\Components\Breadcrumbs`) whose constructor receives `BreadcrumbPresenter` via DI and computes `$breadcrumbItems`/`$breadcrumbList` from explicit `area` and `heading` props. The global `BreadcrumbComposer` is gone; the view contract is visible on the class.
+- ✅ Header data (`$user`, `$pages`, `$canAccessChildrensCorner`) flows through a class-based component (`App\View\Components\Layout\Header`) instead of the old `HeaderComposer` view composer. Dependencies are constructor-injected.
+- ✅ Quality gates: PHPStan 0 errors, Pint clean, focused tests (sermon, breadcrumb, page security, meeting SEO, presenter, JSON-LD, N+1 — 221 tests / 760 assertions) pass.
 
 Primary review coverage:
 

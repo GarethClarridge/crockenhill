@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SitemapService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -47,7 +48,7 @@ class SermonListingNPlusOneTest extends TestCase
 
         $this->assertNotNull($sermon);
 
-        $this->assertStringContainsString('Some unique summary', $sermon->meta_description);
+        $this->assertStringContainsString('Some unique summary', app(SermonViewPresenter::class)->metaDescription($sermon));
     }
 
     #[Test]

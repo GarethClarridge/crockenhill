@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\View\Composers\BreadcrumbComposer;
 use App\View\Composers\ChurchPageComposer;
 use App\View\Composers\CommunityPageComposer;
-use App\View\Composers\HeaderComposer;
 use App\View\Composers\HomePageComposer;
 use App\View\Composers\PageShowComposer;
 use App\View\Composers\PhotoSelectorComposer;
@@ -29,8 +27,6 @@ class ViewServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        View::composer('components.layout.header', HeaderComposer::class);
-        View::composer('components.breadcrumbs', BreadcrumbComposer::class);
         View::composer('includes.photo-selector', PhotoSelectorComposer::class);
         View::composer('pages.show', PageShowComposer::class);
         // Phase 2 migration: pages/christ/free-bible.blade.php is the last override that @extends('layouts.page').

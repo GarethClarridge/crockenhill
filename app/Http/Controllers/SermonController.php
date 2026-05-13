@@ -118,7 +118,6 @@ class SermonController extends Controller
         return view('sermons.sermon', [
             'slug' => $sermon->slug,
             'heading' => $heading,
-            'description' => $sermon->meta_description,
             'content' => '',
             'sermon' => $sermon,
             'sermonView' => $sermonView,

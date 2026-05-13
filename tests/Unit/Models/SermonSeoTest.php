@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Models;
 
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -12,6 +13,11 @@ use Tests\TestCase;
 class SermonSeoTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function presenter(): SermonViewPresenter
+    {
+        return app(SermonViewPresenter::class);
+    }
 
     #[Test]
     public function it_returns_custom_meta_description_when_set(): void
@@ -22,6 +28,7 @@ class SermonSeoTest extends TestCase
             'meta_description' => 'This is a custom meta description',
         ]);
 
+        $this->assertEquals('This is a custom meta description', $this->presenter()->metaDescription($sermon));
         $this->assertEquals('This is a custom meta description', $sermon->meta_description);
     }
 
@@ -37,7 +44,7 @@ class SermonSeoTest extends TestCase
             'meta_description' => null,
         ]);
 
-        $metaDescription = $sermon->meta_description;
+        $metaDescription = $this->presenter()->metaDescription($sermon);
 
         $this->assertStringContainsString('The Grace of God', $metaDescription);
         $this->assertStringContainsString('John Smith', $metaDescription);
@@ -53,7 +60,7 @@ class SermonSeoTest extends TestCase
             'meta_description' => null,
         ]);
 
-        $metaDescription = $sermon->meta_description;
+        $metaDescription = $this->presenter()->metaDescription($sermon);
 
         $this->assertStringContainsString('preached on', $metaDescription);
         // Should contain formatted date (F j, Y format = "January 15, 2024")
@@ -70,7 +77,7 @@ class SermonSeoTest extends TestCase
             'meta_description' => null,
         ]);
 
-        $metaDescription = $sermon->meta_description;
+        $metaDescription = $this->presenter()->metaDescription($sermon);
 
         $this->assertStringContainsString('John 3:16', $metaDescription);
     }
@@ -87,7 +94,7 @@ class SermonSeoTest extends TestCase
             'series' => null,
         ]);
 
-        $metaDescription = $sermon->meta_description;
+        $metaDescription = $this->presenter()->metaDescription($sermon);
 
         $this->assertStringContainsString('This is a comprehensive summary', $metaDescription);
     }
@@ -107,7 +114,7 @@ class SermonSeoTest extends TestCase
             'series' => null,
         ]);
 
-        $metaDescription = $sermon->meta_description;
+        $metaDescription = $this->presenter()->metaDescription($sermon);
 
         $this->assertStringNotContainsString($summary, $metaDescription);
     }
@@ -122,7 +129,7 @@ class SermonSeoTest extends TestCase
             'meta_description' => null,
         ]);
 
-        $metaDescription = $sermon->meta_description;
+        $metaDescription = $this->presenter()->metaDescription($sermon);
 
         $this->assertStringNotContainsString('<p>', $metaDescription);
         $this->assertStringNotContainsString('<strong>', $metaDescription);
@@ -142,7 +149,7 @@ class SermonSeoTest extends TestCase
             'meta_description' => null,
         ]);
 
-        $metaDescription = $sermon->meta_description;
+        $metaDescription = $this->presenter()->metaDescription($sermon);
 
         $this->assertLessThanOrEqual(158, strlen($metaDescription));
     }
@@ -159,7 +166,7 @@ class SermonSeoTest extends TestCase
             'meta_description' => null,
         ]);
 
-        $metaDescription = $sermon->meta_description;
+        $metaDescription = $this->presenter()->metaDescription($sermon);
 
         // Should contain title
         $this->assertStringContainsString('The Love of Christ', $metaDescription);
@@ -198,7 +205,7 @@ class SermonSeoTest extends TestCase
             'meta_description' => null,
         ]);
 
-        $metaDescription = $sermon->meta_description;
+        $metaDescription = $this->presenter()->metaDescription($sermon);
 
         // Should still generate a valid meta description
         $this->assertNotEmpty($metaDescription);

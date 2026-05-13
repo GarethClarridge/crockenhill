@@ -55,20 +55,19 @@ class SermonTest extends TestCase
             'audio_file_path' => $testFilename, // Changed audio_url to filename
         ]);
 
-        // Test getHumanDateAttribute
-        $this->assertEquals($date->format('F j, Y'), $sermon->human_date);
-
         $sermonViewPresenter = app(SermonViewPresenter::class);
+
+        // humanDate is a presentation concern owned by SermonViewPresenter.
+        $this->assertEquals($date->format('F j, Y'), $sermonViewPresenter->humanDate($sermon));
+
         $audioUrl = $sermonViewPresenter->audioUrl($sermon);
 
         $this->assertNotNull($audioUrl);
         $this->assertStringContainsString($testFilename, $audioUrl);
 
-        // Test getSeriesUrlAttribute
-        // Assuming the Sermon model has a getSeriesUrlAttribute accessor
-        $expectedSeriesUrl = 'http://localhost/christ/sermons/series/'.Str::slug('My Sermon Series'); // Corrected expected path
-        $this->assertEquals($expectedSeriesUrl, $sermon->series_url);
-        // If the accessor is not yet implemented, this test will guide its creation.
+        // seriesUrl is a presentation concern owned by SermonViewPresenter.
+        $expectedSeriesUrl = 'http://localhost/christ/sermons/series/'.Str::slug('My Sermon Series');
+        $this->assertEquals($expectedSeriesUrl, $sermonViewPresenter->seriesUrl($sermon));
 
         $expectedPreacherUrl = 'http://localhost/christ/sermons/preachers/'.Str::slug('John Doe');
         $this->assertEquals($expectedPreacherUrl, $sermonViewPresenter->preacherUrl($sermon));

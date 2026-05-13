@@ -825,7 +825,7 @@ class SermonViewPresenter
         }
 
         $preacherName = $this->displayPreacherName($sermon) ?? 'Unknown preacher';
-        $base = "Listen to '{$sermon->title}' by {$preacherName} preached on {$sermon->human_date}";
+        $base = "Listen to '{$sermon->title}' by {$preacherName} preached on {$this->humanDate($sermon)}";
 
         if ($reference = $this->displayReference($sermon)) {
             $base .= " - {$reference}";

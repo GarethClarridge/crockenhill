@@ -80,7 +80,6 @@ class ChildrensCornerController extends Controller
             'heading' => $sermon->title,
             'area' => 'christ',
             'slug' => 'childrens-corner',
-            'description' => $sermon->meta_description ?: $sermon->title,
             'links' => $this->relatedPagePresenter->ordered(
                 linkArea: 'christ',
                 slugToExclude: 'childrens-corner',

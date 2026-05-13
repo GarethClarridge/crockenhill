@@ -51,8 +51,7 @@ class SermonJsonLdTest extends TestCase
         $this->assertStringContainsString('"@type": "WebPage"', $content);
 
         // Assert the meta description is correctly present in JSON-LD.
-        // The Sermon model auto-generates meta_description if not set.
-        $expectedDescription = $sermon->meta_description;
+        // Description is composed by SermonViewPresenter and injected via x-schema.sermon.
         // json_encode encodes quotes as \u0027 or \", so we check for a partial match if needed,
         // but since we aren't using JSON_UNESCAPED_UNICODE (wait, we ARE using JSON_HEX_APOS etc)
         // Let's just check the important parts of the description
