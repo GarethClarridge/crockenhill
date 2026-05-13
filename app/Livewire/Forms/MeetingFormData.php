@@ -181,8 +181,8 @@ class MeetingFormData extends Form
         $this->day = trim($this->day);
         $this->who = trim($this->who);
 
-        $this->location = $this->location !== null ? (trim($this->location) ?: null) : null;
-        $this->leadersPhone = $this->leadersPhone !== null ? (trim($this->leadersPhone) ?: null) : null;
-        $this->leadersEmail = $this->leadersEmail !== null ? (strtolower(trim($this->leadersEmail)) ?: null) : null;
+        $this->location = trim((string) $this->location) ?: null;
+        $this->leadersPhone = trim((string) $this->leadersPhone) ?: null;
+        $this->leadersEmail = strtolower(trim((string) $this->leadersEmail)) ?: null;
     }
 }
