@@ -32,7 +32,7 @@ class ProcessMediaRequest extends MediaProcessingRequest
 
         $fileRules = $mediaType instanceof MediaType
             ? $validation->rulesForType($mediaType)
-            : ['file' => 'required|file'];
+            : ['file' => ['required', 'file']];
 
         return [
             ...$fileRules,

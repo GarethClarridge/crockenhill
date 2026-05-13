@@ -114,12 +114,6 @@ class MeetingSeoTest extends TestCase
 
         $response->assertStatus(200);
 
-        // Use assertion that gives more info if it fails
-        if (! str_contains($response->getContent(), '"@type": "Event"')) {
-            echo "\nContent did not contain Event JSON-LD\n";
-            echo "\nUpcoming Events Count in Controller: ".$meeting->calendarEvents()->upcoming()->confirmed()->count()."\n";
-        }
-
         $response->assertSee('"@type": "Event"', false);
     }
 

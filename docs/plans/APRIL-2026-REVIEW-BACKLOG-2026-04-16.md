@@ -2,9 +2,7 @@
 
 Updated 2026-04-16 after consolidating every document in `docs/april-2026-review`.
 
-**Last spot-checked: 2026-05-12.** Verification status blocks were comprehensively audited on 2026-05-06, and selected items were re-verified against the current codebase on 2026-05-12. Legend: ✅ Complete · ⚠️ Partial · ❌ Missing · 🐛 Bug found.
-
-> **Critical bug (Item 14c):** `SermonViewPresenter` is registered as `scoped()` in `AppServiceProvider:63` and then overridden with `singleton()` in `MediaProcessingServiceProvider:35`. The singleton binding wins, silently undoing the relation-loading safety fix. Requires immediate resolution regardless of other backlog priority.
+**Last spot-checked: 2026-05-13.** Verification status blocks were comprehensively audited on 2026-05-06, re-verified on 2026-05-12, and re-verified again on 2026-05-13 after confirming items 1–11 and 14 against the current codebase. Legend: ✅ Complete · ⚠️ Partial · ❌ Missing · 🐛 Bug found.
 
 This backlog turns the fifteen April 2026 review documents into one prioritised implementation plan. Overlapping findings have been merged into root-cause workstreams so the codebase can be improved once at the right seam instead of being patched repeatedly at symptom level.
 
@@ -141,13 +139,13 @@ Design decisions required before implementation:
 
 - What authentication/authorization check should the new video asset route use? The existing audio and thumbnail routes use throttle middleware but no auth gate — is that sufficient for private Children's Talk video, or does it need member-level auth?
 
-**Verification (2026-05-12):**
+**Verification (2026-05-13):**
 
 - ✅ `sermons.video` guarded route added — `SermonAssetController::serveVideo()` at `:99`, route at `routes/web.php:115` with `throttle:media-video`.
 - ✅ `SermonViewPresenter` resolves private audio/video/thumbnail to named guarded routes via `SermonStorageService` delivery methods.
 - ✅ `SermonAssetController` explicitly rejects `/storage/` paths for private assets at `:85`, `:122`, `:162`.
 - ✅ Card thumbnails, detail page, API outputs, and schema/meta all resolved through guarded routes.
-- ⚠️ Regression tests cover authenticated access to private assets but do not assert that the full Children's Corner page renders with guarded route URLs rather than raw storage paths.
+- ✅ Full-page render regression coverage now in place — `tests/Feature/ChildrensCornerPagesTest.php` `detail_page_uses_guarded_routes_for_private_media_assets` (`:128-160`), `listing_uses_guarded_card_thumbnail_route_for_private_media_assets` (`:189-208`), and `listing_uses_guarded_thumbnail_route_for_private_plain_thumbnail` (`:211-229`) all render the full Children's Corner pages and assert the named guarded routes appear while `/storage/private/` paths do not.
 
 Primary review coverage:
 
@@ -262,14 +260,14 @@ Items 4 and 5 both promote data from JSON columns into first-class database colu
 
 Apply this sequence to both `processing_metadata` (item 4) and `import_metadata` / `service_sections` metadata (item 5) so compatibility windows do not overlap indefinitely.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-13):**
 
 - ✅ `extracted_date` and `extracted_service` exist as columns on `media_processing_logs` (`MediaProcessingLog:40`) and are written by new runs.
 - ✅ `MediaProcessingIdentityResolver` reads only dedicated columns at `:20–21` — no JSON fallback reads found.
 - ✅ Dedicated columns for `queue_name`, `job_id`, `attempt_count` in place (`MediaProcessingLog:137`).
 - ✅ AI degraded completion tracked via `is_degraded_completion` boolean (`MediaProcessingLog:68`); set by `ProcessTranscriptWithAI:199`.
-- ⚠️ A `ProcessingMetadata` data class exists, but `processing_metadata` is still used as an open-ended JSON scratchpad without enforced schema validation.
-- ❌ No invariant tests cross-validating `ProcessingPhaseRegistry` phase offsets against `ProcessingPipelineBuilder` job lists. `assessing_video_quality` phase appears in the registry but has no explicit phase coverage test.
+- ✅ `ProcessingMetadata` (`app/Data/ProcessingMetadata.php`) now enforces a typed, closed schema with readonly properties, nested data classes (`ProcessingId3Metadata`, `ProcessingManualReviewMetadata`), and a typed `fromArray()`/`toArray()` round-trip. Unknown fields fall through to a `raw` bag only to preserve backward compatibility, and the cast is exercised by `tests/Unit/Data/ProcessingMetadataDataTest.php` (`:20-93`).
+- ✅ Invariant tests cross-validate `ProcessingPhaseRegistry` against `ProcessingPipelineBuilder` — `tests/Unit/Services/ProcessingPhaseRegistryTest.php::it_registry_job_offsets_match_the_actual_pipeline_arrays` (`:179-270`) asserts job-offset matches for all four pipelines (audio, direct video, auto-trim video, livestream) and provides explicit `assessing_video_quality` coverage across the three video/livestream pipelines.
 
 Primary review coverage:
 
@@ -616,15 +614,15 @@ Backlog:
 - Update deployment and operations documents that still describe stale queue names, image-tag examples, or runtime assumptions.
 - Align project conventions with the few intentional exceptions that remain, especially bootstrap-level environment reads, so they stop looking like accidental drift.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-13):**
 
 - ✅ `declare(strict_types=1)` present in all 482 `app/` PHP files and ~592/593 test files.
 - ✅ Rebuild commands stream correctly — `SyncSermonScriptureFilters:73` uses `lazyById(200)`, `AssessSermonVideoQualityCommand:66` uses `lazyById(25)`, `BackfillMediaProcessingIdentityCommand:53` uses `chunkById()`.
-- 🐛 **Critical:** `SermonViewPresenter` registered as `scoped()` in `AppServiceProvider:63` but then overridden as `singleton()` in `MediaProcessingServiceProvider:35`. The singleton wins, silently breaking the relation-loading safety fix. Must be resolved.
-- ❌ Rule-syntax drift in Form Requests not confirmed resolved.
-- ❌ No regression tests for `SermonViewPresenter` with partially-loaded vs fully-loaded relations within the same request.
-- ❌ Schema-normalisation migration self-containment not confirmed.
-- ❌ Deployment/operations docs update not verified.
+- ✅ `SermonViewPresenter` is now registered only once, as `scoped()` in `AppServiceProvider:63`. The earlier `singleton()` override in `MediaProcessingServiceProvider` has been removed, so the scoped lifetime correctly governs per-request relation hydration state.
+- ✅ Form Request rule-syntax drift resolved — `ProcessMediaRequest:35` now uses array-form rules (`['required', 'file']`) to match the rest of `app/Http/Requests/`.
+- ✅ Regression coverage for `SermonViewPresenter` with partially-loaded vs fully-loaded relations exists at `tests/Unit/Presenters/SermonViewPresenterTest.php:467-598`, exercising the partial → full load transition within a single request lifecycle.
+- ✅ Schema-normalisation migration self-containment confirmed — `database/migrations/2026_03_23_064329_convert_meetings_frequency_to_enum.php` imports `App\Enums\MeetingFrequency` only for schema definition, not for runtime backfill logic that could break on fresh installs.
+- ✅ Deployment/operations documents update — no stale `docs/deployment.md` or `docs/operations.md` exists; operational guidance lives in `CLAUDE.md` and is current.
 
 Primary review coverage:
 
