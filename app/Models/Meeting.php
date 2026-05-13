@@ -9,6 +9,7 @@ use App\Enums\MeetingType;
 use App\Enums\PageArea;
 use App\Presenters\MeetingSitemapPresenter;
 use Database\Factories\MeetingFactory;
+use Illuminate\Contracts\Validation\ImplicitRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -111,6 +112,56 @@ class Meeting extends Model implements HasMedia, Sitemapable
     }
 
     /**
+     * @return Attribute<string, string>
+     */
+    protected function day(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function who(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function location(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value): ?string => $value !== null ? (trim($value) ?: null) : null,
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function leadersPhone(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value): ?string => $value !== null ? (trim($value) ?: null) : null,
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function leadersEmail(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value): ?string => $value !== null ? (strtolower(trim($value)) ?: null) : null,
+        );
+    }
+
+    /**
      * @return array<string, list<string|mixed>>
      */
     public static function validationRules(?self $meeting = null): array
@@ -129,14 +180,33 @@ class Meeting extends Model implements HasMedia, Sitemapable
         }
         $pageIdRule[] = $uniquePageId;
 
+        $trimmedTextRule = new class implements ImplicitRule
+        {
+            public function passes($attribute, $value): bool
+            {
+                if ($value === null) {
+                    return true;
+                }
+
+                return is_string($value)
+                    && $value !== ''
+                    && trim($value) === $value;
+            }
+
+            public function message(): string
+            {
+                return 'The :attribute field must not be empty or contain leading or trailing whitespace.';
+            }
+        };
+
         return [
             'slug' => $slugRule,
             'type' => ['required', Rule::enum(MeetingType::class)],
-            'day' => ['required', 'string', 'max:255'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'who' => ['required', 'string', 'max:255'],
-            'leaders_phone' => ['nullable', 'string', 'max:255'],
-            'leaders_email' => ['nullable', 'email', 'max:255'],
+            'day' => ['required', 'string', 'max:255', $trimmedTextRule],
+            'location' => ['nullable', 'string', 'max:255', $trimmedTextRule],
+            'who' => ['required', 'string', 'max:255', $trimmedTextRule],
+            'leaders_phone' => ['nullable', 'string', 'max:255', $trimmedTextRule],
+            'leaders_email' => ['nullable', 'email', 'max:255', $trimmedTextRule],
             'is_recurring' => ['nullable', 'boolean'],
             'frequency' => ['nullable', 'required_if:is_recurring,true', Rule::enum(MeetingFrequency::class)],
             'page_id' => $pageIdRule,

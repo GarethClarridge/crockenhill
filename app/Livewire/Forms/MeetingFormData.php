@@ -24,15 +24,15 @@ class MeetingFormData extends Form
 
     public string $day = '';
 
-    public string $location = '';
+    public ?string $location = null;
 
     public string $who = '';
 
     public bool $pictures = false;
 
-    public string $leadersPhone = '';
+    public ?string $leadersPhone = null;
 
-    public string $leadersEmail = '';
+    public ?string $leadersEmail = null;
 
     public string $meetingDate = '';
 
@@ -62,6 +62,17 @@ class MeetingFormData extends Form
             'frequency' => $meeting->frequency?->value,
             'pageId' => $meeting->page_id,
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function validationAttributes(): array
+    {
+        return [
+            'leadersPhone' => 'leaders phone',
+            'leadersEmail' => 'leaders email',
+        ];
     }
 
     /**
@@ -100,14 +111,18 @@ class MeetingFormData extends Form
     {
         $this->normalizeForSave();
 
-        return Meeting::create($this->meetingPayload($this->validate()));
+        $validated = $this->validate();
+
+        return Meeting::create($this->meetingPayload($validated));
     }
 
     public function update(): void
     {
         $this->normalizeForSave();
 
-        $this->meeting?->update($this->meetingPayload($this->validate()));
+        $validated = $this->validate();
+
+        $this->meeting?->update($this->meetingPayload($validated));
     }
 
     /**
@@ -161,5 +176,13 @@ class MeetingFormData extends Form
         if (! $this->isRecurring) {
             $this->frequency = null;
         }
+
+        $this->slug = trim($this->slug);
+        $this->day = trim($this->day);
+        $this->who = trim($this->who);
+
+        $this->location = $this->location !== null ? (trim($this->location) ?: null) : null;
+        $this->leadersPhone = $this->leadersPhone !== null ? (trim($this->leadersPhone) ?: null) : null;
+        $this->leadersEmail = $this->leadersEmail !== null ? (strtolower(trim($this->leadersEmail)) ?: null) : null;
     }
 }
