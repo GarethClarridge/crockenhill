@@ -45,6 +45,9 @@ class ChildrensCornerController extends Controller
             ->orderBy('date', 'desc')
             ->paginate(12);
 
+        $collection = $talks->getCollection();
+        $presented = $this->sermonViewPresenter->presentCollection($collection);
+
         return view('childrens-corner.index', [
             'heading' => "Children's Corner",
             'area' => 'christ',
@@ -58,7 +61,8 @@ class ChildrensCornerController extends Controller
                 extraExcludedSlugs: ['privacy-policy'],
             ),
             'talks' => $talks,
-            'json_ld_data' => $this->itemListPresenter->toItemList($talks->getCollection()),
+            'presentedTalks' => $presented,
+            'json_ld_data' => $this->itemListPresenter->toItemList($collection),
         ]);
     }
 

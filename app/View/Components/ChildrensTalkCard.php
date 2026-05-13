@@ -12,18 +12,24 @@ use Illuminate\View\Component;
 
 class ChildrensTalkCard extends Component
 {
+    /**
+     * @param  array<string, mixed>|null  $sermonView
+     */
     public function __construct(
         private readonly SermonViewPresenter $presenter,
         public readonly Sermon $sermon,
+        public ?array $sermonView = null,
     ) {}
 
     public function render(): View|Closure|string
     {
+        $sermonView = $this->sermonView ?? $this->presenter->presentForList($this->sermon);
+
         return view('components.childrens-talk-card', [
-            'cardThumbnailUrl' => $this->presenter->cardThumbnailUrl($this->sermon),
-            'speakerName' => $this->presenter->displayPreacherName($this->sermon),
+            'cardThumbnailUrl' => $sermonView['card_thumbnail_url'],
+            'speakerName' => $sermonView['preacher_name'],
             'hasAudio' => filled($this->sermon->audio_file_path),
-            'hasVideo' => filled($this->presenter->videoUrl($this->sermon)),
+            'hasVideo' => filled($sermonView['video_url']),
         ]);
     }
 }

@@ -25,6 +25,6 @@
 
 @section('full_width_content')
 
-  <x-sermon-list :sermons="$sermons" :groupedByDate="false" />
+  <x-sermon-list :sermons="$sermons" :presentedSermons="$presentedSermons" :groupedByDate="false" />
 
 @stop

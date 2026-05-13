@@ -1,9 +1,12 @@
 @props([
     'sermon',
-    'sermonView',
+    'sermonView' => null,
 ])
 
 @php
+    if ($sermonView === null) {
+        $sermonView = app(\App\Presenters\SermonViewPresenter::class)->presentForList($sermon);
+    }
     $sermonUrl = $sermonView['canonical_url'];
     $thumbnailUrl = $sermonView['plain_thumbnail_url'];
     $preacherName = $sermonView['preacher_name'];

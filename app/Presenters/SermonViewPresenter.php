@@ -10,6 +10,7 @@ use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;
 use Carbon\CarbonInterval;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class SermonViewPresenter
@@ -88,6 +89,11 @@ class SermonViewPresenter
      * @var array<string, string>
      */
     private array $memoizedMetaDescriptions = [];
+
+    /**
+     * @var array<string, array<int, array<string, mixed>>>
+     */
+    private array $memoizedCollections = [];
 
     /**
      * Tracks which keys have been computed, allowing null to be a legitimate cached result.
@@ -189,6 +195,7 @@ class SermonViewPresenter
         $this->memoizedSlugs = [];
         $this->memoizedMetaDescriptions = [];
         $this->memoizedIsoDurations = [];
+        $this->memoizedCollections = [];
         $this->computed = [];
     }
 
@@ -295,6 +302,13 @@ class SermonViewPresenter
         return $this->memoizedUrls[$this->cacheKey($sermon, 'canonical')] ??= $this->exposurePolicy->canonicalUrl($sermon);
     }
 
+    /**
+     * Get the card variant thumbnail URL for a sermon.
+     *
+     * Performance Optimization: Implements fallback logic to use the primary
+     * thumbnail path if metadata is not loaded (e.g. in listings) to avoid
+     * N+1 queries for large JSON metadata.
+     */
     public function cardThumbnailUrl(Sermon $sermon): ?string
     {
         $key = $this->cacheKey($sermon, 'card_thumb');
@@ -310,6 +324,9 @@ class SermonViewPresenter
                 return null;
             }
 
+            // If metadata is selected but empty, there is no card variant.
+            // If metadata is NOT selected (listings), we don't know if a card variant exists,
+            // so we return null to avoid serving a potentially wrong image or a redundant fallback.
             if (! $sermon->hasPlainThumbnail()) {
                 return null;
             }
@@ -320,6 +337,13 @@ class SermonViewPresenter
         return $this->memoizedUrls[$key] = $url;
     }
 
+    /**
+     * Get the plain variant thumbnail URL for a sermon.
+     *
+     * Performance Optimization: Implements fallback logic to use the primary
+     * thumbnail path if metadata is not loaded (e.g. in listings) to avoid
+     * N+1 queries for large JSON metadata.
+     */
     public function plainThumbnailUrl(Sermon $sermon): ?string
     {
         $key = $this->cacheKey($sermon, 'plain_thumb');
@@ -333,6 +357,11 @@ class SermonViewPresenter
         $url = (function () use ($sermon) {
             if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
                 return null;
+            }
+
+            // Fallback for listings where metadata is not selected: use primary thumbnail
+            if (! isset($sermon->getAttributes()['thumbnail_metadata']) && $sermon->hasThumbnail()) {
+                return $this->thumbnailUrl($sermon);
             }
 
             if (! $sermon->hasPlainThumbnail()) {
@@ -473,6 +502,29 @@ class SermonViewPresenter
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'video_url' => $this->videoUrl($sermon),
         ];
+    }
+
+    /**
+     * Bulk present a collection of sermons for list display.
+     *
+     * Performance Optimization: Iterates through the collection once to populate
+     * all internal memoization caches. This reduces overhead when the same
+     * collection is processed multiple times (e.g. for both UI and JSON-LD).
+     *
+     * @param  Collection<int, Sermon>  $sermons
+     * @return array<int, array<string, mixed>>
+     */
+    public function presentCollection(Collection $sermons): array
+    {
+        $collectionKey = sha1(implode('|', $sermons->pluck('id')->all()));
+
+        if (isset($this->memoizedCollections[$collectionKey])) {
+            return $this->memoizedCollections[$collectionKey];
+        }
+
+        return $this->memoizedCollections[$collectionKey] = $sermons
+            ->mapWithKeys(fn (Sermon $sermon) => [$sermon->id => $this->presentForList($sermon)])
+            ->all();
     }
 
     /**
