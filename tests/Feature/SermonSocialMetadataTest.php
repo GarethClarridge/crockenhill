@@ -57,4 +57,34 @@ class SermonSocialMetadataTest extends TestCase
         $response->assertDontSee('twitter:label2');
         $response->assertDontSee('twitter:data2');
     }
+
+    #[Test]
+    public function preacher_page_renders_twitter_labels_for_sermon_count(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Charles Spurgeon']);
+        Sermon::factory()->count(5)->create([
+            'preacher_id' => $preacher->id,
+            'preacher' => $preacher->name,
+        ]);
+
+        $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('<meta name="twitter:label1" content="Sermons">', false);
+        $response->assertSee('<meta name="twitter:data1" content="5">', false);
+    }
+
+    #[Test]
+    public function series_page_renders_twitter_labels_for_sermon_count(): void
+    {
+        Sermon::factory()->count(3)->create([
+            'series' => 'Great Doctrines',
+        ]);
+
+        $response = $this->get('/christ/sermons/series/great-doctrines');
+
+        $response->assertStatus(200);
+        $response->assertSee('<meta name="twitter:label1" content="Sermons">', false);
+        $response->assertSee('<meta name="twitter:data1" content="3">', false);
+    }
 }

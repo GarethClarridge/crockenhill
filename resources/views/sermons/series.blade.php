@@ -10,6 +10,8 @@
     :description="$description"
     :image="$share_image ?? asset('/images/headings/large/sermons.webp')"
     :image-alt="$heading . ' at Crockenhill Baptist Church'"
+    label1="Sermons"
+    :data1="$sermons->count()"
 />
 <x-schema.webpage
     :heading="$heading"

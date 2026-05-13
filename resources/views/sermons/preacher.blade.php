@@ -10,6 +10,8 @@
     :description="$description"
     :image="$share_image"
     :image-alt="'Preacher: ' . $preacher->name"
+    label1="Sermons"
+    :data1="$sermons->count()"
 />
 <x-schema.webpage
     :heading="$heading"
