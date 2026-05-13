@@ -24,7 +24,7 @@ class PreacherResolutionService
             $name = 'Visiting Speaker';
         }
 
-        $alias = PreacherAlias::where('alias', $normalizedAlias)->first();
+        $alias = PreacherAlias::query()->where('alias', $normalizedAlias)->first();
 
         if ($alias?->preacher instanceof Preacher) {
             return $alias->preacher;
@@ -56,13 +56,13 @@ class PreacherResolutionService
     private function findOrCreatePreacher(string $slug, string $name): Preacher
     {
         try {
-            return Preacher::firstOrCreate(
+            return Preacher::query()->firstOrCreate(
                 ['name' => $name],
                 ['slug' => $slug, 'is_active' => true]
             );
         } catch (QueryException $e) {
             if ($this->isUniqueConstraintViolation($e)) {
-                $existing = Preacher::where('name', $name)->first();
+                $existing = Preacher::query()->where('name', $name)->first();
                 if ($existing) {
                     return $existing;
                 }
@@ -75,13 +75,13 @@ class PreacherResolutionService
     private function findOrCreateAlias(string $alias, int $preacherId): PreacherAlias
     {
         try {
-            return PreacherAlias::firstOrCreate(
+            return PreacherAlias::query()->firstOrCreate(
                 ['alias' => $alias],
                 ['preacher_id' => $preacherId]
             );
         } catch (QueryException $e) {
             if ($this->isUniqueConstraintViolation($e)) {
-                $existing = PreacherAlias::where('alias', $alias)->first();
+                $existing = PreacherAlias::query()->where('alias', $alias)->first();
                 if ($existing) {
                     return $existing;
                 }

@@ -448,7 +448,7 @@ class SermonStorageService
     private function initializeStorageStats(): array
     {
         return [
-            'total_sermons' => Sermon::count(),
+            'total_sermons' => Sermon::query()->count(),
             'patterns' => [
                 'private' => 0,
                 'legacy' => 0,
