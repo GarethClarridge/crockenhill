@@ -516,6 +516,10 @@ class SermonViewPresenter
      */
     public function presentCollection(Collection $sermons): array
     {
+        if ($sermons->isEmpty()) {
+            return [];
+        }
+
         $collectionKey = sha1(implode('|', $sermons->pluck('id')->all()));
 
         if (isset($this->memoizedCollections[$collectionKey])) {
@@ -523,7 +527,8 @@ class SermonViewPresenter
         }
 
         return $this->memoizedCollections[$collectionKey] = $sermons
-            ->mapWithKeys(fn (Sermon $sermon) => [$sermon->id => $this->presentForList($sermon)])
+            ->keyBy('id')
+            ->map(fn (Sermon $sermon) => $this->presentForList($sermon))
             ->all();
     }
 
