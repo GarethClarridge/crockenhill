@@ -75,9 +75,9 @@ class SermonViewPresenter
     private array $memoizedSermonKeys = [];
 
     /**
-     * @var array<int, string>
+     * @var array<int, array{human: string, iso: string, short: string}>
      */
-    private array $memoizedHumanDates = [];
+    private array $memoizedFormattedDates = [];
 
     /**
      * @var array<string, string>
@@ -155,17 +155,32 @@ class SermonViewPresenter
     }
 
     /**
-     * Get the human-friendly date of the sermon.
+     * Get various formatted date strings for the sermon.
      *
      * Performance Optimization: Memoizes date formatting results by timestamp
      * to avoid redundant object calls and string formatting across multiple
-     * sermons sharing the same date in a listing.
+     * sermons sharing the same date in a listing. Returns human-friendly,
+     * ISO 8601, and short display formats.
+     *
+     * @return array{human: string, iso: string, short: string}
      */
-    public function humanDate(Sermon $sermon): string
+    public function formattedDates(Sermon $sermon): array
     {
         $timestamp = $sermon->date->getTimestamp();
 
-        return $this->memoizedHumanDates[$timestamp] ??= $sermon->date->format('F j, Y');
+        return $this->memoizedFormattedDates[$timestamp] ??= [
+            'human' => $sermon->date->format('F j, Y'),
+            'iso' => $sermon->date->toDateString(),
+            'short' => $sermon->date->format('j F Y'),
+        ];
+    }
+
+    /**
+     * Get the human-friendly date of the sermon.
+     */
+    public function humanDate(Sermon $sermon): string
+    {
+        return $this->formattedDates($sermon)['human'];
     }
 
     /**
@@ -185,7 +200,7 @@ class SermonViewPresenter
         $this->memoizedPresents = [];
         $this->memoizedTimestamps = [];
         $this->memoizedSermonKeys = [];
-        $this->memoizedHumanDates = [];
+        $this->memoizedFormattedDates = [];
         $this->memoizedSlugs = [];
         $this->memoizedMetaDescriptions = [];
         $this->memoizedIsoDurations = [];
@@ -274,9 +289,14 @@ class SermonViewPresenter
             return null;
         }
 
+        if (isset($this->computed["img_auth_{$identityKey}"])) {
+            return $this->memoizedPreacherImageUrls[$identityKey];
+        }
+
         // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('preacherProfile')) {
             $url = $sermon->preacherProfile?->profile_image_url;
+            $this->computed["img_auth_{$identityKey}"] = true;
             $this->computed["img_{$identityKey}"] = true;
             $this->memoizedPreacherImageUrls[$identityKey] = $url;
 
@@ -365,9 +385,14 @@ class SermonViewPresenter
             return null;
         }
 
+        if (isset($this->computed["url_auth_{$identityKey}"])) {
+            return $this->memoizedPreacherUrls[$identityKey];
+        }
+
         // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
             $url = route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
+            $this->computed["url_auth_{$identityKey}"] = true;
             $this->computed["url_{$identityKey}"] = true;
             $this->memoizedPreacherUrls[$identityKey] = $url;
 
@@ -509,22 +534,19 @@ class SermonViewPresenter
         }
 
         $hasTranscript = $sermon->hasTranscript();
-
-        $date = $sermon->date;
-        $dateIso = $date->toDateString();
-        $dateString = $date->format('j F Y');
+        $dates = $this->formattedDates($sermon);
 
         return $this->memoizedPresents[$key] = [
             'audio_url' => $this->audioUrl($sermon),
             'canonical_url' => $this->canonicalUrl($sermon),
             'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
-            'date_iso' => $dateIso,
-            'date_string' => $dateString,
+            'date_iso' => $dates['iso'],
+            'date_string' => $dates['short'],
             'display_reference' => $this->displayReference($sermon),
             'duration_iso8601' => $this->durationIso8601($sermon),
             'formatted_duration' => $this->formattedDuration($sermon),
             'has_transcript' => $hasTranscript,
-            'human_date' => $this->humanDate($sermon),
+            'human_date' => $dates['human'],
             'plain_thumbnail_url' => $this->plainThumbnailUrl($sermon),
             'preacher_image_url' => $this->preacherImageUrl($sermon),
             'preacher_name' => $this->displayPreacherName($sermon),
@@ -638,9 +660,14 @@ class SermonViewPresenter
             return null;
         }
 
+        if (isset($this->computed["name_auth_{$identityKey}"])) {
+            return $this->memoizedPreacherNames[$identityKey];
+        }
+
         // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
             $name = $sermon->preacherProfile->name ?: null;
+            $this->computed["name_auth_{$identityKey}"] = true;
             $this->computed["name_{$identityKey}"] = true;
 
             return $this->memoizedPreacherNames[$identityKey] = $name;
@@ -684,11 +711,16 @@ class SermonViewPresenter
             return null;
         }
 
+        if (isset($this->computed["ref_auth_{$identityKey}"])) {
+            return $this->memoizedReferences[$identityKey];
+        }
+
         // If the relation is explicitly loaded, use it as the source of truth and update memo
         if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
             $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
 
             if (trim((string) $displayReference) !== '') {
+                $this->computed["ref_auth_{$identityKey}"] = true;
                 $this->computed["ref_{$identityKey}"] = true;
 
                 return $this->memoizedReferences[$identityKey] = $displayReference;
@@ -811,9 +843,11 @@ class SermonViewPresenter
     {
         $id = $sermon->id ?? 'u'.spl_object_id($sermon);
 
-        $this->memoizedTimestamps[$id] ??= $sermon->updated_at?->getTimestamp() ?? 0;
-        $this->memoizedSermonKeys[$id] ??= "{$id}_{$this->memoizedTimestamps[$id]}";
+        if (! isset($this->memoizedSermonKeys[$id])) {
+            $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
+            $this->memoizedSermonKeys[$id] = "{$id}_{$timestamp}";
+        }
 
-        return "{$type}_{$this->memoizedSermonKeys[$id]}";
+        return $type.'_'.$this->memoizedSermonKeys[$id];
     }
 }
