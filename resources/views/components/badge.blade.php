@@ -33,7 +33,8 @@ $sizes = [
     'md' => 'px-2.5 py-1 text-sm',
 ];
 
-$classes = 'inline-flex items-center gap-1.5 rounded-full font-medium ring-1 ring-inset '
+$classes = 'inline-flex items-center rounded-full font-medium ring-1 ring-inset '
+    . ($pulse ? 'gap-1.5 ' : 'gap-1 ')
     . ($variants[$variant] ?? $variants['default']) . ' '
     . ($sizes[$size] ?? $sizes['sm']);
 
@@ -42,8 +43,8 @@ $dotClass = $dotVariants[$variant] ?? $dotVariants['default'];
 
 <span {{ $attributes->merge(['class' => $classes]) }}>
     @if($pulse)
-        <span class="relative flex h-1.5 w-1.5 shrink-0">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full {{ $dotClass }} opacity-75"></span>
+        <span class="relative flex h-1.5 w-1.5 shrink-0" aria-hidden="true">
+            <span class="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full {{ $dotClass }} opacity-75"></span>
             <span class="relative inline-flex rounded-full h-1.5 w-1.5 {{ $dotClass }}"></span>
         </span>
     @endif
