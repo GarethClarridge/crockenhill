@@ -1,4 +1,4 @@
-@props(['sermons', 'groupedByDate' => false])
+@props(['sermons', 'presentedSermons' => null, 'groupedByDate' => false])
 
 @if($groupedByDate)
   {{-- Date grouped sermons (for index.blade.php and all.blade.php) --}}
@@ -9,7 +9,7 @@
       </x-h2>
       <div class="grid items-start justify-center gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]">
         @foreach ($dateSermons as $sermon)
-          <x-sermon-card :$sermon/>
+          <x-sermon-card :sermon="$sermon" :sermonView="$presentedSermons[$sermon->id] ?? null" />
         @endforeach
       </div>
     </section>
@@ -18,7 +18,7 @@
   {{-- Simple sermon list (for preacher.blade.php, series.blade.php, service.blade.php) --}}
   <div class="mx-auto mb-6 grid max-w-2xl items-start justify-center gap-4 px-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))] lg:max-w-5xl xl:max-w-7xl">
     @foreach ($sermons as $sermon)
-      <x-sermon-card :$sermon/>
+      <x-sermon-card :sermon="$sermon" :sermonView="$presentedSermons[$sermon->id] ?? null" />
     @endforeach
   </div>
 @endif

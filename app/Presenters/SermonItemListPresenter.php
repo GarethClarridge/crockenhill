@@ -21,6 +21,10 @@ class SermonItemListPresenter
     /**
      * Convert a collection of sermons into a Schema.org ItemList data array.
      *
+     * Performance Optimization: Utilizes bulk presentation to pre-calculate
+     * display data for all sermons in the collection, reducing redundant
+     * logic and enabling efficient reuse of presenter results.
+     *
      * @param  Collection<string, Collection<int, Sermon>>|Collection<int, Sermon>  $sermons
      * @return array<string, mixed>
      */

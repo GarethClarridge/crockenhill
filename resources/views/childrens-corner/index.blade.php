@@ -54,7 +54,7 @@
         <section class="px-6 pb-10 pt-2">
             <div class="mx-auto grid max-w-2xl grid-cols-1 gap-6 sm:max-w-5xl sm:grid-cols-2 xl:max-w-7xl xl:grid-cols-3">
                 @foreach ($talks as $talk)
-                    <x-childrens-talk-card :sermon="$talk" />
+                    <x-childrens-talk-card :sermon="$talk" :sermonView="$presentedTalks[$talk->id] ?? null" />
                 @endforeach
             </div>
 

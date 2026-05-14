@@ -160,7 +160,8 @@ class SermonController extends Controller
      * Display sermons for a specific preacher.
      *
      * Performance Optimization: Uses the cached sermon listing from the repository
-     * to reduce redundant DB queries when viewing preacher profiles.
+     * to reduce redundant DB queries when viewing preacher profiles. Bulk presents
+     * the collection once for both view and JSON-LD to minimize processing overhead.
      */
     public function preacher(Preacher $preacher): View
     {
@@ -168,6 +169,7 @@ class SermonController extends Controller
          * Performance Optimization: Use Repository to fetch cached preacher sermon listing.
          */
         $sermons = $this->sermonRepository->getSermonsByPreacher($preacher);
+        $presented = $this->sermonViewPresenter->presentCollection($sermons);
 
         $shareImage = $preacher->profile_image_url;
         if ($shareImage === null && $sermons->isNotEmpty()) {
@@ -177,6 +179,7 @@ class SermonController extends Controller
         return view('sermons.preacher', [
             'preacher' => $preacher,
             'sermons' => $sermons,
+            'presentedSermons' => $presented,
             'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
             'heading' => 'Sermons by '.$preacher->name,
             'description' => 'Browse all sermons preached by '.$preacher->name.' at Crockenhill Baptist Church.',
@@ -215,6 +218,7 @@ class SermonController extends Controller
          * Performance Optimization: Use Repository to fetch cached series listing.
          */
         $sermons = $this->sermonRepository->getSermonsBySeries($series_name);
+        $presented = $this->sermonViewPresenter->presentCollection($sermons);
 
         $shareImage = null;
         if ($sermons->isNotEmpty()) {
@@ -223,6 +227,7 @@ class SermonController extends Controller
 
         return view('sermons.series', [
             'sermons' => $sermons,
+            'presentedSermons' => $presented,
             'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
             'heading' => 'Sermon Series: '.$series_name,
             'description' => 'Browse all sermons in the "'.$series_name.'" series from Crockenhill Baptist Church.',
@@ -241,6 +246,7 @@ class SermonController extends Controller
          * Performance Optimization: Use Repository to fetch cached service listing.
          */
         $sermons = $this->sermonRepository->getSermonsByService($serviceEnum);
+        $presented = $this->sermonViewPresenter->presentCollection($sermons);
 
         $serviceLabel = match ($serviceEnum) {
             SermonService::Morning => 'Sunday Morning',
@@ -250,6 +256,7 @@ class SermonController extends Controller
 
         return view('sermons.service', [
             'sermons' => $sermons,
+            'presentedSermons' => $presented,
             'service' => $service,
             'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
             'heading' => $serviceLabel.' Services',

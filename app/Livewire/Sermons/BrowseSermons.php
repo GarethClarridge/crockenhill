@@ -8,6 +8,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonArchiveSeoPresenter;
 use App\Presenters\SermonItemListPresenter;
+use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Support\BibleCanon;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -24,6 +25,7 @@ use Livewire\WithPagination;
  * @property-read array<int, array{id:int, name:string}> $preacherOptions
  * @property-read array<int, array{id:string, name:string}> $seriesOptions
  * @property-read LengthAwarePaginator<int, Sermon> $sermons
+ * @property-read array<int, array<string, mixed>> $presentedSermons
  * @property-read string $seoTitle
  * @property-read string $seoDescription
  * @property-read string $seoCanonical
@@ -195,6 +197,22 @@ class BrowseSermons extends Component
     public function jsonLdData(): array
     {
         return app(SermonItemListPresenter::class)->toItemList(
+            $this->sermons()->getCollection()
+        );
+    }
+
+    /**
+     * Get presented data for the current page of sermons.
+     *
+     * Performance Optimization: Computes presented data once per request
+     * and shares it between the Blade view and JSON-LD generation.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    #[Computed]
+    public function presentedSermons(): array
+    {
+        return app(SermonViewPresenter::class)->presentCollection(
             $this->sermons()->getCollection()
         );
     }
