@@ -94,7 +94,8 @@ class LivestreamSegmentationService
 
     public function retryProcessing(string $processingId): LivestreamProcessingResult
     {
-        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
+        $processingLog = MediaProcessingLog::query()
+            ->where('processing_id', $processingId)
             ->where('processing_type', MediaType::Livestream)
             ->first();
 
@@ -113,7 +114,8 @@ class LivestreamSegmentationService
 
     public function cancelProcessing(string $processingId): bool
     {
-        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
+        $processingLog = MediaProcessingLog::query()
+            ->where('processing_id', $processingId)
             ->where('processing_type', MediaType::Livestream)
             ->first();
 
@@ -130,7 +132,8 @@ class LivestreamSegmentationService
 
     public function getProcessingStatus(string $processingId): StandardProcessingResponse
     {
-        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
+        $processingLog = MediaProcessingLog::query()
+            ->where('processing_id', $processingId)
             ->with(['segments', 'sermon'])
             ->first();
 
@@ -143,7 +146,8 @@ class LivestreamSegmentationService
 
     public function getProcessingResult(string $processingId): LivestreamProcessingResult
     {
-        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
+        $processingLog = MediaProcessingLog::query()
+            ->where('processing_id', $processingId)
             ->with(['segments', 'sermon'])
             ->first();
 
@@ -159,11 +163,11 @@ class LivestreamSegmentationService
      */
     public function getProcessingSummary(): array
     {
-        $total = MediaProcessingLog::livestream()->count();
-        $pending = MediaProcessingLog::livestream()->where('status', 'pending')->count();
-        $processing = MediaProcessingLog::livestream()->where('status', 'processing')->count();
-        $completed = MediaProcessingLog::livestream()->where('status', 'completed')->count();
-        $failed = MediaProcessingLog::livestream()->where('status', 'failed')->count();
+        $total = MediaProcessingLog::query()->livestream()->count();
+        $pending = MediaProcessingLog::query()->livestream()->where('status', 'pending')->count();
+        $processing = MediaProcessingLog::query()->livestream()->where('status', 'processing')->count();
+        $completed = MediaProcessingLog::query()->livestream()->where('status', 'completed')->count();
+        $failed = MediaProcessingLog::query()->livestream()->where('status', 'failed')->count();
 
         return [
             'total_processing_requests' => $total,

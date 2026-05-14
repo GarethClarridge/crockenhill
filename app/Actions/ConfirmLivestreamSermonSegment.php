@@ -35,7 +35,8 @@ class ConfirmLivestreamSermonSegment
     {
         $log = DB::transaction(function () use ($processingId, $segmentId, $user): MediaProcessingLog {
             /** @var MediaProcessingLog|null $log */
-            $log = MediaProcessingLog::where('processing_id', $processingId)
+            $log = MediaProcessingLog::query()
+                ->where('processing_id', $processingId)
                 ->lockForUpdate()
                 ->first();
 
@@ -51,7 +52,8 @@ class ConfirmLivestreamSermonSegment
                 throw new \InvalidArgumentException('This run is not currently awaiting manual sermon review.');
             }
 
-            $segment = LivestreamSegment::where('id', $segmentId)
+            $segment = LivestreamSegment::query()
+                ->where('id', $segmentId)
                 ->where('media_processing_log_id', $log->id)
                 ->first();
 
