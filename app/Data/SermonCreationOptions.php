@@ -52,6 +52,9 @@ class SermonCreationOptions
         public ?string $id3Series = null,
         public ?string $id3Reference = null,
         public ?float $duration = null,
+
+        // Bypass the upsert reject path (used by the historic-video import --force flag)
+        public bool $forceOverwrite = false,
     ) {}
 
     /**

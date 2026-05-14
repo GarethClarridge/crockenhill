@@ -267,7 +267,7 @@ Apply this sequence to both `processing_metadata` (item 4) and `import_metadata`
 - ✅ Dedicated columns for `queue_name`, `job_id`, `attempt_count` in place (`MediaProcessingLog:137`).
 - ✅ AI degraded completion tracked via `is_degraded_completion` boolean (`MediaProcessingLog:68`); set by `ProcessTranscriptWithAI:199`.
 - ✅ `ProcessingMetadata` (`app/Data/ProcessingMetadata.php`) now enforces a typed, closed schema with readonly properties, nested data classes (`ProcessingId3Metadata`, `ProcessingManualReviewMetadata`), and a typed `fromArray()`/`toArray()` round-trip. Unknown fields fall through to a `raw` bag only to preserve backward compatibility, and the cast is exercised by `tests/Unit/Data/ProcessingMetadataDataTest.php` (`:20-93`).
-- ✅ Invariant tests cross-validate `ProcessingPhaseRegistry` against `ProcessingPipelineBuilder` — `tests/Unit/Services/ProcessingPhaseRegistryTest.php::it_registry_job_offsets_match_the_actual_pipeline_arrays` (`:179-270`) asserts job-offset matches for all four pipelines (audio, direct video, auto-trim video, livestream) and provides explicit `assessing_video_quality` coverage across the three video/livestream pipelines.
+- ✅ Invariant tests cross-validate `ProcessingPhaseRegistry` against `ProcessingPipelineBuilder` — `tests/Integration/Services/ProcessingPhaseRegistryTest.php::it_registry_job_offsets_match_the_actual_pipeline_arrays` (`:179-270`) asserts job-offset matches for all four pipelines (audio, direct video, auto-trim video, livestream) and provides explicit `assessing_video_quality` coverage across the three video/livestream pipelines.
 
 Primary review coverage:
 
@@ -624,7 +624,7 @@ Backlog:
 - ✅ Rebuild commands stream correctly — `SyncSermonScriptureFilters:73` uses `lazyById(200)`, `AssessSermonVideoQualityCommand:66` uses `lazyById(25)`, `BackfillMediaProcessingIdentityCommand:53` uses `chunkById()`.
 - ✅ `SermonViewPresenter` is now registered only once, as `scoped()` in `AppServiceProvider:63`. The earlier `singleton()` override in `MediaProcessingServiceProvider` has been removed, so the scoped lifetime correctly governs per-request relation hydration state.
 - ✅ Form Request rule-syntax drift resolved — `ProcessMediaRequest:35` now uses array-form rules (`['required', 'file']`) to match the rest of `app/Http/Requests/`.
-- ✅ Regression coverage for `SermonViewPresenter` with partially-loaded vs fully-loaded relations exists at `tests/Unit/Presenters/SermonViewPresenterTest.php:467-598`, exercising the partial → full load transition within a single request lifecycle.
+- ✅ Regression coverage for `SermonViewPresenter` with partially-loaded vs fully-loaded relations exists at `tests/Integration/Presenters/SermonViewPresenterTest.php:467-598`, exercising the partial → full load transition within a single request lifecycle.
 - ✅ Schema-normalisation migration self-containment confirmed — `database/migrations/2026_03_23_064329_convert_meetings_frequency_to_enum.php` imports `App\Enums\MeetingFrequency` only for schema definition, not for runtime backfill logic that could break on fresh installs.
 - ✅ Deployment/operations documents update — no stale `docs/deployment.md` or `docs/operations.md` exists; operational guidance lives in `CLAUDE.md` and is current.
 
