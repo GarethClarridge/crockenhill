@@ -8,8 +8,9 @@ use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Enums\PageArea;
 use App\Presenters\MeetingSitemapPresenter;
+use Closure;
 use Database\Factories\MeetingFactory;
-use Illuminate\Contracts\Validation\ImplicitRule;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -112,22 +113,22 @@ class Meeting extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * @return Attribute<string, string>
+     * @return Attribute<?string, ?string>
      */
     protected function day(): Attribute
     {
         return Attribute::make(
-            set: fn (string $value): string => trim($value),
+            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
         );
     }
 
     /**
-     * @return Attribute<string, string>
+     * @return Attribute<?string, ?string>
      */
     protected function who(): Attribute
     {
         return Attribute::make(
-            set: fn (string $value): string => trim($value),
+            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
         );
     }
 
@@ -180,22 +181,17 @@ class Meeting extends Model implements HasMedia, Sitemapable
         }
         $pageIdRule[] = $uniquePageId;
 
-        $trimmedTextRule = new class implements ImplicitRule
+        $trimmedTextRule = new class implements ValidationRule
         {
-            public function passes($attribute, $value): bool
+            public function validate(string $attribute, mixed $value, Closure $fail): void
             {
                 if ($value === null) {
-                    return true;
+                    return;
                 }
 
-                return is_string($value)
-                    && $value !== ''
-                    && trim($value) === $value;
-            }
-
-            public function message(): string
-            {
-                return 'The :attribute field must not be empty or contain leading or trailing whitespace.';
+                if (! is_string($value) || $value === '' || trim($value) !== $value) {
+                    $fail('The :attribute field must not be empty or contain leading or trailing whitespace.');
+                }
             }
         };
 

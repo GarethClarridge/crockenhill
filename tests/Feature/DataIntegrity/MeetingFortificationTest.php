@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
+use App\Enums\MeetingFrequency;
+use App\Enums\MeetingType;
+use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Models\Meeting;
+use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -17,7 +23,7 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_trimmed_day_at_database_level()
     {
-        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+        if (DB::getDriverName() === 'sqlite') {
             $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
         }
 
@@ -38,7 +44,7 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_non_empty_day_at_database_level()
     {
-        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+        if (DB::getDriverName() === 'sqlite') {
             $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
         }
 
@@ -59,7 +65,7 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_trimmed_who_at_database_level()
     {
-        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+        if (DB::getDriverName() === 'sqlite') {
             $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
         }
 
@@ -80,7 +86,7 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_trimmed_location_at_database_level()
     {
-        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+        if (DB::getDriverName() === 'sqlite') {
             $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
         }
 
@@ -102,7 +108,7 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_lowercased_trimmed_email_at_database_level()
     {
-        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+        if (DB::getDriverName() === 'sqlite') {
             $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
         }
 
@@ -151,5 +157,49 @@ class MeetingFortificationTest extends TestCase
         $this->assertNull($meeting->location);
         $this->assertNull($meeting->leaders_phone);
         $this->assertNull($meeting->leaders_email);
+    }
+
+    #[Test]
+    public function it_rejects_whitespace_padded_required_fields_at_the_form_layer(): void
+    {
+        $admin = User::factory()->crockenhillAdmin()->create(['is_admin' => true]);
+        $this->actingAs($admin);
+
+        Livewire::test(CreateMeeting::class)
+            ->set('form.slug', ' bible-study ')
+            ->set('form.type', MeetingType::Adults->value)
+            ->set('form.day', '  Monday  ')
+            ->set('form.who', '  Everyone  ')
+            ->call('save')
+            ->assertHasNoErrors(['form.day', 'form.who', 'form.slug']);
+
+        $meeting = Meeting::query()->where('slug', 'bible-study')->first();
+
+        $this->assertNotNull($meeting);
+        $this->assertSame('Monday', $meeting->day);
+        $this->assertSame('Everyone', $meeting->who);
+    }
+
+    #[Test]
+    public function it_clears_frequency_when_meeting_is_not_recurring(): void
+    {
+        $admin = User::factory()->crockenhillAdmin()->create(['is_admin' => true]);
+        $this->actingAs($admin);
+
+        Livewire::test(CreateMeeting::class)
+            ->set('form.slug', 'one-off-meeting')
+            ->set('form.type', MeetingType::Adults->value)
+            ->set('form.day', 'Tuesday')
+            ->set('form.who', 'Everyone')
+            ->set('form.isRecurring', true)
+            ->set('form.frequency', MeetingFrequency::Weekly->value)
+            ->set('form.isRecurring', false)
+            ->call('save');
+
+        $meeting = Meeting::query()->where('slug', 'one-off-meeting')->first();
+
+        $this->assertNotNull($meeting);
+        $this->assertFalse($meeting->is_recurring);
+        $this->assertNull($meeting->frequency);
     }
 }
