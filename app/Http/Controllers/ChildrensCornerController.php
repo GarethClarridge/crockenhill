@@ -35,7 +35,6 @@ class ChildrensCornerController extends Controller
                 'video_quality_status',
                 'video_visibility_override',
                 'thumbnail_file_path',
-                'thumbnail_metadata',
                 'scripture_passage_id',
             ])
             ->with([

@@ -324,9 +324,11 @@ class SermonViewPresenter
                 return null;
             }
 
-            // If metadata is selected but empty, there is no card variant.
-            // If metadata is NOT selected (listings), we don't know if a card variant exists,
-            // so we return null to avoid serving a potentially wrong image or a redundant fallback.
+            // Fallback for listings where metadata might be absent (pre-optimization state)
+            if (! isset($sermon->getAttributes()['thumbnail_metadata']) && $sermon->hasThumbnail()) {
+                return $this->thumbnailUrl($sermon);
+            }
+
             if (! $sermon->hasPlainThumbnail()) {
                 return null;
             }
