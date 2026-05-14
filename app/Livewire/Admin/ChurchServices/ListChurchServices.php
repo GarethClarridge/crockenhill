@@ -113,7 +113,7 @@ class ListChurchServices extends Component
                 $this->needsReviewFilter !== null,
                 fn (Builder $query): Builder => $query->where('needs_review', $this->needsReviewFilter)
             )
-            ->orderBy($this->sortBy, $this->sortDirection)
+            ->orderBy($this->sortBy, $this->sortDirection === 'desc' ? 'desc' : 'asc')
             ->paginate(20);
 
         $headers = [

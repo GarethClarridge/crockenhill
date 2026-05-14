@@ -158,7 +158,7 @@ class LivestreamSegment extends Model
      */
     public function scopeOrderedByDuration(Builder $query, string $direction = 'desc'): Builder
     {
-        return $query->orderBy('duration', $direction);
+        return $query->orderBy('duration', $direction === 'asc' ? 'asc' : 'desc');
     }
 
     public function isSpeech(): bool

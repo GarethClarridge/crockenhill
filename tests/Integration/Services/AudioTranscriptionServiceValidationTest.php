@@ -11,6 +11,7 @@ use App\Services\SermonProcessingLogger;
 use App\Services\TranscriptFormatterService;
 use App\Services\TranscriptStorageService;
 use Exception;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -244,7 +245,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
                 'message' => 'Test error',
                 'type' => 'test_error',
                 'code' => (string) $code,
-            ], $code);
+            ], new Response($code));
 
             $this->assertEquals(0, $exception->getCode());
             $this->assertEquals($code, $exception->getStatusCode());
@@ -263,7 +264,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
                 'message' => 'Transient error',
                 'type' => 'server_error',
                 'code' => null,
-            ], $code);
+            ], new Response($code));
 
             $this->assertFalse($method->invoke($this->service, $exception), "Expected status {$code} to be retryable");
         }

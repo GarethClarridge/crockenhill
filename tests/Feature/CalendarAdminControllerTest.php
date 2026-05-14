@@ -10,7 +10,7 @@ use App\Models\User;
 use App\Services\CalendarCategorizationResult;
 use App\Services\CalendarService;
 use App\Services\GoogleCalendarSyncService;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -24,7 +24,7 @@ class CalendarAdminControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
 
         $this->adminUser = User::factory()->create([
             'email_verified_at' => now(),

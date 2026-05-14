@@ -137,7 +137,7 @@ class ListUsers extends Component
                     ? $q->whereNotNull('email_verified_at')
                     : $q->whereNull('email_verified_at'))
             ->when($this->adminFilter !== null, fn ($q) => $q->where('is_admin', $this->adminFilter))
-            ->orderBy($this->sortBy, $this->sortDirection)
+            ->orderBy($this->sortBy, $this->sortDirection === 'desc' ? 'desc' : 'asc')
             ->paginate(20);
 
         $headers = [

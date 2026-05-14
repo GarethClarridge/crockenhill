@@ -110,7 +110,7 @@ class ListSongs extends Component
                         ->orWhereHas('authors', fn (Builder $authorQuery) => $authorQuery->where('display_name', 'like', "%{$escapedSearch}%"));
                 });
             })
-            ->orderBy($this->sortBy, $this->sortDirection)
+            ->orderBy($this->sortBy, $this->sortDirection === 'desc' ? 'desc' : 'asc')
             ->paginate(20);
 
         return view('livewire.admin.church-services.list-songs', [
