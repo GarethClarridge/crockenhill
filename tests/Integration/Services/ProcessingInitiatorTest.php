@@ -253,6 +253,23 @@ class ProcessingInitiatorTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_duplicate_extracted_identity_into_processing_metadata_json(): void
+    {
+        $file = UploadedFile::fake()->create('sermon.mp4', 2048);
+        $extractedDateTime = Carbon::create(2026, 2, 10, 10, 30, 0);
+
+        $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::Morning);
+
+        $log = $this->initiator->initiateProcessing($file, MediaType::Video);
+
+        $metadata = $log->processing_metadata?->toArray() ?? [];
+
+        $this->assertArrayNotHasKey('extracted_date', $metadata);
+        $this->assertArrayNotHasKey('extracted_service', $metadata);
+    }
+
+    #[Test]
     public function it_merges_additional_processing_metadata_on_top_of_pre_extracted_metadata(): void
     {
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');

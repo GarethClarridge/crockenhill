@@ -37,11 +37,11 @@ class SermonCreationServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_extracts_date_from_processing_metadata(): void
+    public function it_extracts_date_from_processing_log_column(): void
     {
         $log = MediaProcessingLog::factory()->create([
+            'extracted_date' => '2024-03-15',
             'processing_metadata' => [
-                'extracted_date' => '2024-03-15',
                 'date_extraction_method' => 'video_metadata',
             ],
         ]);
@@ -262,17 +262,17 @@ class SermonCreationServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_uses_extracted_service_from_metadata(): void
+    public function it_uses_extracted_service_from_processing_log_column(): void
     {
-        // Test that metadata takes precedence over filename
+        // Test that the column takes precedence over filename
         $log = MediaProcessingLog::factory()->create([
+            'extracted_service' => SermonService::Evening,
             'processing_metadata' => [
-                'extracted_service' => 'evening',
                 'service_extraction_method' => 'file_timestamp',
             ],
         ]);
 
-        // Even though filename says "morning", metadata should win
+        // Even though filename says "morning", the column should win
         $service = $this->service->extractServiceType($log, '2024-03-15-morning-sermon.mp3');
         $this->assertEquals(SermonService::Evening, $service);
     }

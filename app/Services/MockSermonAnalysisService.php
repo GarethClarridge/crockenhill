@@ -17,9 +17,10 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
      *
      * @param  array<int, string>  $existingSeries
      */
-    public function analyzeSermon(string $transcript, array $existingSeries = []): SermonAnalysis
+    public function analyzeSermon(string $transcript, array $existingSeries = [], ?string $processingId = null): SermonAnalysis
     {
         $startTime = microtime(true);
+        $processingId ??= 'unknown';
 
         // Generate realistic title
         $mockTitle = $this->generateMockTitle($transcript);
@@ -39,6 +40,7 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
         $executionTime = microtime(true) - $startTime;
 
         Log::info('Mock sermon analysis completed', [
+            'processing_id' => $processingId,
             'title' => $mockTitle,
             'series' => $mockSeries,
             'reference' => $mockReference,

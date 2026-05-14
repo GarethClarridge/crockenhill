@@ -83,7 +83,11 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             $existingSeries = $sermonRepository->getExistingSeries();
 
             // Perform comprehensive AI analysis
-            $analysis = $analysisService->analyzeSermon($transcript, $existingSeries);
+            $analysis = $analysisService->analyzeSermon(
+                $transcript,
+                $existingSeries,
+                $this->processingLog->processing_id,
+            );
 
             if (! $analysis->hasValidTranscript()) {
                 throw new \Exception('AI analysis produced invalid results');

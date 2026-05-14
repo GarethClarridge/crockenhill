@@ -38,10 +38,10 @@ class SermonAnalysisService implements SermonAnalysisInterface
      *
      * @throws Exception When analysis fails
      */
-    public function analyzeSermon(string $transcript, array $existingSeries = []): SermonAnalysis
+    public function analyzeSermon(string $transcript, array $existingSeries = [], ?string $processingId = null): SermonAnalysis
     {
         $startTime = microtime(true);
-        $processingId = 'unknown';
+        $processingId ??= 'unknown';
 
         $this->logger->logProcessingStep(
             $processingId,
@@ -95,7 +95,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      * @param  string  $processingId  Processing ID for logging
      * @return array<string, mixed> The parsed analysis results
      */
-    private function performAiAnalysis(string $transcript, array $existingSeries, string $processingId = 'unknown'): array
+    private function performAiAnalysis(string $transcript, array $existingSeries, string $processingId): array
     {
         $apiStartTime = microtime(true);
 

@@ -244,6 +244,36 @@ class ProcessTranscriptWithAITest extends TestCase
     }
 
     #[Test]
+    public function it_passes_processing_id_through_to_analysis_service(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create(['title' => 'Untitled Sermon']);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+        ]);
+
+        $analysis = $this->createAnalysis();
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->with(
+                $this->isType('string'),
+                $this->isType('array'),
+                $this->equalTo($log->processing_id),
+            )
+            ->willReturn($analysis);
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+    }
+
+    #[Test]
     public function failed_method_marks_processing_log_as_failed(): void
     {
         $log = MediaProcessingLog::factory()->audio()->processing()->create();

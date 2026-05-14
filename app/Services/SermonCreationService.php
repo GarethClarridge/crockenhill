@@ -497,7 +497,7 @@ class SermonCreationService
 
     /**
      * Extract sermon date using cascading strategy
-     * 1. Processing metadata (client-provided or video metadata)
+     * 1. extracted_date column (populated at initiation from video/audio metadata)
      * 2. Filename parsing
      * 3. Current date
      */
@@ -505,11 +505,10 @@ class SermonCreationService
         MediaProcessingLog $processingLog,
         string $filename
     ): string {
-        // Strategy 1: Check if date was extracted from video/audio metadata
-        $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
+        if ($processingLog->extracted_date !== null) {
+            $extractedDate = $processingLog->extracted_date->toDateString();
+            $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
 
-        if (isset($processingMetadata['extracted_date'])) {
-            $extractedDate = $processingMetadata['extracted_date'];
             Log::info('SermonCreationService: Using date extracted from file metadata', [
                 'processing_id' => $processingLog->processing_id,
                 'extracted_date' => $extractedDate,
@@ -519,7 +518,6 @@ class SermonCreationService
             return $extractedDate;
         }
 
-        // Strategy 2: Fall back to filename parsing
         $filenameDate = $this->extractDateFromFilename($filename);
 
         Log::info('SermonCreationService: Using date extracted from filename', [
@@ -533,7 +531,7 @@ class SermonCreationService
 
     /**
      * Extract service type using cascading strategy
-     * 1. Processing metadata (file timestamp-based detection)
+     * 1. extracted_service column (populated at initiation from file timestamp/filename)
      * 2. Filename parsing
      * 3. Default to morning
      */
@@ -541,18 +539,16 @@ class SermonCreationService
         MediaProcessingLog $processingLog,
         string $filename
     ): SermonService {
-        // Strategy 1: Check if service was extracted from file metadata
-        $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
+        if ($processingLog->extracted_service instanceof SermonService) {
+            $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
 
-        if (isset($processingMetadata['extracted_service'])) {
-            $extractedService = $processingMetadata['extracted_service'];
             Log::info('SermonCreationService: Using service extracted from file metadata', [
                 'processing_id' => $processingLog->processing_id,
-                'extracted_service' => $extractedService,
+                'extracted_service' => $processingLog->extracted_service->value,
                 'extraction_method' => $processingMetadata['service_extraction_method'] ?? 'unknown',
             ]);
 
-            return SermonService::tryFrom((string) $extractedService) ?? SermonService::Morning;
+            return $processingLog->extracted_service;
         }
 
         // Strategy 2: Fall back to filename parsing

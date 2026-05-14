@@ -11,6 +11,13 @@ final class ServiceSectionConfidence
     public const LOW_THRESHOLD = 0.50;
 
     /**
+     * Resolve a section's runtime confidence from the canonical numeric column,
+     * falling back to the historical `confidence_score` metadata only when the
+     * column is null (legacy rows that predate the column promotion).
+     *
+     * `confidence_level` is intentionally not consulted here — it is derived
+     * display metadata, not a runtime decision input.
+     *
      * @param  array<string, mixed>|null  $metadata
      */
     public static function resolve(?float $confidence = null, ?array $metadata = null): float
@@ -19,16 +26,13 @@ final class ServiceSectionConfidence
             return self::clamp((float) $confidence);
         }
 
-        $metadata = is_array($metadata) ? $metadata : [];
-        $score = $metadata['confidence_score'] ?? null;
+        $score = is_array($metadata) ? ($metadata['confidence_score'] ?? null) : null;
 
         if (is_numeric($score)) {
             return self::clamp((float) $score);
         }
 
-        $level = $metadata['confidence_level'] ?? null;
-
-        return self::scoreForLevel(is_string($level) ? $level : null);
+        return self::scoreForLevel(null);
     }
 
     public static function clamp(float $confidence): float
