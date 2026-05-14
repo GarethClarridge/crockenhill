@@ -20,8 +20,6 @@ class ChurchServiceAdminAuthTest extends TestCase
 
     private User $admin;
 
-    private User $regularUser;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,20 +27,11 @@ class ChurchServiceAdminAuthTest extends TestCase
         config(['service-tracking.enabled' => true]);
 
         $this->admin = User::factory()->create(['is_admin' => true]);
-        $this->regularUser = User::factory()->create(['is_admin' => false]);
     }
 
     // -------------------------------------------------------------------------
     // SubmitEmailText
     // -------------------------------------------------------------------------
-
-    #[Test]
-    public function non_admin_cannot_mount_submit_email_text(): void
-    {
-        $this->actingAs($this->regularUser)
-            ->get(route('admin.services.submit-email'))
-            ->assertForbidden();
-    }
 
     #[Test]
     public function admin_can_mount_submit_email_text(): void
@@ -70,14 +59,6 @@ class ChurchServiceAdminAuthTest extends TestCase
     // -------------------------------------------------------------------------
     // UploadChurchService
     // -------------------------------------------------------------------------
-
-    #[Test]
-    public function non_admin_cannot_mount_upload_church_service(): void
-    {
-        $this->actingAs($this->regularUser)
-            ->get(route('admin.services.upload'))
-            ->assertForbidden();
-    }
 
     #[Test]
     public function admin_can_mount_upload_church_service(): void

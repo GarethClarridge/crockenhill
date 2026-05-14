@@ -18,6 +18,6 @@ Tests in this directory exercise a single application service (or a small cluste
 vendor/bin/sail artisan test --testsuite="Integration Tests"
 ```
 
-## Bulk migration in progress
+## Migration completed
 
-The ~108 remaining DB-backed tests under `tests/Unit/Services/` should move here over time. This is a deliberate follow-up to keep that migration reviewable as a no-semantic-change PR. New tests should land in the correct directory from the start.
+The bulk migration of DB-backed tests out of `tests/Unit/` is complete: `tests/Unit/` now contains only collaborator-level tests with no `RefreshDatabase`, `DatabaseTransactions`, or `DatabaseMigrations` usage. New tests must land in the correct directory from the start — DB-backed service and model tests go here, HTTP/Livewire/Console tests go in `tests/Feature/`.

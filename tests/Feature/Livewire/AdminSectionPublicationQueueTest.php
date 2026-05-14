@@ -204,17 +204,4 @@ class AdminSectionPublicationQueueTest extends TestCase
         $section->refresh();
         $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
     }
-
-    #[Test]
-    public function non_admin_cannot_access_section_publications_component(): void
-    {
-        $user = User::factory()->create([
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-
-        $this->actingAs($user)
-            ->get(route('admin.services.section-publications'))
-            ->assertForbidden();
-    }
 }

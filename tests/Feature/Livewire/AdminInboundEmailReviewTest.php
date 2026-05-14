@@ -464,17 +464,4 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->assertSame('manual_edit', $email->processing_metadata['review']['mode'] ?? null);
         $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id'] ?? null);
     }
-
-    #[Test]
-    public function non_admin_cannot_access_the_inbound_email_review_component(): void
-    {
-        $user = User::factory()->create([
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-
-        $this->actingAs($user)
-            ->get(route('admin.services.inbound-emails'))
-            ->assertForbidden();
-    }
 }

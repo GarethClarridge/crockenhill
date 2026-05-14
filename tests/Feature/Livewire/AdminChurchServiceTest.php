@@ -1106,21 +1106,4 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ListChurchServices::class)
             ->assertSee('Pending merge');
     }
-
-    #[Test]
-    public function non_admin_cannot_access_service_admin_components(): void
-    {
-        $user = User::factory()->create([
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-        $service = ChurchService::factory()->create();
-
-        $this->actingAs($user);
-
-        $this->get(route('admin.services.index'))->assertForbidden();
-        $this->get(route('admin.services.create'))->assertForbidden();
-        $this->get(route('admin.services.upload'))->assertForbidden();
-        $this->get(route('admin.services.show', $service))->assertForbidden();
-    }
 }

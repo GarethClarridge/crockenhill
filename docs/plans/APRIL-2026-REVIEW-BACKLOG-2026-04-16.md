@@ -2,7 +2,7 @@
 
 Updated 2026-04-16 after consolidating every document in `docs/april-2026-review`.
 
-**Last spot-checked: 2026-05-13.** Verification status blocks were comprehensively audited on 2026-05-06, re-verified on 2026-05-12, and re-verified again on 2026-05-13 after confirming items 1–11 and 14 against the current codebase. Legend: ✅ Complete · ⚠️ Partial · ❌ Missing · 🐛 Bug found.
+**Last spot-checked: 2026-05-14.** Verification status blocks were comprehensively audited on 2026-05-06, re-verified on 2026-05-12, re-verified again on 2026-05-13 after confirming items 1–11 and 14, and updated on 2026-05-14 after completing item 13 (test suite rebalancing). Legend: ✅ Complete · ⚠️ Partial · ❌ Missing · 🐛 Bug found.
 
 This backlog turns the fifteen April 2026 review documents into one prioritised implementation plan. Overlapping findings have been merged into root-cause workstreams so the codebase can be improved once at the right seam instead of being patched repeatedly at symptom level.
 
@@ -589,13 +589,13 @@ Backlog:
 - Add direct resource-contract coverage for church-service API resources and improve request-boundary tests where partial mocks still dominate.
 - Either modernise the performance suite to current boundaries or clearly demote it to opt-in benchmark tooling outside the trusted default CI path.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-14):**
 
-- ❌ `Unit` directory taxonomy not confirmed — may still contain database-backed or framework-heavy tests.
-- ❌ Migration of bespoke fixture setups to shared scenario builders not confirmed.
-- ❌ Broad Livewire suite slimming not confirmed.
-- ❌ No direct resource-contract coverage found for church-service API resources.
-- ❌ Performance suite CI status (opt-in vs default) not confirmed.
+- ✅ `Unit` directory taxonomy now reserved for collaborator-level tests. All 173 DB-backed tests previously under `tests/Unit/` (Models, Jobs, Services, Actions, Observers, Policies, DB-backed Presenters, DB-backed Http/Middleware|Resources|Requests, DB-backed Data/Support/View, RateLimitServiceProviderTest, and seven top-level files) moved to `tests/Integration/` with namespaces updated. `grep -l "RefreshDatabase\|use DatabaseTransactions\|DatabaseMigrations" tests/Unit -r` now returns zero matches.
+- ✅ Shared scenario-builder layer documented at `tests/Support/README.md`, with the migration policy spelled out. The trait wrapper `tests/Traits/BuildsTestScenarios.php` already exposes the common entry points (`createVerifiedAdmin`, `churchServiceScenario`, `processingLogScenario`, etc.), and the `tests/Support/` directory ships scenario builders for admin users, church services, media uploads, processing logs, service sections, and OpenLP archives. Tests that introduce new multi-model fixtures should reach for these builders.
+- ✅ Broad Livewire suites slimmed where focused tests cover the same seam. `AdminLivewireAuthorizationTest::non_admin_users_cannot_access_routed_admin_livewire_components` already covers every routed admin route, so duplicate `non_admin_cannot_*` route checks were removed from `AdminChurchServiceTest`, `AdminServiceReviewDashboardTest`, `AdminInboundEmailReviewTest`, `AdminSectionPublicationQueueTest`, `AdminCalendarEventTest` (two tests), and `ChurchServiceAdminAuthTest` (two tests).
+- ✅ Direct resource-contract coverage in place: `tests/Integration/Http/Resources/ChurchServiceResourceTest.php` (6 tests), `ChurchServiceItemResourceTest.php` (3 tests), and `SermonResourceTest.php` (9 tests). All three resources have explicit `toArray()` shape coverage.
+- ✅ Performance suite is opt-in: `phpunit.xml` declares a separate `Performance Tests` testsuite outside the `Default Tests` suite, all three perf tests carry `#[Group('performance')]`, and CI runs `php artisan test --parallel --exclude-group=dedicated --exclude-group=performance` (`.github/workflows/deploy.yml`). Status documented in `tests/Performance/README.md`.
 
 Primary review coverage:
 
@@ -679,4 +679,4 @@ Use this map to verify that every April review feeds at least one concrete backl
 - The heaviest admin Livewire screens have thinner write and presentation seams. ✅
 - Public browse routes stop doing obviously duplicate or overly eager work. ✅
 - Blade page shells use one explicit contract instead of mixing renderable layouts, dead sections, and component-side metadata mutation. ✅
-- The test suite, standards layer, and operations docs reflect the current architecture rather than historical compromises. ⚠️ *(strict_types and chunk commands done; test taxonomy, resource tests, and docs not confirmed)*
+- The test suite, standards layer, and operations docs reflect the current architecture rather than historical compromises. ✅

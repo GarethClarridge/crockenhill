@@ -47,7 +47,7 @@ class ProcessMediaRequestTest extends TestCase
         $rules = $request->rules();
         $messages = $request->messages();
 
-        $this->assertSame('required|file', $rules['file']);
+        $this->assertSame(['required', 'file'], $rules['file']);
         $this->assertStringContainsString('100MB', $messages['file.max']);
         $this->assertStringContainsString('MP3', $messages['file.mimes']);
     }
@@ -94,7 +94,7 @@ class ProcessMediaRequestTest extends TestCase
         $rules = $request->rules();
 
         $this->assertArrayHasKey('file', $rules);
-        $this->assertEquals('required|file', $rules['file']);
+        $this->assertEquals(['required', 'file'], $rules['file']);
     }
 
     #[Test]

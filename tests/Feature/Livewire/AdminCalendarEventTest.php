@@ -37,30 +37,6 @@ class AdminCalendarEventTest extends TestCase
     }
 
     #[Test]
-    public function non_admin_cannot_mount_list_calendar_events(): void
-    {
-        $user = User::factory()->create(['is_admin' => false]);
-
-        $this->actingAs($user)
-            ->get(route('admin.calendar-events.index'))
-            ->assertForbidden();
-    }
-
-    #[Test]
-    public function non_admin_cannot_mount_edit_calendar_event(): void
-    {
-        $user = User::factory()->create(['is_admin' => false]);
-        $this->actingAs($user);
-
-        $event = CalendarEvent::factory()->create([
-            'start_datetime' => now()->addDays(2),
-            'end_datetime' => now()->addDays(2)->addHour(),
-        ]);
-
-        $this->get(route('admin.calendar-events.edit', $event))->assertForbidden();
-    }
-
-    #[Test]
     public function admin_can_still_categorize_after_authorization_is_added(): void
     {
         $this->actingAs($this->admin);

@@ -784,17 +784,4 @@ class AdminServiceReviewDashboardTest extends TestCase
         $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->fresh()->publication_status);
         Queue::assertPushed(PublishApprovedServiceSection::class);
     }
-
-    #[Test]
-    public function non_admin_cannot_access_the_review_dashboard(): void
-    {
-        $user = User::factory()->create([
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-
-        $this->actingAs($user)
-            ->get(route('admin.services.review'))
-            ->assertForbidden();
-    }
 }
