@@ -19,7 +19,7 @@ class CreateApiToken extends Command
         $tokenName = $this->argument('name');
         $abilities = $this->option('abilities') ?: ['*'];
 
-        $user = User::where('email', $email)->first();
+        $user = User::query()->where('email', $email)->first();
 
         if (! $user) {
             $this->error("User with email {$email} not found.");
