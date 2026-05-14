@@ -50,3 +50,7 @@
 ## 2026-04-10 - Refined Focus States and Form Accessibility Fallbacks
 **Learning:** Transitioning from 'focus:ring' to 'focus-visible:ring' in core interactive components (buttons, toggles) significantly improves UX for mouse users by removing the distracting blue outlines during clicks, while maintaining full accessibility for keyboard users. Additionally, ensuring all form components (like textarea) have an 'aria-label' fallback derived from placeholders ensures that screen reader users can understand the context of an input even when a visual label is absent.
 **Action:** Use 'focus-visible' for all focus rings. Implement 'aria-label' fallbacks in all custom form components where a visual label is optional but a placeholder is present.
+
+## 2026-04-12 - Pulse Effects for Urgent Administrative Items
+**Learning:** Highlighting items that require immediate attention (like recordings needing review) in a dense admin list improves efficiency. Adding a decorative `pulse` effect to the `x-badge` component using `animate-ping` provides a subtle but clear visual cue. To maintain accessibility, the animation must be wrapped in `motion-safe` and the dot container marked `aria-hidden="true"`. Using `bg-current` ensures the pulse always matches the badge's semantic color.
+**Action:** Add a `pulse` boolean prop to the base `x-badge` component. Apply it to status badges in admin views that indicate a required user action.

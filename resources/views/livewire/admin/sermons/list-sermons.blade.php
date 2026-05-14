@@ -96,7 +96,7 @@
                             <span class="text-sm text-gray-300">-</span>
                         @endif
                         @if($sermon->needs_preacher_review)
-                            <x-badge variant="warning" size="xs" class="ml-1">
+                            <x-badge variant="warning" size="xs" class="ml-1" pulse>
                                 Review
                             </x-badge>
                         @endif
