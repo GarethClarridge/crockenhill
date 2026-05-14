@@ -144,6 +144,90 @@ class Meeting extends Model implements HasMedia, Sitemapable
     }
 
     /**
+     * @return Attribute<string, string>
+     */
+    protected function slug(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function day(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function who(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function location(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function leadersPhone(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function leadersEmail(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
+    }
+
+    /**
      * Get the route key for the model.
      */
     public function getRouteKeyName(): string
