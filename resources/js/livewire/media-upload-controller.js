@@ -1,3 +1,9 @@
+// Singleton-only by contract: this controller assumes one media upload instance per page.
+// Event names like `media-upload:cancel-upload` are page-global; the payload `id` is checked
+// against this.componentId so that if the assumption is ever broken, cross-talk only causes
+// extra no-op handler invocations rather than incorrect behavior. To support multiple
+// instances safely, encode the instance scope into the event name itself
+// (e.g. `media-upload:{componentId}:cancel-upload`) and update both ends.
 const STALL_TIMEOUT_MS = 5 * 60 * 1000;
 const PROGRESS_THROTTLE_MS = 500; // 2 updates per second
 

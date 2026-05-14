@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
+use App\Services\ExtractedSectionMediaChecker;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\SermonCreationService;
 use App\Services\ServiceSectionPublicationTransitionService;
@@ -24,6 +25,7 @@ class SermonPublicationHandler implements SectionPublicationHandler
         private readonly SermonCreationService $sermonCreationService,
         private readonly MediaProcessingIdentityResolver $identityResolver,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
+        private readonly ExtractedSectionMediaChecker $mediaChecker,
     ) {}
 
     public function requiresAudioExtraction(): bool
@@ -33,7 +35,7 @@ class SermonPublicationHandler implements SectionPublicationHandler
 
     public function hasReusableExtractedMedia(ServiceSection $section): bool
     {
-        return $section->hasExtractedMedia();
+        return $this->mediaChecker->hasExtractedMedia($section);
     }
 
     public function isEligible(ServiceSection $section): bool

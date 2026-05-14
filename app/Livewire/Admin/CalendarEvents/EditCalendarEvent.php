@@ -8,7 +8,7 @@ use App\Actions\CategorizeCalendarEvent;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
-use App\Models\Meeting;
+use App\Repositories\MeetingListRepository;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -106,7 +106,7 @@ class EditCalendarEvent extends Component
          * Performance Optimization: Uses cached meeting list for admin dropdowns
          * to reduce redundant DB queries.
          */
-        $meetings = Meeting::getForAdminList();
+        $meetings = app(MeetingListRepository::class)->forAdminList();
 
         return view('livewire.admin.calendar-events.edit-calendar-event', [
             'meetings' => $meetings,

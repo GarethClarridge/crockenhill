@@ -9,6 +9,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
 use App\Services\MediaProcessingRunTransitionService;
+use App\Services\SermonProcessingStepTransitions;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -16,6 +17,8 @@ use Throwable;
 abstract class ProcessingJob
 {
     private ?MediaProcessingRunTransitionService $processingRunTransitionService = null;
+
+    private ?SermonProcessingStepTransitions $sermonProcessingStepTransitions = null;
 
     /**
      * The processing ID for this job chain
@@ -47,18 +50,7 @@ abstract class ProcessingJob
         }
 
         $this->writeProcessingStep('started', $step, function () use ($message, $step): void {
-            SermonProcessingStep::updateOrCreate(
-                [
-                    'processing_id' => $this->processingId,
-                    'step' => $step,
-                ],
-                [
-                    'status' => ProcessingStatus::Started->value,
-                    'message' => $message,
-                    'started_at' => now(),
-                    'completed_at' => null,
-                ]
-            );
+            $this->processingStepTransitions()->markAsStarted((string) $this->processingId, $step, $message);
         });
     }
 
@@ -77,17 +69,7 @@ abstract class ProcessingJob
         }
 
         $this->writeProcessingStep('completed', $step, function () use ($message, $step): void {
-            $stepLog = SermonProcessingStep::firstOrNew([
-                'processing_id' => $this->processingId,
-                'step' => $step,
-            ]);
-
-            $stepLog->fill([
-                'status' => ProcessingStatus::Completed->value,
-                'message' => $message,
-                'started_at' => $stepLog->started_at ?? now(),
-                'completed_at' => now(),
-            ])->save();
+            $this->processingStepTransitions()->markAsCompleted((string) $this->processingId, $step, $message);
         });
     }
 
@@ -107,17 +89,7 @@ abstract class ProcessingJob
         }
 
         $this->writeProcessingStep('failed', $step, function () use ($error, $step): void {
-            $stepLog = SermonProcessingStep::firstOrNew([
-                'processing_id' => $this->processingId,
-                'step' => $step,
-            ]);
-
-            $stepLog->fill([
-                'status' => ProcessingStatus::Failed->value,
-                'message' => $error,
-                'started_at' => $stepLog->started_at ?? now(),
-                'completed_at' => now(),
-            ])->save();
+            $this->processingStepTransitions()->markAsFailed((string) $this->processingId, $step, $error);
         });
     }
 
@@ -136,17 +108,7 @@ abstract class ProcessingJob
         }
 
         $this->writeProcessingStep('skipped', $step, function () use ($message, $step): void {
-            $stepLog = SermonProcessingStep::firstOrNew([
-                'processing_id' => $this->processingId,
-                'step' => $step,
-            ]);
-
-            $stepLog->fill([
-                'status' => ProcessingStatus::Skipped->value,
-                'message' => $message,
-                'started_at' => $stepLog->started_at ?? now(),
-                'completed_at' => now(),
-            ])->save();
+            $this->processingStepTransitions()->markAsSkipped((string) $this->processingId, $step, $message);
         });
     }
 
@@ -260,6 +222,11 @@ abstract class ProcessingJob
     protected function processingRunTransitions(): MediaProcessingRunTransitionService
     {
         return $this->processingRunTransitionService ??= app(MediaProcessingRunTransitionService::class);
+    }
+
+    protected function processingStepTransitions(): SermonProcessingStepTransitions
+    {
+        return $this->sermonProcessingStepTransitions ??= app(SermonProcessingStepTransitions::class);
     }
 
     protected function markProcessingRunAsProcessing(MediaProcessingLog $processingLog, ?string $step = null): bool

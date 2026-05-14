@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Integration\Models;
 
 use App\Enums\PreacherSource;
-use App\Enums\SermonContentType;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\Sermon;
@@ -13,7 +12,6 @@ use App\Models\SpeakerProfile;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Sitemap\Tags\Url;
 use Tests\TestCase;
@@ -122,61 +120,6 @@ class PreacherTest extends TestCase
 
         $this->assertCount(2, $activePreachers);
         $this->assertTrue($activePreachers->every(fn ($p) => $p->is_active));
-    }
-
-    #[Test]
-    public function it_returns_preachers_for_admin_list_and_caches_result(): void
-    {
-        Cache::forget('admin_preacher_list');
-        Preacher::query()->delete();
-
-        $preacherA = Preacher::factory()->create(['name' => 'Zack', 'is_active' => true]);
-        $preacherB = Preacher::factory()->create(['name' => 'Adam', 'is_active' => true]);
-        Preacher::factory()->inactive()->create(['name' => 'Inactive']);
-
-        $list = Preacher::getForAdminList();
-
-        $this->assertCount(2, $list);
-        $this->assertEquals(['Adam', 'Zack'], $list->values()->all());
-        $this->assertEquals($preacherB->id, $list->keys()[0]);
-        $this->assertEquals($preacherA->id, $list->keys()[1]);
-
-        $this->assertTrue(Cache::has('admin_preacher_list'));
-    }
-
-    #[Test]
-    public function it_returns_preachers_for_public_list_with_sermon_counts_and_caches_result(): void
-    {
-        Cache::forget('public_preacher_list');
-        Preacher::query()->delete();
-        Sermon::query()->delete();
-
-        $preacherA = Preacher::factory()->create(['name' => 'Preacher A', 'is_active' => true]);
-        $preacherB = Preacher::factory()->create(['name' => 'Preacher B', 'is_active' => true]);
-
-        Sermon::factory()->count(2)->create([
-            'preacher_id' => $preacherA->id,
-            'content_type' => SermonContentType::Sermon,
-        ]);
-        Sermon::factory()->create([
-            'preacher_id' => $preacherB->id,
-            'content_type' => SermonContentType::Sermon,
-        ]);
-        // Children's talk should NOT count towards sermon count
-        Sermon::factory()->create([
-            'preacher_id' => $preacherB->id,
-            'content_type' => SermonContentType::ChildrensTalk,
-        ]);
-
-        $list = Preacher::getForPublicList();
-
-        $this->assertCount(2, $list);
-        $this->assertEquals('Preacher A', $list->first()->name);
-        $this->assertEquals(2, $list->first()->sermons_count);
-        $this->assertEquals('Preacher B', $list->last()->name);
-        $this->assertEquals(1, $list->last()->sermons_count);
-
-        $this->assertTrue(Cache::has('public_preacher_list'));
     }
 
     #[Test]

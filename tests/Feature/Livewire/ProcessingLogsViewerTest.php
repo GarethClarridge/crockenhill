@@ -120,7 +120,7 @@ class ProcessingLogsViewerTest extends TestCase
 
         $initialValue = $component->get('autoRefresh');
 
-        $component->call('toggleAutoRefresh')
+        $component->set('autoRefresh', ! $initialValue)
             ->assertSet('autoRefresh', ! $initialValue);
     }
 
@@ -243,12 +243,14 @@ class ProcessingLogsViewerTest extends TestCase
         $this->actingAs($this->admin);
         $this->mockStatusQueryResponse();
 
-        // In testing env, autoRefresh is forced false in mount()
+        // In testing env, autoRefresh is forced false in mount(); the checkbox is the sole
+        // owner of the property (wire:model.live), so toggling the property in the test
+        // simulates what the UI does and produces a single net state transition per click.
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId, 'autoRefresh' => true])
             ->assertSet('autoRefresh', false) // overridden by testing env guard
-            ->call('toggleAutoRefresh')
+            ->set('autoRefresh', true)
             ->assertSet('autoRefresh', true)
-            ->call('toggleAutoRefresh')
+            ->set('autoRefresh', false)
             ->assertSet('autoRefresh', false);
     }
 

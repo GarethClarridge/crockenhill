@@ -19,7 +19,6 @@
                 <input
                     type="checkbox"
                     wire:model.live="autoRefresh"
-                    wire:change="toggleAutoRefresh"
                     class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal"
                 >
                 <span class="ml-1">Auto-refresh</span>

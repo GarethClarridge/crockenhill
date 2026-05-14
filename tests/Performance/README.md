@@ -1,6 +1,10 @@
 # Performance Tests
 
-These tests benchmark timing and memory behaviour of computationally sensitive code paths. They are **not part of the default CI run** — they require a real GD/FFmpeg stack and produce non-deterministic timings in constrained CI environments.
+**Opt-in benchmark tooling, not part of trusted CI.**
+
+These tests benchmark timing and memory behaviour of computationally sensitive code paths. They are **not part of the default CI run** — they require a real GD/FFmpeg stack and produce non-deterministic timings in constrained CI environments. Treat failures here as a signal to investigate locally, not as a release gate.
+
+Audit log: contents last verified against the current code on 2026-05-14 — every service and method referenced from these files still exists. If you remove or rename one of the targets in `## When to run`, update or delete the corresponding performance test in the same change.
 
 ## Running locally
 

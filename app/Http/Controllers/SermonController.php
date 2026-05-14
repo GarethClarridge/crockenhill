@@ -15,6 +15,7 @@ use App\Presenters\SeriesItemListPresenter;
 use App\Presenters\SermonArchiveSeoPresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonViewPresenter;
+use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
@@ -141,7 +142,7 @@ class SermonController extends Controller
          * Performance Optimization: Use cached preacher list with counts to reduce
          * DB I/O and complex subqueries on every request.
          */
-        $preachers = Preacher::getForPublicList();
+        $preachers = app(PreacherListRepository::class)->forPublicList();
 
         return view('sermons.preachers', [
             'preachers' => $preachers,

@@ -57,68 +57,6 @@ class SermonProcessingStep extends Model
     }
 
     /**
-     * Mark the step as started.
-     */
-    public function markAsStarted(?string $message = null): bool
-    {
-        return $this->update([
-            'status' => ProcessingStatus::Started->value,
-            'message' => $message,
-            'started_at' => now(),
-            'completed_at' => null,
-        ]);
-    }
-
-    /**
-     * Mark the step as completed.
-     */
-    public function markAsCompleted(?string $message = null): bool
-    {
-        return $this->update([
-            'status' => ProcessingStatus::Completed->value,
-            'message' => $message,
-            'completed_at' => now(),
-        ]);
-    }
-
-    /**
-     * Mark the step as failed.
-     */
-    public function markAsFailed(string $errorMessage): bool
-    {
-        return $this->update([
-            'status' => ProcessingStatus::Failed->value,
-            'message' => $errorMessage,
-            'completed_at' => now(),
-        ]);
-    }
-
-    /**
-     * Mark the step as skipped.
-     */
-    public function markAsSkipped(?string $message = null): bool
-    {
-        return $this->update([
-            'status' => ProcessingStatus::Skipped->value,
-            'message' => $message,
-            'started_at' => $this->started_at ?? now(),
-            'completed_at' => now(),
-        ]);
-    }
-
-    /**
-     * Mark the step as cancelled.
-     */
-    public function markAsCancelled(?string $message = null): bool
-    {
-        return $this->update([
-            'status' => ProcessingStatus::Cancelled->value,
-            'message' => $message ?? 'Cancelled by user',
-            'completed_at' => now(),
-        ]);
-    }
-
-    /**
      * Check if the step is completed.
      */
     public function isCompleted(): bool

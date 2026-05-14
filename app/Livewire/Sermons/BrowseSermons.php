@@ -9,6 +9,7 @@ use App\Models\Sermon;
 use App\Presenters\SermonArchiveSeoPresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonViewPresenter;
+use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
 use App\Support\BibleCanon;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -174,7 +175,7 @@ class BrowseSermons extends Component
     {
         return array_values(array_map(
             fn (Preacher $preacher): array => ['id' => $preacher->id, 'name' => $preacher->name],
-            Preacher::getForPublicList()->all()
+            app(PreacherListRepository::class)->forPublicList()->all()
         ));
     }
 

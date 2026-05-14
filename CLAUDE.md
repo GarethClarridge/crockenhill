@@ -161,6 +161,12 @@ All emails use `Mail::queue()` for async delivery. Queue driver (`QUEUE_DRIVER`)
 - `MeetingType`: regular, special, event types
 - `MeetingFrequency`: daily, weekly, monthly, annually
 
+### Admin Livewire Authorization (deliberate safety net)
+- All admin pages are behind the `auth`, `verified`, `admin` middleware group in `routes/web.php`. That covers initial page loads and Livewire AJAX requests.
+- **On top of that**, every Livewire component under `App\Livewire\Admin` MUST `use WithAdminAuthorization`. This is intentional defense-in-depth — the trait makes each component responsible for its own admin check, so a future route group misconfiguration cannot silently open the surface.
+- Every mutating Livewire action on an admin component MUST call `$this->authorizeAdmin()` before mutating state. `mount()` calls are optional (route middleware already covers the initial render).
+- Pinned by `tests/Integration/Livewire/Traits/AdminLivewireComponentsUseTraitTest.php` — if you add a new admin Livewire component without the trait, that test will fail.
+
 ## Current State
 
 - ✅ **Code Quality**: PHPStan at 0 errors — must stay that way; run after every change

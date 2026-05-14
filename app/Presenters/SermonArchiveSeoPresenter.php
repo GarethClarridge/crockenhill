@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use App\Models\Preacher;
+use App\Repositories\PreacherListRepository;
 
 class SermonArchiveSeoPresenter
 {
@@ -108,8 +109,8 @@ class SermonArchiveSeoPresenter
             return $this->memoizedPreacherNames[$preacherId];
         }
 
-        // Try the cached public collection first (it's memoized at the model layer)
-        $preacher = Preacher::getForPublicList()->firstWhere('id', $preacherId);
+        // Try the cached public collection first (it's memoized at the repository layer)
+        $preacher = app(PreacherListRepository::class)->forPublicList()->firstWhere('id', $preacherId);
 
         if ($preacher) {
             return $this->memoizedPreacherNames[$preacherId] = $preacher->name;

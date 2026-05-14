@@ -66,11 +66,6 @@ class SermonViewPresenter
     private array $memoizedPresents = [];
 
     /**
-     * @var array<int|string, int>
-     */
-    private array $memoizedTimestamps = [];
-
-    /**
      * @var array<int|string, string>
      */
     private array $memoizedSermonKeys = [];
@@ -204,7 +199,6 @@ class SermonViewPresenter
         $this->memoizedReferences = [];
         $this->memoizedDurations = [];
         $this->memoizedPresents = [];
-        $this->memoizedTimestamps = [];
         $this->memoizedSermonKeys = [];
         $this->memoizedFormattedDates = [];
         $this->memoizedSlugs = [];

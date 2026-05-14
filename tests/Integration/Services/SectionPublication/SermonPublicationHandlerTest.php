@@ -8,6 +8,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
+use App\Services\ExtractedSectionMediaChecker;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\SectionPublication\SermonPublicationHandler;
 use App\Services\SermonCreationService;
@@ -45,6 +46,7 @@ class SermonPublicationHandlerTest extends TestCase
             $this->sermonCreationService,
             $this->identityResolver,
             app(ServiceSectionPublicationTransitionService::class),
+            app(ExtractedSectionMediaChecker::class),
         );
     }
 

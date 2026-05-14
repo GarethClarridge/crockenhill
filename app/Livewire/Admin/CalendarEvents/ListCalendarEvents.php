@@ -9,7 +9,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
-use App\Models\Meeting;
+use App\Repositories\MeetingListRepository;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -80,7 +80,7 @@ class ListCalendarEvents extends Component
             ->orderBy('start_datetime', 'desc')
             ->paginate(20);
 
-        $meetings = Meeting::getForAdminList();
+        $meetings = app(MeetingListRepository::class)->forAdminList();
 
         $headers = [
             ['key' => 'title', 'label' => 'Title'],

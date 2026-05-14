@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\SermonService;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\ChurchServiceItem;
@@ -18,7 +19,7 @@ use Livewire\WithPagination;
 
 class ListSongs extends Component
 {
-    use EscapesLikeWildcards, WithFilterableListing, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithFilterableListing, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'usage_count';
 

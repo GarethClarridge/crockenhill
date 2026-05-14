@@ -147,13 +147,11 @@ class ProcessingLogsViewer extends Component
         }
     }
 
-    public function toggleAutoRefresh(): void
+    public function updatedAutoRefresh(bool $value): void
     {
-        $this->autoRefresh = ! $this->autoRefresh;
-
         $this->logDebug('ProcessingLogsViewer: Auto refresh toggled', [
             'processing_id' => $this->processingId,
-            'auto_refresh' => $this->autoRefresh,
+            'auto_refresh' => $value,
         ]);
     }
 

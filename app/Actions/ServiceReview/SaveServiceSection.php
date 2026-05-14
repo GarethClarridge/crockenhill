@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
+use App\Services\ExtractedSectionMediaChecker;
 use App\Services\ServiceSectionPublicationTransitionService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -20,6 +21,7 @@ class SaveServiceSection
     public function __construct(
         private readonly ChildrensTalkSpeakerService $speakerService,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
+        private readonly ExtractedSectionMediaChecker $mediaChecker,
     ) {}
 
     /**
@@ -122,7 +124,7 @@ class SaveServiceSection
         ) {
             $section->save();
 
-            if ($section->hasExtractedMedia()) {
+            if ($this->mediaChecker->hasExtractedMedia($section)) {
                 if ($section->extracted_at === null) {
                     $section->extracted_at = now();
                 }

@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 /**
@@ -174,22 +173,6 @@ class ServiceSection extends Model
     public function classificationSignature(): string
     {
         return hash('sha256', (string) json_encode($this->classificationSignaturePayload()));
-    }
-
-    /**
-     * Check whether both extracted video and audio files are present on the sermon disk.
-     */
-    public function hasExtractedMedia(): bool
-    {
-        $videoPath = $this->extracted_video_path;
-        $audioPath = $this->extracted_audio_path;
-
-        if (! is_string($videoPath) || $videoPath === '' || ! is_string($audioPath) || $audioPath === '') {
-            return false;
-        }
-
-        return Storage::disk($this->extractedAssetDisk($videoPath))->exists($videoPath)
-            && Storage::disk($this->extractedAssetDisk($audioPath))->exists($audioPath);
     }
 
     public function extractedAssetDisk(?string $path): string

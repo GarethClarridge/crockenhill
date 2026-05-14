@@ -12,8 +12,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Spatie\Sitemap\Contracts\Sitemapable;
@@ -161,43 +159,6 @@ class Preacher extends Model implements Sitemapable
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
-    }
-
-    /**
-     * Get a list of active preachers for admin dropdowns.
-     *
-     * Performance Optimization: Caches the preacher list for 24 hours using flexible cache
-     * to reduce redundant DB queries in the admin interface.
-     *
-     * @return Collection<int, string>
-     */
-    public static function getForAdminList(): Collection
-    {
-        return Cache::flexible('admin_preacher_list', [86400, 172800], function () {
-            return self::active()->orderBy('name')->pluck('name', 'id');
-        });
-    }
-
-    /**
-     * Get a list of active preachers with sermon counts for the public preachers index.
-     *
-     * Performance Optimization: Caches the preacher list and counts for 24 hours using flexible
-     * cache to reduce redundant complex subqueries on every public listing request.
-     *
-     * @return \Illuminate\Database\Eloquent\Collection<int, Preacher>
-     */
-    public static function getForPublicList(): \Illuminate\Database\Eloquent\Collection
-    {
-        return Cache::flexible('public_preacher_list', [86400, 172800], function () {
-            return self::active()
-                ->select(['id', 'name', 'slug', 'image_path'])
-                ->withCount([
-                    'sermons' => fn (Builder $query): Builder => $query->whereSermon(),
-                ])
-                ->orderByDesc('sermons_count')
-                ->orderBy('name')
-                ->get();
-        });
     }
 
     /**

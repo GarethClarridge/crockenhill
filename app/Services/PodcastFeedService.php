@@ -169,5 +169,10 @@ class PodcastFeedService
             Cache::forget($key);
             Cache::forget("illuminate:cache:flexible:created:{$key}");
         }
+
+        // The presenter is a scoped singleton that memoizes per-identity, so clearing
+        // the cache while the same presenter survives across the cache boundary would
+        // leak the prior preacher name. Flush its internal caches alongside the feed.
+        $this->sermonViewPresenter->clearInternalCaches();
     }
 }

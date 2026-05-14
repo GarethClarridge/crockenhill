@@ -19,7 +19,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\HasMedia;
@@ -407,25 +406,6 @@ class Meeting extends Model implements HasMedia, Sitemapable
         return $nextYearCandidate
             ->day(min($originalDay, $nextYearCandidate->daysInMonth))
             ->setTimeFrom($meetingDate);
-    }
-
-    /**
-     * Get a list of meetings for admin dropdowns.
-     *
-     * Performance Optimization: Caches the meeting list for 24 hours using flexible cache
-     * to reduce redundant DB queries and eager loading in the admin interface.
-     *
-     * @return \Illuminate\Support\Collection<string, string>
-     */
-    public static function getForAdminList(): \Illuminate\Support\Collection
-    {
-        return Cache::flexible('admin_meeting_list', [86400, 172800], function (): \Illuminate\Support\Collection {
-            return self::query()
-                ->select(['id', 'slug', 'page_id'])
-                ->with('page:id,heading')
-                ->get()
-                ->mapWithKeys(fn (self $m) => [$m->slug => $m->page->heading ?? $m->slug]);
-        });
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
+use App\Services\ExtractedSectionMediaChecker;
 use App\Services\ServiceSectionPublicationTransitionService;
 
 class ApproveSectionForPublication
@@ -16,6 +17,7 @@ class ApproveSectionForPublication
     public function __construct(
         private readonly ChildrensTalkSpeakerService $speakerService,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
+        private readonly ExtractedSectionMediaChecker $mediaChecker,
     ) {}
 
     /**
@@ -67,7 +69,7 @@ class ApproveSectionForPublication
      */
     public function approvalBlocker(ServiceSection $section): ?string
     {
-        if (! $section->hasExtractedMedia()) {
+        if (! $this->mediaChecker->hasExtractedMedia($section)) {
             return 'Section media is missing. Reclassify and prepare candidates again.';
         }
 

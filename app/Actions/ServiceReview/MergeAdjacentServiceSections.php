@@ -8,6 +8,7 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\ServiceSection;
+use App\Services\ExtractedSectionMediaChecker;
 use App\Services\ServiceSectionSyncService;
 use App\Services\VideoStorageService;
 
@@ -16,6 +17,7 @@ class MergeAdjacentServiceSections
     public function __construct(
         private readonly ServiceSectionSyncService $syncService,
         private readonly VideoStorageService $videoStorageService,
+        private readonly ExtractedSectionMediaChecker $mediaChecker,
     ) {}
 
     /**
@@ -57,7 +59,7 @@ class MergeAdjacentServiceSections
         $primary->source_segment_ids = $mergedSourceIds;
         $primary->needs_manual_review = $primary->needs_manual_review || $secondary->needs_manual_review;
 
-        if ($primary->hasExtractedMedia()) {
+        if ($this->mediaChecker->hasExtractedMedia($primary)) {
             $primary->extracted_video_path = null;
             $primary->extracted_audio_path = null;
             $primary->extracted_at = null;

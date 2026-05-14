@@ -26,6 +26,20 @@ use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
+/**
+ * Singleton-only by contract.
+ *
+ * This component is only ever mounted once per page (the admin sermon upload
+ * screen). The `media-upload:*` browser events that this component listens to
+ * are intentionally page-global by name, with a payload `id` that names the
+ * intended target component. The `id` filter on each `#[On(...)]` handler is
+ * defense-in-depth in case the assumption is violated.
+ *
+ * Do not mount more than one instance of this component on the same page
+ * without first encoding the instance scope into the event names themselves
+ * (e.g. `media-upload:{componentId}:cancel-upload`). See the April 2026
+ * frontend-interactions review for the trade-off.
+ */
 class Form extends Component
 {
     use HasConditionalLogging;

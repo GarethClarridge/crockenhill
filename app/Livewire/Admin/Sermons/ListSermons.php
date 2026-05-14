@@ -9,9 +9,9 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
-use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
+use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
 use App\Traits\EscapesLikeWildcards;
 use App\Traits\SanitizesLogData;
@@ -144,7 +144,7 @@ class ListSermons extends Component
      */
     protected function getPreachers(): Collection
     {
-        return Preacher::getForAdminList();
+        return app(PreacherListRepository::class)->forAdminList();
     }
 
     /**
