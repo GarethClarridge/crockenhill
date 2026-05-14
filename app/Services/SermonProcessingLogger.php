@@ -8,6 +8,7 @@ use App\Enums\LivestreamSegmentClassification;
 use App\Enums\ProcessingStatus;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
@@ -15,6 +16,8 @@ use Illuminate\Support\Str;
 
 class SermonProcessingLogger
 {
+    use SanitizesLogData;
+
     /**
      * Log the start of sermon processing.
      *
@@ -24,7 +27,7 @@ class SermonProcessingLogger
     {
         $context = [
             'processing_id' => $processingId,
-            'filename' => $filename,
+            'filename' => $this->sanitizeForLog($filename),
             'metadata' => $metadata,
             'memory_usage' => memory_get_usage(true),
             'peak_memory' => memory_get_peak_usage(true),
@@ -59,7 +62,7 @@ class SermonProcessingLogger
         ];
 
         if ($errorMessage) {
-            $context['error_message'] = $errorMessage;
+            $context['error_message'] = $this->sanitizeForLog($errorMessage);
         }
 
         $logLevel = match ($status) {
@@ -69,7 +72,9 @@ class SermonProcessingLogger
             default => 'debug',
         };
 
-        Log::log($logLevel, "Processing step: {$step} - {$status}", $context);
+        $sanitizedStep = $this->sanitizeForLog($step);
+        $sanitizedStatus = $this->sanitizeForLog($status);
+        Log::log($logLevel, "Processing step: {$sanitizedStep} - {$sanitizedStatus}", $context);
     }
 
     /**
@@ -88,7 +93,7 @@ class SermonProcessingLogger
     ): void {
         $context = array_merge([
             'processing_id' => $processingId,
-            'service' => $service,
+            'service' => $this->sanitizeForLog($service),
             'endpoint' => $endpoint,
             'response_time_ms' => round($responseTime * 1000, 2),
             'status_code' => $statusCode,
@@ -96,11 +101,12 @@ class SermonProcessingLogger
         ], $additionalContext);
 
         if ($errorMessage) {
-            $context['error_message'] = $errorMessage;
+            $context['error_message'] = $this->sanitizeForLog($errorMessage);
         }
 
         $logLevel = $statusCode >= 400 ? 'error' : 'info';
-        Log::log($logLevel, "API call to {$service}: {$endpoint}", $context);
+        $sanitizedService = $this->sanitizeForLog($service);
+        Log::log($logLevel, "API call to {$sanitizedService}: {$endpoint}", $context);
     }
 
     /**
@@ -116,8 +122,8 @@ class SermonProcessingLogger
     ): void {
         $context = [
             'processing_id' => $processingId,
-            'operation' => $operation,
-            'file_path' => $filePath,
+            'operation' => $this->sanitizeForLog($operation),
+            'file_path' => $this->sanitizeForLog($filePath),
             'timestamp' => now()->toISOString(),
         ];
 
@@ -131,11 +137,12 @@ class SermonProcessingLogger
         }
 
         if ($errorMessage) {
-            $context['error_message'] = $errorMessage;
+            $context['error_message'] = $this->sanitizeForLog($errorMessage);
         }
 
         $logLevel = $errorMessage ? 'error' : 'info';
-        Log::log($logLevel, "File operation: {$operation}", $context);
+        $sanitizedOperation = $this->sanitizeForLog($operation);
+        Log::log($logLevel, "File operation: {$sanitizedOperation}", $context);
     }
 
     /**
@@ -159,7 +166,7 @@ class SermonProcessingLogger
         ];
 
         if ($errorMessage) {
-            $context['error_message'] = $errorMessage;
+            $context['error_message'] = $this->sanitizeForLog($errorMessage);
         }
 
         $logLevel = match ($status) {
@@ -185,18 +192,19 @@ class SermonProcessingLogger
     ): void {
         $context = array_merge([
             'processing_id' => $processingId,
-            'step' => $step,
+            'step' => $this->sanitizeForLog($step),
             'exception_class' => get_class($exception),
-            'exception_message' => $exception->getMessage(),
+            'exception_message' => $this->sanitizeForLog($exception->getMessage()),
             'exception_code' => $exception->getCode(),
             'exception_file' => $exception->getFile(),
             'exception_line' => $exception->getLine(),
-            'stack_trace' => $exception->getTraceAsString(),
+            'stack_trace' => $this->sanitizeStackTrace($exception->getTraceAsString()),
             'memory_usage' => memory_get_usage(true),
             'timestamp' => now()->toISOString(),
         ], $additionalContext);
 
-        Log::error("Processing error in step: {$step}", $context);
+        $sanitizedStep = $this->sanitizeForLog($step);
+        Log::error("Processing error in step: {$sanitizedStep}", $context);
     }
 
     /**
@@ -223,7 +231,7 @@ class SermonProcessingLogger
     public function logHealthCheck(string $checkName, array $result): void
     {
         $context = [
-            'health_check' => $checkName,
+            'health_check' => $this->sanitizeForLog($checkName),
             'status' => $result['status'] ?? 'unknown',
             'result' => $result,
             'timestamp' => now()->toISOString(),
@@ -236,7 +244,8 @@ class SermonProcessingLogger
             default => 'debug',
         };
 
-        Log::log($logLevel, "Health check: {$checkName}", $context);
+        $sanitizedCheckName = $this->sanitizeForLog($checkName);
+        Log::log($logLevel, "Health check: {$sanitizedCheckName}", $context);
     }
 
     /**
@@ -356,10 +365,11 @@ class SermonProcessingLogger
      */
     public function logWarning(string $processingId, string $step, string $message, array $context = []): void
     {
-        Log::warning("Processing warning in step: {$step}", [
+        $sanitizedStep = $this->sanitizeForLog($step);
+        Log::warning("Processing warning in step: {$sanitizedStep}", [
             'processing_id' => $processingId,
-            'step' => $step,
-            'warning_message' => $message,
+            'step' => $sanitizedStep,
+            'warning_message' => $this->sanitizeForLog($message),
             'timestamp' => now()->toISOString(),
             'context' => $context,
         ]);

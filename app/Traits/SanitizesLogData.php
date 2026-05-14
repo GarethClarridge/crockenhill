@@ -10,7 +10,7 @@ trait SanitizesLogData
      * Sanitize user-controlled strings before writing to logs.
      * Prevents log injection by removing or replacing control characters.
      */
-    protected function sanitizeForLog(string $value): string
+    protected static function sanitizeForLog(string $value): string
     {
         $withoutControlChars = str_replace(["\r", "\n", "\t"], ' ', $value);
 
@@ -21,7 +21,7 @@ trait SanitizesLogData
      * Sanitise a stack trace before writing to logs.
      * Strips server base paths and redacts credential-like patterns.
      */
-    protected function sanitizeStackTrace(string $trace): string
+    protected static function sanitizeStackTrace(string $trace): string
     {
         // Strip absolute server paths to avoid leaking server structure
         $trace = str_replace(base_path().'/', '', $trace);

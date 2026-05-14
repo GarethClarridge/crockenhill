@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Log;
  */
 class OpenAIResponseLogger
 {
+    use SanitizesLogData;
+
     /**
      * Log detailed information about an OpenAI API response
      */
@@ -23,7 +26,7 @@ class OpenAIResponseLogger
     ): void {
         $dataType = gettype($responseData);
         $logData = [
-            'processing_id' => $processingId,
+            'processing_id' => self::sanitizeForLog($processingId),
             'attempt' => $attempt,
             'response_data_type' => $dataType,
             'response_type_hint' => $responseType,
@@ -31,7 +34,7 @@ class OpenAIResponseLogger
 
         if (is_string($responseData)) {
             // Log first 500 chars of string response (could be HTML error)
-            $logData['response_content_preview'] = substr($responseData, 0, 500);
+            $logData['response_content_preview'] = self::sanitizeForLog(substr($responseData, 0, 500));
             $logData['response_length'] = strlen($responseData);
             $logData['is_json'] = json_decode($responseData) !== null ? 'yes' : 'no';
 
@@ -64,14 +67,14 @@ class OpenAIResponseLogger
         ?string $responseBody = null
     ): void {
         $logData = [
-            'processing_id' => $processingId,
+            'processing_id' => self::sanitizeForLog($processingId),
             'attempt' => $attempt,
-            'error_message' => $errorMessage,
+            'error_message' => self::sanitizeForLog($errorMessage),
             'status_code' => $statusCode,
         ];
 
         if ($responseBody) {
-            $logData['response_body_preview'] = substr($responseBody, 0, 500);
+            $logData['response_body_preview'] = self::sanitizeForLog(substr($responseBody, 0, 500));
             $logData['response_body_length'] = strlen($responseBody);
 
             // Try to parse as JSON to understand error structure
