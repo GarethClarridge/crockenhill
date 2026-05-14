@@ -1,0 +1,98 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Traits;
+
+use App\Enums\ProcessingStatus;
+use App\Models\MediaProcessingLog;
+use App\Traits\ChecksCancellation;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Log;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class ChecksCancellationTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    private object $subject;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->subject = new class
+        {
+            use ChecksCancellation;
+
+            public MediaProcessingLog $processingLog;
+
+            public function checkAbortIfCancelled(string $jobClass): bool
+            {
+                return $this->abortIfCancelled($jobClass);
+            }
+        };
+    }
+
+    #[Test]
+    public function it_returns_true_if_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'status' => ProcessingStatus::Cancelled,
+        ]);
+
+        $this->subject->processingLog = $log;
+
+        // Security: We assert that a log entry is created for audit/visibility,
+        // but avoid exact string matching to prevent test fragility.
+        Log::shouldReceive('info')->once();
+
+        $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
+        $this->assertTrue($this->subject->processingLog->isCancelled());
+    }
+
+    #[Test]
+    public function it_returns_false_if_processing_is_not_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'status' => ProcessingStatus::Processing,
+        ]);
+
+        $this->subject->processingLog = $log;
+
+        $this->assertFalse($this->subject->checkAbortIfCancelled('TestJob'));
+        $this->assertSame($log->id, $this->subject->processingLog->id);
+        $this->assertFalse($this->subject->processingLog->isCancelled());
+    }
+
+    #[Test]
+    public function it_returns_true_if_processing_log_no_longer_exists(): void
+    {
+        $log = MediaProcessingLog::factory()->create();
+        $this->subject->processingLog = $log;
+
+        // Delete the log from DB so fresh() returns null
+        $log->delete();
+
+        $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
+    }
+
+    #[Test]
+    public function it_refreshes_the_processing_log_instance(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'status' => ProcessingStatus::Processing,
+        ]);
+
+        $this->subject->processingLog = $log;
+
+        // Update in DB behind the scenes
+        $log->update(['status' => ProcessingStatus::Cancelled]);
+
+        Log::shouldReceive('info')->once();
+
+        $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
+        $this->assertTrue($this->subject->processingLog->isCancelled());
+    }
+}
