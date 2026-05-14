@@ -1,33 +1,38 @@
-@extends('layouts.page')
+@extends('layouts.main')
 
-@section('title', $heading)
+@section('content')
+<x-page.shell
+    :heading="$heading"
+    :description="$description ?? null"
+    :metaDescription="$metaDescription ?? $description"
+    :headingpicture="$headingpicture ?? null"
+    :headingpicture-mobile="$headingpictureMobile ?? null"
+    :headingpicture-tablet="$headingpictureTablet ?? null"
+    :area="$area ?? null"
+    :slug="$slug ?? null"
+    :links="$links ?? []"
+    :meta-tags="false"
+>
+    @push('meta_tags')
+        <x-meta-tags
+            :title="$heading"
+            :description="$description"
+            :image="asset('/images/homepage/may2024wide.webp')"
+            image-alt="Crockenhill Baptist Church members outside the church building"
+        />
+        <x-schema.webpage
+            :heading="$heading"
+            :description="$description"
+            :image="asset('/images/homepage/may2024wide.webp')"
+        />
 
-@section('meta_description', $description)
+        @if (isset($json_ld_data))
+            <script type="application/ld+json">
+                {!! json_encode($json_ld_data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+            </script>
+        @endif
+    @endpush
 
-@section('meta_tags')
-    <x-meta-tags
-        :title="$heading"
-        :description="$description"
-        :image="asset('/images/homepage/may2024wide.webp')"
-        image-alt="Crockenhill Baptist Church members outside the church building"
-    />
-    <x-schema.webpage
-        :heading="$heading"
-        :description="$description"
-        :image="asset('/images/homepage/may2024wide.webp')"
-    />
-
-    <x-breadcrumbs :area="$area" :heading="$heading" json-only />
-
-    {{-- JSON-LD ItemList --}}
-    @if (isset($json_ld_data))
-        <script type="application/ld+json">
-            {!! json_encode($json_ld_data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
-        </script>
-    @endif
-@endsection
-
-@section('dynamic_content')
     <section class="space-y-8">
         <div class="overflow-hidden rounded-2xl border border-cbc-teal/15 bg-[linear-gradient(135deg,rgba(36,154,151,0.12)_0%,rgba(29,104,106,0.08)_50%,rgba(20,85,87,0.16)_100%)] p-8 shadow-sm">
             <div class="space-y-4 text-center">
@@ -47,22 +52,23 @@
             </x-card>
         @endif
     </section>
-@endsection
 
-@section('full_width_content')
-    @if ($talks->isNotEmpty())
-        <section class="px-6 pb-10 pt-2">
-            <div class="mx-auto grid max-w-2xl grid-cols-1 gap-6 sm:max-w-5xl sm:grid-cols-2 xl:max-w-7xl xl:grid-cols-3">
-                @foreach ($talks as $talk)
-                    <x-childrens-talk-card :sermon="$talk" :sermonView="$presentedTalks[$talk->id] ?? null" />
-                @endforeach
-            </div>
-
-            @if ($talks->hasPages())
-                <div class="mx-auto mt-8 max-w-2xl">
-                    {{ $talks->links() }}
+    <x-slot:fullWidth>
+        @if ($talks->isNotEmpty())
+            <section class="px-6 pb-10 pt-2">
+                <div class="mx-auto grid max-w-2xl grid-cols-1 gap-6 sm:max-w-5xl sm:grid-cols-2 xl:max-w-7xl xl:grid-cols-3">
+                    @foreach ($talks as $talk)
+                        <x-childrens-talk-card :sermon="$talk" :sermonView="$presentedTalks[$talk->id] ?? null" />
+                    @endforeach
                 </div>
-            @endif
-        </section>
-    @endif
+
+                @if ($talks->hasPages())
+                    <div class="mx-auto mt-8 max-w-2xl">
+                        {{ $talks->links() }}
+                    </div>
+                @endif
+            </section>
+        @endif
+    </x-slot:fullWidth>
+</x-page.shell>
 @endsection

@@ -45,17 +45,17 @@ done
 
 ## 2. Core UI Architecture
 
-### Preferred Shell Pattern (new work)
+### Shell Pattern
 
-New pages should use component-based shells. These push head metadata onto stacks consumed by `layouts/main.blade.php` and expose a `$slot` for body content:
+Every page Blade view should follow the same shape: `@extends('layouts.main')` + `@section('content')` wrapping a component-based shell. The shell pushes head metadata onto stacks consumed by `layouts/main.blade.php` and exposes a `$slot` for body content:
 
 | Shell | Tag | Use for |
 |---|---|---|
-| Public CMS pages | `<x-page.shell>` | Controller-rendered CMS pages via `pages/show.blade.php` |
+| Public CMS pages | `<x-page.shell>` | Controller-rendered CMS pages via `pages/show.blade.php` and all public read-side views (sermons, meetings, calendar, songs, children's corner, free-bible) |
 | Auth pages | `<x-auth.shell>` | Login, register, password-reset, verify-email |
 | Admin pages | `<x-admin.shell>` | Controller-rendered admin pages (not Livewire full-page) |
 
-**`<x-page.shell>` props:** `heading` (required), `metaDescription`, `description`, `headingpicture`, `headingpictureMobile`, `headingpictureTablet`, `area`, `slug`, `links`, `canonical`, `showToolbar` (default: `true` — pass `:show-toolbar="false"` to suppress breadcrumbs and edit buttons). Has a `$fullWidth` named slot for content that breaks out of the content wrapper.
+**`<x-page.shell>` props:** `heading` (required), `metaDescription`, `description`, `headingpicture`, `headingpictureMobile`, `headingpictureTablet`, `area`, `slug`, `links`, `canonical`, `showToolbar` (default: `true` — pass `:show-toolbar="false"` to suppress breadcrumbs and edit buttons), `metaTags` (default: `true` — pass `:meta-tags="false"` when the view supplies its own richer `<x-meta-tags>` / schema / JSON-LD via `@push('meta_tags')`, e.g. article-type meta, audio/video meta, or itemList JSON-LD). Has a `$fullWidth` named slot for content that breaks out of the content wrapper.
 
 **`<x-auth.shell>` props:** `heading` (required), `description`. No toolbar, no related pages.
 
@@ -63,19 +63,12 @@ New pages should use component-based shells. These push head metadata onto stack
 
 For **Livewire full-page admin components**, continue using the `#[Layout('layouts.admin')]` attribute and composing `<x-admin.page>`, `<x-admin.list-shell>`, or `<x-admin.form-shell>` directly inside the component view — no `<x-admin.shell>` wrapper needed.
 
-### Legacy Layout Pattern (tolerated, not preferred)
-
-The following `@extends`-based patterns remain active for the existing 22 public views. Do not use these for new pages. Migration to `<x-page.shell>` is tracked as a Phase 2 follow-up:
-
-- `@extends('layouts.page')` — public content pages (sermons, meetings, calendar, songs, children's corner)
-
-`layouts/main.blade.php` reads both `@push` stacks (new shells) and `@section` yields (legacy views) for `title`, `meta_description`, `meta_tags`, and `canonical` — this dual-consumer pattern ensures legacy views keep rendering correctly until Phase 2.
+`layouts/main.blade.php` reads `@push` stacks from the shells for `title`, `meta_description`, `meta_tags`, and `canonical`, with `@section` accepted as the alternate path for the full-width landing pages (`full-width-pages/home`, `church`, `community`, `christ`, `christmas`) and the error views (`errors/4xx.blade.php`, `errors/5xx.blade.php`) that intentionally do not use `<x-page.shell>`. The legacy `layouts/page.blade.php` dual-purpose layout has been removed — content pages should use the shell, not extend a separate layout.
 
 ### Base Layout and Shared Shell Components
 
 - HTML root: `resources/views/layouts/main.blade.php`
-- Legacy public shell: `resources/views/layouts/page.blade.php` (retained for legacy `@extends` views)
-- Legacy admin shell: `resources/views/layouts/admin.blade.php` (retained for Livewire `#[Layout]` consumers)
+- Admin layout (for Livewire `#[Layout]` consumers): `resources/views/layouts/admin.blade.php`
 - Header: `resources/views/components/layout/header.blade.php`
 - Footer: `resources/views/components/layout/footer.blade.php`
 - Page header switcher (image or text): `resources/views/components/page-header.blade.php`

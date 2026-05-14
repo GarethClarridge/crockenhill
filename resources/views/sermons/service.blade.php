@@ -1,32 +1,44 @@
-@extends('layouts/page')
+@extends('layouts.main')
 
-@section('title'){{ $heading }}@stop
-
-@section('meta_description'){{ $description }}@stop
-
-@section('meta_tags')
-<x-meta-tags
-    :title="$heading"
-    :description="$description"
-    :image="asset('/images/headings/large/sermons.webp')"
-    image-alt="Sermons at Crockenhill Baptist Church"
-/>
-<x-schema.webpage
+@section('content')
+<x-page.shell
     :heading="$heading"
-    :description="$description"
-    :image="asset('/images/headings/large/sermons.webp')"
-/>
+    :description="$description ?? null"
+    :metaDescription="$metaDescription ?? $description"
+    :headingpicture="$headingpicture ?? null"
+    :headingpicture-mobile="$headingpictureMobile ?? null"
+    :headingpicture-tablet="$headingpictureTablet ?? null"
+    :area="$area ?? null"
+    :slug="$slug ?? null"
+    :links="$links ?? []"
+    :meta-tags="false"
+>
+    @push('meta_tags')
+        <x-meta-tags
+            :title="$heading"
+            :description="$description"
+            :image="asset('/images/headings/large/sermons.webp')"
+            image-alt="Sermons at Crockenhill Baptist Church"
+        />
+        <x-schema.webpage
+            :heading="$heading"
+            :description="$description"
+            :image="asset('/images/headings/large/sermons.webp')"
+        />
 
-<x-breadcrumbs :area="$area" :heading="$heading" json-only />
+        <script type="application/ld+json">
+            {!! json_encode($json_ld_data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+        </script>
+    @endpush
 
-{{-- JSON-LD Sermon List --}}
-<script type="application/ld+json">
-{!! json_encode($json_ld_data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
-</script>
+    @if (isset($content))
+        <div class="mt-6 prose lg:prose-xl">
+            {!! $content !!}
+        </div>
+    @endif
+
+    <x-slot:fullWidth>
+        <x-sermon-list :sermons="$sermons" :presentedSermons="$presentedSermons" :groupedByDate="false" />
+    </x-slot:fullWidth>
+</x-page.shell>
 @endsection
-
-@section('full_width_content')
-
-  <x-sermon-list :sermons="$sermons" :presentedSermons="$presentedSermons" :groupedByDate="false" />
-
-@stop

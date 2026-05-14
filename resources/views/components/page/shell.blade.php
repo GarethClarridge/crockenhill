@@ -1,5 +1,6 @@
 @props([
     'heading',
+    'title' => null,
     'description' => null,
     'metaDescription' => null,
     'headingpicture' => null,
@@ -10,18 +11,23 @@
     'links' => [],
     'canonical' => null,
     'showToolbar' => true,
+    'metaTags' => true,
 ])
 
 @php
+    $resolvedTitle = $title ?? $heading;
     $resolvedDescription = $metaDescription
         ?? (isset($page) ? $page->meta_description : null)
         ?? ($description ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading);
 @endphp
 
-@push('title'){{ $heading }}@endpush
+{{-- Title is escaped here to match @section('title', ...) which also stores escaped content; layout escapes again, yielding the double-escape used by tests. --}}
+@push('title'){{ $resolvedTitle }}@endpush
 
-@push('meta_description'){{ $resolvedDescription }}@endpush
+{{-- Description is pushed raw so the layout single-escapes it, matching the @section('meta_description', ...) → @yield path. --}}
+@push('meta_description'){!! $resolvedDescription !!}@endpush
 
+@if ($metaTags)
 @push('meta_tags')
 <x-meta-tags
     :title="$heading"
@@ -32,6 +38,7 @@
 />
 <x-schema.webpage :$heading :description="$resolvedDescription" :image="$headingpicture ?? null" :canonical="$canonical" />
 @endpush
+@endif
 
 @if ($canonical)
 @push('canonical')

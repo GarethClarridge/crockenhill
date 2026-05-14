@@ -1,8 +1,4 @@
-@extends('layouts.page')
-
-@section('title')
-{{ $heading }} | Songs
-@stop
+@extends('layouts.main')
 
 @section('meta_description'){{ $description }}@stop
 
@@ -15,12 +11,23 @@
     :heading="$heading"
     :description="$description"
 />
-
-<x-breadcrumbs :area="$area" :heading="$heading" json-only />
 <x-schema.music-composition :$song />
 @stop
 
-@section('dynamic_content')
+@section('content')
+<x-page.shell
+    :heading="$heading"
+    :title="$heading . ' | Songs'"
+    :description="$description ?? null"
+    :metaDescription="$metaDescription ?? $description"
+    :headingpicture="$headingpicture ?? null"
+    :headingpicture-mobile="$headingpictureMobile ?? null"
+    :headingpicture-tablet="$headingpictureTablet ?? null"
+    :area="$area ?? null"
+    :slug="$slug ?? null"
+    :links="$links ?? []"
+    :meta-tags="false"
+>
     <section class="space-y-8">
         <div class="overflow-hidden rounded-2xl border border-cbc-teal/15 bg-[linear-gradient(135deg,rgba(36,154,151,0.12)_0%,rgba(29,104,106,0.08)_50%,rgba(20,85,87,0.16)_100%)] p-8 shadow-sm">
             <div class="flex flex-wrap items-start justify-between gap-6">
@@ -134,4 +141,5 @@
             </div>
         </x-card>
     </section>
+</x-page.shell>
 @endsection

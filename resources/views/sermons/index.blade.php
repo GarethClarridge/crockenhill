@@ -1,39 +1,51 @@
-@extends('layouts/page')
+@extends('layouts.main')
 
-@section('title', $heading)
-
-@section('meta_description', $description)
-
-@section('canonical')<link rel="canonical" href="{{ $canonical_url }}">@endsection
-
-@section('meta_tags')
-<x-meta-tags
-    :title="$heading"
-    :description="$description"
-    :canonical="$canonical_url"
-    :image="asset('/images/headings/large/sermons.webp')"
-    image-alt="Sermons at Crockenhill Baptist Church"
-/>
-<x-schema.webpage
+@section('content')
+<x-page.shell
     :heading="$heading"
-    :description="$description"
-    :image="asset('/images/headings/large/sermons.webp')"
-/>
+    :description="$description ?? null"
+    :metaDescription="$metaDescription ?? $description"
+    :headingpicture="$headingpicture ?? null"
+    :headingpicture-mobile="$headingpictureMobile ?? null"
+    :headingpicture-tablet="$headingpictureTablet ?? null"
+    :area="$area ?? null"
+    :slug="$slug ?? null"
+    :links="$links ?? []"
+    :canonical="$canonical_url"
+    :meta-tags="false"
+>
+    @push('meta_tags')
+        <x-meta-tags
+            :title="$heading"
+            :description="$description"
+            :canonical="$canonical_url"
+            :image="asset('/images/headings/large/sermons.webp')"
+            image-alt="Sermons at Crockenhill Baptist Church"
+        />
+        <x-schema.webpage
+            :heading="$heading"
+            :description="$description"
+            :image="asset('/images/headings/large/sermons.webp')"
+            :canonical="$canonical_url"
+        />
+    @endpush
 
-<x-breadcrumbs :area="$area" :heading="$heading" json-only />
+    @if (isset($content))
+        <div class="mt-6 prose lg:prose-xl">
+            {!! $content !!}
+        </div>
+    @endif
+
+    @if (auth()->user()?->canAccessAdmin())
+        <div class="px-6 max-w-2xl mx-auto mt-6 my-12">
+            <x-button link="{{ route('admin.sermon-upload.create') }}">
+                Upload a new sermon
+            </x-button>
+        </div>
+    @endif
+
+    <x-slot:fullWidth>
+        <livewire:sermons.browse-sermons />
+    </x-slot:fullWidth>
+</x-page.shell>
 @endsection
-
-@section('dynamic_content')
-@if (auth()->user()?->canAccessAdmin())
-<div class="px-6 max-w-2xl mx-auto mt-6 my-12">
-  <x-button link="{{ route('admin.sermon-upload.create') }}">
-    Upload a new sermon
-  </x-button>
-</div>
-@endif
-@stop
-
-@section('full_width_content')
-<livewire:sermons.browse-sermons />
-
-@stop

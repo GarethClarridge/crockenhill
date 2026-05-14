@@ -1,8 +1,17 @@
-@extends('layouts/page')
+@extends('layouts.main')
 
-@section('dynamic_content')
-
-  {{-- Replace static form with Livewire component --}}
-  @livewire('media-upload')
-
-@stop
+@section('content')
+<x-page.shell
+    :heading="$heading"
+    :description="$description ?? null"
+    :metaDescription="$metaDescription ?? null"
+    :headingpicture="$headingpicture ?? null"
+    :headingpicture-mobile="$headingpictureMobile ?? null"
+    :headingpicture-tablet="$headingpictureTablet ?? null"
+    :area="$area ?? null"
+    :slug="$slug ?? null"
+    :links="$links ?? []"
+>
+    @livewire('media-upload')
+</x-page.shell>
+@endsection

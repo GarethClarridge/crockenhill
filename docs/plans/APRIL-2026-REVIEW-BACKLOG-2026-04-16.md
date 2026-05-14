@@ -557,12 +557,14 @@ Backlog:
 - Converge the remaining controller-rendered admin pages on the shared `x-admin.page`, `x-admin.list-shell`, and `x-admin.form-shell` composition path, or explicitly mark them as intentional exceptions.
 - Clean up view-name and composer-registration drift so the active shell/view contracts are obvious and stale bindings stop implying unsupported paths.
 
-**Verification (2026-05-06):**
+**Verification (2026-05-14):**
 
-- ⚠️ `x-admin.*` component library (`x-admin.page`, `x-admin.list-shell`, `x-admin.form-shell`) exists and is adopted across many admin screens, but full adoption was not confirmed for all controller-rendered admin pages.
-- ❌ Whether `layouts/page.blade.php` still doubles as both a reusable layout and a final CMS page response was not confirmed — requires direct template inspection.
-- ❌ No documentation of the preferred layout pattern or explicit exceptions for older inheritance-based views found.
-- ❌ Dead/overlapping auth layout sections, metadata side effects, and view-composer drift not confirmed resolved.
+- ✅ `layouts/page.blade.php` has been deleted. All 17 legacy public views (sermons, meetings, calendar, songs, children's corner, free-bible) now `@extends('layouts.main')` and compose `<x-page.shell>` directly.
+- ✅ Preferred layout pattern documented in `docs/design-style-guide.md` §2 "Shell Pattern". The `<x-page.shell>` props table includes the new `title` and `metaTags` props; the doc names the full-width landing pages and error views as the intentional `@section` consumers.
+- ✅ `View::composer('layouts/page', PageShowComposer::class)` binding removed from `app/Providers/ViewServiceProvider.php`. Only `pages.show` and the full-width-page composers remain.
+- ✅ `<x-page.shell>` now owns the canonical/meta-tags contract: pages pass `:canonical` to the shell rather than declaring a separate `@section('canonical')`. The shell auto-pushes `<x-meta-tags>` + `<x-schema.webpage>` by default; pages that need richer article/audio/video meta pass `:meta-tags="false"` and supply their own `@push('meta_tags')` block.
+- ✅ The Phase-2 dual-consumer fallback in `layouts/main.blade.php` is kept as a deliberate alternate path for the five full-width landing pages and the error views, with a comment explaining that this is the supported (not legacy) shape for those views. No views still depend on the deleted `layouts/page.blade.php`.
+- ✅ Quality gates: PHPStan 0 errors, Pint clean, all 2280 feature tests pass.
 
 Primary review coverage:
 
@@ -676,5 +678,5 @@ Use this map to verify that every April review feeds at least one concrete backl
 - Active church-service workflow state no longer depends on hidden JSON contracts. ✅
 - The heaviest admin Livewire screens have thinner write and presentation seams. ✅
 - Public browse routes stop doing obviously duplicate or overly eager work. ✅
-- Blade page shells use one explicit contract instead of mixing renderable layouts, dead sections, and component-side metadata mutation. ⚠️ *(x-admin shells exist; full adoption and layout/page dual-use resolution not confirmed)*
+- Blade page shells use one explicit contract instead of mixing renderable layouts, dead sections, and component-side metadata mutation. ✅
 - The test suite, standards layer, and operations docs reflect the current architecture rather than historical compromises. ⚠️ *(strict_types and chunk commands done; test taxonomy, resource tests, and docs not confirmed)*

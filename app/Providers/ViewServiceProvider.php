@@ -29,9 +29,6 @@ class ViewServiceProvider extends ServiceProvider
     {
         View::composer('includes.photo-selector', PhotoSelectorComposer::class);
         View::composer('pages.show', PageShowComposer::class);
-        // Phase 2 migration: pages/christ/free-bible.blade.php is the last override that @extends('layouts.page').
-        // Remove this binding once it migrates to @extends('layouts.main') + x-page.shell.
-        View::composer('layouts/page', PageShowComposer::class);
         View::composer('full-width-pages.home', HomePageComposer::class);
         View::composer('full-width-pages.community', CommunityPageComposer::class);
         View::composer('full-width-pages.church', ChurchPageComposer::class);

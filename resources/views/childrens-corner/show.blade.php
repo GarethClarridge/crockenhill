@@ -1,34 +1,43 @@
-@extends('layouts.page')
+@extends('layouts.main')
 
-@section('title'){{ $fullTitle }}@stop
+@section('content')
+<x-page.shell
+    :heading="$heading ?? $sermon->title"
+    :description="$description ?? null"
+    :metaDescription="$metaDescription ?? null"
+    :headingpicture="$headingpicture ?? null"
+    :headingpicture-mobile="$headingpictureMobile ?? null"
+    :headingpicture-tablet="$headingpictureTablet ?? null"
+    :area="$area ?? null"
+    :slug="$slug ?? null"
+    :links="$links ?? []"
+    :canonical="$sermonView['public_url']"
+    :title="$fullTitle"
+    :meta-tags="false"
+>
 
-@section('canonical')<link rel="canonical" href="{{ $sermonView['public_url'] }}">@endsection
+    @push('meta_tags')
+        <x-meta-tags
+            :title="$fullTitle"
+            :description="$metaDescription ?: $sermon->title"
+            type="article"
+            :image="$sermonView['thumbnail_url']"
+            :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
+            :image-height="$sermonView['thumbnail_url'] ? 720 : 600"
+            :image-alt="\"Children's Corner: {$sermon->title}\""
+            :audio="$sermonView['audio_url']"
+            :video="$sermonView['video_url']"
+            :canonical="$sermonView['public_url']"
+        />
 
-@section('meta_tags')
-    <x-meta-tags
-        :title="$fullTitle"
-        :description="$metaDescription ?: $sermon->title"
-        type="article"
-        :image="$sermonView['thumbnail_url']"
-        :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
-        :image-height="$sermonView['thumbnail_url'] ? 720 : 600"
-        :image-alt="\"Children's Corner: {$sermon->title}\""
-        :audio="$sermonView['audio_url']"
-        :video="$sermonView['video_url']"
-        :canonical="$sermonView['public_url']"
-    />
+        <x-schema.sermon :$sermon :$sermonView :$metaDescription />
+        <x-schema.webpage
+            :heading="$fullTitle"
+            :description="$metaDescription ?: $sermon->title"
+            :image="$sermonView['thumbnail_url']"
+        />
+    @endpush
 
-    <x-schema.sermon :$sermon :$sermonView :$metaDescription />
-    <x-schema.webpage
-        :heading="$fullTitle"
-        :description="$metaDescription ?: $sermon->title"
-        :image="$sermonView['thumbnail_url']"
-    />
-
-    <x-breadcrumbs :area="$area" :heading="$sermon->title" json-only />
-@endsection
-
-@section('dynamic_content')
     @php
         $hasAudio = filled($sermonView['audio_url']);
         $hasVideo = filled($sermonView['video_url']);
@@ -122,4 +131,5 @@
             </x-card>
         @endif
     </section>
+</x-page.shell>
 @endsection

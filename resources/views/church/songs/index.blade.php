@@ -1,22 +1,16 @@
-@extends('layouts.page')
+@extends('layouts.main')
 
-@section('title', 'Songs')
-
-@section('meta_description', 'Browse the songs most often sung at Crockenhill Baptist Church.')
-
-@section('meta_tags')
-<x-meta-tags
-    title="Songs"
-    description="Browse the songs most often sung at Crockenhill Baptist Church."
-/>
-<x-schema.webpage
+@section('content')
+<x-page.shell
     heading="Songs"
     description="Browse the songs most often sung at Crockenhill Baptist Church."
-/>
-
-<x-breadcrumbs :area="$area" :heading="$heading" json-only />
-@endsection
-
-@section('dynamic_content')
+    :headingpicture="$headingpicture ?? null"
+    :headingpicture-mobile="$headingpictureMobile ?? null"
+    :headingpicture-tablet="$headingpictureTablet ?? null"
+    :area="$area ?? null"
+    :slug="$slug ?? null"
+    :links="$links ?? []"
+>
     <livewire:church.songs.browse-songs />
+</x-page.shell>
 @endsection
