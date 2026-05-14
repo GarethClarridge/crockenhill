@@ -17,6 +17,10 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_trimmed_day_at_database_level()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+            $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
+        }
+
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('meetings_day_format_check');
 
@@ -34,6 +38,10 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_non_empty_day_at_database_level()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+            $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
+        }
+
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('meetings_day_format_check');
 
@@ -51,6 +59,10 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_trimmed_who_at_database_level()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+            $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
+        }
+
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('meetings_who_format_check');
 
@@ -68,6 +80,10 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_trimmed_location_at_database_level()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+            $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
+        }
+
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('meetings_location_format_check');
 
@@ -86,6 +102,10 @@ class MeetingFortificationTest extends TestCase
     #[Test]
     public function it_enforces_lowercased_trimmed_email_at_database_level()
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+            $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
+        }
+
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('meetings_leaders_email_format_check');
 

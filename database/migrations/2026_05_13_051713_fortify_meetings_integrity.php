@@ -31,7 +31,10 @@ return new class extends Migration
             return;
         }
 
-        // 1. Data Cleanup: Trim existing data and lowercase email
+        // 1. Data Cleanup: Normalize existing data where possible (trimming and lowercasing)
+        // This is safe as it doesn't change the meaning of the data, only its format.
+        // We do NOT provide placeholders for empty required fields; we let the migration
+        // fail loudly if data integrity is already compromised, per Warden standards.
         DB::table('meetings')->update([
             'day' => DB::raw('TRIM(day)'),
             'who' => DB::raw('TRIM(who)'),
@@ -40,16 +43,7 @@ return new class extends Migration
             'leaders_email' => DB::raw('LOWER(NULLIF(TRIM(leaders_email), ""))'),
         ]);
 
-        // 2. Ensure no empty required fields exist before adding constraints
-        DB::table('meetings')
-            ->where('day', '')
-            ->update(['day' => 'Unknown Day']);
-
-        DB::table('meetings')
-            ->where('who', '')
-            ->update(['who' => 'Unknown']);
-
-        // 3. Add CHECK constraints
+        // 2. Add CHECK constraints (MySQL 8.0.16+)
         // BINARY is used to ensure exact character-for-character match for the trim check.
         DB::statement(sprintf(
             "ALTER TABLE meetings ADD CONSTRAINT %s CHECK (BINARY day = TRIM(day) AND day != '')",
