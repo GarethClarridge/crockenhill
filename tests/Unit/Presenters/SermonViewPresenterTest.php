@@ -175,6 +175,30 @@ class SermonViewPresenterTest extends TestCase
     }
 
     #[Test]
+    public function plain_url_falls_back_to_primary_when_metadata_unselected_but_card_url_returns_null(): void
+    {
+        Storage::disk('public')->put('thumbnails/primary.jpg', 'primary');
+
+        Sermon::factory()->create([
+            'slug' => 'slimmed-query-sermon',
+            'thumbnail_file_path' => 'thumbnails/primary.jpg',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/plain.jpg',
+                'card_thumbnail_path' => 'thumbnails/card.jpg',
+            ],
+        ]);
+
+        $slimmed = Sermon::query()
+            ->select(['id', 'slug', 'thumbnail_file_path', 'date', 'content_type', 'video_quality_status', 'video_visibility_override'])
+            ->where('slug', 'slimmed-query-sermon')
+            ->first();
+
+        $this->assertNotNull($slimmed);
+        $this->assertStringContainsString('/storage/thumbnails/primary.jpg', $this->presenter->plainThumbnailUrl($slimmed) ?? '');
+        $this->assertNull($this->presenter->cardThumbnailUrl($slimmed));
+    }
+
+    #[Test]
     public function it_returns_null_optional_media_and_fallback_preacher_url_when_missing(): void
     {
         $sermon = Sermon::factory()->create([

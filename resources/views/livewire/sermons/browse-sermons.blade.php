@@ -124,7 +124,7 @@
             <div class="mx-auto mt-6 mb-6 grid max-w-2xl items-start justify-center gap-4 px-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))] lg:max-w-5xl xl:max-w-7xl">
                 @foreach ($sermons as $sermon)
                     <div wire:key="sermon-{{ $sermon->id }}">
-                        <x-sermon-card :sermon="$sermon" :sermonView="$this->presentedSermons[$sermon->id]" />
+                        <x-sermon-card :sermon="$sermon" :sermonView="$this->presentedSermons[$sermon->id] ?? null" />
                     </div>
                 @endforeach
             </div>

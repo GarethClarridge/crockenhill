@@ -324,9 +324,8 @@ class SermonViewPresenter
                 return null;
             }
 
-            // Fallback for listings where metadata might be absent (pre-optimization state)
-            if (! isset($sermon->getAttributes()['thumbnail_metadata']) && $sermon->hasThumbnail()) {
-                return $this->thumbnailUrl($sermon);
+            if (! isset($sermon->getAttributes()['thumbnail_metadata'])) {
+                return null;
             }
 
             if (! $sermon->hasPlainThumbnail()) {
@@ -522,7 +521,9 @@ class SermonViewPresenter
             return [];
         }
 
-        $collectionKey = sha1(implode('|', $sermons->pluck('id')->all()));
+        $ids = $sermons->pluck('id')->all();
+        sort($ids);
+        $collectionKey = sha1(implode('|', $ids));
 
         if (isset($this->memoizedCollections[$collectionKey])) {
             return $this->memoizedCollections[$collectionKey];

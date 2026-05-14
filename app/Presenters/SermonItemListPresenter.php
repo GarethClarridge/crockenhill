@@ -33,9 +33,6 @@ class SermonItemListPresenter
         /** @var Collection<int, Sermon> $flatSermons */
         $flatSermons = $sermons->flatten(1);
 
-        // Populate memoization caches for all sermons in one pass
-        $this->sermonViewPresenter->presentCollection($flatSermons);
-
         $orgName = (string) config('organization.name');
         $logoUrl = asset('images/Primary.png');
         $appUrl = (string) config('app.url');
