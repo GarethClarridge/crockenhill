@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class ProcessingManualReviewMetadata extends JsonData
+final readonly class ProcessingManualReviewMetadata extends JsonData
 {
     /**
      * @param  list<array{segment_id:int,start_time:float,end_time:float,duration:float}>  $speechSegments
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?string $status = null,
-        public readonly ?string $reasonCode = null,
-        public readonly ?string $reasonMessage = null,
-        public readonly ?string $flaggedAt = null,
-        public readonly array $speechSegments = [],
-        public readonly ?int $confirmedSegmentId = null,
-        public readonly ?int $confirmedByUserId = null,
-        public readonly ?string $confirmedAt = null,
-        public readonly array $raw = [],
+        public ?string $status = null,
+        public ?string $reasonCode = null,
+        public ?string $reasonMessage = null,
+        public ?string $flaggedAt = null,
+        public array $speechSegments = [],
+        public ?int $confirmedSegmentId = null,
+        public ?int $confirmedByUserId = null,
+        public ?string $confirmedAt = null,
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): ?self

@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class ProcessingId3Metadata extends JsonData
+final readonly class ProcessingId3Metadata extends JsonData
 {
     /**
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?string $title = null,
-        public readonly ?string $preacher = null,
-        public readonly ?string $series = null,
-        public readonly ?string $reference = null,
-        public readonly array $raw = [],
+        public ?string $title = null,
+        public ?string $preacher = null,
+        public ?string $series = null,
+        public ?string $reference = null,
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): ?self

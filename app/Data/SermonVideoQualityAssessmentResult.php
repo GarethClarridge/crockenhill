@@ -6,22 +6,22 @@ namespace App\Data;
 
 use App\Enums\SermonVideoQualityStatus;
 
-final class SermonVideoQualityAssessmentResult
+final readonly class SermonVideoQualityAssessmentResult
 {
     /**
      * @param  list<float>  $sampleTimestamps
      * @param  array<string, mixed>  $metrics
      */
     public function __construct(
-        public readonly SermonVideoQualityStatus $status,
-        public readonly ?string $reason,
-        public readonly int $sampleCount,
-        public readonly array $sampleTimestamps,
-        public readonly float $blankFrameRatio,
-        public readonly float $frozenPairRatio,
-        public readonly float $lowDetailRatio,
-        public readonly float $aggregateScore,
-        public readonly array $metrics = [],
+        public SermonVideoQualityStatus $status,
+        public ?string $reason,
+        public int $sampleCount,
+        public array $sampleTimestamps,
+        public float $blankFrameRatio,
+        public float $frozenPairRatio,
+        public float $lowDetailRatio,
+        public float $aggregateScore,
+        public array $metrics = [],
     ) {}
 
     public static function failed(string $reason = 'analysis_failed'): self

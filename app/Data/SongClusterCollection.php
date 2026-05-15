@@ -12,13 +12,13 @@ use Traversable;
 /**
  * @implements IteratorAggregate<int, SongCluster>
  */
-final class SongClusterCollection extends JsonData implements Countable, IteratorAggregate
+final readonly class SongClusterCollection extends JsonData implements Countable, IteratorAggregate
 {
     /**
      * @param  list<SongCluster>  $items
      */
     public function __construct(
-        public readonly array $items,
+        public array $items,
     ) {}
 
     public static function fromArray(mixed $value): ?self
