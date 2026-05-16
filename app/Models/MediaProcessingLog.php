@@ -15,6 +15,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use Database\Factories\MediaProcessingLogFactory;
+use Illuminate\Contracts\Validation\ImplicitRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -526,6 +527,24 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function videoFilePath(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function legacyManualReviewMetadata(): array
@@ -623,11 +642,31 @@ class MediaProcessingLog extends Model
      */
     public static function validationRules(): array
     {
+        $trimmedTextRule = new class implements ImplicitRule
+        {
+            public function passes($attribute, $value): bool
+            {
+                if ($value === null) {
+                    return true;
+                }
+
+                $valueStr = (string) $value;
+
+                return $valueStr !== '' && trim($valueStr) === $valueStr;
+            }
+
+            public function message(): string
+            {
+                return 'The :attribute field must not be empty or contain leading or trailing whitespace.';
+            }
+        };
+
         return [
             'processing_id' => ['sometimes', 'required', 'string', 'size:36'],
             'processing_type' => ['sometimes', 'required', Rule::enum(MediaType::class)],
             'status' => ['sometimes', 'required', Rule::enum(ProcessingStatus::class)],
             'original_filename' => ['sometimes', 'required', 'string', 'max:255'],
+            'video_file_path' => ['nullable', 'string', 'max:500', $trimmedTextRule],
             'file_hash' => ['nullable', 'string', 'max:64'],
             'file_size' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],

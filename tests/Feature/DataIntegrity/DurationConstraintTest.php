@@ -130,8 +130,8 @@ class DurationConstraintTest extends TestCase
     {
         $rules = SongVideo::validationRules();
 
-        $this->assertTrue(Validator::make(['duration' => 100], $rules)->passes());
-        $this->assertFalse(Validator::make(['duration' => -1], $rules)->passes());
+        $this->assertTrue(Validator::make(['video_file_path' => 'test.mp4', 'duration' => 100], $rules)->passes());
+        $this->assertFalse(Validator::make(['video_file_path' => 'test.mp4', 'duration' => -1], $rules)->passes());
     }
 
     #[Test]

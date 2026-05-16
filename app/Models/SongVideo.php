@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Database\Factories\SongVideoFactory;
+use Illuminate\Contracts\Validation\ImplicitRule;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -65,6 +67,16 @@ class SongVideo extends Model
         ];
     }
 
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function videoFilePath(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
     public function isFeatured(): bool
     {
         return $this->is_featured;
@@ -113,11 +125,31 @@ class SongVideo extends Model
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<string|mixed>>
      */
     public static function validationRules(): array
     {
+        $trimmedTextRule = new class implements ImplicitRule
+        {
+            public function passes($attribute, $value): bool
+            {
+                if ($value === null) {
+                    return true;
+                }
+
+                $valueStr = (string) $value;
+
+                return $valueStr !== '' && trim($valueStr) === $valueStr;
+            }
+
+            public function message(): string
+            {
+                return 'The :attribute field must not be empty or contain leading or trailing whitespace.';
+            }
+        };
+
         return [
+            'video_file_path' => ['required', 'string', 'max:500', $trimmedTextRule],
             'duration' => ['nullable', 'numeric', 'min:0'],
         ];
     }

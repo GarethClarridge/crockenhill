@@ -15,6 +15,7 @@ use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Presenters\SermonSitemapPresenter;
 use Database\Factories\SermonFactory;
+use Illuminate\Contracts\Validation\ImplicitRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -223,6 +224,24 @@ class Sermon extends Model implements Sitemapable
     /**
      * @return Attribute<?string, ?string>
      */
+    protected function videoFilePath(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
     protected function series(): Attribute
     {
         return Attribute::make(
@@ -250,11 +269,30 @@ class Sermon extends Model implements Sitemapable
         }
         $slugRule[] = $uniqueSlug;
 
+        $trimmedTextRule = new class implements ImplicitRule
+        {
+            public function passes($attribute, $value): bool
+            {
+                if ($value === null) {
+                    return true;
+                }
+
+                $valueStr = (string) $value;
+
+                return $valueStr !== '' && trim($valueStr) === $valueStr;
+            }
+
+            public function message(): string
+            {
+                return 'The :attribute field must not be empty or contain leading or trailing whitespace.';
+            }
+        };
+
         return [
             'title' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
             'audio_file_path' => ['nullable', 'string', 'max:255'],
-            'video_file_path' => ['nullable', 'string', 'max:500'],
+            'video_file_path' => ['nullable', 'string', 'max:500', $trimmedTextRule],
             'content_type' => ['required', Rule::enum(SermonContentType::class)],
             'source_type' => ['nullable', Rule::enum(SermonSourceType::class)],
             'service' => ['nullable', Rule::enum(SermonService::class)],
