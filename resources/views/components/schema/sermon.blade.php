@@ -30,7 +30,7 @@
     }
 
     $schema = [
-        '@context' => 'https://schema.org',
+        '@' . 'context' => 'https://schema.org',
         '@type' => 'Article',
         'headline' => $sermon->title,
         'description' => $metaDescription,

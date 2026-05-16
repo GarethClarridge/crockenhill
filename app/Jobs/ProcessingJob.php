@@ -140,7 +140,7 @@ abstract class ProcessingJob
         }
 
         // Check if any processing steps have been cancelled
-        $cancelledSteps = SermonProcessingStep::where('processing_id', $this->processingId)
+        $cancelledSteps = SermonProcessingStep::query()->where('processing_id', $this->processingId)
             ->where('status', ProcessingStatus::Cancelled->value)
             ->count();
 
@@ -208,7 +208,7 @@ abstract class ProcessingJob
      */
     protected function getProcessingIdFromSermon(int $sermonId): ?string
     {
-        $sermon = Sermon::find($sermonId);
+        $sermon = Sermon::query()->find($sermonId);
         if (! $sermon) {
             return null;
         }

@@ -14,7 +14,7 @@
     }
 
     $schema = [
-        '@context' => 'https://schema.org',
+        '@' . 'context' => 'https://schema.org',
         '@type' => 'Church',
         'name' => config('organization.name'),
         '@id' => config('app.url').'/',

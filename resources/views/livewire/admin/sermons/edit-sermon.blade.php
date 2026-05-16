@@ -29,8 +29,13 @@
             <x-input label="Title" wire:model.live.debounce="form.title" required maxlength="255" autofocus />
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <x-input label="Slug" wire:model="form.slug" required maxlength="255"
-                    hint="URL-friendly identifier (auto-generated from title)" />
+                <div class="flex items-start gap-2">
+                    <div class="flex-1">
+                        <x-input label="Slug" wire:model="form.slug" required maxlength="255"
+                            hint="URL-friendly identifier (auto-generated from title)" />
+                    </div>
+                    <x-clipboard-button js-content="$wire.form.slug" hideLabel label="Copy Slug" title="Copy slug to clipboard" class="mt-7" />
+                </div>
 
                 <x-input type="number" label="Download Count" wire:model="form.downloadCount"
                     hint="Incremented automatically when the audio is downloaded" />

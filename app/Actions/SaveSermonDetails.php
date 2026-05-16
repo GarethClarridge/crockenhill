@@ -36,7 +36,7 @@ class SaveSermonDetails
     public function execute(Sermon $sermon, array $validated): void
     {
         if ($validated['preacherId']) {
-            $preacher = Preacher::find($validated['preacherId']);
+            $preacher = Preacher::query()->find($validated['preacherId']);
         } else {
             $preacher = $this->preacherResolutionService->resolve($validated['preacher']);
         }

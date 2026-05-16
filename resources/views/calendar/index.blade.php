@@ -27,11 +27,25 @@
         />
 
         @if($allEvents->isNotEmpty())
+            {{--
+                Performance Optimization: Resolve organization config and asset values once
+                outside the loop to avoid redundant helper calls for every event in the list.
+            --}}
+            @php
+                $orgName = config('organization.name');
+                $orgUrl = url('/');
+                $orgStreet = config('organization.address.street');
+                $orgLocality = config('organization.address.locality');
+                $orgRegion = config('organization.address.region');
+                $orgPostalCode = config('organization.address.postal_code');
+                $orgCountry = config('organization.address.country');
+                $primaryImage = asset('images/Primary.png');
+            @endphp
             <script type="application/ld+json">
                 {!! json_encode([
-                    '@context' => 'https://schema.org',
+                    '@' . 'context' => 'https://schema.org',
                     '@type' => 'ItemList',
-                    'itemListElement' => $allEvents->map(function ($event, $index) {
+                    'itemListElement' => $allEvents->map(function ($event, $index) use ($orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $primaryImage) {
                         $eventData = [
                             '@type' => 'ListItem',
                             'position' => $index + 1,
@@ -45,18 +59,18 @@
                                     'name' => $event->location ?? ($event->meeting?->location ?? 'Crockenhill Baptist Church'),
                                     'address' => [
                                         '@type' => 'PostalAddress',
-                                        'streetAddress' => config('organization.address.street'),
-                                        'addressLocality' => config('organization.address.locality'),
-                                        'addressRegion' => config('organization.address.region'),
-                                        'postalCode' => config('organization.address.postal_code'),
-                                        'addressCountry' => config('organization.address.country'),
+                                        'streetAddress' => $orgStreet,
+                                        'addressLocality' => $orgLocality,
+                                        'addressRegion' => $orgRegion,
+                                        'postalCode' => $orgPostalCode,
+                                        'addressCountry' => $orgCountry,
                                     ],
                                 ],
-                                'image' => asset('images/Primary.png'),
+                                'image' => $primaryImage,
                                 'organizer' => [
                                     '@type' => 'Organization',
-                                    'name' => config('organization.name'),
-                                    'url' => url('/'),
+                                    'name' => $orgName,
+                                    'url' => $orgUrl,
                                 ],
                             ],
                         ];
@@ -67,7 +81,7 @@
 
                         return $eventData;
                     })->values()->all(),
-                ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+                ], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
             </script>
         @endif
     @endpush

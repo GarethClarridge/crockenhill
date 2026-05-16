@@ -12,6 +12,10 @@ class MeetingSitemapPresenter
     /**
      * Convert a meeting to a sitemap tag.
      *
+     * Performance Optimization: Uses getFirstMediaUrl() with the 'gallery' conversion
+     * directly to avoid the overhead of the Meeting::photos attribute, which maps
+     * the entire collection and generates multiple URLs when only one is needed.
+     *
      * @return Url|string|array<string, mixed>
      */
     public function toSitemapTag(Meeting $meeting): Url|string|array
@@ -24,9 +28,9 @@ class MeetingSitemapPresenter
             $url->setLastModificationDate($meeting->updated_at);
         }
 
-        $photo = $meeting->photos->first();
-        if ($photo) {
-            $url->addImage($photo['url'], $meeting->heading);
+        $photoUrl = $meeting->getFirstMediaUrl('photos', 'gallery');
+        if ($photoUrl !== '') {
+            $url->addImage($photoUrl, $meeting->heading);
         }
 
         return $url;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class ChildrensTalkSpeakerMetadata extends JsonData
+final readonly class ChildrensTalkSpeakerMetadata extends JsonData
 {
     /**
      * @param  array<string, mixed>|null  $predicted
@@ -12,9 +12,9 @@ final class ChildrensTalkSpeakerMetadata extends JsonData
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?array $predicted = null,
-        public readonly ?array $reviewed = null,
-        public readonly array $raw = [],
+        public ?array $predicted = null,
+        public ?array $reviewed = null,
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): ?self
