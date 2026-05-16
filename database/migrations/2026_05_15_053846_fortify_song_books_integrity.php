@@ -30,18 +30,15 @@ return new class extends Migration
         // 1. Drop legacy constraint if it exists
         $this->dropConstraintIfExists(self::LEGACY_NAME_CHECK);
 
-        // 2. Data Cleanup: Trim existing data
+        // 2. Data Cleanup: Normalize existing data where possible (trimming and converting empty to NULL)
+        // We do NOT provide placeholders for empty required fields; we let the migration
+        // fail loudly if data integrity is already compromised, per Warden standards.
         DB::table('song_books')->update([
             'name' => DB::raw('TRIM(name)'),
-            'publisher' => DB::raw('TRIM(publisher)'),
+            'publisher' => DB::raw("NULLIF(TRIM(publisher), '')"),
         ]);
 
-        // 3. Ensure no empty names exist before adding constraint
-        DB::table('song_books')
-            ->where('name', '')
-            ->update(['name' => DB::raw("CONCAT('Songbook ', id)")]);
-
-        // 4. Add CHECK constraints
+        // 3. Add CHECK constraints
         // BINARY ensures exact character-for-character match for the trim check.
         DB::statement(sprintf(
             "ALTER TABLE song_books ADD CONSTRAINT %s CHECK (BINARY name = TRIM(name) AND name != '')",

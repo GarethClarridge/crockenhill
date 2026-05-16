@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Closure;
 use Database\Factories\SongBookFactory;
-use Illuminate\Contracts\Validation\ImplicitRule;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -87,22 +88,20 @@ class SongBook extends Model
         }
         $sourceBookIdRule[] = $uniqueSourceBookId;
 
-        $trimmedTextRule = new class implements ImplicitRule
+        $trimmedTextRule = new class implements ValidationRule
         {
-            public function passes($attribute, $value): bool
+            /**
+             * Run the validation rule.
+             */
+            public function validate(string $attribute, mixed $value, Closure $fail): void
             {
                 if ($value === null) {
-                    return true;
+                    return;
                 }
 
-                return is_string($value)
-                    && $value !== ''
-                    && trim($value) === $value;
-            }
-
-            public function message(): string
-            {
-                return 'The :attribute field must not be empty or contain leading or trailing whitespace.';
+                if (! is_string($value) || $value === '' || trim($value) !== $value) {
+                    $fail('The :attribute field must not be empty or contain leading or trailing whitespace.');
+                }
             }
         };
 
