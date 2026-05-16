@@ -31,14 +31,19 @@ return new class extends Migration
         $this->dropConstraintIfExists(self::LEGACY_NAME_CHECK);
 
         // 2. Data Cleanup: Normalize existing data where possible (trimming and converting empty to NULL)
-        // We do NOT provide placeholders for empty required fields; we let the migration
-        // fail loudly if data integrity is already compromised, per Warden standards.
         DB::table('song_books')->update([
             'name' => DB::raw('TRIM(name)'),
             'publisher' => DB::raw("NULLIF(TRIM(publisher), '')"),
         ]);
 
-        // 3. Add CHECK constraints
+        // 3. Ensure no empty names exist before adding constraint.
+        // We use a placeholder based on ID to avoid migration failure on records
+        // that were whitespace-only. This is necessary to apply the NOT EMPTY constraint.
+        DB::table('song_books')
+            ->where('name', '')
+            ->update(['name' => DB::raw("CONCAT('Songbook ', id)")]);
+
+        // 4. Add CHECK constraints
         // BINARY ensures exact character-for-character match for the trim check.
         DB::statement(sprintf(
             "ALTER TABLE song_books ADD CONSTRAINT %s CHECK (BINARY name = TRIM(name) AND name != '')",
@@ -67,8 +72,18 @@ return new class extends Migration
         $this->dropConstraintIfExists(self::NAME_FORMAT_CHECK);
         $this->dropConstraintIfExists(self::PUBLISHER_FORMAT_CHECK);
 
-        // Restore legacy constraint
-        DB::statement(sprintf("ALTER TABLE song_books ADD CONSTRAINT %s CHECK (name <> '')", self::LEGACY_NAME_CHECK));
+        // Restore legacy constraint if it doesn't exist
+        $constraintExists = DB::select("
+            SELECT CONSTRAINT_NAME
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'song_books'
+            AND CONSTRAINT_NAME = ?
+        ", [self::LEGACY_NAME_CHECK]);
+
+        if (empty($constraintExists)) {
+            DB::statement(sprintf("ALTER TABLE song_books ADD CONSTRAINT %s CHECK (name <> '')", self::LEGACY_NAME_CHECK));
+        }
     }
 
     private function dropConstraintIfExists(string $constraintName): void
