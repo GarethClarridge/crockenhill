@@ -81,18 +81,15 @@ class SongBook extends Model
      */
     public static function validationRules(?self $songBook = null): array
     {
-        $sourceBookIdRule = ['required', 'integer'];
         $uniqueSourceBookId = Rule::unique('song_books', 'source_book_id');
         if ($songBook) {
             $uniqueSourceBookId->ignore($songBook->id);
         }
-        $sourceBookIdRule[] = $uniqueSourceBookId;
 
         $trimmedTextRule = new class implements ValidationRule
         {
-            /**
-             * Run the validation rule.
-             */
+            public bool $implicit = true;
+
             public function validate(string $attribute, mixed $value, Closure $fail): void
             {
                 if ($value === null) {
@@ -106,7 +103,7 @@ class SongBook extends Model
         };
 
         return [
-            'source_book_id' => $sourceBookIdRule,
+            'source_book_id' => ['required', 'integer', $uniqueSourceBookId],
             'name' => ['required', 'string', 'max:255', $trimmedTextRule],
             'publisher' => ['nullable', 'string', 'max:255', $trimmedTextRule],
         ];
