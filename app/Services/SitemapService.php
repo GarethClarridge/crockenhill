@@ -141,17 +141,21 @@ class SitemapService
 
     /**
      * Add Bible book filtered sermon archive URLs to the sitemap.
+     *
+     * Performance Optimization: Hoists the static asset URL resolution outside of the
+     * Bible book loop to avoid redundant asset() calls during sitemap generation.
      */
     private function addBooks(Sitemap $sitemap): void
     {
         $books = $this->sermonRepository->getScriptureBooks();
+        $headingImage = asset('/images/headings/large/sermons.webp');
 
         foreach ($books as $book) {
             $sitemap->add(
                 Url::create(route('sermons.index', ['book' => $book]))
                     ->setPriority(0.7)
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                    ->addImage(asset('/images/headings/large/sermons.webp'), "Sermons on {$book}")
+                    ->addImage($headingImage, "Sermons on {$book}")
             );
         }
     }
