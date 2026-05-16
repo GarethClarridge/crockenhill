@@ -13,7 +13,7 @@ use LogicException;
  * @implements ArrayAccess<int|string, mixed>
  * @implements Arrayable<int|string, mixed>
  */
-abstract class JsonData implements Arrayable, ArrayAccess, JsonSerializable
+abstract readonly class JsonData implements Arrayable, ArrayAccess, JsonSerializable
 {
     /**
      * @return array<int|string, mixed>

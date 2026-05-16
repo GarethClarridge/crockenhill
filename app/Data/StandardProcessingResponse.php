@@ -15,7 +15,7 @@ use Carbon\Carbon;
  * Standardized processing response data structure
  * Used across all processing controllers for consistent API responses
  */
-class StandardProcessingResponse
+readonly class StandardProcessingResponse
 {
     /**
      * @param  array<string, mixed>  $additionalData
@@ -23,21 +23,21 @@ class StandardProcessingResponse
      * @param  array<string, mixed>|null  $errorHistory
      */
     public function __construct(
-        public readonly bool $found,
-        public readonly ?string $processingId = null,
-        public readonly ?string $status = null,
-        public readonly ?string $currentStep = null,
-        public readonly int $progressPercentage = 0,
-        public readonly ?string $errorMessage = null,
-        public readonly ?int $sermonId = null,
-        public readonly ?string $sermonUrl = null,
-        public readonly ?Carbon $startedAt = null,
-        public readonly ?Carbon $updatedAt = null,
-        public readonly ?string $estimatedCompletion = null,
-        public readonly array $additionalData = [],
-        public readonly ?ProcessingLogCollection $recentLogs = null,
-        public readonly ?array $performanceMetrics = null,
-        public readonly ?array $errorHistory = null
+        public bool $found,
+        public ?string $processingId = null,
+        public ?string $status = null,
+        public ?string $currentStep = null,
+        public int $progressPercentage = 0,
+        public ?string $errorMessage = null,
+        public ?int $sermonId = null,
+        public ?string $sermonUrl = null,
+        public ?Carbon $startedAt = null,
+        public ?Carbon $updatedAt = null,
+        public ?string $estimatedCompletion = null,
+        public array $additionalData = [],
+        public ?ProcessingLogCollection $recentLogs = null,
+        public ?array $performanceMetrics = null,
+        public ?array $errorHistory = null
     ) {}
 
     /**
