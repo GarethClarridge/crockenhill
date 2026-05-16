@@ -42,7 +42,7 @@ class SermonRepository
     {
         return Sermon::query()
             ->whereSermon()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'duration', 'audio_file_path', 'video_file_path', 'transcript_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'duration', 'audio_file_path', 'video_file_path', 'transcript_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary'])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',
@@ -233,18 +233,11 @@ class SermonRepository
      */
     public function clearListingCaches(Sermon|Preacher|null $model = null): void
     {
-        $keys = [
-            'latest_sermons',
-            'all_sermons',
-            'sermon_series',
-            'sermon_scripture_books_all_all',
-            'sermons_jsonld_recent_100',
-        ];
-
-        foreach ($keys as $key) {
-            Cache::forget($key);
-            Cache::forget("illuminate:cache:flexible:created:{$key}");
-        }
+        Cache::forget('latest_sermons');
+        Cache::forget('all_sermons');
+        Cache::forget('sermon_series');
+        Cache::forget('sermon_scripture_books_all_all');
+        Cache::forget('sermons_jsonld_recent_100');
 
         $this->memoizedSeries = null;
         $this->memoizedBooks = [];
@@ -254,31 +247,23 @@ class SermonRepository
             $this->clearScriptureChapterCaches($model);
 
             if ($model->series) {
-                $seriesKey = 'sermons_series_'.Str::slug($model->series);
-                Cache::forget($seriesKey);
-                Cache::forget("illuminate:cache:flexible:created:{$seriesKey}");
+                Cache::forget('sermons_series_'.Str::slug($model->series));
             }
             if ($model->service) {
                 $serviceValue = $model->service->value;
-                $serviceKey = 'sermons_service_'.$serviceValue;
-                Cache::forget($serviceKey);
-                Cache::forget("illuminate:cache:flexible:created:{$serviceKey}");
+                Cache::forget('sermons_service_'.$serviceValue);
             }
             if ($model->preacher_id) {
                 // Eager load preacherProfile if not loaded to get the key for cache invalidation
                 $model->loadMissing('preacherProfile');
                 if ($model->preacherProfile) {
-                    $preacherKey = $this->preacherCacheKey($model->preacherProfile);
-                    Cache::forget($preacherKey);
-                    Cache::forget("illuminate:cache:flexible:created:{$preacherKey}");
+                    Cache::forget($this->preacherCacheKey($model->preacherProfile));
                 }
             }
         }
 
         if ($model instanceof Preacher) {
-            $preacherKey = $this->preacherCacheKey($model);
-            Cache::forget($preacherKey);
-            Cache::forget("illuminate:cache:flexible:created:{$preacherKey}");
+            Cache::forget($this->preacherCacheKey($model));
         }
     }
 
@@ -380,7 +365,10 @@ class SermonRepository
         }
 
         return $this->memoizedSeries = Cache::flexible('sermon_series', [86400, 172800], function (): array {
-            return $this->getExistingSeries();
+            $series = $this->getExistingSeries();
+            sort($series);
+
+            return $series;
         });
     }
 
