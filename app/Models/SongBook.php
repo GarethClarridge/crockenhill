@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Database\Factories\SongBookFactory;
+use Illuminate\Contracts\Validation\ImplicitRule;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -49,6 +52,64 @@ class SongBook extends Model
     {
         return [
             'source_book_id' => 'integer',
+        ];
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function publisher(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value): ?string => $value !== null ? (trim($value) ?: null) : null,
+        );
+    }
+
+    /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(?self $songBook = null): array
+    {
+        $sourceBookIdRule = ['required', 'integer'];
+        $uniqueSourceBookId = Rule::unique('song_books', 'source_book_id');
+        if ($songBook) {
+            $uniqueSourceBookId->ignore($songBook->id);
+        }
+        $sourceBookIdRule[] = $uniqueSourceBookId;
+
+        $trimmedTextRule = new class implements ImplicitRule
+        {
+            public function passes($attribute, $value): bool
+            {
+                if ($value === null) {
+                    return true;
+                }
+
+                return is_string($value)
+                    && $value !== ''
+                    && trim($value) === $value;
+            }
+
+            public function message(): string
+            {
+                return 'The :attribute field must not be empty or contain leading or trailing whitespace.';
+            }
+        };
+
+        return [
+            'source_book_id' => $sourceBookIdRule,
+            'name' => ['required', 'string', 'max:255', $trimmedTextRule],
+            'publisher' => ['nullable', 'string', 'max:255', $trimmedTextRule],
         ];
     }
 
