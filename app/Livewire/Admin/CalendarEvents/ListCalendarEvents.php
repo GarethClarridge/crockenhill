@@ -50,7 +50,7 @@ class ListCalendarEvents extends Component
 
         $this->authorizeAdmin();
 
-        $event = CalendarEvent::find($eventId);
+        $event = CalendarEvent::query()->find($eventId);
 
         if ($event) {
             app(CategorizeCalendarEvent::class)->execute($event, $meetingSlug);

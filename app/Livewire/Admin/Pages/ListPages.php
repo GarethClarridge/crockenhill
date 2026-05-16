@@ -105,7 +105,7 @@ class ListPages extends Component
             return;
         }
 
-        $pages = Page::whereIn('id', $this->selected)->get();
+        $pages = Page::query()->whereIn('id', $this->selected)->get();
 
         if ($pages->isEmpty()) {
             $this->selected = [];

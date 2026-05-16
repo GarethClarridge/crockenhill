@@ -31,7 +31,7 @@ class GoogleCalendarSyncService
             throw $e;
         }
 
-        $existingEventIds = CalendarEvent::whereBetween('start_datetime', [$startDate, $endDate])
+        $existingEventIds = CalendarEvent::query()->whereBetween('start_datetime', [$startDate, $endDate])
             ->pluck('google_event_id')
             ->toArray();
 
@@ -57,9 +57,9 @@ class GoogleCalendarSyncService
         }
 
         $deletedEventIds = array_diff($existingEventIds, $seenUpstreamIds);
-        CalendarEvent::whereIn('google_event_id', $deletedEventIds)->delete();
+        CalendarEvent::query()->whereIn('google_event_id', $deletedEventIds)->delete();
 
-        $uncategorizedCount = CalendarEvent::whereBetween('start_datetime', [$startDate, $endDate])
+        $uncategorizedCount = CalendarEvent::query()->whereBetween('start_datetime', [$startDate, $endDate])
             ->whereNull('meeting_slug')
             ->count();
 
@@ -118,7 +118,7 @@ class GoogleCalendarSyncService
             $hasManualSlug = isset($extendedProperties['private']['meeting_slug']);
         }
 
-        $calendarEvent = CalendarEvent::updateOrCreate(
+        $calendarEvent = CalendarEvent::query()->updateOrCreate(
             /** @phpstan-ignore-next-line */
             ['google_event_id' => $googleEvent->id],
             [
@@ -219,7 +219,7 @@ class GoogleCalendarSyncService
      */
     public function createEventForMeeting(string $meetingSlug, array $eventData): Event
     {
-        $meeting = Meeting::where('slug', $meetingSlug)->firstOrFail();
+        $meeting = Meeting::query()->where('slug', $meetingSlug)->firstOrFail();
 
         $event = new Event;
         /** @phpstan-ignore-next-line */

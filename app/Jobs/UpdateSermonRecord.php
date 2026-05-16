@@ -53,7 +53,7 @@ class UpdateSermonRecord implements ShouldQueue
             ]);
 
             // Get the sermon record
-            $sermon = Sermon::find($this->sermonId);
+            $sermon = Sermon::query()->find($this->sermonId);
             if (! $sermon) {
                 throw new \Exception("Sermon not found with ID: {$this->sermonId}");
             }
@@ -206,7 +206,7 @@ class UpdateSermonRecord implements ShouldQueue
 
         // Try to update with basic information to avoid leaving sermon in processing state
         try {
-            $sermon = Sermon::find($this->sermonId);
+            $sermon = Sermon::query()->find($this->sermonId);
             if ($sermon) {
                 // Create minimal update to get sermon out of processing state
                 $basicTitle = $this->generateBasicTitle($sermon);
@@ -244,7 +244,7 @@ class UpdateSermonRecord implements ShouldQueue
         }
 
         // Mark processing as failed if basic update also failed
-        $sermon = Sermon::find($this->sermonId);
+        $sermon = Sermon::query()->find($this->sermonId);
         if ($sermon) {
             /** @var MediaProcessingLog|null $processingLog */
             $processingLog = $sermon->processingLogs()->latest()->first();
