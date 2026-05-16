@@ -33,6 +33,11 @@ return new class extends Migration
             'publisher' => DB::raw('NULLIF(TRIM(publisher), "")'),
         ]);
 
+        // Repair any song books that ended up with an empty name after trimming
+        DB::table('song_books')
+            ->where('name', '')
+            ->update(['name' => DB::raw("CONCAT('Songbook ', id)")]);
+
         // 2. Drop legacy weak constraint
         $this->dropConstraintIfExists('song_books', self::OLD_NAME_CHECK);
 
