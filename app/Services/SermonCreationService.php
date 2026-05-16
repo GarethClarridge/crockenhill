@@ -15,11 +15,14 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SermonCreationService
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly PreacherResolutionService $preacherResolutionService,
         private readonly SermonRepository $sermonRepository,
@@ -512,7 +515,7 @@ class SermonCreationService
             Log::info('SermonCreationService: Using date extracted from file metadata', [
                 'processing_id' => $processingLog->processing_id,
                 'extracted_date' => $extractedDate,
-                'extraction_method' => $processingMetadata['date_extraction_method'] ?? 'unknown',
+                'extraction_method' => self::sanitizeForLog((string) ($processingMetadata['date_extraction_method'] ?? 'unknown')),
             ]);
 
             return $extractedDate;
@@ -522,7 +525,7 @@ class SermonCreationService
 
         Log::info('SermonCreationService: Using date extracted from filename', [
             'processing_id' => $processingLog->processing_id,
-            'filename' => $filename,
+            'filename' => self::sanitizeForLog($filename),
             'extracted_date' => $filenameDate,
         ]);
 
@@ -545,7 +548,7 @@ class SermonCreationService
             Log::info('SermonCreationService: Using service extracted from file metadata', [
                 'processing_id' => $processingLog->processing_id,
                 'extracted_service' => $processingLog->extracted_service->value,
-                'extraction_method' => $processingMetadata['service_extraction_method'] ?? 'unknown',
+                'extraction_method' => self::sanitizeForLog((string) ($processingMetadata['service_extraction_method'] ?? 'unknown')),
             ]);
 
             return $processingLog->extracted_service;
@@ -558,7 +561,7 @@ class SermonCreationService
         if (str_contains($filename, 'evening') || preg_match('/[-_\s]pm\b/i', $filename)) {
             Log::info('SermonCreationService: Detected evening service from filename', [
                 'processing_id' => $processingLog->processing_id,
-                'filename' => $filename,
+                'filename' => self::sanitizeForLog($filename),
             ]);
 
             return SermonService::Evening;
@@ -568,7 +571,7 @@ class SermonCreationService
         if (str_contains($filename, 'morning') || preg_match('/[-_\s]am\b/i', $filename)) {
             Log::info('SermonCreationService: Detected morning service from filename', [
                 'processing_id' => $processingLog->processing_id,
-                'filename' => $filename,
+                'filename' => self::sanitizeForLog($filename),
             ]);
 
             return SermonService::Morning;
@@ -580,7 +583,7 @@ class SermonCreationService
             $service = $hour < 12 ? SermonService::Morning : SermonService::Evening;
             Log::info('SermonCreationService: Detected service from time in filename', [
                 'processing_id' => $processingLog->processing_id,
-                'filename' => $filename,
+                'filename' => self::sanitizeForLog($filename),
                 'extracted_hour' => $hour,
                 'service' => $service->value,
             ]);
@@ -591,7 +594,7 @@ class SermonCreationService
         // Strategy 4: Default to morning if no service pattern found
         Log::info('SermonCreationService: Defaulting to morning service', [
             'processing_id' => $processingLog->processing_id,
-            'filename' => $filename,
+            'filename' => self::sanitizeForLog($filename),
         ]);
 
         return SermonService::Morning;
