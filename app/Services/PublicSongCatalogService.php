@@ -138,6 +138,8 @@ class PublicSongCatalogService
 
         $bindings = $titleConditions->flatMap(fn (array $t): array => [$t['pattern'], $t['pattern']])->all();
 
+        // $caseParts is the same literal fragment joined with ' OR ' — no user input is interpolated; user input flows only through $bindings via ? placeholders.
+        // @phpstan-ignore-next-line argument.type
         $query->orderByRaw("CASE WHEN ({$caseParts}) THEN 0 ELSE 1 END", $bindings)
             ->orderByDesc('usage_count')
             ->orderByDesc('last_sung_date')

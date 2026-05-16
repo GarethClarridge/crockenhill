@@ -13,6 +13,7 @@ use App\Services\SermonAnalysisValidator;
 use App\Services\SermonProcessingLogger;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use OpenAI\Exceptions\ErrorException;
 use OpenAI\Exceptions\TransporterException;
@@ -115,7 +116,7 @@ class SermonAnalysisServiceTest extends TestCase
     {
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
-        $serverError = new ErrorException(['message' => 'Internal Server Error', 'type' => 'server_error', 'code' => null], 500);
+        $serverError = new ErrorException(['message' => 'Internal Server Error', 'type' => 'server_error', 'code' => null], new Response(500));
 
         OpenAI::fake([$serverError]);
 
@@ -129,7 +130,7 @@ class SermonAnalysisServiceTest extends TestCase
     {
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
-        $unauthorizedError = new ErrorException(['message' => 'Unauthorized', 'type' => 'authentication_error', 'code' => null], 401);
+        $unauthorizedError = new ErrorException(['message' => 'Unauthorized', 'type' => 'authentication_error', 'code' => null], new Response(401));
 
         OpenAI::fake([$unauthorizedError]);
 

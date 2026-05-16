@@ -793,6 +793,8 @@ class Sermon extends Model implements Sitemapable
      */
     public function scopeOrderByPreacherName(Builder $query, string $direction = 'asc'): Builder
     {
+        $direction = $direction === 'desc' ? 'desc' : 'asc';
+
         return $query
             ->orderBy(
                 Preacher::query()

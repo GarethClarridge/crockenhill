@@ -45,7 +45,7 @@
     ];
 
     $itemList = [
-        '@' . 'context' => 'https://schema.org',
+        '@context' => 'https://schema.org',
         '@type' => 'ItemList',
         'itemListElement' => array_map(function ($event, $index) {
             $data = [

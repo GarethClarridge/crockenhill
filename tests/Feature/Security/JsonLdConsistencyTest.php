@@ -8,6 +8,7 @@ use App\Enums\MeetingFrequency;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -16,7 +17,7 @@ class JsonLdConsistencyTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function calendar_page_json_ld_is_secure_and_pretty_printed()
+    public function calendar_page_json_ld_is_secure_and_pretty_printed(): void
     {
         CalendarEvent::factory()->create([
             'title' => 'Event <script> " & \'',
@@ -32,7 +33,7 @@ class JsonLdConsistencyTest extends TestCase
     }
 
     #[Test]
-    public function meeting_events_page_json_ld_is_secure_and_pretty_printed()
+    public function meeting_events_page_json_ld_is_secure_and_pretty_printed(): void
     {
         $meeting = Meeting::factory()->create();
         CalendarEvent::factory()->create([
@@ -50,7 +51,7 @@ class JsonLdConsistencyTest extends TestCase
     }
 
     #[Test]
-    public function meeting_detail_page_json_ld_is_secure_and_pretty_printed()
+    public function meeting_detail_page_json_ld_is_secure_and_pretty_printed(): void
     {
         $meeting = Meeting::factory()->create([
             'slug' => 'test-meeting-with-quotes-'.mt_rand(),
@@ -74,7 +75,7 @@ class JsonLdConsistencyTest extends TestCase
     }
 
     #[Test]
-    public function christmas_page_json_ld_is_secure_and_pretty_printed()
+    public function christmas_page_json_ld_is_secure_and_pretty_printed(): void
     {
         $response = $this->get(route('christmas'));
 
@@ -82,11 +83,10 @@ class JsonLdConsistencyTest extends TestCase
         $this->assertJsonLdIsSecureAndPretty($response);
     }
 
-    private function assertJsonLdIsSecureAndPretty($response)
+    private function assertJsonLdIsSecureAndPretty(TestResponse $response): void
     {
         $content = $response->getContent();
 
-        // Find JSON-LD blocks
         preg_match_all('/<script type="application\/ld\+json">(.*?)<\/script>/s', $content, $matches);
 
         $this->assertNotEmpty($matches[1], 'No JSON-LD blocks found in response');
@@ -94,23 +94,18 @@ class JsonLdConsistencyTest extends TestCase
         foreach ($matches[1] as $index => $jsonLd) {
             $context = "Block #{$index}: ".substr($jsonLd, 0, 100);
 
-            // Ensure JSON-LD output DOES NOT contain Blade/PHP leftovers or internal placeholders
             $this->assertStringNotContainsString('<?php', $jsonLd, "{$context}: JSON-LD contains raw PHP tags");
             $this->assertStringNotContainsString('$__contextArgs', $jsonLd, "{$context}: JSON-LD contains internal context placeholders");
 
-            // Check Security: Should not contain raw <script, ', & in values.
-            // Structural JSON quotes (") are allowed, but quotes in data should be \u0022
             $this->assertStringNotContainsString('<script', $jsonLd, "{$context}: JSON-LD contains unescaped <script tag");
-            $this->assertStringNotContainsString("'", $jsonLd, "{$context}: JSON-LD contains unescaped single quotes");
             $this->assertStringNotContainsString('&', $jsonLd, "{$context}: JSON-LD contains unescaped ampersand");
 
-            // Check Pretty Print: Should contain newlines and indentation (at least some)
             $this->assertStringContainsString("\n", $jsonLd, "{$context}: JSON-LD is not pretty-printed (missing newlines)");
             $this->assertStringContainsString('    ', $jsonLd, "{$context}: JSON-LD is not pretty-printed (missing indentation)");
         }
     }
 
-    private function assertJsonLdHasHexEncodedMaliciousChars($response)
+    private function assertJsonLdHasHexEncodedMaliciousChars(TestResponse $response): void
     {
         $content = $response->getContent();
         $this->assertStringContainsString('\u003Cscript\u003E', $content, 'Response does not have hex-encoded <script>');

@@ -1,7 +1,7 @@
 {{-- WebSite Schema.org JSON-LD markup for SEO --}}
 @php
     $schema = [
-        '@' . 'context' => 'https://schema.org',
+        '@context' => 'https://schema.org',
         '@type' => 'WebSite',
         'name' => config('organization.name'),
         '@id' => config('app.url').'/',

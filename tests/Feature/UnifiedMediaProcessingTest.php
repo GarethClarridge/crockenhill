@@ -9,7 +9,7 @@ use App\Services\LivestreamSegmentationService;
 use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoSegmentationService;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Laravel\Sanctum\Sanctum;
@@ -25,7 +25,7 @@ class UnifiedMediaProcessingTest extends TestCase
         parent::setUp();
 
         // Disable CSRF protection for these form tests
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
 
         // Mock the services to avoid actual video/audio processing in tests
         $this->mock(VideoSegmentationService::class, function ($mock) {

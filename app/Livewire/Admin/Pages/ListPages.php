@@ -105,7 +105,7 @@ class ListPages extends Component
             return;
         }
 
-        $pages = Page::whereIn('id', $this->selected)->get();
+        $pages = Page::query()->whereIn('id', $this->selected)->get();
 
         if ($pages->isEmpty()) {
             $this->selected = [];
@@ -142,7 +142,7 @@ class ListPages extends Component
                 ->orWhere('description', 'like', "%{$escapedSearch}%")))
             ->when($this->areaFilter, fn ($q) => $q->where('area', $this->areaFilter))
             ->when($this->navigationFilter !== null, fn ($q) => $q->where('navigation', $this->navigationFilter))
-            ->orderBy($this->sortBy, $this->sortDirection)
+            ->orderBy($this->sortBy, $this->sortDirection === 'desc' ? 'desc' : 'asc')
             ->paginate(15);
 
         $headers = [

@@ -11,6 +11,7 @@ use App\Services\AudioTranscriptionService;
 use App\Services\SermonProcessingLogger;
 use App\Services\TranscriptFormatterService;
 use App\Services\TranscriptStorageService;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
@@ -323,7 +324,7 @@ class AudioTranscriptionOrchestrationTest extends TestCase
 
         // Force an OpenAI 401 Unauthorized error (often non-retryable/deterministic misconfig)
         OpenAI::fake([
-            new ErrorException(['message' => 'unauthorized', 'type' => 'invalid_request_error', 'code' => null], 401),
+            new ErrorException(['message' => 'unauthorized', 'type' => 'invalid_request_error', 'code' => null], new Response(401)),
         ]);
 
         $this->expectException(NonRetryableTranscriptionException::class);
@@ -343,7 +344,7 @@ class AudioTranscriptionOrchestrationTest extends TestCase
 
         // Force an OpenAI 500 Server Error
         OpenAI::fake([
-            new ErrorException(['message' => 'internal error', 'type' => 'server_error', 'code' => null], 500),
+            new ErrorException(['message' => 'internal error', 'type' => 'server_error', 'code' => null], new Response(500)),
         ]);
 
         $this->expectException(TranscriptionException::class);

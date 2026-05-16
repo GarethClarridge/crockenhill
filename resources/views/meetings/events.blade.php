@@ -26,7 +26,7 @@
         @if($schemaEvents->isNotEmpty())
             <script type="application/ld+json">
                 {!! json_encode([
-                    '@' . 'context' => 'https://schema.org',
+                    '@context' => 'https://schema.org',
                     '@type' => 'ItemList',
                     'itemListElement' => $schemaEvents->values()->map(function ($event, $index) use ($meeting) {
                         $eventData = [

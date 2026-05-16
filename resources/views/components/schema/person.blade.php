@@ -4,7 +4,7 @@
 
 @php
     $schema = [
-        '@' . 'context' => 'https://schema.org',
+        '@context' => 'https://schema.org',
         '@type' => 'Person',
         'name' => $preacher->name,
         'url' => url("/christ/sermons/preachers/{$preacher->slug}"),

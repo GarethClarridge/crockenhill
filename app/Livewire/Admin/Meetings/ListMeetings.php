@@ -123,9 +123,9 @@ class ListMeetings extends Component
             $query->orderByRaw("FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday') {$direction}")
                 ->orderBy('start_time', $direction);
         } elseif ($this->sortBy === 'recurring') {
-            $query->orderBy('is_recurring', $this->sortDirection);
+            $query->orderBy('is_recurring', $this->sortDirection === 'desc' ? 'desc' : 'asc');
         } else {
-            $query->orderBy($this->sortBy, $this->sortDirection);
+            $query->orderBy($this->sortBy, $this->sortDirection === 'desc' ? 'desc' : 'asc');
         }
 
         $meetings = $query->paginate(15);

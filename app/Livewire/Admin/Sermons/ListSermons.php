@@ -188,10 +188,12 @@ class ListSermons extends Component
             ->when($this->needsReviewFilter, fn ($q) => $q->where('needs_preacher_review', true))
             ->when($this->last12Months, fn ($q) => $q->where('date', '>=', now()->subYear()));
 
+        $direction = $this->sortDirection === 'desc' ? 'desc' : 'asc';
+
         if ($this->sortBy === 'preacher') {
-            $query->orderByPreacherName($this->sortDirection);
+            $query->orderByPreacherName($direction);
         } else {
-            $query->orderBy($this->sortBy, $this->sortDirection);
+            $query->orderBy($this->sortBy, $direction);
         }
 
         $sermons = $query->paginate(20);

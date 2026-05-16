@@ -8,7 +8,7 @@ use App\Models\Sermon;
 use App\Models\User;
 use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -29,7 +29,7 @@ class SermonAdminControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
 
         $this->admin = User::factory()->create([
             'is_admin' => true,

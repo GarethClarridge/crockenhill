@@ -97,7 +97,7 @@ class ListPreachers extends Component
             ->withCount('sermons')
             ->when($this->search !== '', fn ($q) => $q->where('name', 'like', "%{$escapedSearch}%"))
             ->when($this->activeFilter !== null, fn ($q) => $q->where('is_active', $this->activeFilter))
-            ->orderBy($this->sortBy, $this->sortDirection)
+            ->orderBy($this->sortBy, $this->sortDirection === 'desc' ? 'desc' : 'asc')
             ->paginate(20);
 
         $headers = [

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class PendingStructureMergeMetadata extends JsonData
+final readonly class PendingStructureMergeMetadata extends JsonData
 {
     /**
      * @param  array{current: string, incoming: string}  $confidence
@@ -14,13 +14,13 @@ final class PendingStructureMergeMetadata extends JsonData
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?string $incomingSource = null,
-        public readonly ?string $createdAt = null,
-        public readonly array $confidence = ['current' => 'unknown', 'incoming' => 'unknown'],
-        public readonly array $conflicts = [],
-        public readonly array $proposedItems = [],
-        public readonly array $classification = ['auto_merge' => [], 'review_required' => [], 'unmatched_incoming' => []],
-        public readonly array $raw = [],
+        public ?string $incomingSource = null,
+        public ?string $createdAt = null,
+        public array $confidence = ['current' => 'unknown', 'incoming' => 'unknown'],
+        public array $conflicts = [],
+        public array $proposedItems = [],
+        public array $classification = ['auto_merge' => [], 'review_required' => [], 'unmatched_incoming' => []],
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): ?self

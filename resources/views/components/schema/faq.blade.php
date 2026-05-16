@@ -15,7 +15,7 @@
     }, $questions);
 
     $schema = [
-        '@' . 'context' => 'https://schema.org',
+        '@context' => 'https://schema.org',
         '@type' => 'FAQPage',
         'mainEntity' => $faqItems,
     ];

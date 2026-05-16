@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class SectionPublicationMetadata extends JsonData
+final readonly class SectionPublicationMetadata extends JsonData
 {
     /**
      * @param  list<array<string, mixed>>  $batchApprovals
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?string $approvedSignature = null,
-        public readonly ?string $approvedAt = null,
-        public readonly array $batchApprovals = [],
-        public readonly array $raw = [],
+        public ?string $approvedSignature = null,
+        public ?string $approvedAt = null,
+        public array $batchApprovals = [],
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): ?self
