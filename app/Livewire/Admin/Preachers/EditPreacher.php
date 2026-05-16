@@ -106,7 +106,7 @@ class EditPreacher extends Component
             'newAlias.unique' => 'This alias already exists.',
         ]);
 
-        PreacherAlias::create([
+        PreacherAlias::query()->create([
             'alias' => $this->newAlias,
             'preacher_id' => $this->preacher->id,
         ]);
@@ -125,7 +125,7 @@ class EditPreacher extends Component
 
         $this->authorizeAdmin();
 
-        $alias = PreacherAlias::where('id', $aliasId)
+        $alias = PreacherAlias::query()->where('id', $aliasId)
             ->where('preacher_id', $this->preacher->id)
             ->first();
 
@@ -150,7 +150,7 @@ class EditPreacher extends Component
         $this->authorizeAdmin();
 
         /** @var SpeakerProfile $profile */
-        $profile = SpeakerProfile::where('id', $profileId)
+        $profile = SpeakerProfile::query()->where('id', $profileId)
             ->where('preacher_id', $this->preacher->id)
             ->firstOrFail();
 
@@ -193,7 +193,7 @@ class EditPreacher extends Component
 
         $this->authorizeAdmin();
 
-        $profile = SpeakerProfile::where('id', $profileId)
+        $profile = SpeakerProfile::query()->where('id', $profileId)
             ->where('preacher_id', $this->preacher->id)
             ->first();
 
