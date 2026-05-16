@@ -43,7 +43,7 @@
             @endphp
             <script type="application/ld+json">
                 {!! json_encode([
-                    '@context' => 'https://schema.org',
+                    '@' . 'context' => 'https://schema.org',
                     '@type' => 'ItemList',
                     'itemListElement' => $allEvents->map(function ($event, $index) use ($orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $primaryImage) {
                         $eventData = [

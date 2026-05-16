@@ -30,7 +30,7 @@
         @if($meeting->is_recurring && $meeting->frequency)
             <script type="application/ld+json">
                 {!! json_encode([
-                    '@context' => 'https://schema.org',
+                    '@' . 'context' => 'https://schema.org',
                     '@type' => 'Event',
                     'name' => $heading,
                     'description' => \Illuminate\Support\Str::limit(strip_tags($description ?? $heading), 150),
@@ -83,7 +83,7 @@
         @if($upcomingEvents->isNotEmpty())
             <script type="application/ld+json">
                 {!! json_encode([
-                    '@context' => 'https://schema.org',
+                    '@' . 'context' => 'https://schema.org',
                     '@type' => 'ItemList',
                     'itemListElement' => $upcomingEvents->map(function ($event, $index) use ($heading, $meeting, $headingpicture, $pageDescription) {
                         $eventData = [
