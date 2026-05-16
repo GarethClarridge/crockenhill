@@ -49,15 +49,14 @@ class UploadChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_relies_on_route_middleware_for_access_control(): void
+    public function it_forbids_non_admin_from_saving(): void
     {
         $user = User::factory()->create(['is_admin' => false]);
         $this->actingAs($user);
 
-        // Route middleware (auth, verified, admin) enforces access at the HTTP layer.
-        // AdminLivewireAuthorizationTest covers this. Direct component mount is unrestricted.
         Livewire::test(UploadChurchService::class)
-            ->assertOk();
+            ->call('save')
+            ->assertForbidden();
     }
 
     #[Test]
@@ -168,6 +167,6 @@ class UploadChurchServiceTest extends TestCase
         Livewire::test(UploadChurchService::class)
             ->set('file', $upload)
             ->call('save')
-            ->assertHasErrors(['file']);
+            ->assertHasErrors(['file' => 'Unable to import this file. Please verify it is a valid OpenLP archive.']);
     }
 }
