@@ -94,10 +94,9 @@ class JsonLdConsistencyTest extends TestCase
         foreach ($matches[1] as $index => $jsonLd) {
             $context = "Block #{$index}: ".substr($jsonLd, 0, 100);
 
-            // Skip blocks that look like they contain Blade/PHP leftovers or internal placeholders
-            if (str_contains($jsonLd, '<?php') || str_contains($jsonLd, '$__contextArgs')) {
-                continue;
-            }
+            // Ensure JSON-LD output DOES NOT contain Blade/PHP leftovers or internal placeholders
+            $this->assertStringNotContainsString('<?php', $jsonLd, "{$context}: JSON-LD contains raw PHP tags");
+            $this->assertStringNotContainsString('$__contextArgs', $jsonLd, "{$context}: JSON-LD contains internal context placeholders");
 
             // Check Security: Should not contain raw <script, ', & in values.
             // Structural JSON quotes (") are allowed, but quotes in data should be \u0022

@@ -11,7 +11,7 @@
     })->values()->all();
 
     $schema = [
-        '@context' => 'https://schema.org',
+        '@' . 'context' => 'https://schema.org',
         '@type' => 'MusicComposition',
         'name' => $song->title,
         'url' => route('church.songs.show', $song->slug),
