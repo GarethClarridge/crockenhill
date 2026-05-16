@@ -9,7 +9,7 @@
 @php
     $pageUrl = $canonical ?? url()->current();
     $schema = [
-        '@context' => 'https://schema.org',
+        '@' . 'context' => 'https://schema.org',
         '@type' => 'WebPage',
         '@id' => $pageUrl.'#webpage',
         'url' => $pageUrl,
