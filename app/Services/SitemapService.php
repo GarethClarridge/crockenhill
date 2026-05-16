@@ -141,9 +141,6 @@ class SitemapService
 
     /**
      * Add Bible book filtered sermon archive URLs to the sitemap.
-     *
-     * Performance Optimization: Hoists the static asset URL resolution outside of the
-     * Bible book loop to avoid redundant asset() calls during sitemap generation.
      */
     private function addBooks(Sitemap $sitemap): void
     {
