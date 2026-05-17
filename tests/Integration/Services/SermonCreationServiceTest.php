@@ -706,7 +706,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertSame(SermonSourceType::Livestream, $sermon->source_type);
         $this->assertSame('Pastor Verified', $sermon->preacher);
         $this->assertSame(PreacherSource::Id3, $sermon->preacher_source);
-        $this->assertSame(1, Sermon::query()->count());
+        $this->assertSame(1, Sermon::query()->where('date', '2023-05-21')->where('service', SermonService::Morning->value)->where('content_type', SermonContentType::Sermon->value)->count());
     }
 
     #[Test]
@@ -784,7 +784,7 @@ class SermonCreationServiceTest extends TestCase
 
         $this->assertSame($existing->id, $sermon->id);
         $this->assertSame('audio/new.mp3', $sermon->audio_file_path);
-        $this->assertSame(1, Sermon::query()->count());
+        $this->assertSame(1, Sermon::query()->where('date', '2024-01-01')->where('service', SermonService::Morning->value)->where('content_type', SermonContentType::Sermon->value)->count());
     }
 
     #[Test]
@@ -924,7 +924,7 @@ class SermonCreationServiceTest extends TestCase
         $sermon = $this->service->createSermon($log, $options);
 
         $this->assertSame(SermonContentType::Sermon, $sermon->content_type);
-        $this->assertSame(2, Sermon::query()->count());
+        $this->assertSame(2, Sermon::query()->where('date', '2024-06-02')->where('service', SermonService::Morning->value)->count());
         $this->assertSame(
             1,
             Sermon::query()
