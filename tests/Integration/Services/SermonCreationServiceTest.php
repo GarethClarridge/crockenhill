@@ -17,13 +17,13 @@ use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\PreacherResolutionService;
 use App\Services\SermonCreationService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonCreationServiceTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private SermonCreationService $service;
 
