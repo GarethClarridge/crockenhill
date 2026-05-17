@@ -28,10 +28,10 @@ class BrowseSongs extends Component
     use WithPagination;
 
     #[Url(as: 'q', except: '')]
-    public string $search = '';
+    public mixed $search = '';
 
     #[Url(except: 'recent')]
-    public string $range = PublicSongCatalogService::RANGE_RECENT;
+    public mixed $range = PublicSongCatalogService::RANGE_RECENT;
 
     public function updatedSearch(): void
     {
@@ -81,6 +81,12 @@ class BrowseSongs extends Component
         return app(PublicSongCatalogService::class)->query($normalizedRange, $this->search)
             ->paginate(24)
             ->withQueryString();
+    }
+
+    public function mount(): void
+    {
+        $this->search = is_array($this->search) ? '' : (string) $this->search;
+        $this->range = is_array($this->range) ? PublicSongCatalogService::RANGE_RECENT : (string) $this->range;
     }
 
     public function render(PublicSongCatalogService $catalogService, SongLyricSnippetBuilder $snippetBuilder): View

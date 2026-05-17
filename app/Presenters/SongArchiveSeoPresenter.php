@@ -47,7 +47,7 @@ class SongArchiveSeoPresenter
             'q' => filled($search) ? $search : null,
             'range' => $normalizedRange === PublicSongCatalogService::RANGE_RECENT ? null : $normalizedRange,
             'page' => $page > 1 ? $page : null,
-        ]);
+        ], fn ($val) => $val !== null);
 
         return route('church.songs.index', $params);
     }

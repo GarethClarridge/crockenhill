@@ -48,6 +48,24 @@ class SongArchiveSeoTest extends TestCase
         $response->assertSee('<link rel="canonical" href="'.url('church/songs?range=all').'">', false);
     }
 
+    public function test_song_archive_prevents_crash_on_array_query_params(): void
+    {
+        $user = User::factory()->create();
+        $response = $this->actingAs($user)->get(route('church.songs.index', ['q' => ['grace']]));
+
+        $response->assertStatus(200);
+        $response->assertSee('<title>Recent Songs | Crockenhill Baptist Church</title>', false);
+    }
+
+    public function test_song_archive_preserves_falsy_search_in_canonical(): void
+    {
+        $user = User::factory()->create();
+        $response = $this->actingAs($user)->get(route('church.songs.index', ['q' => '0', 'range' => 'all']));
+
+        $response->assertStatus(200);
+        $response->assertSee('<link rel="canonical" href="http://localhost/church/songs?q=0&amp;range=all">', false);
+    }
+
     public function test_livewire_component_updates_seo_properties_on_filter_change(): void
     {
         $user = User::factory()->create();
