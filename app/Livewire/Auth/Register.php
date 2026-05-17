@@ -75,7 +75,7 @@ class Register extends Component
 
         RateLimiter::hit($this->throttleKey());
 
-        $user = User::create([
+        $user = User::query()->create([
             'name' => $this->name,
             'email' => $this->email,
             'password' => Hash::make($this->password),

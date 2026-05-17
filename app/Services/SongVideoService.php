@@ -72,7 +72,7 @@ class SongVideoService
             basename($storagePath),
         );
 
-        return SongVideo::create([
+        return SongVideo::query()->create([
             'song_id' => $song->id,
             'video_file_path' => $storagePath,
             'is_featured' => false,
@@ -89,7 +89,7 @@ class SongVideoService
         $processingLog = $section->processingLog;
         $churchService = $processingLog->churchService;
 
-        return SongVideo::create([
+        return SongVideo::query()->create([
             'song_id' => $item->song_id,
             'service_section_id' => $section->id,
             'church_service_id' => $processingLog->church_service_id,
@@ -102,7 +102,7 @@ class SongVideoService
 
     private function resetLinkedSectionForReExtraction(int $sectionId): void
     {
-        $section = ServiceSection::find($sectionId);
+        $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
             return;
         }

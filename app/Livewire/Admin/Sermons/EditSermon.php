@@ -51,7 +51,7 @@ class EditSermon extends Component
 
         $this->isChildrensTalk = $sermon->content_type === SermonContentType::ChildrensTalk;
         $this->contentTypeLabel = $sermon->content_type->label();
-        $this->preacherOptions = Preacher::active()->orderBy('name')->pluck('name', 'id');
+        $this->preacherOptions = Preacher::query()->active()->orderBy('name')->pluck('name', 'id');
         $this->loadThumbnailCandidates();
     }
 

@@ -11,7 +11,7 @@ class SermonProcessingStepTransitions
 {
     public function markAsStarted(string $processingId, string $step, ?string $message = null): SermonProcessingStep
     {
-        return SermonProcessingStep::updateOrCreate(
+        return SermonProcessingStep::query()->updateOrCreate(
             [
                 'processing_id' => $processingId,
                 'step' => $step,
@@ -57,7 +57,7 @@ class SermonProcessingStepTransitions
 
     public function markAsCancelled(string $processingId, string $step, ?string $message = null): SermonProcessingStep
     {
-        $stepLog = SermonProcessingStep::firstOrNew([
+        $stepLog = SermonProcessingStep::query()->firstOrNew([
             'processing_id' => $processingId,
             'step' => $step,
         ]);
@@ -78,7 +78,7 @@ class SermonProcessingStepTransitions
         ProcessingStatus $status,
         ?string $message,
     ): SermonProcessingStep {
-        $stepLog = SermonProcessingStep::firstOrNew([
+        $stepLog = SermonProcessingStep::query()->firstOrNew([
             'processing_id' => $processingId,
             'step' => $step,
         ]);

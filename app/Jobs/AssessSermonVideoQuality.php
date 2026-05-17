@@ -167,7 +167,7 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
     private function resolveSermon(?MediaProcessingLog $processingLog): ?Sermon
     {
         if ($this->sermonId !== null) {
-            return Sermon::find($this->sermonId);
+            return Sermon::query()->find($this->sermonId);
         }
 
         if (! $processingLog instanceof MediaProcessingLog || $processingLog->sermon_id === null) {
@@ -176,7 +176,7 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
 
         $this->sermonId = $processingLog->sermon_id;
 
-        return Sermon::find($processingLog->sermon_id);
+        return Sermon::query()->find($processingLog->sermon_id);
     }
 
     private function persistResult(

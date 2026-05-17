@@ -85,7 +85,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
                 return;
             }
 
-            $sermon = Sermon::find($this->processingLog->sermon_id);
+            $sermon = Sermon::query()->find($this->processingLog->sermon_id);
 
             if (! $sermon) {
                 $this->storeDecision('skipped', 'Sermon record not found');
@@ -116,7 +116,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
             $provider = (string) config('media-processing.speaker_identification.provider', 'null');
             $modelVersion = (string) config('media-processing.speaker_identification.model_version', '');
 
-            $profilesQuery = SpeakerProfile::active()->with('preacher');
+            $profilesQuery = SpeakerProfile::query()->active()->with('preacher');
 
             if ($provider !== '' && $provider !== 'null') {
                 $profilesQuery->where('provider', $provider);
@@ -279,7 +279,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
             ->first();
 
         if (! $fallbackPreacher) {
-            $fallbackPreacher = Preacher::create([
+            $fallbackPreacher = Preacher::query()->create([
                 'name' => 'Visiting Speaker',
                 'slug' => 'visiting-speaker',
                 'is_active' => true,
