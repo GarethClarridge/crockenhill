@@ -97,6 +97,7 @@ class SermonItemListPresenter
                     'datePublished' => $datePublished,
                     'dateModified' => $sermon->updated_at?->toIso8601String() ?? $datePublished,
                     'inLanguage' => 'en-GB',
+                    'genre' => 'Sermon',
                     'contentLocation' => $contentLocation,
                     'author' => $author,
                     'publisher' => $publisher,
