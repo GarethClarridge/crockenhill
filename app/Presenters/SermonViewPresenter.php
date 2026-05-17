@@ -819,7 +819,17 @@ class SermonViewPresenter
         }
 
         $preacherName = $this->displayPreacherName($sermon) ?? 'Unknown preacher';
-        $base = "Listen to '{$sermon->title}' by {$preacherName} preached on {$this->humanDate($sermon)}";
+
+        $hasVideo = $this->exposurePolicy->shouldExposeVideo($sermon);
+        $hasAudio = filled($sermon->audio_file_path);
+
+        $verb = match (true) {
+            $hasVideo && $hasAudio => 'Watch or listen to',
+            $hasVideo => 'Watch',
+            default => 'Listen to',
+        };
+
+        $base = "{$verb} '{$sermon->title}' by {$preacherName} preached on {$this->humanDate($sermon)}";
 
         if ($reference = $this->displayReference($sermon)) {
             $base .= " - {$reference}";

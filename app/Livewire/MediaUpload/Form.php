@@ -174,7 +174,7 @@ class Form extends Component
             ]);
 
             if ($this->processingId) {
-                $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
+                $log = MediaProcessingLog::query()->where('processing_id', $this->processingId)->first();
                 if ($log instanceof MediaProcessingLog) {
                     app(MediaProcessingRunTransitionService::class)
                         ->markAsFailed($log, 'Processing failed: '.$e->getMessage());

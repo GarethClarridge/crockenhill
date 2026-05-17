@@ -113,7 +113,7 @@ class MeetingFormData extends Form
 
         $validated = $this->validate();
 
-        return Meeting::create($this->meetingPayload($validated));
+        return Meeting::query()->create($this->meetingPayload($validated));
     }
 
     public function update(): void

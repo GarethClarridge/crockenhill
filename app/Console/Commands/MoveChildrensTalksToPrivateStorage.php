@@ -21,7 +21,7 @@ class MoveChildrensTalksToPrivateStorage extends Command
         $isDryRun = (bool) $this->option('dry-run');
         $batchSize = (int) $this->option('batch-size');
 
-        $query = Sermon::whereChildrensTalk()
+        $query = Sermon::query()->whereChildrensTalk()
             ->where(function ($q) {
                 $q->where('audio_file_path', 'not like', 'private/%')
                     ->orWhereNull('audio_file_path');

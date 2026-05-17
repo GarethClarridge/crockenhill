@@ -107,7 +107,7 @@ class BootstrapSpeakerProfilesCommand extends Command
                 continue;
             }
 
-            $profile = SpeakerProfile::firstOrCreate(
+            $profile = SpeakerProfile::query()->firstOrCreate(
                 [
                     'preacher_id' => $preacher->id,
                     'provider' => $provider,
@@ -138,7 +138,7 @@ class BootstrapSpeakerProfilesCommand extends Command
                     continue;
                 }
 
-                SpeakerSample::updateOrCreate(
+                SpeakerSample::query()->updateOrCreate(
                     [
                         'speaker_profile_id' => $profile->id,
                         'sermon_id' => $sermon->id,

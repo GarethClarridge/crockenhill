@@ -208,7 +208,7 @@ class SitemapService
      */
     private function addPreachers(Sitemap $sitemap): void
     {
-        $preachers = Preacher::active()
+        $preachers = Preacher::query()->active()
             ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
             ->with([
                 'sermons' => fn ($query) => $query->whereSermon()->orderBy('date', 'desc')->limit(1),

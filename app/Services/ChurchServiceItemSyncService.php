@@ -720,7 +720,7 @@ class ChurchServiceItemSyncService
                 continue;
             }
 
-            ChurchServiceItem::withTrashed()
+            ChurchServiceItem::query()->withTrashed()
                 ->whereKey($item->id)
                 ->update(['position' => $temporaryPosition]);
         }
@@ -729,7 +729,7 @@ class ChurchServiceItemSyncService
         foreach ($activeItems->values() as $index => $item) {
             $expectedPosition = $index + 1;
 
-            ChurchServiceItem::withTrashed()
+            ChurchServiceItem::query()->withTrashed()
                 ->whereKey($item->id)
                 ->update(['position' => $expectedPosition]);
         }
@@ -761,7 +761,7 @@ class ChurchServiceItemSyncService
             return;
         }
 
-        $maxPosition = (int) ChurchServiceItem::withTrashed()
+        $maxPosition = (int) ChurchServiceItem::query()->withTrashed()
             ->where('church_service_id', $churchService->id)
             ->max('position');
 
@@ -769,7 +769,7 @@ class ChurchServiceItemSyncService
             $temporaryPosition = $maxPosition + $index + 1;
             $existingItem = $pendingUpdate['existing_item'];
 
-            ChurchServiceItem::withTrashed()
+            ChurchServiceItem::query()->withTrashed()
                 ->whereKey($existingItem->id)
                 ->update(['position' => $temporaryPosition]);
 

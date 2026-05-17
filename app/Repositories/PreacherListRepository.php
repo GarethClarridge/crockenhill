@@ -27,7 +27,7 @@ class PreacherListRepository
     public function forAdminList(): Collection
     {
         return Cache::flexible(self::ADMIN_LIST_CACHE_KEY, self::CACHE_TTL, function (): Collection {
-            return Preacher::active()->orderBy('name')->pluck('name', 'id');
+            return Preacher::query()->active()->orderBy('name')->pluck('name', 'id');
         });
     }
 
@@ -40,7 +40,7 @@ class PreacherListRepository
     public function forPublicList(): EloquentCollection
     {
         return Cache::flexible(self::PUBLIC_LIST_CACHE_KEY, self::CACHE_TTL, function (): EloquentCollection {
-            return Preacher::active()
+            return Preacher::query()->active()
                 ->select(['id', 'name', 'slug', 'image_path'])
                 ->withCount([
                     'sermons' => fn (Builder $query): Builder => $query->whereSermon(),

@@ -31,7 +31,7 @@ class Header extends Component
         $this->user = $user;
         $this->pages = Cache::rememberForever(
             'nav_pages',
-            fn (): Collection => Page::isNavigation()
+            fn (): Collection => Page::query()->isNavigation()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area'])
                 ->get(),
