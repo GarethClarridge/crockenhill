@@ -5,21 +5,31 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Song;
+use App\Presenters\SongArchiveSeoPresenter;
+use App\Services\PublicSongCatalogService;
 use App\Services\PublicSongUsageService;
 use App\Services\SongVideoService;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PublicSongListController extends Controller
 {
-    public function index(): View
-    {
+    public function index(
+        Request $request,
+        SongArchiveSeoPresenter $seoPresenter,
+        PublicSongCatalogService $catalogService,
+    ): View {
         $this->abortIfDisabled();
 
+        $search = $request->query('q');
+        $range = $catalogService->normalizeRange($request->query('range'));
+
         return view('church.songs.index', [
-            'heading' => 'Songs',
+            'heading' => $seoPresenter->title($search, $range),
             'area' => 'church',
             'slug' => 'songs',
-            'description' => 'Browse the songs most often sung at Crockenhill Baptist Church.',
+            'description' => $seoPresenter->description($search, $range),
+            'canonical_url' => $seoPresenter->canonical($search, $range, $request->integer('page', 1)),
             'links' => collect(),
         ]);
     }

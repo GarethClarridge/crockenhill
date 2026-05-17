@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Church\Songs;
 
 use App\Models\Song;
+use App\Presenters\SongArchiveSeoPresenter;
 use App\Presenters\SongItemListPresenter;
 use App\Services\PublicSongCatalogService;
 use App\Services\SongLyricSnippetBuilder;
@@ -17,6 +18,8 @@ use Livewire\WithPagination;
 
 /**
  * @property-read string $seoTitle
+ * @property-read string $seoDescription
+ * @property-read string $seoCanonical
  * @property-read array<string, mixed> $jsonLdData
  * @property-read LengthAwarePaginator<int, Song> $songs
  */
@@ -43,13 +46,19 @@ class BrowseSongs extends Component
     #[Computed]
     public function seoTitle(): string
     {
-        if ($this->search) {
-            return "Search: {$this->search} | Songs";
-        }
+        return app(SongArchiveSeoPresenter::class)->title($this->search, $this->range);
+    }
 
-        return $this->range === PublicSongCatalogService::RANGE_RECENT
-            ? 'Recent Songs'
-            : 'All Songs';
+    #[Computed]
+    public function seoDescription(): string
+    {
+        return app(SongArchiveSeoPresenter::class)->description($this->search, $this->range);
+    }
+
+    #[Computed]
+    public function seoCanonical(): string
+    {
+        return app(SongArchiveSeoPresenter::class)->canonical($this->search, $this->range, $this->getPage());
     }
 
     /**

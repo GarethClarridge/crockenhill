@@ -1,16 +1,6 @@
 <div
     x-init="
-        function updateTitle(search, range) {
-            if (search) {
-                document.title = 'Search: ' + search + ' | Songs | Crockenhill Baptist Church';
-            } else if (range === 'recent') {
-                document.title = 'Recent Songs | Crockenhill Baptist Church';
-            } else {
-                document.title = 'All Songs | Crockenhill Baptist Church';
-            }
-        }
-        $wire.$watch('search', (val) => updateTitle(val, $wire.range));
-        $wire.$watch('range', (val) => updateTitle($wire.search, val));
+        $wire.$watch('seoTitle', (val) => document.title = val + ' | Crockenhill Baptist Church');
     "
     class="[&_mark]:bg-transparent [&_mark]:font-bold [&_mark]:not-italic [&_mark]:p-0"
 >

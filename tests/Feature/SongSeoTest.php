@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Livewire\Church\Songs\BrowseSongs;
 use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -16,19 +18,53 @@ class SongSeoTest extends TestCase
     use DatabaseTransactions;
 
     #[Test]
-    public function song_index_has_correct_metadata(): void
+    public function song_archive_has_correct_default_seo_metadata(): void
     {
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->get(route('church.songs.index'));
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Songs | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse the songs most often sung at Crockenhill Baptist Church.">', false);
-        $response->assertSee('<meta property="og:title" content="Songs | Crockenhill Baptist Church">', false);
-        $response->assertSee('<meta property="og:description" content="Browse the songs most often sung at Crockenhill Baptist Church.">', false);
-        $response->assertSee('"@type": "WebPage"', false);
-        $response->assertSee('"name": "Songs"', false);
+        $response->assertSee('<title>Recent Songs | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<meta name="description" content="Browse the songs most recently sung at Crockenhill Baptist Church.">', false);
+        $response->assertSee('<link rel="canonical" href="http://localhost/church/songs">', false);
+    }
+
+    #[Test]
+    public function song_archive_has_correct_seo_metadata_for_search(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('church.songs.index', ['q' => 'Grace', 'range' => 'all']));
+
+        $response->assertStatus(200);
+        $response->assertSee('<title>Search: Grace | Songs | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<meta name="description" content="Browse songs matching &#039;Grace&#039; at Crockenhill Baptist Church.">', false);
+        $response->assertSee('<link rel="canonical" href="http://localhost/church/songs?q=Grace&amp;range=all">', false);
+    }
+
+    #[Test]
+    public function song_archive_has_correct_seo_metadata_for_all_time_range(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('church.songs.index', ['range' => 'all']));
+
+        $response->assertStatus(200);
+        $response->assertSee('<title>All Songs | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<meta name="description" content="Browse the full song catalogue of Crockenhill Baptist Church.">', false);
+        $response->assertSee('<link rel="canonical" href="http://localhost/church/songs?range=all">', false);
+    }
+
+    #[Test]
+    public function livewire_component_updates_seo_properties_on_filter_change(): void
+    {
+        Livewire::test(BrowseSongs::class)
+            ->set('search', 'Amazing')
+            ->assertSet('seoTitle', 'Search: Amazing | Songs')
+            ->set('search', '')
+            ->set('range', 'all')
+            ->assertSet('seoTitle', 'All Songs');
     }
 
     #[Test]

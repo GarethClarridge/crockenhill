@@ -41,9 +41,11 @@ class SongArchiveSeoPresenter
      */
     public function canonical(?string $search, string $range, int $page = 1): string
     {
+        $normalizedRange = app(PublicSongCatalogService::class)->normalizeRange($range);
+
         $params = array_filter([
             'q' => filled($search) ? $search : null,
-            'range' => $range === PublicSongCatalogService::RANGE_RECENT ? null : $range,
+            'range' => $normalizedRange === PublicSongCatalogService::RANGE_RECENT ? null : $normalizedRange,
             'page' => $page > 1 ? $page : null,
         ]);
 
