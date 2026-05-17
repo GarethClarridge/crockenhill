@@ -99,7 +99,7 @@ class GenerateThumbnail implements ShouldQueue
             ]);
 
             // Get the sermon record
-            $sermon = Sermon::find($this->sermonId);
+            $sermon = Sermon::query()->find($this->sermonId);
             if (! $sermon) {
                 Log::warning('Sermon not found for thumbnail generation', [
                     'sermon_id' => $this->sermonId,
@@ -187,7 +187,7 @@ class GenerateThumbnail implements ShouldQueue
 
             // Fallback to sermon record's video_file_path if processing log doesn't have it
             if (! $this->videoPath && $this->sermonId) {
-                $sermon = Sermon::find($this->sermonId);
+                $sermon = Sermon::query()->find($this->sermonId);
                 $this->videoPath = $sermon?->video_file_path;
 
                 Log::debug('Resolved video path from sermon record for livestream', [
@@ -221,7 +221,7 @@ class GenerateThumbnail implements ShouldQueue
         } elseif ($this->processingLog->processing_type === MediaType::Video) {
             // Direct video: Get video path from sermon record or processing log
             if ($this->sermonId) {
-                $sermon = Sermon::find($this->sermonId);
+                $sermon = Sermon::query()->find($this->sermonId);
                 $this->videoPath = $sermon?->video_file_path;
             }
 

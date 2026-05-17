@@ -85,7 +85,7 @@ class PageFormData extends Form
     {
         $this->normalizeForSave();
 
-        return Page::create($this->pagePayload($this->validate()));
+        return Page::query()->create($this->pagePayload($this->validate()));
     }
 
     public function update(): void

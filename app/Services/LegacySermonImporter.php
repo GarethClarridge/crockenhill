@@ -128,7 +128,7 @@ final class LegacySermonImporter
 
         $storedPath = $this->storeFile($absolutePath, $filename, $date);
 
-        $processingLog = MediaProcessingLog::create([
+        $processingLog = MediaProcessingLog::query()->create([
             'processing_id' => (string) Str::uuid(),
             'processing_type' => MediaType::Audio,
             'original_filename' => $filename,

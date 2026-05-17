@@ -64,7 +64,7 @@ class SubmitEmailText extends Component
 
         $syntheticId = 'manual-'.Str::uuid().'@admin.crockenhill.org';
 
-        $inboundEmail = InboundEmail::create([
+        $inboundEmail = InboundEmail::query()->create([
             'message_id' => $syntheticId,
             'from' => $this->from ?: 'admin@manual-entry',
             'subject' => $this->subject ?: 'Manual entry',

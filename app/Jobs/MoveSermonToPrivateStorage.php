@@ -27,7 +27,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
 
     public function handle(): void
     {
-        $sermon = Sermon::find($this->sermonId);
+        $sermon = Sermon::query()->find($this->sermonId);
 
         if ($sermon === null) {
             Log::warning('MoveSermonToPrivateStorage: sermon not found', ['sermon_id' => $this->sermonId]);

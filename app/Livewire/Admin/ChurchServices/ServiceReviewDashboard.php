@@ -260,7 +260,7 @@ class ServiceReviewDashboard extends Component
     #[Computed]
     public function preacherOptions(): array
     {
-        return Preacher::active()
+        return Preacher::query()->active()
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn (Preacher $preacher): array => [

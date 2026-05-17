@@ -117,7 +117,7 @@ class SermonArchiveSeoPresenter
         }
 
         // Fallback to direct lookup for inactive preachers
-        $preacher = Preacher::find($preacherId);
+        $preacher = Preacher::query()->find($preacherId);
 
         return $this->memoizedPreacherNames[$preacherId] = $preacher?->name;
     }
