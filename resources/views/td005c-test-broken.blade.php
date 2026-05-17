@@ -1,1 +1,0 @@
-<img src="/images/td005c-broken.jpg" alt="Broken">
