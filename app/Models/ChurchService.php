@@ -15,8 +15,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -42,6 +44,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Collection<int, ChurchServiceItem> $items
  * @property-read Collection<int, MediaProcessingLog> $mediaProcessingLogs
+ * @property-read User|null $manualReviewedBy
  *
  * @method static \Database\Factories\ChurchServiceFactory factory(...$parameters)
  * @method static Builder<ChurchService> newModelQuery()
@@ -115,5 +118,26 @@ class ChurchService extends Model
     public function mediaProcessingLogs(): HasMany
     {
         return $this->hasMany(MediaProcessingLog::class);
+    }
+
+    /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'date' => ['required', 'date'],
+            'service' => ['required', Rule::enum(SermonService::class)],
+            'source' => ['required', 'string', 'max:255'],
+            'manual_reviewed_by_user_id' => ['nullable', 'integer', 'exists:users,id'],
+        ];
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function manualReviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'manual_reviewed_by_user_id');
     }
 }
