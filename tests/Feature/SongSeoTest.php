@@ -38,7 +38,7 @@ class SongSeoTest extends TestCase
         $response = $this->actingAs($user)->get(route('church.songs.index', ['q' => 'Grace', 'range' => 'all']));
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Search: Grace | Songs | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Grace | Songs | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Browse songs matching &#039;Grace&#039; at Crockenhill Baptist Church.">', false);
         $response->assertSee('<link rel="canonical" href="http://localhost/church/songs?q=Grace&amp;range=all">', false);
     }
@@ -61,7 +61,7 @@ class SongSeoTest extends TestCase
     {
         Livewire::test(BrowseSongs::class)
             ->set('search', 'Amazing')
-            ->assertSet('seoTitle', 'Search: Amazing | Songs')
+            ->assertSet('seoTitle', 'Amazing | Songs')
             ->set('search', '')
             ->set('range', 'all')
             ->assertSet('seoTitle', 'All Songs');

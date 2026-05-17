@@ -14,7 +14,7 @@ class SongArchiveSeoPresenter
     public function title(?string $search, string $range): string
     {
         if (filled($search)) {
-            return "Search: {$search} | Songs";
+            return "{$search} | Songs";
         }
 
         return $range === PublicSongCatalogService::RANGE_RECENT

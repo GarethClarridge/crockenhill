@@ -32,7 +32,7 @@ class SongArchiveSeoTest extends TestCase
         $response = $this->actingAs($user)->get(route('church.songs.index', ['q' => 'Grace', 'range' => PublicSongCatalogService::RANGE_ALL]));
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Search: Grace | Songs | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Grace | Songs | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Browse songs matching &#039;Grace&#039; at Crockenhill Baptist Church.">', false);
         $response->assertSee('<link rel="canonical" href="http://localhost/church/songs?q=Grace&amp;range=all">', false);
     }
@@ -76,7 +76,7 @@ class SongArchiveSeoTest extends TestCase
         $test->set('search', 'Amazing')
             ->set('range', PublicSongCatalogService::RANGE_ALL);
 
-        $this->assertEquals('Search: Amazing | Songs', $test->get('seoTitle'));
+        $this->assertEquals('Amazing | Songs', $test->get('seoTitle'));
         $this->assertEquals("Browse songs matching 'Amazing' at Crockenhill Baptist Church.", $test->get('seoDescription'));
 
         $test->set('search', '')
