@@ -353,7 +353,7 @@ class ThumbnailGenerationServiceTest extends TestCase
 
         $fallbackService = $this->makeThumbnailServiceWithExtractorResult(null);
         $fallbackThumbnail = $fallbackService->createBrandedThumbnail($sermon, $this->storeBaseFrame());
-        $fallbackImage = Image::read(Storage::disk('local')->path($fallbackThumbnail['path']));
+        $fallbackImage = Image::decode(Storage::disk('local')->path($fallbackThumbnail['path']));
 
         $backgroundPixel = $this->getImagePixel($fallbackImage, 1180, 80);
         $logoPixel = $this->findDarkPixelInRegion($fallbackImage, 40, 40, 260, 240);
@@ -369,7 +369,7 @@ class ThumbnailGenerationServiceTest extends TestCase
 
         $layeredService = $this->makeThumbnailServiceWithExtractorResult($this->makeForegroundExtractionResult());
         $layeredThumbnail = $layeredService->createBrandedThumbnail($sermon, $this->storeBaseFrame());
-        $layeredImage = Image::read(Storage::disk('local')->path($layeredThumbnail['path']));
+        $layeredImage = Image::decode(Storage::disk('local')->path($layeredThumbnail['path']));
 
         $subjectPixel = $this->findGreenPixelInRegion($layeredImage, 820, 160, 1210, 680);
 
@@ -454,7 +454,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         imagefilledrectangle($overlay, 340, 110, 940, 630, $green);
 
         return [
-            'image' => Image::read($overlay),
+            'image' => Image::decode($overlay),
             'coverage' => 0.16,
             'bounds' => ['x' => 340, 'y' => 110, 'width' => 600, 'height' => 520],
             'method' => 'pixian_api',

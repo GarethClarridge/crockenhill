@@ -302,12 +302,12 @@ class ThumbnailCanvasComposer
         $encoded = $this->encodeGdImage($cropped);
         imagedestroy($cropped);
 
-        return Image::read($encoded);
+        return Image::decode($encoded);
     }
 
     private function createBaseCanvas(): ImageInterface
     {
-        $canvas = Image::create(ThumbnailGenerationService::WEB_WIDTH, ThumbnailGenerationService::WEB_HEIGHT)
+        $canvas = Image::createImage(ThumbnailGenerationService::WEB_WIDTH, ThumbnailGenerationService::WEB_HEIGHT)
             ->fill($this->backgroundColor());
         $this->placeLogo($canvas);
 
@@ -316,7 +316,7 @@ class ThumbnailCanvasComposer
 
     private function createCenteredBaseCanvas(): ImageInterface
     {
-        $canvas = Image::create(ThumbnailGenerationService::WEB_WIDTH, ThumbnailGenerationService::WEB_HEIGHT)
+        $canvas = Image::createImage(ThumbnailGenerationService::WEB_WIDTH, ThumbnailGenerationService::WEB_HEIGHT)
             ->fill($this->backgroundColor());
         $this->placeCornerOverlay($canvas);
 
@@ -335,9 +335,9 @@ class ThumbnailCanvasComposer
         }
 
         try {
-            $overlay = $this->tintImage(Image::read($fullOverlayPath), $this->foregroundColor());
+            $overlay = $this->tintImage(Image::decode($fullOverlayPath), $this->foregroundColor());
             $overlay->resize($image->width(), $image->height());
-            $image->place($overlay, 'bottom-left', 0, 0);
+            $image->insert($overlay, 0, 0, 'bottom-left');
         } catch (\Throwable $e) {
             Log::warning('Failed to place thumbnail corner overlay', [
                 'overlay_path' => $overlayRelativePath,
@@ -358,13 +358,13 @@ class ThumbnailCanvasComposer
         }
 
         try {
-            $logo = $this->tintImage(Image::read($fullLogoPath), $this->foregroundColor());
+            $logo = $this->tintImage(Image::decode($fullLogoPath), $this->foregroundColor());
             $targetWidth = $this->scaleFromReference(self::REF_LOGO_WIDTH, $image->width());
             $targetHeight = max(1, (int) round($logo->height() * ($targetWidth / max(1, $logo->width()))));
             $logo->resize($targetWidth, $targetHeight);
 
             $offset = $this->scaleFromReference(self::REF_EDGE_INSET, $image->width());
-            $image->place($logo, 'top-left', $offset, $offset);
+            $image->insert($logo, $offset, $offset, 'top-left');
         } catch (\Throwable $e) {
             Log::warning('Failed to place thumbnail logo', [
                 'logo_path' => $logoRelativePath,
@@ -375,7 +375,8 @@ class ThumbnailCanvasComposer
 
     private function drawAccentLine(ImageInterface $image, int $x, int $y, int $width, int $height): void
     {
-        $image->drawRectangle($x, $y, function ($draw) use ($width, $height): void {
+        $image->drawRectangle(function ($draw) use ($x, $y, $width, $height): void {
+            $draw->at($x, $y);
             $draw->size($width, $height);
             $draw->background($this->foregroundColor());
             $draw->border('transparent', 0);
@@ -402,8 +403,7 @@ class ThumbnailCanvasComposer
             $image->text($line, $x, $lineY, function ($font) use ($fontSize, $fontColor, $fontPath): void {
                 $font->size($fontSize);
                 $font->color($fontColor);
-                $font->align('left');
-                $font->valign('top');
+                $font->align('left', 'top');
 
                 if ($fontPath !== null && file_exists($fontPath)) {
                     $font->filename($fontPath);
@@ -463,7 +463,7 @@ class ThumbnailCanvasComposer
         $x = $canvas->width() - $rightInset - $targetWidth;
         $y = $canvas->height() - $targetHeight;
 
-        $canvas->place($subjectImage, 'top-left', $x, $y);
+        $canvas->insert($subjectImage, $x, $y, 'top-left');
     }
 
     /**
@@ -669,7 +669,7 @@ class ThumbnailCanvasComposer
             throw new \RuntimeException('Image cloning requires the GD image driver.');
         }
 
-        return Image::read($this->encodeGdImage($native));
+        return Image::decode($this->encodeGdImage($native));
     }
 
     /**
@@ -842,8 +842,7 @@ class ThumbnailCanvasComposer
             $image->text($line, $centerX, $lineY, function ($font) use ($fontSize, $fontColor, $resolvedFontPath): void {
                 $font->size($fontSize);
                 $font->color($fontColor);
-                $font->align('center');
-                $font->valign('top');
+                $font->align('center', 'top');
 
                 if ($resolvedFontPath !== null && file_exists($resolvedFontPath)) {
                     $font->filename($resolvedFontPath);
@@ -884,7 +883,7 @@ class ThumbnailCanvasComposer
         $subjectImage->resize($targetWidth, $targetHeight);
 
         $x = (int) round(($canvas->width() - $targetWidth) / 2);
-        $canvas->place($subjectImage, 'top-left', $x, $imageTopY);
+        $canvas->insert($subjectImage, $x, $imageTopY, 'top-left');
     }
 
     private function resolveCenteredTitleMaxHeight(int $height): int
