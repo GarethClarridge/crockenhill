@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonValidationService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonValidationServiceTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private SermonValidationService $service;
 
@@ -22,6 +24,29 @@ class SermonValidationServiceTest extends TestCase
         parent::setUp();
 
         $this->service = $this->app->make(SermonValidationService::class);
+    }
+
+    // ---- validateAudioFile ----
+
+    #[Test]
+    public function it_passes_valid_audio_file(): void
+    {
+        $file = UploadedFile::fake()->create('sermon.mp3', 1000, 'audio/mpeg');
+
+        $this->service->validateAudioFile($file);
+
+        $this->assertTrue(true); // Should not throw
+    }
+
+    #[Test]
+    public function it_throws_exception_for_invalid_audio_file(): void
+    {
+        $file = UploadedFile::fake()->create('sermon.txt', 10, 'text/plain');
+
+        $this->expectException(InvalidFileException::class);
+        $this->expectExceptionMessage('Invalid file type');
+
+        $this->service->validateAudioFile($file);
     }
 
     // ---- validateProcessingMetadata ----
@@ -331,6 +356,31 @@ class SermonValidationServiceTest extends TestCase
         $this->assertFalse($this->service->requiresManualReview($log));
     }
 
+    // ---- validateStorageConstraints ----
+
+    #[Test]
+    public function it_passes_storage_constraints_with_enough_space(): void
+    {
+        $file = UploadedFile::fake()->create('sermon.mp3', 1000);
+
+        $errors = $this->service->validateStorageConstraints($file);
+
+        $this->assertEmpty($errors);
+    }
+
+    #[Test]
+    public function it_detects_compatibility_issues_in_storage_constraints(): void
+    {
+        $file = UploadedFile::fake()->create('sermon.wma', 1000);
+
+        $errors = $this->service->validateStorageConstraints($file);
+
+        $this->assertNotEmpty($errors);
+        $this->assertTrue(
+            collect($errors)->contains(fn ($e) => str_contains($e, 'WMA files may have compatibility issues'))
+        );
+    }
+
     // ---- validateProcessingRequirements ----
 
     #[Test]
@@ -342,7 +392,32 @@ class SermonValidationServiceTest extends TestCase
         $errors = $this->service->validateProcessingRequirements();
 
         $this->assertTrue(
-            collect($errors)->contains(fn ($e) => str_contains($e, 'not configured'))
+            collect($errors)->contains(fn ($e) => str_contains($e, "Storage disk 'nonexistent_disk' not configured"))
+        );
+    }
+
+    #[Test]
+    public function it_detects_missing_openai_key_when_required(): void
+    {
+        config(['services.openai.key' => null]);
+        config(['media-processing.transcription.service' => 'openai']);
+
+        $errors = $this->service->validateProcessingRequirements();
+
+        $this->assertTrue(
+            collect($errors)->contains(fn ($e) => str_contains($e, 'OpenAI API key not configured'))
+        );
+    }
+
+    #[Test]
+    public function it_detects_missing_queue_configuration(): void
+    {
+        config(['queue.default' => null]);
+
+        $errors = $this->service->validateProcessingRequirements();
+
+        $this->assertTrue(
+            collect($errors)->contains(fn ($e) => str_contains($e, 'Queue system not configured'))
         );
     }
 }

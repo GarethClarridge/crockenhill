@@ -26,11 +26,7 @@ class SermonValidationService
      */
     public function validateAudioFile(UploadedFile $file): void
     {
-        try {
-            $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
-        } catch (\InvalidArgumentException $e) {
-            throw new InvalidFileException([$e->getMessage()]);
-        }
+        $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
     }
 
     /**
