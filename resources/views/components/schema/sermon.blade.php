@@ -36,6 +36,11 @@
         'description' => $metaDescription,
         'image' => $thumbnailUrl,
         'datePublished' => $datePublished,
+        'dateModified' => ($sermon->updated_at instanceof \Carbon\CarbonInterface && $sermon->updated_at->year > 0)
+            ? $sermon->updated_at->toIso8601String()
+            : $datePublished,
+        'inLanguage' => 'en-GB',
+        'genre' => 'Sermon',
         'author' => $author,
         'publisher' => [
             '@type' => 'Organization',
