@@ -7,7 +7,7 @@
 
 @push('meta_description'){{ $description ?? $heading }}@endpush
 
-<main id="main-content" class="mb-3">
+<main id="main-content" class="mb-3" tabindex="-1">
 
   <article>
 

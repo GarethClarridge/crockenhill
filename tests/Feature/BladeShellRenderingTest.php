@@ -132,4 +132,19 @@ class BladeShellRenderingTest extends TestCase
         $response->assertOk();
         $response->assertSee('<title>Calendar Patterns | Crockenhill Baptist Church</title>', false);
     }
+
+    #[Test]
+    public function shells_render_main_content_with_tabindex(): void
+    {
+        // Auth Shell
+        $this->get('/login')->assertSeeHtml('<main id="main-content" class="mb-3" tabindex="-1">');
+
+        // Page Shell
+        Page::factory()->create(['slug' => 'tabindex-test', 'area' => 'church']);
+        $this->get('/church/tabindex-test')->assertSeeHtml('<main id="main-content" class="mb-3" tabindex="-1">');
+
+        // Admin Shell
+        $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
+        $this->actingAs($admin)->get('/meetings')->assertSeeHtml('<main id="main-content" class="mb-3" tabindex="-1">');
+    }
 }
