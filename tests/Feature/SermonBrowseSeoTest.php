@@ -19,7 +19,7 @@ class SermonBrowseSeoTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.">', false);
+        $response->assertSee('<meta name="description" content="Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.">', false);
         $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons">', false);
     }
 
@@ -29,7 +29,7 @@ class SermonBrowseSeoTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('<title>John 3 | Sermons | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse sermons from Crockenhill Baptist Church on John 3.">', false);
+        $response->assertSee('<meta name="description" content="Watch or listen to Bible-based sermons on John 3 from Crockenhill Baptist Church. Explore recent teaching from our morning and evening services.">', false);
         $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons?book=John&amp;chapter=3">', false);
     }
 

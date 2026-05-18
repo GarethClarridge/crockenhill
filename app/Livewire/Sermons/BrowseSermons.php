@@ -67,21 +67,25 @@ class BrowseSermons extends Component
     {
         $this->chapterFilter = null;
         $this->resetPage();
+        $this->dispatchMetadataUpdate();
     }
 
     public function updatedChapterFilter(): void
     {
         $this->resetPage();
+        $this->dispatchMetadataUpdate();
     }
 
     public function updatedPreacherFilter(): void
     {
         $this->resetPage();
+        $this->dispatchMetadataUpdate();
     }
 
     public function updatedSeriesFilter(): void
     {
         $this->resetPage();
+        $this->dispatchMetadataUpdate();
     }
 
     public function clearFilters(): void
@@ -94,6 +98,7 @@ class BrowseSermons extends Component
         ]);
 
         $this->resetPage();
+        $this->dispatchMetadataUpdate();
     }
 
     public function removeFilter(string $filter): void
@@ -108,6 +113,16 @@ class BrowseSermons extends Component
         }
 
         $this->resetPage();
+        $this->dispatchMetadataUpdate();
+    }
+
+    private function dispatchMetadataUpdate(): void
+    {
+        $this->dispatch('sermon-filters-updated', [
+            'title' => $this->seoTitle,
+            'description' => $this->seoDescription,
+            'canonical' => $this->seoCanonical,
+        ]);
     }
 
     public function render(BibleCanon $bibleCanon): View

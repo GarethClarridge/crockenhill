@@ -19,7 +19,12 @@
         'name' => config('organization.name'),
         '@id' => config('app.url').'/',
         'url' => config('app.url'),
-        'logo' => asset('images/Primary.png'),
+        'logo' => [
+            '@type' => 'ImageObject',
+            'url' => asset('images/Primary.png'),
+            'width' => '512',
+            'height' => '512',
+        ],
         'description' => config('organization.description'),
         'address' => [
             '@type' => 'PostalAddress',

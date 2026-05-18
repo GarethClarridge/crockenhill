@@ -1,4 +1,28 @@
-<div class="pb-12" x-init="document.title = @js($this->seoTitle . ' | Crockenhill Baptist Church')">
+<div
+    class="pb-12"
+    x-init="
+        Livewire.on('sermon-filters-updated', (data) => {
+            const update = (data) => {
+                if (data.title) document.title = data.title + ' | Crockenhill Baptist Church';
+                if (data.description) {
+                    const metaDesc = document.querySelector('meta[name=\'description\']');
+                    if (metaDesc) metaDesc.setAttribute('content', data.description);
+                }
+                if (data.canonical) {
+                    const linkCanonical = document.querySelector('link[rel=\'canonical\']');
+                    if (linkCanonical) linkCanonical.setAttribute('href', data.canonical);
+                }
+            };
+            if (Array.isArray(data) && data.length > 0) {
+                update(data[0]);
+            } else {
+                update(data);
+            }
+        });
+
+        document.title = @js($this->seoTitle) + ' | Crockenhill Baptist Church';
+    "
+>
 
     <a href="#sermon-results" @click.prevent="document.getElementById('sermon-results').focus()" class="sr-only focus:not-sr-only focus:absolute focus:z-30 focus:m-4 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-cbc-teal-dark focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-cbc-teal">
         Skip to results

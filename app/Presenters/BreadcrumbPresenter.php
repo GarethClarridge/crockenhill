@@ -132,6 +132,7 @@ class BreadcrumbPresenter
         return [
             '@context' => 'https://schema.org',
             '@type' => 'BreadcrumbList',
+            '@id' => url()->current().'#breadcrumb',
             'itemListElement' => array_map(
                 static fn (array $item, int $index): array => [
                     '@type' => 'ListItem',
