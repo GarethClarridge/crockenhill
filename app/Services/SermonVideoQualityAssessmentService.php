@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Data\SermonVideoQualityAssessmentResult;
 use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Storage;
  */
 class SermonVideoQualityAssessmentService
 {
+    use SanitizesLogData;
+
     private string $tempDisk;
 
     public function __construct(
@@ -53,9 +56,9 @@ class SermonVideoQualityAssessmentService
         } catch (\Throwable $e) {
             Log::warning('Sermon video quality assessment failed', [
                 'sermon_id' => $sermon->id,
-                'video_path' => $videoPath,
+                'video_path' => self::sanitizeForLog($videoPath),
                 'disk' => $disk,
-                'error' => $e->getMessage(),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return SermonVideoQualityAssessmentResult::failed();
@@ -99,9 +102,9 @@ class SermonVideoQualityAssessmentService
         } catch (\Throwable $e) {
             Log::warning('Sermon video quality assessment failed', [
                 'sermon_id' => $sermon->id,
-                'video_path' => $videoPath,
+                'video_path' => self::sanitizeForLog($videoPath),
                 'disk' => $disk,
-                'error' => $e->getMessage(),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return ['result' => SermonVideoQualityAssessmentResult::failed(), 'localVideoPath' => null];
@@ -504,8 +507,8 @@ class SermonVideoQualityAssessmentService
             }
         } catch (\Throwable $e) {
             Log::warning('Failed to cleanup video-quality frame', [
-                'frame_path' => $framePath,
-                'error' => $e->getMessage(),
+                'frame_path' => self::sanitizeForLog($framePath),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
         }
     }

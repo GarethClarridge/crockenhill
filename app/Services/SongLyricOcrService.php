@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -12,6 +13,8 @@ use Symfony\Component\Process\Process;
 
 class SongLyricOcrService
 {
+    use SanitizesLogData;
+
     /**
      * Fraction into the song segment at which to extract the frame.
      * 10% past the start avoids instrumental intros while still showing opening lyrics.
@@ -40,7 +43,7 @@ class SongLyricOcrService
             return $this->parseOcrResponse($ocrText);
         } catch (\Throwable $throwable) {
             Log::warning('SongLyricOcrService: OCR failed', [
-                'error' => $throwable->getMessage(),
+                'error' => self::sanitizeForLog($throwable->getMessage()),
             ]);
 
             return null;
@@ -88,9 +91,9 @@ class SongLyricOcrService
 
         if (! $process->isSuccessful() || ! file_exists($fullFramePath) || filesize($fullFramePath) === 0) {
             Log::warning('SongLyricOcrService: frame extraction failed', [
-                'video_path' => $localVideoPath,
+                'video_path' => self::sanitizeForLog($localVideoPath),
                 'timestamp' => $timestamp,
-                'error' => $process->getErrorOutput(),
+                'error' => self::sanitizeForLog($process->getErrorOutput()),
             ]);
 
             return [null, null];
@@ -158,8 +161,8 @@ class SongLyricOcrService
             }
         } catch (\Throwable $throwable) {
             Log::warning('SongLyricOcrService: failed to clean up frame', [
-                'frame_path' => $framePath,
-                'error' => $throwable->getMessage(),
+                'frame_path' => self::sanitizeForLog((string) $framePath),
+                'error' => self::sanitizeForLog($throwable->getMessage()),
             ]);
         }
     }
