@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+
+@import './tailwind/components/typography.css';
+@import './tailwind/components/header.css';
+@import './tailwind/components/footer.css';
+@import './tailwind/components/pages.css';
+@import './tailwind/components/sermons.css';
+@import './tailwind/components/cards.css';
+@import './tailwind/components/home.css';
+
+@theme {
+    --font-sans: "Lato", "Open Sans", "Helvetica", "Arial", sans-serif;
+    --font-display: "Oswald", "Open Sans", "Helvetica", "Arial", sans-serif;
+
+    --background-image-cbc-pattern: url('../svg/pattern.svg');
+
+    --color-cbc-teal-light:   #249a97;
+    --color-cbc-teal:         #1d686a;
+    --color-cbc-teal-dark:    #145557;
+    --color-cbc-teal-deeper:  #0f4143;
+    --color-cbc-teal-darkest: #134e4a;
+    --color-cbc-crimson:      #6b0f1a;
+    --color-cbc-rose-muted:   #c07c84;
+
+    --animate-progress: progress 2s ease-in-out infinite;
+
+    @keyframes progress {
+        0%   { width: 0%; }
+        50%  { width: 70%; }
+        100% { width: 100%; }
+    }
+}
+
+@layer components {
+    .bg-gradient-teal {
+        background-image: linear-gradient(
+            120deg,
+            var(--color-cbc-teal-light) 0%,
+            var(--color-cbc-teal) 55%,
+            var(--color-cbc-teal-dark) 100%
+        );
+    }
+}
+
+@layer base {
+    [x-cloak] {
+        display: none !important;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        html {
+            scroll-behavior: smooth;
+        }
+    }
+}
+
+@font-face {
+    font-family: "Oswald";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(../fonts/oswald-regular.woff2) format("woff2");
+}
+
+@font-face {
+    font-family: "Lato";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(../fonts/lato-regular.woff2) format("woff2");
+}
+
+@font-face {
+    font-family: "Lato";
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url(../fonts/lato-italic.woff2) format("woff2");
+}
+
+@font-face {
+    font-family: "Lato";
+    font-style: bold;
+    font-weight: 700;
+    font-display: swap;
+    src: url(../fonts/lato-bold.woff2) format("woff2");
+}

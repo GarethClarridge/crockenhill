@@ -18,7 +18,7 @@
         </p>
 
         <div class="mx-auto w-full max-w-xs">
-            <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
+            <div class="w-full rounded-xl bg-gradient-teal p-[1.5px]">
                 <x-button link="/" variant="featureOutline" size="lg" class="w-full rounded-[11px]">
                     Go to the homepage
                 </x-button>

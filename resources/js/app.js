@@ -1,4 +1,4 @@
-import '../css/app.scss';
+import '../css/app.css';
 import './bootstrap';
 import './livewire/media-upload-controller';
 import './scripture-fums';

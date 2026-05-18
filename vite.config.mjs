@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
+import tailwindcss from '@tailwindcss/vite';
 import viteCompression from 'vite-plugin-compression';
 
 export default defineConfig({
@@ -11,13 +12,6 @@ export default defineConfig({
         watch: {
             usePolling: true,
         },
-    },
-    css: {
-        preprocessorOptions: {
-            scss: {
-                api: 'modern-compiler'
-            }
-        }
     },
     build: {
         rollupOptions: {
@@ -34,8 +28,9 @@ export default defineConfig({
         }
     },
     plugins: [
+        tailwindcss(),
         laravel({
-            input: ['resources/css/app.scss', 'resources/js/app.js'],
+            input: ['resources/css/app.css', 'resources/js/app.js'],
             refresh: true,
         }),
         viteCompression()

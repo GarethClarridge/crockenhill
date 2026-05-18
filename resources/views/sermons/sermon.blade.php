@@ -265,7 +265,7 @@
             <div class="mt-6 lg:mt-0 lg:col-span-2 space-y-6 lg:sticky lg:top-6">
 
                 <div class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-                    <div class="h-1 w-full bg-[linear-gradient(90deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)]"></div>
+                    <div class="h-1 w-full bg-[linear-gradient(90deg,var(--color-cbc-teal-light)_0%,var(--color-cbc-teal)_55%,var(--color-cbc-teal-dark)_100%)]"></div>
                     <dl class="p-6 space-y-4">
 
                         @if ($sermon->date != null)

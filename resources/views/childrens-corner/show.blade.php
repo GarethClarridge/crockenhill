@@ -91,7 +91,7 @@
                 </div>
 
                 <div class="w-full max-w-sm">
-                    <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
+                    <div class="w-full rounded-xl bg-gradient-teal p-[1.5px]">
                         <x-button link="{{ route('childrens-corner.index') }}" variant="secondary" size="lg" class="w-full rounded-[11px]">
                             Back to Children's Corner
                         </x-button>

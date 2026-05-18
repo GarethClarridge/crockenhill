@@ -75,7 +75,7 @@
                 </div>
 
                 <div class="w-full max-w-sm">
-                    <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
+                    <div class="w-full rounded-xl bg-gradient-teal p-[1.5px]">
                         <x-button link="{{ route('church.songs.index') }}" variant="secondary" size="lg" class="w-full rounded-[11px]">
                             Back to Songs
                         </x-button>
@@ -87,7 +87,7 @@
         @if ($videoUrl)
             <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div class="flex items-center gap-2 border-b border-gray-100 px-6 py-4">
-                    <x-heroicon-o-play-circle class="h-4 w-4 flex-shrink-0 text-cbc-teal" aria-hidden="true" />
+                    <x-heroicon-o-play-circle class="h-4 w-4 shrink-0 text-cbc-teal" aria-hidden="true" />
                     <h2 class="font-display text-xl text-gray-900">Watch</h2>
                 </div>
                 <div class="p-6">

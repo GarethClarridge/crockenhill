@@ -9,7 +9,7 @@ $linkClasses = 'rounded-sm text-cbc-teal-dark underline decoration-cbc-teal-dark
       <h3 class="mb-3 font-display text-2xl text-cbc-teal-dark">Catch up</h3>
       <p class="mb-4 text-sm text-slate-700">Keep up with services and recent teaching.</p>
       <div class="flex flex-col items-center space-y-3">
-        <a class="inline-flex items-center justify-center rounded-md bg-[linear-gradient(120deg,theme(colors.cbc-teal.DEFAULT)_0%,theme(colors.cbc-teal.dark)_55%,#0e3a3c_100%)] px-3 py-1.5 text-sm text-white no-underline transition-all hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2" href="{{ config('organization.social.youtube') }}" rel="noopener" target="_blank">
+        <a class="inline-flex items-center justify-center rounded-md bg-[linear-gradient(120deg,var(--color-cbc-teal)_0%,var(--color-cbc-teal-dark)_55%,#0e3a3c_100%)] px-3 py-1.5 text-sm text-white no-underline transition-all hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2" href="{{ config('organization.social.youtube') }}" rel="noopener" target="_blank">
           Watch Sunday morning services
         </a>
         <a class="{{ $linkClasses }}" href="/christ/sermons" wire:navigate>

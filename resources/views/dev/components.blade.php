@@ -308,7 +308,7 @@
                         <div class="flex flex-1 items-center justify-center px-6 py-5">
                             <p class="mx-auto max-w-[30ch] text-center text-slate-700">Join us each Sunday morning at 10:30am.</p>
                         </div>
-                        <div class="mt-auto flex w-full items-center justify-between gap-3 bg-[linear-gradient(120deg,theme(colors.cbc-teal.DEFAULT)_0%,theme(colors.cbc-teal.dark)_55%,#0e3a3c_100%)] px-6 py-3.5 text-left text-white">
+                        <div class="mt-auto flex w-full items-center justify-between gap-3 bg-[linear-gradient(120deg,var(--color-cbc-teal)_0%,var(--color-cbc-teal-dark)_55%,#0e3a3c_100%)] px-6 py-3.5 text-left text-white">
                             <span>Learn about Morning Services</span>
                             <x-heroicon-s-arrow-right-circle class="h-6 w-6 shrink-0 text-white/90" />
                         </div>
