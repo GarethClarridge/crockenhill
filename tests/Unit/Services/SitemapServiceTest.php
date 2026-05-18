@@ -12,6 +12,7 @@ use App\Presenters\MeetingSitemapPresenter;
 use App\Presenters\PageSitemapPresenter;
 use App\Presenters\PreacherSitemapPresenter;
 use App\Presenters\SermonSitemapPresenter;
+use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SitemapService;
@@ -45,7 +46,8 @@ class SitemapServiceTest extends TestCase
             $pageSitemapPresenter,
             $sermonSitemapPresenter,
             $meetingSitemapPresenter,
-            $preacherSitemapPresenter
+            $preacherSitemapPresenter,
+            $this->createMock(SermonViewPresenter::class),
         );
     }
 
@@ -131,6 +133,7 @@ class SitemapServiceTest extends TestCase
                 $this->createMock(SermonSitemapPresenter::class),
                 $this->createMock(MeetingSitemapPresenter::class),
                 $this->createMock(PreacherSitemapPresenter::class),
+                $this->createMock(SermonViewPresenter::class),
             ])
             ->onlyMethods(['getFilePath'])
             ->getMock();
