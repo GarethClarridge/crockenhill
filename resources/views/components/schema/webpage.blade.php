@@ -28,6 +28,10 @@
                 'url' => asset('images/Primary.png'),
             ],
         ],
+        'breadcrumb' => [
+            '@type' => 'BreadcrumbList',
+            '@id' => $pageUrl.'#breadcrumb',
+        ],
     ];
 
     if ($image) {

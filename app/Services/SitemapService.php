@@ -147,9 +147,6 @@ class SitemapService
 
     /**
      * Add Bible book filtered sermon archive URLs to the sitemap.
-     *
-     * Performance Optimization: Resolves the sermons heading asset URL once before
-     * the loop to avoid redundant asset() calls for every Bible book.
      */
     private function addBooks(Sitemap $sitemap): void
     {
@@ -157,12 +154,21 @@ class SitemapService
         $sermonsImage = asset('/images/headings/large/sermons.webp');
 
         foreach ($books as $book) {
-            $sitemap->add(
-                Url::create(route('sermons.index', ['book' => $book]))
-                    ->setPriority(0.7)
-                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                    ->addImage($sermonsImage, "Sermons on {$book}")
-            );
+            $url = Url::create(route('sermons.index', ['book' => $book]))
+                ->setPriority(0.7)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY);
+
+            $latestSermon = Sermon::query()
+                ->whereHas('scriptureFilters', fn ($q) => $q->where('bible_book', $book))
+                ->whereSermon()
+                ->orderBy('date', 'desc')
+                ->first();
+
+            $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
+
+            $url->addImage($image ?: $sermonsImage, "Sermons on {$book}");
+
+            $sitemap->add($url);
         }
     }
 
@@ -223,12 +229,24 @@ class SitemapService
      */
     private function addSeries(Sitemap $sitemap): void
     {
+        $sermonsImage = asset('/images/headings/large/sermons.webp');
+
         foreach ($this->sermonRepository->getSeriesForDisplay() as $series) {
-            $sitemap->add(
-                Url::create(route('sermons.series.show', ['series' => Str::slug($series)]))
-                    ->setPriority(0.6)
-                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
-            );
+            $url = Url::create(route('sermons.series.show', ['series' => Str::slug($series)]))
+                ->setPriority(0.6)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY);
+
+            $latestSermon = Sermon::query()
+                ->where('series', $series)
+                ->whereSermon()
+                ->orderBy('date', 'desc')
+                ->first();
+
+            $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
+
+            $url->addImage($image ?: $sermonsImage, "Sermon Series: {$series}");
+
+            $sitemap->add($url);
         }
     }
 

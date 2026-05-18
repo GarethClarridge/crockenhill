@@ -53,7 +53,7 @@ class SermonArchiveSeoPresenter
     public function description(array $filters): string
     {
         if (! array_filter($filters)) {
-            return 'Browse sermons from Crockenhill Baptist Church and filter by scripture, preacher, or series.';
+            return 'Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.';
         }
 
         $parts = [];
@@ -71,10 +71,10 @@ class SermonArchiveSeoPresenter
         }
 
         if ($filters['series']) {
-            $parts[] = "in the {$filters['series']} series";
+            $parts[] = "in the '{$filters['series']}' series";
         }
 
-        return 'Browse sermons from Crockenhill Baptist Church '.implode(' ', $parts).'.';
+        return 'Watch or listen to Bible-based sermons '.implode(' ', $parts).' from Crockenhill Baptist Church. Explore recent teaching from our morning and evening services.';
     }
 
     /**
