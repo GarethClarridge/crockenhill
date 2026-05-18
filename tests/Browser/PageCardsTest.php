@@ -18,10 +18,15 @@ class PageCardsTest extends DuskTestCase
     {
         parent::setUp();
 
-        // Page cards are cached in Redis — clear before each test so freshly
+        // Page cards and nav use Redis — clear before each test so freshly
         // created factory pages are visible rather than stale cached results.
-        Cache::forget('page_links_community');
-        Cache::forget('page_links_church');
+        // Cache::flexible() stores two keys per entry; both must be cleared.
+        foreach (['page_links_community', 'page_links_church', 'page_card_rail_home', 'page_card_rail_community', 'page_card_rail_church'] as $key) {
+            Cache::forget($key);
+            Cache::forget("illuminate:cache:flexible:created:{$key}");
+        }
+
+        Cache::forget('nav_pages');
     }
 
     // Pages required by PageCardService::forHome()
