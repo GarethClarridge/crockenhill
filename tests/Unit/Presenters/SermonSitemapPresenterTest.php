@@ -65,8 +65,11 @@ class SermonSitemapPresenterTest extends TestCase
 
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make([
-            'title' => 'Presenter Test Sermon',
+            'title' => 'Test',
             'summary' => 'A test summary.',
+            'preacher' => 'A B',
+            'reference' => 'John 3',
+            'series' => null,
             'video_file_path' => 'videos/test.mp4',
             'thumbnail_file_path' => 'thumbnails/test.jpg',
             'duration' => 1800,
@@ -79,8 +82,8 @@ class SermonSitemapPresenterTest extends TestCase
         $this->assertInstanceOf(Url::class, $tag);
         $this->assertCount(1, $tag->videos);
         $this->assertCount(1, $tag->images);
-        $this->assertEquals('Presenter Test Sermon', $tag->videos[0]->title);
-        $this->assertStringContainsString('Presenter Test Sermon', $tag->videos[0]->description);
+        $this->assertEquals('Test', $tag->videos[0]->title);
+        $this->assertStringContainsString('Test', $tag->videos[0]->description);
         $this->assertStringContainsString('A test summary.', $tag->videos[0]->description);
         $this->assertEquals(1800, $tag->videos[0]->options['duration']);
         $this->assertEquals($sermon->date->toIso8601String(), $tag->videos[0]->options['publication_date']);

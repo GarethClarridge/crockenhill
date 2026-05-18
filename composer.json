@@ -20,7 +20,7 @@
         "laravel/tinker": "^3.0",
         "league/commonmark": "^2.2",
         "league/flysystem-aws-s3-v3": "^3.29",
-        "livewire/livewire": "^3.0",
+        "livewire/livewire": "^4.0",
         "openai-php/laravel": "^0.19.0",
         "owen-oj/laravel-getid3": "^2.2",
         "php-ffmpeg/php-ffmpeg": "^1.3",
