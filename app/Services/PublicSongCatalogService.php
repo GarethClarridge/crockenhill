@@ -35,7 +35,7 @@ class PublicSongCatalogService
      *
      * @return Builder<Song>
      */
-    public function query(string $range = self::RANGE_ALL, string $search = ''): Builder
+    public function query(string $range = self::RANGE_RECENT, string $search = ''): Builder
     {
         $normalizedRange = $this->normalizeRange($range);
         $tokens = $this->tokenize($search);

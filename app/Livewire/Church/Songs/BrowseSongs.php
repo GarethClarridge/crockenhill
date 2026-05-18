@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Church\Songs;
 
 use App\Models\Song;
+use App\Presenters\SongArchiveSeoPresenter;
 use App\Presenters\SongItemListPresenter;
 use App\Services\PublicSongCatalogService;
 use App\Services\SongLyricSnippetBuilder;
@@ -17,6 +18,8 @@ use Livewire\WithPagination;
 
 /**
  * @property-read string $seoTitle
+ * @property-read string $seoDescription
+ * @property-read string $seoCanonical
  * @property-read array<string, mixed> $jsonLdData
  * @property-read LengthAwarePaginator<int, Song> $songs
  */
@@ -25,31 +28,44 @@ class BrowseSongs extends Component
     use WithPagination;
 
     #[Url(as: 'q', except: '')]
-    public string $search = '';
+    public mixed $search = '';
 
     #[Url(except: 'recent')]
-    public string $range = PublicSongCatalogService::RANGE_RECENT;
+    public mixed $range = PublicSongCatalogService::RANGE_RECENT;
 
     public function updatedSearch(): void
     {
         $this->resetPage();
+        $this->dispatchSeoTitleUpdate();
     }
 
     public function updatedRange(): void
     {
         $this->resetPage();
+        $this->dispatchSeoTitleUpdate();
+    }
+
+    private function dispatchSeoTitleUpdate(): void
+    {
+        $this->dispatch('seo-title-updated', title: app(SongArchiveSeoPresenter::class)->title($this->search, $this->range));
     }
 
     #[Computed]
     public function seoTitle(): string
     {
-        if ($this->search) {
-            return "Search: {$this->search} | Songs";
-        }
+        return app(SongArchiveSeoPresenter::class)->title($this->search, $this->range);
+    }
 
-        return $this->range === PublicSongCatalogService::RANGE_RECENT
-            ? 'Recent Songs'
-            : 'All Songs';
+    #[Computed]
+    public function seoDescription(): string
+    {
+        return app(SongArchiveSeoPresenter::class)->description($this->search, $this->range);
+    }
+
+    #[Computed]
+    public function seoCanonical(): string
+    {
+        return app(SongArchiveSeoPresenter::class)->canonical($this->search, $this->range, $this->getPage());
     }
 
     /**
@@ -72,6 +88,12 @@ class BrowseSongs extends Component
         return app(PublicSongCatalogService::class)->query($normalizedRange, $this->search)
             ->paginate(24)
             ->withQueryString();
+    }
+
+    public function mount(): void
+    {
+        $this->search = is_array($this->search) ? '' : (string) $this->search;
+        $this->range = is_array($this->range) ? PublicSongCatalogService::RANGE_RECENT : (string) $this->range;
     }
 
     public function render(PublicSongCatalogService $catalogService, SongLyricSnippetBuilder $snippetBuilder): View
