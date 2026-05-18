@@ -4,29 +4,29 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class SectionOosAlignment extends JsonData
+final readonly class SectionOosAlignment extends JsonData
 {
     /**
      * @param  array<string, mixed>|null  $presentationInference
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?float $songMatchScore = null,
-        public readonly ?string $songMatchStrategy = null,
-        public readonly ?string $songTitleMatched = null,
-        public readonly ?string $reclassifiedFrom = null,
-        public readonly ?string $reclassifiedBy = null,
-        public readonly ?string $matchedItemType = null,
-        public readonly ?string $matchedItemTitle = null,
-        public readonly ?string $mismatchReason = null,
-        public readonly ?string $expectedItemTitle = null,
-        public readonly ?string $expectedSectionType = null,
-        public readonly ?float $baseConfidence = null,
-        public readonly ?bool $baseNeedsManualReview = null,
-        public readonly ?string $baseTitle = null,
-        public readonly ?int $baseChurchServiceItemId = null,
-        public readonly ?array $presentationInference = null,
-        public readonly array $raw = [],
+        public ?float $songMatchScore = null,
+        public ?string $songMatchStrategy = null,
+        public ?string $songTitleMatched = null,
+        public ?string $reclassifiedFrom = null,
+        public ?string $reclassifiedBy = null,
+        public ?string $matchedItemType = null,
+        public ?string $matchedItemTitle = null,
+        public ?string $mismatchReason = null,
+        public ?string $expectedItemTitle = null,
+        public ?string $expectedSectionType = null,
+        public ?float $baseConfidence = null,
+        public ?bool $baseNeedsManualReview = null,
+        public ?string $baseTitle = null,
+        public ?int $baseChurchServiceItemId = null,
+        public ?array $presentationInference = null,
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): ?self

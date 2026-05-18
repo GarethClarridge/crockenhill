@@ -254,7 +254,7 @@ class ThumbnailCanvasComposerTest extends TestCase
         imagefilledrectangle($image, 0, 0, (int) floor($width / 2) - 1, $height - 1, $red);
 
         return [
-            'image' => Image::read($image),
+            'image' => Image::decode($image),
             'coverage' => 0.5,
             'bounds' => ['x' => 0, 'y' => 0, 'width' => $width, 'height' => $height],
             'method' => 'test',
@@ -282,7 +282,7 @@ class ThumbnailCanvasComposerTest extends TestCase
         imagefilledrectangle($image, 0, 0, $width - 1, $height - 1, $subject);
 
         return [
-            'image' => Image::read($image),
+            'image' => Image::decode($image),
             'coverage' => 1.0,
             'bounds' => ['x' => 0, 'y' => 0, 'width' => $width, 'height' => $height],
             'method' => 'test',

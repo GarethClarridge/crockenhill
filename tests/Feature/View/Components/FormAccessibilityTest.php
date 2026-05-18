@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\View\Components;
 
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\Concerns\InteractsWithViews;
+use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class FormAccessibilityTest extends TestCase
 {
@@ -16,7 +17,7 @@ class FormAccessibilityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        view()->share('errors', new ViewErrorBag());
+        view()->share('errors', new ViewErrorBag);
     }
 
     #[Test]
@@ -71,5 +72,18 @@ class FormAccessibilityTest extends TestCase
 
         $view->assertSee('required');
         $view->assertSeeHtml('aria-required="true"');
+    }
+
+    #[Test]
+    public function form_components_render_role_alert_for_errors(): void
+    {
+        $errors = new ViewErrorBag;
+        $errors->put('default', new MessageBag(['field' => ['Error message']]));
+        view()->share('errors', $errors);
+
+        $this->blade('<x-input wire:model="field" />')->assertSeeHtml('role="alert"');
+        $this->blade('<x-textarea wire:model="field" />')->assertSeeHtml('role="alert"');
+        $this->blade('<x-select wire:model="field" :options="[]" />')->assertSeeHtml('role="alert"');
+        $this->blade('<x-checkbox wire:model="field" />')->assertSeeHtml('role="alert"');
     }
 }

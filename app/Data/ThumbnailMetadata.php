@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class ThumbnailMetadata extends JsonData
+final readonly class ThumbnailMetadata extends JsonData
 {
     /**
      * @param  array<string, mixed>  $videoResolution
@@ -25,21 +25,21 @@ final class ThumbnailMetadata extends JsonData
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?float $timestamp,
-        public readonly ?float $videoDuration,
-        public readonly array $videoResolution = [],
-        public readonly array $thumbnailSizes = [],
-        public readonly ?string $generatedAt = null,
-        public readonly ?string $plainThumbnailPath = null,
-        public readonly ?string $cardThumbnailPath = null,
-        public readonly ?string $overlayThumbnailPath = null,
-        public readonly ?string $selectedThumbnailCandidateId = null,
-        public readonly array $thumbnailCandidates = [],
-        public readonly ?string $compositionMode = null,
-        public readonly ?string $foregroundExtractionMethod = null,
-        public readonly array $foregroundBounds = [],
-        public readonly ?float $foregroundCoverage = null,
-        public readonly array $raw = [],
+        public ?float $timestamp,
+        public ?float $videoDuration,
+        public array $videoResolution = [],
+        public array $thumbnailSizes = [],
+        public ?string $generatedAt = null,
+        public ?string $plainThumbnailPath = null,
+        public ?string $cardThumbnailPath = null,
+        public ?string $overlayThumbnailPath = null,
+        public ?string $selectedThumbnailCandidateId = null,
+        public array $thumbnailCandidates = [],
+        public ?string $compositionMode = null,
+        public ?string $foregroundExtractionMethod = null,
+        public array $foregroundBounds = [],
+        public ?float $foregroundCoverage = null,
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): ?self

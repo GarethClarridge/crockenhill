@@ -36,25 +36,25 @@ class ChristmasSeoTest extends TestCase
         $response->assertSee('"name": "Christmas"', false);
 
         // Event ItemList Schema
-        $response->assertSee('"@type":"ItemList"', false);
-        $response->assertSee('"@type":"Event"', false);
+        $response->assertSee('"@type": "ItemList"', false);
+        $response->assertSee('"@type": "Event"', false);
 
         // Check specific events
-        $response->assertSee('"name":"Preparing Room"', false);
-        $response->assertSee('"startDate":"2024-11-30T15:00:00"', false);
-        $response->assertSee('"endDate":"2024-11-30T18:00:00"', false);
+        $response->assertSee('"name": "Preparing Room"', false);
+        $response->assertSee('"startDate": "2024-11-30T15:00:00"', false);
+        $response->assertSee('"endDate": "2024-11-30T18:00:00"', false);
 
-        $response->assertSee('"name":"Coffee Cup Carols"', false);
-        $response->assertSee('"startDate":"2024-12-12T10:30:00"', false);
+        $response->assertSee('"name": "Coffee Cup Carols"', false);
+        $response->assertSee('"startDate": "2024-12-12T10:30:00"', false);
 
-        $response->assertSee('"name":"Carols in the Chequers"', false);
-        $response->assertSee('"startDate":"2024-12-18T19:30:00"', false);
-        $response->assertSee('"name":"The Chequers, Crockenhill"', false);
+        $response->assertSee('"name": "Carols in the Chequers"', false);
+        $response->assertSee('"startDate": "2024-12-18T19:30:00"', false);
+        $response->assertSee('"name": "The Chequers, Crockenhill"', false);
 
-        $response->assertSee('"name":"Carols by Candlelight"', false);
-        $response->assertSee('"startDate":"2024-12-22T18:00:00"', false);
+        $response->assertSee('"name": "Carols by Candlelight"', false);
+        $response->assertSee('"startDate": "2024-12-22T18:00:00"', false);
 
-        $response->assertSee('"name":"Christmas Morning Service"', false);
-        $response->assertSee('"startDate":"2024-12-25T10:30:00"', false);
+        $response->assertSee('"name": "Christmas Morning Service"', false);
+        $response->assertSee('"startDate": "2024-12-25T10:30:00"', false);
     }
 }

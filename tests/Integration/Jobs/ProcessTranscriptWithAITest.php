@@ -261,8 +261,8 @@ class ProcessTranscriptWithAITest extends TestCase
         $mockService->expects($this->once())
             ->method('analyzeSermon')
             ->with(
-                $this->isType('string'),
-                $this->isType('array'),
+                $this->isString(),
+                $this->isArray(),
                 $this->equalTo($log->processing_id),
             )
             ->willReturn($analysis);

@@ -6,17 +6,17 @@ namespace App\Data;
 
 use Illuminate\Support\Collection;
 
-class ProcessingLogCollection
+readonly class ProcessingLogCollection
 {
     /**
      * @param  Collection<int, ProcessingLogEntry>  $entries
      * @param  array<string, mixed>|null  $summary
      */
     public function __construct(
-        public readonly Collection $entries,
-        public readonly int $totalCount,
-        public readonly ?string $nextCursor = null,
-        public readonly ?array $summary = null
+        public Collection $entries,
+        public int $totalCount,
+        public ?string $nextCursor = null,
+        public ?array $summary = null
     ) {}
 
     /**

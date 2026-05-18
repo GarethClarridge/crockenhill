@@ -57,7 +57,7 @@ class CreatePreacher extends Component
 
         $validated = $this->validate();
 
-        $preacher = Preacher::create([
+        $preacher = Preacher::query()->create([
             'name' => $validated['name'],
             'slug' => $validated['slug'],
             'bio' => $validated['bio'],

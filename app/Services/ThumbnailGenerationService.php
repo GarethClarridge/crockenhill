@@ -9,6 +9,7 @@ use App\Models\Sermon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;
 
@@ -514,7 +515,7 @@ class ThumbnailGenerationService
         }
 
         try {
-            $image = Image::read(Storage::disk($disk)->path($plainPath));
+            $image = Image::decode(Storage::disk($disk)->path($plainPath));
 
             return $this->createRenderedAssetsFromImage($sermon, $image);
         } catch (\Throwable $e) {
@@ -654,13 +655,13 @@ class ThumbnailGenerationService
     private function createResizedBaseImage(string $baseFramePath): ImageInterface
     {
         $fullBaseFramePath = Storage::disk($this->tempDisk)->path($baseFramePath);
-        $image = Image::read($fullBaseFramePath);
+        $image = Image::decode($fullBaseFramePath);
 
         $image->scaleDown(self::WEB_WIDTH, self::WEB_HEIGHT);
 
         if ($image->width() !== self::WEB_WIDTH || $image->height() !== self::WEB_HEIGHT) {
-            $canvas = Image::create(self::WEB_WIDTH, self::WEB_HEIGHT)->fill('#000000');
-            $canvas->place($image, 'center');
+            $canvas = Image::createImage(self::WEB_WIDTH, self::WEB_HEIGHT)->fill('#000000');
+            $canvas->insert($image, 0, 0, 'center');
 
             return $canvas;
         }
@@ -683,7 +684,7 @@ class ThumbnailGenerationService
         $tempThumbnailPath = $this->tempPath.'/'.$thumbnailFilename;
         $fullTempThumbnailPath = Storage::disk($this->tempDisk)->path($tempThumbnailPath);
 
-        $image->toWebp(quality: self::WEB_QUALITY)->save($fullTempThumbnailPath);
+        $image->encode(new WebpEncoder(quality: self::WEB_QUALITY))->save($fullTempThumbnailPath);
 
         return $tempThumbnailPath;
     }

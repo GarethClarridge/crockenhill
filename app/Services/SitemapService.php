@@ -60,18 +60,24 @@ class SitemapService
 
     /**
      * Add static high-priority URLs to the sitemap.
+     *
+     * Performance Optimization: Resolves asset URLs once before adding multiple URLs
+     * to avoid redundant asset() helper calls and container lookups.
      */
     private function addStaticUrls(Sitemap $sitemap): void
     {
+        $homepageImage = asset('/images/homepage/may2024wide.webp');
+        $sermonsImage = asset('/images/headings/large/sermons.webp');
+
         $sitemap
             ->add(Url::create(route('Home'))
                 ->setPriority(1.0)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage(asset('/images/homepage/may2024wide.webp'), 'Crockenhill Baptist Church'))
+                ->addImage($homepageImage, 'Crockenhill Baptist Church'))
             ->add(Url::create(route('christ'))
                 ->setPriority(0.9)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage(asset('/images/homepage/may2024wide.webp'), 'Learn about Jesus Christ at Crockenhill Baptist Church'))
+                ->addImage($homepageImage, 'Learn about Jesus Christ at Crockenhill Baptist Church'))
             ->add(Url::create(route('christmas'))
                 ->setPriority(0.8)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
@@ -79,35 +85,35 @@ class SitemapService
             ->add(Url::create(route('church'))
                 ->setPriority(0.9)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage(asset('/images/homepage/may2024wide.webp'), 'About Crockenhill Baptist Church'))
+                ->addImage($homepageImage, 'About Crockenhill Baptist Church'))
             ->add(Url::create(route('community'))
                 ->setPriority(0.9)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage(asset('/images/homepage/may2024wide.webp'), 'Community activities at Crockenhill Baptist Church'))
+                ->addImage($homepageImage, 'Community activities at Crockenhill Baptist Church'))
             ->add(Url::create(route('calendar.index'))
                 ->setPriority(0.5)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage(asset('/images/homepage/may2024wide.webp'), 'Church Calendar'))
+                ->addImage($homepageImage, 'Church Calendar'))
             ->add(Url::create(route('sermons.index'))
                 ->setPriority(0.8)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
-                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sermons at Crockenhill Baptist Church'))
+                ->addImage($sermonsImage, 'Sermons at Crockenhill Baptist Church'))
             ->add(Url::create(route('sermons.preachers'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage(asset('/images/headings/large/sermons.webp'), 'Preachers at Crockenhill Baptist Church'))
+                ->addImage($sermonsImage, 'Preachers at Crockenhill Baptist Church'))
             ->add(Url::create(route('sermons.series'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sermon Series'))
+                ->addImage($sermonsImage, 'Sermon Series'))
             ->add(Url::create(route('sermons.service', 'morning'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
-                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sunday Morning Services'))
+                ->addImage($sermonsImage, 'Sunday Morning Services'))
             ->add(Url::create(route('sermons.service', 'evening'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
-                ->addImage(asset('/images/headings/large/sermons.webp'), 'Sunday Evening Services'));
+                ->addImage($sermonsImage, 'Sunday Evening Services'));
 
         if ($this->exposurePolicy->childrensTalksArePublic()) {
             $sitemap->add(
@@ -141,17 +147,21 @@ class SitemapService
 
     /**
      * Add Bible book filtered sermon archive URLs to the sitemap.
+     *
+     * Performance Optimization: Resolves the sermons heading asset URL once before
+     * the loop to avoid redundant asset() calls for every Bible book.
      */
     private function addBooks(Sitemap $sitemap): void
     {
         $books = $this->sermonRepository->getScriptureBooks();
+        $sermonsImage = asset('/images/headings/large/sermons.webp');
 
         foreach ($books as $book) {
             $sitemap->add(
                 Url::create(route('sermons.index', ['book' => $book]))
                     ->setPriority(0.7)
                     ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                    ->addImage(asset('/images/headings/large/sermons.webp'), "Sermons on {$book}")
+                    ->addImage($sermonsImage, "Sermons on {$book}")
             );
         }
     }
@@ -198,7 +208,7 @@ class SitemapService
      */
     private function addPreachers(Sitemap $sitemap): void
     {
-        $preachers = Preacher::active()
+        $preachers = Preacher::query()->active()
             ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
             ->with([
                 'sermons' => fn ($query) => $query->whereSermon()->orderBy('date', 'desc')->limit(1),

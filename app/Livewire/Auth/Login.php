@@ -85,7 +85,7 @@ class Login extends Component
 
         RateLimiter::hit($this->throttleKey($credentials['email']));
 
-        $user = User::where('email', (string) $credentials['email'])->first();
+        $user = User::query()->where('email', (string) $credentials['email'])->first();
 
         if ($user instanceof User && $user->is_admin) {
             Log::warning('Admin login attempt failed', [

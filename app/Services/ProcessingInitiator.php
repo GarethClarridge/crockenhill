@@ -98,7 +98,7 @@ class ProcessingInitiator
             'processing_metadata' => array_merge($baseMetadata, $extraMetadata),
         ], $extractedIdentity, $additionalLogData);
 
-        return MediaProcessingLog::create($logData);
+        return MediaProcessingLog::query()->create($logData);
     }
 
     /**

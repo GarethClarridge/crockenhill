@@ -12,6 +12,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\User;
 use App\Services\OosAlignmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -631,6 +632,7 @@ class OosAlignmentServiceTest extends TestCase
     #[Test]
     public function it_does_not_clear_review_reopened_for_an_outstanding_canonical_conflict(): void
     {
+        $previousReviewer = User::factory()->create(['is_admin' => true]);
         $churchService = ChurchService::factory()->create([
             'date' => '2026-07-19',
             'service' => SermonService::Morning->value,
@@ -639,7 +641,7 @@ class OosAlignmentServiceTest extends TestCase
             'import_metadata' => [
                 'manual_review' => [
                     'reviewed_at' => now()->subDays(2)->toIso8601String(),
-                    'reviewed_by_user_id' => 1,
+                    'reviewed_by_user_id' => $previousReviewer->id,
                     'reopened_at' => now()->subDay()->toIso8601String(),
                     'reopened_by_source' => 'openlp',
                 ],

@@ -12,6 +12,7 @@ use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Livewire\Admin\Sermons\EditSermon;
+use App\Livewire\Admin\Sermons\EditSermonThumbnails;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\User;
@@ -128,7 +129,7 @@ class EditSermonTest extends TestCase
             ],
         ]);
 
-        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+        Livewire::test(EditSermonThumbnails::class, ['sermon' => $this->sermon])
             ->assertSee('Thumbnail options')
             ->assertSee('Frame 1')
             ->assertSee('Frame 2')
@@ -250,7 +251,7 @@ class EditSermonTest extends TestCase
 
         app()->instance(ThumbnailGenerationService::class, $mockService);
 
-        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+        Livewire::test(EditSermonThumbnails::class, ['sermon' => $this->sermon])
             ->call('selectThumbnailCandidate', 'candidate-2')
             ->assertDispatched('notify', type: 'success', message: 'Thumbnail updated');
 
@@ -324,7 +325,7 @@ class EditSermonTest extends TestCase
 
         app()->instance(ThumbnailGenerationService::class, $mockService);
 
-        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+        Livewire::test(EditSermonThumbnails::class, ['sermon' => $this->sermon])
             ->assertSee('Frame 2')
             ->call('selectThumbnailCandidate', 'candidate-2')
             ->assertDispatched('notify', type: 'success', message: 'Thumbnail updated');
@@ -367,7 +368,7 @@ class EditSermonTest extends TestCase
 
         app()->instance(ThumbnailGenerationService::class, $mockService);
 
-        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+        Livewire::test(EditSermonThumbnails::class, ['sermon' => $this->sermon])
             ->call('regenerateThumbnails')
             ->assertDispatched('notify', type: 'success', message: 'Thumbnails regenerated');
 
@@ -422,17 +423,21 @@ class EditSermonTest extends TestCase
             'video_quality_status' => SermonVideoQualityStatus::Unassessed,
         ]);
 
-        $component = Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
-            ->assertSee('Unassessed');
+        $component = Livewire::test(EditSermon::class, ['sermon' => $this->sermon]);
+
+        $this->assertEquals(SermonVideoQualityStatus::Unassessed, $component->get('sermon')->video_quality_status);
 
         $this->sermon->update([
             'video_quality_status' => SermonVideoQualityStatus::Approved,
             'video_quality_assessed_at' => now(),
         ]);
 
-        $component
-            ->call('refreshVideoQualityAssessment')
-            ->assertSee('Approved');
+        $component->call('refreshVideoQualityAssessment');
+
+        // refreshVideoQualityAssessment() calls $this->sermon->refresh() so the model
+        // reflects the updated DB state. The video quality card lives inside @island
+        // which re-renders independently; assert on the model property instead of HTML.
+        $this->assertEquals(SermonVideoQualityStatus::Approved, $component->get('sermon')->video_quality_status);
     }
 
     // -------------------------------------------------------------------------
@@ -536,7 +541,7 @@ class EditSermonTest extends TestCase
             'video_file_path' => null,
         ]);
 
-        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+        Livewire::test(EditSermonThumbnails::class, ['sermon' => $this->sermon])
             ->assertDontSee('Regenerate 5 options')
             ->assertSee('A video file is required before thumbnail options can be generated.');
     }

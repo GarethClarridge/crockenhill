@@ -362,6 +362,7 @@ class StructureMergeIntegrationTest extends TestCase
     {
         // Regression for fix #8: if finalize sets needs_review=true (e.g. prior manual
         // review exists), clearPendingMerge must not overwrite it back to false.
+        $previousReviewer = User::factory()->create(['is_admin' => true]);
         $service = ChurchService::factory()->create([
             'date' => '2026-03-27',
             'service' => SermonService::Morning->value,
@@ -372,7 +373,7 @@ class StructureMergeIntegrationTest extends TestCase
                 // Simulate a previously-reviewed service so finalize will reopen review
                 'manual_review' => [
                     'reviewed_at' => now()->subDay()->toIso8601String(),
-                    'reviewed_by_user_id' => 1,
+                    'reviewed_by_user_id' => $previousReviewer->id,
                 ],
                 'pending_structure_merge' => [
                     'created_at' => now()->toIso8601String(),

@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Repositories\SermonRepository;
+use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use OpenAI\Exceptions\ErrorException;
@@ -16,6 +17,8 @@ use OpenAI\Responses\Chat\CreateResponse;
 
 class SermonAnalysisService implements SermonAnalysisInterface
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly SermonRepository $sermonRepository,
@@ -110,12 +113,12 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 'failed',
                 [
                     'total_attempts' => 1,
-                    'final_error' => $e->getMessage(),
+                    'final_error' => self::sanitizeForLog($e->getMessage()),
                 ]
             );
 
             throw $e instanceof \TypeError
-                ? new Exception('OpenAI API response malformed: '.$e->getMessage(), 0, $e)
+                ? new Exception('OpenAI API response malformed.', 0, $e)
                 : $e;
         }
     }
@@ -159,17 +162,16 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
         if ($this->validator->isTitleTooLong($validatedData['title'])) {
             Log::info('AI-generated title exceeds character limit, retrying', [
-                'title' => $validatedData['title'],
+                'title' => self::sanitizeForLog($validatedData['title']),
                 'length' => strlen($validatedData['title']),
                 'max' => SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
                 'attempt' => $attempt,
             ]);
 
             throw new Exception(sprintf(
-                'AI title exceeds %d characters (%d chars): "%s"',
+                'AI title exceeds %d characters (%d chars).',
                 SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
-                strlen($validatedData['title']),
-                $validatedData['title']
+                strlen($validatedData['title'])
             ));
         }
 
@@ -199,10 +201,10 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
         if ($e instanceof ErrorException) {
             Log::error('OpenAI API ErrorException details', [
-                'processing_id' => $processingId,
+                'processing_id' => self::sanitizeForLog($processingId),
                 'attempt' => $attempt,
                 'error_code' => $e->getCode(),
-                'error_message' => $e->getMessage(),
+                'error_message' => self::sanitizeForLog($e->getMessage()),
                 'api_time_ms' => round($apiTime * 1000, 2),
                 'exception_class' => get_class($e),
                 'status_code' => $e->getStatusCode(),
@@ -263,7 +265,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
         // Validate response structure
         if (empty($response->choices)) {
             Log::error('Invalid OpenAI response structure', [
-                'processing_id' => $processingId,
+                'processing_id' => self::sanitizeForLog($processingId),
                 'response_type' => gettype($response),
             ]);
 
@@ -314,11 +316,11 @@ class SermonAnalysisService implements SermonAnalysisInterface
         } catch (\TypeError $e) {
             // Handle malformed API response (e.g., non-JSON response body)
             Log::error('OpenAI API response parsing failed (malformed response)', [
-                'processing_id' => $processingId,
+                'processing_id' => self::sanitizeForLog($processingId),
                 'attempt' => $attempt,
-                'error' => $e->getMessage(),
-                'model' => $model,
-                'exception_file' => $e->getFile(),
+                'error' => self::sanitizeForLog($e->getMessage()),
+                'model' => self::sanitizeForLog($model),
+                'exception_file' => self::sanitizeForLog($e->getFile()),
                 'exception_line' => $e->getLine(),
             ]);
 
@@ -333,15 +335,15 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 }
             }
 
-            throw new Exception('OpenAI API response malformed: '.$e->getMessage());
+            throw new Exception('OpenAI API response malformed.');
         } catch (Exception $e) {
             Log::error('OpenAI API call failed', [
-                'processing_id' => $processingId,
+                'processing_id' => self::sanitizeForLog($processingId),
                 'attempt' => $attempt,
-                'error' => $e->getMessage(),
-                'model' => $model,
+                'error' => self::sanitizeForLog($e->getMessage()),
+                'model' => self::sanitizeForLog($model),
             ]);
-            throw new Exception('OpenAI API call failed: '.$e->getMessage());
+            throw new Exception('OpenAI API call failed.');
         }
     }
 
@@ -356,7 +358,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
         Log::info('Retrieved existing series from database', [
             'count' => count($series),
-            'series' => $series,
+            'series' => array_map(fn (string $s) => self::sanitizeForLog($s), $series),
         ]);
 
         return $series;
@@ -382,7 +384,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
             return $analysis->title;
         } catch (Exception $e) {
             Log::warning('Failed to generate title via full analysis, using fallback', [
-                'error' => $e->getMessage(),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return $this->promptBuilder->generateFallbackTitle($transcript);
@@ -410,7 +412,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
             return $analysis->series;
         } catch (Exception $e) {
             Log::warning('Failed to identify series via full analysis', [
-                'error' => $e->getMessage(),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return null;
@@ -437,7 +439,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
             return $analysis->reference;
         } catch (Exception $e) {
             Log::warning('Failed to extract Bible passage via full analysis', [
-                'error' => $e->getMessage(),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return null;
@@ -464,7 +466,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
             return $analysis->points;
         } catch (Exception $e) {
             Log::warning('Failed to extract sermon points via full analysis, using fallback', [
-                'error' => $e->getMessage(),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return ['Main Message'];

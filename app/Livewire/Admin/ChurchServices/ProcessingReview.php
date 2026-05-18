@@ -45,7 +45,7 @@ class ProcessingReview extends Component
 
         $this->confirming = true;
 
-        $log = MediaProcessingLog::findOrFail($this->processingLogId);
+        $log = MediaProcessingLog::query()->findOrFail($this->processingLogId);
 
         /** @var User $user */
         $user = Auth::user();
@@ -71,7 +71,7 @@ class ProcessingReview extends Component
 
     public function render(): View
     {
-        $log = MediaProcessingLog::with('segments')->findOrFail($this->processingLogId);
+        $log = MediaProcessingLog::query()->with('segments')->findOrFail($this->processingLogId);
 
         $segments = $log->segments
             ->sortBy('start_time')

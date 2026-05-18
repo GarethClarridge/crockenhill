@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
+use Intervention\Image\Encoders\PngEncoder;
 use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;
 
@@ -36,7 +37,7 @@ class ThumbnailForegroundExtractionService
                 return null;
             }
 
-            $foreground = Image::read($result['contents']);
+            $foreground = Image::decode($result['contents']);
             $metrics = $this->measureForeground($foreground);
 
             if ($metrics['pixels'] === 0) {
@@ -78,7 +79,7 @@ class ThumbnailForegroundExtractionService
             throw new \RuntimeException('Failed to create a temporary image path for Pixian.');
         }
 
-        $image->toPng()->save($path);
+        $image->encode(new PngEncoder)->save($path);
 
         return $path;
     }

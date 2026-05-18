@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\Laravel\Facades\Image;
 
 class ConvertJpgToWebp extends Command
@@ -138,8 +139,8 @@ class ConvertJpgToWebp extends Command
                         File::makeDirectory($dir, 0755, true);
                     }
 
-                    Image::read($jpgPath)
-                        ->toWebp(quality: $this->quality)
+                    Image::decode($jpgPath)
+                        ->encode(new WebpEncoder(quality: $this->quality))
                         ->save($webpPath);
                     $this->convertedFiles[$jpgPath] = $webpPath;
 

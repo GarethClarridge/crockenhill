@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class ChurchServiceImportMetadata extends JsonData
+final readonly class ChurchServiceImportMetadata extends JsonData
 {
     /**
      * @param  list<string>  $warnings
@@ -13,15 +13,15 @@ final class ChurchServiceImportMetadata extends JsonData
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?float $confidenceScore = null,
-        public readonly ?string $parseMethod = null,
-        public readonly array $warnings = [],
-        public readonly array $reviewTriggers = [],
-        public readonly array $canonicalConflictHistory = [],
-        public readonly ?ChurchServiceManualReviewMetadata $manualReview = null,
-        public readonly ?ChurchServiceCanonicalConflictMetadata $canonicalConflict = null,
-        public readonly ?PendingStructureMergeMetadata $pendingStructureMerge = null,
-        public readonly array $raw = [],
+        public ?float $confidenceScore = null,
+        public ?string $parseMethod = null,
+        public array $warnings = [],
+        public array $reviewTriggers = [],
+        public array $canonicalConflictHistory = [],
+        public ?ChurchServiceManualReviewMetadata $manualReview = null,
+        public ?ChurchServiceCanonicalConflictMetadata $canonicalConflict = null,
+        public ?PendingStructureMergeMetadata $pendingStructureMerge = null,
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): self

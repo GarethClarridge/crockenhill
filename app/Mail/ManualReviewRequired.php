@@ -47,7 +47,7 @@ class ManualReviewRequired extends Mailable
 
     private function reviewUrl(): string
     {
-        $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
+        $log = MediaProcessingLog::query()->where('processing_id', $this->processingId)->first();
 
         if ($log !== null) {
             return route('admin.services.processing.review', $log);

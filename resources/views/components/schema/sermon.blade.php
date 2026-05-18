@@ -30,12 +30,17 @@
     }
 
     $schema = [
-        '@context' => 'https://schema.org',
+        '@' . 'context' => 'https://schema.org',
         '@type' => 'Article',
         'headline' => $sermon->title,
         'description' => $metaDescription,
         'image' => $thumbnailUrl,
         'datePublished' => $datePublished,
+        'dateModified' => ($sermon->updated_at instanceof \Carbon\CarbonInterface && $sermon->updated_at->year > 0)
+            ? $sermon->updated_at->toIso8601String()
+            : $datePublished,
+        'inLanguage' => 'en-GB',
+        'genre' => 'Sermon',
         'author' => $author,
         'publisher' => [
             '@type' => 'Organization',

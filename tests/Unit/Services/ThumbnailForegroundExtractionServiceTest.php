@@ -85,7 +85,7 @@ class ThumbnailForegroundExtractionServiceTest extends TestCase
         $color = imagecolorallocatealpha($image, $red, $green, $blue, 0);
         imagefill($image, 0, 0, $color);
 
-        return Image::read($image);
+        return Image::decode($image);
     }
 
     private function makeForegroundPng(

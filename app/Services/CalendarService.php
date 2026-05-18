@@ -91,7 +91,7 @@ class CalendarService
 
     public function manuallyCategorizeEvent(int $eventId, string $meetingSlug): CalendarCategorizationResult
     {
-        $event = CalendarEvent::findOrFail($eventId);
+        $event = CalendarEvent::query()->findOrFail($eventId);
 
         $event->update([
             'meeting_slug' => $meetingSlug,
@@ -112,7 +112,7 @@ class CalendarService
 
     public function manuallyUnCategorizeEvent(int $eventId): CalendarCategorizationResult
     {
-        $event = CalendarEvent::findOrFail($eventId);
+        $event = CalendarEvent::query()->findOrFail($eventId);
 
         $event->update([
             'meeting_slug' => null,

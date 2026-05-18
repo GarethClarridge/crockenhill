@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class ThumbnailResult
+final readonly class ThumbnailResult
 {
     /**
      * @param  array<string, mixed>  $metadata
      */
     public function __construct(
-        public readonly bool $success,
-        public readonly ?string $thumbnailPath = null,
-        public readonly ?string $errorMessage = null,
-        public readonly array $metadata = []
+        public bool $success,
+        public ?string $thumbnailPath = null,
+        public ?string $errorMessage = null,
+        public array $metadata = []
     ) {}
 
     /**

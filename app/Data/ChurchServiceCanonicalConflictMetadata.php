@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class ChurchServiceCanonicalConflictMetadata extends JsonData
+final readonly class ChurchServiceCanonicalConflictMetadata extends JsonData
 {
     /**
      * @param  list<array<string, mixed>>  $changes
@@ -12,14 +12,14 @@ final class ChurchServiceCanonicalConflictMetadata extends JsonData
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly ?string $detectedAt = null,
-        public readonly ?string $incomingSource = null,
-        public readonly ?bool $reviewReopened = null,
-        public readonly ?bool $reviewedPreviously = null,
-        public readonly ?bool $canonicalChanged = null,
-        public readonly array $changes = [],
-        public readonly array $conflicts = [],
-        public readonly array $raw = [],
+        public ?string $detectedAt = null,
+        public ?string $incomingSource = null,
+        public ?bool $reviewReopened = null,
+        public ?bool $reviewedPreviously = null,
+        public ?bool $canonicalChanged = null,
+        public array $changes = [],
+        public array $conflicts = [],
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): ?self

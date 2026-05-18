@@ -77,7 +77,7 @@ class SendCompletionNotification implements ShouldQueue
             // Get the sermon record if it was created
             $sermon = null;
             if ($this->processingLog->sermon_id) {
-                $sermon = Sermon::find($this->processingLog->sermon_id);
+                $sermon = Sermon::query()->find($this->processingLog->sermon_id);
             }
 
             // Prepare notification data

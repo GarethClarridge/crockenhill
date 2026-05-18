@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final class SongCluster extends JsonData
+final readonly class SongCluster extends JsonData
 {
     /**
      * @param  list<float>  $samples
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        public readonly float $startEstimate,
-        public readonly float $endEstimate,
-        public readonly array $samples,
-        public readonly ?int $sampleCount = null,
-        public readonly ?float $confidence = null,
-        public readonly ?float $refinedVisualStart = null,
-        public readonly ?float $refinedVisualEnd = null,
-        public readonly ?int $denseSampleCount = null,
-        public readonly array $raw = [],
+        public float $startEstimate,
+        public float $endEstimate,
+        public array $samples,
+        public ?int $sampleCount = null,
+        public ?float $confidence = null,
+        public ?float $refinedVisualStart = null,
+        public ?float $refinedVisualEnd = null,
+        public ?int $denseSampleCount = null,
+        public array $raw = [],
     ) {}
 
     public static function fromArray(mixed $value): ?self

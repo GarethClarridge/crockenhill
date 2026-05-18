@@ -64,7 +64,7 @@ class VideoStorageServiceCompressionTest extends TestCase
                 'test_sermon.mp3',
                 $this->isNull(),
                 $this->isNull(),
-                $this->isType('callable')
+                $this->isCallable()
             )
             ->willReturn([
                 'audio_path' => 'sermons/audio/test_sermon.mp3',
