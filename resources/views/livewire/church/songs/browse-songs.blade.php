@@ -1,7 +1,5 @@
 <div
-    x-init="
-        $wire.$watch('seoTitle', (val) => document.title = val + ' | Crockenhill Baptist Church');
-    "
+    x-on:seo-title-updated.window="document.title = $event.detail.title + ' | Crockenhill Baptist Church'"
     class="[&_mark]:bg-transparent [&_mark]:font-bold [&_mark]:not-italic [&_mark]:p-0"
 >
     <a href="#song-results" @click.prevent="document.getElementById('song-results').focus()" class="sr-only focus:not-sr-only focus:absolute focus:z-30 focus:m-4 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-cbc-teal-dark focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-cbc-teal">

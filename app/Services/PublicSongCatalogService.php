@@ -68,9 +68,9 @@ class PublicSongCatalogService
 
     public function normalizeRange(?string $range): string
     {
-        return $range === self::RANGE_ALL
-            ? self::RANGE_ALL
-            : self::RANGE_RECENT;
+        return $range === self::RANGE_RECENT
+            ? self::RANGE_RECENT
+            : self::RANGE_ALL;
     }
 
     /**

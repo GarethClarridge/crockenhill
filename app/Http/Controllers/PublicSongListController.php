@@ -17,12 +17,11 @@ class PublicSongListController extends Controller
     public function index(
         Request $request,
         SongArchiveSeoPresenter $seoPresenter,
-        PublicSongCatalogService $catalogService,
     ): View {
         $this->abortIfDisabled();
 
         $search = is_array($request->query('q')) ? '' : (string) $request->query('q', '');
-        $range = $catalogService->normalizeRange(is_array($request->query('range')) ? '' : (string) $request->query('range', ''));
+        $range = is_array($request->query('range')) ? PublicSongCatalogService::RANGE_RECENT : (string) $request->query('range', PublicSongCatalogService::RANGE_RECENT);
 
         return view('church.songs.index', [
             'heading' => $seoPresenter->title($search, $range),

@@ -36,11 +36,18 @@ class BrowseSongs extends Component
     public function updatedSearch(): void
     {
         $this->resetPage();
+        $this->dispatchSeoTitleUpdate();
     }
 
     public function updatedRange(): void
     {
         $this->resetPage();
+        $this->dispatchSeoTitleUpdate();
+    }
+
+    private function dispatchSeoTitleUpdate(): void
+    {
+        $this->dispatch('seo-title-updated', title: app(SongArchiveSeoPresenter::class)->title($this->search, $this->range));
     }
 
     #[Computed]

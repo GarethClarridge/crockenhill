@@ -8,40 +8,33 @@ use App\Services\PublicSongCatalogService;
 
 class SongArchiveSeoPresenter
 {
-    /**
-     * Generate SEO title based on filters.
-     */
+    public function __construct(private readonly PublicSongCatalogService $catalog) {}
+
     public function title(?string $search, string $range): string
     {
         if (filled($search)) {
             return "{$search} | Songs";
         }
 
-        return $range === PublicSongCatalogService::RANGE_RECENT
+        return $this->catalog->normalizeRange($range) === PublicSongCatalogService::RANGE_RECENT
             ? 'Recent Songs'
             : 'All Songs';
     }
 
-    /**
-     * Generate SEO description based on filters.
-     */
     public function description(?string $search, string $range): string
     {
         if (filled($search)) {
             return "Browse songs matching '{$search}' at Crockenhill Baptist Church.";
         }
 
-        return $range === PublicSongCatalogService::RANGE_RECENT
+        return $this->catalog->normalizeRange($range) === PublicSongCatalogService::RANGE_RECENT
             ? 'Browse the songs most recently sung at Crockenhill Baptist Church.'
             : 'Browse the full song catalogue of Crockenhill Baptist Church.';
     }
 
-    /**
-     * Generate canonical URL based on filters and page.
-     */
     public function canonical(?string $search, string $range, int $page = 1): string
     {
-        $normalizedRange = app(PublicSongCatalogService::class)->normalizeRange($range);
+        $normalizedRange = $this->catalog->normalizeRange($range);
 
         $params = array_filter([
             'q' => filled($search) ? $search : null,
