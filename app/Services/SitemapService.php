@@ -10,6 +10,7 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\MeetingSitemapPresenter;
+use App\Presenters\SermonViewPresenter;
 use App\Presenters\PageSitemapPresenter;
 use App\Presenters\PreacherSitemapPresenter;
 use App\Presenters\SermonSitemapPresenter;
@@ -28,6 +29,7 @@ class SitemapService
         private readonly SermonSitemapPresenter $sermonSitemapPresenter,
         private readonly MeetingSitemapPresenter $meetingSitemapPresenter,
         private readonly PreacherSitemapPresenter $preacherSitemapPresenter,
+        private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
 
     /**
