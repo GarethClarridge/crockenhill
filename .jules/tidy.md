@@ -11,3 +11,7 @@
 ## 2026-04-08 - Strict Types and Concise Logic in Presenters
 **Learning:** Some older presenter classes may be missing the `declare(strict_types=1);` declaration and use verbose `if` blocks for simple conditional assignments.
 **Action:** Add missing strict type declarations as a standard project convention. Refactor verbose conditional blocks into concise expressions (like ternary operators) to improve readability while strictly preserving logic and fallback behavior.
+
+## 2026-05-18 - Standardized Request-Level Memoization
+**Learning:** Fragmented memoization arrays (e.g., 15+ specialized arrays) in high-traffic presenters like `SermonViewPresenter` increase maintenance complexity. Using the `??=` operator for memoization can cause repeated calculations for values that are legitimately null.
+**Action:** Consolidate memoization into exactly five standardized arrays: `$memoized` (general), `$memoizedUrls`, `$memoizedPresents`, `$memoizedDates`, and `$computed`. Always use explicit `isset($this->computed[$key])` checks to protect against redundant re-computation of null values.
