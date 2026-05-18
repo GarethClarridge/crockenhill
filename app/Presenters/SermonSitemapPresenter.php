@@ -10,6 +10,11 @@ use Spatie\Sitemap\Tags\Url;
 
 class SermonSitemapPresenter
 {
+    /**
+     * Performance Optimization: Uses constructor dependency injection for
+     * SermonViewPresenter to avoid redundant app() service locator calls
+     * during bulk sitemap generation for all sermons.
+     */
     public function __construct(
         private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
