@@ -229,45 +229,6 @@ class SermonRepository
     }
 
     /**
-     * Clear all cached sermon listings.
-     */
-    public function clearListingCaches(Sermon|Preacher|null $model = null): void
-    {
-        Cache::forget('latest_sermons');
-        Cache::forget('all_sermons');
-        Cache::forget('sermon_series');
-        Cache::forget('sermon_scripture_books_all_all');
-        Cache::forget('sermons_jsonld_recent_100');
-
-        $this->memoizedSeries = null;
-        $this->memoizedBooks = [];
-        $this->memoizedChapters = [];
-
-        if ($model instanceof Sermon) {
-            $this->clearScriptureChapterCaches($model);
-
-            if ($model->series) {
-                Cache::forget('sermons_series_'.Str::slug($model->series));
-            }
-            if ($model->service) {
-                $serviceValue = $model->service->value;
-                Cache::forget('sermons_service_'.$serviceValue);
-            }
-            if ($model->preacher_id) {
-                // Eager load preacherProfile if not loaded to get the key for cache invalidation
-                $model->loadMissing('preacherProfile');
-                if ($model->preacherProfile) {
-                    Cache::forget($this->preacherCacheKey($model->preacherProfile));
-                }
-            }
-        }
-
-        if ($model instanceof Preacher) {
-            Cache::forget($this->preacherCacheKey($model));
-        }
-    }
-
-    /**
      * Look up an existing Sermon record by date, service, and content type.
      *
      * Content type is part of the match key because the sermons table holds
@@ -461,7 +422,7 @@ class SermonRepository
     public function clearScriptureChapterCaches(Sermon $sermon): void
     {
         // Always clear the global (no-filter) book list
-        Cache::forget('sermon_scripture_books_all_all');
+        $this->forgetFlexible('sermon_scripture_books_all_all');
 
         // Extract all possible values that could be cached
         $preacherIds = array_filter(array_unique([
@@ -478,13 +439,13 @@ class SermonRepository
 
         // Clear book list caches for all combinations of preacher and series
         foreach ($preacherIds as $id) {
-            Cache::forget("sermon_scripture_books_{$id}_all");
+            $this->forgetFlexible("sermon_scripture_books_{$id}_all");
         }
 
         foreach ($seriesSlugs as $slug) {
-            Cache::forget("sermon_scripture_books_all_{$slug}");
+            $this->forgetFlexible("sermon_scripture_books_all_{$slug}");
             foreach ($preacherIds as $id) {
-                Cache::forget("sermon_scripture_books_{$id}_{$slug}");
+                $this->forgetFlexible("sermon_scripture_books_{$id}_{$slug}");
             }
         }
 
@@ -512,18 +473,84 @@ class SermonRepository
 
         foreach ($books as $book) {
             $bookSlug = Str::slug($book);
-            Cache::forget("sermon_scripture_chapters_{$bookSlug}_all_all");
+            $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_all_all");
 
             foreach ($preacherIds as $id) {
-                Cache::forget("sermon_scripture_chapters_{$bookSlug}_{$id}_all");
+                $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_{$id}_all");
             }
 
             foreach ($seriesSlugs as $slug) {
-                Cache::forget("sermon_scripture_chapters_{$bookSlug}_all_{$slug}");
+                $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_all_{$slug}");
                 foreach ($preacherIds as $id) {
-                    Cache::forget("sermon_scripture_chapters_{$bookSlug}_{$id}_{$slug}");
+                    $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_{$id}_{$slug}");
                 }
             }
         }
+    }
+
+    /**
+     * Clear all cached sermon listings.
+     */
+    public function clearListingCaches(Sermon|Preacher|null $model = null): void
+    {
+        $this->forgetFlexible('latest_sermons');
+        $this->forgetFlexible('all_sermons');
+        $this->forgetFlexible('sermon_series');
+        $this->forgetFlexible('sermon_scripture_books_all_all');
+        $this->forgetFlexible('sermons_jsonld_recent_100');
+
+        $this->memoizedSeries = null;
+        $this->memoizedBooks = [];
+        $this->memoizedChapters = [];
+
+        if ($model instanceof Sermon) {
+            $this->clearScriptureChapterCaches($model);
+
+            // Invalidate for current and original series
+            $series = array_filter(array_unique([
+                $model->series ?: null,
+                $model->getOriginal('series') ?: null,
+            ]));
+
+            foreach ($series as $s) {
+                $this->forgetFlexible('sermons_series_'.Str::slug($s));
+            }
+
+            // Invalidate for current and original service
+            $services = array_filter(array_unique([
+                $model->service?->value ?: null,
+                $model->getOriginal('service') instanceof SermonService ? $model->getOriginal('service')->value : ($model->getOriginal('service') ?: null),
+            ]));
+
+            foreach ($services as $serviceValue) {
+                $this->forgetFlexible('sermons_service_'.$serviceValue);
+            }
+
+            // Invalidate for current and original preacher
+            $preacherIds = array_filter(array_unique([
+                (int) $model->preacher_id ?: null,
+                (int) $model->getOriginal('preacher_id') ?: null,
+            ]));
+
+            foreach ($preacherIds as $id) {
+                $preacher = Preacher::query()->find($id);
+                if ($preacher) {
+                    $this->forgetFlexible($this->preacherCacheKey($preacher));
+                }
+            }
+        }
+
+        if ($model instanceof Preacher) {
+            $this->forgetFlexible($this->preacherCacheKey($model));
+        }
+    }
+
+    /**
+     * Clear a flexible cache key including its metadata key.
+     */
+    private function forgetFlexible(string $key): void
+    {
+        Cache::forget($key);
+        Cache::forget("illuminate:cache:flexible:created:{$key}");
     }
 }
