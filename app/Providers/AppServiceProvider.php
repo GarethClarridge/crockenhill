@@ -44,11 +44,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(RelatedPagePresenter::class);
         $this->app->singleton(PublicPageReadModelCache::class);
         $this->app->singleton(PublicMeetingReadModelCache::class);
-        $this->app->singleton(SermonSitemapPresenter::class);
         $this->app->singleton(SermonArchiveSeoPresenter::class);
         $this->app->singleton(PageSitemapPresenter::class);
         $this->app->singleton(MeetingSitemapPresenter::class);
-        $this->app->singleton(PreacherSitemapPresenter::class);
         $this->app->singleton(BibleCanon::class);
 
         /**
@@ -62,6 +60,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(TranscriptStorageService::class);
         $this->app->scoped(SermonViewPresenter::class);
         $this->app->scoped(SermonItemListPresenter::class);
+        $this->app->scoped(SermonSitemapPresenter::class);
+        $this->app->scoped(PreacherSitemapPresenter::class);
     }
 
     public function boot(): void
