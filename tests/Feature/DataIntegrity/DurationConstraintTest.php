@@ -6,6 +6,7 @@ namespace Tests\Feature\DataIntegrity;
 
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Models\Song;
 use App\Models\SongVideo;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -128,10 +129,20 @@ class DurationConstraintTest extends TestCase
     #[Test]
     public function it_validates_song_video_rules_at_application_level(): void
     {
+        $song = Song::factory()->create();
         $rules = SongVideo::validationRules();
 
-        $this->assertTrue(Validator::make(['duration' => 100], $rules)->passes());
-        $this->assertFalse(Validator::make(['duration' => -1], $rules)->passes());
+        $validData = [
+            'song_id' => $song->id,
+            'video_file_path' => 'path.mp4',
+            'is_featured' => false,
+            'duration' => 100,
+        ];
+
+        $validator = Validator::make($validData, $rules);
+        $this->assertTrue($validator->passes(), (string) $validator->errors()->first());
+
+        $this->assertFalse(Validator::make(array_merge($validData, ['duration' => -1]), $rules)->passes());
     }
 
     #[Test]

@@ -10,6 +10,7 @@ use App\Models\Song;
 use App\Models\SongVideo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -125,5 +126,49 @@ class SongVideoTest extends TestCase
         $video = SongVideo::factory()->create(['church_service_id' => null]);
 
         $this->assertNull($video->churchService);
+    }
+
+    #[Test]
+    public function it_trims_video_file_path(): void
+    {
+        $video = new SongVideo(['video_file_path' => '  path/to/video.mp4  ']);
+
+        $this->assertSame('path/to/video.mp4', $video->video_file_path);
+    }
+
+    #[Test]
+    public function validation_rules_detect_invalid_data(): void
+    {
+        $rules = SongVideo::validationRules();
+
+        $invalidData = [
+            'song_id' => 9999, // Non-existent
+            'video_file_path' => '', // Required
+            'is_featured' => 'not-a-bool',
+        ];
+
+        $validator = Validator::make($invalidData, $rules);
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('song_id', $validator->errors()->toArray());
+        $this->assertArrayHasKey('video_file_path', $validator->errors()->toArray());
+        $this->assertArrayHasKey('is_featured', $validator->errors()->toArray());
+    }
+
+    #[Test]
+    public function validation_rules_pass_for_valid_data(): void
+    {
+        $song = Song::factory()->create();
+        $rules = SongVideo::validationRules();
+
+        $validData = [
+            'song_id' => $song->id,
+            'video_file_path' => 'path/to/video.mp4',
+            'is_featured' => true,
+        ];
+
+        $validator = Validator::make($validData, $rules);
+
+        $this->assertFalse($validator->fails(), (string) $validator->errors()->first());
     }
 }

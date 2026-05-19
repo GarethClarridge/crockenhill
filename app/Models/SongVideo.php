@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Database\Factories\SongVideoFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -65,6 +66,16 @@ class SongVideo extends Model
         ];
     }
 
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function videoFilePath(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
     public function isFeatured(): bool
     {
         return $this->is_featured;
@@ -118,7 +129,13 @@ class SongVideo extends Model
     public static function validationRules(): array
     {
         return [
+            'song_id' => ['required', 'integer', 'exists:songs,id'],
+            'service_section_id' => ['nullable', 'integer', 'exists:service_sections,id', 'unique:song_videos,service_section_id'],
+            'church_service_id' => ['nullable', 'integer', 'exists:church_services,id'],
+            'video_file_path' => ['required', 'string', 'max:500'],
             'duration' => ['nullable', 'numeric', 'min:0'],
+            'recorded_date' => ['nullable', 'date'],
+            'is_featured' => ['required', 'boolean'],
         ];
     }
 }
