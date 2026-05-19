@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Data\ApiBiblePassageResult;
+use App\Traits\SanitizesLogData;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Log;
 
 class ApiBibleClient
 {
+    use SanitizesLogData;
+
     private string $baseUrl;
 
     private string $apiKey;
@@ -70,7 +73,7 @@ class ApiBibleClient
     private function assertDailyBudget(string $context): void
     {
         if (! $this->hasDailyBudget()) {
-            Log::warning("api.bible daily budget exhausted — skipping {$context}", [
+            Log::warning('api.bible daily budget exhausted — skipping '.self::sanitizeForLog($context), [
                 'budget' => $this->dailyBudget,
             ]);
 
@@ -105,7 +108,7 @@ class ApiBibleClient
 
                 if ($status === 429 || $status >= 500) {
                     Log::warning('api.bible search rate-limited or server error', [
-                        'reference' => $normalizedReference,
+                        'reference' => self::sanitizeForLog($normalizedReference),
                         'status' => $status,
                     ]);
 
@@ -113,7 +116,7 @@ class ApiBibleClient
                 }
 
                 Log::info('api.bible search returned non-2xx (terminal)', [
-                    'reference' => $normalizedReference,
+                    'reference' => self::sanitizeForLog($normalizedReference),
                     'status' => $status,
                 ]);
 
@@ -127,7 +130,7 @@ class ApiBibleClient
             $passages = is_array($data['passages'] ?? null) ? $data['passages'] : [];
 
             if (empty($passages)) {
-                Log::info('api.bible search returned no passages', ['reference' => $normalizedReference]);
+                Log::info('api.bible search returned no passages', ['reference' => self::sanitizeForLog($normalizedReference)]);
 
                 return null;
             }
@@ -160,16 +163,16 @@ class ApiBibleClient
             );
         } catch (ConnectionException $e) {
             Log::error('api.bible connection error during search', [
-                'reference' => $normalizedReference,
-                'error' => $e->getMessage(),
+                'reference' => self::sanitizeForLog($normalizedReference),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             throw $e;
         } catch (RequestException $e) {
             Log::error('api.bible request error during search', [
-                'reference' => $normalizedReference,
+                'reference' => self::sanitizeForLog($normalizedReference),
                 'status' => $e->response->status(),
-                'error' => $e->getMessage(),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return null;
@@ -197,7 +200,7 @@ class ApiBibleClient
 
                 if ($status === 429 || $status >= 500) {
                     Log::warning('api.bible passage fetch rate-limited or server error', [
-                        'passage_id' => $passageId,
+                        'passage_id' => self::sanitizeForLog($passageId),
                         'status' => $status,
                     ]);
 
@@ -205,7 +208,7 @@ class ApiBibleClient
                 }
 
                 Log::info('api.bible passage fetch returned non-2xx (terminal)', [
-                    'passage_id' => $passageId,
+                    'passage_id' => self::sanitizeForLog($passageId),
                     'status' => $status,
                 ]);
 
@@ -239,14 +242,14 @@ class ApiBibleClient
             );
         } catch (ConnectionException $e) {
             Log::error('api.bible connection error during passage fetch', [
-                'passage_id' => $passageId,
-                'error' => $e->getMessage(),
+                'passage_id' => self::sanitizeForLog($passageId),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             throw $e;
         } catch (RequestException $e) {
             Log::error('api.bible request error during passage fetch', [
-                'passage_id' => $passageId,
+                'passage_id' => self::sanitizeForLog($passageId),
                 'status' => $e->response->status(),
             ]);
 
