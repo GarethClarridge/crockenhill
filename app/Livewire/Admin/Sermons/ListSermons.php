@@ -198,6 +198,13 @@ class ListSermons extends Component
 
         $sermons = $query->paginate(20);
 
+        /**
+         * Performance Optimization: Pre-warm the sermon view presenter's internal caches
+         * for the current page of sermons. This ensures that preacher names and
+         * scripture references are computed in one pass before Blade rendering.
+         */
+        $this->sermonViewPresenter->presentCollection($sermons->getCollection());
+
         $headers = [
             ['key' => 'title', 'label' => 'Title', 'sortable' => true],
             ['key' => 'date', 'label' => 'Date', 'sortable' => true],

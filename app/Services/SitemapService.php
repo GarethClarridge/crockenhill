@@ -10,12 +10,13 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\MeetingSitemapPresenter;
-use App\Presenters\SermonViewPresenter;
 use App\Presenters\PageSitemapPresenter;
 use App\Presenters\PreacherSitemapPresenter;
 use App\Presenters\SermonSitemapPresenter;
+use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -149,10 +150,25 @@ class SitemapService
 
     /**
      * Add Bible book filtered sermon archive URLs to the sitemap.
+     *
+     * Performance Optimization: Fetches representative sermons for all books in a single
+     * query to eliminate N+1 queries when building archive image tags.
      */
     private function addBooks(Sitemap $sitemap): void
     {
         $books = $this->sermonRepository->getScriptureBooks();
+
+        /** @var Collection<string, Sermon> $latestSermonsByBook */
+        $latestSermonsByBook = Sermon::query()
+            ->whereSermon()
+            ->join('sermon_scripture_filters', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+            ->whereIn('sermon_scripture_filters.bible_book', $books)
+            ->select(['sermons.id', 'sermons.date', 'sermons.thumbnail_file_path', 'sermons.thumbnail_generated_at', 'sermons.thumbnail_metadata', 'sermons.updated_at', 'sermons.video_file_path', 'sermons.video_quality_status', 'sermons.video_visibility_override', 'sermon_scripture_filters.bible_book'])
+            ->orderBy('sermons.date', 'desc')
+            ->get()
+            ->groupBy('bible_book')
+            ->map(fn ($group) => $group->first());
+
         $sermonsImage = asset('/images/headings/large/sermons.webp');
 
         foreach ($books as $book) {
@@ -160,11 +176,7 @@ class SitemapService
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY);
 
-            $latestSermon = Sermon::query()
-                ->whereHas('scriptureFilters', fn ($q) => $q->where('bible_book', $book))
-                ->whereSermon()
-                ->orderBy('date', 'desc')
-                ->first();
+            $latestSermon = $latestSermonsByBook->get($book);
 
             $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
 
@@ -228,21 +240,32 @@ class SitemapService
 
     /**
      * Add sermon series URLs to the sitemap.
+     *
+     * Performance Optimization: Fetches representative sermons for all series in a single
+     * query to eliminate N+1 queries when building series archive image tags.
      */
     private function addSeries(Sitemap $sitemap): void
     {
+        $seriesList = $this->sermonRepository->getSeriesForDisplay();
+
+        /** @var Collection<string, Sermon> $latestSermonsBySeries */
+        $latestSermonsBySeries = Sermon::query()
+            ->whereSermon()
+            ->whereIn('series', $seriesList)
+            ->select(['id', 'date', 'series', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'updated_at', 'video_file_path', 'video_quality_status', 'video_visibility_override'])
+            ->orderBy('date', 'desc')
+            ->get()
+            ->groupBy('series')
+            ->map(fn ($group) => $group->first());
+
         $sermonsImage = asset('/images/headings/large/sermons.webp');
 
-        foreach ($this->sermonRepository->getSeriesForDisplay() as $series) {
+        foreach ($seriesList as $series) {
             $url = Url::create(route('sermons.series.show', ['series' => Str::slug($series)]))
                 ->setPriority(0.6)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY);
 
-            $latestSermon = Sermon::query()
-                ->where('series', $series)
-                ->whereSermon()
-                ->orderBy('date', 'desc')
-                ->first();
+            $latestSermon = $latestSermonsBySeries->get($series);
 
             $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
 
