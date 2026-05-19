@@ -75,6 +75,28 @@ class FormAccessibilityTest extends TestCase
     }
 
     #[Test]
+    public function toggle_component_renders_accessibility_attributes(): void
+    {
+        $view = $this->blade('<x-toggle label="Publish" hint="Makes it visible" required />');
+
+        $view->assertSeeHtml('aria-labelledby="publish-label"');
+        $view->assertSeeHtml('aria-describedby="publish-hint"');
+        $view->assertSeeHtml('aria-required="true"');
+        $view->assertSeeHtml('id="publish-hint"');
+        $view->assertSee('Makes it visible');
+    }
+
+    #[Test]
+    public function toggle_component_renders_livewire_accessibility_attributes(): void
+    {
+        $view = $this->blade('<x-toggle label="Publish" wire:model="active" hint="Makes it visible" />');
+
+        $view->assertSeeHtml('aria-labelledby="active-label"');
+        $view->assertSeeHtml('aria-describedby="active-hint"');
+        $view->assertSeeHtml('id="active-hint"');
+    }
+
+    #[Test]
     public function form_components_render_role_alert_for_errors(): void
     {
         $errors = new ViewErrorBag;
@@ -85,5 +107,6 @@ class FormAccessibilityTest extends TestCase
         $this->blade('<x-textarea wire:model="field" />')->assertSeeHtml('role="alert"');
         $this->blade('<x-select wire:model="field" :options="[]" />')->assertSeeHtml('role="alert"');
         $this->blade('<x-checkbox wire:model="field" />')->assertSeeHtml('role="alert"');
+        $this->blade('<x-toggle wire:model="field" />')->assertSeeHtml('role="alert"');
     }
 }
