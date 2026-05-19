@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\PageArea;
+use App\Enums\SermonContentType;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
@@ -162,12 +163,14 @@ class SitemapService
         $latestSermonsByBook = Sermon::query()
             ->whereSermon()
             ->join('sermon_scripture_filters', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
-            ->whereIn('sermon_scripture_filters.bible_book', $books)
+            ->whereIn('sermons.id', function ($query) {
+                $query->selectRaw('max(sermon_id)')
+                    ->from('sermon_scripture_filters')
+                    ->groupBy('bible_book');
+            })
             ->select(['sermons.id', 'sermons.date', 'sermons.thumbnail_file_path', 'sermons.thumbnail_generated_at', 'sermons.thumbnail_metadata', 'sermons.updated_at', 'sermons.video_file_path', 'sermons.video_quality_status', 'sermons.video_visibility_override', 'sermon_scripture_filters.bible_book'])
-            ->orderBy('sermons.date', 'desc')
             ->get()
-            ->groupBy('bible_book')
-            ->map(fn ($group) => $group->first());
+            ->keyBy('bible_book');
 
         $sermonsImage = asset('/images/headings/large/sermons.webp');
 
@@ -251,12 +254,17 @@ class SitemapService
         /** @var Collection<string, Sermon> $latestSermonsBySeries */
         $latestSermonsBySeries = Sermon::query()
             ->whereSermon()
-            ->whereIn('series', $seriesList)
+            ->whereIn('id', function ($query) {
+                $query->selectRaw('max(id)')
+                    ->from('sermons')
+                    ->where('content_type', SermonContentType::Sermon->value)
+                    ->whereNotNull('series')
+                    ->where('series', '!=', '')
+                    ->groupBy('series');
+            })
             ->select(['id', 'date', 'series', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'updated_at', 'video_file_path', 'video_quality_status', 'video_visibility_override'])
-            ->orderBy('date', 'desc')
             ->get()
-            ->groupBy('series')
-            ->map(fn ($group) => $group->first());
+            ->keyBy('series');
 
         $sermonsImage = asset('/images/headings/large/sermons.webp');
 
