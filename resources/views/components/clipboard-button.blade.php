@@ -12,7 +12,7 @@
 
 @php
 $copyContent = $content ?? $url;
-$baseClasses = 'inline-flex items-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2';
+$baseClasses = 'inline-flex items-center active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2';
 
 $sizeClasses = [
     'xs' => 'p-1 text-xs',

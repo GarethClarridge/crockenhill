@@ -62,7 +62,8 @@
                                 <button
                                     type="button"
                                     wire:click="removeFilter('{{ $key }}')"
-                                    class="ml-1 -mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-cbc-teal hover:bg-cbc-teal/20 hover:text-cbc-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal"
+                                    wire:loading.attr="disabled"
+                                    class="ml-1 -mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-cbc-teal hover:bg-cbc-teal/20 hover:text-cbc-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal disabled:opacity-50 disabled:cursor-not-allowed"
                                     aria-label="Remove filter: {{ $label }}"
                                     title="Remove filter: {{ $label }}"
                                 >
