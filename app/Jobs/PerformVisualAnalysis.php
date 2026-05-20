@@ -11,11 +11,13 @@ use App\Services\VisualAnalysisService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\FailOnTimeout;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
+#[FailOnTimeout]
 class PerformVisualAnalysis implements ShouldQueue
 {
     use Batchable, InteractsWithQueue, Queueable, SerializesModels;

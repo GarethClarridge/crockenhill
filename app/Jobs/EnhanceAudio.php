@@ -11,6 +11,7 @@ use App\Services\StorageAdapterHelper;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\FailOnTimeout;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Log;
  * before transcription. If enhancement fails for any reason, processing continues
  * with the original file — the job never marks the run as failed.
  */
+#[FailOnTimeout]
 class EnhanceAudio extends ProcessingJob implements ShouldQueue
 {
     use DetectsStorageType, InteractsWithQueue, Queueable, SerializesModels;

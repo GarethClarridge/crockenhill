@@ -14,11 +14,13 @@ use App\Services\VideoSegmentationService;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\FailOnTimeout;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
+#[FailOnTimeout]
 class AnalyzeSegments implements ShouldQueue
 {
     use ChecksCancellation, InteractsWithQueue, Queueable, SerializesModels;
