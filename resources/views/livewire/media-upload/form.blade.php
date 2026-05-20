@@ -158,7 +158,41 @@
 
     {{-- Processing Status --}}
     @if($showProcessingStatus)
-        <div wire:poll.2s="checkProcessingStatus">
+        <div
+            x-data="{
+                source: null,
+                terminalStatuses: ['completed', 'failed', 'cancelled'],
+                init() {
+                    if (! @js($processingId)) return;
+                    this.source = new EventSource('/api/media/processing/' + @js($processingId) + '/stream');
+                    this.source.addEventListener('progress', (event) => {
+                        if (event.data === '</stream>') {
+                            this.close();
+                            return;
+                        }
+                        $wire.checkProcessingStatus();
+                        try {
+                            const payload = JSON.parse(event.data);
+                            if (payload && this.terminalStatuses.includes(payload.status)) {
+                                this.close();
+                            }
+                        } catch (e) {
+                            // Non-JSON keepalive — ignore.
+                        }
+                    });
+                    this.source.onerror = () => this.close();
+                },
+                close() {
+                    if (this.source) {
+                        this.source.close();
+                        this.source = null;
+                    }
+                },
+                destroy() {
+                    this.close();
+                },
+            }"
+        >
             <livewire:media-upload.status
                 :processing-id="$processingId"
                 :status="$status"

@@ -91,6 +91,18 @@ return [
         'send_failure_notifications' => env('LIVESTREAM_NOTIFY_FAILURE', true),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Server-Sent Events
+    |--------------------------------------------------------------------------
+    | Tuning knobs for the /api/media/processing/{id}/stream SSE endpoint.
+    | Tests override poll_seconds to 0 to avoid stalling on sleep().
+    */
+    'sse' => [
+        'poll_seconds' => (int) env('MEDIA_SSE_POLL_SECONDS', 2),
+        'max_duration_seconds' => (int) env('MEDIA_SSE_MAX_DURATION_SECONDS', 3600),
+    ],
+
     'transcription' => [
         'service' => env('TRANSCRIPTION_SERVICE_TYPE', 'mock'),
         'openai_api_key' => env('OPENAI_API_KEY'),

@@ -88,5 +88,9 @@ class RateLimitServiceProvider extends ServiceProvider
                 Limit::perHour(600)->by($key),
             ];
         });
+
+        RateLimiter::for('processing-stream', function (Request $request): Limit {
+            return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }

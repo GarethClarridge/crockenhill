@@ -14,11 +14,14 @@ use App\Http\Requests\MediaStatusRequest;
 use App\Http\Requests\ProcessMediaRequest;
 use App\Http\Requests\RetryMediaProcessingRequest;
 use App\Models\User;
+use App\Services\GetMediaProcessingStatus;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoProcessingOptions;
 use App\Traits\SanitizesLogData;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\StreamedEvent;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MediaController extends Controller
 {
@@ -121,6 +124,45 @@ class MediaController extends Controller
 
             return response()->json(['found' => false, 'message' => $message], 500);
         }
+    }
+
+    /**
+     * Stream processing status as Server-Sent Events.
+     *
+     * Replaces poll-based status checks with a single long-lived connection that emits a `progress`
+     * event whenever the snapshot changes. The connection self-terminates on a terminal status
+     * (completed, failed, cancelled) or after a one-hour deadline.
+     *
+     * Security: The underlying GetMediaProcessingStatus service enforces per-user visibility.
+     */
+    public function stream(string $processingId, GetMediaProcessingStatus $statusService): StreamedResponse
+    {
+        $pollSeconds = max(0, (int) config('media-processing.sse.poll_seconds', 2));
+        $maxDurationSeconds = max(1, (int) config('media-processing.sse.max_duration_seconds', 3600));
+
+        return response()->eventStream(function () use ($processingId, $statusService, $pollSeconds, $maxDurationSeconds) {
+            $lastHash = null;
+            $deadline = now()->addSeconds($maxDurationSeconds);
+
+            while (now()->lt($deadline)) {
+                $snapshot = $statusService->get($processingId)->toArray();
+                $hash = md5((string) json_encode($snapshot));
+
+                if ($hash !== $lastHash) {
+                    yield new StreamedEvent(event: 'progress', data: $snapshot);
+                    $lastHash = $hash;
+                }
+
+                $status = is_string($snapshot['status'] ?? null) ? $snapshot['status'] : null;
+                if (in_array($status, ['completed', 'failed', 'cancelled'], true)) {
+                    return;
+                }
+
+                if ($pollSeconds > 0) {
+                    sleep($pollSeconds);
+                }
+            }
+        }, endStreamWith: new StreamedEvent(event: 'progress', data: '</stream>'));
     }
 
     /**

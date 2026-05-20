@@ -68,6 +68,10 @@ Route::middleware(['auth:sanctum', 'media.process'])
             ->middleware('throttle:api')
             ->name('status');
 
+        Route::get('media/processing/{processingId}/stream', [MediaController::class, 'stream'])
+            ->middleware('throttle:processing-stream')
+            ->name('stream');
+
         Route::delete('media/processing/{processingId}', [MediaController::class, 'cancel'])
             ->middleware('throttle:api')
             ->name('cancel');
