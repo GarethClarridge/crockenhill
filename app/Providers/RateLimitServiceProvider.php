@@ -8,6 +8,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\HttpFoundation\Response;
 
 class RateLimitServiceProvider extends ServiceProvider
 {
@@ -91,6 +92,12 @@ class RateLimitServiceProvider extends ServiceProvider
 
         RateLimiter::for('processing-stream', function (Request $request): Limit {
             return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('public-not-found', function (Request $request): Limit {
+            return Limit::perMinute(15)
+                ->by($request->ip() ?? 'unknown')
+                ->after(fn (Response $response): bool => $response->getStatusCode() === 404);
         });
     }
 }

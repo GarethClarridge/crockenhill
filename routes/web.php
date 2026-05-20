@@ -89,9 +89,13 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/', [SermonController::class, 'index'])->name('sermons.index');
     Route::get('all', [SermonController::class, 'all'])->name('sermons.all');
     Route::get('preachers', [SermonController::class, 'preachers'])->name('sermons.preachers');
-    Route::get('preachers/{preacher:slug}', [SermonController::class, 'preacher'])->name('sermons.preacher');
+    Route::get('preachers/{preacher:slug}', [SermonController::class, 'preacher'])
+        ->middleware('throttle:public-not-found')
+        ->name('sermons.preacher');
     Route::get('series', [SermonController::class, 'series'])->name('sermons.series');
-    Route::get('series/{series}', [SermonController::class, 'seriesShow'])->name('sermons.series.show');
+    Route::get('series/{series}', [SermonController::class, 'seriesShow'])
+        ->middleware('throttle:public-not-found')
+        ->name('sermons.series.show');
 
     // Podcast RSS feeds (must be before {service} catch-all)
     Route::get('{service}/feed', [PodcastFeedController::class, 'show'])
@@ -103,6 +107,7 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     // Date-based sermon routes (must come before slug-only routes)
     Route::get('/{year}/{month}/{sermon:slug}', [SermonController::class, 'showDated'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
+        ->middleware('throttle:public-not-found')
         ->name('sermons.show.dated');
 
     // Audio serving route
@@ -130,7 +135,9 @@ Route::group(['prefix' => 'christ/sermons'], function () {
         ->name('sermons.transcript');
 
     // Fallback slug-only routes
-    Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('sermons.show');
+    Route::get('/{sermon:slug}', [SermonController::class, 'show'])
+        ->middleware('throttle:public-not-found')
+        ->name('sermons.show');
     Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'verified', 'admin'])->name('sermons.destroy');
 });
 
