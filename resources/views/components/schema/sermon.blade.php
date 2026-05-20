@@ -32,6 +32,7 @@
     $schema = [
         '@' . 'context' => 'https://schema.org',
         '@type' => 'Article',
+        '@id' => $sermonView['canonical_url'] . '#sermon',
         'headline' => $sermon->title,
         'description' => $metaDescription,
         'image' => $thumbnailUrl,
@@ -53,7 +54,7 @@
         ],
         'mainEntityOfPage' => [
             '@type' => 'WebPage',
-            '@id' => $sermonView['canonical_url'],
+            '@id' => $sermonView['canonical_url'] . '#webpage',
         ],
     ];
 

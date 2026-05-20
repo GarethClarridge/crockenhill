@@ -4,6 +4,7 @@
     'description' => null,
     'image' => null,
     'canonical' => null,
+    'mainEntity' => null,
 ])
 
 @php
@@ -36,6 +37,12 @@
 
     if ($image) {
         $schema['image'] = $image;
+    }
+
+    if ($mainEntity) {
+        $schema['mainEntity'] = [
+            '@id' => $mainEntity,
+        ];
     }
 @endphp
 

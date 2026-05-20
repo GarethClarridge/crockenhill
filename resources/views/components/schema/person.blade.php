@@ -6,6 +6,7 @@
     $schema = [
         '@' . 'context' => 'https://schema.org',
         '@type' => 'Person',
+        '@id' => url("/christ/sermons/preachers/{$preacher->slug}").'#person',
         'name' => $preacher->name,
         'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
         'worksFor' => [

@@ -13,6 +13,7 @@
     $schema = [
         '@' . 'context' => 'https://schema.org',
         '@type' => 'MusicComposition',
+        '@id' => route('church.songs.show', $song->slug) . '#song',
         'name' => $song->title,
         'url' => route('church.songs.show', $song->slug),
         'author' => $authors,

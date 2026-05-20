@@ -48,6 +48,7 @@
             :heading="$fullTitle"
             :description="$description ?? $metaDescription"
             :image="$sermonView['thumbnail_url']"
+            :main-entity="$sermonView['canonical_url'] . '#sermon'"
         />
     @endpush
 
