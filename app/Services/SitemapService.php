@@ -164,19 +164,15 @@ class SitemapService
         }
 
         $subquery = Sermon::query()
-            ->select('sermons.id')
+            ->select(['sermons.id', 'sermons.title', 'sermons.date', 'sermons.slug', 'sermons.thumbnail_file_path', 'sermons.thumbnail_generated_at', 'sermons.thumbnail_metadata'])
+            ->selectRaw('sermon_scripture_filters.bible_book as book_group')
             ->selectRaw('ROW_NUMBER() OVER (PARTITION BY sermon_scripture_filters.bible_book ORDER BY sermons.date DESC, sermons.id DESC) as row_num')
             ->join('sermon_scripture_filters', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
             ->whereSermon();
 
         $representativeSermons = Sermon::query()
-            ->select(['sermons.id', 'sermons.title', 'sermons.date', 'sermons.slug', 'sermons.thumbnail_file_path', 'sermons.thumbnail_generated_at', 'sermons.thumbnail_metadata', 'f.bible_book as book_group'])
-            ->join('sermon_scripture_filters as f', 'sermons.id', '=', 'f.sermon_id')
-            ->whereIn('sermons.id', function ($query) use ($subquery): void {
-                $query->select('id')
-                    ->fromSub($subquery, 'ranked')
-                    ->where('row_num', 1);
-            })
+            ->fromSub($subquery, 'ranked')
+            ->where('row_num', 1)
             ->get()
             ->keyBy('book_group');
 
@@ -263,19 +259,15 @@ class SitemapService
         }
 
         $subquery = Sermon::query()
-            ->select('id')
+            ->select(['id', 'title', 'date', 'slug', 'series', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata'])
             ->selectRaw('ROW_NUMBER() OVER (PARTITION BY series ORDER BY date DESC, id DESC) as row_num')
             ->whereSermon()
             ->whereNotNull('series')
             ->where('series', '!=', '');
 
         $representativeSermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'series', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata'])
-            ->whereIn('id', function ($query) use ($subquery): void {
-                $query->select('id')
-                    ->fromSub($subquery, 'ranked')
-                    ->where('row_num', 1);
-            })
+            ->fromSub($subquery, 'ranked')
+            ->where('row_num', 1)
             ->get()
             ->keyBy('series');
 
