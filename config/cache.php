@@ -1,5 +1,13 @@
 <?php
 
+use App\Data\PublicMeetingReadModel;
+use App\Data\PublicPageReadModel;
+use App\Enums\CalendarEventStatus;
+use App\Enums\PageArea;
+use App\Models\CalendarEvent;
+use App\Models\Page;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 return [
@@ -80,5 +88,55 @@ return [
         'CACHE_PREFIX',
         Str::slug(env('APP_NAME', 'laravel'), '_').'_cache'
     ),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache Deserialization Allow-List
+    |--------------------------------------------------------------------------
+    |
+    | When set to an array, this restricts which classes PHP is permitted to
+    | rehydrate from cache via unserialize(). Anything not on the list comes
+    | back as __PHP_Incomplete_Class. This is defence-in-depth against PHP
+    | deserialization gadget chains: even if an attacker manages to write
+    | hostile payloads into our cache store, they cannot instantiate
+    | arbitrary classes during reads.
+    |
+    | Every class whose instances may be cached (directly or transitively
+    | inside arrays, collections, or DTO properties) must appear here.
+    | If you cache a new object type, add it to this list AND clear the
+    | cache as part of deploy.
+    |
+    */
+
+    'serializable_classes' => [
+        // Application DTOs cached by the public read-model layer.
+        PublicMeetingReadModel::class,
+        PublicPageReadModel::class,
+
+        // Eloquent Page collections cached for the public navigation
+        // (see App\View\Components\Layout\Header). Both the outer
+        // collection class and the model class need allow-listing.
+        Illuminate\Database\Eloquent\Collection::class,
+        Collection::class,
+        Page::class,
+
+        // CalendarEvent models live inside PublicMeetingReadModel::upcomingEvents
+        // (see PublicMeetingReadModelCache). The CalendarEventStatus enum is a
+        // model cast and must rehydrate as an enum, not __PHP_Incomplete_Class.
+        CalendarEvent::class,
+        CalendarEventStatus::class,
+
+        // Enum cast on Page::area — required so the area attribute
+        // rehydrates as an enum rather than an incomplete class.
+        PageArea::class,
+
+        // Carbon datetimes appear on every Eloquent model
+        // (created_at / updated_at).
+        Carbon::class,
+        Illuminate\Support\Carbon::class,
+        DateTime::class,
+        DateTimeImmutable::class,
+        DateTimeZone::class,
+    ],
 
 ];
