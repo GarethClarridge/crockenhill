@@ -42,6 +42,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);
 
+        // Defence-in-depth: accept browsers that signal `Sec-Fetch-Site:
+        // same-origin` or `same-site` as origin-verified, on top of the
+        // existing CSRF token check. Token validation continues to apply
+        // to any request without those headers.
+        $middleware->preventRequestForgery(allowSameSite: true);
+
         // Read directly from env() — TrustProxies must be configured before the
         // container/config cache is fully booted. Intentional, not config drift.
         $trustedProxies = env('TRUSTED_PROXIES');
