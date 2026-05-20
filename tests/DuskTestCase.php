@@ -8,12 +8,30 @@ use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Dusk\TestCase as BaseTestCase;
 use PHPUnit\Framework\Attributes\BeforeClass;
 
 abstract class DuskTestCase extends BaseTestCase
 {
     use CreatesApplication;
+
+    /**
+     * Flush the Redis cache used by the Dusk-served Laravel app.
+     *
+     * The test process uses CACHE_DRIVER=array (per .env.testing), but the
+     * Dusk-served app uses CACHE_DRIVER=redis (per .env.dusk.local). Calling
+     * Cache::forget() in tests only clears the per-process array store and
+     * leaves Redis untouched, so cached read models from one test can hide
+     * data created by the next. Flushing the redis store here keeps each
+     * test isolated from prior runs.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Cache::store('redis')->flush();
+    }
 
     /**
      * Prepare for Dusk test execution.
