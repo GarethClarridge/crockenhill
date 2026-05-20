@@ -10,10 +10,10 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\MeetingSitemapPresenter;
-use App\Presenters\SermonViewPresenter;
 use App\Presenters\PageSitemapPresenter;
 use App\Presenters\PreacherSitemapPresenter;
 use App\Presenters\SermonSitemapPresenter;
+use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -149,23 +149,43 @@ class SitemapService
 
     /**
      * Add Bible book filtered sermon archive URLs to the sitemap.
+     *
+     * Performance Optimization: Fetches latest representative sermons for all books
+     * in a single bulk query using a window function to eliminate N+1 bottlenecks
+     * during sitemap generation.
      */
     private function addBooks(Sitemap $sitemap): void
     {
         $books = $this->sermonRepository->getScriptureBooks();
         $sermonsImage = asset('/images/headings/large/sermons.webp');
 
+        if ($books->isEmpty()) {
+            return;
+        }
+
+        $subquery = Sermon::query()
+            ->select('sermons.id')
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY sermon_scripture_filters.bible_book ORDER BY sermons.date DESC, sermons.id DESC) as row_num')
+            ->join('sermon_scripture_filters', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+            ->whereSermon();
+
+        $representativeSermons = Sermon::query()
+            ->select(['sermons.id', 'sermons.title', 'sermons.date', 'sermons.slug', 'sermons.thumbnail_file_path', 'sermons.thumbnail_generated_at', 'sermons.thumbnail_metadata', 'f.bible_book as book_group'])
+            ->join('sermon_scripture_filters as f', 'sermons.id', '=', 'f.sermon_id')
+            ->whereIn('sermons.id', function ($query) use ($subquery): void {
+                $query->select('id')
+                    ->fromSub($subquery, 'ranked')
+                    ->where('row_num', 1);
+            })
+            ->get()
+            ->keyBy('book_group');
+
         foreach ($books as $book) {
             $url = Url::create(route('sermons.index', ['book' => $book]))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY);
 
-            $latestSermon = Sermon::query()
-                ->whereHas('scriptureFilters', fn ($q) => $q->where('bible_book', $book))
-                ->whereSermon()
-                ->orderBy('date', 'desc')
-                ->first();
-
+            $latestSermon = $representativeSermons->get($book);
             $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
 
             $url->addImage($image ?: $sermonsImage, "Sermons on {$book}");
@@ -228,22 +248,43 @@ class SitemapService
 
     /**
      * Add sermon series URLs to the sitemap.
+     *
+     * Performance Optimization: Fetches latest representative sermons for all series
+     * in a single bulk query using a window function to eliminate N+1 bottlenecks
+     * during sitemap generation.
      */
     private function addSeries(Sitemap $sitemap): void
     {
+        $seriesList = $this->sermonRepository->getSeriesForDisplay();
         $sermonsImage = asset('/images/headings/large/sermons.webp');
 
-        foreach ($this->sermonRepository->getSeriesForDisplay() as $series) {
+        if ($seriesList === []) {
+            return;
+        }
+
+        $subquery = Sermon::query()
+            ->select('id')
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY series ORDER BY date DESC, id DESC) as row_num')
+            ->whereSermon()
+            ->whereNotNull('series')
+            ->where('series', '!=', '');
+
+        $representativeSermons = Sermon::query()
+            ->select(['id', 'title', 'date', 'slug', 'series', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata'])
+            ->whereIn('id', function ($query) use ($subquery): void {
+                $query->select('id')
+                    ->fromSub($subquery, 'ranked')
+                    ->where('row_num', 1);
+            })
+            ->get()
+            ->keyBy('series');
+
+        foreach ($seriesList as $series) {
             $url = Url::create(route('sermons.series.show', ['series' => Str::slug($series)]))
                 ->setPriority(0.6)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY);
 
-            $latestSermon = Sermon::query()
-                ->where('series', $series)
-                ->whereSermon()
-                ->orderBy('date', 'desc')
-                ->first();
-
+            $latestSermon = $representativeSermons->get($series);
             $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
 
             $url->addImage($image ?: $sermonsImage, "Sermon Series: {$series}");
