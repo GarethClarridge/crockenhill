@@ -10,6 +10,7 @@
 <x-schema.webpage
     :heading="$heading"
     :description="$description"
+    :main-entity="route('church.songs.show', $song->slug) . '#song'"
 />
 <x-schema.music-composition :$song />
 @stop

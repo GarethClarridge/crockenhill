@@ -26,6 +26,7 @@
             :heading="$heading"
             :description="$description"
             :image="$share_image"
+            :main-entity="url('/christ/sermons/preachers/' . $preacher->slug) . '#person'"
         />
         <x-schema.person :$preacher />
 
