@@ -8,6 +8,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
+use App\Traits\SanitizesLogData;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +24,8 @@ use Illuminate\Support\Str;
  */
 class ProcessingInitiator
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly MetadataExtractionService $metadataService
     ) {}
@@ -56,18 +59,18 @@ class ProcessingInitiator
         if ($preExtractedMetadata !== null) {
             $baseMetadata = $preExtractedMetadata;
             Log::info('Initiating media processing with pre-extracted metadata', [
-                'processing_id' => $processingId,
+                'processing_id' => self::sanitizeForLog($processingId),
                 'processing_type' => $processingType->value,
-                'original_filename' => $file->getClientOriginalName(),
+                'original_filename' => self::sanitizeForLog($file->getClientOriginalName()),
             ]);
         } else {
             $extractedDateTime = $this->metadataService->extractDateFromVideo($file, $clientFileDate);
             $extractedService = $this->determineService($extractedDateTime, $file->getClientOriginalName());
 
             Log::info('Extracted metadata from media file', [
-                'processing_id' => $processingId,
+                'processing_id' => self::sanitizeForLog($processingId),
                 'processing_type' => $processingType->value,
-                'original_filename' => $file->getClientOriginalName(),
+                'original_filename' => self::sanitizeForLog($file->getClientOriginalName()),
                 'extracted_date' => $extractedDateTime->toDateString(),
                 'extracted_datetime' => $extractedDateTime->toDateTimeString(),
                 'extracted_service' => $extractedService->value,

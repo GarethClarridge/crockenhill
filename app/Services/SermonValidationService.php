@@ -6,16 +6,18 @@ namespace App\Services;
 
 use App\Enums\MediaType;
 use App\Enums\SermonSourceType;
-use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use App\Traits\SanitizesLogData;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SermonValidationService
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly MediaValidationService $mediaValidation,
         private readonly SermonRepository $sermonRepository,
@@ -212,8 +214,8 @@ class SermonValidationService
         } catch (\Exception $e) {
             // If we can't check disk space, log but don't fail
             Log::warning('Could not check disk space', [
-                'disk' => $disk,
-                'error' => $e->getMessage(),
+                'disk' => self::sanitizeForLog($disk),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
         }
 
