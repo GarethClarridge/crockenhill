@@ -114,13 +114,13 @@ class SaveServiceSection
 
         if (
             ! $this->publicationTransitions->isPublishableType($section)
-            && $section->publication_status !== ServiceSectionPublicationStatus::NOT_APPLICABLE
+            && $section->publication_status !== ServiceSectionPublicationStatus::NotApplicable
         ) {
-            $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::NOT_APPLICABLE);
+            $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::NotApplicable);
         } elseif (
             $this->publicationTransitions->isPublishableType($section)
             && ! $section->needs_manual_review
-            && $section->publication_status === ServiceSectionPublicationStatus::NOT_APPLICABLE
+            && $section->publication_status === ServiceSectionPublicationStatus::NotApplicable
         ) {
             $section->save();
 
@@ -134,7 +134,7 @@ class SaveServiceSection
                     $section->unpublished_expires_at = now()->addHours(max(1, $retainHours));
                 }
 
-                $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL);
+                $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PendingApproval);
                 $section->save();
             } else {
                 $section->loadMissing('processingLog');

@@ -163,7 +163,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             'title' => 'Children Talk',
             'start_time' => 120.0,
             'end_time' => 360.0,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
             'published_sermon_id' => $publishedSermon->id,
             'published_at' => now(),
             'extracted_video_path' => 'sermons/sections/'.$churchServiceItem->id.'/video.mp4',
@@ -189,7 +189,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         $section->refresh();
         $metadata = $section->metadata?->toArray() ?? [];
 
-        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
         $this->assertNull($section->published_sermon_id);
         $this->assertNull($section->published_at);
         $this->assertNull($section->extracted_video_path);
@@ -223,7 +223,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             'church_service_item_id' => $itemOne->id,
             'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 1,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $stalePublished = ServiceSection::factory()->create([
@@ -231,7 +231,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             'church_service_item_id' => $itemTwo->id,
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'section_order' => 2,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
             'published_sermon_id' => $publishedSermon->id,
             'extracted_video_path' => 'sermons/sections/'.$itemTwo->id.'/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$itemTwo->id.'.mp3',

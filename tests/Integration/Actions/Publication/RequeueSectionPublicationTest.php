@@ -31,14 +31,14 @@ class RequeueSectionPublicationTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::REJECTED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Rejected->value,
         ]);
 
         $result = $this->action->execute($section);
 
         $this->assertTrue($result);
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
     }
 
     #[Test]
@@ -49,13 +49,13 @@ class RequeueSectionPublicationTest extends TestCase
         // APPROVED → PENDING_APPROVAL is not an allowed transition
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
         ]);
 
         $result = $this->action->execute($section);
 
         $this->assertFalse($result);
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $section->publication_status);
     }
 }

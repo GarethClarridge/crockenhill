@@ -25,7 +25,7 @@ class ServiceSectionTest extends TestCase
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SERMON->value,
             'status' => ServiceSectionStatus::Identified->value,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $this->assertInstanceOf(ServiceSectionType::class, $section->section_type);
@@ -33,7 +33,7 @@ class ServiceSectionTest extends TestCase
         $this->assertInstanceOf(ServiceSectionStatus::class, $section->status);
         $this->assertSame(ServiceSectionStatus::Identified, $section->status);
         $this->assertInstanceOf(ServiceSectionPublicationStatus::class, $section->publication_status);
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
     }
 
     #[Test]
@@ -69,7 +69,7 @@ class ServiceSectionTest extends TestCase
         $sermon = Sermon::factory()->create();
         $section = ServiceSection::factory()->create([
             'published_sermon_id' => $sermon->id,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
         $this->assertSame($sermon->id, $section->publishedSermon?->id);

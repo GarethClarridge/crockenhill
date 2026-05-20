@@ -22,7 +22,7 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
     public function audio_preview_redirects_guests_to_login(): void
     {
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED,
+            'publication_status' => ServiceSectionPublicationStatus::Approved,
             'extracted_audio_path' => 'private/section-publications/1/audio.mp3',
         ]);
 
@@ -35,7 +35,7 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
     {
         $user = User::factory()->create(['is_admin' => false]);
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED,
+            'publication_status' => ServiceSectionPublicationStatus::Approved,
         ]);
 
         $response = $this->actingAs($user)->get(route('admin.services.section-publications.preview-audio', $section));
@@ -51,7 +51,7 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
         $admin = User::factory()->crockenhillAdmin()->create();
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED,
+            'publication_status' => ServiceSectionPublicationStatus::Published,
             'extracted_audio_path' => 'private/section-publications/99/audio.mp3',
         ]);
 
@@ -68,7 +68,7 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
         $admin = User::factory()->crockenhillAdmin()->create();
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED,
+            'publication_status' => ServiceSectionPublicationStatus::Published,
             'extracted_video_path' => 'private/section-publications/99/video.mp4',
         ]);
 
@@ -86,7 +86,7 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
         $admin = User::factory()->crockenhillAdmin()->create();
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED,
+            'publication_status' => ServiceSectionPublicationStatus::Approved,
             'extracted_audio_path' => '../../etc/passwd',
         ]);
 
@@ -103,7 +103,7 @@ class ServiceSectionCandidateMediaControllerTest extends TestCase
         $admin = User::factory()->crockenhillAdmin()->create();
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED,
+            'publication_status' => ServiceSectionPublicationStatus::Approved,
             'extracted_audio_path' => 'private/section-publications/1/missing.mp3',
         ]);
 

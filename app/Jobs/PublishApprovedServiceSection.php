@@ -60,14 +60,14 @@ class PublishApprovedServiceSection implements ShouldQueue
             }
 
             if (
-                $section->publication_status === ServiceSectionPublicationStatus::PUBLISHED
+                $section->publication_status === ServiceSectionPublicationStatus::Published
                 && $section->published_sermon_id !== null
             ) {
                 return;
             }
 
             if (
-                $section->publication_status !== ServiceSectionPublicationStatus::APPROVED
+                $section->publication_status !== ServiceSectionPublicationStatus::Approved
                 || $section->published_sermon_id !== null
             ) {
                 return;

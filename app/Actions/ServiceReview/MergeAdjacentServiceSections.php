@@ -63,7 +63,7 @@ class MergeAdjacentServiceSections
             $primary->extracted_video_path = null;
             $primary->extracted_audio_path = null;
             $primary->extracted_at = null;
-            $primary->publication_status = ServiceSectionPublicationStatus::NOT_APPLICABLE;
+            $primary->publication_status = ServiceSectionPublicationStatus::NotApplicable;
         }
 
         $primary->metadata = ServiceSectionMetadata::fromArray($metadata);
@@ -93,7 +93,7 @@ class MergeAdjacentServiceSections
             return 'Both sections must have the same section type.';
         }
 
-        $publishedStatuses = [ServiceSectionPublicationStatus::PUBLISHED];
+        $publishedStatuses = [ServiceSectionPublicationStatus::Published];
         if (in_array($primary->publication_status, $publishedStatuses, true)
             || in_array($secondary->publication_status, $publishedStatuses, true)) {
             return 'Published sections cannot be merged.';

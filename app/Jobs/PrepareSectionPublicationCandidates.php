@@ -115,9 +115,9 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
             if (! $handler instanceof SectionPublicationHandler || ! $handler->isEligible($section)) {
                 if (
-                    $section->publication_status === ServiceSectionPublicationStatus::PUBLISHED
-                    || $section->publication_status === ServiceSectionPublicationStatus::APPROVED
-                    || $section->publication_status === ServiceSectionPublicationStatus::REJECTED
+                    $section->publication_status === ServiceSectionPublicationStatus::Published
+                    || $section->publication_status === ServiceSectionPublicationStatus::Approved
+                    || $section->publication_status === ServiceSectionPublicationStatus::Rejected
                 ) {
                     continue;
                 }
@@ -137,9 +137,9 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
             if (! $eligibleByStatus) {
                 if (
-                    $section->publication_status === ServiceSectionPublicationStatus::PUBLISHED
-                    || $section->publication_status === ServiceSectionPublicationStatus::APPROVED
-                    || $section->publication_status === ServiceSectionPublicationStatus::REJECTED
+                    $section->publication_status === ServiceSectionPublicationStatus::Published
+                    || $section->publication_status === ServiceSectionPublicationStatus::Approved
+                    || $section->publication_status === ServiceSectionPublicationStatus::Rejected
                 ) {
                     $section->save();
 
@@ -151,7 +151,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 continue;
             }
 
-            if ($section->publication_status === ServiceSectionPublicationStatus::PUBLISHED) {
+            if ($section->publication_status === ServiceSectionPublicationStatus::Published) {
                 $section->save();
 
                 continue;
@@ -166,8 +166,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             }
 
             if (
-                $section->publication_status !== ServiceSectionPublicationStatus::PENDING_APPROVAL
-                && ! $publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL)
+                $section->publication_status !== ServiceSectionPublicationStatus::PendingApproval
+                && ! $publicationTransitions->transition($section, ServiceSectionPublicationStatus::PendingApproval)
             ) {
                 continue;
             }
@@ -187,11 +187,11 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         ServiceSection $section,
         ServiceSectionPublicationTransitionService $publicationTransitions
     ): void {
-        if ($section->publication_status === ServiceSectionPublicationStatus::PUBLISHED) {
+        if ($section->publication_status === ServiceSectionPublicationStatus::Published) {
             return;
         }
 
-        if (! $publicationTransitions->transition($section, ServiceSectionPublicationStatus::NOT_APPLICABLE)) {
+        if (! $publicationTransitions->transition($section, ServiceSectionPublicationStatus::NotApplicable)) {
             return;
         }
 

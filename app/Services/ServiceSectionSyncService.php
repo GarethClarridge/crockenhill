@@ -50,7 +50,7 @@ class ServiceSectionSyncService
      */
     public function sync(MediaProcessingLog $processingLog, array $classifiedSections): void
     {
-        $defaultPublicationStatus = ServiceSectionPublicationStatus::NOT_APPLICABLE->value;
+        $defaultPublicationStatus = ServiceSectionPublicationStatus::NotApplicable->value;
 
         DB::transaction(function () use ($processingLog, $classifiedSections, $defaultPublicationStatus): void {
             $existingByOrder = ServiceSection::query()
@@ -114,7 +114,7 @@ class ServiceSectionSyncService
                 ServiceSection::query()->create(array_merge(
                     $payload,
                     [
-                        'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+                        'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
                         'song_match_type' => null,
                         'published_sermon_id' => null,
                         'published_at' => null,
@@ -195,7 +195,7 @@ class ServiceSectionSyncService
         }
 
         return [
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'published_sermon_id' => null,
             'published_at' => null,
             'extracted_video_path' => null,

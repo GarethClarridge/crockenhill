@@ -40,7 +40,7 @@ class ServiceSectionCandidateMediaController extends Controller
         string $contentType,
     ): BinaryFileResponse {
         abort_if(
-            $serviceSection->publication_status === ServiceSectionPublicationStatus::PUBLISHED
+            $serviceSection->publication_status === ServiceSectionPublicationStatus::Published
                 || $serviceSection->published_sermon_id !== null,
             404,
             'Candidate media is no longer available.',

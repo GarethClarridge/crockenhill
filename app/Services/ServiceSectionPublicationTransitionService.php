@@ -22,26 +22,26 @@ class ServiceSectionPublicationTransitionService
     {
         $current = $section->publication_status;
         $allowed = match ($current) {
-            ServiceSectionPublicationStatus::NOT_APPLICABLE => [
-                ServiceSectionPublicationStatus::PENDING_APPROVAL,
-                ServiceSectionPublicationStatus::PUBLISHED,
+            ServiceSectionPublicationStatus::NotApplicable => [
+                ServiceSectionPublicationStatus::PendingApproval,
+                ServiceSectionPublicationStatus::Published,
             ],
-            ServiceSectionPublicationStatus::PENDING_APPROVAL => [
-                ServiceSectionPublicationStatus::APPROVED,
-                ServiceSectionPublicationStatus::REJECTED,
-                ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            ServiceSectionPublicationStatus::PendingApproval => [
+                ServiceSectionPublicationStatus::Approved,
+                ServiceSectionPublicationStatus::Rejected,
+                ServiceSectionPublicationStatus::NotApplicable,
             ],
-            ServiceSectionPublicationStatus::APPROVED => [
-                ServiceSectionPublicationStatus::PUBLISHED,
-                ServiceSectionPublicationStatus::REJECTED,
-                ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            ServiceSectionPublicationStatus::Approved => [
+                ServiceSectionPublicationStatus::Published,
+                ServiceSectionPublicationStatus::Rejected,
+                ServiceSectionPublicationStatus::NotApplicable,
             ],
-            ServiceSectionPublicationStatus::REJECTED => [
-                ServiceSectionPublicationStatus::PENDING_APPROVAL,
-                ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            ServiceSectionPublicationStatus::Rejected => [
+                ServiceSectionPublicationStatus::PendingApproval,
+                ServiceSectionPublicationStatus::NotApplicable,
             ],
-            ServiceSectionPublicationStatus::PUBLISHED => [
-                ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            ServiceSectionPublicationStatus::Published => [
+                ServiceSectionPublicationStatus::NotApplicable,
             ],
         };
 

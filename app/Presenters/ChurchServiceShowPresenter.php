@@ -84,8 +84,8 @@ class ChurchServiceShowPresenter
                 needsSectionReview: $run->serviceSections->contains('needs_manual_review', true),
                 hasPendingPublications: $run->serviceSections->contains(
                     fn ($section): bool => in_array($section->publication_status, [
-                        ServiceSectionPublicationStatus::PENDING_APPROVAL,
-                        ServiceSectionPublicationStatus::APPROVED,
+                        ServiceSectionPublicationStatus::PendingApproval,
+                        ServiceSectionPublicationStatus::Approved,
                     ], true)
                 ),
             ))

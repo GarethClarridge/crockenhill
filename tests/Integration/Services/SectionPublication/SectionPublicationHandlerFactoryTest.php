@@ -35,7 +35,7 @@ class SectionPublicationHandlerFactoryTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $handler = $this->factory->forSection($section);
@@ -52,7 +52,7 @@ class SectionPublicationHandlerFactoryTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::WELCOME->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertNull($this->factory->forSection($section));
@@ -65,7 +65,7 @@ class SectionPublicationHandlerFactoryTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertNull($this->factory->forSection($section));

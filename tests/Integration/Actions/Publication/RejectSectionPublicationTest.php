@@ -31,14 +31,14 @@ class RejectSectionPublicationTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $result = $this->action->execute($section);
 
         $this->assertTrue($result);
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::REJECTED, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Rejected, $section->publication_status);
     }
 
     #[Test]
@@ -49,13 +49,13 @@ class RejectSectionPublicationTest extends TestCase
         // PUBLISHED → REJECTED is not an allowed transition
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
         $result = $this->action->execute($section);
 
         $this->assertFalse($result);
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
     }
 }

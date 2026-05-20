@@ -49,7 +49,7 @@ class AdminSectionPublicationQueueTest extends TestCase
             'title' => "Children's Talk",
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'section_order' => 1,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -57,13 +57,13 @@ class AdminSectionPublicationQueueTest extends TestCase
             'title' => 'Rejected Section',
             'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 2,
-            'publication_status' => ServiceSectionPublicationStatus::REJECTED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Rejected->value,
         ]);
 
         Livewire::test(ListSectionPublications::class)
             ->assertSee("Children's Talk")
             ->assertDontSee('Rejected Section')
-            ->set('publicationStatus', ServiceSectionPublicationStatus::REJECTED->value)
+            ->set('publicationStatus', ServiceSectionPublicationStatus::Rejected->value)
             ->assertSee('Rejected Section')
             ->assertDontSee("Children's Talk");
     }
@@ -85,7 +85,7 @@ class AdminSectionPublicationQueueTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::WELCOME->value,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'.mp3',
         ]);
@@ -98,7 +98,7 @@ class AdminSectionPublicationQueueTest extends TestCase
             ->assertDispatched('notify', type: 'success', message: 'Section approved and publish job queued.');
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $section->publication_status);
         Queue::assertPushed(PublishApprovedServiceSection::class);
     }
 
@@ -119,7 +119,7 @@ class AdminSectionPublicationQueueTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::WELCOME->value,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/missing-video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'-missing.mp3',
         ]);
@@ -133,7 +133,7 @@ class AdminSectionPublicationQueueTest extends TestCase
             );
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
         Queue::assertNothingPushed();
     }
 
@@ -154,7 +154,7 @@ class AdminSectionPublicationQueueTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'.mp3',
             'metadata' => [
@@ -180,7 +180,7 @@ class AdminSectionPublicationQueueTest extends TestCase
             );
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
         Queue::assertNothingPushed();
     }
 
@@ -192,7 +192,7 @@ class AdminSectionPublicationQueueTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         Livewire::test(ListSectionPublications::class)
@@ -202,6 +202,6 @@ class AdminSectionPublicationQueueTest extends TestCase
             ->assertDispatched('notify', type: 'success', message: 'Section moved back to pending approval.');
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
     }
 }

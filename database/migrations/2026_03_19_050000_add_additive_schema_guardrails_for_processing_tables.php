@@ -70,7 +70,7 @@ return new class extends Migration
                 static fn (ServiceSectionPublicationStatus $status): string => $status->value,
                 ServiceSectionPublicationStatus::cases()
             )),
-            $this->quote(ServiceSectionPublicationStatus::NOT_APPLICABLE->value)
+            $this->quote(ServiceSectionPublicationStatus::NotApplicable->value)
         ));
     }
 
@@ -82,7 +82,7 @@ return new class extends Migration
         DB::statement('ALTER TABLE service_sections MODIFY status VARCHAR(255) NOT NULL');
         DB::statement(
             'ALTER TABLE service_sections MODIFY publication_status VARCHAR(255) NOT NULL DEFAULT '
-            .$this->quote(ServiceSectionPublicationStatus::NOT_APPLICABLE->value)
+            .$this->quote(ServiceSectionPublicationStatus::NotApplicable->value)
         );
 
         Schema::table('service_sections', function (Blueprint $table): void {

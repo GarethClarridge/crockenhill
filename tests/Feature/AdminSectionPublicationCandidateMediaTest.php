@@ -38,7 +38,7 @@ class AdminSectionPublicationCandidateMediaTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_audio_path' => 'private/section-publications/700/audio.mp3',
         ]);
 
@@ -58,7 +58,7 @@ class AdminSectionPublicationCandidateMediaTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_audio_path' => 'private/section-publications/701/audio.mp3',
             'extracted_video_path' => 'private/section-publications/701/video.mp4',
         ]);

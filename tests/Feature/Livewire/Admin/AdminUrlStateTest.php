@@ -389,22 +389,22 @@ class AdminUrlStateTest extends TestCase
             'media_processing_log_id' => $run->id,
             'title' => 'Rejected Section',
             'section_type' => ServiceSectionType::WELCOME->value,
-            'publication_status' => ServiceSectionPublicationStatus::REJECTED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Rejected->value,
         ]);
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'title' => 'Pending Section',
             'section_type' => ServiceSectionType::WELCOME->value,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         Livewire::withQueryParams([
             'search' => 'Rejected',
-            'publicationStatus' => ServiceSectionPublicationStatus::REJECTED->value,
+            'publicationStatus' => ServiceSectionPublicationStatus::Rejected->value,
         ])->test(ListSectionPublications::class)
             ->assertSet('search', 'Rejected')
-            ->assertSet('publicationStatus', ServiceSectionPublicationStatus::REJECTED->value)
+            ->assertSet('publicationStatus', ServiceSectionPublicationStatus::Rejected->value)
             ->assertSee('Rejected Section')
             ->assertDontSee('Pending Section');
     }

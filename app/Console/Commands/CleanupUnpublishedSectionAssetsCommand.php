@@ -27,9 +27,9 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
         $cutoff = now()->subHours($hours);
 
         $targetStatuses = [
-            ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
-            ServiceSectionPublicationStatus::REJECTED->value,
-            ServiceSectionPublicationStatus::APPROVED->value,
+            ServiceSectionPublicationStatus::PendingApproval->value,
+            ServiceSectionPublicationStatus::Rejected->value,
+            ServiceSectionPublicationStatus::Approved->value,
         ];
 
         $sections = ServiceSection::query()

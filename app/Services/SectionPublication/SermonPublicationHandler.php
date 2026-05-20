@@ -112,7 +112,7 @@ class SermonPublicationHandler implements SectionPublicationHandler
             'sermons/audio/'.basename($audioPath),
         );
 
-        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PUBLISHED)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::Published)) {
             throw new \RuntimeException('Invalid state transition when publishing approved section');
         }
 

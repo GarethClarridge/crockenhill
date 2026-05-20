@@ -251,12 +251,12 @@ return new class extends Migration
 
                     $updates = [];
 
-                    if ($status === ServiceSectionStatus::Skipped->value && $publicationStatus !== ServiceSectionPublicationStatus::NOT_APPLICABLE->value) {
-                        $publicationStatus = ServiceSectionPublicationStatus::NOT_APPLICABLE->value;
+                    if ($status === ServiceSectionStatus::Skipped->value && $publicationStatus !== ServiceSectionPublicationStatus::NotApplicable->value) {
+                        $publicationStatus = ServiceSectionPublicationStatus::NotApplicable->value;
                         $updates['publication_status'] = $publicationStatus;
                     }
 
-                    if ($publicationStatus !== ServiceSectionPublicationStatus::PUBLISHED->value) {
+                    if ($publicationStatus !== ServiceSectionPublicationStatus::Published->value) {
                         if ($publishedSermonId !== null) {
                             $updates['published_sermon_id'] = null;
                         }
@@ -270,10 +270,10 @@ return new class extends Migration
 
                     if (
                         in_array($publicationStatus, [
-                            ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
-                            ServiceSectionPublicationStatus::APPROVED->value,
-                            ServiceSectionPublicationStatus::REJECTED->value,
-                            ServiceSectionPublicationStatus::PUBLISHED->value,
+                            ServiceSectionPublicationStatus::PendingApproval->value,
+                            ServiceSectionPublicationStatus::Approved->value,
+                            ServiceSectionPublicationStatus::Rejected->value,
+                            ServiceSectionPublicationStatus::Published->value,
                         ], true)
                         && $extractedAt === null
                         && is_string($section->extracted_video_path)

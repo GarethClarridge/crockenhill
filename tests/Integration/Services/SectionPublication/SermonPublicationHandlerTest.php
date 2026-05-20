@@ -71,7 +71,7 @@ class SermonPublicationHandlerTest extends TestCase
             'extracted_video_path' => null,
             'extracted_audio_path' => null,
             'extracted_at' => null,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertFalse($this->handler->hasReusableExtractedMedia($section));
@@ -91,7 +91,7 @@ class SermonPublicationHandlerTest extends TestCase
         $section = ServiceSection::factory()->create([
             'extracted_video_path' => $videoPath,
             'extracted_audio_path' => $audioPath,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertTrue($this->handler->hasReusableExtractedMedia($section));
@@ -104,12 +104,12 @@ class SermonPublicationHandlerTest extends TestCase
 
         $highConfidence = ServiceSection::factory()->create([
             'confidence' => 0.90,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $lowConfidence = ServiceSection::factory()->create([
             'confidence' => 0.50,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertTrue($this->handler->isEligible($highConfidence));
@@ -123,7 +123,7 @@ class SermonPublicationHandlerTest extends TestCase
 
         $lowConfidence = ServiceSection::factory()->create([
             'confidence' => 0.50,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertTrue($this->handler->isEligible($lowConfidence));
@@ -134,7 +134,7 @@ class SermonPublicationHandlerTest extends TestCase
     {
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->childrensTalkSpeakerService
@@ -150,7 +150,7 @@ class SermonPublicationHandlerTest extends TestCase
     {
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SERMON->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->childrensTalkSpeakerService
@@ -166,7 +166,7 @@ class SermonPublicationHandlerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
         $this->handler->onSectionRemoved($section);
@@ -182,7 +182,7 @@ class SermonPublicationHandlerTest extends TestCase
         Log::spy();
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->handler->onSectionRemoved($section);

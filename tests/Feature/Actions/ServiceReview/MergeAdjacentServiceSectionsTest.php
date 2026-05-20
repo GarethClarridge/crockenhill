@@ -106,7 +106,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $section1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::SONG,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED,
+            'publication_status' => ServiceSectionPublicationStatus::Published,
         ]);
         $section2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
@@ -292,7 +292,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
             'extracted_video_path' => 'path/to/video.mp4',
             'extracted_audio_path' => 'path/to/audio.mp3',
             'extracted_at' => now(),
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED,
+            'publication_status' => ServiceSectionPublicationStatus::Approved,
         ]);
 
         // Mock hasExtractedMedia to return true by making files exist
@@ -314,6 +314,6 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $this->assertNull($section1->extracted_video_path);
         $this->assertNull($section1->extracted_audio_path);
         $this->assertNull($section1->extracted_at);
-        $this->assertEquals(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section1->publication_status);
+        $this->assertEquals(ServiceSectionPublicationStatus::NotApplicable, $section1->publication_status);
     }
 }

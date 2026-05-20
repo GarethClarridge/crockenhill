@@ -66,13 +66,13 @@ class ServiceSectionFactory extends Factory
             }
 
             if ($section->published_sermon_id !== null || $section->published_at !== null) {
-                $section->publication_status = ServiceSectionPublicationStatus::PUBLISHED;
+                $section->publication_status = ServiceSectionPublicationStatus::Published;
             }
 
             if (
                 in_array($section->publication_status, [
-                    ServiceSectionPublicationStatus::APPROVED,
-                    ServiceSectionPublicationStatus::PUBLISHED,
+                    ServiceSectionPublicationStatus::Approved,
+                    ServiceSectionPublicationStatus::Published,
                 ], true)
             ) {
                 $section->extracted_video_path ??= 'sermons/sections/'.($section->id ?? 'pending').'/video.mp4';
@@ -80,7 +80,7 @@ class ServiceSectionFactory extends Factory
                 $section->extracted_at ??= now();
             }
 
-            if ($section->publication_status === ServiceSectionPublicationStatus::PUBLISHED) {
+            if ($section->publication_status === ServiceSectionPublicationStatus::Published) {
                 $section->published_sermon_id ??= Sermon::factory()->create()->id;
                 $section->published_at ??= now();
             }
@@ -116,7 +116,7 @@ class ServiceSectionFactory extends Factory
             'song_match_type' => null,
             'matched_item_id' => null,
             'expected_item_id' => null,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
             'published_sermon_id' => null,
             'published_at' => null,
             'extracted_video_path' => null,
