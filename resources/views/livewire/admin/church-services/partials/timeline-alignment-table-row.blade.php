@@ -142,15 +142,15 @@
     <td class="px-3 py-2 text-sm">
         @if($row['publication_status'] instanceof ServiceSectionPublicationStatus)
             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ match($row['publication_status']) {
-                ServiceSectionPublicationStatus::PENDING_APPROVAL => 'bg-amber-100 text-amber-800',
-                ServiceSectionPublicationStatus::APPROVED => 'bg-sky-100 text-sky-800',
-                ServiceSectionPublicationStatus::REJECTED => 'bg-rose-100 text-rose-800',
-                ServiceSectionPublicationStatus::PUBLISHED => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
+                ServiceSectionPublicationStatus::PendingApproval => 'bg-amber-100 text-amber-800',
+                ServiceSectionPublicationStatus::Approved => 'bg-sky-100 text-sky-800',
+                ServiceSectionPublicationStatus::Rejected => 'bg-rose-100 text-rose-800',
+                ServiceSectionPublicationStatus::Published => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
                 default => 'bg-gray-100 text-gray-700',
             } }}">
                 {{ $row['publication_status']->label() }}
             </span>
-            @if($row['publication_status'] === ServiceSectionPublicationStatus::PUBLISHED && $row['published_sermon'])
+            @if($row['publication_status'] === ServiceSectionPublicationStatus::Published && $row['published_sermon'])
                 @php
                     $publishedSermonUrl = $row['published_sermon']->content_type === SermonContentType::ChildrensTalk
                         ? route('childrens-corner.show', ['sermon' => $row['published_sermon']->slug])

@@ -79,7 +79,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'metadata' => ['confidence_level' => 'high'],
             'start_time' => 120.0,
             'end_time' => 420.0,
@@ -112,7 +112,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
         $this->assertFalse($section->needs_manual_review);
         $this->assertSame($expectedAudioPath, $section->extracted_audio_path);
         $this->assertSame('private/section-publications/'.$section->id.'/video.mp4', $section->extracted_video_path);
@@ -142,7 +142,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media_processing_log_id' => $processingLog->id,
             'section_type' => ServiceSectionType::SONG->value,
             'status' => ServiceSectionStatus::Identified->value,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
@@ -157,7 +157,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         );
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
         $this->assertNotNull($section->unpublished_expires_at);
     }
 
@@ -177,7 +177,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'confidence' => 0.72,
             'metadata' => ['confidence_level' => 'low'],
         ]);
@@ -194,7 +194,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         );
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $section->publication_status);
     }
 
     #[Test]
@@ -238,7 +238,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'metadata' => ['confidence_level' => 'high'],
             'start_time' => 120.0,
             'end_time' => 420.0,
@@ -271,7 +271,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
         $this->assertTrue($section->needs_manual_review);
         $this->assertSame('ambiguous', $section->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
         $this->assertArrayNotHasKey('reviewed', $section->metadata['childrens_talk_speaker'] ?? []);
@@ -319,7 +319,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'metadata' => [
                 'confidence_level' => 'high',
                 'review_reason' => 'demoted_secondary_sermon_to_childrens_talk',
@@ -357,7 +357,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
         $this->assertFalse($section->needs_manual_review);
         $this->assertSame($expectedAudioPath, $section->extracted_audio_path);
         $this->assertNotNull($section->extracted_video_path);
@@ -419,7 +419,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'metadata' => [
                 'confidence_level' => 'high',
                 'publication_candidate_extraction' => [
@@ -508,7 +508,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'section_type' => ServiceSectionType::SONG->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
             'metadata' => ['confidence_level' => 'high'],
             'start_time' => 60.0,
@@ -533,7 +533,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $section->refresh();
 
         // Song sections do NOT go to PENDING_APPROVAL — they dispatch auto-publish instead.
-        $this->assertNotSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertNotSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
         $this->assertNotNull($section->extracted_video_path);
         $this->assertNull($section->extracted_audio_path);
         $this->assertNotNull($section->extracted_at);
@@ -570,7 +570,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'section_type' => ServiceSectionType::SONG->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
         ]);
 
@@ -586,7 +586,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         );
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
 
         Bus::assertNotDispatched(AutoPublishServiceSection::class);
     }
@@ -623,7 +623,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'section_type' => ServiceSectionType::SONG->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
             'metadata' => ['confidence_level' => 'high'],
             'start_time' => 60.0,

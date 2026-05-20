@@ -80,10 +80,10 @@
                             <td class="px-4 py-3 text-sm">{{ ucfirst((string) $confidence) }}</td>
                             <td class="px-4 py-3 text-sm">
                                 <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ match($section->publication_status) {
-                                    \App\Enums\ServiceSectionPublicationStatus::PENDING_APPROVAL => 'bg-amber-100 text-amber-800',
-                                    \App\Enums\ServiceSectionPublicationStatus::APPROVED => 'bg-sky-100 text-sky-800',
-                                    \App\Enums\ServiceSectionPublicationStatus::REJECTED => 'bg-rose-100 text-rose-800',
-                                    \App\Enums\ServiceSectionPublicationStatus::PUBLISHED => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
+                                    \App\Enums\ServiceSectionPublicationStatus::PendingApproval => 'bg-amber-100 text-amber-800',
+                                    \App\Enums\ServiceSectionPublicationStatus::Approved => 'bg-sky-100 text-sky-800',
+                                    \App\Enums\ServiceSectionPublicationStatus::Rejected => 'bg-rose-100 text-rose-800',
+                                    \App\Enums\ServiceSectionPublicationStatus::Published => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
                                     default => 'bg-gray-100 text-gray-700',
                                 } }}">
                                     {{ $section->publication_status->label() }}
@@ -91,7 +91,7 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex items-center justify-end gap-2">
-                                    @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PENDING_APPROVAL)
+                                    @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PendingApproval)
                                         <x-form-button
                                             type="button"
                                             size="xs"
@@ -110,7 +110,7 @@
                                         >
                                             Reject
                                         </x-form-button>
-                                    @elseif($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::APPROVED)
+                                    @elseif($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::Approved)
                                         <x-form-button
                                             type="button"
                                             size="xs"
@@ -120,7 +120,7 @@
                                         >
                                             Reject
                                         </x-form-button>
-                                    @elseif($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::REJECTED)
+                                    @elseif($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::Rejected)
                                         <x-form-button
                                             type="button"
                                             size="xs"
@@ -130,7 +130,7 @@
                                         >
                                             Requeue
                                         </x-form-button>
-                                    @elseif($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PUBLISHED && $section->publishedSermon)
+                                    @elseif($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::Published && $section->publishedSermon)
                                         @php
                                             $publishedSermonUrl = $section->publishedSermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
                                                 ? route('childrens-corner.show', ['sermon' => $section->publishedSermon->slug])

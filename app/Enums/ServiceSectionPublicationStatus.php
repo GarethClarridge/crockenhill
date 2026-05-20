@@ -10,20 +10,20 @@ enum ServiceSectionPublicationStatus: string
 {
     use HasValues;
 
-    case NOT_APPLICABLE = 'not_applicable';
-    case PENDING_APPROVAL = 'pending_approval';
-    case APPROVED = 'approved';
-    case REJECTED = 'rejected';
-    case PUBLISHED = 'published';
+    case NotApplicable = 'not_applicable';
+    case PendingApproval = 'pending_approval';
+    case Approved = 'approved';
+    case Rejected = 'rejected';
+    case Published = 'published';
 
     public function label(): string
     {
         return match ($this) {
-            self::NOT_APPLICABLE => 'Not Applicable',
-            self::PENDING_APPROVAL => 'Pending Approval',
-            self::APPROVED => 'Approved',
-            self::REJECTED => 'Rejected',
-            self::PUBLISHED => 'Published',
+            self::NotApplicable => 'Not Applicable',
+            self::PendingApproval => 'Pending Approval',
+            self::Approved => 'Approved',
+            self::Rejected => 'Rejected',
+            self::Published => 'Published',
         };
     }
 }

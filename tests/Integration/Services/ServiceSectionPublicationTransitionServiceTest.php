@@ -49,14 +49,14 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
     public function it_allows_documented_publication_transitions(): void
     {
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $this->assertTrue(
-            $this->service->canTransition($section, ServiceSectionPublicationStatus::APPROVED)
+            $this->service->canTransition($section, ServiceSectionPublicationStatus::Approved)
         );
         $this->assertFalse(
-            $this->service->canTransition($section, ServiceSectionPublicationStatus::PUBLISHED)
+            $this->service->canTransition($section, ServiceSectionPublicationStatus::Published)
         );
     }
 
@@ -64,13 +64,13 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
     public function it_mutates_the_section_when_a_transition_is_valid(): void
     {
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
-        $result = $this->service->transition($section, ServiceSectionPublicationStatus::APPROVED);
+        $result = $this->service->transition($section, ServiceSectionPublicationStatus::Approved);
 
         $this->assertTrue($result);
-        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $section->publication_status);
     }
 
     #[Test]
@@ -79,13 +79,13 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
         Log::spy();
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
-        $result = $this->service->transition($section, ServiceSectionPublicationStatus::APPROVED);
+        $result = $this->service->transition($section, ServiceSectionPublicationStatus::Approved);
 
         $this->assertFalse($result);
-        $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
 
         Log::shouldHaveReceived('error')->once();
     }
@@ -94,11 +94,11 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
     public function published_sections_cannot_be_requeued_without_explicit_unpublish_logic(): void
     {
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
         $this->assertFalse(
-            $this->service->canTransition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL)
+            $this->service->canTransition($section, ServiceSectionPublicationStatus::PendingApproval)
         );
     }
 
@@ -106,16 +106,16 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
     public function not_applicable_sections_can_transition_directly_to_published(): void
     {
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertTrue(
-            $this->service->canTransition($section, ServiceSectionPublicationStatus::PUBLISHED)
+            $this->service->canTransition($section, ServiceSectionPublicationStatus::Published)
         );
 
-        $result = $this->service->transition($section, ServiceSectionPublicationStatus::PUBLISHED);
+        $result = $this->service->transition($section, ServiceSectionPublicationStatus::Published);
 
         $this->assertTrue($result);
-        $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
     }
 }

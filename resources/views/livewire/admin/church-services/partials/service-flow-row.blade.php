@@ -98,16 +98,16 @@
                     <span class="inline-block h-2 w-2 rounded-full bg-rose-400" title="No confidence"></span>
                 @endif
 
-                @if($item['publication_status'] instanceof ServiceSectionPublicationStatus && $item['publication_status'] !== ServiceSectionPublicationStatus::PENDING_APPROVAL)
+                @if($item['publication_status'] instanceof ServiceSectionPublicationStatus && $item['publication_status'] !== ServiceSectionPublicationStatus::PendingApproval)
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ match($item['publication_status']) {
-                        ServiceSectionPublicationStatus::APPROVED => 'bg-sky-100 text-sky-800',
-                        ServiceSectionPublicationStatus::REJECTED => 'bg-rose-100 text-rose-800',
-                        ServiceSectionPublicationStatus::PUBLISHED => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
+                        ServiceSectionPublicationStatus::Approved => 'bg-sky-100 text-sky-800',
+                        ServiceSectionPublicationStatus::Rejected => 'bg-rose-100 text-rose-800',
+                        ServiceSectionPublicationStatus::Published => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
                         default => 'bg-gray-100 text-gray-700',
                     } }}">
                         {{ $item['publication_status']->label() }}
                     </span>
-                @elseif($item['publication_status'] === ServiceSectionPublicationStatus::PENDING_APPROVAL)
+                @elseif($item['publication_status'] === ServiceSectionPublicationStatus::PendingApproval)
                     <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                         Pending approval
                     </span>
@@ -130,7 +130,7 @@
                 </p>
             @endif
 
-            @if($item['publication_status'] === ServiceSectionPublicationStatus::PUBLISHED && $item['published_sermon'])
+            @if($item['publication_status'] === ServiceSectionPublicationStatus::Published && $item['published_sermon'])
                 @php
                     $publishedSermonUrl = $item['published_sermon']->content_type === SermonContentType::ChildrensTalk
                         ? route('childrens-corner.show', ['sermon' => $item['published_sermon']->slug])

@@ -93,7 +93,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'title' => 'Clean Section',
             'needs_manual_review' => false,
             'confidence' => 0.99,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $groups = $this->query->reviewGroups();
@@ -164,7 +164,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 1,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'needs_manual_review' => false,
         ]);
 
@@ -172,7 +172,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 2,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'needs_manual_review' => true,
         ]);
 
@@ -196,7 +196,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_audio_path' => 'private/section-publications/501/audio.mp3',
             'extracted_video_path' => 'private/section-publications/501/video.mp4',
         ]);
@@ -224,7 +224,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
             'published_sermon_id' => $sermon->id,
             'needs_manual_review' => true,
             'extracted_audio_path' => 'private/section-publications/502/audio.mp3',
@@ -255,7 +255,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'needs_manual_review' => true,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $groups = $this->query->reviewGroups();
@@ -303,7 +303,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'needs_manual_review' => false,
             'confidence' => 0.99,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $reasons = $this->query->reviewReasons($section);
@@ -321,7 +321,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'needs_manual_review' => false,
             'confidence' => ServiceSectionConfidence::HIGH_THRESHOLD - 0.01,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $reasons = $this->query->reviewReasons($section);
@@ -347,7 +347,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'needs_manual_review' => true,
             'confidence' => 0.99,
             'song_match_type' => 'inferred',
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'metadata' => ['oos_alignment' => ['song_match_type' => 'inferred']],
         ]);
 
@@ -371,7 +371,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'needs_manual_review' => true,
             'confidence' => 0.99,
             'song_match_type' => 'unmatched',
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'metadata' => ['oos_alignment' => ['song_match_type' => 'unmatched']],
         ]);
 
@@ -390,7 +390,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'needs_manual_review' => false,
             'confidence' => 0.99,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertFalse($this->query->isReviewCandidate($section));
@@ -418,7 +418,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'needs_manual_review' => false,
             'confidence' => 0.99,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $this->assertNull($this->query->batchApprovalSkipReason($section));
@@ -432,7 +432,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'needs_manual_review' => true,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $this->assertSame('blocked by other review flags', $this->query->batchApprovalSkipReason($section));
@@ -447,7 +447,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'needs_manual_review' => false,
             'confidence' => 0.99,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'metadata' => [
                 'confidence_level' => 'high',
                 'review_flags' => ['heuristic_demotion'],
@@ -484,12 +484,12 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         $matchedSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $otherRun->id,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $result = $this->query->pendingPublicationSectionsForService($service);

@@ -123,13 +123,13 @@ class ServiceReviewDashboardQuery
             });
 
             $group['pending_approval_count'] = collect($group['sections'])
-                ->filter(fn (array $entry): bool => $entry['section']->publication_status === ServiceSectionPublicationStatus::PENDING_APPROVAL)
+                ->filter(fn (array $entry): bool => $entry['section']->publication_status === ServiceSectionPublicationStatus::PendingApproval)
                 ->count();
             $group['batch_ready_count'] = collect($group['sections'])
                 ->filter(function (array $entry): bool {
                     $section = $entry['section'];
 
-                    return $section->publication_status === ServiceSectionPublicationStatus::PENDING_APPROVAL
+                    return $section->publication_status === ServiceSectionPublicationStatus::PendingApproval
                         && $this->batchApprovalSkipReason($section) === null;
                 })
                 ->count();
@@ -200,7 +200,7 @@ class ServiceReviewDashboardQuery
                 'churchServiceItem:id,church_service_id,title,song_id,type',
                 'churchServiceItem.churchService:id,date,service,needs_review',
             ])
-            ->where('publication_status', ServiceSectionPublicationStatus::PENDING_APPROVAL->value)
+            ->where('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
             ->where(function (Builder $query) use ($service): void {
                 $query->whereHas('processingLog', function (Builder $query) use ($service): void {
                     $query->where('church_service_id', $service->id)
@@ -242,7 +242,7 @@ class ServiceReviewDashboardQuery
             ];
         }
 
-        if ($section->publication_status === ServiceSectionPublicationStatus::PENDING_APPROVAL) {
+        if ($section->publication_status === ServiceSectionPublicationStatus::PendingApproval) {
             $reasons[] = [
                 'key' => 'pending_approval',
                 'label' => 'Pending approval',
@@ -321,7 +321,7 @@ class ServiceReviewDashboardQuery
             ])
             ->where(function (Builder $query): void {
                 $query->where('needs_manual_review', true)
-                    ->orWhere('publication_status', ServiceSectionPublicationStatus::PENDING_APPROVAL->value)
+                    ->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
                     ->orWhere('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD)
                     ->orWhere(function (Builder $query): void {
                         $query->where('section_type', ServiceSectionType::SONG->value)
@@ -473,7 +473,7 @@ class ServiceReviewDashboardQuery
         }
 
         if (
-            $section->publication_status === ServiceSectionPublicationStatus::PUBLISHED
+            $section->publication_status === ServiceSectionPublicationStatus::Published
             || $section->published_sermon_id !== null
         ) {
             return null;

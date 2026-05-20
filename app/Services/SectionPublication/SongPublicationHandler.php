@@ -124,7 +124,7 @@ class SongPublicationHandler implements SectionPublicationHandler
 
         $this->songVideoService->createFromExtraction($section, $promotedPath);
 
-        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PUBLISHED)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::Published)) {
             throw new \RuntimeException('Invalid state transition when publishing song section');
         }
 

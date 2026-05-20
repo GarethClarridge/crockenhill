@@ -170,7 +170,7 @@ class ServiceSectionSchemaTest extends TestCase
         $sermon = Sermon::factory()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
             'published_sermon_id' => $sermon->id,
             'published_at' => now(),
             'extracted_video_path' => 'sermons/sections/10/video.mp4',
@@ -195,7 +195,7 @@ class ServiceSectionSchemaTest extends TestCase
         $sermon = Sermon::factory()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'published_sermon_id' => null,
             'published_at' => null,
             'extracted_video_path' => 'sermons/sections/11/video.mp4',
@@ -219,7 +219,7 @@ class ServiceSectionSchemaTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'extracted_video_path' => 'sermons/sections/12/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-12.mp3',
             'extracted_at' => now(),
@@ -246,7 +246,7 @@ class ServiceSectionSchemaTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'status' => ServiceSectionStatus::Skipped->value,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/12/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-12.mp3',
             'extracted_at' => now(),
@@ -260,7 +260,7 @@ class ServiceSectionSchemaTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'section_type' => ServiceSectionType::SERMON->value,
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'extracted_video_path' => 'sermons/sections/13/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-13.mp3',
             'extracted_at' => now(),

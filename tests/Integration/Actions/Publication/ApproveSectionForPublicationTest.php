@@ -39,7 +39,7 @@ class ApproveSectionForPublicationTest extends TestCase
         return ServiceSection::factory()->create(array_merge([
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::WELCOME->value,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/1/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-1.mp3',
         ], $attributes));
@@ -137,7 +137,7 @@ class ApproveSectionForPublicationTest extends TestCase
 
         $section->refresh();
         $metadata = $section->metadata?->toArray() ?? [];
-        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $section->publication_status);
         $this->assertArrayHasKey('publication', $metadata);
         $this->assertArrayHasKey('approved_signature', $metadata['publication']);
         $this->assertArrayHasKey('approved_at', $metadata['publication']);
@@ -182,7 +182,7 @@ class ApproveSectionForPublicationTest extends TestCase
 
         // PUBLISHED → APPROVED is not an allowed transition
         $section = $this->makePendingSection([
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
             'extracted_video_path' => 'sermons/sections/12/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-12.mp3',
         ]);

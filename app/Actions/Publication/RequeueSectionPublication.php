@@ -21,7 +21,7 @@ class RequeueSectionPublication
      */
     public function execute(ServiceSection $section): bool
     {
-        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PendingApproval)) {
             return false;
         }
 

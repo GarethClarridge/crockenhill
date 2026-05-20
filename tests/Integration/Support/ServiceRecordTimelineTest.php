@@ -477,7 +477,7 @@ class ServiceRecordTimelineTest extends TestCase
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
             'section_order' => 1,
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'metadata' => [],
         ]);
 
@@ -485,7 +485,7 @@ class ServiceRecordTimelineTest extends TestCase
 
         $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
 
-        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $rows[0]['publication_status']);
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $rows[0]['publication_status']);
     }
 
     // -------------------------------------------------------------------------

@@ -126,7 +126,7 @@ class SongVideoServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SONG->value,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
         $video = SongVideo::factory()->create([
@@ -140,7 +140,7 @@ class SongVideoServiceTest extends TestCase
         Storage::disk('public')->assertMissing($videoPath);
 
         $section->refresh();
-        $this->assertEquals(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertEquals(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
         $this->assertNull($section->published_at);
     }
 
@@ -155,7 +155,7 @@ class SongVideoServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SONG->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $video = SongVideo::factory()->create([
@@ -166,7 +166,7 @@ class SongVideoServiceTest extends TestCase
         $this->service->deleteVideo($video);
 
         $section->refresh();
-        $this->assertEquals(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertEquals(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
     }
 
     #[Test]
@@ -211,7 +211,7 @@ class SongVideoServiceTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'start_time' => 100.0,
             'end_time' => 340.5,
         ]);

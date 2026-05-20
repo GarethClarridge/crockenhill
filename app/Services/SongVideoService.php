@@ -107,11 +107,11 @@ class SongVideoService
             return;
         }
 
-        if ($section->publication_status !== ServiceSectionPublicationStatus::PUBLISHED) {
+        if ($section->publication_status !== ServiceSectionPublicationStatus::Published) {
             return;
         }
 
-        $section->publication_status = ServiceSectionPublicationStatus::NOT_APPLICABLE;
+        $section->publication_status = ServiceSectionPublicationStatus::NotApplicable;
         $section->published_at = null;
         $section->published_sermon_id = null;
         $section->save();

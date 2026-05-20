@@ -32,7 +32,7 @@ class ExpireSectionPublicationAssetsTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/40/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-40.mp3',
             'extracted_at' => now()->subHours(72),
@@ -42,7 +42,7 @@ class ExpireSectionPublicationAssetsTest extends TestCase
         $this->action->execute($section, ['reason' => 'asset_expiry', 'cleaned_by' => 'scheduler']);
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
         $this->assertNull($section->extracted_video_path);
         $this->assertNull($section->extracted_audio_path);
         $this->assertNull($section->extracted_at);
@@ -55,7 +55,7 @@ class ExpireSectionPublicationAssetsTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'extracted_at' => now()->subHours(24),
             'unpublished_expires_at' => now()->subHour(),
         ]);
@@ -68,7 +68,7 @@ class ExpireSectionPublicationAssetsTest extends TestCase
         $this->assertIsArray($cleanup);
         $this->assertSame('asset_expiry', $cleanup['reason']);
         $this->assertSame('scheduler', $cleanup['cleaned_by']);
-        $this->assertSame(ServiceSectionPublicationStatus::APPROVED->value, $cleanup['previous_status']);
+        $this->assertSame(ServiceSectionPublicationStatus::Approved->value, $cleanup['previous_status']);
         $this->assertArrayHasKey('cleaned_at', $cleanup);
     }
 
@@ -80,7 +80,7 @@ class ExpireSectionPublicationAssetsTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/41/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-41.mp3',
         ]);
@@ -90,7 +90,7 @@ class ExpireSectionPublicationAssetsTest extends TestCase
         Storage::shouldNotHaveReceived('delete');
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
     }
 
     #[Test]
@@ -101,13 +101,13 @@ class ExpireSectionPublicationAssetsTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->action->execute($section, ['reason' => 'idempotent_retry', 'cleaned_by' => 'scheduler']);
 
         $section->refresh();
-        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
         $this->assertSame('idempotent_retry', $section->metadata['cleanup']['reason'] ?? null);
     }
 }

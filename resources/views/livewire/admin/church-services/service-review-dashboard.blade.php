@@ -133,8 +133,8 @@
                                 $isMergeCandidate = $nextSection !== null
                                     && $nextSection->section_type === $section->section_type
                                     && abs($nextSection->start_time - $section->end_time) <= 2
-                                    && $section->publication_status !== \App\Enums\ServiceSectionPublicationStatus::PUBLISHED
-                                    && $nextSection->publication_status !== \App\Enums\ServiceSectionPublicationStatus::PUBLISHED;
+                                    && $section->publication_status !== \App\Enums\ServiceSectionPublicationStatus::Published
+                                    && $nextSection->publication_status !== \App\Enums\ServiceSectionPublicationStatus::Published;
                             @endphp
                             <div wire:key="service-review-section-{{ $section->id }}" class="rounded-lg border border-gray-200 bg-gray-50 p-4">
                                 <div class="flex flex-wrap items-start justify-between gap-4">
@@ -213,7 +213,7 @@
                                     </div>
 
                                     <div class="flex flex-wrap gap-2">
-                                        @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PENDING_APPROVAL)
+                                        @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PendingApproval)
                                             <x-form-button
                                                 type="button"
                                                 size="xs"
@@ -226,8 +226,8 @@
                                         @endif
 
                                         @if(in_array($section->publication_status, [
-                                            \App\Enums\ServiceSectionPublicationStatus::PENDING_APPROVAL,
-                                            \App\Enums\ServiceSectionPublicationStatus::APPROVED,
+                                            \App\Enums\ServiceSectionPublicationStatus::PendingApproval,
+                                            \App\Enums\ServiceSectionPublicationStatus::Approved,
                                         ], true))
                                             <x-form-button
                                                 type="button"
@@ -240,7 +240,7 @@
                                             </x-form-button>
                                         @endif
 
-                                        @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::REJECTED)
+                                        @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::Rejected)
                                             <x-form-button
                                                 type="button"
                                                 size="xs"

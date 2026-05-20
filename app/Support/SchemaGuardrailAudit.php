@@ -209,21 +209,21 @@ class SchemaGuardrailAudit
         return ServiceSection::query()
             ->where(function ($query): void {
                 $query->where(function ($query): void {
-                    $query->where('publication_status', ServiceSectionPublicationStatus::PUBLISHED->value)
+                    $query->where('publication_status', ServiceSectionPublicationStatus::Published->value)
                         ->where(function ($query): void {
                             $query->whereNull('published_sermon_id')
                                 ->orWhereNull('published_at');
                         });
                 })->orWhere(function ($query): void {
-                    $query->where('publication_status', '!=', ServiceSectionPublicationStatus::PUBLISHED->value)
+                    $query->where('publication_status', '!=', ServiceSectionPublicationStatus::Published->value)
                         ->where(function ($query): void {
                             $query->whereNotNull('published_sermon_id')
                                 ->orWhereNotNull('published_at');
                         });
                 })->orWhere(function ($query): void {
                     $query->whereIn('publication_status', [
-                        ServiceSectionPublicationStatus::APPROVED->value,
-                        ServiceSectionPublicationStatus::PUBLISHED->value,
+                        ServiceSectionPublicationStatus::Approved->value,
+                        ServiceSectionPublicationStatus::Published->value,
                     ])->where(function ($query): void {
                         $query->whereNull('extracted_video_path')
                             ->orWhereNull('extracted_audio_path')
@@ -231,7 +231,7 @@ class SchemaGuardrailAudit
                     });
                 })->orWhere(function ($query): void {
                     $query->where('status', ServiceSectionStatus::Skipped->value)
-                        ->where('publication_status', '!=', ServiceSectionPublicationStatus::NOT_APPLICABLE->value);
+                        ->where('publication_status', '!=', ServiceSectionPublicationStatus::NotApplicable->value);
                 });
             })
             ->count();

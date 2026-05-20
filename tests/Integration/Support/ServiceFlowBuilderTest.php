@@ -382,12 +382,12 @@ class ServiceFlowBuilderTest extends TestCase
 
         $row = $this->makeRow([
             'section_type' => ServiceSectionType::SERMON,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED,
+            'publication_status' => ServiceSectionPublicationStatus::Published,
         ]);
 
         $flow = ServiceFlowBuilder::build([$row], $run);
 
-        $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $flow[0]['publication_status']);
+        $this->assertSame(ServiceSectionPublicationStatus::Published, $flow[0]['publication_status']);
     }
 
     // -------------------------------------------------------------------------

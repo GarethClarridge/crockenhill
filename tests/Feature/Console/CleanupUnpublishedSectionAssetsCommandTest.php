@@ -27,7 +27,7 @@ class CleanupUnpublishedSectionAssetsCommandTest extends TestCase
         ]);
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'published_sermon_id' => null,
             'extracted_video_path' => 'sermons/sections/70/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-70.mp3',
@@ -61,7 +61,7 @@ class CleanupUnpublishedSectionAssetsCommandTest extends TestCase
         ]);
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'published_sermon_id' => null,
             'extracted_video_path' => 'sermons/sections/71/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-71.mp3',
@@ -95,7 +95,7 @@ class CleanupUnpublishedSectionAssetsCommandTest extends TestCase
         ]);
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'published_sermon_id' => null,
             'extracted_video_path' => 'sermons/sections/72/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-72.mp3',
@@ -109,7 +109,7 @@ class CleanupUnpublishedSectionAssetsCommandTest extends TestCase
         $this->artisan('media:cleanup-unpublished-section-assets')->assertSuccessful();
 
         $section->refresh();
-        $this->assertEquals(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertEquals(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
     }
 
     #[Test]
@@ -124,7 +124,7 @@ class CleanupUnpublishedSectionAssetsCommandTest extends TestCase
         ]);
 
         $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'published_sermon_id' => null,
             'extracted_video_path' => 'sermons/sections/73/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-73.mp3',
@@ -136,7 +136,7 @@ class CleanupUnpublishedSectionAssetsCommandTest extends TestCase
 
         $section->refresh();
         $metadata = $section->metadata?->toArray() ?? [];
-        $this->assertEquals(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertEquals(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
         $this->assertArrayHasKey('cleanup', $metadata);
         $this->assertEquals('asset_expiry', $metadata['cleanup']['reason']);
         $this->assertEquals('scheduler', $metadata['cleanup']['cleaned_by']);

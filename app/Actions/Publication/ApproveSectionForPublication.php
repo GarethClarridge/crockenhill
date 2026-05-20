@@ -35,7 +35,7 @@ class ApproveSectionForPublication
             return $error;
         }
 
-        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::APPROVED)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::Approved)) {
             return 'This section cannot be approved in its current state.';
         }
 

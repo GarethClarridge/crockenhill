@@ -119,7 +119,7 @@ class SaveServiceSectionTest extends TestCase
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::SONG->value,
             'needs_manual_review' => true,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $this->action->execute(
@@ -131,7 +131,7 @@ class SaveServiceSectionTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
     }
 
     #[Test]
@@ -147,7 +147,7 @@ class SaveServiceSectionTest extends TestCase
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'title' => "Children's Talk",
             'needs_manual_review' => true,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => 'sections/video.mp4',
             'extracted_audio_path' => 'sections/audio.mp3',
             'metadata' => [
@@ -173,7 +173,7 @@ class SaveServiceSectionTest extends TestCase
         $section->refresh();
 
         $this->assertFalse($section->needs_manual_review);
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
     }
 
     #[Test]
@@ -190,7 +190,7 @@ class SaveServiceSectionTest extends TestCase
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'title' => "Children's Talk",
             'needs_manual_review' => true,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => null,
             'extracted_audio_path' => null,
             'metadata' => [
@@ -210,7 +210,7 @@ class SaveServiceSectionTest extends TestCase
         $section->refresh();
 
         $this->assertFalse($section->needs_manual_review);
-        $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
         Bus::assertDispatched(PrepareSectionPublicationCandidates::class);
     }
 
@@ -274,7 +274,7 @@ class SaveServiceSectionTest extends TestCase
             'title' => 'Old Title',
             'needs_manual_review' => false,
             'confidence' => 0.99,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->action->execute(

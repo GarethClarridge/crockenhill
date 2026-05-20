@@ -606,7 +606,7 @@ class AdminChurchServiceTest extends TestCase
                     'confidence_level' => 'low',
                     'review_reason' => 'expected_type_mismatch',
                 ],
-                'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL,
+                'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
             ])
             ->create();
 
@@ -625,7 +625,7 @@ class AdminChurchServiceTest extends TestCase
                 'metadata' => [
                     'confidence_level' => 'high',
                 ],
-                'publication_status' => ServiceSectionPublicationStatus::PUBLISHED,
+                'publication_status' => ServiceSectionPublicationStatus::Published,
             ])
             ->create();
 

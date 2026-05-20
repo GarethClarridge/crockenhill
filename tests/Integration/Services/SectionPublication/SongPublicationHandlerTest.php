@@ -67,7 +67,7 @@ class SongPublicationHandlerTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => $videoPath,
             'extracted_audio_path' => 'private/section-publications/audio.mp3',
             'extracted_at' => now(),
@@ -97,7 +97,7 @@ class SongPublicationHandlerTest extends TestCase
             'extracted_video_path' => null,
             'extracted_audio_path' => null,
             'extracted_at' => null,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertFalse($this->handler->hasReusableExtractedMedia($section));
@@ -114,7 +114,7 @@ class SongPublicationHandlerTest extends TestCase
         $section = ServiceSection::factory()->create([
             'extracted_video_path' => $videoPath,
             'extracted_audio_path' => null,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertTrue($this->handler->hasReusableExtractedMedia($section));
@@ -133,7 +133,7 @@ class SongPublicationHandlerTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertTrue($this->handler->isEligible($section));
@@ -152,7 +152,7 @@ class SongPublicationHandlerTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::INFERRED->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertTrue($this->handler->isEligible($section));
@@ -171,7 +171,7 @@ class SongPublicationHandlerTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertFalse($this->handler->isEligible($section));
@@ -188,7 +188,7 @@ class SongPublicationHandlerTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertFalse($this->handler->isEligible($section));
@@ -201,7 +201,7 @@ class SongPublicationHandlerTest extends TestCase
             'church_service_item_id' => null,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->assertFalse($this->handler->isEligible($section));
@@ -226,7 +226,7 @@ class SongPublicationHandlerTest extends TestCase
         $this->handler->publish($section);
 
         $section->refresh();
-        $this->assertEquals(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
+        $this->assertEquals(ServiceSectionPublicationStatus::Published, $section->publication_status);
         $this->assertNotNull($section->published_at);
         $this->assertNull($section->unpublished_expires_at);
 
@@ -258,7 +258,7 @@ class SongPublicationHandlerTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => 'private/section-publications/99/video.mp4',
             'extracted_audio_path' => null,
             'extracted_at' => now(),
@@ -290,7 +290,7 @@ class SongPublicationHandlerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SONG->value,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
         $songVideo = SongVideo::factory()->create([
@@ -315,7 +315,7 @@ class SongPublicationHandlerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SONG->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->handler->onSectionRemoved($section);
@@ -328,7 +328,7 @@ class SongPublicationHandlerTest extends TestCase
     {
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SONG->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         // Should not throw or do anything.
@@ -442,7 +442,7 @@ class SongPublicationHandlerTest extends TestCase
         $this->handler->publish($section);
 
         $section->refresh();
-        $this->assertEquals(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
+        $this->assertEquals(ServiceSectionPublicationStatus::Published, $section->publication_status);
         $this->assertNotNull($section->published_at);
 
         $songVideo = SongVideo::query()->where('service_section_id', $section->id)->first();

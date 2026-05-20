@@ -29,7 +29,7 @@ class ExpireSectionPublicationAssets
     {
         $previousStatus = $section->publication_status->value;
 
-        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::NOT_APPLICABLE)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::NotApplicable)) {
             throw new \RuntimeException(
                 "Failed to transition section #{$section->id} from {$previousStatus} to not_applicable."
             );

@@ -21,7 +21,7 @@ class RejectSectionPublication
      */
     public function execute(ServiceSection $section): bool
     {
-        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::REJECTED)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::Rejected)) {
             return false;
         }
 

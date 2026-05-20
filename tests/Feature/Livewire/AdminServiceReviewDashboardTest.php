@@ -76,7 +76,7 @@ class AdminServiceReviewDashboardTest extends TestCase
                     'song_match_type' => 'unmatched',
                 ],
             ],
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $this->get(route('admin.services.review'))
@@ -220,7 +220,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 1,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'.mp3',
         ]);
@@ -229,7 +229,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 2,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         Storage::disk('public')->put('sermons/sections/'.$run->id.'/video.mp4', 'video');
@@ -244,8 +244,8 @@ class AdminServiceReviewDashboardTest extends TestCase
         $approveSection->refresh();
         $rejectSection->refresh();
 
-        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $approveSection->publication_status);
-        $this->assertSame(ServiceSectionPublicationStatus::REJECTED, $rejectSection->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $approveSection->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Rejected, $rejectSection->publication_status);
         Queue::assertPushed(PublishApprovedServiceSection::class);
     }
 
@@ -261,14 +261,14 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'publication_status' => ServiceSectionPublicationStatus::REJECTED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Rejected->value,
         ]);
 
         Livewire::test(ServiceReviewDashboard::class)
             ->call('requeue', $section->id)
             ->assertDispatched('notify', type: 'success', message: 'Section moved back to pending approval.');
 
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->fresh()->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->fresh()->publication_status);
     }
 
     #[Test]
@@ -310,7 +310,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'media_processing_log_id' => $run->id,
             'needs_manual_review' => false,
             'confidence' => 0.98,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'section_type' => ServiceSectionType::WELCOME->value,
         ]);
 
@@ -372,7 +372,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 100.0,
             'end_time' => 107.0,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -383,7 +383,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 107.0,
             'end_time' => 231.0,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         Livewire::test(ServiceReviewDashboard::class)
@@ -408,7 +408,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 0.0,
             'end_time' => 15.0,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -419,7 +419,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 15.0,
             'end_time' => 195.0,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         Livewire::test(ServiceReviewDashboard::class)
@@ -444,7 +444,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 100.0,
             'end_time' => 107.0,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $second = ServiceSection::factory()->create([
@@ -455,7 +455,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 107.0,
             'end_time' => 231.0,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         Livewire::test(ServiceReviewDashboard::class)
@@ -482,7 +482,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 100.0,
             'end_time' => 107.0,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $second = ServiceSection::factory()->create([
@@ -493,7 +493,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 107.0,
             'end_time' => 231.0,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         Livewire::test(ServiceReviewDashboard::class)
@@ -599,7 +599,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 100.0,
             'end_time' => 107.0,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
         $second = ServiceSection::factory()->create([
@@ -609,7 +609,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => true,
             'start_time' => 107.0,
             'end_time' => 231.0,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         Livewire::test(ServiceReviewDashboard::class)
@@ -718,7 +718,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
             'title' => "Children's Talk",
             'needs_manual_review' => true,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => 'sermons/sections/speaker-test/video.mp4',
             'extracted_audio_path' => 'sermons/audio/speaker-test.mp3',
             'metadata' => [
@@ -741,7 +741,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         $section->refresh();
 
         $this->assertFalse($section->needs_manual_review);
-        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
         $this->assertSame('Rev Override', $section->metadata['childrens_talk_speaker']['reviewed']['preacher_name'] ?? null);
     }
 
@@ -769,7 +769,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 1,
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/batch-journey/video.mp4',
             'extracted_audio_path' => 'sermons/audio/batch-journey.mp3',
         ]);
@@ -781,7 +781,7 @@ class AdminServiceReviewDashboardTest extends TestCase
             ->call('approvePendingPublications', $service->id)
             ->assertDispatched('notify', type: 'success', message: 'Approved all 1 pending publication for this service.');
 
-        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->fresh()->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $section->fresh()->publication_status);
         Queue::assertPushed(PublishApprovedServiceSection::class);
     }
 }

@@ -58,7 +58,7 @@ class AutoPublishServiceSection implements ShouldQueue
                 return;
             }
 
-            if ($section->publication_status === ServiceSectionPublicationStatus::PUBLISHED) {
+            if ($section->publication_status === ServiceSectionPublicationStatus::Published) {
                 return;
             }
 

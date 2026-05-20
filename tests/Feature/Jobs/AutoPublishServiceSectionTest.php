@@ -49,7 +49,7 @@ class AutoPublishServiceSectionTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => $videoPath,
             'extracted_audio_path' => null,
             'extracted_at' => now(),
@@ -61,7 +61,7 @@ class AutoPublishServiceSectionTest extends TestCase
         );
 
         $section->refresh();
-        $this->assertEquals(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
+        $this->assertEquals(ServiceSectionPublicationStatus::Published, $section->publication_status);
         $this->assertNotNull($section->published_at);
 
         $songVideo = SongVideo::query()->where('service_section_id', $section->id)->first();
@@ -74,7 +74,7 @@ class AutoPublishServiceSectionTest extends TestCase
     {
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SONG->value,
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
         $initialCount = SongVideo::count();
@@ -93,7 +93,7 @@ class AutoPublishServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SONG->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         (new AutoPublishServiceSection($section->id))->handle(
@@ -101,7 +101,7 @@ class AutoPublishServiceSectionTest extends TestCase
         );
 
         $section->refresh();
-        $this->assertEquals(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertEquals(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
     }
 
     #[Test]
@@ -111,7 +111,7 @@ class AutoPublishServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SONG->value,
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
         $this->expectException(\RuntimeException::class);
