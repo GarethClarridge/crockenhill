@@ -251,7 +251,7 @@ class ViewComposerTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('Learn about Sunday Evenings', $view);
-        $this->assertStringContainsString('bg-[linear-gradient(120deg,theme(colors.cbc-teal.DEFAULT)_0%,theme(colors.cbc-teal.dark)_55%,#0e3a3c_100%)]', $view);
+        $this->assertStringContainsString('bg-[linear-gradient(120deg,var(--color-cbc-teal)_0%,var(--color-cbc-teal-dark)_55%,#0e3a3c_100%)]', $view);
         $this->assertStringContainsString('justify-between', $view);
     }
 
@@ -271,7 +271,7 @@ class ViewComposerTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('[grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]', $view);
-        $this->assertStringContainsString('bg-[linear-gradient(120deg,theme(colors.cbc-teal.DEFAULT)_0%,theme(colors.cbc-teal.dark)_55%,#0e3a3c_100%)]', $view);
+        $this->assertStringContainsString('bg-[linear-gradient(120deg,var(--color-cbc-teal)_0%,var(--color-cbc-teal-dark)_55%,#0e3a3c_100%)]', $view);
         $this->assertStringContainsString('View Sermon', $view);
     }
 
