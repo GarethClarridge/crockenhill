@@ -110,7 +110,7 @@ class PixianClient
         Log::warning('Pixian background removal failed', [
             'image_path' => self::sanitizeForLog($imagePath),
             'status' => $response->status(),
-            'body' => self::sanitizeForLog(is_string($body) ? $body : (string) json_encode($response->json())),
+            'body' => self::sanitizeForLog($body !== '' ? $body : (string) json_encode($response->json())),
             'request_id' => self::sanitizeForLog((string) $this->extractRequestId($response)),
         ]);
     }
