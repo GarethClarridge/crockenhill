@@ -69,8 +69,6 @@ class ListPages extends Component
      */
     public function delete(Page $page): void
     {
-        $this->authorizeAdmin();
-
         $this->adminDelete(
             model: $page,
             logAction: 'Page deleted by admin',
@@ -90,8 +88,6 @@ class ListPages extends Component
      */
     public function deleteSelected(): void
     {
-        $this->authorizeAdmin();
-
         if (empty($this->selected)) {
             return;
         }

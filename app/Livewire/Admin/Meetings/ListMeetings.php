@@ -70,8 +70,6 @@ class ListMeetings extends Component
      */
     public function delete(Meeting $meeting): void
     {
-        $this->authorizeAdmin();
-
         $this->adminDelete(
             model: $meeting,
             logAction: 'Meeting deleted by admin',

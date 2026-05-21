@@ -94,8 +94,6 @@ class ListSermons extends Component
      */
     public function delete(Sermon $sermon): void
     {
-        $this->authorizeAdmin();
-
         $this->adminDelete(
             model: $sermon,
             logAction: 'Sermon deleted by admin',

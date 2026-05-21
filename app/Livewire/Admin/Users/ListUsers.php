@@ -68,8 +68,6 @@ class ListUsers extends Component
      */
     public function delete(User $user): void
     {
-        $this->authorizeAdmin();
-
         if ($user->id === auth()->id()) {
             $this->error('Cannot delete yourself');
 
@@ -95,8 +93,6 @@ class ListUsers extends Component
      */
     public function toggleAdmin(User $user): void
     {
-        $this->authorizeAdmin();
-
         if ($user->id === auth()->id()) {
             $this->error('Cannot modify your own admin status');
 

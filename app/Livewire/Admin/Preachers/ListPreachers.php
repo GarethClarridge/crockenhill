@@ -61,8 +61,6 @@ class ListPreachers extends Component
      */
     public function delete(Preacher $preacher): void
     {
-        $this->authorizeAdmin();
-
         $this->adminDelete(
             model: $preacher,
             logAction: 'Preacher deleted by admin',
