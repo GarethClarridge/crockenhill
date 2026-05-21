@@ -273,10 +273,10 @@ Target files:
 
 Tasks:
 
-- [ ] Replace hand-rolled amber alert markup with `<x-alert type="warning" title="...">`. Read `docs/design-style-guide.md` and activate the `frontend-design` skill first.
-- [ ] Build `<x-metadata-list :items="[['label' => ..., 'value' => ...], ...]" />`.
-- [ ] Register it in `/dev/components` so the gallery reflects the new component.
-- [ ] Migrate the three view sites to use it.
+- [x] Replace hand-rolled amber alert markup with `<x-alert type="warning" title="...">`. Read `docs/design-style-guide.md` and activate the `frontend-design` skill first.
+- [x] Build `<x-metadata-list :items="[['label' => ..., 'value' => ...], ...]" />`.
+- [x] Register it in `/dev/components` so the gallery reflects the new component.
+- [x] Migrate the three view sites to use it.
 
 Exit criteria:
 

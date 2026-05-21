@@ -122,7 +122,7 @@ class AdminSermonTest extends TestCase
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
             ->assertSee('Preacher review required')
-            ->assertSee('No speaker could be automatically identified');
+            ->assertSee('No preacher could be automatically identified');
     }
 
     #[Test]

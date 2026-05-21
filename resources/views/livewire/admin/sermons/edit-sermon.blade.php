@@ -49,26 +49,14 @@
             </div>
 
             @if($sermon->needs_preacher_review)
-                <div class="rounded-md bg-amber-50 border border-amber-200 p-4">
-                    <div class="flex gap-3">
-                        <x-heroicon-o-exclamation-triangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                        <div class="text-sm text-amber-800">
-                            <p class="font-medium mb-1">{{ $isChildrensTalk ? 'Speaker review required' : 'Preacher review required' }}</p>
-                            @if($sermon->preacher_source === \App\Enums\PreacherSource::SpeakerModel && $sermon->preacher_confidence !== null)
-                                <p>The AI identified a {{ $isChildrensTalk ? 'speaker' : 'preacher' }} with {{ round($sermon->preacher_confidence * 100) }}% confidence. Please verify and confirm or correct the assignment below.</p>
-                            @else
-                                <p>
-                                    @if($isChildrensTalk)
-                                        No speaker could be automatically identified. Please assign the correct speaker below.
-                                    @else
-                                        No speaker could be automatically identified. Please assign the correct preacher below.
-                                    @endif
-                                </p>
-                            @endif
-                            <p class="mt-1 text-amber-600">Saving this form will clear the review flag.</p>
-                        </div>
-                    </div>
-                </div>
+                <x-alert type="warning" :title="$isChildrensTalk ? 'Speaker review required' : 'Preacher review required'">
+                    @if($sermon->preacher_source === \App\Enums\PreacherSource::SpeakerModel && $sermon->preacher_confidence !== null)
+                        <p>The AI identified a {{ $isChildrensTalk ? 'speaker' : 'preacher' }} with {{ round($sermon->preacher_confidence * 100) }}% confidence. Please verify and confirm or correct the assignment below.</p>
+                    @else
+                        <p>No {{ $isChildrensTalk ? 'speaker' : 'preacher' }} could be automatically identified. Please assign the correct {{ $isChildrensTalk ? 'speaker' : 'preacher' }} below.</p>
+                    @endif
+                    <p class="mt-1">Saving this form will clear the review flag.</p>
+                </x-alert>
             @endif
 
             <x-select label="{{ $isChildrensTalk ? 'Speaker' : 'Preacher' }}" wire:model.live="form.preacherId"
@@ -153,24 +141,12 @@
             @if($sermon->hasVideo())
                 <x-card heading="Video quality" wire:poll.10s.visible="refreshVideoQualityAssessment">
                     <div class="space-y-4">
-                        <dl class="space-y-2 text-sm">
-                            <div class="flex items-start justify-between gap-3">
-                                <dt class="text-gray-500">Status</dt>
-                                <dd class="font-medium text-gray-900">{{ $sermon->videoQualityStatus()->label() }}</dd>
-                            </div>
-                            <div class="flex items-start justify-between gap-3">
-                                <dt class="text-gray-500">Reason</dt>
-                                <dd class="font-medium text-gray-900">{{ $sermon->video_quality_reason ?: 'None' }}</dd>
-                            </div>
-                            <div class="flex items-start justify-between gap-3">
-                                <dt class="text-gray-500">Assessed</dt>
-                                <dd class="font-medium text-gray-900">{{ $sermon->video_quality_assessed_at?->format('j M Y H:i') ?? 'Not assessed' }}</dd>
-                            </div>
-                            <div class="flex items-start justify-between gap-3">
-                                <dt class="text-gray-500">Override</dt>
-                                <dd class="font-medium text-gray-900">{{ $sermon->videoVisibilityOverride()->label() }}</dd>
-                            </div>
-                        </dl>
+                        <x-metadata-list :items="[
+                            ['label' => 'Status',   'value' => $sermon->videoQualityStatus()->label()],
+                            ['label' => 'Reason',   'value' => $sermon->video_quality_reason ?: 'None'],
+                            ['label' => 'Assessed', 'value' => $sermon->video_quality_assessed_at?->format('j M Y H:i') ?? 'Not assessed'],
+                            ['label' => 'Override', 'value' => $sermon->videoVisibilityOverride()->label()],
+                        ]" />
 
                         <div class="grid gap-2">
                             <x-form-button

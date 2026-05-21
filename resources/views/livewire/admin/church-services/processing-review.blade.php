@@ -83,20 +83,16 @@
         </dl>
 
         @if(isset($reviewMeta['reason_message']) && $reviewMeta['reason_message'] !== '')
-            <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
-                <p class="text-sm font-medium text-amber-800">Why manual review is required</p>
-                <p class="mt-1 text-sm text-amber-700">{{ $reviewMeta['reason_message'] }}</p>
-            </div>
+            <x-alert type="warning" title="Why manual review is required" class="mt-4">
+                {{ $reviewMeta['reason_message'] }}
+            </x-alert>
         @endif
 
         @if(! $sourceAvailable)
-            <div class="mt-4 rounded-lg bg-rose-50 border border-rose-200 px-4 py-3" role="alert">
-                <p class="text-sm font-medium text-rose-800">Source video unavailable</p>
-                <p class="mt-1 text-sm text-rose-700">
-                    The original source video file is no longer accessible. This run cannot be resumed from manual review.
-                    The file may have been deleted or moved after processing was paused.
-                </p>
-            </div>
+            <x-alert type="error" title="Source video unavailable" class="mt-4">
+                The original source video file is no longer accessible. This run cannot be resumed from manual review.
+                The file may have been deleted or moved after processing was paused.
+            </x-alert>
         @endif
     </x-card>
 

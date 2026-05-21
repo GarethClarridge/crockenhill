@@ -17,9 +17,7 @@
                 @if($parseWarnings !== [])
                     <div class="mt-4 space-y-2">
                         @foreach($parseWarnings as $warning)
-                            <div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                                {{ $warning }}
-                            </div>
+                            <x-alert type="warning">{{ $warning }}</x-alert>
                         @endforeach
                     </div>
                 @endif
@@ -143,34 +141,13 @@
             </x-card>
 
             <x-card heading="Song Metadata">
-                <div class="space-y-3 text-sm">
-                    <div>
-                        <p class="text-gray-500">Alternate title</p>
-                        <p class="font-medium">{{ $song->alternate_title ?: '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">CCLI</p>
-                        <p class="font-medium">{{ $song->ccli_number ?: '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Verse order</p>
-                        <p class="font-medium">{{ $song->verse_order ?: '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Usage count</p>
-                        <p class="font-medium">{{ $usageCount }}</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500">Last used</p>
-                        <p class="font-medium">
-                            @if(is_string($lastUsedDate))
-                                {{ \Illuminate\Support\Carbon::parse($lastUsedDate)->format('j M Y') }}
-                            @else
-                                -
-                            @endif
-                        </p>
-                    </div>
-                </div>
+                <x-metadata-list stacked :items="[
+                    ['label' => 'Alternate title', 'value' => $song->alternate_title ?: '-'],
+                    ['label' => 'CCLI',            'value' => $song->ccli_number ?: '-'],
+                    ['label' => 'Verse order',     'value' => $song->verse_order ?: '-'],
+                    ['label' => 'Usage count',     'value' => $usageCount],
+                    ['label' => 'Last used',       'value' => is_string($lastUsedDate) ? \Illuminate\Support\Carbon::parse($lastUsedDate)->format('j M Y') : '-'],
+                ]" class="space-y-3" />
             </x-card>
         </div>
     </div>

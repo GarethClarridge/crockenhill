@@ -553,6 +553,38 @@
     </section>
 
     {{-- ─────────────────────────────────────── --}}
+    {{-- METADATA LIST — x-metadata-list --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Metadata List — <code class="text-lg font-mono">x-metadata-list</code></h2>
+
+        <div class="space-y-6">
+            <p class="text-xs uppercase tracking-widest text-gray-400">Props: items (array of [label, value]), stacked (bool — label above value vs label/value inline)</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <x-card heading="Inline (default) — sidebar panels">
+                    <x-metadata-list :items="[
+                        ['label' => 'Status',   'value' => 'Completed'],
+                        ['label' => 'Reason',   'value' => 'Audio quality acceptable'],
+                        ['label' => 'Assessed', 'value' => '15 May 2026 09:32'],
+                        ['label' => 'Override', 'value' => 'Default (automatic)'],
+                    ]" />
+                </x-card>
+
+                <x-card heading="Stacked — label above value">
+                    <x-metadata-list stacked :items="[
+                        ['label' => 'Alternate title', 'value' => 'What Does the Bible Say?'],
+                        ['label' => 'CCLI',            'value' => '1234567'],
+                        ['label' => 'Verse order',     'value' => 'v1 c v2 c b c'],
+                        ['label' => 'Usage count',     'value' => '12'],
+                        ['label' => 'Last used',       'value' => '5 Jan 2026'],
+                    ]" class="space-y-3" />
+                </x-card>
+            </div>
+        </div>
+    </section>
+
+    {{-- ─────────────────────────────────────── --}}
     {{-- BADGE — x-badge --}}
     {{-- ─────────────────────────────────────── --}}
     <section>
