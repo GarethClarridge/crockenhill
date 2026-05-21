@@ -30,7 +30,7 @@ $iconSizes = [
 ];
 
 $iconComponent = 'heroicon-' . ($iconStyle === 'solid' ? 's' : 'o') . '-' . $icon;
-$classes = 'inline-flex items-center justify-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-1 transition-colors '
+$classes = 'inline-flex items-center justify-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-1 transition-all active:scale-95 '
     . ($sizeClasses[$size] ?? $sizeClasses['sm']) . ' '
     . ($variantClasses[$variant] ?? $variantClasses['ghost']);
 @endphp

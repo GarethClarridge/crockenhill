@@ -5,6 +5,7 @@
     'image' => null,
     'canonical' => null,
     'mainEntity' => null,
+    'breadcrumbItems' => null,
 ])
 
 @php
@@ -43,6 +44,19 @@
         $schema['mainEntity'] = [
             '@id' => $mainEntity,
         ];
+    }
+
+    if ($breadcrumbItems && is_array($breadcrumbItems)) {
+        $schema['breadcrumb']['itemListElement'] = array_map(
+            static fn (array $item, int $index): array => [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'name' => $item['name'],
+                'item' => $item['item'],
+            ],
+            $breadcrumbItems,
+            array_keys($breadcrumbItems),
+        );
     }
 @endphp
 

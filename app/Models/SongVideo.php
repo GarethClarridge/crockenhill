@@ -6,10 +6,12 @@ namespace App\Models;
 
 use Database\Factories\SongVideoFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -113,12 +115,34 @@ class SongVideo extends Model
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return Attribute<string, string>
      */
-    public static function validationRules(): array
+    protected function videoFilePath(): Attribute
     {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return array<string, list<string|mixed>>
+     */
+    public static function validationRules(?self $songVideo = null): array
+    {
+        $uniqueServiceSection = Rule::unique('song_videos', 'service_section_id');
+
+        if ($songVideo) {
+            $uniqueServiceSection->ignore($songVideo->id);
+        }
+
         return [
+            'song_id' => ['required', 'integer', 'exists:songs,id'],
+            'service_section_id' => ['nullable', 'integer', 'exists:service_sections,id', $uniqueServiceSection],
+            'church_service_id' => ['nullable', 'integer', 'exists:church_services,id'],
+            'video_file_path' => ['required', 'string', 'max:500'],
             'duration' => ['nullable', 'numeric', 'min:0'],
+            'recorded_date' => ['nullable', 'date'],
+            'is_featured' => ['required', 'boolean'],
         ];
     }
 }
