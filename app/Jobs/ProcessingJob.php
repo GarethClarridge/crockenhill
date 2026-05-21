@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Models\SermonProcessingStep;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonProcessingStepTransitions;
+use App\Support\CancellationChecker;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -139,19 +138,7 @@ abstract class ProcessingJob
             return false;
         }
 
-        // Check if any processing steps have been cancelled
-        $cancelledSteps = SermonProcessingStep::query()->where('processing_id', $this->processingId)
-            ->where('status', ProcessingStatus::Cancelled->value)
-            ->count();
-
-        if ($cancelledSteps > 0) {
-            return true;
-        }
-
-        // Also check the main processing log for CANCELLED status
-        $log = MediaProcessingLog::query()->where('processing_id', $this->processingId)->first();
-
-        return $log?->isCancelled() ?? false;
+        return CancellationChecker::isCancelled($this->processingId);
     }
 
     /**

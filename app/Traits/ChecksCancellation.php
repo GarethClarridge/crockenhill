@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Traits;
 
 use App\Models\MediaProcessingLog;
+use App\Support\CancellationChecker;
 use Illuminate\Support\Facades\Log;
 
 trait ChecksCancellation
@@ -25,7 +26,7 @@ trait ChecksCancellation
 
         $this->processingLog = $processingLog;
 
-        if ($this->processingLog->isCancelled()) {
+        if (CancellationChecker::isCancelled($this->processingLog->processing_id)) {
             Log::info("{$jobClass} job skipped: processing cancelled", [
                 'processing_id' => $this->processingLog->processing_id,
             ]);

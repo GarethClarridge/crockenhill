@@ -6,6 +6,7 @@ namespace Tests\Unit\Traits;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
 use App\Traits\ChecksCancellation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Log;
@@ -94,5 +95,23 @@ class ChecksCancellationTest extends TestCase
 
         $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
         $this->assertTrue($this->subject->processingLog->isCancelled());
+    }
+
+    #[Test]
+    public function it_returns_true_when_a_processing_step_is_cancelled_and_log_is_active(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'status' => ProcessingStatus::Processing,
+        ]);
+
+        SermonProcessingStep::factory()->cancelled()->create([
+            'processing_id' => $log->processing_id,
+        ]);
+
+        $this->subject->processingLog = $log;
+
+        Log::shouldReceive('info')->once();
+
+        $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
     }
 }
