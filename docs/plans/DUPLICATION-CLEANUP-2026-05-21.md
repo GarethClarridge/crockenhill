@@ -240,7 +240,7 @@ Exit criteria:
 
 - Only one place asserts processing-id shape during preparation.
 
-### Phase 9: `MediaController` exception-handling helper
+### Phase 9: `MediaController` exception-handling helper ✅
 
 Priority: **Low** — single-file change, minor LOC saving.
 
@@ -250,8 +250,8 @@ Target files:
 
 Tasks:
 
-- [ ] Add `private function handleApiException(\Exception $e, string $message, ?Request $request = null): JsonResponse` to the controller.
-- [ ] Replace the four duplicated blocks with calls to it.
+- [x] Add `private function handleApiException(\Exception $e, string $message, ?Request $request = null): JsonResponse` to the controller.
+- [x] Replace the four duplicated blocks with calls to it.
 
 Exit criteria:
 

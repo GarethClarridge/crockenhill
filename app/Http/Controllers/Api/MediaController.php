@@ -72,18 +72,10 @@ class MediaController extends Controller
             }
 
         } catch (\Exception $e) {
-            Log::error('Media upload failed', [
+            return $this->handleApiException($e, 'Media upload failed', [
                 'type' => $type,
-                'error' => $this->sanitizeForLog($e->getMessage()),
-                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
                 'user_id' => $request->user()?->id,
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Media upload failed',
-                'error_code' => 'UPLOAD_FAILED',
-            ], 500);
+            ], ['success' => false, 'message' => 'Media upload failed', 'error_code' => 'UPLOAD_FAILED']);
         }
     }
 
@@ -112,17 +104,13 @@ class MediaController extends Controller
             return response()->json($response->toArray(), 200);
 
         } catch (\Exception $e) {
-            Log::error('Status check failed', [
-                'processing_id' => $this->sanitizeForLog($processingId),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
-
             $message = $e instanceof ProvidesSafeMessage
                 ? $e->getSafeMessage()
                 : 'Status check failed due to an internal error.';
 
-            return response()->json(['found' => false, 'message' => $message], 500);
+            return $this->handleApiException($e, 'Status check failed', [
+                'processing_id' => $this->sanitizeForLog($processingId),
+            ], ['found' => false, 'message' => $message]);
         }
     }
 
@@ -185,14 +173,10 @@ class MediaController extends Controller
 
             return response()->json($result, $result['success'] ? 200 : 400);
         } catch (\Exception $e) {
-            Log::error('Media cancellation failed', [
+            return $this->handleApiException($e, 'Media cancellation failed', [
                 'processing_id' => $this->sanitizeForLog($processingId),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
                 'user_id' => $request->user()?->id,
-            ]);
-
-            return response()->json(['success' => false, 'message' => 'Cancel failed'], 500);
+            ], ['success' => false, 'message' => 'Cancel failed']);
         }
     }
 
@@ -224,14 +208,10 @@ class MediaController extends Controller
         } catch (\InvalidArgumentException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
-            Log::error('Segment confirmation failed', [
+            return $this->handleApiException($e, 'Segment confirmation failed', [
                 'processing_id' => $this->sanitizeForLog($processingId),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
                 'user_id' => $request->user()?->id,
-            ]);
-
-            return response()->json(['success' => false, 'message' => 'Confirmation failed due to an internal error.'], 500);
+            ], ['success' => false, 'message' => 'Confirmation failed due to an internal error.']);
         }
     }
 
@@ -255,15 +235,29 @@ class MediaController extends Controller
 
             return response()->json($result->toArray(), $result->success ? 202 : 422);
         } catch (\Exception $e) {
-            Log::error('Media retry failed', [
+            return $this->handleApiException($e, 'Media retry failed', [
                 'processing_id' => $this->sanitizeForLog($processingId),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
                 'user_id' => $request->user()?->id,
-            ]);
-
-            return response()->json(['success' => false, 'message' => 'Retry failed'], 500);
+            ], ['success' => false, 'message' => 'Retry failed']);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @param  array<string, mixed>  $body
+     */
+    private function handleApiException(\Exception $e, string $logMessage, array $context = [], array $body = []): JsonResponse
+    {
+        Log::error($logMessage, array_merge($context, [
+            'error' => $this->sanitizeForLog($e->getMessage()),
+            'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
+        ]));
+
+        if ($body === []) {
+            $body = ['success' => false, 'message' => $logMessage];
+        }
+
+        return response()->json($body, 500);
     }
 
     /**
