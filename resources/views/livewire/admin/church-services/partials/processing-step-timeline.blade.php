@@ -36,20 +36,11 @@
                             @endif
                         </div>
 
-                        <dl class="grid grid-cols-1 gap-3 text-xs text-gray-600 sm:grid-cols-3 xl:min-w-[25rem]">
-                            <div>
-                                <dt class="font-medium uppercase tracking-wide text-gray-500">Started</dt>
-                                <dd class="mt-1">{{ $timelineStep['started_at']?->format('j M Y H:i:s') ?? 'Not recorded' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="font-medium uppercase tracking-wide text-gray-500">Completed</dt>
-                                <dd class="mt-1">{{ $timelineStep['completed_at']?->format('j M Y H:i:s') ?? 'Not recorded' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="font-medium uppercase tracking-wide text-gray-500">Duration</dt>
-                                <dd class="mt-1">{{ $timelineStep['duration'] ?? 'Not recorded' }}</dd>
-                            </div>
-                        </dl>
+                        <x-metadata-list columns="3" class="xl:min-w-100" :items="[
+                            ['label' => 'Started',   'value' => $timelineStep['started_at']?->format('j M Y H:i:s') ?? 'Not recorded'],
+                            ['label' => 'Completed', 'value' => $timelineStep['completed_at']?->format('j M Y H:i:s') ?? 'Not recorded'],
+                            ['label' => 'Duration',  'value' => $timelineStep['duration'] ?? 'Not recorded'],
+                        ]" />
                     </div>
                 </li>
             @endforeach

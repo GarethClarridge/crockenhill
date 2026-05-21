@@ -559,7 +559,7 @@
         <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Metadata List — <code class="text-lg font-mono">x-metadata-list</code></h2>
 
         <div class="space-y-6">
-            <p class="text-xs uppercase tracking-widest text-gray-400">Props: items (array of [label, value]), stacked (bool — label above value vs label/value inline)</p>
+            <p class="text-xs uppercase tracking-widest text-gray-400">Props: items (array of [label, value]), stacked (bool — label above value vs inline), columns (1–4 — switches to a responsive grid when &gt; 1)</p>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <x-card heading="Inline (default) — sidebar panels">
@@ -581,6 +581,14 @@
                     ]" class="space-y-3" />
                 </x-card>
             </div>
+
+            <x-card heading="3-column grid — timeline / inline groups">
+                <x-metadata-list columns="3" :items="[
+                    ['label' => 'Started',   'value' => '15 May 2026 09:32:10'],
+                    ['label' => 'Completed', 'value' => '15 May 2026 09:33:42'],
+                    ['label' => 'Duration',  'value' => '1m 32s'],
+                ]" />
+            </x-card>
         </div>
     </section>
 
