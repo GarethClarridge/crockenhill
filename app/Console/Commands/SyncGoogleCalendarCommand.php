@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\GoogleCalendarSyncService;
+use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 class SyncGoogleCalendarCommand extends Command
 {
+    use SanitizesLogData;
+
     protected $signature = 'calendar:sync';
 
     protected $description = 'Syncs events from Google Calendar using the configured window';
@@ -33,7 +36,9 @@ class SyncGoogleCalendarCommand extends Command
 
         } catch (Exception $e) {
             $this->error('Sync failed: '.$e->getMessage());
-            Log::error('Calendar sync failed', ['error' => $e->getMessage()]);
+            Log::error('Calendar sync failed', [
+                'error' => self::sanitizeForLog($e->getMessage()),
+            ]);
 
             return 1;
         }

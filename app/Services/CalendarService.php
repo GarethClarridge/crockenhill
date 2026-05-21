@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\CalendarEvent;
+use App\Traits\SanitizesLogData;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 
 class CalendarService
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly GoogleCalendarSyncService $googleSync,
     ) {}
@@ -101,8 +104,8 @@ class CalendarService
         Log::warning('Calendar event manually categorized', [
             'admin_id' => auth()->id(),
             'event_id' => $event->id,
-            'event_title' => $event->title,
-            'meeting_slug' => $meetingSlug,
+            'event_title' => self::sanitizeForLog($event->title),
+            'meeting_slug' => self::sanitizeForLog($meetingSlug),
         ]);
 
         $googleSynced = $this->googleSync->syncCategorizationToGoogle($event->google_event_id, $meetingSlug);
@@ -122,7 +125,7 @@ class CalendarService
         Log::warning('Calendar event un-categorized', [
             'admin_id' => auth()->id(),
             'event_id' => $event->id,
-            'event_title' => $event->title,
+            'event_title' => self::sanitizeForLog($event->title),
         ]);
 
         $googleSynced = $this->googleSync->removeCategorizationFromGoogle($event->google_event_id);
