@@ -109,4 +109,13 @@ class FormAccessibilityTest extends TestCase
         $this->blade('<x-checkbox wire:model="field" />')->assertSeeHtml('role="alert"');
         $this->blade('<x-toggle wire:model="field" />')->assertSeeHtml('role="alert"');
     }
+
+    #[Test]
+    public function form_components_render_loading_screen_reader_text(): void
+    {
+        $this->blade('<x-input wire:model="field" />')->assertSee('<span class="sr-only">Loading...</span>', false);
+        $this->blade('<x-textarea wire:model="field" />')->assertSee('<span class="sr-only">Loading...</span>', false);
+        $this->blade('<x-select wire:model="field" :options="[]" />')->assertSee('<span class="sr-only">Loading...</span>', false);
+        $this->blade('<x-toggle wire:model="field" />')->assertSee('<span class="sr-only">Loading...</span>', false);
+    }
 }

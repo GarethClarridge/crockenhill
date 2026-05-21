@@ -1,7 +1,7 @@
 @props(['variant' => 'primary', 'size' => 'md', 'type' => 'submit', 'icon' => null])
 
 @php
-$baseClasses = 'inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 transition-colors duration-200';
+$baseClasses = 'inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 transition-all active:scale-95 duration-200';
 
 $sizeClasses = [
     'xs' => 'px-2 py-1 text-xs',
@@ -12,7 +12,7 @@ $sizeClasses = [
 ];
 
 $variantClasses = [
-    'primary'   => 'bg-cbc-pattern bg-cover text-white',
+    'primary'   => 'bg-cbc-pattern bg-cover text-white hover:brightness-110',
     'secondary' => 'border border-transparent bg-slate-100/90 text-[#145557] hover:bg-white shadow-none',
     'outline'   => 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700',
     'danger'    => 'bg-cbc-crimson hover:bg-[#590d16] text-white',
