@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\VideoProcessingException;
+use App\Traits\RequiresFfmpeg;
 use FFMpeg\Coordinate\TimeCode;
-use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Format\Video\X264;
 use FFMpeg\Media\Video;
@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 
 class VideoExtractionService
 {
-    private ?FFMpeg $ffmpeg;
+    use RequiresFfmpeg;
 
     private string $tempDisk;
 
@@ -29,41 +29,7 @@ class VideoExtractionService
         private readonly AudioCompressionService $audioCompressor,
         private readonly StorageAdapterHelper $storageHelper
     ) {
-        $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
-        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
-
-        // Validate FFmpeg binary exists and is executable (skip in testing environment)
-        if (! app()->environment('testing')) {
-            if (! $ffmpegPath || ! file_exists($ffmpegPath) || ! is_executable($ffmpegPath)) {
-                throw new VideoProcessingException("FFmpeg binary not found or not executable at: {$ffmpegPath}");
-            }
-
-            if (! $ffprobePath || ! file_exists($ffprobePath) || ! is_executable($ffprobePath)) {
-                throw new VideoProcessingException("FFprobe binary not found or not executable at: {$ffprobePath}");
-            }
-        }
-
-        // Skip FFmpeg initialization in testing environment to prevent hangs
-        if (app()->environment('testing')) {
-            Log::debug('Skipping FFmpeg initialization in test environment');
-            $this->ffmpeg = null;
-        } else {
-            try {
-                $this->ffmpeg = FFMpeg::create([
-                    'ffmpeg.binaries' => $ffmpegPath,
-                    'ffprobe.binaries' => $ffprobePath,
-                    'timeout' => 7200,
-                ]);
-
-            } catch (\Exception $e) {
-                Log::error('Failed to initialize FFmpeg', [
-                    'ffmpeg_path' => $ffmpegPath,
-                    'ffprobe_path' => $ffprobePath,
-                    'error' => $e->getMessage(),
-                ]);
-                throw new VideoProcessingException("Failed to initialize FFmpeg: {$e->getMessage()}", 0, $e);
-            }
-        }
+        $this->ffmpeg = $storageHelper->createFFMpeg();
 
         $this->tempDisk = config('media-processing.storage.temp_disk', 'local');
         $this->permanentDisk = config('media-processing.storage.sermon_disk', 'public');
@@ -596,15 +562,6 @@ class VideoExtractionService
         ?string $outputFilename = null
     ): array {
         return $this->extractOptimizedAudio($inputVideoPath, $segment, $outputFilename);
-    }
-
-    private function requireFfmpeg(): FFMpeg
-    {
-        if (! $this->ffmpeg instanceof FFMpeg) {
-            throw new VideoProcessingException('FFmpeg is unavailable in the current environment.');
-        }
-
-        return $this->ffmpeg;
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\VideoProcessingException;
+use FFMpeg\FFMpeg;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -221,6 +222,49 @@ class StorageAdapterHelper
         $size = filesize($filePath);
 
         return $size === false ? 0 : $size;
+    }
+
+    /**
+     * Create an FFMpeg instance from config, or return null in the testing environment.
+     *
+     * Validates that both binaries exist and are executable before creating the instance,
+     * so callers get a clear exception rather than a silent hang.
+     *
+     * @throws VideoProcessingException when FFmpeg cannot be initialized outside of tests.
+     */
+    public function createFFMpeg(): ?FFMpeg
+    {
+        if (app()->environment('testing')) {
+            Log::debug('Skipping FFmpeg initialization in test environment');
+
+            return null;
+        }
+
+        $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
+        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
+
+        if (! $ffmpegPath || ! file_exists($ffmpegPath) || ! is_executable($ffmpegPath)) {
+            throw new VideoProcessingException("FFmpeg binary not found or not executable at: {$ffmpegPath}");
+        }
+
+        if (! $ffprobePath || ! file_exists($ffprobePath) || ! is_executable($ffprobePath)) {
+            throw new VideoProcessingException("FFprobe binary not found or not executable at: {$ffprobePath}");
+        }
+
+        try {
+            return FFMpeg::create([
+                'ffmpeg.binaries' => $ffmpegPath,
+                'ffprobe.binaries' => $ffprobePath,
+                'timeout' => 7200,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to initialize FFmpeg', [
+                'ffmpeg_path' => $ffmpegPath,
+                'ffprobe_path' => $ffprobePath,
+                'error' => $e->getMessage(),
+            ]);
+            throw new VideoProcessingException("Failed to initialize FFmpeg: {$e->getMessage()}", 0, $e);
+        }
     }
 
     /**

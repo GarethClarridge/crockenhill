@@ -170,7 +170,7 @@ Exit criteria:
 - No list component declares per-filter `updatedXyzFilter()` methods.
 - Pagination still resets when any filter changes.
 
-### Phase 6: FFmpeg setup consolidation
+### Phase 6: FFmpeg setup consolidation ✅
 
 Priority: **Medium** — contained, 3-file change.
 
@@ -186,10 +186,10 @@ Target files:
 
 Tasks:
 
-- [ ] Add `StorageAdapterHelper::createFFMpeg(): ?FFMpeg` that handles the testing-env check and config loading.
-- [ ] Add `RequiresFfmpeg` trait providing `requireFfmpeg(): FFMpeg` guard and a nullable `$ffmpeg` property.
-- [ ] Migrate the three services to use both.
-- [ ] Confirm the testing-env behaviour: each service must still be constructable in tests without FFmpeg installed.
+- [x] Add `StorageAdapterHelper::createFFMpeg(): ?FFMpeg` that handles the testing-env check and config loading.
+- [x] Add `RequiresFfmpeg` trait providing `requireFfmpeg(): FFMpeg` guard and a nullable `$ffmpeg` property.
+- [x] Migrate the three services to use both.
+- [x] Confirm the testing-env behaviour: each service must still be constructable in tests without FFmpeg installed.
 
 Exit criteria:
 

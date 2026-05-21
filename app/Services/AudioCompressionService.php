@@ -6,8 +6,8 @@ namespace App\Services;
 
 use App\Exceptions\VideoProcessingException;
 use App\Traits\DetectsStorageType;
+use App\Traits\RequiresFfmpeg;
 use FFMpeg\Coordinate\TimeCode;
-use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Media\Video;
 use Illuminate\Support\Facades\Log;
@@ -24,8 +24,7 @@ use Illuminate\Support\Str;
 class AudioCompressionService
 {
     use DetectsStorageType;
-
-    private ?FFMpeg $ffmpeg;
+    use RequiresFfmpeg;
 
     private string $tempDisk;
 
@@ -36,22 +35,7 @@ class AudioCompressionService
     public function __construct(
         private readonly StorageAdapterHelper $storageHelper
     ) {
-        $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
-        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
-
-        if (app()->environment('testing')) {
-            $this->ffmpeg = null;
-        } else {
-            try {
-                $this->ffmpeg = FFMpeg::create([
-                    'ffmpeg.binaries' => $ffmpegPath,
-                    'ffprobe.binaries' => $ffprobePath,
-                    'timeout' => 7200,
-                ]);
-            } catch (\Exception $e) {
-                throw new VideoProcessingException("Failed to initialize FFmpeg: {$e->getMessage()}", 0, $e);
-            }
-        }
+        $this->ffmpeg = $storageHelper->createFFMpeg();
 
         $this->tempDisk = config('media-processing.storage.temp_disk', 'local');
         $this->permanentDisk = config('media-processing.storage.sermon_disk', 'public');
@@ -320,14 +304,5 @@ class AudioCompressionService
     private function cleanupTemporaryFile(string $filePath): void
     {
         $this->storageHelper->cleanupTempFile($filePath);
-    }
-
-    private function requireFfmpeg(): FFMpeg
-    {
-        if (! $this->ffmpeg instanceof FFMpeg) {
-            throw new VideoProcessingException('FFmpeg is unavailable in the current environment.');
-        }
-
-        return $this->ffmpeg;
     }
 }

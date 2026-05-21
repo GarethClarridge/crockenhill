@@ -6,7 +6,7 @@ namespace App\Services;
 
 use App\Data\LivestreamSegment;
 use App\Traits\DetectsStorageType;
-use FFMpeg\FFMpeg;
+use App\Traits\RequiresFfmpeg;
 use FFMpeg\Format\Audio\Mp3;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -16,9 +16,7 @@ use Illuminate\Support\Str;
 class VideoStorageService
 {
     use DetectsStorageType;
-
-    /** @phpstan-ignore-next-line property.unusedType (nullable for testing environment) */
-    private ?FFMpeg $ffmpeg;
+    use RequiresFfmpeg;
 
     private string $tempDisk;
 
@@ -33,14 +31,7 @@ class VideoStorageService
         private readonly AudioCompressionService $audioCompressor,
         private readonly StorageAdapterHelper $storageHelper
     ) {
-        // Skip FFmpeg initialization in testing environment to prevent hangs
-        if (! app()->environment('testing')) {
-            $this->ffmpeg = FFMpeg::create([
-                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
-                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
-                'timeout' => 7200,
-            ]);
-        }
+        $this->ffmpeg = $storageHelper->createFFMpeg();
 
         $this->tempDisk = config('media-processing.storage.temp_disk', 'local');
         $this->permanentDisk = config('media-processing.storage.sermon_disk', 'public');
@@ -467,14 +458,5 @@ class VideoStorageService
     public function cleanup(string $processingId): void
     {
         $this->cleanupTemporaryFiles([]);
-    }
-
-    private function requireFfmpeg(): FFMpeg
-    {
-        if (! $this->ffmpeg instanceof FFMpeg) {
-            throw new \RuntimeException('FFmpeg is unavailable in the current environment.');
-        }
-
-        return $this->ffmpeg;
     }
 }
