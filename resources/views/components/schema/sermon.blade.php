@@ -15,6 +15,7 @@
 
     $author = [
         '@type' => 'Person',
+        '@id' => $sermonView['preacher_url'] . '#person',
         'name' => $preacherName,
         'url' => $sermonView['preacher_url'],
         'jobTitle' => 'Preacher',
