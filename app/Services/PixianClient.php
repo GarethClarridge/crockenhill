@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Traits\SanitizesLogData;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Log;
 
 class PixianClient
 {
+    use SanitizesLogData;
+
     private string $baseUrl;
 
     private string $apiId;
@@ -49,7 +52,7 @@ class PixianClient
         $imageContents = @file_get_contents($imagePath);
         if (! is_string($imageContents) || $imageContents === '') {
             Log::warning('Pixian request skipped: image could not be read', [
-                'image_path' => $imagePath,
+                'image_path' => self::sanitizeForLog($imagePath),
             ]);
 
             return null;
@@ -59,8 +62,8 @@ class PixianClient
             $response = $this->makeRequest($imagePath, $imageContents);
         } catch (ConnectionException $e) {
             Log::warning('Pixian connection error during background removal', [
-                'image_path' => $imagePath,
-                'error' => $e->getMessage(),
+                'image_path' => self::sanitizeForLog($imagePath),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return null;
@@ -75,8 +78,8 @@ class PixianClient
         $body = $response->body();
         if ($body === '') {
             Log::warning('Pixian returned an empty response body', [
-                'image_path' => $imagePath,
-                'request_id' => $response->header('x-request-id'),
+                'image_path' => self::sanitizeForLog($imagePath),
+                'request_id' => self::sanitizeForLog((string) $response->header('x-request-id')),
             ]);
 
             return null;
@@ -102,11 +105,13 @@ class PixianClient
 
     private function logFailure(Response $response, string $imagePath): void
     {
+        $body = $response->body();
+
         Log::warning('Pixian background removal failed', [
-            'image_path' => $imagePath,
+            'image_path' => self::sanitizeForLog($imagePath),
             'status' => $response->status(),
-            'body' => $response->json(),
-            'request_id' => $this->extractRequestId($response),
+            'body' => self::sanitizeForLog(is_string($body) ? $body : (string) json_encode($response->json())),
+            'request_id' => self::sanitizeForLog((string) $this->extractRequestId($response)),
         ]);
     }
 

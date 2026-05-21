@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use App\Traits\SanitizesLogData;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,8 @@ use Spatie\GoogleCalendar\Event;
 
 class GoogleCalendarSyncService
 {
+    use SanitizesLogData;
+
     /** @var array<int, string>|null */
     private ?array $knownMeetingSlugs = null;
 
@@ -27,7 +30,9 @@ class GoogleCalendarSyncService
         try {
             $googleEvents = $this->fetchEventsFromGoogle($startDate, $endDate);
         } catch (\Exception $e) {
-            Log::error('Failed to fetch events from Google Calendar', ['error' => $e->getMessage()]);
+            Log::error('Failed to fetch events from Google Calendar', [
+                'error' => self::sanitizeForLog($e->getMessage()),
+            ]);
             throw $e;
         }
 
@@ -50,8 +55,8 @@ class GoogleCalendarSyncService
             } catch (\Exception $e) {
                 Log::warning('Failed to sync single event', [
                     /** @phpstan-ignore-next-line */
-                    'event_id' => $googleEvent->id,
-                    'error' => $e->getMessage(),
+                    'event_id' => self::sanitizeForLog((string) $googleEvent->id),
+                    'error' => self::sanitizeForLog($e->getMessage()),
                 ]);
             }
         }
@@ -172,8 +177,8 @@ class GoogleCalendarSyncService
             return true;
         } catch (\Exception $e) {
             Log::warning('Failed to update Google Calendar extended property', [
-                'google_event_id' => $googleEventId,
-                'error' => $e->getMessage(),
+                'google_event_id' => self::sanitizeForLog($googleEventId),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return false;
@@ -206,8 +211,8 @@ class GoogleCalendarSyncService
             return true;
         } catch (\Exception $e) {
             Log::warning('Failed to clear Google Calendar extended property', [
-                'google_event_id' => $googleEventId,
-                'error' => $e->getMessage(),
+                'google_event_id' => self::sanitizeForLog($googleEventId),
+                'error' => self::sanitizeForLog($e->getMessage()),
             ]);
 
             return false;
