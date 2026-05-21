@@ -321,17 +321,12 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             && ($provenance['classification_signature'] ?? null) === $section->classificationSignature();
     }
 
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed(
             ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
             $exception->getMessage()
         );
-
-        Log::error('PrepareSectionPublicationCandidates job failed', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-        ]);
     }
 }

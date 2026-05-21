@@ -134,19 +134,13 @@ class TranscribeSpeechSegments extends ProcessingJob implements ShouldQueue
         }
     }
 
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed(
             ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
             $exception->getMessage()
         );
-
-        Log::error('TranscribeSpeechSegments job failed permanently', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
-        ]);
     }
 
     private function shouldTranscribe(ServiceSection $section): bool

@@ -171,20 +171,13 @@ class ClassifyServiceSections extends ProcessingJob implements ShouldQueue
         return $this->preserveRunStatus;
     }
 
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed(
             ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
             'Service section classification failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
-
-        Log::error('ClassifyServiceSections job failed permanently', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
-            'preserve_status' => $this->preserveRunStatus,
-        ]);
 
         if (! $this->preserveRunStatus) {
             $this->markProcessingRunAsFailed(

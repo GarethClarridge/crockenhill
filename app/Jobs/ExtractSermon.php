@@ -278,7 +278,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         );
     }
 
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed(
@@ -286,18 +286,10 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             'Sermon extraction failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
 
-        Log::error('ExtractSermon job failed permanently', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
-        ]);
-
         $this->markProcessingRunAsFailed(
             $this->processingLog,
             'Sermon extraction failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
-
-        // Cleanup will be handled by the chain failure handler
     }
 
     /**

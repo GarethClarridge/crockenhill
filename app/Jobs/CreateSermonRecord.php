@@ -204,16 +204,9 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             : null;
     }
 
-    /**
-     * Handle a job failure.
-     */
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
-        Log::error('CreateSermonRecord job failed permanently', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-        ]);
-
+        $this->initializeStepLogging($this->processingLog->processing_id);
         $this->markProcessingRunAsFailed($this->processingLog, $exception->getMessage(), 'creating_sermon_record_failed');
     }
 }

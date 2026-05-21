@@ -79,18 +79,12 @@ class ProjectLivestreamServiceStructure extends ProcessingJob implements ShouldQ
         );
     }
 
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed(
             ChurchServiceProcessingTimeline::PROJECT_LIVESTREAM_SERVICE_STRUCTURE,
             $exception->getMessage()
         );
-
-        Log::error('ProjectLivestreamServiceStructure job failed permanently', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
-        ]);
     }
 }

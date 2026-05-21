@@ -225,16 +225,11 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Called by the queue after all retries are exhausted.
      * Non-blocking: we do not mark the processing log as failed so the pipeline chain continues.
      */
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
-        Log::error('IdentifySpeaker job exhausted all retries (non-blocking)', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-        ]);
-
+        $this->initializeStepLogging($this->processingLog->processing_id);
         $this->storeDecision('failed', 'All retries exhausted: '.$exception->getMessage());
         $this->logStepFailed('identifying_speaker', $exception->getMessage());
     }

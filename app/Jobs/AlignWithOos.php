@@ -75,18 +75,12 @@ class AlignWithOos extends ProcessingJob implements ShouldQueue
         ]);
     }
 
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed(
             ChurchServiceProcessingTimeline::ALIGN_WITH_OOS,
             $exception->getMessage()
         );
-
-        Log::error('AlignWithOos job failed permanently', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
-        ]);
     }
 }

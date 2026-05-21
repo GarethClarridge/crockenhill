@@ -258,4 +258,17 @@ abstract class ProcessingJob
     {
         return $this->processingRunTransitions()->updateStep($processingLog, $step);
     }
+
+    final public function failed(Throwable $exception): void
+    {
+        $this->onJobFailure($exception);
+
+        Log::error(get_class($this).' job failed permanently', [
+            'processing_id' => $this->processingId,
+            'error' => $exception->getMessage(),
+            'attempts' => method_exists($this, 'attempts') ? $this->attempts() : null,
+        ]);
+    }
+
+    protected function onJobFailure(Throwable $_exception): void {}
 }

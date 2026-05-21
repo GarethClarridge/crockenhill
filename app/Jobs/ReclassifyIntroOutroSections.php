@@ -84,19 +84,13 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
         ]);
     }
 
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed(
             ChurchServiceProcessingTimeline::RECLASSIFY_INTRO_OUTRO,
             $exception->getMessage()
         );
-
-        Log::error('ReclassifyIntroOutroSections job failed permanently', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
-        ]);
     }
 
     /**

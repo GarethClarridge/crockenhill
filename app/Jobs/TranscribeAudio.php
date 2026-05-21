@@ -166,19 +166,10 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
         }
     }
 
-    /**
-     * Handle a job failure.
-     */
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
-        Log::error('TranscribeAudio job failed permanently', [
-            'processing_id' => $this->processingLog->processing_id,
-            'sermon_id' => $this->processingLog->sermon_id ?? null,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
-        ]);
+        $this->initializeStepLogging($this->processingLog->processing_id);
 
-        // Clean up any partial files
         try {
             $sermonIdForCleanup = $this->sermonIdForTranscriptCleanup();
             if ($sermonIdForCleanup !== null) {
@@ -192,7 +183,6 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             ]);
         }
 
-        // Mark processing as failed
         $this->markProcessingRunAsFailed($this->processingLog, $exception->getMessage(), 'transcribing_audio_failed');
     }
 

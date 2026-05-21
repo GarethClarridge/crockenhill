@@ -296,13 +296,9 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
         return false;
     }
 
-    public function failed(\Throwable $exception): void
+    protected function onJobFailure(\Throwable $exception): void
     {
-        Log::error('ProcessTranscriptWithAI job failed permanently', [
-            'processing_id' => $this->processingLog->processing_id,
-            'error' => $exception->getMessage(),
-        ]);
-
+        $this->initializeStepLogging($this->processingLog->processing_id);
         $this->markProcessingRunAsFailed($this->processingLog, $exception->getMessage(), 'analyzing_transcript_failed');
     }
 
