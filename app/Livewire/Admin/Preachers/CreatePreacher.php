@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Preachers;
 
-use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithAdminSave;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
-use App\Traits\SanitizesLogData;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Component;
 
 class CreatePreacher extends Component
 {
-    use SanitizesLogData, WithAdminAuthorization, WithNotifications;
+    use WithAdminSave, WithNotifications;
 
     public string $name = '';
 
@@ -52,24 +50,25 @@ class CreatePreacher extends Component
      */
     public function save(): void
     {
-
-        $this->authorizeAdmin();
-
         $validated = $this->validate();
 
-        $preacher = Preacher::query()->create([
-            'name' => $validated['name'],
-            'slug' => $validated['slug'],
-            'bio' => $validated['bio'],
-            'is_active' => $validated['isActive'],
-        ]);
+        $this->adminSave(
+            save: function () use ($validated): array {
+                $preacher = Preacher::query()->create([
+                    'name' => $validated['name'],
+                    'slug' => $validated['slug'],
+                    'bio' => $validated['bio'],
+                    'is_active' => $validated['isActive'],
+                ]);
 
-        Log::warning('New preacher created by admin', [
-            'admin_id' => auth()->id(),
-            'preacher_id' => $preacher->id,
-            'name' => $this->sanitizeForLog((string) $preacher->name),
-            'slug' => $this->sanitizeForLog((string) $preacher->slug),
-        ]);
+                return [
+                    'preacher_id' => $preacher->id,
+                    'name' => self::sanitizeForLog((string) $preacher->name),
+                    'slug' => self::sanitizeForLog((string) $preacher->slug),
+                ];
+            },
+            logAction: 'New preacher created by admin',
+        );
 
         $this->success('Preacher created', redirectTo: route('admin.preachers.index'));
     }

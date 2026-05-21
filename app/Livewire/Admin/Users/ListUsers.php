@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
-use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithAdminDelete;
+use App\Livewire\Traits\WithAdminSave;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\User;
 use App\Traits\EscapesLikeWildcards;
-use App\Traits\SanitizesLogData;
-use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -19,7 +18,7 @@ use Livewire\WithPagination;
 
 class ListUsers extends Component
 {
-    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminDelete, WithAdminSave, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'created_at';
 
@@ -68,7 +67,6 @@ class ListUsers extends Component
      */
     public function delete(User $user): void
     {
-
         $this->authorizeAdmin();
 
         if ($user->id === auth()->id()) {
@@ -77,13 +75,15 @@ class ListUsers extends Component
             return;
         }
 
-        $user->delete();
+        $this->adminDelete(
+            model: $user,
+            logAction: 'User deleted by admin',
+            logFields: [
+                'deleted_user_id' => $user->id,
+                'deleted_user_email' => self::sanitizeForLog((string) $user->email),
+            ],
+        );
 
-        Log::warning('User deleted by admin', [
-            'admin_id' => auth()->id(),
-            'deleted_user_id' => $user->id,
-            'deleted_user_email' => $this->sanitizeForLog((string) $user->email),
-        ]);
         $this->success('User deleted');
     }
 
@@ -94,7 +94,6 @@ class ListUsers extends Component
      */
     public function toggleAdmin(User $user): void
     {
-
         $this->authorizeAdmin();
 
         if ($user->id === auth()->id()) {
@@ -103,16 +102,20 @@ class ListUsers extends Component
             return;
         }
 
-        // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
-        $user->is_admin = ! $user->is_admin;
-        $user->save();
+        $this->adminSave(
+            save: function () use ($user): array {
+                // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
+                $user->is_admin = ! $user->is_admin;
+                $user->save();
 
-        Log::warning('User admin status toggled', [
-            'admin_id' => auth()->id(),
-            'target_user_id' => $user->id,
-            'target_user_email' => $this->sanitizeForLog((string) $user->email),
-            'new_is_admin' => $user->is_admin,
-        ]);
+                return [
+                    'target_user_id' => $user->id,
+                    'target_user_email' => self::sanitizeForLog((string) $user->email),
+                    'new_is_admin' => $user->is_admin,
+                ];
+            },
+            logAction: 'User admin status toggled',
+        );
 
         $this->success($user->is_admin ? 'Admin granted' : 'Admin revoked');
     }

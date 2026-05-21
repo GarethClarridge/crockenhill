@@ -128,7 +128,7 @@ class DurationConstraintTest extends TestCase
     #[Test]
     public function it_validates_song_video_rules_at_application_level(): void
     {
-        $rules = SongVideo::validationRules();
+        $rules = array_intersect_key(SongVideo::validationRules(), array_flip(['duration']));
 
         $this->assertTrue(Validator::make(['duration' => 100], $rules)->passes());
         $this->assertFalse(Validator::make(['duration' => -1], $rules)->passes());

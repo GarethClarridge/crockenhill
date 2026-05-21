@@ -5,21 +5,19 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Preachers;
 
 use App\Contracts\SpeakerIdentificationInterface;
-use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithAdminSave;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
-use App\Traits\SanitizesLogData;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Component;
 
 class EditPreacher extends Component
 {
-    use SanitizesLogData, WithAdminAuthorization, WithNotifications;
+    use WithAdminSave, WithNotifications;
 
     public Preacher $preacher;
 
@@ -70,25 +68,27 @@ class EditPreacher extends Component
      */
     public function save(): void
     {
-
-        $this->authorizeAdmin();
-
         $validated = $this->validate();
 
-        $this->preacher->update([
-            'name' => $validated['name'],
-            'slug' => $validated['slug'],
-            'bio' => $validated['bio'],
-            'is_active' => $validated['isActive'],
-        ]);
+        $this->adminSave(
+            save: function () use ($validated): array {
+                $this->preacher->update([
+                    'name' => $validated['name'],
+                    'slug' => $validated['slug'],
+                    'bio' => $validated['bio'],
+                    'is_active' => $validated['isActive'],
+                ]);
 
-        $fresh = $this->preacher->fresh();
-        Log::warning('Preacher updated by admin', [
-            'admin_id' => auth()->id(),
-            'preacher_id' => $this->preacher->id,
-            'name' => $this->sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->name : (string) $this->preacher->name),
-            'slug' => $this->sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->slug : (string) $this->preacher->slug),
-        ]);
+                $fresh = $this->preacher->fresh();
+
+                return [
+                    'preacher_id' => $this->preacher->id,
+                    'name' => self::sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->name : (string) $this->preacher->name),
+                    'slug' => self::sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->slug : (string) $this->preacher->slug),
+                ];
+            },
+            logAction: 'Preacher updated by admin',
+        );
 
         $this->success('Preacher updated');
     }
@@ -122,24 +122,27 @@ class EditPreacher extends Component
      */
     public function removeAlias(int $aliasId): void
     {
+        $this->adminSave(
+            save: function () use ($aliasId): array {
+                $alias = PreacherAlias::query()->where('id', $aliasId)
+                    ->where('preacher_id', $this->preacher->id)
+                    ->first();
 
-        $this->authorizeAdmin();
+                if ($alias) {
+                    $alias->delete();
 
-        $alias = PreacherAlias::query()->where('id', $aliasId)
-            ->where('preacher_id', $this->preacher->id)
-            ->first();
+                    return [
+                        'preacher_id' => $this->preacher->id,
+                        'preacher_name' => self::sanitizeForLog((string) $this->preacher->name),
+                        'alias_id' => $alias->id,
+                        'alias' => self::sanitizeForLog((string) $alias->alias),
+                    ];
+                }
 
-        if ($alias) {
-            Log::warning('Preacher alias removed by admin', [
-                'admin_id' => auth()->id(),
-                'preacher_id' => $this->preacher->id,
-                'preacher_name' => $this->sanitizeForLog((string) $this->preacher->name),
-                'alias_id' => $alias->id,
-                'alias' => $this->sanitizeForLog((string) $alias->alias),
-            ]);
-
-            $alias->delete();
-        }
+                return ['preacher_id' => $this->preacher->id];
+            },
+            logAction: 'Preacher alias removed by admin',
+        );
 
         $this->preacher->refresh();
     }
@@ -190,23 +193,26 @@ class EditPreacher extends Component
      */
     public function removeProfile(int $profileId): void
     {
+        $this->adminSave(
+            save: function () use ($profileId): array {
+                $profile = SpeakerProfile::query()->where('id', $profileId)
+                    ->where('preacher_id', $this->preacher->id)
+                    ->first();
 
-        $this->authorizeAdmin();
+                if ($profile) {
+                    $profile->update(['is_active' => false]);
 
-        $profile = SpeakerProfile::query()->where('id', $profileId)
-            ->where('preacher_id', $this->preacher->id)
-            ->first();
+                    return [
+                        'preacher_id' => $this->preacher->id,
+                        'preacher_name' => self::sanitizeForLog((string) $this->preacher->name),
+                        'profile_id' => $profile->id,
+                    ];
+                }
 
-        if ($profile) {
-            Log::warning('Speaker profile deactivated by admin', [
-                'admin_id' => auth()->id(),
-                'preacher_id' => $this->preacher->id,
-                'preacher_name' => $this->sanitizeForLog((string) $this->preacher->name),
-                'profile_id' => $profile->id,
-            ]);
-
-            $profile->update(['is_active' => false]);
-        }
+                return ['preacher_id' => $this->preacher->id];
+            },
+            logAction: 'Speaker profile deactivated by admin',
+        );
 
         $this->success('Speaker profile deactivated. This preacher will no longer be matched automatically.');
         $this->preacher->refresh();

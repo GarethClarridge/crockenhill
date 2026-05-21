@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
-use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithAdminSave;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
-use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Livewire\Component;
 
 class EditUser extends Component
 {
-    use SanitizesLogData, WithAdminAuthorization, WithNotifications;
+    use WithAdminSave, WithNotifications;
 
     public User $user;
 
@@ -73,7 +71,6 @@ class EditUser extends Component
      */
     public function save(): void
     {
-
         $this->authorizeAdmin();
 
         if ($this->user->id === auth()->id() && ! $this->isAdmin) {
@@ -83,31 +80,38 @@ class EditUser extends Component
         }
 
         $validated = $this->validate();
+        $changePassword = $this->changePassword;
 
-        $this->user->name = $validated['name'];
-        $this->user->email = $validated['email'];
+        $this->adminSave(
+            save: function () use ($validated, $changePassword): array {
+                $this->user->name = $validated['name'];
+                $this->user->email = $validated['email'];
 
-        $oldIsAdmin = $this->user->is_admin;
-        $newIsAdmin = (bool) $validated['isAdmin'];
+                $oldIsAdmin = $this->user->is_admin;
+                $newIsAdmin = (bool) $validated['isAdmin'];
 
-        // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
-        $this->user->is_admin = $newIsAdmin;
+                // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
+                $this->user->is_admin = $newIsAdmin;
 
-        if ($this->changePassword) {
-            $this->user->password = Hash::make($validated['password']);
-        }
+                if ($changePassword) {
+                    $this->user->password = Hash::make($validated['password']);
+                }
 
-        $this->user->save();
+                $this->user->save();
 
-        if ($oldIsAdmin !== $newIsAdmin) {
-            Log::warning('User admin status changed via edit form', [
-                'admin_id' => auth()->id(),
-                'target_user_id' => $this->user->id,
-                'target_user_email' => $this->sanitizeForLog($this->user->email),
-                'old_is_admin' => $oldIsAdmin,
-                'new_is_admin' => $newIsAdmin,
-            ]);
-        }
+                if ($oldIsAdmin === $newIsAdmin) {
+                    return ['target_user_id' => $this->user->id];
+                }
+
+                return [
+                    'target_user_id' => $this->user->id,
+                    'target_user_email' => self::sanitizeForLog($this->user->email),
+                    'old_is_admin' => $oldIsAdmin,
+                    'new_is_admin' => $newIsAdmin,
+                ];
+            },
+            logAction: 'User admin status changed via edit form',
+        );
 
         $this->success('User updated');
         $this->changePassword = false;

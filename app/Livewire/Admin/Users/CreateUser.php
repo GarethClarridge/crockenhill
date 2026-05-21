@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
-use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithAdminSave;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
-use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Livewire\Component;
 
 class CreateUser extends Component
 {
-    use SanitizesLogData, WithAdminAuthorization, WithNotifications;
+    use WithAdminSave, WithNotifications;
 
     public string $name = '';
 
@@ -59,31 +57,35 @@ class CreateUser extends Component
      */
     public function save(): void
     {
-
-        $this->authorizeAdmin();
-
         $validated = $this->validate();
 
-        $user = new User([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-        ]);
+        $sendVerification = $this->sendVerification;
+        $user = null;
 
-        // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
-        $user->is_admin = $validated['isAdmin'];
-        $user->email_verified_at = $this->sendVerification ? null : now();
-        $user->save();
+        $this->adminSave(
+            save: function () use ($validated, $sendVerification, &$user): array {
+                $user = new User([
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make($validated['password']),
+                ]);
 
-        Log::warning('New user created by admin', [
-            'admin_id' => auth()->id(),
-            'target_user_id' => $user->id,
-            'target_user_name' => $this->sanitizeForLog($user->name),
-            'target_user_email' => $this->sanitizeForLog($user->email),
-            'is_admin' => $user->is_admin,
-        ]);
+                // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
+                $user->is_admin = $validated['isAdmin'];
+                $user->email_verified_at = $sendVerification ? null : now();
+                $user->save();
 
-        if ($this->sendVerification) {
+                return [
+                    'target_user_id' => $user->id,
+                    'target_user_name' => self::sanitizeForLog($user->name),
+                    'target_user_email' => self::sanitizeForLog($user->email),
+                    'is_admin' => $user->is_admin,
+                ];
+            },
+            logAction: 'New user created by admin',
+        );
+
+        if ($sendVerification && $user instanceof User) {
             $user->sendEmailVerificationNotification();
         }
 

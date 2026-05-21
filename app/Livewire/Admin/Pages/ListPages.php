@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Pages;
 
 use App\Enums\PageArea;
-use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithAdminDelete;
+use App\Livewire\Traits\WithAdminSave;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Page;
 use App\Traits\EscapesLikeWildcards;
-use App\Traits\SanitizesLogData;
-use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -20,7 +19,7 @@ use Livewire\WithPagination;
 
 class ListPages extends Component
 {
-    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminDelete, WithAdminSave, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
@@ -79,16 +78,15 @@ class ListPages extends Component
      */
     public function delete(Page $page): void
     {
+        $this->adminDelete(
+            model: $page,
+            logAction: 'Page deleted by admin',
+            logFields: [
+                'page_id' => $page->id,
+                'heading' => self::sanitizeForLog((string) $page->heading),
+            ],
+        );
 
-        $this->authorizeAdmin();
-
-        Log::warning('Page deleted by admin', [
-            'admin_id' => auth()->id(),
-            'page_id' => $page->id,
-            'heading' => $this->sanitizeForLog((string) $page->heading),
-        ]);
-
-        $page->delete();
         $this->success('Page deleted');
     }
 
@@ -99,32 +97,35 @@ class ListPages extends Component
      */
     public function deleteSelected(): void
     {
-        $this->authorizeAdmin();
-
         if (empty($this->selected)) {
             return;
         }
 
-        $pages = Page::query()->whereIn('id', $this->selected)->get();
+        $this->adminSave(
+            save: function (): array {
+                $pages = Page::query()->whereIn('id', $this->selected)->get();
 
-        if ($pages->isEmpty()) {
-            $this->selected = [];
+                if ($pages->isEmpty()) {
+                    $this->selected = [];
 
-            return;
-        }
+                    return [];
+                }
 
-        Log::warning('Pages deleted by admin (batch)', [
-            'admin_id' => auth()->id(),
-            'pages' => $pages->map(fn (Page $page) => [
-                'id' => $page->id,
-                'heading' => $this->sanitizeForLog((string) $page->heading),
-                'slug' => $this->sanitizeForLog((string) $page->slug),
-            ])->all(),
-        ]);
+                $logPages = $pages->map(fn (Page $page) => [
+                    'id' => $page->id,
+                    'heading' => self::sanitizeForLog((string) $page->heading),
+                    'slug' => self::sanitizeForLog((string) $page->slug),
+                ])->all();
 
-        $pages->each->delete();
+                $pages->each->delete();
 
-        $this->selected = [];
+                $this->selected = [];
+
+                return ['pages' => $logPages];
+            },
+            logAction: 'Pages deleted by admin (batch)',
+        );
+
         $this->success('Pages deleted');
     }
 

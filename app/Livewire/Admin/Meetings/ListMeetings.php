@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Meetings;
 
 use App\Enums\MeetingType;
-use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithAdminDelete;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Meeting;
 use App\Traits\EscapesLikeWildcards;
-use App\Traits\SanitizesLogData;
-use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -20,7 +18,7 @@ use Livewire\WithPagination;
 
 class ListMeetings extends Component
 {
-    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminDelete, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
@@ -81,16 +79,15 @@ class ListMeetings extends Component
      */
     public function delete(Meeting $meeting): void
     {
+        $this->adminDelete(
+            model: $meeting,
+            logAction: 'Meeting deleted by admin',
+            logFields: [
+                'meeting_id' => $meeting->id,
+                'slug' => self::sanitizeForLog((string) $meeting->slug),
+            ],
+        );
 
-        $this->authorizeAdmin();
-
-        Log::warning('Meeting deleted by admin', [
-            'admin_id' => auth()->id(),
-            'meeting_id' => $meeting->id,
-            'slug' => $this->sanitizeForLog((string) $meeting->slug),
-        ]);
-
-        $meeting->delete();
         $this->success('Meeting deleted');
     }
 

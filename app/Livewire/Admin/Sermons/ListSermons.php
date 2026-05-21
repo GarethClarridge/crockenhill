@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
-use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithAdminDelete;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
@@ -14,9 +14,7 @@ use App\Presenters\SermonViewPresenter;
 use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
 use App\Traits\EscapesLikeWildcards;
-use App\Traits\SanitizesLogData;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -24,7 +22,7 @@ use Livewire\WithPagination;
 
 class ListSermons extends Component
 {
-    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminDelete, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     private SermonViewPresenter $sermonViewPresenter;
 
@@ -125,16 +123,14 @@ class ListSermons extends Component
      */
     public function delete(Sermon $sermon): void
     {
-
-        $this->authorizeAdmin();
-
-        Log::warning('Sermon deleted by admin', [
-            'admin_id' => auth()->id(),
-            'sermon_id' => $sermon->id,
-            'title' => $this->sanitizeForLog((string) $sermon->title),
-        ]);
-
-        $sermon->delete();
+        $this->adminDelete(
+            model: $sermon,
+            logAction: 'Sermon deleted by admin',
+            logFields: [
+                'sermon_id' => $sermon->id,
+                'title' => self::sanitizeForLog((string) $sermon->title),
+            ],
+        );
 
         $this->success('Sermon deleted');
     }

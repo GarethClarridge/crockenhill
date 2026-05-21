@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Preachers;
 
-use App\Livewire\Traits\WithAdminAuthorization;
+use App\Livewire\Traits\WithAdminDelete;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
 use App\Traits\EscapesLikeWildcards;
-use App\Traits\SanitizesLogData;
-use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -19,7 +17,7 @@ use Livewire\WithPagination;
 
 class ListPreachers extends Component
 {
-    use EscapesLikeWildcards, SanitizesLogData, WithAdminAuthorization, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminDelete, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'name';
 
@@ -67,16 +65,14 @@ class ListPreachers extends Component
      */
     public function delete(Preacher $preacher): void
     {
-
-        $this->authorizeAdmin();
-
-        Log::warning('Preacher deleted by admin', [
-            'admin_id' => auth()->id(),
-            'preacher_id' => $preacher->id,
-            'name' => $this->sanitizeForLog((string) $preacher->name),
-        ]);
-
-        $preacher->delete();
+        $this->adminDelete(
+            model: $preacher,
+            logAction: 'Preacher deleted by admin',
+            logFields: [
+                'preacher_id' => $preacher->id,
+                'name' => self::sanitizeForLog((string) $preacher->name),
+            ],
+        );
 
         $this->success('Preacher deleted');
     }
