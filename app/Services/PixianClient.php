@@ -112,8 +112,6 @@ class PixianClient
 
     private function extractRequestId(Response $response): ?string
     {
-        $requestId = $response->header('x-request-id');
-
-        return $requestId !== '' ? $requestId : null;
+        return $response->header('x-request-id') ?: null;
     }
 }

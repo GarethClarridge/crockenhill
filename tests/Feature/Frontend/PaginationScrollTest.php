@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Frontend;
 
-use App\Livewire\Church\Songs\BrowseSongs;
 use App\Livewire\Admin\Meetings\ListMeetings;
+use App\Livewire\Church\Songs\BrowseSongs;
 use App\Models\User;
-use App\Models\Meeting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;

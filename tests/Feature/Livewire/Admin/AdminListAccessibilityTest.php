@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire\Admin;
 
+use App\Livewire\Admin\Sermons\ListSermons;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -23,7 +24,7 @@ class AdminListAccessibilityTest extends TestCase
         Sermon::factory()->count(5)->create(['date' => now()->subMonths(2)]);
 
         Livewire::actingAs($admin)
-            ->test(\App\Livewire\Admin\Sermons\ListSermons::class)
+            ->test(ListSermons::class)
             ->assertSeeHtml('Skip to results')
             ->assertSeeHtml('Showing <span class="font-medium text-gray-700">5</span> sermons')
             ->assertSeeHtml('id="admin-list-results"')
@@ -39,7 +40,7 @@ class AdminListAccessibilityTest extends TestCase
         Sermon::factory()->count(25)->create(['date' => now()->subMonths(2)]);
 
         Livewire::actingAs($admin)
-            ->test(\App\Livewire\Admin\Sermons\ListSermons::class)
+            ->test(ListSermons::class)
             ->assertSeeHtml('Showing <span class="font-medium text-gray-700">1</span> to <span class="font-medium text-gray-700">20</span> of <span class="font-medium text-gray-700">25</span> sermons')
             ->call('setPage', 2)
             ->assertSeeHtml('Showing <span class="font-medium text-gray-700">21</span> to <span class="font-medium text-gray-700">25</span> of <span class="font-medium text-gray-700">25</span> sermons');

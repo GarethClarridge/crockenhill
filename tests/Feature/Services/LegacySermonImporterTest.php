@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
-use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
@@ -12,7 +11,6 @@ use App\Services\LegacySermonImporter;
 use App\Services\MetadataExtractionService;
 use App\Services\ProcessingRunOrchestrator;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
