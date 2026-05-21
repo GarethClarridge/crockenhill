@@ -10,13 +10,32 @@ use Illuminate\Support\Collection;
 class SermonItemListPresenter
 {
     /**
-     * @var array<string, array<string, mixed>>
+     * Memoization for presented data arrays and collections.
+     *
+     * @var array<string, array<string, mixed>|array<int, array<string, mixed>>>
      */
-    private array $memoizedAuthors = [];
+    private array $memoizedPresents = [];
+
+    /**
+     * Tracks which keys have been computed, allowing null to be a legitimate cached result.
+     *
+     * @var array<string, true>
+     */
+    private array $computed = [];
 
     public function __construct(
         private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
+
+    /**
+     * Clear all internal memoization caches.
+     * Useful for long-running processes or tests.
+     */
+    public function clearInternalCaches(): void
+    {
+        $this->memoizedPresents = [];
+        $this->computed = [];
+    }
 
     /**
      * Convert a collection of sermons into a Schema.org ItemList data array.
@@ -38,7 +57,31 @@ class SermonItemListPresenter
         $appUrl = (string) config('app.url');
         $appId = $appUrl.'/';
 
-        $publisher = [
+        $publisher = $this->buildPublisher($orgName, $logoUrl, $appId);
+        $contentLocation = $this->buildContentLocation($orgName);
+        $worksFor = $this->buildWorksFor($orgName, $appId);
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'ItemList',
+            'numberOfItems' => $flatSermons->count(),
+            'itemListElement' => $flatSermons->values()->map(fn (Sermon $sermon, int $index): array => $this->buildListItem(
+                $sermon,
+                $index,
+                $logoUrl,
+                $publisher,
+                $contentLocation,
+                $worksFor
+            ))->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPublisher(string $orgName, string $logoUrl, string $appId): array
+    {
+        return [
             '@type' => 'Organization',
             'name' => $orgName,
             '@id' => $appId,
@@ -47,107 +90,211 @@ class SermonItemListPresenter
                 'url' => $logoUrl,
             ],
         ];
+    }
 
-        $contentLocation = [
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildContentLocation(string $orgName): array
+    {
+        return [
             '@type' => 'Place',
             'name' => $orgName,
         ];
+    }
 
-        $worksFor = [
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildWorksFor(string $orgName, string $appId): array
+    {
+        return [
             '@type' => 'Organization',
             'name' => $orgName,
             '@id' => $appId,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $sermonView
+     * @param  array<string, mixed>  $worksFor
+     * @return array<string, mixed>
+     */
+    private function resolveAuthor(Sermon $sermon, array $sermonView, array $worksFor): array
+    {
+        $preacherKey = $sermon->preacher_id !== null
+            ? "id_{$sermon->preacher_id}"
+            : (string) $sermonView['preacher_name'];
+
+        $authorKey = "author_{$preacherKey}";
+
+        if (isset($this->computed[$authorKey])) {
+            /** @var array<string, mixed> */
+            return $this->memoizedPresents[$authorKey];
+        }
+
+        $author = [
+            '@type' => 'Person',
+            'name' => $sermonView['preacher_name'],
+            'url' => $sermonView['preacher_url'],
+            'jobTitle' => 'Preacher',
+            'worksFor' => $worksFor,
+        ];
+
+        if ($sermonView['preacher_image_url']) {
+            $author['image'] = $sermonView['preacher_image_url'];
+        }
+
+        $this->computed[$authorKey] = true;
+
+        return $this->memoizedPresents[$authorKey] = $author;
+    }
+
+    /**
+     * @param  array<string, mixed>  $sermonView
+     * @param  array<string, mixed>  $author
+     * @param  array<string, mixed>  $publisher
+     * @param  array<string, mixed>  $contentLocation
+     * @return array<string, mixed>
+     */
+    private function buildArticle(
+        Sermon $sermon,
+        array $sermonView,
+        string $datePublished,
+        string $metaDescription,
+        array $author,
+        array $publisher,
+        array $contentLocation,
+        string $logoUrl
+    ): array {
+        return [
+            '@type' => 'Article',
+            'headline' => $sermon->title,
+            'name' => $sermon->title,
+            'url' => $sermonView['public_url'],
+            'description' => $metaDescription,
+            'datePublished' => $datePublished,
+            'dateModified' => $sermon->updated_at?->toIso8601String() ?? $datePublished,
+            'inLanguage' => 'en-GB',
+            'genre' => 'Sermon',
+            'contentLocation' => $contentLocation,
+            'author' => $author,
+            'publisher' => $publisher,
+            'mainEntityOfPage' => [
+                '@type' => 'WebPage',
+                '@id' => $sermonView['public_url'],
+            ],
+            'image' => $sermonView['thumbnail_url'] ?: $logoUrl,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $sermonView
+     * @return array<string, mixed>
+     */
+    private function buildVideoObject(
+        Sermon $sermon,
+        array $sermonView,
+        string $datePublished,
+        string $metaDescription,
+        string $logoUrl
+    ): array {
+        $video = [
+            '@type' => 'VideoObject',
+            'name' => $sermon->title,
+            'description' => $metaDescription,
+            'thumbnailUrl' => $sermonView['thumbnail_url'] ?: $logoUrl,
+            'uploadDate' => $datePublished,
+            'contentUrl' => $sermonView['video_url'],
+        ];
+
+        if ($sermonView['duration_iso8601']) {
+            $video['duration'] = $sermonView['duration_iso8601'];
+        }
+
+        return $video;
+    }
+
+    /**
+     * @param  array<string, mixed>  $sermonView
+     * @return array<string, mixed>
+     */
+    private function buildAudioObject(
+        Sermon $sermon,
+        array $sermonView,
+        string $datePublished,
+        string $metaDescription
+    ): array {
+        $audio = [
+            '@type' => 'AudioObject',
+            'name' => $sermon->title,
+            'contentUrl' => $sermonView['audio_url'],
+            'description' => $metaDescription,
+            'encodingFormat' => 'audio/mpeg',
+            'uploadDate' => $datePublished,
+        ];
+
+        if ($sermonView['duration_iso8601']) {
+            $audio['duration'] = $sermonView['duration_iso8601'];
+        }
+
+        return $audio;
+    }
+
+    /**
+     * @param  array<string, mixed>  $publisher
+     * @param  array<string, mixed>  $contentLocation
+     * @param  array<string, mixed>  $worksFor
+     * @return array<string, mixed>
+     */
+    private function buildListItem(
+        Sermon $sermon,
+        int $index,
+        string $logoUrl,
+        array $publisher,
+        array $contentLocation,
+        array $worksFor
+    ): array {
+        $sermonView = $this->sermonViewPresenter->presentForList($sermon);
+        $datePublished = $sermon->date->toIso8601String();
+        $metaDescription = $this->sermonViewPresenter->metaDescription($sermon);
+
+        $author = $this->resolveAuthor($sermon, $sermonView, $worksFor);
+
+        $item = $this->buildArticle(
+            $sermon,
+            $sermonView,
+            $datePublished,
+            $metaDescription,
+            $author,
+            $publisher,
+            $contentLocation,
+            $logoUrl
+        );
+
+        if ($sermonView['video_url']) {
+            $item['video'] = $this->buildVideoObject(
+                $sermon,
+                $sermonView,
+                $datePublished,
+                $metaDescription,
+                $logoUrl
+            );
+        }
+
+        if ($sermonView['audio_url']) {
+            $item['audio'] = $this->buildAudioObject(
+                $sermon,
+                $sermonView,
+                $datePublished,
+                $metaDescription
+            );
+        }
 
         return [
-            '@context' => 'https://schema.org',
-            '@type' => 'ItemList',
-            'numberOfItems' => $flatSermons->count(),
-            'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) use ($logoUrl, $publisher, $contentLocation, $worksFor) {
-                $sermonView = $this->sermonViewPresenter->presentForList($sermon);
-                $thumbnailUrl = $sermonView['thumbnail_url'];
-                $publicUrl = $sermonView['public_url'];
-                $datePublished = $sermon->date->toIso8601String();
-                $metaDescription = $this->sermonViewPresenter->metaDescription($sermon);
-
-                $preacherKey = $sermon->preacher_id !== null
-                    ? "id_{$sermon->preacher_id}"
-                    : (string) $sermonView['preacher_name'];
-
-                /** @var array<string, mixed> $author */
-                $author = $this->memoizedAuthors[$preacherKey] ??= [
-                    '@type' => 'Person',
-                    'name' => $sermonView['preacher_name'],
-                    'url' => $sermonView['preacher_url'],
-                    'jobTitle' => 'Preacher',
-                    'worksFor' => $worksFor,
-                ];
-
-                if ($sermonView['preacher_image_url'] && ! isset($author['image'])) {
-                    $author['image'] = $sermonView['preacher_image_url'];
-                    $this->memoizedAuthors[$preacherKey] = $author;
-                }
-
-                $item = [
-                    '@type' => 'Article',
-                    'headline' => $sermon->title,
-                    'name' => $sermon->title,
-                    'url' => $publicUrl,
-                    'description' => $metaDescription,
-                    'datePublished' => $datePublished,
-                    'dateModified' => $sermon->updated_at?->toIso8601String() ?? $datePublished,
-                    'inLanguage' => 'en-GB',
-                    'genre' => 'Sermon',
-                    'contentLocation' => $contentLocation,
-                    'author' => $author,
-                    'publisher' => $publisher,
-                    'mainEntityOfPage' => [
-                        '@type' => 'WebPage',
-                        '@id' => $publicUrl,
-                    ],
-                    'image' => $thumbnailUrl ?: $logoUrl,
-                ];
-
-                if ($sermonView['video_url']) {
-                    $video = [
-                        '@type' => 'VideoObject',
-                        'name' => $sermon->title,
-                        'description' => $metaDescription,
-                        'thumbnailUrl' => $thumbnailUrl ?: $logoUrl,
-                        'uploadDate' => $datePublished,
-                        'contentUrl' => $sermonView['video_url'],
-                    ];
-
-                    if ($sermonView['duration_iso8601']) {
-                        $video['duration'] = $sermonView['duration_iso8601'];
-                    }
-
-                    $item['video'] = $video;
-                }
-
-                if ($sermonView['audio_url']) {
-                    $audio = [
-                        '@type' => 'AudioObject',
-                        'name' => $sermon->title,
-                        'contentUrl' => $sermonView['audio_url'],
-                        'description' => $metaDescription,
-                        'encodingFormat' => 'audio/mpeg',
-                        'uploadDate' => $datePublished,
-                    ];
-
-                    if ($sermonView['duration_iso8601']) {
-                        $audio['duration'] = $sermonView['duration_iso8601'];
-                    }
-
-                    $item['audio'] = $audio;
-                }
-
-                return [
-                    '@type' => 'ListItem',
-                    'position' => $index + 1,
-                    'item' => $item,
-                ];
-            })->all(),
+            '@type' => 'ListItem',
+            'position' => $index + 1,
+            'item' => $item,
         ];
     }
 }
