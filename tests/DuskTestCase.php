@@ -17,20 +17,25 @@ abstract class DuskTestCase extends BaseTestCase
     use CreatesApplication;
 
     /**
-     * Flush the Redis cache used by the Dusk-served Laravel app.
+     * Flush the cache used by the Dusk-served Laravel app.
      *
      * The test process uses CACHE_DRIVER=array (per .env.testing), but the
-     * Dusk-served app uses CACHE_DRIVER=redis (per .env.dusk.local). Calling
-     * Cache::forget() in tests only clears the per-process array store and
-     * leaves Redis untouched, so cached read models from one test can hide
-     * data created by the next. Flushing the redis store here keeps each
-     * test isolated from prior runs.
+     * Dusk-served app uses a persistent store. Calling Cache::forget() in
+     * tests only clears the per-process array store, so cached read models
+     * from one test can hide data created by the next. Flushing the served
+     * app's store here keeps each test isolated from prior runs.
+     *
+     * Local dev uses redis; CI uses file. Skip the redis flush when redis
+     * isn't the configured default — otherwise Predis tries to connect to
+     * 127.0.0.1:6379 and the whole suite blows up before any browser work.
      */
     protected function setUp(): void
     {
         parent::setUp();
 
-        Cache::store('redis')->flush();
+        if (config('cache.default') === 'redis') {
+            Cache::store('redis')->flush();
+        }
     }
 
     /**

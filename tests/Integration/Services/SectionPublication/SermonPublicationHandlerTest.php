@@ -455,6 +455,7 @@ class SermonPublicationHandlerTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SERMON->value,
             'extracted_video_path' => 'private/video.mp4',
             'extracted_audio_path' => 'private/audio.mp3',
         ]);
