@@ -22,7 +22,7 @@ class MeetingFormData extends Form
 
     public string $endTime = '';
 
-    public string $day = '';
+    public ?string $day = null;
 
     public ?string $location = null;
 
@@ -178,7 +178,7 @@ class MeetingFormData extends Form
         }
 
         $this->slug = trim($this->slug);
-        $this->day = trim($this->day);
+        $this->day = trim((string) $this->day) ?: null;
         $this->who = trim($this->who);
 
         $this->location = trim((string) $this->location) ?: null;

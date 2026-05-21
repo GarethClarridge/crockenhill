@@ -117,7 +117,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     protected function day(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
+            set: fn (?string $value): ?string => $value !== null ? (trim($value) ?: null) : null,
         );
     }
 
@@ -197,7 +197,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
         return [
             'slug' => $slugRule,
             'type' => ['required', Rule::enum(MeetingType::class)],
-            'day' => ['required', 'string', 'max:255', $trimmedTextRule],
+            'day' => ['nullable', 'string', 'max:255', $trimmedTextRule],
             'location' => ['nullable', 'string', 'max:255', $trimmedTextRule],
             'who' => ['required', 'string', 'max:255', $trimmedTextRule],
             'leaders_phone' => ['nullable', 'string', 'max:255', $trimmedTextRule],

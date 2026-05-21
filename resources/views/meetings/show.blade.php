@@ -1,3 +1,12 @@
+@php
+    $titleParts = array_filter([
+        $heading,
+        $meeting->day,
+        $meeting->start_time?->format('g:ia'),
+    ]);
+    $pageTitle = implode(' | ', $titleParts);
+@endphp
+
 @extends('layouts.main')
 
 @section('content')
@@ -11,12 +20,12 @@
     :area="$area ?? null"
     :slug="$slug ?? null"
     :links="$links ?? []"
-    :title="$heading . ' | ' . $meeting->day . ($meeting->start_time ? ' ' . $meeting->start_time->format('g:ia') : '')"
+    :title="$pageTitle"
     :meta-tags="false"
 >
     @push('meta_tags')
         <x-meta-tags
-            :title="$heading . ' | ' . $meeting->day . ($meeting->start_time ? ' ' . $meeting->start_time->format('g:ia') : '')"
+            :title="$pageTitle"
             :description="$description ?? $heading"
             :image="$headingpicture"
             :image-alt="'Meeting: ' . $heading"

@@ -21,8 +21,8 @@
             <x-input label="Who" wire:model="form.who" required
                 hint="Target audience (e.g., 'All ages', 'Adults', etc.)" />
 
-            <x-input label="Day" wire:model="form.day" required
-                hint="Day of the week or specific date description" />
+            <x-input label="Day" wire:model="form.day"
+                hint="Day of the week or specific date description. Leave blank for events with no fixed schedule." />
         </div>
     </x-card>
 

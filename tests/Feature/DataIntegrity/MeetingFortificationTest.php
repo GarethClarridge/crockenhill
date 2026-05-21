@@ -63,6 +63,38 @@ class MeetingFortificationTest extends TestCase
     }
 
     #[Test]
+    public function it_allows_null_day_at_database_level()
+    {
+        if (DB::getDriverName() === 'sqlite') {
+            $this->markTestSkipped('SQLite does not support the same CHECK constraints as MySQL.');
+        }
+
+        Meeting::query()->insert([
+            'slug' => 'one-off-event',
+            'type' => 'Occasional',
+            'day' => null,
+            'who' => 'All welcome',
+            'pictures' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $meeting = Meeting::query()->where('slug', 'one-off-event')->first();
+        $this->assertNotNull($meeting);
+        $this->assertNull($meeting->day);
+    }
+
+    #[Test]
+    public function it_coerces_whitespace_only_day_to_null_via_mutator(): void
+    {
+        $meeting = Meeting::factory()->create([
+            'day' => '   ',
+        ]);
+
+        $this->assertNull($meeting->day);
+    }
+
+    #[Test]
     public function it_enforces_trimmed_who_at_database_level()
     {
         if (DB::getDriverName() === 'sqlite') {

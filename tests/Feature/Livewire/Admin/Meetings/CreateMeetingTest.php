@@ -91,7 +91,8 @@ class CreateMeetingTest extends TestCase
 
         Livewire::test(CreateMeeting::class)
             ->call('save')
-            ->assertHasErrors(['form.slug' => 'required', 'form.day' => 'required', 'form.who' => 'required']);
+            ->assertHasErrors(['form.slug' => 'required', 'form.who' => 'required'])
+            ->assertHasNoErrors(['form.day']);
     }
 
     #[Test]
