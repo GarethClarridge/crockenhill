@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Pages;
 
 use App\Enums\PageArea;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithAdminDelete;
 use App\Livewire\Traits\WithAdminSave;
 use App\Livewire\Traits\WithFilterableListing;
@@ -19,7 +20,7 @@ use Livewire\WithPagination;
 
 class ListPages extends Component
 {
-    use EscapesLikeWildcards, WithAdminDelete, WithAdminSave, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithAdminDelete, WithAdminSave, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
@@ -49,16 +50,6 @@ class ListPages extends Component
     /** @var array<int, int|string> */
     public array $selected = [];
 
-    public function updatedAreaFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedNavigationFilter(): void
-    {
-        $this->resetPage();
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -78,6 +69,8 @@ class ListPages extends Component
      */
     public function delete(Page $page): void
     {
+        $this->authorizeAdmin();
+
         $this->adminDelete(
             model: $page,
             logAction: 'Page deleted by admin',
@@ -97,6 +90,8 @@ class ListPages extends Component
      */
     public function deleteSelected(): void
     {
+        $this->authorizeAdmin();
+
         if (empty($this->selected)) {
             return;
         }

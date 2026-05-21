@@ -40,6 +40,13 @@ trait WithFilterableListing
         $this->resetPage();
     }
 
+    public function updated(string $property): void
+    {
+        if ($property !== 'search' && array_key_exists($property, $this->filterProperties())) {
+            $this->resetPage();
+        }
+    }
+
     public function resetFilters(): void
     {
         $this->reset(array_keys($this->filterProperties()));

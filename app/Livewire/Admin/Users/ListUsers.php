@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithAdminDelete;
 use App\Livewire\Traits\WithAdminSave;
 use App\Livewire\Traits\WithFilterableListing;
@@ -18,7 +19,7 @@ use Livewire\WithPagination;
 
 class ListUsers extends Component
 {
-    use EscapesLikeWildcards, WithAdminDelete, WithAdminSave, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithAdminDelete, WithAdminSave, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'created_at';
 

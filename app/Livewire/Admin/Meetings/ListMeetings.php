@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Meetings;
 
 use App\Enums\MeetingType;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithAdminDelete;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
@@ -18,7 +19,7 @@ use Livewire\WithPagination;
 
 class ListMeetings extends Component
 {
-    use EscapesLikeWildcards, WithAdminDelete, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithAdminDelete, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
@@ -50,16 +51,6 @@ class ListMeetings extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function updatedTypeFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedRecurringFilter(): void
-    {
-        $this->resetPage();
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -79,6 +70,8 @@ class ListMeetings extends Component
      */
     public function delete(Meeting $meeting): void
     {
+        $this->authorizeAdmin();
+
         $this->adminDelete(
             model: $meeting,
             logAction: 'Meeting deleted by admin',

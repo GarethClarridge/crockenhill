@@ -66,21 +66,6 @@ class ListSongs extends Component
         ];
     }
 
-    public function updatedServiceFilter(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedDateFrom(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedDateTo(): void
-    {
-        $this->resetPage();
-    }
-
     public function render(): View
     {
         $this->sanitizeSorting();

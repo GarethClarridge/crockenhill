@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Preachers;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithAdminDelete;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
@@ -17,7 +18,7 @@ use Livewire\WithPagination;
 
 class ListPreachers extends Component
 {
-    use EscapesLikeWildcards, WithAdminDelete, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithAdminDelete, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'name';
 
@@ -42,11 +43,6 @@ class ListPreachers extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function updatedActiveFilter(): void
-    {
-        $this->resetPage();
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -65,6 +61,8 @@ class ListPreachers extends Component
      */
     public function delete(Preacher $preacher): void
     {
+        $this->authorizeAdmin();
+
         $this->adminDelete(
             model: $preacher,
             logAction: 'Preacher deleted by admin',
