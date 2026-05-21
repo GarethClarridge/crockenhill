@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services\SectionPublication;
 
+use App\Data\ServiceSectionMetadata;
+use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
 use App\Services\ExtractedSectionMediaChecker;
@@ -33,6 +37,8 @@ class SermonPublicationHandlerTest extends TestCase
 
     private MockInterface $identityResolver;
 
+    private MockInterface $publicationTransitions;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -40,12 +46,13 @@ class SermonPublicationHandlerTest extends TestCase
         $this->childrensTalkSpeakerService = Mockery::mock(ChildrensTalkSpeakerService::class);
         $this->sermonCreationService = Mockery::mock(SermonCreationService::class);
         $this->identityResolver = Mockery::mock(MediaProcessingIdentityResolver::class);
+        $this->publicationTransitions = Mockery::mock(ServiceSectionPublicationTransitionService::class);
 
         $this->handler = new SermonPublicationHandler(
             $this->childrensTalkSpeakerService,
             $this->sermonCreationService,
             $this->identityResolver,
-            app(ServiceSectionPublicationTransitionService::class),
+            $this->publicationTransitions,
             app(ExtractedSectionMediaChecker::class),
         );
     }
@@ -188,5 +195,286 @@ class SermonPublicationHandlerTest extends TestCase
         $this->handler->onSectionRemoved($section);
 
         Log::shouldNotHaveReceived('warning');
+    }
+
+    // --- publish() ---
+
+    #[Test]
+    public function publish_successfully_promotes_section_to_sermon(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $videoPath = 'private/section-publications/1/video.mp4';
+        $audioPath = 'private/section-publications/1/audio.mp3';
+        Storage::disk('local')->put($videoPath, 'video-content');
+        Storage::disk('local')->put($audioPath, 'audio-content');
+
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SERMON->value,
+            'extracted_video_path' => $videoPath,
+            'extracted_audio_path' => $audioPath,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
+        ]);
+
+        $signature = $section->classificationSignature();
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication' => ['approved_signature' => $signature],
+        ]);
+        $section->save();
+
+        $this->identityResolver->shouldReceive('resolve')
+            ->once()
+            ->with(Mockery::on(fn ($arg) => $arg->id === $processingLog->id))
+            ->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+
+        $this->publicationTransitions->shouldReceive('transition')
+            ->once()
+            ->with($section, ServiceSectionPublicationStatus::Published)
+            ->andReturnUsing(function ($section, $status) {
+                $section->publication_status = $status;
+
+                return true;
+            });
+
+        $sermon = Sermon::factory()->create();
+        $this->sermonCreationService->shouldReceive('createSermon')
+            ->once()
+            ->andReturn($sermon);
+
+        $this->handler->publish($section);
+
+        $section->refresh();
+        $this->assertEquals($sermon->id, $section->published_sermon_id);
+        $this->assertNotNull($section->published_at);
+        $this->assertNull($section->unpublished_expires_at);
+
+        // Assets should be promoted
+        Storage::disk('public')->assertExists($section->extracted_video_path);
+        Storage::disk('public')->assertExists($section->extracted_audio_path);
+    }
+
+    #[Test]
+    public function publish_throws_exception_when_video_path_is_missing(): void
+    {
+        $section = ServiceSection::factory()->create(['extracted_video_path' => null]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Section video path missing');
+
+        $this->handler->publish($section);
+    }
+
+    #[Test]
+    public function publish_throws_exception_when_audio_path_is_missing(): void
+    {
+        $section = ServiceSection::factory()->create([
+            'extracted_video_path' => 'video.mp4',
+            'extracted_audio_path' => null,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Section audio path missing');
+
+        $this->handler->publish($section);
+    }
+
+    #[Test]
+    public function publish_throws_exception_when_video_file_is_missing_on_disk(): void
+    {
+        Storage::fake('local');
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'extracted_video_path' => 'private/missing.mp4',
+            'extracted_audio_path' => 'private/exists.mp3',
+        ]);
+
+        $this->identityResolver->shouldReceive('resolve')
+            ->byDefault()
+            ->with(Mockery::on(fn ($arg) => $arg->id === $processingLog->id))
+            ->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Section video file is missing');
+
+        $this->handler->publish($section);
+    }
+
+    #[Test]
+    public function publish_throws_exception_when_audio_file_is_missing_on_disk(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('private/video.mp4', 'content');
+
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'extracted_video_path' => 'private/video.mp4',
+            'extracted_audio_path' => 'private/missing.mp3',
+        ]);
+
+        $this->identityResolver->shouldReceive('resolve')
+            ->byDefault()
+            ->with(Mockery::on(fn ($arg) => $arg->id === $processingLog->id))
+            ->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Section audio file is missing');
+
+        $this->handler->publish($section);
+    }
+
+    #[Test]
+    public function publish_throws_exception_when_identity_resolution_fails(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('private/video.mp4', 'content');
+        Storage::disk('local')->put('private/audio.mp3', 'content');
+
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'extracted_video_path' => 'private/video.mp4',
+            'extracted_audio_path' => 'private/audio.mp3',
+        ]);
+
+        $this->identityResolver->shouldReceive('resolve')
+            ->once()
+            ->with(Mockery::on(fn ($arg) => $arg->id === $processingLog->id))
+            ->andReturn(null);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to resolve processing identity');
+
+        $this->handler->publish($section);
+    }
+
+    #[Test]
+    public function publish_throws_exception_when_approval_signature_is_missing(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('private/video.mp4', 'content');
+        Storage::disk('local')->put('private/audio.mp3', 'content');
+
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'extracted_video_path' => 'private/video.mp4',
+            'extracted_audio_path' => 'private/audio.mp3',
+            'metadata' => null,
+        ]);
+
+        $this->identityResolver->shouldReceive('resolve')
+            ->once()
+            ->with(Mockery::on(fn ($arg) => $arg->id === $processingLog->id))
+            ->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Section approval signature is missing');
+
+        $this->handler->publish($section);
+    }
+
+    #[Test]
+    public function publish_throws_exception_when_signature_mismatches(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('private/video.mp4', 'content');
+        Storage::disk('local')->put('private/audio.mp3', 'content');
+
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'extracted_video_path' => 'private/video.mp4',
+            'extracted_audio_path' => 'private/audio.mp3',
+            'title' => 'Original Title',
+        ]);
+
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication' => ['approved_signature' => $section->classificationSignature()],
+        ]);
+        $section->save();
+
+        // Change title to invalidate signature
+        $section->title = 'Modified Title';
+
+        $this->identityResolver->shouldReceive('resolve')
+            ->once()
+            ->with(Mockery::on(fn ($arg) => $arg->id === $processingLog->id))
+            ->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Section classification changed since approval');
+
+        $this->handler->publish($section);
+    }
+
+    #[Test]
+    public function publish_throws_exception_for_childrens_talk_with_unresolved_speaker(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('private/video.mp4', 'content');
+        Storage::disk('local')->put('private/audio.mp3', 'content');
+
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'extracted_video_path' => 'private/video.mp4',
+            'extracted_audio_path' => 'private/audio.mp3',
+        ]);
+
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication' => ['approved_signature' => $section->classificationSignature()],
+            'childrens_talk_speaker' => null, // Unresolved
+        ]);
+        $section->save();
+
+        $this->identityResolver->shouldReceive('resolve')
+            ->once()
+            ->with(Mockery::on(fn ($arg) => $arg->id === $processingLog->id))
+            ->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("Children's talk speaker must be reviewed");
+
+        $this->handler->publish($section);
+    }
+
+    #[Test]
+    public function publish_throws_exception_when_transition_to_published_fails(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('private/video.mp4', 'content');
+        Storage::disk('local')->put('private/audio.mp3', 'content');
+
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'extracted_video_path' => 'private/video.mp4',
+            'extracted_audio_path' => 'private/audio.mp3',
+        ]);
+
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication' => ['approved_signature' => $section->classificationSignature()],
+        ]);
+        $section->save();
+
+        $this->identityResolver->shouldReceive('resolve')
+            ->once()
+            ->with(Mockery::on(fn ($arg) => $arg->id === $processingLog->id))
+            ->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+
+        $this->publicationTransitions->shouldReceive('transition')
+            ->andReturn(false);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalid state transition when publishing');
+
+        $this->handler->publish($section);
     }
 }
