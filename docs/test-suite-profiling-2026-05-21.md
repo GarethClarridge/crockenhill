@@ -82,30 +82,51 @@ the cold-start cost.
 
 ## Recommendations, in order of impact
 
-### 1. `vendor/bin/sail artisan schema:dump --prune` (biggest win, lowest risk)
+### 1. `vendor/bin/sail artisan schema:dump` — **WITHOUT `--prune`** (done 2026-05-22)
 
-Squashes the 151 migrations into a single `database/schema/{connection}-schema.sql`. Laravel
-detects the schema file automatically and loads it instead of running migrations one-by-one when
-preparing the test database.
+Squashes the migrations into a single `database/schema/{connection}-schema.sql`. Laravel detects
+the schema file automatically and loads it instead of running migrations one-by-one when preparing
+the test database. After loading the schema file, Laravel still runs any incremental migrations
+not present in the dump's migrations table.
 
-- **Estimated impact:** 30–45 s wall-time reduction (cuts the longest pole that gates parallel
-  workers). Suite should drop from ~5 min to ~3.5–4 min.
-- **Risk:** Very low — built-in Laravel feature. New migrations created after the dump still run
-  incrementally; periodically re-dump.
-- **Verification plan:** After dumping, run the suite three times and compare wall time to the
-  baseline (before the dump) measured the same way.
+- **Status:** Done. Run `vendor/bin/sail artisan schema:dump` periodically to refresh the schema
+  file after new migrations land.
+- **Measured impact:** ~17 s saving (3:48 → 3:31 wall time after the earlier test refactors).
+- **Cumulative with #2 below:** ~5:00 → 3:31, a 30% reduction.
 
-### 2. Mock the image-processing tests (~25 s additional saving)
+**Critical: never use `--prune` on this codebase.** Several tests programmatically load and run
+specific migration files (`tests/Feature/Database/CorrectiveSchemaMigrationsTest.php`,
+`tests/Feature/Database/FormalizePagesAreaColumnMigrationTest.php`,
+`tests/Feature/Warden/SermonScriptureFilterMigrationTest.php`, and migration-specific methods
+inside several other files). Pruning deletes those files and breaks 21 tests. The schema dump
+itself faithfully preserves all 113 constraints (verified by diffing
+`information_schema.table_constraints` between a migration-built DB and a dump-loaded DB on
+2026-05-22) — `--prune` is the destructive part, not the dump.
 
-- `ConvertJpgToWebpCommandTest`: scope the scan to a `Storage::fake()` tree rather than the real
-  repo paths. (See prior report for details — recommendation still valid.)
-- `ThumbnailCanvasComposerTest`: keep one full integration test that exercises the real
-  Intervention pipeline; mock at the Intervention boundary for the others.
+### 2. Mock the image-processing tests (done 2026-05-21)
+
+- `ConvertJpgToWebpCommandTest`: **done.** Added overridable `imageScanPaths()` / `referenceScanPaths()`
+  on the command; test binds an anonymous subclass that points them at a per-test temp tree under
+  `storage/framework/testing/`. Single-process run dropped from 13.57 s to ~0.8 s (17× speedup).
+  Also fixes a latent correctness bug: the previous test wrote fixture blade/jpg files into the real
+  `resources/views` and `public/images` directories — a failure before tearDown would have polluted
+  the working tree.
+- `ThumbnailCanvasComposerTest`: **done.** The 9 individual canvas renders (5 main + 4 centered)
+  collapsed to 5 unique fixtures via a static `self::$canvasCache` keyed by `(layout, foreground kind)`.
+  Each unique render still happens exactly once and every original pixel assertion is preserved.
+  Single-process run dropped from 15.32 s to 9.16 s (~6 s saved).
+- The original advice — "mock at the Intervention boundary" — was rejected because the tests are
+  asserting actual pixel layout (e.g. "title pixels below the increased top padding"). Mocking
+  Intervention would gut the test value; sharing renders preserves it.
 
 ### 3. Investigate worker imbalance with paratest `--functional` mode
 
 Distributes work by test method rather than by file. Worth measuring *after* #1 and #2 — fixing
 the cold-start cost may already rebalance the workers enough that this isn't needed.
+
+**Post-mitigation baseline (2026-05-22, after #1 + #2):** ~3:31 wall time (down from ~5:00, a 30%
+reduction). All 5,194 tests green. The two 50 s `PublicSong*` outliers remain — they are
+unavoidable cold-start cost that the schema-dump now partly absorbs.
 
 ### 4. Skip the long tail
 

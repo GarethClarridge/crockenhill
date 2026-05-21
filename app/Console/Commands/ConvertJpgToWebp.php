@@ -95,10 +95,7 @@ class ConvertJpgToWebp extends Command
      */
     private function findAllJpgFiles(): Collection
     {
-        $directories = [
-            base_path('public/images'),
-            storage_path('app/public/sermons/thumbnails'),
-        ];
+        $directories = $this->imageScanPaths();
 
         $files = collect();
 
@@ -174,36 +171,50 @@ class ConvertJpgToWebp extends Command
             return;
         }
 
-        // File patterns to search
         // Note: config/ is excluded because it may contain external references
         // (like podcast feeds) that need to remain as JPG for compatibility
-        $patterns = [
-            'blade' => base_path('resources/views'),
-            'php' => base_path('app'),
-            'css' => base_path('resources/css'),
-            'js' => base_path('resources/js'),
-        ];
+        $patterns = $this->referenceScanPaths();
 
         // Patterns to find and replace — only for successfully converted files
         $replacements = $this->buildReplacementPatterns();
 
-        foreach ($patterns as $type => $directory) {
+        foreach ($patterns as $directory => $extensions) {
             if (! File::isDirectory($directory)) {
                 continue;
             }
 
-            $extensions = match ($type) {
-                'blade' => ['blade.php'],
-                'php' => ['php'],
-                'css' => ['css', 'scss'],
-                'js' => ['js', 'ts', 'vue'],
-            };
-
             $this->updateFilesInDirectory($directory, $extensions, $replacements);
         }
+    }
 
-        // Also check database seeders
-        $this->updateFilesInDirectory(base_path('database'), ['php'], $replacements);
+    /**
+     * Directories scanned for JPG source files. Override in tests to scope the scan.
+     *
+     * @return list<string>
+     */
+    protected function imageScanPaths(): array
+    {
+        return [
+            base_path('public/images'),
+            storage_path('app/public/sermons/thumbnails'),
+        ];
+    }
+
+    /**
+     * Directories scanned for code references, keyed by directory with their
+     * allowed file extensions. Override in tests to scope the scan.
+     *
+     * @return array<string, list<string>>
+     */
+    protected function referenceScanPaths(): array
+    {
+        return [
+            base_path('resources/views') => ['blade.php'],
+            base_path('app') => ['php'],
+            base_path('resources/css') => ['css', 'scss'],
+            base_path('resources/js') => ['js', 'ts', 'vue'],
+            base_path('database') => ['php'],
+        ];
     }
 
     /**

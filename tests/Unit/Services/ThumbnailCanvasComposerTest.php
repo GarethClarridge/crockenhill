@@ -14,10 +14,20 @@ use Tests\TestCase;
 
 class ThumbnailCanvasComposerTest extends TestCase
 {
+    /** @var array<string, ImageInterface> */
+    private static array $canvasCache = [];
+
+    public static function tearDownAfterClass(): void
+    {
+        self::$canvasCache = [];
+
+        parent::tearDownAfterClass();
+    }
+
     #[Test]
     public function it_draws_the_logo_at_the_reduced_size(): void
     {
-        $image = app(ThumbnailCanvasComposer::class)->buildMainThumbnailCanvas($this->sermon(), null);
+        $image = $this->mainCanvas(null);
 
         $bounds = $this->pixelBounds($image, 0, 0, 260, 260);
 
@@ -29,7 +39,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_vertically_centers_the_title_pixels_against_the_accent_line(): void
     {
-        $image = app(ThumbnailCanvasComposer::class)->buildMainThumbnailCanvas($this->sermon(), null);
+        $image = $this->mainCanvas(null);
 
         $accentBounds = $this->pixelBounds($image, 45, 220, 70, 430);
         $titleBounds = $this->pixelBounds($image, 75, 220, 620, 430);
@@ -46,8 +56,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_places_the_foreground_subject_with_the_same_top_and_right_inset_as_the_logo(): void
     {
-        $foreground = $this->foregroundLayer(220, 320);
-        $image = app(ThumbnailCanvasComposer::class)->buildMainThumbnailCanvas($this->sermon(), $foreground);
+        $image = $this->mainCanvas('symmetric');
 
         $bounds = $this->greenPixelBounds($image);
 
@@ -62,8 +71,7 @@ class ThumbnailCanvasComposerTest extends TestCase
         // The foreground subject must be placed before text/highlight layers so it
         // does not obscure title text. We verify there are non-background pixels in
         // the title region (i.e. the highlight rendered on top of the subject).
-        $foreground = $this->foregroundLayer(220, 320);
-        $image = app(ThumbnailCanvasComposer::class)->buildMainThumbnailCanvas($this->sermon(), $foreground);
+        $image = $this->mainCanvas('symmetric');
 
         // The title region is on the left half. If the subject were drawn on top it
         // would flood this area with pure green, hiding the highlight/text.
@@ -94,8 +102,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     {
         // Create a subject with an asymmetric red marker on the left side only.
         // After flipping, the red pixels should appear in the right half of the canvas.
-        $foreground = $this->asymmetricForegroundLayer(220, 320);
-        $image = app(ThumbnailCanvasComposer::class)->buildMainThumbnailCanvas($this->sermon(), $foreground);
+        $image = $this->mainCanvas('asymmetric');
 
         $native = $image->core()->native();
         $this->assertInstanceOf(\GdImage::class, $native);
@@ -127,7 +134,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_builds_a_centered_canvas_with_correct_dimensions(): void
     {
-        $image = app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas($this->sermon(), null);
+        $image = $this->centeredCanvas(null);
 
         $this->assertSame(1280, $image->width());
         $this->assertSame(720, $image->height());
@@ -136,7 +143,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_renders_foreground_coloured_title_text_on_the_centered_canvas(): void
     {
-        $image = app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas($this->sermon(), null);
+        $image = $this->centeredCanvas(null);
 
         $native = $image->core()->native();
         $this->assertInstanceOf(\GdImage::class, $native);
@@ -191,8 +198,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_places_the_foreground_subject_below_the_title_midpoint_on_centered_canvas(): void
     {
-        $foreground = $this->foregroundLayer(220, 320);
-        $image = app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas($this->sermon(), $foreground);
+        $image = $this->centeredCanvas('symmetric');
 
         $bounds = $this->greenPixelBounds($image);
 
@@ -205,8 +211,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_centers_the_foreground_subject_horizontally_on_centered_canvas(): void
     {
-        $foreground = $this->foregroundLayer(220, 320);
-        $image = app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas($this->sermon(), $foreground);
+        $image = $this->centeredCanvas('symmetric');
 
         $bounds = $this->greenPixelBounds($image);
 
@@ -217,6 +222,49 @@ class ThumbnailCanvasComposerTest extends TestCase
         $leftGap = $bounds['min_x'];
         $rightGap = $image->width() - $bounds['max_x'];
         $this->assertEqualsWithDelta($leftGap, $rightGap, 60.0, 'Expected foreground subject to be horizontally centred');
+    }
+
+    /**
+     * Build (and cache for the test class lifetime) a "main" thumbnail canvas.
+     *
+     * Several tests inspect different pixel regions of an otherwise identical
+     * render — sharing the canvas keeps assertions independent while paying
+     * the GD composition cost only once per fixture.
+     *
+     * @param  'symmetric'|'asymmetric'|null  $foreground
+     */
+    private function mainCanvas(?string $foreground): ImageInterface
+    {
+        return self::$canvasCache['main:'.($foreground ?? 'none')]
+            ??= app(ThumbnailCanvasComposer::class)->buildMainThumbnailCanvas(
+                $this->sermon(),
+                $this->foregroundFor($foreground),
+            );
+    }
+
+    /**
+     * @param  'symmetric'|'asymmetric'|null  $foreground
+     */
+    private function centeredCanvas(?string $foreground): ImageInterface
+    {
+        return self::$canvasCache['centered:'.($foreground ?? 'none')]
+            ??= app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas(
+                $this->sermon(),
+                $this->foregroundFor($foreground),
+            );
+    }
+
+    /**
+     * @param  'symmetric'|'asymmetric'|null  $kind
+     * @return array{image: ImageInterface, coverage: float, bounds: array{x:int,y:int,width:int,height:int}, method: string}|null
+     */
+    private function foregroundFor(?string $kind): ?array
+    {
+        return match ($kind) {
+            'symmetric' => $this->foregroundLayer(220, 320),
+            'asymmetric' => $this->asymmetricForegroundLayer(220, 320),
+            null => null,
+        };
     }
 
     private function sermon(string $title = 'Grace Alone'): Sermon

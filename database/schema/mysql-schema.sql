@@ -9,9 +9,9 @@ DROP TABLE IF EXISTS `calendar_events`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `calendar_events` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `google_event_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `google_event_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `meeting_slug` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `speaker` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `location` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -28,7 +28,11 @@ CREATE TABLE `calendar_events` (
   KEY `calendar_events_meeting_slug_index` (`meeting_slug`),
   KEY `calendar_events_start_datetime_index` (`start_datetime`),
   CONSTRAINT `calendar_events_meeting_slug_foreign` FOREIGN KEY (`meeting_slug`) REFERENCES `meetings` (`slug`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `calendar_events_timing_check` CHECK ((`end_datetime` >= `start_datetime`))
+  CONSTRAINT `calendar_events_google_event_id_format_check` CHECK (((cast(`google_event_id` as char charset binary) = trim(`google_event_id`)) and (`google_event_id` <> _utf8mb4''))),
+  CONSTRAINT `calendar_events_location_format_check` CHECK (((`location` is null) or (cast(`location` as char charset binary) = trim(`location`)))),
+  CONSTRAINT `calendar_events_speaker_format_check` CHECK (((`speaker` is null) or (cast(`speaker` as char charset binary) = trim(`speaker`)))),
+  CONSTRAINT `calendar_events_timing_check` CHECK ((`end_datetime` >= `start_datetime`)),
+  CONSTRAINT `calendar_events_title_format_check` CHECK (((cast(`title` as char charset binary) = trim(`title`)) and (`title` <> _utf8mb4'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `church_service_items`;
@@ -63,7 +67,11 @@ CREATE TABLE `church_service_items` (
   KEY `church_service_items_livestream_processing_id_index` (`livestream_processing_id`),
   CONSTRAINT `church_service_items_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE CASCADE,
   CONSTRAINT `church_service_items_livestream_service_section_id_foreign` FOREIGN KEY (`livestream_service_section_id`) REFERENCES `service_sections` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `church_service_items_song_id_foreign` FOREIGN KEY (`song_id`) REFERENCES `songs` (`id`) ON DELETE SET NULL
+  CONSTRAINT `church_service_items_song_id_foreign` FOREIGN KEY (`song_id`) REFERENCES `songs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `church_service_items_openlp_search_title_format_check` CHECK (((`openlp_search_title` is null) or ((cast(`openlp_search_title` as char charset binary) = trim(`openlp_search_title`)) and (`openlp_search_title` <> _utf8mb4'')))),
+  CONSTRAINT `church_service_items_source_title_format_check` CHECK (((`source_title` is null) or ((cast(`source_title` as char charset binary) = trim(`source_title`)) and (`source_title` <> _utf8mb4'')))),
+  CONSTRAINT `church_service_items_title_format_check` CHECK (((cast(`title` as char charset binary) = trim(`title`)) and (`title` <> _utf8mb4''))),
+  CONSTRAINT `church_service_items_type_format_check` CHECK (((cast(`type` as char charset binary) = trim(`type`)) and (`type` <> _utf8mb4'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `church_services`;
@@ -98,6 +106,7 @@ CREATE TABLE `church_services` (
   KEY `church_services_review_state_index` (`review_state`),
   KEY `church_services_canonical_conflict_state_index` (`canonical_conflict_state`),
   KEY `church_services_pending_merge_source_index` (`pending_structure_merge_source`),
+  CONSTRAINT `church_services_manual_reviewed_by_user_id_foreign` FOREIGN KEY (`manual_reviewed_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `church_services_canonical_conflict_state_check` CHECK ((((`canonical_conflict_state` = _utf8mb4'none') and (`canonical_conflict_detected_at` is null) and (`canonical_conflict_incoming_source` is null) and (`canonical_conflict_reviewed_previously` is null) and (`canonical_conflict_canonical_changed` is null) and (`canonical_conflict_reason` is null)) or ((`canonical_conflict_state` = _utf8mb4'detected') and (`canonical_conflict_detected_at` is not null) and (`canonical_conflict_incoming_source` is not null) and (`canonical_conflict_reason` is not null)) or ((`canonical_conflict_state` = _utf8mb4'reopened') and (`canonical_conflict_detected_at` is not null) and (`canonical_conflict_incoming_source` is not null) and (`canonical_conflict_reason` is not null)))),
   CONSTRAINT `church_services_review_state_check` CHECK ((((`review_state` = _utf8mb4'not_reviewed') and (`manual_reviewed_at` is null) and (`manual_review_reopened_at` is null) and (`manual_review_reopened_by_source` is null)) or ((`review_state` = _utf8mb4'reviewed') and (`manual_reviewed_at` is not null) and (`manual_review_reopened_at` is null) and (`manual_review_reopened_by_source` is null)) or ((`review_state` = _utf8mb4'reopened') and (`manual_reviewed_at` is not null) and (`manual_review_reopened_at` is not null) and (`manual_review_reopened_by_source` is not null))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -150,7 +159,9 @@ CREATE TABLE `inbound_emails` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `inbound_emails_message_id_unique` (`message_id`),
   KEY `inbound_emails_status_index` (`status`),
-  KEY `inbound_emails_received_at_index` (`received_at`)
+  KEY `inbound_emails_received_at_index` (`received_at`),
+  CONSTRAINT `inbound_emails_from_format_check` CHECK (((cast(`from` as char charset binary) = trim(`from`)) and (`from` <> _utf8mb4''))),
+  CONSTRAINT `inbound_emails_subject_format_check` CHECK (((cast(`subject` as char charset binary) = trim(`subject`)) and (`subject` <> _utf8mb4'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `job_batches`;
@@ -306,12 +317,14 @@ CREATE TABLE `media_processing_logs` (
   KEY `media_processing_logs_church_service_id_foreign` (`church_service_id`),
   KEY `media_processing_logs_file_hash_index` (`file_hash`),
   KEY `media_processing_logs_review_queue_index` (`processing_type`,`status`,`current_step`,`updated_at`),
+  KEY `media_processing_logs_original_filename_index` (`original_filename`),
   CONSTRAINT `media_processing_logs_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE SET NULL,
   CONSTRAINT `media_processing_logs_owner_user_id_foreign` FOREIGN KEY (`owner_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `media_processing_logs_sermon_id_foreign` FOREIGN KEY (`sermon_id`) REFERENCES `sermons` (`id`) ON DELETE SET NULL,
   CONSTRAINT `media_processing_logs_duration_check` CHECK (((`duration` >= 0) or (`duration` is null))),
   CONSTRAINT `media_processing_logs_file_size_check` CHECK (((`file_size` >= 0) or (`file_size` is null))),
-  CONSTRAINT `media_processing_logs_timing_check` CHECK (((`sermon_start_time` >= 0) and ((`sermon_end_time` >= `sermon_start_time`) or (`sermon_end_time` is null) or (`sermon_start_time` is null)))),
+  CONSTRAINT `media_processing_logs_original_filename_format_check` CHECK (((cast(`original_filename` as char charset binary) = trim(`original_filename`)) and (`original_filename` <> _utf8mb4''))),
+  CONSTRAINT `media_processing_logs_sermon_time_range_check` CHECK (((`sermon_start_time` is null) or (`sermon_end_time` is null) or ((`sermon_start_time` >= 0) and (`sermon_end_time` >= 0) and (`sermon_end_time` >= `sermon_start_time`)))),
   CONSTRAINT `media_processing_logs_visual_processing_time_check` CHECK (((`visual_processing_time` >= 0) or (`visual_processing_time` is null))),
   CONSTRAINT `media_processing_logs_visual_sample_count_check` CHECK (((`visual_sample_count` >= 0) or (`visual_sample_count` is null)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -329,7 +342,7 @@ CREATE TABLE `meetings` (
   `meeting_date` datetime DEFAULT NULL,
   `is_recurring` tinyint(1) NOT NULL DEFAULT '0',
   `frequency` enum('daily','weekly','monthly','annually') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
-  `day` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
+  `day` varchar(75) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `location` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `who` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `pictures` tinyint(1) NOT NULL,
@@ -344,9 +357,14 @@ CREATE TABLE `meetings` (
   KEY `meetings_meeting_date_index` (`meeting_date`),
   KEY `meetings_is_recurring_index` (`is_recurring`),
   CONSTRAINT `meetings_page_id_foreign` FOREIGN KEY (`page_id`) REFERENCES `pages` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `meetings_day_format_check` CHECK (((`day` is null) or ((cast(`day` as char charset binary) = trim(`day`)) and (`day` <> _utf8mb3'')))),
+  CONSTRAINT `meetings_leaders_email_format_check` CHECK (((`leaders_email` is null) or ((cast(`leaders_email` as char charset binary) = lower(trim(`leaders_email`))) and (`leaders_email` <> _utf8mb4'')))),
+  CONSTRAINT `meetings_leaders_phone_format_check` CHECK (((`leaders_phone` is null) or ((cast(`leaders_phone` as char charset binary) = trim(`leaders_phone`)) and (`leaders_phone` <> _utf8mb3'')))),
+  CONSTRAINT `meetings_location_format_check` CHECK (((`location` is null) or ((cast(`location` as char charset binary) = trim(`location`)) and (`location` <> _utf8mb3'')))),
   CONSTRAINT `meetings_recurring_frequency_check` CHECK (((`is_recurring` = 0) or (`frequency` is not null))),
   CONSTRAINT `meetings_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb4'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
-  CONSTRAINT `meetings_time_check` CHECK (((`end_time` >= `start_time`) or (`end_time` is null) or (`start_time` is null)))
+  CONSTRAINT `meetings_time_check` CHECK (((`end_time` >= `start_time`) or (`end_time` is null) or (`start_time` is null))),
+  CONSTRAINT `meetings_who_format_check` CHECK (((cast(`who` as char charset binary) = trim(`who`)) and (`who` <> _utf8mb3'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `migrations`;
@@ -377,8 +395,9 @@ CREATE TABLE `pages` (
   UNIQUE KEY `pages_area_slug_unique` (`area`,`slug`),
   KEY `pages_area_index` (`area`),
   KEY `pages_navigation_index` (`navigation`),
+  CONSTRAINT `pages_description_format_check` CHECK (((cast(`description` as char charset binary) = trim(`description`)) and (`description` <> _utf8mb4''))),
   CONSTRAINT `pages_heading_format_check` CHECK (((cast(`heading` as char charset binary) = trim(`heading`)) and (`heading` <> _utf8mb3''))),
-  CONSTRAINT `pages_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb4'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
+  CONSTRAINT `pages_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb3'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
   CONSTRAINT `pages_sort_order_check` CHECK (((`sort_order` >= 0) or (`sort_order` is null)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -600,14 +619,79 @@ CREATE TABLE `sermons` (
   CONSTRAINT `sermons_livestream_processing_id_foreign` FOREIGN KEY (`livestream_processing_id`) REFERENCES `media_processing_logs` (`processing_id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `sermons_preacher_id_foreign` FOREIGN KEY (`preacher_id`) REFERENCES `preachers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `sermons_scripture_passage_id_foreign` FOREIGN KEY (`scripture_passage_id`) REFERENCES `scripture_passages` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `sermons_audio_file_path_format_check` CHECK (((`audio_file_path` <> _utf8mb4'') and (cast(`audio_file_path` as char charset binary) = trim(`audio_file_path`)))),
+  CONSTRAINT `sermons_audio_file_path_format_check` CHECK (((`audio_file_path` <> _utf8mb3'') and (cast(`audio_file_path` as char charset binary) = trim(`audio_file_path`)))),
   CONSTRAINT `sermons_download_count_check` CHECK ((`download_count` >= 0)),
   CONSTRAINT `sermons_duration_check` CHECK (((`duration` >= 0) or (`duration` is null))),
   CONSTRAINT `sermons_preacher_confidence_check` CHECK (((`preacher_confidence` >= 0) and (`preacher_confidence` <= 1))),
+  CONSTRAINT `sermons_preacher_format_check` CHECK (((cast(`preacher` as char charset binary) = trim(`preacher`)) and (`preacher` <> _utf8mb4''))),
   CONSTRAINT `sermons_series_format_check` CHECK (((`series` is null) or ((cast(`series` as char charset binary) = trim(`series`)) and (`series` <> _utf8mb3'')))),
   CONSTRAINT `sermons_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb3'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
   CONSTRAINT `sermons_timing_invariants_check` CHECK (((`segment_start_time` >= 0) and ((`segment_end_time` >= `segment_start_time`) or (`segment_end_time` is null) or (`segment_start_time` is null)))),
   CONSTRAINT `sermons_title_format_check` CHECK (((cast(`title` as char charset binary) = trim(`title`)) and (`title` <> _utf8mb3'')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `sermons_prod_import`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sermons_prod_import` (
+  `livestream_processing_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `date` date NOT NULL,
+  `service` enum('morning','evening','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `content_type` enum('sermon','childrens_talk') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'sermon',
+  `audio_file_path` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `video_file_path` varchar(500) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `video_quality_status` enum('unassessed','approved','rejected','needs_review') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'unassessed',
+  `video_quality_reason` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `video_visibility_override` enum('default','force_show','force_hide') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'default',
+  `video_quality_assessed_at` timestamp NULL DEFAULT NULL,
+  `source_type` enum('manual','audio_upload','livestream','video_upload') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'manual',
+  `segment_start_time` decimal(10,3) DEFAULT NULL,
+  `segment_end_time` decimal(10,3) DEFAULT NULL,
+  `duration` double DEFAULT NULL,
+  `filetype` varchar(8) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'mp3',
+  `title` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
+  `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
+  `reference` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL COMMENT 'Denormalized scripture reference cache for display/search compatibility. scripture_passage_id is the canonical normalized identity when present.',
+  `scripture_passage_id` bigint unsigned DEFAULT NULL COMMENT 'Canonical normalized scripture identity for the published sermon. The reference text column is a synchronized cache.',
+  `download_count` int unsigned NOT NULL DEFAULT '0',
+  `preacher` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'Mark Drury' COMMENT 'Denormalized preacher display cache. preacher_id is the canonical preacher identity for the published sermon.',
+  `preacher_id` bigint unsigned DEFAULT NULL COMMENT 'Canonical preacher identity for the published sermon. The preacher text column is a synchronized cache.',
+  `preacher_source` enum('id3','speaker_model','manual','default') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `preacher_confidence` double DEFAULT NULL,
+  `needs_preacher_review` tinyint(1) NOT NULL DEFAULT '0',
+  `series` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `points` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
+  `show_points` tinyint(1) NOT NULL DEFAULT '0',
+  `transcript_file_path` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `thumbnail_file_path` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `thumbnail_generated_at` timestamp NULL DEFAULT NULL,
+  `thumbnail_metadata` json DEFAULT NULL,
+  `summary` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
+  `meta_description` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `show_summary` tinyint(1) NOT NULL DEFAULT '0',
+  UNIQUE KEY `sermons_slug_unique` (`slug`),
+  KEY `sermons_date_service_index` (`date`,`service`),
+  KEY `sermons_preacher_index` (`preacher`),
+  KEY `sermons_series_index` (`series`),
+  KEY `sermons_livestream_processing_id_index` (`livestream_processing_id`),
+  KEY `sermons_source_type_index` (`source_type`),
+  KEY `sermons_content_type_index` (`content_type`),
+  KEY `sermons_scripture_passage_id_foreign` (`scripture_passage_id`),
+  KEY `sermons_needs_preacher_review_index` (`needs_preacher_review`),
+  KEY `sermons_date_index` (`date`),
+  KEY `sermons_video_quality_status_index` (`video_quality_status`),
+  KEY `sermons_download_count_index` (`download_count`),
+  KEY `sermons_preacher_id_foreign` (`preacher_id`),
+  CONSTRAINT `sermons_prod_import_chk_1` CHECK (((`audio_file_path` <> _utf8mb3'') and (cast(`audio_file_path` as char charset binary) = trim(`audio_file_path`)))),
+  CONSTRAINT `sermons_prod_import_chk_2` CHECK ((`download_count` >= 0)),
+  CONSTRAINT `sermons_prod_import_chk_3` CHECK (((`duration` >= 0) or (`duration` is null))),
+  CONSTRAINT `sermons_prod_import_chk_4` CHECK (((`preacher_confidence` >= 0) and (`preacher_confidence` <= 1))),
+  CONSTRAINT `sermons_prod_import_chk_5` CHECK (((`series` is null) or ((cast(`series` as char charset binary) = trim(`series`)) and (`series` <> _utf8mb3'')))),
+  CONSTRAINT `sermons_prod_import_chk_6` CHECK (regexp_like(`slug`,_utf8mb3'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
+  CONSTRAINT `sermons_prod_import_chk_7` CHECK (((`segment_start_time` >= 0) and ((`segment_end_time` >= `segment_start_time`) or (`segment_end_time` is null) or (`segment_start_time` is null)))),
+  CONSTRAINT `sermons_prod_import_chk_8` CHECK (((cast(`title` as char charset binary) = trim(`title`)) and (`title` <> _utf8mb3'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `service_sections`;
@@ -701,7 +785,10 @@ CREATE TABLE `song_authors` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `song_authors_display_name_unique` (`display_name`),
-  CONSTRAINT `song_authors_display_name_check` CHECK ((`display_name` <> _utf8mb4''))
+  CONSTRAINT `song_authors_display_name_check` CHECK ((`display_name` <> _utf8mb4'')),
+  CONSTRAINT `song_authors_display_name_format_check` CHECK (((cast(`display_name` as char charset binary) = trim(`display_name`)) and (`display_name` <> _utf8mb4''))),
+  CONSTRAINT `song_authors_first_name_format_check` CHECK (((`first_name` is null) or ((cast(`first_name` as char charset binary) = trim(`first_name`)) and (`first_name` <> _utf8mb4'')))),
+  CONSTRAINT `song_authors_last_name_format_check` CHECK (((`last_name` is null) or ((cast(`last_name` as char charset binary) = trim(`last_name`)) and (`last_name` <> _utf8mb4''))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `song_book_song`;
@@ -729,7 +816,8 @@ CREATE TABLE `song_books` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `song_books_source_book_id_unique` (`source_book_id`),
-  CONSTRAINT `song_books_name_check` CHECK ((`name` <> _utf8mb4''))
+  CONSTRAINT `song_books_name_format_check` CHECK (((cast(`name` as char charset binary) = trim(`name`)) and (`name` <> _utf8mb4''))),
+  CONSTRAINT `song_books_publisher_format_check` CHECK (((`publisher` is null) or ((cast(`publisher` as char charset binary) = trim(`publisher`)) and (`publisher` <> _utf8mb4''))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `song_videos`;
@@ -754,7 +842,8 @@ CREATE TABLE `song_videos` (
   CONSTRAINT `song_videos_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE SET NULL,
   CONSTRAINT `song_videos_service_section_id_foreign` FOREIGN KEY (`service_section_id`) REFERENCES `service_sections` (`id`) ON DELETE SET NULL,
   CONSTRAINT `song_videos_song_id_foreign` FOREIGN KEY (`song_id`) REFERENCES `songs` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `song_videos_duration_check` CHECK (((`duration` >= 0) or (`duration` is null)))
+  CONSTRAINT `song_videos_duration_check` CHECK (((`duration` >= 0) or (`duration` is null))),
+  CONSTRAINT `song_videos_video_file_path_format_check` CHECK (((`video_file_path` <> _utf8mb4'') and (cast(`video_file_path` as char charset binary) = trim(`video_file_path`))))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `songs`;
@@ -1032,3 +1121,17 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_23_192858_add_i
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_27_052406_add_text_integrity_checks',64);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_28_150435_fortify_song_slug_integrity',64);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_29_202817_add_foreign_key_to_sermons_preacher_id',65);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_29_073634_fortify_media_processing_logs_integrity',66);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_04_30_053545_add_date_index_to_sermons_table',66);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_01_100000_restore_sermon_scripture_passage_id_foreign_key',66);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_01_100100_add_integrity_check_to_church_service_items_table',66);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_04_080644_add_integrity_check_to_pages_description',66);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_02_054439_add_integrity_checks_to_calendar_events_table',67);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_03_215005_fortify_church_service_items_integrity',67);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_05_054017_add_integrity_checks_to_inbound_emails_table',67);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_08_115011_add_integrity_check_to_sermons_preacher',67);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_12_100000_fortify_song_authors_integrity',67);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_15_053846_fortify_song_books_integrity',68);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_13_051713_fortify_meetings_integrity',69);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_17_053346_add_foreign_key_to_church_services_manual_reviewed_by_user_id',69);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_20_054000_add_integrity_check_to_song_videos_table',69);
