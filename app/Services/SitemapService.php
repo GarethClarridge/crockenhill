@@ -10,10 +10,10 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\MeetingSitemapPresenter;
-use App\Presenters\SermonViewPresenter;
 use App\Presenters\PageSitemapPresenter;
 use App\Presenters\PreacherSitemapPresenter;
 use App\Presenters\SermonSitemapPresenter;
+use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -155,16 +155,31 @@ class SitemapService
         $books = $this->sermonRepository->getScriptureBooks();
         $sermonsImage = asset('/images/headings/large/sermons.webp');
 
+        /**
+         * Performance Optimization: Fetch latest representative sermons for all Bible books
+         * in a single query using a window function on the scripture filters join
+         * to avoid N+1 bottlenecks.
+         */
+        $latestSermonsByBook = Sermon::query()
+            ->select(['id', 'bible_book', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'video_file_path', 'video_quality_status', 'video_visibility_override'])
+            ->fromSub(
+                Sermon::query()
+                    ->join('sermon_scripture_filters', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
+                    ->whereSermon()
+                    ->select(['sermons.id', 'sermon_scripture_filters.bible_book', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'video_file_path', 'video_quality_status', 'video_visibility_override'])
+                    ->selectRaw('ROW_NUMBER() OVER (PARTITION BY bible_book ORDER BY date DESC, sermons.id DESC) as row_num'),
+                'ranked_sermons'
+            )
+            ->where('row_num', 1)
+            ->get()
+            ->keyBy('bible_book');
+
         foreach ($books as $book) {
             $url = Url::create(route('sermons.index', ['book' => $book]))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY);
 
-            $latestSermon = Sermon::query()
-                ->whereHas('scriptureFilters', fn ($q) => $q->where('bible_book', $book))
-                ->whereSermon()
-                ->orderBy('date', 'desc')
-                ->first();
+            $latestSermon = $latestSermonsByBook->get($book);
 
             $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
 
@@ -232,17 +247,32 @@ class SitemapService
     private function addSeries(Sitemap $sitemap): void
     {
         $sermonsImage = asset('/images/headings/large/sermons.webp');
+        $seriesList = $this->sermonRepository->getSeriesForDisplay();
 
-        foreach ($this->sermonRepository->getSeriesForDisplay() as $series) {
+        /**
+         * Performance Optimization: Fetch latest representative sermons for all series
+         * in a single query using a window function to avoid N+1 bottlenecks.
+         */
+        $latestSermonsBySeries = Sermon::query()
+            ->select(['id', 'series', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'video_file_path', 'video_quality_status', 'video_visibility_override'])
+            ->fromSub(
+                Sermon::query()
+                    ->whereSermon()
+                    ->whereNotNull('series')
+                    ->select(['id', 'series', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'video_file_path', 'video_quality_status', 'video_visibility_override'])
+                    ->selectRaw('ROW_NUMBER() OVER (PARTITION BY series ORDER BY date DESC, id DESC) as row_num'),
+                'ranked_sermons'
+            )
+            ->where('row_num', 1)
+            ->get()
+            ->keyBy('series');
+
+        foreach ($seriesList as $series) {
             $url = Url::create(route('sermons.series.show', ['series' => Str::slug($series)]))
                 ->setPriority(0.6)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY);
 
-            $latestSermon = Sermon::query()
-                ->where('series', $series)
-                ->whereSermon()
-                ->orderBy('date', 'desc')
-                ->first();
+            $latestSermon = $latestSermonsBySeries->get($series);
 
             $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
 
