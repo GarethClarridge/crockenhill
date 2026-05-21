@@ -78,7 +78,7 @@ Exit criteria:
 - `ProcessingJob` is the single source of truth for failure logging shape.
 - No subclass duplicates the three baseline log keys.
 
-### Phase 3: Extract `ProcessingJob::refreshAndCheckCancellation()`
+### Phase 3: Extract `ProcessingJob::refreshAndCheckCancellation()` ✅
 
 Priority: **High** — pairs naturally with Phase 1 and Phase 2.
 
@@ -94,14 +94,21 @@ Target files:
 
 Tasks:
 
-- [ ] Add `protected function refreshAndCheckCancellation(): bool` to `ProcessingJob`. Returns `true` if the job should stop early.
-- [ ] Replace the five-line intro in each `handle()` with a single call.
-- [ ] Confirm Phase 1's consolidated cancellation logic is what this method delegates to.
+- [x] Add `protected function refreshAndCheckCancellation(): bool` to `ProcessingJob`. Returns `true` if the job should stop early.
+- [x] Replace the five-line intro in each `handle()` with a single call.
+- [x] Confirm Phase 1's consolidated cancellation logic is what this method delegates to.
 
 Exit criteria:
 
 - Every `ProcessingJob::handle()` begins with at most one or two lines of setup.
 - Cancellation early-return behaviour is unchanged.
+
+Notes:
+
+- `StoreSermonVideo` does not extend `ProcessingJob` — left as-is.
+- Jobs that throw on missing log (`CreateSermonRecord`, `GenerateRmsLog`, `ExtractSermon`, `ClassifyServiceSections`, `PerformVisualAnalysis`) keep explicit checks; `refreshAndCheckCancellation` is only used for the silent-return pattern.
+- `IdentifySpeaker` keeps distinct `warning` vs `info` log levels for missing-log and cancelled cases respectively, as pinned by its tests.
+- `TranscribeAudio::$processingLog` and `ProcessTranscriptWithAI::$processingLog` had `readonly` removed to allow the by-reference refresh assignment.
 
 ### Phase 4: Admin Livewire CRUD traits
 

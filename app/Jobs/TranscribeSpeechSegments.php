@@ -63,15 +63,11 @@ class TranscribeSpeechSegments extends ProcessingJob implements ShouldQueue
             return;
         }
 
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
+        if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
         }
 
-        $this->processingLog = $processingLog;
-        $this->startProcessingJob($this->processingLog, $this->job ?? null, $this->attempts());
-
-        if (! $this->processingLog->usesSegmentationPipeline() || $this->processingLog->isCancelled()) {
+        if (! $this->processingLog->usesSegmentationPipeline()) {
             $this->logStepSkipped(ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS, 'Speech segment transcription only runs for active segmentation processing');
 
             return;

@@ -34,7 +34,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public readonly MediaProcessingLog $processingLog,
+        public MediaProcessingLog $processingLog,
     ) {
         $this->timeout = max(60, (int) config('media-processing.transcription.job_timeout', 1800));
     }
@@ -51,11 +51,8 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            $this->startProcessingJob($this->processingLog, $this->job ?? null, $this->attempts());
-
-            // Check if processing has been cancelled
-            if ($this->isCancelled()) {
-                Log::info('Transcription job cancelled', ['processing_id' => $this->processingLog->processing_id]);
+            if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
+                Log::info('Transcription job cancelled or log missing', ['processing_id' => $this->processingLog->processing_id]);
 
                 return;
             }

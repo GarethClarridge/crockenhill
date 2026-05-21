@@ -36,7 +36,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        private readonly MediaProcessingLog $processingLog,
+        private MediaProcessingLog $processingLog,
     ) {}
 
     /**
@@ -49,11 +49,8 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            $this->startProcessingJob($this->processingLog, $this->job ?? null, $this->attempts());
-
-            // Check if processing has been cancelled
-            if ($this->isCancelled()) {
-                Log::info('AI processing job cancelled', ['processing_id' => $this->processingLog->processing_id]);
+            if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
+                Log::info('AI processing job cancelled or log missing', ['processing_id' => $this->processingLog->processing_id]);
 
                 return;
             }

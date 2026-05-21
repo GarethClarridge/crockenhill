@@ -46,21 +46,8 @@ class EnhanceAudio extends ProcessingJob implements ShouldQueue
 
     public function handle(AudioEnhancementService $enhancer, StorageAdapterHelper $storageHelper): void
     {
-        $refreshedLog = $this->processingLog->fresh();
-
-        if (! $refreshedLog) {
-            Log::warning('EnhanceAudio: processing log not found', [
-                'processing_id' => $this->processingLog->processing_id,
-            ]);
-
-            return;
-        }
-
-        $this->processingLog = $refreshedLog;
-        $this->startProcessingJob($this->processingLog, $this->job ?? null, $this->attempts());
-
-        if ($this->isCancelled()) {
-            Log::info('EnhanceAudio: job cancelled', [
+        if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
+            Log::info('EnhanceAudio: job cancelled or log missing', [
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 

@@ -29,18 +29,13 @@ class ProjectLivestreamServiceStructure extends ProcessingJob implements ShouldQ
 
     public function handle(LivestreamChurchServiceProjectionService $projectionService): void
     {
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
+        if ($this->refreshAndCheckCancellation($this->processingLog)) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::PROJECT_LIVESTREAM_SERVICE_STRUCTURE, 'Livestream projection only runs for active livestream processing');
+
             return;
         }
 
-        $this->processingLog = $processingLog;
-        $this->initializeStepLogging($this->processingLog->processing_id);
-
-        if (
-            $this->processingLog->processing_type !== MediaType::Livestream
-            || $this->processingLog->isCancelled()
-        ) {
+        if ($this->processingLog->processing_type !== MediaType::Livestream) {
             $this->logStepSkipped(
                 ChurchServiceProcessingTimeline::PROJECT_LIVESTREAM_SERVICE_STRUCTURE,
                 'Livestream projection only runs for active livestream processing'

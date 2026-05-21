@@ -45,9 +45,8 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
 
     public function handle(SpeakerIdentificationInterface $speakerService): void
     {
-        $refreshedLog = $this->processingLog->fresh();
-
-        if (! $refreshedLog) {
+        $refreshed = $this->processingLog->fresh();
+        if (! $refreshed) {
             Log::warning('IdentifySpeaker: processing log not found', [
                 'processing_id' => $this->processingLog->processing_id,
             ]);
@@ -55,7 +54,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
             return;
         }
 
-        $this->processingLog = $refreshedLog;
+        $this->processingLog = $refreshed;
         $this->initializeStepLogging($this->processingLog->processing_id);
 
         if ($this->isCancelled()) {

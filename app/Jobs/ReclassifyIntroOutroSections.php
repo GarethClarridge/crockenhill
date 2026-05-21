@@ -36,15 +36,11 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
 
     public function handle(): void
     {
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
+        if ($this->refreshAndCheckCancellation($this->processingLog)) {
             return;
         }
 
-        $this->processingLog = $processingLog;
-        $this->initializeStepLogging($this->processingLog->processing_id);
-
-        if (! $this->processingLog->usesSegmentationPipeline() || $this->processingLog->isCancelled()) {
+        if (! $this->processingLog->usesSegmentationPipeline()) {
             $this->logStepSkipped(ChurchServiceProcessingTimeline::RECLASSIFY_INTRO_OUTRO, 'Intro/outro reclassification only runs for active segmentation processing');
 
             return;

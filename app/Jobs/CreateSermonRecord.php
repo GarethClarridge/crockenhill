@@ -7,7 +7,6 @@ namespace App\Jobs;
 use App\Data\SermonCreationOptions;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
-use App\Models\Sermon;
 use App\Services\SermonCreationService;
 use App\Services\SermonProcessingLogger;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -49,18 +48,14 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
         $startTime = microtime(true);
 
         try {
-            // Refresh the processing log to get latest data (including metadata updates)
-            $refreshedLog = $this->processingLog->fresh();
-
-            if (! $refreshedLog) {
+            $refreshed = $this->processingLog->fresh();
+            if (! $refreshed) {
                 throw new \Exception('Processing log not found in database');
             }
 
-            $this->processingLog = $refreshedLog;
-
+            $this->processingLog = $refreshed;
             $this->initializeStepLogging($this->processingLog->processing_id);
 
-            // Check if processing has been cancelled
             if ($this->isCancelled()) {
                 Log::info('CreateSermonRecord job cancelled', ['processing_id' => $this->processingLog->processing_id]);
 
@@ -83,8 +78,8 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
 
             // Prepare options using factory method based on processing type
             $options = match ($this->processingLog->processing_type) {
-                MediaType::Audio => SermonCreationOptions::fromAudioUpload($refreshedLog, $aiAnalysis),
-                MediaType::Video => SermonCreationOptions::fromVideoUpload($refreshedLog, $aiAnalysis),
+                MediaType::Audio => SermonCreationOptions::fromAudioUpload($this->processingLog, $aiAnalysis),
+                MediaType::Video => SermonCreationOptions::fromVideoUpload($this->processingLog, $aiAnalysis),
                 MediaType::Livestream => throw new \Exception('CreateSermonRecord should not be used for livestream processing'),
             };
 
@@ -105,7 +100,7 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             }
 
             // Create sermon using service
-            $sermon = $sermonCreationService->createSermon($refreshedLog, $options);
+            $sermon = $sermonCreationService->createSermon($this->processingLog, $options);
 
             // Store video permanently if needed
             if ($this->processingLog->processing_type === MediaType::Video && $this->videoSourcePath() !== null) {

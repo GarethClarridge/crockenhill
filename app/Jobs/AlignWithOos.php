@@ -29,19 +29,11 @@ class AlignWithOos extends ProcessingJob implements ShouldQueue
 
     public function handle(OosAlignmentService $alignmentService): void
     {
-        $processingLog = $this->processingLog->fresh();
-
-        if (! $processingLog instanceof MediaProcessingLog) {
+        if ($this->refreshAndCheckCancellation($this->processingLog)) {
             return;
         }
 
-        $this->processingLog = $processingLog;
-        $this->initializeStepLogging($this->processingLog->processing_id);
-
-        if (
-            $this->processingLog->processing_type !== MediaType::Livestream
-            || $this->processingLog->isCancelled()
-        ) {
+        if ($this->processingLog->processing_type !== MediaType::Livestream) {
             $this->logStepSkipped(ChurchServiceProcessingTimeline::ALIGN_WITH_OOS, 'OoS alignment only runs for active livestream processing');
 
             return;

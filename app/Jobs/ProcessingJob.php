@@ -191,6 +191,38 @@ abstract class ProcessingJob
     }
 
     /**
+     * Refresh the processing log, initialize step logging, and check for cancellation.
+     *
+     * Returns true if the job should stop (log gone or cancelled). Reassigns the
+     * passed-in log reference to the freshly-fetched model so callers always work
+     * with up-to-date data after the call.
+     *
+     * Pass $job and $attempts (from InteractsWithQueue) to also capture queue
+     * correlation data, equivalent to calling startProcessingJob() inline.
+     */
+    protected function refreshAndCheckCancellation(
+        MediaProcessingLog &$processingLog,
+        ?Job $job = null,
+        int $attempts = 0
+    ): bool {
+        $refreshed = $processingLog->fresh();
+
+        if (! $refreshed instanceof MediaProcessingLog) {
+            return true;
+        }
+
+        $processingLog = $refreshed;
+
+        if ($job !== null || $attempts > 0) {
+            $this->startProcessingJob($processingLog, $job, $attempts);
+        } else {
+            $this->initializeStepLogging($processingLog->processing_id);
+        }
+
+        return $this->isCancelled();
+    }
+
+    /**
      * Get the processing ID from a sermon's processing log
      */
     protected function getProcessingIdFromSermon(int $sermonId): ?string

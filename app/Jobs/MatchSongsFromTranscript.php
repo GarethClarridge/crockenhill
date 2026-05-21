@@ -82,18 +82,11 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             return;
         }
 
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
+        if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
         }
 
-        $this->processingLog = $processingLog;
-        $this->startProcessingJob($this->processingLog, $this->job ?? null, $this->attempts());
-
-        if (
-            $this->processingLog->processing_type !== MediaType::Livestream
-            || $this->processingLog->isCancelled()
-        ) {
+        if ($this->processingLog->processing_type !== MediaType::Livestream) {
             $this->logStepSkipped(ChurchServiceProcessingTimeline::MATCH_SONGS_FROM_TRANSCRIPT, 'Song matching only runs for active livestream processing');
 
             return;

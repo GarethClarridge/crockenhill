@@ -55,15 +55,11 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         ServiceSectionSyncService $syncService,
         SongTitleHintExtractor $songTitleHintExtractor
     ): void {
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
+        if ($this->refreshAndCheckCancellation($this->processingLog)) {
             return;
         }
 
-        $this->processingLog = $processingLog;
-        $this->initializeStepLogging($this->processingLog->processing_id);
-
-        if (! $this->processingLog->usesSegmentationPipeline() || $this->processingLog->isCancelled()) {
+        if (! $this->processingLog->usesSegmentationPipeline()) {
             $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS, 'Speech section classification only runs for active segmentation processing');
 
             return;

@@ -23,7 +23,6 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class PrepareSectionPublicationCandidates extends ProcessingJob implements ShouldQueue
@@ -66,20 +65,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             return;
         }
 
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
-            return;
-        }
-
-        $this->processingLog = $processingLog;
-        $this->initializeStepLogging($this->processingLog->processing_id);
-
-        if ($this->isCancelled()) {
-            $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'Processing cancelled');
-
-            Log::info('PrepareSectionPublicationCandidates job skipped: processing cancelled', [
-                'processing_id' => $this->processingLog->processing_id,
-            ]);
+        if ($this->refreshAndCheckCancellation($this->processingLog)) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'Processing cancelled or log missing');
 
             return;
         }
