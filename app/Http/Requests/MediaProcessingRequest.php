@@ -20,6 +20,13 @@ abstract class MediaProcessingRequest extends FormRequest
         return app(MediaProcessingAccess::class)->allows($this);
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->route('processingId') !== null) {
+            $this->assertProcessingIdShape();
+        }
+    }
+
     /**
      * Reject malformed route-supplied processingId values with HTTP 400.
      *

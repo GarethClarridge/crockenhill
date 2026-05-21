@@ -232,9 +232,9 @@ Target files:
 
 Tasks:
 
-- [ ] Move `prepareForValidation()` calling `assertProcessingIdShape()` into `MediaProcessingRequest`.
-- [ ] Have `MediaStatusRequest` override with `parent::prepareForValidation()` + its boolean normalization.
-- [ ] Delete the redundant overrides in the other three subclasses.
+- [x] Move `prepareForValidation()` calling `assertProcessingIdShape()` into `MediaProcessingRequest`. Guards on `route('processingId') !== null` so the shared `ProcessMediaRequest` (upload, no ID param) is unaffected.
+- [x] Have `MediaStatusRequest` override with `parent::prepareForValidation()` + its boolean normalization.
+- [x] Delete the redundant overrides in the other three subclasses.
 
 Exit criteria:
 

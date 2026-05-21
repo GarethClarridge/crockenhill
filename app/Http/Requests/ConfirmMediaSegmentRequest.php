@@ -8,11 +8,6 @@ use Illuminate\Contracts\Validation\ValidationRule;
 
 class ConfirmMediaSegmentRequest extends MediaProcessingRequest
 {
-    protected function prepareForValidation(): void
-    {
-        $this->assertProcessingIdShape();
-    }
-
     /**
      * Get the validation rules that apply to the request.
      *

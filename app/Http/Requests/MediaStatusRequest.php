@@ -10,7 +10,7 @@ class MediaStatusRequest extends MediaProcessingRequest
 {
     protected function prepareForValidation(): void
     {
-        $this->assertProcessingIdShape();
+        parent::prepareForValidation();
 
         if ($this->has('include_logs')) {
             $this->merge([
