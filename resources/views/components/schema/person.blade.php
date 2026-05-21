@@ -12,6 +12,7 @@
         'worksFor' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),
+            '@id' => config('app.url').'/',
         ],
     ];
 
