@@ -136,13 +136,13 @@ class SongVideo extends Model
         }
 
         return [
-            'song_id' => ['required', 'integer', 'exists:songs,id'],
+            'song_id' => ['sometimes', 'required', 'integer', 'exists:songs,id'],
             'service_section_id' => ['nullable', 'integer', 'exists:service_sections,id', $uniqueServiceSection],
             'church_service_id' => ['nullable', 'integer', 'exists:church_services,id'],
-            'video_file_path' => ['required', 'string', 'max:500'],
+            'video_file_path' => ['sometimes', 'required', 'string', 'max:500'],
             'duration' => ['nullable', 'numeric', 'min:0'],
             'recorded_date' => ['nullable', 'date'],
-            'is_featured' => ['required', 'boolean'],
+            'is_featured' => ['sometimes', 'required', 'boolean'],
         ];
     }
 }
