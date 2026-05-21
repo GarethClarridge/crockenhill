@@ -6,11 +6,13 @@ namespace Tests;
 
 use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Foundation\Testing\WithCachedConfig;
 use Illuminate\Support\Facades\Cache;
 
 abstract class TestCase extends BaseTestCase
 {
     use CreatesApplication;
+    use WithCachedConfig;
 
     private const TEST_OPENAI_API_KEY = 'testy-test-key';
 
