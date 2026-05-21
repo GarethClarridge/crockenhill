@@ -15,7 +15,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (! Schema::hasTable('song_videos')) {
+        if (DB::getDriverName() !== 'mysql' || ! Schema::hasTable('song_videos')) {
+            return;
+        }
+
+        if ($this->constraintExists('song_videos', self::CONSTRAINT_NAME)) {
             return;
         }
 
@@ -24,9 +28,7 @@ return new class extends Migration
          * If existing data violates a proposed constraint, the migration must fail
          * to surface the issue for manual intervention or a separate backfill.
          */
-        if (DB::getDriverName() === 'mysql') {
-            DB::statement('ALTER TABLE song_videos ADD CONSTRAINT '.self::CONSTRAINT_NAME." CHECK (video_file_path != '' AND BINARY video_file_path = TRIM(video_file_path))");
-        }
+        DB::statement('ALTER TABLE song_videos ADD CONSTRAINT '.self::CONSTRAINT_NAME." CHECK (video_file_path != '' AND BINARY video_file_path = TRIM(video_file_path))");
     }
 
     /**
@@ -34,8 +36,23 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (DB::getDriverName() === 'mysql' && Schema::hasTable('song_videos')) {
-            DB::statement('ALTER TABLE song_videos DROP CHECK '.self::CONSTRAINT_NAME);
+        if (DB::getDriverName() !== 'mysql' || ! Schema::hasTable('song_videos')) {
+            return;
         }
+
+        if (! $this->constraintExists('song_videos', self::CONSTRAINT_NAME)) {
+            return;
+        }
+
+        DB::statement('ALTER TABLE song_videos DROP CHECK '.self::CONSTRAINT_NAME);
+    }
+
+    private function constraintExists(string $table, string $constraint): bool
+    {
+        return DB::table('information_schema.table_constraints')
+            ->where('table_schema', DB::getDatabaseName())
+            ->where('table_name', $table)
+            ->where('constraint_name', $constraint)
+            ->exists();
     }
 };
