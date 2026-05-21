@@ -151,13 +151,10 @@ class VideoExtractionServiceTest extends TestCase
     {
         $method = $this->getPrivateMethod('fileExists');
 
-        $tempFile = tempnam(sys_get_temp_dir(), 'test');
-        file_put_contents($tempFile, 'test');
+        Storage::disk('local')->put('test/file.txt', 'test');
 
-        $this->assertTrue($method->invoke($this->service, $tempFile, 'local'));
-        $this->assertFalse($method->invoke($this->service, '/nonexistent/file.txt', 'local'));
-
-        unlink($tempFile);
+        $this->assertTrue($method->invoke($this->service, 'test/file.txt', 'local'));
+        $this->assertFalse($method->invoke($this->service, 'test/nonexistent.txt', 'local'));
     }
 
     // ---- getFileSize tests ----
@@ -167,13 +164,10 @@ class VideoExtractionServiceTest extends TestCase
     {
         $method = $this->getPrivateMethod('getFileSize');
 
-        $tempFile = tempnam(sys_get_temp_dir(), 'test');
-        file_put_contents($tempFile, str_repeat('x', 512));
+        Storage::disk('local')->put('test/file.txt', str_repeat('x', 512));
 
-        $size = $method->invoke($this->service, $tempFile, 'local');
+        $size = $method->invoke($this->service, 'test/file.txt', 'local');
         $this->assertEquals(512, $size);
-
-        unlink($tempFile);
     }
 
     #[Test]
@@ -181,7 +175,7 @@ class VideoExtractionServiceTest extends TestCase
     {
         $method = $this->getPrivateMethod('getFileSize');
 
-        $size = $method->invoke($this->service, '/nonexistent/file.txt', 'local');
+        $size = $method->invoke($this->service, 'test/nonexistent.txt', 'local');
         $this->assertEquals(0, $size);
     }
 

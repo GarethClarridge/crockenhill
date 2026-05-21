@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Data\LivestreamSegment;
 use App\Services\RmsAnalysisService;
+use App\Services\StorageAdapterHelper;
 use App\Services\VideoSegmentationService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -38,7 +39,7 @@ class VideoSegmentationServiceRmsTest extends TestCase
         ]);
 
         $this->rmsService = new RmsAnalysisService;
-        $this->service = new VideoSegmentationService($this->rmsService);
+        $this->service = new VideoSegmentationService($this->rmsService, new StorageAdapterHelper);
     }
 
     // ---- extractRmsData tests ----
@@ -439,12 +440,7 @@ class VideoSegmentationServiceRmsTest extends TestCase
         $logContent = $this->buildRmsLog($points);
 
         $rmsLogPath = 'temp/test_rms_analysis.log';
-        $fullPath = Storage::disk('local')->path($rmsLogPath);
-        $dir = dirname($fullPath);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-        file_put_contents($fullPath, $logContent);
+        Storage::disk('local')->put($rmsLogPath, $logContent);
 
         $result = $this->service->analyzeSegments($rmsLogPath);
 
@@ -459,8 +455,6 @@ class VideoSegmentationServiceRmsTest extends TestCase
         $classifications = array_map(fn ($s) => $s->classification, $result['segments']);
         $this->assertContains('speech', $classifications);
         $this->assertContains('song', $classifications);
-
-        @unlink($fullPath);
     }
 
     // ---- Helper methods ----

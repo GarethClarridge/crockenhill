@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
 use App\Exceptions\SegmentationException;
-use App\Traits\DetectsStorageType;
 use FFMpeg\FFProbe;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -17,8 +16,6 @@ use Symfony\Component\Process\Process;
 
 class VideoSegmentationService
 {
-    use DetectsStorageType;
-
     private const CALIBRATION_SPEECH_BUFFER = 60.0;
 
     private const THRESHOLD_SAFETY_FLOOR = -80.0;
@@ -41,6 +38,7 @@ class VideoSegmentationService
 
     public function __construct(
         private readonly RmsAnalysisService $rmsAnalysisService,
+        private readonly StorageAdapterHelper $storageAdapter,
     ) {
         // Skip FFProbe initialization in testing environment to prevent hangs
         if (! app()->environment('testing')) {
@@ -89,11 +87,11 @@ class VideoSegmentationService
                 throw new ProcessFailedException($process);
             }
 
-            if (! $this->fileExists($fullRmsLogPath, $rmsLogPath) || $this->getFileSize($fullRmsLogPath, $rmsLogPath) === 0) {
+            if (! $this->storageAdapter->fileExists($rmsLogPath, $this->tempDisk) || $this->storageAdapter->fileSize($rmsLogPath, $this->tempDisk) === 0) {
                 throw new SegmentationException('Failed to generate RMS log file or file is empty');
             }
 
-            Log::info('RMS log generated successfully', ['path' => $rmsLogPath, 'size' => $this->getFileSize($fullRmsLogPath, $rmsLogPath)]);
+            Log::info('RMS log generated successfully', ['path' => $rmsLogPath, 'size' => $this->storageAdapter->fileSize($rmsLogPath, $this->tempDisk)]);
 
             return $rmsLogPath;
 
@@ -114,13 +112,11 @@ class VideoSegmentationService
     public function analyzeSegments(string $rmsLogPath): array
     {
         try {
-            $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
-
-            if (! $this->fileExists($fullRmsLogPath, $rmsLogPath)) {
-                throw new SegmentationException('RMS log file not found: '.$fullRmsLogPath);
+            if (! $this->storageAdapter->fileExists($rmsLogPath, $this->tempDisk)) {
+                throw new SegmentationException('RMS log file not found: '.$rmsLogPath);
             }
 
-            $logContent = $this->getFileContents($fullRmsLogPath, $rmsLogPath);
+            $logContent = $this->storageAdapter->getFileContents($this->tempDisk, $rmsLogPath);
 
             $thresholdResult = $this->rmsAnalysisService->determineThreshold($logContent);
 
@@ -373,56 +369,6 @@ class VideoSegmentationService
     }
 
     /**
-     * Check if file exists on specified disk (S3-aware)
-     */
-    private function fileExists(string $fullPath, string $storagePath): bool
-    {
-        if ($this->isS3Disk($this->tempDisk)) {
-            return Storage::disk($this->tempDisk)->exists($storagePath);
-        }
-
-        return file_exists($fullPath);
-    }
-
-    /**
-     * Get file size on specified disk (S3-aware)
-     */
-    private function getFileSize(string $fullPath, string $storagePath): int
-    {
-        if ($this->isS3Disk($this->tempDisk)) {
-            try {
-                return Storage::disk($this->tempDisk)->size($storagePath);
-            } catch (\Exception $e) {
-                return 0;
-            }
-        }
-
-        if (! file_exists($fullPath)) {
-            return 0;
-        }
-
-        $fileSize = filesize($fullPath);
-
-        return $fileSize === false ? 0 : $fileSize;
-    }
-
-    /**
-     * Get file contents (S3-aware)
-     */
-    private function getFileContents(string $fullPath, string $storagePath): string
-    {
-        if ($this->isS3Disk($this->tempDisk)) {
-            $contents = Storage::disk($this->tempDisk)->get($storagePath);
-
-            return is_string($contents) ? $contents : '';
-        }
-
-        $contents = file_get_contents($fullPath);
-
-        return $contents === false ? '' : $contents;
-    }
-
-    /**
      * Calibrate per-song RMS threshold based on song and adjacent speech
      *
      * @param  array{
@@ -440,8 +386,7 @@ class VideoSegmentationService
     public function calibratePerSongThreshold(string $rmsLogPath, array $songCluster): array
     {
         try {
-            $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
-            $logContent = $this->getFileContents($fullRmsLogPath, $rmsLogPath);
+            $logContent = $this->storageAdapter->getFileContents($this->tempDisk, $rmsLogPath);
 
             $rmsData = $this->rmsAnalysisService->extractRmsData($logContent);
 
@@ -519,8 +464,7 @@ class VideoSegmentationService
         float $threshold
     ): LivestreamSegment {
         try {
-            $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
-            $logContent = $this->getFileContents($fullRmsLogPath, $rmsLogPath);
+            $logContent = $this->storageAdapter->getFileContents($this->tempDisk, $rmsLogPath);
 
             // Get refined visual boundaries if available, otherwise use estimates
             $visualStart = (float) ($cluster['refined_visual_start'] ?? $cluster['start_estimate']);

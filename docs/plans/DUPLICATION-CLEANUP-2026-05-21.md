@@ -196,7 +196,7 @@ Exit criteria:
 - One place creates an FFMpeg instance; one place guards on its presence.
 - The testing-env guard is no longer duplicated.
 
-### Phase 7: Finish `StorageAdapterHelper` migration in `VideoSegmentationService`
+### Phase 7: Finish `StorageAdapterHelper` migration in `VideoSegmentationService` ✅
 
 Priority: **Medium** — pure deletion plus one small addition.
 
@@ -209,9 +209,9 @@ Target files:
 
 Tasks:
 
-- [ ] Add `getFileContents(string $disk, string $path): string` to `StorageAdapterHelper`.
-- [ ] Replace `VideoSegmentationService`'s `fileExists()`, `getFileSize()`, `getFileContents()` calls with the helper.
-- [ ] Delete the three private methods.
+- [x] Add `getFileContents(string $disk, string $path): string` to `StorageAdapterHelper`.
+- [x] Replace `VideoSegmentationService`'s `fileExists()`, `getFileSize()`, `getFileContents()` calls with the helper.
+- [x] Delete the three private methods.
 
 Exit criteria:
 

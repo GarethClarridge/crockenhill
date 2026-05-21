@@ -183,19 +183,10 @@ class StorageAdapterHelper
 
     /**
      * Check whether a file exists on the given disk, handling S3 and local disks.
-     *
-     * For S3 disks, uses the Storage facade's exists() check.
-     * For local disks, uses the filesystem path and file_exists().
      */
     public function fileExists(string $filePath, string $diskName): bool
     {
-        $disk = Storage::disk($diskName);
-
-        if ($this->isS3CompatibleDisk($disk)) {
-            return $disk->exists($filePath);
-        }
-
-        return file_exists($filePath);
+        return Storage::disk($diskName)->exists($filePath);
     }
 
     /**
@@ -207,21 +198,27 @@ class StorageAdapterHelper
     {
         $disk = Storage::disk($diskName);
 
-        if ($this->isS3CompatibleDisk($disk)) {
-            try {
-                return $disk->size($filePath);
-            } catch (\Exception) {
-                return 0;
-            }
-        }
-
-        if (! file_exists($filePath)) {
+        if (! $disk->exists($filePath)) {
             return 0;
         }
 
-        $size = filesize($filePath);
+        try {
+            return $disk->size($filePath);
+        } catch (\Exception) {
+            return 0;
+        }
+    }
 
-        return $size === false ? 0 : $size;
+    /**
+     * Return the contents of a file on the given disk as a string, handling S3 and local disks.
+     *
+     * Returns an empty string if the file cannot be read.
+     */
+    public function getFileContents(string $diskName, string $filePath): string
+    {
+        $contents = Storage::disk($diskName)->get($filePath);
+
+        return is_string($contents) ? $contents : '';
     }
 
     /**
