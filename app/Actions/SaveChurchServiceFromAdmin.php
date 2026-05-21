@@ -12,6 +12,7 @@ use App\Services\ChurchServiceCanonicalUpdateService;
 use App\Services\ChurchServiceItemSyncService;
 use App\Services\ChurchServiceSongLinker;
 use App\Services\InboundEmailImportService;
+use App\Traits\SanitizesLogData;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +20,8 @@ use RuntimeException;
 
 class SaveChurchServiceFromAdmin
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly ChurchServiceCanonicalStateService $canonicalStateService,
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
@@ -94,8 +97,8 @@ class SaveChurchServiceFromAdmin
         Log::warning('Church service saved by admin', [
             'admin_id' => $userId,
             'church_service_id' => $churchService->id,
-            'date' => $churchService->date->toDateString(),
-            'service' => $churchService->service->value,
+            'date' => self::sanitizeForLog($churchService->date->toDateString()),
+            'service' => self::sanitizeForLog($churchService->service->value),
             'item_count' => count($syncPayload),
         ]);
 
