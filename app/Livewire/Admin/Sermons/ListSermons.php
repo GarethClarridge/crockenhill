@@ -130,7 +130,7 @@ class ListSermons extends Component
         $escapedSearch = $this->escapeLike(trim($this->search));
 
         $query = Sermon::query()
-            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path', 'content_type'])
+            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path', 'content_type', 'updated_at'])
             ->with([
                 'preacherProfile:id,name,slug',
                 'scripturePassage:id,display_reference,normalized_reference',
@@ -171,7 +171,7 @@ class ListSermons extends Component
          * container lookups and logic when rendering preacher names and scripture
          * references for each row.
          */
-        $this->sermonViewPresenter->presentCollection($sermons->getCollection());
+        $this->sermonViewPresenter->preWarmForAdminList($sermons->getCollection());
 
         $headers = [
             ['key' => 'title', 'label' => 'Title', 'sortable' => true],

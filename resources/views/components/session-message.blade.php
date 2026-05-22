@@ -48,7 +48,7 @@ $config = $types[$type] ?? $types['success'];
 
     <button type="button"
             @click="show = false"
-            class="absolute top-2 right-2 p-1.5 text-current opacity-50 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded-md transition-all"
+            class="absolute top-2 right-2 p-1.5 text-current opacity-50 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded-md transition-all active:scale-95"
             aria-label="Close notification">
         <x-heroicon-m-x-mark class="h-4 w-4" aria-hidden="true" />
     </button>
