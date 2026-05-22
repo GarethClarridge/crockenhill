@@ -22,9 +22,10 @@ class Breadcrumbs extends Component
         public string $area,
         public string $heading,
         public bool $jsonOnly = false,
+        public ?string $url = null,
     ) {
         $this->breadcrumbItems = $presenter->items($area, $heading);
-        $this->breadcrumbList = $presenter->jsonLd($this->breadcrumbItems);
+        $this->breadcrumbList = $presenter->jsonLd($this->breadcrumbItems, $this->url);
     }
 
     public function render(): View|Closure|string

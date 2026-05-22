@@ -162,7 +162,7 @@ class BrowseSermons extends Component
     {
         $presenter = app(\App\Presenters\BreadcrumbPresenter::class);
 
-        return $presenter->jsonLd($presenter->items('christ', $this->seoTitle));
+        return $presenter->jsonLd($presenter->items('christ', $this->seoTitle), $this->seoCanonical);
     }
 
     /**

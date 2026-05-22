@@ -127,12 +127,14 @@ class BreadcrumbPresenter
      * @param  list<array{name: string, item: string}>  $items
      * @return array<string, mixed>
      */
-    public function jsonLd(array $items): array
+    public function jsonLd(array $items, ?string $url = null): array
     {
+        $pageUrl = $url ?? url()->current();
+
         return [
             '@context' => 'https://schema.org',
             '@type' => 'BreadcrumbList',
-            '@id' => url()->current().'#breadcrumb',
+            '@id' => $pageUrl.'#breadcrumb',
             'itemListElement' => array_map(
                 static fn (array $item, int $index): array => [
                     '@type' => 'ListItem',
