@@ -123,8 +123,8 @@ class SendCompletionNotification implements ShouldQueue
      */
     private function prepareNotificationData(?Sermon $sermon, MediaProcessingLog $processingLog): array
     {
-        $sermonUrl = $sermon ? url("/christ/sermons/{$sermon->slug}") : null;
-        $adminUrl = $sermon ? url("/admin/sermons/{$sermon->id}") : null;
+        $sermonUrl = $sermon ? route('sermons.show', ['sermon' => $sermon->slug]) : null;
+        $adminUrl = $sermon ? route('admin.sermons.edit', ['sermon' => $sermon->slug]) : null;
 
         $endTime = $processingLog->updated_at ?? now();
         $startTime = $processingLog->created_at ?? now();
