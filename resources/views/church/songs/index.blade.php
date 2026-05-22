@@ -19,12 +19,15 @@
             :title="$heading"
             :description="$description"
             :canonical="$canonical_url ?? null"
+            :image="asset('/images/homepage/may2024wide.webp')"
+            image-alt="Worship songs at Crockenhill Baptist Church"
         />
         <x-schema.webpage
             :heading="$heading"
             :description="$description"
             :canonical="$canonical_url ?? null"
         />
+        <x-breadcrumbs :$area :$heading jsonOnly />
     @endpush
 
     <livewire:church.songs.browse-songs />

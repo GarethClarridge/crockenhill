@@ -37,6 +37,7 @@
         'headline' => $sermon->title,
         'description' => $metaDescription,
         'image' => $thumbnailUrl,
+        'dateCreated' => $datePublished,
         'datePublished' => $datePublished,
         'dateModified' => ($sermon->updated_at instanceof \Carbon\CarbonInterface && $sermon->updated_at->year > 0)
             ? $sermon->updated_at->toIso8601String()

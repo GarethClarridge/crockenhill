@@ -122,6 +122,7 @@ class BrowseSermons extends Component
             'title' => $this->seoTitle,
             'description' => $this->seoDescription,
             'canonical' => $this->seoCanonical,
+            'breadcrumb' => $this->seoBreadcrumb,
         ]);
     }
 
@@ -151,6 +152,17 @@ class BrowseSermons extends Component
             || $this->chapterFilter !== null
             || $this->preacherFilter !== null
             || $this->seriesFilter !== null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    #[Computed]
+    public function seoBreadcrumb(): array
+    {
+        $presenter = app(\App\Presenters\BreadcrumbPresenter::class);
+
+        return $presenter->jsonLd($presenter->items('christ', $this->seoTitle));
     }
 
     /**
