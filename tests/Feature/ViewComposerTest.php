@@ -130,7 +130,7 @@ class ViewComposerTest extends TestCase
         $this->assertStringContainsString('via-cbc-teal-dark/95', $content);
         $this->assertStringContainsString('to-cbc-teal/92', $content);
         $this->assertStringContainsString(":class=\"expanded ? 'lg:pointer-events-none lg:opacity-0' : 'lg:pointer-events-auto lg:opacity-100'\"", $content);
-        $this->assertStringContainsString('absolute inset-y-0 left-16 right-16 z-10 hidden items-center justify-center text-center font-display text-xl opacity-0 transition-opacity duration-200', $content);
+        $this->assertStringContainsString('absolute inset-y-0 left-16 right-16 z-10 hidden items-center justify-center text-center font-display text-xl opacity-0 transition-all duration-200 active:scale-95', $content);
         $this->assertStringContainsString(":class=\"expanded ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'\"", $content);
         $this->assertStringContainsString(':aria-hidden="!expanded"', $content);
         $this->assertStringContainsString(':inert="!expanded"', $content);
