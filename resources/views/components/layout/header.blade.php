@@ -7,7 +7,7 @@
 @endphp
 
 <div class="relative">
-  <div class="w-100 grid grid-cols-7 justify-between bg-cbc-pattern bg-cover text-white lg:grid-cols-12">
+  <div class="w-full grid grid-cols-7 justify-between bg-cbc-pattern bg-size-cover text-white lg:grid-cols-12">
 
   <a class="p-2 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/" wire:navigate>
     <img src="/svg/IconWhite.svg" class="inline-block max-h-8 align-top" alt="Crockenhill Baptist Church logo" width="30" height="32">
@@ -38,7 +38,7 @@
   </a>
 
   <div
-    class="col-span-5 hidden h-full w-100 self-stretch transition-opacity duration-150 lg:block"
+    class="col-span-5 hidden h-full w-full self-stretch transition-opacity duration-150 lg:block"
     :class="expanded ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'"
     :aria-hidden="expanded"
     :inert="expanded"

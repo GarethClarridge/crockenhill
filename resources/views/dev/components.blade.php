@@ -44,7 +44,7 @@
                 <p class="mt-1 text-xs text-gray-600">white (card surface)</p>
             </div>
             <div>
-                <div class="h-14 rounded-lg shadow-sm bg-cbc-pattern bg-cover"></div>
+                <div class="h-14 rounded-lg shadow-sm bg-cbc-pattern bg-size-cover"></div>
                 <p class="mt-1 text-xs text-gray-600">cbc-pattern (header/footer/buttons)</p>
             </div>
             <div>

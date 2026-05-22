@@ -142,7 +142,7 @@
     @endif
 
     {{-- Meeting Details --}}
-    <div class="bg-cbc-pattern bg-cover my-12 px-6 md:px-16 py-12 text-white text-3xl font-display">
+    <div class="bg-cbc-pattern bg-size-cover my-12 px-6 md:px-16 py-12 text-white text-3xl font-display">
         <dl>
             @if ($meeting->day != '')
                 <div class="my-3 flex items-center md:leading-loose">

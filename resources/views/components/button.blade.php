@@ -23,7 +23,7 @@ $sizeClasses = [
 ];
 
 $variantClasses = [
-    'primary'   => 'bg-cbc-pattern bg-cover text-white hover:brightness-110',
+    'primary'   => 'bg-cbc-pattern bg-size-cover text-white hover:brightness-110',
     'secondary' => 'border border-transparent bg-slate-100/90 text-[#145557] hover:bg-white shadow-none focus:ring-cbc-teal',
     'feature'   => 'bg-[linear-gradient(120deg,var(--color-cbc-teal)_0%,var(--color-cbc-teal-dark)_55%,#0e3a3c_100%)] text-white hover:brightness-110',
     'featureOutline' => 'border border-transparent bg-slate-100/90 text-[#145557] hover:bg-white shadow-none focus:ring-cbc-teal',

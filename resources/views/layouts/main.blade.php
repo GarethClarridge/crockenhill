@@ -128,7 +128,7 @@
 
   @yield('content')
 
-  <footer class="site-footer mt-6 bg-cbc-pattern bg-cover">
+  <footer class="site-footer mt-6 bg-cbc-pattern bg-size-cover">
     <x-layout.footer />
   </footer>
 
