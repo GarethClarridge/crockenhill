@@ -117,7 +117,7 @@ class SermonDisplayTest extends TestCase
     public function it_displays_reference_from_relation_normalized_reference_when_display_is_empty(): void
     {
         $passage = ScripturePassage::factory()->create([
-            'display_reference' => '',
+            'display_reference' => null,
             'normalized_reference' => 'Romans 8:28',
         ]);
         $sermon = Sermon::factory()->create([
@@ -135,11 +135,11 @@ class SermonDisplayTest extends TestCase
     public function it_falls_back_to_column_when_relation_is_loaded_but_empty(): void
     {
         $passage = ScripturePassage::factory()->create([
-            'display_reference' => '',
-            'normalized_reference' => '',
+            'display_reference' => null,
+            'normalized_reference' => 'John 3:16',
         ]);
         $sermon = Sermon::factory()->create([
-            'reference' => 'John 3:16',
+            'reference' => 'Wrong Reference',
             'scripture_passage_id' => null,
         ]);
 
