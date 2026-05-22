@@ -176,6 +176,11 @@ class SitemapService
                 'sermons.thumbnail_file_path',
                 'sermons.thumbnail_generated_at',
                 'sermons.thumbnail_metadata',
+                'sermons.video_file_path',
+                'sermons.video_visibility_override',
+                'sermons.video_quality_status',
+                'sermons.content_type',
+                'sermons.updated_at',
                 'sermon_scripture_filters.bible_book as book_group',
             ])
             ->selectRaw('ROW_NUMBER() OVER (PARTITION BY sermon_scripture_filters.bible_book ORDER BY sermons.date DESC, sermons.id DESC) as row_num');
@@ -245,7 +250,10 @@ class SitemapService
         $preachers = Preacher::query()->active()
             ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
             ->with([
-                'sermons' => fn ($query) => $query->whereSermon()->orderBy('date', 'desc')->limit(1),
+                'sermons' => fn ($query) => $query->whereSermon()
+                    ->select(['id', 'preacher_id', 'title', 'date', 'slug', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'video_file_path', 'video_visibility_override', 'video_quality_status', 'content_type', 'updated_at'])
+                    ->orderBy('date', 'desc')
+                    ->limit(1),
             ])
             ->lazy();
 
@@ -281,6 +289,11 @@ class SitemapService
                 'thumbnail_file_path',
                 'thumbnail_generated_at',
                 'thumbnail_metadata',
+                'video_file_path',
+                'video_visibility_override',
+                'video_quality_status',
+                'content_type',
+                'updated_at',
             ])
             ->selectRaw('ROW_NUMBER() OVER (PARTITION BY series ORDER BY date DESC, id DESC) as row_num');
 

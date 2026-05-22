@@ -546,6 +546,27 @@ class SermonViewPresenter
     }
 
     /**
+     * Pre-warm the internal memoization caches for fields used in admin listings.
+     *
+     * Performance Optimization: Only computes preacher names and scripture references
+     * to avoid triggering lazy-loading of media-related columns that are typically
+     * excluded from admin list queries.
+     *
+     * @param  Collection<int, Sermon>  $sermons
+     */
+    public function preWarmForAdminList(Collection $sermons): void
+    {
+        if ($sermons->isEmpty()) {
+            return;
+        }
+
+        foreach ($sermons as $sermon) {
+            $this->displayPreacherName($sermon);
+            $this->displayReference($sermon);
+        }
+    }
+
+    /**
      * @return array{
      *     audio_url: ?string,
      *     canonical_url: string,
