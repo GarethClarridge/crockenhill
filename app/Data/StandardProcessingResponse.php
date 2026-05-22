@@ -297,7 +297,7 @@ readonly class StandardProcessingResponse
 
         $sermonUrl = null;
         if ($log->sermon instanceof Sermon) {
-            $sermonUrl = "/christ/sermons/{$log->sermon->slug}";
+            $sermonUrl = route('sermons.show', ['sermon' => $log->sermon->slug]);
         }
 
         return self::found(
