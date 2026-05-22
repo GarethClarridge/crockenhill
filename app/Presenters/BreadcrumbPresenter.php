@@ -16,7 +16,7 @@ class BreadcrumbPresenter
      *
      * @return list<array{name: string, item: string}>
      */
-    public function items(string $area, string $heading): array
+    public function items(string $area, string $heading, ?string $url = null): array
     {
         $items = [['name' => 'Home', 'item' => url('/')]];
 
@@ -26,8 +26,8 @@ class BreadcrumbPresenter
             $items = array_merge($items, $this->buildPublicItems($area));
         }
 
-        if (end($items)['item'] !== url()->current()) {
-            $items[] = ['name' => $heading, 'item' => url()->current()];
+        if (end($items)['item'] !== ($url ?? url()->current())) {
+            $items[] = ['name' => $heading, 'item' => $url ?? url()->current()];
         }
 
         return $items;
