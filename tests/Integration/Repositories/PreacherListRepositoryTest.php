@@ -80,4 +80,22 @@ class PreacherListRepositoryTest extends TestCase
 
         $this->assertTrue(Cache::has(PreacherListRepository::PUBLIC_LIST_CACHE_KEY));
     }
+
+    #[Test]
+    public function it_deserializes_cached_preachers_as_proper_model_instances(): void
+    {
+        Cache::forget(PreacherListRepository::PUBLIC_LIST_CACHE_KEY);
+        Preacher::query()->delete();
+
+        Preacher::factory()->create(['name' => 'Cache Test Preacher', 'is_active' => true]);
+
+        // First call populates the cache
+        $this->repository->forPublicList();
+
+        // Second call reads from cache — models must rehydrate as Preacher, not __PHP_Incomplete_Class
+        $cached = $this->repository->forPublicList();
+
+        $this->assertInstanceOf(Preacher::class, $cached->first());
+        $this->assertEquals('Cache Test Preacher', $cached->first()->name);
+    }
 }

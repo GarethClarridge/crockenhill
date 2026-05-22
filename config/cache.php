@@ -6,6 +6,7 @@ use App\Enums\CalendarEventStatus;
 use App\Enums\PageArea;
 use App\Models\CalendarEvent;
 use App\Models\Page;
+use App\Models\Preacher;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -119,6 +120,10 @@ return [
         Illuminate\Database\Eloquent\Collection::class,
         Collection::class,
         Page::class,
+
+        // Preacher models cached by PreacherListRepository::forPublicList()
+        // for the public sermons browse filter and preachers index.
+        Preacher::class,
 
         // CalendarEvent models live inside PublicMeetingReadModel::upcomingEvents
         // (see PublicMeetingReadModelCache). The CalendarEventStatus enum is a

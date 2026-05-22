@@ -12,6 +12,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Repositories\PreacherListRepository;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -385,5 +386,17 @@ class SermonPagesTest extends TestCase
             ->assertStatus(200)
             ->assertSee('Public Browse Sermon')
             ->assertDontSee("Hidden Children's Talk");
+    }
+
+    #[Test]
+    public function sermon_index_renders_correctly_when_preacher_list_is_served_from_cache(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Cached Preacher', 'is_active' => true]);
+        Sermon::factory()->create(['preacher_id' => $preacher->id, 'preacher' => $preacher->name]);
+
+        // Warm the cache so the HTTP request exercises deserialization, not the DB path.
+        app(PreacherListRepository::class)->forPublicList();
+
+        $this->get('/christ/sermons')->assertStatus(200);
     }
 }
