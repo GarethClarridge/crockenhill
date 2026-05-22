@@ -13,13 +13,10 @@
                     if (linkCanonical) linkCanonical.setAttribute('href', data.canonical);
                 }
                 if (data.breadcrumb) {
-                    // Find specifically the breadcrumb script if possible, otherwise we might overwrite another one
-                    const scripts = document.querySelectorAll('script[type=\'application/ld+json\']');
-                    scripts.forEach(script => {
-                        if (script.textContent.includes('#breadcrumb')) {
-                            script.textContent = JSON.stringify(data.breadcrumb, null, 2);
-                        }
-                    });
+                    const breadcrumbScript = document.getElementById('breadcrumb-jsonld');
+                    if (breadcrumbScript) {
+                        breadcrumbScript.textContent = JSON.stringify(data.breadcrumb, null, 2);
+                    }
                 }
             };
             if (Array.isArray(data) && data.length > 0) {
