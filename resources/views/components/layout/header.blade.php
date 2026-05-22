@@ -9,12 +9,12 @@
 <div class="relative">
   <div class="w-100 grid grid-cols-7 justify-between bg-cbc-pattern bg-cover text-white lg:grid-cols-12">
 
-  <a class="p-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/" wire:navigate>
+  <a class="p-2 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/" wire:navigate>
     <img src="/svg/IconWhite.svg" class="inline-block max-h-8 align-top" alt="Crockenhill Baptist Church logo" width="30" height="32">
   </a>
 
   <a
-    class="col-span-5 flex text-center font-display text-xl min-[400px]:text-2xl lg:col-start-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
+    class="col-span-5 flex text-center font-display text-xl min-[400px]:text-2xl lg:col-start-2 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
     :class="expanded ? 'lg:pointer-events-none lg:opacity-0' : 'lg:pointer-events-auto lg:opacity-100'"
     href="/"
     wire:navigate
@@ -25,7 +25,7 @@
   </a>
 
   <a
-    class="absolute inset-y-0 left-16 right-16 z-10 hidden items-center justify-center text-center font-display text-xl opacity-0 transition-opacity duration-200 min-[400px]:text-2xl lg:flex rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
+    class="absolute inset-y-0 left-16 right-16 z-10 hidden items-center justify-center text-center font-display text-xl opacity-0 transition-all duration-200 active:scale-95 min-[400px]:text-2xl lg:flex rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
     :class="expanded ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'"
     :aria-hidden="!expanded"
     :inert="!expanded"
