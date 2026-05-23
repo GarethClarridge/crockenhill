@@ -147,6 +147,87 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
         $this->assertSame('analysis_failed', $result->reason);
     }
 
+    #[Test]
+    public function assess_and_retain_local_path_returns_path_for_s3_disk(): void
+    {
+        $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
+        $frames = $this->frames('checker', 8);
+
+        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService->method('videoFileExists')->willReturn(true);
+        $frameExtractionService->method('ensureLocalVideoPath')->willReturn('temp/downloaded.mp4');
+        $frameExtractionService->method('getVideoMetadata')->willReturn(['duration' => 120.0]);
+        $frameExtractionService->method('extractBaseFrame')->willReturnOnConsecutiveCalls(...$frames);
+
+        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $storageHelper->method('isS3CompatibleDisk')->willReturn(true);
+
+        $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);
+
+        $outcome = $service->assessAndRetainLocalPath($sermon, 'sermons/video.mp4', 'do_spaces');
+
+        $this->assertSame(SermonVideoQualityStatus::Approved, $outcome['result']->status);
+        $this->assertSame('temp/downloaded.mp4', $outcome['localVideoPath']);
+    }
+
+    #[Test]
+    public function assess_and_retain_local_path_returns_null_path_for_local_disk(): void
+    {
+        $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
+        $frames = $this->frames('checker', 8);
+
+        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService->method('videoFileExists')->willReturn(true);
+        $frameExtractionService->method('ensureLocalVideoPath')->willReturn('storage/sermons/video.mp4');
+        $frameExtractionService->method('getVideoMetadata')->willReturn(['duration' => 120.0]);
+        $frameExtractionService->method('extractBaseFrame')->willReturnOnConsecutiveCalls(...$frames);
+
+        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $storageHelper->method('isS3CompatibleDisk')->willReturn(false);
+
+        $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);
+
+        $outcome = $service->assessAndRetainLocalPath($sermon, 'sermons/video.mp4', 'public');
+
+        $this->assertSame(SermonVideoQualityStatus::Approved, $outcome['result']->status);
+        $this->assertNull($outcome['localVideoPath']);
+    }
+
+    #[Test]
+    public function assess_and_retain_local_path_handles_missing_file(): void
+    {
+        $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/missing.mp4']);
+
+        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService->method('videoFileExists')->willReturn(false);
+
+        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);
+
+        $outcome = $service->assessAndRetainLocalPath($sermon, 'sermons/missing.mp4', 'public');
+
+        $this->assertSame(SermonVideoQualityStatus::Unassessed, $outcome['result']->status);
+        $this->assertSame('missing_video_file', $outcome['result']->reason);
+        $this->assertNull($outcome['localVideoPath']);
+    }
+
+    #[Test]
+    public function assess_and_retain_local_path_handles_exceptions_gracefully(): void
+    {
+        $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
+
+        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService->method('videoFileExists')->willThrowException(new \RuntimeException('fail'));
+
+        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);
+
+        $outcome = $service->assessAndRetainLocalPath($sermon, 'sermons/video.mp4', 'public');
+
+        $this->assertSame(SermonVideoQualityStatus::Unassessed, $outcome['result']->status);
+        $this->assertNull($outcome['localVideoPath']);
+    }
+
     /**
      * @param  list<string>  $frames
      */

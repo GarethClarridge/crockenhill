@@ -85,11 +85,11 @@ class SermonVideoQualityAssessmentService
             return ['result' => SermonVideoQualityAssessmentResult::failed('missing_video_path'), 'localVideoPath' => null];
         }
 
-        if (! $this->frameExtractionService->videoFileExists($videoPath, $disk)) {
-            return ['result' => SermonVideoQualityAssessmentResult::failed('missing_video_file'), 'localVideoPath' => null];
-        }
-
         try {
+            if (! $this->frameExtractionService->videoFileExists($videoPath, $disk)) {
+                return ['result' => SermonVideoQualityAssessmentResult::failed('missing_video_file'), 'localVideoPath' => null];
+            }
+
             $localVideoPath = $this->frameExtractionService->ensureLocalVideoPath($videoPath, $disk);
             $isS3Download = $disk && $this->storageHelper->isS3CompatibleDisk(Storage::disk($disk));
 
