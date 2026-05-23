@@ -11,8 +11,8 @@
     :heading="$heading"
     :description="$description"
     :main-entity="route('church.songs.show', $song->slug) . '#song'"
-    :breadcrumb-items="app(\App\Presenters\BreadcrumbPresenter::class)->items('church', $heading)"
 />
+<x-breadcrumbs :$area :$heading jsonOnly />
 <x-schema.music-composition :$song />
 @stop
 

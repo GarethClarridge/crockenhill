@@ -25,6 +25,7 @@
             :description="$description"
             :image="asset('/images/headings/large/sermons.webp')"
         />
+        <x-breadcrumbs :$area :$heading jsonOnly />
 
         @if(isset($json_ld_data))
             <script type="application/ld+json">

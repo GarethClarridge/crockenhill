@@ -49,8 +49,8 @@
             :description="$description ?? $metaDescription"
             :image="$sermonView['thumbnail_url']"
             :main-entity="$sermonView['canonical_url'] . '#sermon'"
-            :breadcrumb-items="app(\App\Presenters\BreadcrumbPresenter::class)->items('christ', $fullTitle)"
         />
+        <x-breadcrumbs :$area heading="{{ $fullTitle }}" jsonOnly />
     @endpush
 
     <article class="space-y-6">

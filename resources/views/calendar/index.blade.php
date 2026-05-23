@@ -25,6 +25,7 @@
             description="Upcoming events at Crockenhill Baptist Church."
             :image="asset('/images/homepage/may2024wide.webp')"
         />
+        <x-breadcrumbs area="community" heading="Church Calendar" jsonOnly />
 
         @if($allEvents->isNotEmpty())
             {{--

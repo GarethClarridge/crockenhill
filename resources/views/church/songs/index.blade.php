@@ -25,6 +25,7 @@
             :description="$description"
             :canonical="$canonical_url ?? null"
         />
+        <x-breadcrumbs area="church" :$heading jsonOnly />
     @endpush
 
     <livewire:church.songs.browse-songs />
