@@ -21,6 +21,11 @@ class PageRepository
     ];
 
     /**
+     * @var array<string, mixed>
+     */
+    private array $memoizedPresents = [];
+
+    /**
      * Get and cache all public links for an area.
      *
      * @return Collection<int, Page>
@@ -29,7 +34,12 @@ class PageRepository
     {
         $areaValue = $area instanceof PageArea ? $area->value : $area;
 
-        return Cache::flexible("page_links_{$areaValue}", [86400, 172800], function () use ($areaValue) {
+        if (isset($this->memoizedPresents["area_links_{$areaValue}"])) {
+            /** @var Collection<int, Page> */
+            return $this->memoizedPresents["area_links_{$areaValue}"];
+        }
+
+        return $this->memoizedPresents["area_links_{$areaValue}"] = Cache::flexible("page_links_{$areaValue}", [86400, 172800], function () use ($areaValue) {
             return Page::query()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
@@ -52,7 +62,12 @@ class PageRepository
             return collect();
         }
 
-        return Cache::flexible($cacheKey, [86400, 172800], function () use ($areaValue, $orderedSlugs) {
+        if (isset($this->memoizedPresents[$cacheKey])) {
+            /** @var Collection<int, Page> */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        return $this->memoizedPresents[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($areaValue, $orderedSlugs) {
             return Page::query()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
@@ -70,6 +85,14 @@ class PageRepository
     }
 
     /**
+     * Clear all internal memoized caches.
+     */
+    public function clearInternalCaches(): void
+    {
+        $this->memoizedPresents = [];
+    }
+
+    /**
      * Clear the cache for a specific area.
      */
     public function clearAreaCache(string|PageArea $area): void
@@ -80,6 +103,8 @@ class PageRepository
         foreach (self::PAGE_CARD_CACHE_KEYS as $cacheKey) {
             $this->forgetFlexible($cacheKey);
         }
+
+        $this->clearInternalCaches();
     }
 
     private function forgetFlexible(string $cacheKey): void
