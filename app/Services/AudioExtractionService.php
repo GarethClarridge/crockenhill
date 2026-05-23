@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\MediaType;
+use App\Traits\SanitizesLogData;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use Illuminate\Http\UploadedFile;
@@ -19,6 +20,8 @@ use Illuminate\Support\Str;
  */
 class AudioExtractionService
 {
+    use SanitizesLogData;
+
     public function __construct(private readonly MediaValidationService $mediaValidation) {}
 
     /**
@@ -59,8 +62,8 @@ class AudioExtractionService
             }
 
             Log::info('Audio extracted from video', [
-                'video_path' => $videoPath,
-                'audio_path' => $outputPath,
+                'video_path' => $this->sanitizeForLog($videoPath),
+                'audio_path' => $this->sanitizeForLog($outputPath),
                 'duration' => $duration,
                 'file_size' => $this->getLocalFileSize($outputPath),
             ]);
@@ -69,8 +72,9 @@ class AudioExtractionService
 
         } catch (\Exception $e) {
             Log::error('Failed to extract audio from video', [
-                'video_path' => $videoPath,
-                'error' => $e->getMessage(),
+                'video_path' => $this->sanitizeForLog($videoPath),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             throw $e;
@@ -108,8 +112,9 @@ class AudioExtractionService
 
         } catch (\Exception $e) {
             Log::error('Failed to compress audio file', [
-                'input_path' => $inputPath,
-                'error' => $e->getMessage(),
+                'input_path' => $this->sanitizeForLog($inputPath),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             throw $e;

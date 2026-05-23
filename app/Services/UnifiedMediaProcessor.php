@@ -39,9 +39,9 @@ class UnifiedMediaProcessor
     ): ProcessingResult {
         Log::info('Unified media processing started', [
             'type' => $type,
-            'filename' => self::sanitizeForLog($file->getClientOriginalName()),
+            'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
             'size' => $file->getSize(),
-            'client_file_date' => $clientFileDate ? self::sanitizeForLog($clientFileDate) : null,
+            'client_file_date' => $clientFileDate ? $this->sanitizeForLog($clientFileDate) : null,
         ]);
 
         $mediaType = MediaType::tryFrom($type);
@@ -154,10 +154,10 @@ class UnifiedMediaProcessor
     {
         try {
             Log::info('Starting audio processing', [
-                'original_filename' => self::sanitizeForLog($file->getClientOriginalName()),
+                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
-                'client_file_date' => $clientFileDate ? self::sanitizeForLog($clientFileDate) : null,
+                'client_file_date' => $clientFileDate ? $this->sanitizeForLog($clientFileDate) : null,
             ]);
 
             $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
@@ -182,15 +182,15 @@ class UnifiedMediaProcessor
             );
 
             Log::info('Audio file stored, processing log created', [
-                'processing_id' => self::sanitizeForLog($processingLog->processing_id),
-                'stored_path' => self::sanitizeForLog($storedFilePath),
-                'id3_metadata' => self::sanitizeForLog(json_encode($id3Metadata) ?: ''),
+                'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
+                'stored_path' => $this->sanitizeForLog($storedFilePath),
+                'id3_metadata' => $this->sanitizeForLog(json_encode($id3Metadata) ?: ''),
             ]);
 
             $this->processingRunOrchestrator->start($processingLog);
 
             Log::info('Audio processing jobs dispatched', [
-                'processing_id' => self::sanitizeForLog($processingLog->processing_id),
+                'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
             ]);
 
             return ProcessingResult::success(
@@ -203,9 +203,9 @@ class UnifiedMediaProcessor
             throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to initiate audio processing', [
-                'original_filename' => self::sanitizeForLog($file->getClientOriginalName()),
-                'error' => self::sanitizeForLog($e->getMessage()),
-                'trace' => self::sanitizeStackTrace($e->getTraceAsString()),
+                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             return ProcessingResult::failure(
@@ -283,8 +283,8 @@ class UnifiedMediaProcessor
         }
 
         Log::info('Duplicate upload detected, reusing existing processing run', [
-            'dedup_key' => self::sanitizeForLog($dedupKey),
-            'existing_processing_id' => self::sanitizeForLog($existingLog->processing_id),
+            'dedup_key' => $this->sanitizeForLog($dedupKey),
+            'existing_processing_id' => $this->sanitizeForLog($existingLog->processing_id),
             'processing_type' => $existingLog->processing_type->value,
         ]);
 
@@ -302,8 +302,8 @@ class UnifiedMediaProcessor
 
             if ($racedLog !== null) {
                 Log::info('Concurrent duplicate resolved via constraint violation, reusing raced run', [
-                    'dedup_key' => self::sanitizeForLog($dedupKey),
-                    'existing_processing_id' => self::sanitizeForLog($racedLog->processing_id),
+                    'dedup_key' => $this->sanitizeForLog($dedupKey),
+                    'existing_processing_id' => $this->sanitizeForLog($racedLog->processing_id),
                 ]);
 
                 return ProcessingResult::success(
@@ -368,9 +368,9 @@ class UnifiedMediaProcessor
             throw $e;
         } catch (\Exception $e) {
             Log::error('Failed to initiate video processing', [
-                'original_filename' => self::sanitizeForLog($file->getClientOriginalName()),
-                'error' => self::sanitizeForLog($e->getMessage()),
-                'trace' => self::sanitizeStackTrace($e->getTraceAsString()),
+                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             return ProcessingResult::failure(
