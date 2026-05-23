@@ -29,6 +29,9 @@ class SermonRepository
     /** @var array<string, Collection<int, int>> */
     private array $memoizedChapters = [];
 
+    /** @var array<string, Collection<int, Sermon>> */
+    private array $memoizedCollections = [];
+
     public function __construct(
         private readonly SermonScriptureFilterIndexService $indexService,
     ) {}
@@ -134,11 +137,21 @@ class SermonRepository
     /**
      * Get sermons for a specific series.
      *
+     * Performance Optimization: Memoizes the sermon collection for the duration of
+     * the request to avoid redundant flexible cache lookups when building
+     * series views and JSON-LD structured data.
+     *
      * @return Collection<int, Sermon>
      */
     public function getSermonsBySeries(string $seriesName): Collection
     {
-        return Cache::flexible('sermons_series_'.Str::slug($seriesName), [86400, 172800], function () use ($seriesName): Collection {
+        $cacheKey = 'sermons_series_'.Str::slug($seriesName);
+
+        if (isset($this->memoizedCollections[$cacheKey])) {
+            return $this->memoizedCollections[$cacheKey];
+        }
+
+        return $this->memoizedCollections[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($seriesName): Collection {
             return $this->publicSermonQuery()
                 ->where('series', $seriesName)
                 ->orderBy('date', 'desc')
@@ -150,13 +163,20 @@ class SermonRepository
      * Get sermons for a specific preacher.
      *
      * Performance Optimization: Caches the preacher's sermon listing for 24 hours using flexible
-     * cache to reduce redundant DB queries when viewing preacher profiles.
+     * cache to reduce redundant DB queries when viewing preacher profiles. Memoizes
+     * the result for the duration of the request to avoid redundant cache hits.
      *
      * @return Collection<int, Sermon>
      */
     public function getSermonsByPreacher(Preacher $preacher): Collection
     {
-        return Cache::flexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher): Collection {
+        $cacheKey = $this->preacherCacheKey($preacher);
+
+        if (isset($this->memoizedCollections[$cacheKey])) {
+            return $this->memoizedCollections[$cacheKey];
+        }
+
+        return $this->memoizedCollections[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($preacher): Collection {
             return $this->publicSermonQuery()
                 ->where('preacher_id', $preacher->id)
                 ->orderBy('date', 'desc')
@@ -167,11 +187,21 @@ class SermonRepository
     /**
      * Get sermons for a specific service.
      *
+     * Performance Optimization: Memoizes the sermon collection for the duration of
+     * the request to avoid redundant flexible cache lookups when building
+     * service archive views and JSON-LD structured data.
+     *
      * @return Collection<int, Sermon>
      */
     public function getSermonsByService(SermonService $service): Collection
     {
-        return Cache::flexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service): Collection {
+        $cacheKey = "sermons_service_{$service->value}";
+
+        if (isset($this->memoizedCollections[$cacheKey])) {
+            return $this->memoizedCollections[$cacheKey];
+        }
+
+        return $this->memoizedCollections[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($service): Collection {
             return $this->publicSermonQuery()
                 ->where('service', $service)
                 ->orderBy('date', 'desc')
@@ -502,6 +532,7 @@ class SermonRepository
         $this->memoizedSeries = null;
         $this->memoizedBooks = [];
         $this->memoizedChapters = [];
+        $this->memoizedCollections = [];
 
         if ($model instanceof Sermon) {
             $this->clearScriptureChapterCaches($model);
