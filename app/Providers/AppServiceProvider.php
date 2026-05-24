@@ -14,6 +14,7 @@ use App\Presenters\SermonArchiveSeoPresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonSitemapPresenter;
 use App\Presenters\SermonViewPresenter;
+use App\Repositories\MeetingListRepository;
 use App\Repositories\PageRepository;
 use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
@@ -37,33 +38,34 @@ class AppServiceProvider extends ServiceProvider
          * Performance Optimization: Register core stateless repositories, services, and presenters
          * as singletons to reduce object instantiation overhead during the request cycle.
          */
-        $this->app->singleton(SermonRepository::class);
-        $this->app->singleton(PreacherListRepository::class);
-        $this->app->singleton(PageRepository::class);
+        $this->app->singleton(BibleCanon::class);
+        $this->app->singleton(MeetingListRepository::class);
+        $this->app->singleton(MeetingSitemapPresenter::class);
+        $this->app->singleton(PageCardPresenter::class);
         $this->app->singleton(PageImageCacheService::class);
         $this->app->singleton(PageImagePresenter::class);
-        $this->app->singleton(PageCardPresenter::class);
-        $this->app->singleton(RelatedPagePresenter::class);
-        $this->app->singleton(PublicPageReadModelCache::class);
-        $this->app->singleton(PublicMeetingReadModelCache::class);
-        $this->app->singleton(SermonArchiveSeoPresenter::class);
+        $this->app->singleton(PageRepository::class);
         $this->app->singleton(PageSitemapPresenter::class);
-        $this->app->singleton(MeetingSitemapPresenter::class);
-        $this->app->singleton(BibleCanon::class);
+        $this->app->singleton(PreacherListRepository::class);
+        $this->app->singleton(PublicMeetingReadModelCache::class);
+        $this->app->singleton(PublicPageReadModelCache::class);
+        $this->app->singleton(RelatedPagePresenter::class);
+        $this->app->singleton(SermonArchiveSeoPresenter::class);
+        $this->app->singleton(SermonRepository::class);
 
         /**
          * Performance Optimization: These collaborators carry request-level memoization,
          * so they should be shared within a single request / job lifecycle without
          * leaking state across long-running workers.
          */
+        $this->app->scoped(PreacherSitemapPresenter::class);
         $this->app->scoped(SermonExposurePolicy::class);
-        $this->app->scoped(SermonStorageService::class);
-        $this->app->scoped(SermonTranscriptReader::class);
-        $this->app->scoped(TranscriptStorageService::class);
-        $this->app->scoped(SermonViewPresenter::class);
         $this->app->scoped(SermonItemListPresenter::class);
         $this->app->scoped(SermonSitemapPresenter::class);
-        $this->app->scoped(PreacherSitemapPresenter::class);
+        $this->app->scoped(SermonStorageService::class);
+        $this->app->scoped(SermonTranscriptReader::class);
+        $this->app->scoped(SermonViewPresenter::class);
+        $this->app->scoped(TranscriptStorageService::class);
     }
 
     public function boot(): void
