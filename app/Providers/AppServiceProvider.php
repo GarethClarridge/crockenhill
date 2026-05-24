@@ -38,10 +38,10 @@ class AppServiceProvider extends ServiceProvider
          * Performance Optimization: Register core stateless repositories, services, and presenters
          * as singletons to reduce object instantiation overhead during the request cycle.
          */
-        $this->app->singleton(SermonRepository::class);
-        $this->app->singleton(PreacherListRepository::class);
         $this->app->singleton(MeetingListRepository::class);
         $this->app->singleton(PageRepository::class);
+        $this->app->singleton(PreacherListRepository::class);
+        $this->app->singleton(SermonRepository::class);
         $this->app->singleton(PageImageCacheService::class);
         $this->app->singleton(PageImagePresenter::class);
         $this->app->singleton(PageCardPresenter::class);

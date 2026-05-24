@@ -73,6 +73,7 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
 
         if ($model instanceof Page) {
             $this->pageRepository->clearAreaCache($model->area);
+            $this->pageRepository->clearInternalCaches();
             $this->pageImageCacheService->forget($model);
             $this->publicPageReadModelCache->forget($model);
             $model->loadMissing('meeting');

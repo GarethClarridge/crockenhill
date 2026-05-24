@@ -21,15 +21,28 @@ class PageRepository
     ];
 
     /**
+     * @var array<string, Collection<int, Page>>
+     */
+    private array $memoizedPresents = [];
+
+    /**
      * Get and cache all public links for an area.
+     *
+     * Performance Optimization: Implements request-level memoization to avoid
+     * redundant flexible cache lookups when referenced multiple times.
      *
      * @return Collection<int, Page>
      */
     public function getAllLinksForArea(string|PageArea $area): Collection
     {
         $areaValue = $area instanceof PageArea ? $area->value : $area;
+        $cacheKey = "page_links_{$areaValue}";
 
-        return Cache::flexible("page_links_{$areaValue}", [86400, 172800], function () use ($areaValue) {
+        if (isset($this->memoizedPresents[$cacheKey])) {
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        return $this->memoizedPresents[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($areaValue) {
             return Page::query()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
@@ -45,6 +58,10 @@ class PageRepository
      */
     public function getLinksForAreaSlugs(string|PageArea $area, array $slugs, string $cacheKey): Collection
     {
+        if (isset($this->memoizedPresents[$cacheKey])) {
+            return $this->memoizedPresents[$cacheKey];
+        }
+
         $areaValue = $area instanceof PageArea ? $area->value : $area;
         $orderedSlugs = array_values(array_unique($slugs));
 
@@ -52,7 +69,7 @@ class PageRepository
             return collect();
         }
 
-        return Cache::flexible($cacheKey, [86400, 172800], function () use ($areaValue, $orderedSlugs) {
+        return $this->memoizedPresents[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($areaValue, $orderedSlugs) {
             return Page::query()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
@@ -67,6 +84,14 @@ class PageRepository
                 })
                 ->values();
         });
+    }
+
+    /**
+     * Clear the internal request-level memoization.
+     */
+    public function clearInternalCaches(): void
+    {
+        $this->memoizedPresents = [];
     }
 
     /**
