@@ -27,7 +27,6 @@
             :description="$description"
             :image="$share_image"
             :main-entity="url('/christ/sermons/preachers/' . $preacher->slug) . '#person'"
-            :breadcrumb-items="app(\App\Presenters\BreadcrumbPresenter::class)->items('christ', $heading)"
         />
         <x-schema.person :$preacher />
 
