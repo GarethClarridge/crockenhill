@@ -316,6 +316,14 @@ jobs:
           CI: 'true'
         run: npx playwright test
 
+      - name: Dump app server log
+        if: failure()
+        run: |
+          echo "===== storage/logs/serve.log ====="
+          cat storage/logs/serve.log || echo "(no serve.log)"
+          echo "===== storage/logs/laravel.log ====="
+          tail -n 500 storage/logs/laravel.log 2>/dev/null || echo "(no laravel.log)"
+
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v7
@@ -324,6 +332,7 @@ jobs:
           path: |
             playwright-report
             test-results
+            storage/logs
 
   lighthouse:
     name: Lighthouse Audits
