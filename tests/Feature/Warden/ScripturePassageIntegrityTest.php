@@ -11,6 +11,7 @@ use App\Services\ScriptureHtmlSanitizer;
 use App\Services\ScriptureOperatorService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -51,7 +52,7 @@ class ScripturePassageIntegrityTest extends TestCase
     #[Test]
     public function it_handles_long_copyright_text(): void
     {
-        $longCopyright = str_repeat('Copyright notice content. ', 100); // 2600 chars
+        $longCopyright = trim(str_repeat('Copyright notice content. ', 100)); // 2600 chars
 
         $passage = ScripturePassage::factory()->create([
             'copyright' => $longCopyright,
@@ -94,5 +95,82 @@ class ScripturePassageIntegrityTest extends TestCase
 
         // Assert: validation catches the empty copyright and returns 'failed'
         $this->assertSame('failed', $outcome);
+    }
+
+    #[Test]
+    public function it_validates_scripture_passage_data(): void
+    {
+        $validData = [
+            'bible_id' => 'de4e12af7f895db2-01',
+            'normalized_reference' => 'JHN.3.16',
+            'html_content' => '<p>For God so loved the world...</p>',
+            'copyright' => 'Public Domain',
+            'fetched_at' => now()->toDateTimeString(),
+        ];
+
+        $this->assertTrue(Validator::make($validData, ScripturePassage::validationRules())->passes());
+
+        // Test required fields
+        foreach (['bible_id', 'normalized_reference', 'html_content', 'copyright', 'fetched_at'] as $field) {
+            $invalidData = $validData;
+            unset($invalidData[$field]);
+            $this->assertFalse(Validator::make($invalidData, ScripturePassage::validationRules())->passes(), "Validation should fail when $field is missing");
+        }
+
+        // Test max length
+        foreach (['bible_id', 'normalized_reference', 'api_passage_id', 'display_reference', 'fums_token'] as $field) {
+            $invalidData = $validData;
+            $invalidData[$field] = str_repeat('a', 256);
+            $this->assertFalse(Validator::make($invalidData, ScripturePassage::validationRules())->passes(), "Validation should fail when $field exceeds 255 chars");
+        }
+    }
+
+    #[Test]
+    public function it_trims_identifying_strings(): void
+    {
+        $passage = new ScripturePassage([
+            'bible_id' => '  de4e12af7f895db2-01  ',
+            'normalized_reference' => '  JHN.3.16  ',
+            'api_passage_id' => '  JHN.3.16  ',
+            'display_reference' => '  John 3:16  ',
+            'html_content' => '<p>content</p>',
+            'copyright' => 'copyright',
+            'fetched_at' => now(),
+        ]);
+
+        $this->assertEquals('de4e12af7f895db2-01', $passage->bible_id);
+        $this->assertEquals('JHN.3.16', $passage->normalized_reference);
+        $this->assertEquals('JHN.3.16', $passage->api_passage_id);
+        $this->assertEquals('John 3:16', $passage->display_reference);
+    }
+
+    #[Test]
+    public function it_enforces_database_check_constraints(): void
+    {
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('scripture_passages_bible_id_check');
+
+        ScripturePassage::query()->insert([
+            'bible_id' => '',
+            'normalized_reference' => 'JHN.3.16',
+            'html_content' => '<p>content</p>',
+            'copyright' => 'copyright',
+            'fetched_at' => now(),
+        ]);
+    }
+
+    #[Test]
+    public function it_enforces_copyright_check_constraint(): void
+    {
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage('scripture_passages_copyright_check');
+
+        ScripturePassage::query()->insert([
+            'bible_id' => 'de4e12af7f895db2-01',
+            'normalized_reference' => 'JHN.3.16',
+            'html_content' => '<p>content</p>',
+            'copyright' => '',
+            'fetched_at' => now(),
+        ]);
     }
 }

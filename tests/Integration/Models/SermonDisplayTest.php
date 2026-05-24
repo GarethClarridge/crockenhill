@@ -114,10 +114,10 @@ class SermonDisplayTest extends TestCase
     }
 
     #[Test]
-    public function it_displays_reference_from_relation_normalized_reference_when_display_is_empty(): void
+    public function it_displays_reference_from_relation_normalized_reference_when_display_is_null(): void
     {
         $passage = ScripturePassage::factory()->create([
-            'display_reference' => '',
+            'display_reference' => null,
             'normalized_reference' => 'Romans 8:28',
         ]);
         $sermon = Sermon::factory()->create([
@@ -132,18 +132,26 @@ class SermonDisplayTest extends TestCase
     }
 
     #[Test]
-    public function it_falls_back_to_column_when_relation_is_loaded_but_empty(): void
+    public function it_falls_back_to_column_when_relation_is_loaded_but_both_references_are_empty(): void
     {
-        $passage = ScripturePassage::factory()->create([
-            'display_reference' => '',
+        // Build an unsaved passage instance with both reference fields empty (bypasses DB constraints)
+        // to simulate a legacy row that somehow has no usable reference text.
+        $passage = new ScripturePassage;
+        $passage->setRawAttributes([
+            'id' => 99999,
+            'bible_id' => 'de4e12af7f895db2-01',
             'normalized_reference' => '',
+            'display_reference' => null,
+            'html_content' => '<p>content</p>',
+            'copyright' => 'Public Domain',
+            'fetched_at' => now()->toDateTimeString(),
         ]);
+
         $sermon = Sermon::factory()->create([
             'reference' => 'John 3:16',
             'scripture_passage_id' => null,
         ]);
 
-        // Manually set relation to simulate loaded but empty/invalid state
         $sermon->setRelation('scripturePassage', $passage);
 
         $this->assertTrue($sermon->relationLoaded('scripturePassage'));

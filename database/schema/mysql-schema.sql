@@ -507,7 +507,11 @@ CREATE TABLE `scripture_passages` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `scripture_passages_bible_id_normalized_reference_unique` (`bible_id`,`normalized_reference`),
-  KEY `scripture_passages_fetched_at_index` (`fetched_at`)
+  KEY `scripture_passages_fetched_at_index` (`fetched_at`),
+  CONSTRAINT `scripture_passages_bible_id_check` CHECK (((cast(`bible_id` as char charset binary) = trim(`bible_id`)) and (`bible_id` <> _utf8mb4''))),
+  CONSTRAINT `scripture_passages_copyright_check` CHECK (((cast(`copyright` as char charset binary) = trim(`copyright`)) and (`copyright` <> _utf8mb4''))),
+  CONSTRAINT `scripture_passages_html_content_check` CHECK (((cast(`html_content` as char charset binary) = trim(`html_content`)) and (`html_content` <> _utf8mb4''))),
+  CONSTRAINT `scripture_passages_normalized_reference_check` CHECK (((cast(`normalized_reference` as char charset binary) = trim(`normalized_reference`)) and (`normalized_reference` <> _utf8mb4'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `scripture_references`;
@@ -623,7 +627,8 @@ CREATE TABLE `sermons` (
   CONSTRAINT `sermons_download_count_check` CHECK ((`download_count` >= 0)),
   CONSTRAINT `sermons_duration_check` CHECK (((`duration` >= 0) or (`duration` is null))),
   CONSTRAINT `sermons_preacher_confidence_check` CHECK (((`preacher_confidence` >= 0) and (`preacher_confidence` <= 1))),
-  CONSTRAINT `sermons_preacher_format_check` CHECK (((cast(`preacher` as char charset binary) = trim(`preacher`)) and (`preacher` <> _utf8mb4''))),
+  CONSTRAINT `sermons_preacher_format_check` CHECK (((cast(`preacher` as char charset binary) = trim(`preacher`)) and (`preacher` <> _utf8mb3''))),
+  CONSTRAINT `sermons_reference_format_check` CHECK (((`reference` is null) or ((cast(`reference` as char charset binary) = trim(`reference`)) and (`reference` <> _utf8mb4'')))),
   CONSTRAINT `sermons_series_format_check` CHECK (((`series` is null) or ((cast(`series` as char charset binary) = trim(`series`)) and (`series` <> _utf8mb3'')))),
   CONSTRAINT `sermons_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb3'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
   CONSTRAINT `sermons_timing_invariants_check` CHECK (((`segment_start_time` >= 0) and ((`segment_end_time` >= `segment_start_time`) or (`segment_end_time` is null) or (`segment_start_time` is null)))),
@@ -1135,3 +1140,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_15_053846_forti
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_13_051713_fortify_meetings_integrity',69);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_17_053346_add_foreign_key_to_church_services_manual_reviewed_by_user_id',69);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_20_054000_add_integrity_check_to_song_videos_table',69);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_24_052601_add_integrity_check_to_sermons_reference_table',70);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_23_053404_add_check_constraints_to_scripture_passages_table',71);
