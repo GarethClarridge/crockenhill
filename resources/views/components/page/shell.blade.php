@@ -42,7 +42,7 @@
 @endif
 
 @if($area && $heading)
-@push('meta_tags')
+@push('breadcrumb_schema')
 <x-breadcrumbs :$area :$heading jsonOnly />
 @endpush
 @endif

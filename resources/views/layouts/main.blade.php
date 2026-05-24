@@ -38,6 +38,9 @@
     @yield('meta_tags')
   @endif
 
+  {{-- BreadcrumbList JSON-LD: always on its own stack to avoid displacing the meta_tags priority logic. --}}
+  @stack('breadcrumb_schema')
+
   {{-- Canonical URL: @push from x-page.shell takes priority; @section is the alternate path. --}}
   @php $pushedCanonical = trim($__env->yieldPushContent('canonical')); @endphp
   @if($pushedCanonical !== '')
