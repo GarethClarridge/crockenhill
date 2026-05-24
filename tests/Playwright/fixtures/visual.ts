@@ -60,7 +60,6 @@ export const test = base.extend<VisualFixtures>({
   stablePage: async ({ page }, use) => {
     const originalGoto = page.goto.bind(page);
     page.goto = async (url, options) => {
-      await originalGoto(url, options);
       const response = await originalGoto(url, options);
       await stabilise(page);
       return response;
