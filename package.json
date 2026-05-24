@@ -9,7 +9,9 @@
     "build": "vite build",
     "watch": "vite build --watch",
     "lighthouse:ci": "lhci autorun",
-    "lighthouse:collect": "lhci collect"
+    "lighthouse:collect": "lhci collect",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots"
   },
   "engines": {
     "node": ">=20.19.0 <21 || >=22.12.0"
@@ -19,6 +21,7 @@
   "license": "BSD-2-Clause",
   "devDependencies": {
     "@lhci/cli": "^0.15.1",
+    "@playwright/test": "1.55.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.3.0",

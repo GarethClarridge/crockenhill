@@ -224,6 +224,107 @@ jobs:
           name: dusk-screenshots
           path: tests/Browser/screenshots
 
+  playwright:
+    name: Visual Regression (Playwright)
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-jammy
+      options: --user 0
+
+    services:
+      mysql:
+        image: mysql:8.0
+        command: --log-error-verbosity=1
+        env:
+          MYSQL_ROOT_PASSWORD: testing
+          MYSQL_DATABASE: testing
+          MYSQL_INITDB_SKIP_TZINFO: 1
+        ports:
+          - 3306:3306
+        options: --health-cmd="MYSQL_PWD=testing mysqladmin ping -uroot --silent" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install PHP, FFmpeg, MySQL client
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y software-properties-common ca-certificates lsb-release apt-transport-https curl gnupg
+          curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /usr/share/keyrings/sury.gpg
+          echo "deb [signed-by=/usr/share/keyrings/sury.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/sury.list
+          apt-get update
+          apt-get install -y \
+            php8.4-cli php8.4-mysql php8.4-sqlite3 php8.4-curl php8.4-dom php8.4-xml \
+            php8.4-mbstring php8.4-zip php8.4-bcmath php8.4-intl php8.4-gd php8.4-redis \
+            php8.4-imagick php8.4-soap php8.4-exif php8.4-iconv \
+            ffmpeg default-mysql-client unzip
+          update-alternatives --set php /usr/bin/php8.4
+          curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+      - name: Cache Composer
+        uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Prepare Laravel environment
+        run: |
+          mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+          cp .env.example .env
+          echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction
+
+      - name: Install and build frontend
+        run: npm ci && npm run build
+
+      - name: Configure Laravel for Playwright
+        run: |
+          php artisan key:generate
+          APP_KEY=$(grep ^APP_KEY= .env | cut -d= -f2-)
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env.playwright.ci
+
+      - name: Run migrations and seed
+        run: |
+          mysql -h mysql -u root -ptesting -e "CREATE DATABASE IF NOT EXISTS \`testing_pw\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          DB_HOST=mysql DB_DATABASE=testing_pw DB_USERNAME=root DB_PASSWORD=testing php artisan migrate --force
+          DB_HOST=mysql DB_DATABASE=testing_pw DB_USERNAME=root DB_PASSWORD=testing php artisan db:seed --force
+
+      - name: Start application server
+        run: |
+          cp .env.playwright.ci .env
+          sed -i 's|^DB_HOST=.*|DB_HOST=mysql|' .env
+          php artisan serve --host=0.0.0.0 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
+
+      - name: Wait for app server
+        run: |
+          STATUS="000"
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/up 2>/dev/null || echo "000")
+            echo "App server /up status: $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "App server ready"; break; fi
+            echo "Waiting for app server ($i/30)..."
+            sleep 2
+          done
+          [ "$STATUS" = "200" ] || { echo "App server failed to start"; cat storage/logs/serve.log; exit 1; }
+
+      - name: Run Playwright tests
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:8000
+          CI: 'true'
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+
   lighthouse:
     name: Lighthouse Audits
     runs-on: ubuntu-latest
@@ -327,7 +428,7 @@ jobs:
 
   build:
     name: Build & Push
-    needs: [test, dusk, lighthouse]
+    needs: [test, dusk, lighthouse, playwright]
     runs-on: ubuntu-latest
     permissions:
       contents: read

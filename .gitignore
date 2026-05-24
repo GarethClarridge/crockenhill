@@ -8,6 +8,7 @@
 .env.*
 !.env.example
 !.env.dusk.ci
+!.env.playwright.ci
 !.env.jules
 
 # IDE and editor files
@@ -45,6 +46,11 @@
 
 # Lighthouse CI report artifacts
 /.lighthouseci/
+
+# Playwright artifacts (baselines under tests/Playwright/snapshots/ are committed)
+/playwright-report/
+/test-results/
+/playwright/.cache/
 
 # Lock files
 composer.lock
