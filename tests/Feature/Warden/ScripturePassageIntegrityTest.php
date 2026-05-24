@@ -52,7 +52,7 @@ class ScripturePassageIntegrityTest extends TestCase
     #[Test]
     public function it_handles_long_copyright_text(): void
     {
-        $longCopyright = str_repeat('Copyright notice content. ', 100); // 2600 chars
+        $longCopyright = trim(str_repeat('Copyright notice content. ', 100)); // 2600 chars
 
         $passage = ScripturePassage::factory()->create([
             'copyright' => $longCopyright,
