@@ -284,18 +284,18 @@ jobs:
         run: |
           php artisan key:generate
           APP_KEY=$(grep ^APP_KEY= .env | cut -d= -f2-)
-          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env.playwright.ci
+          cp .env.playwright.ci .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+          sed -i 's|^DB_HOST=.*|DB_HOST=mysql|' .env
 
       - name: Run migrations and seed
         run: |
           mysql -h mysql -u root -ptesting -e "CREATE DATABASE IF NOT EXISTS \`testing_pw\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-          DB_HOST=mysql DB_DATABASE=testing_pw DB_USERNAME=root DB_PASSWORD=testing php artisan migrate --force
-          DB_HOST=mysql DB_DATABASE=testing_pw DB_USERNAME=root DB_PASSWORD=testing php artisan db:seed --force
+          php artisan migrate --force
+          php artisan db:seed --force
 
       - name: Start application server
         run: |
-          cp .env.playwright.ci .env
-          sed -i 's|^DB_HOST=.*|DB_HOST=mysql|' .env
           php artisan serve --host=0.0.0.0 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
 
       - name: Wait for app server
