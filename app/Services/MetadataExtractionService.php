@@ -17,6 +17,7 @@ use Owenoj\LaravelGetId3\GetId3;
 class MetadataExtractionService
 {
     use SanitizesLogData;
+
     /**
      * @var array<string, int>
      */

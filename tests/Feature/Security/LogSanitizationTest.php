@@ -29,7 +29,7 @@ class LogSanitizationTest extends TestCase
         $sanitizedPath = 'private/../unsafe path.md';
 
         $sermon = Sermon::factory()->create([
-            'transcript_file_path' => $maliciousPath
+            'transcript_file_path' => $maliciousPath,
         ]);
 
         Log::shouldReceive('warning')
