@@ -9,6 +9,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    private const BIBLE_ID_CHECK = 'scripture_passages_bible_id_check';
+
+    private const REFERENCE_CHECK = 'scripture_passages_normalized_reference_check';
+
+    private const HTML_CHECK = 'scripture_passages_html_content_check';
+
+    private const COPYRIGHT_CHECK = 'scripture_passages_copyright_check';
+
     /**
      * Run the migrations.
      */
@@ -17,10 +25,10 @@ return new class extends Migration
         Schema::table('scripture_passages', function (Blueprint $table) {
             // MySQL 8.0+ supports CHECK constraints.
             // We ensure core identity and content columns are not empty.
-            DB::statement("ALTER TABLE scripture_passages ADD CONSTRAINT scripture_passages_bible_id_check CHECK (bible_id <> '')");
-            DB::statement("ALTER TABLE scripture_passages ADD CONSTRAINT scripture_passages_normalized_reference_check CHECK (normalized_reference <> '')");
-            DB::statement("ALTER TABLE scripture_passages ADD CONSTRAINT scripture_passages_html_content_check CHECK (html_content <> '')");
-            DB::statement("ALTER TABLE scripture_passages ADD CONSTRAINT scripture_passages_copyright_check CHECK (copyright <> '')");
+            DB::statement(sprintf("ALTER TABLE scripture_passages ADD CONSTRAINT %s CHECK (bible_id <> '')", self::BIBLE_ID_CHECK));
+            DB::statement(sprintf("ALTER TABLE scripture_passages ADD CONSTRAINT %s CHECK (normalized_reference <> '')", self::REFERENCE_CHECK));
+            DB::statement(sprintf("ALTER TABLE scripture_passages ADD CONSTRAINT %s CHECK (html_content <> '')", self::HTML_CHECK));
+            DB::statement(sprintf("ALTER TABLE scripture_passages ADD CONSTRAINT %s CHECK (copyright <> '')", self::COPYRIGHT_CHECK));
         });
     }
 
@@ -30,10 +38,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('scripture_passages', function (Blueprint $table) {
-            DB::statement('ALTER TABLE scripture_passages DROP CONSTRAINT scripture_passages_bible_id_check');
-            DB::statement('ALTER TABLE scripture_passages DROP CONSTRAINT scripture_passages_normalized_reference_check');
-            DB::statement('ALTER TABLE scripture_passages DROP CONSTRAINT scripture_passages_html_content_check');
-            DB::statement('ALTER TABLE scripture_passages DROP CONSTRAINT scripture_passages_copyright_check');
+            DB::statement(sprintf('ALTER TABLE scripture_passages DROP CHECK %s', self::BIBLE_ID_CHECK));
+            DB::statement(sprintf('ALTER TABLE scripture_passages DROP CHECK %s', self::REFERENCE_CHECK));
+            DB::statement(sprintf('ALTER TABLE scripture_passages DROP CHECK %s', self::HTML_CHECK));
+            DB::statement(sprintf('ALTER TABLE scripture_passages DROP CHECK %s', self::COPYRIGHT_CHECK));
         });
     }
 };
