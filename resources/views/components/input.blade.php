@@ -48,7 +48,8 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
                 'type' => 'text',
                 'class' => $inputClasses,
                 'id' => $id,
-                'aria-label' => (!$label && $attributes->get('placeholder')) ? $attributes->get('placeholder') : null
+                'aria-label' => (!$label && $attributes->get('placeholder')) ? $attributes->get('placeholder') : null,
+                'title' => ($shortcut === 'slash') ? 'Press / to focus' : ($attributes->get('title') ?: null)
             ]) }}
             @if($isPassword)
                 :type="showPassword ? 'text' : 'password'"

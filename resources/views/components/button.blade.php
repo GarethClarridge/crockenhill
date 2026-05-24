@@ -48,6 +48,10 @@ $iconSizeClasses = [
 $wrapperClasses = $inline ? 'inline-block' : 'block';
 $classes = $baseClasses . ' ' . $sizeClasses[$size] . ' ' . $variantClasses[$variant];
 $resolvedIconClass = trim(($iconSizeClasses[$size] ?? 'h-4 w-4').' '.$iconClass);
+
+if ($slot->isEmpty() && $attributes->has('aria-label') && !$attributes->has('title')) {
+    $attributes = $attributes->merge(['title' => $attributes->get('aria-label')]);
+}
 @endphp
 
 <div class="{{ $wrapperClasses }}">
