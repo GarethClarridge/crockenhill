@@ -228,7 +228,7 @@ jobs:
     name: Visual Regression (Playwright)
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.55.0-jammy
+      image: mcr.microsoft.com/playwright:v1.60.0-jammy
       options: --user 0
 
     services:
