@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
 class AudioEnhancementService
 {
+    use SanitizesLogData;
+
     /**
      * Enhance an audio file using FFmpeg filters (noise reduction, dynamic normalisation,
      * loudness normalisation) and write the result to a temp file.
@@ -24,8 +27,8 @@ class AudioEnhancementService
 
         if (! file_exists($inputPath)) {
             Log::warning('AudioEnhancementService: input file not found', [
-                'processing_id' => $processingId,
-                'input_path' => $inputPath,
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'input_path' => $this->sanitizeForLog($inputPath),
             ]);
 
             return null;
@@ -46,15 +49,16 @@ class AudioEnhancementService
             $this->runEnhancement($ffmpegPath, $inputPath, $filterChain, $outputPath, $processingId);
 
             Log::info('AudioEnhancementService: enhancement complete', [
-                'processing_id' => $processingId,
-                'output_path' => $outputPath,
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'output_path' => $this->sanitizeForLog($outputPath),
             ]);
 
             return $outputPath;
         } catch (\Throwable $e) {
             Log::warning('AudioEnhancementService: enhancement failed, continuing with original', [
-                'processing_id' => $processingId,
-                'error' => $e->getMessage(),
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             return null;
@@ -96,7 +100,7 @@ class AudioEnhancementService
 
         if ($measuredStats !== null && $this->isAlreadyWithinTolerance($measuredStats['input_i'], $targetLufs)) {
             Log::info('AudioEnhancementService: measured loudness within tolerance, skipping encode pass', [
-                'processing_id' => $processingId,
+                'processing_id' => $this->sanitizeForLog($processingId),
                 'measured_lufs' => $measuredStats['input_i'],
                 'target_lufs' => $targetLufs,
                 'tolerance_lufs' => config('media-processing.audio_enhancement.skip_tolerance_lufs', 2.0),
@@ -175,7 +179,7 @@ class AudioEnhancementService
     {
         if (! preg_match('/\{[^}]+\}/s', $stderr, $matches)) {
             Log::warning('AudioEnhancementService: could not parse loudnorm JSON', [
-                'processing_id' => $processingId,
+                'processing_id' => $this->sanitizeForLog($processingId),
             ]);
 
             return null;
@@ -223,8 +227,8 @@ class AudioEnhancementService
         ];
 
         Log::info('AudioEnhancementService: running enhancement pass', [
-            'processing_id' => $processingId,
-            'filter_chain' => $filterChain,
+            'processing_id' => $this->sanitizeForLog($processingId),
+            'filter_chain' => $this->sanitizeForLog($filterChain),
         ]);
 
         $process = new Process($command);
@@ -256,8 +260,8 @@ class AudioEnhancementService
 
         if (! file_exists($inputPath)) {
             Log::warning('AudioEnhancementService: video input file not found', [
-                'processing_id' => $processingId,
-                'input_path' => $inputPath,
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'input_path' => $this->sanitizeForLog($inputPath),
             ]);
 
             return null;
@@ -278,15 +282,16 @@ class AudioEnhancementService
             $this->runVideoEnhancement($ffmpegPath, $inputPath, $filterChain, $outputPath, $processingId);
 
             Log::info('AudioEnhancementService: video enhancement complete', [
-                'processing_id' => $processingId,
-                'output_path' => $outputPath,
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'output_path' => $this->sanitizeForLog($outputPath),
             ]);
 
             return $outputPath;
         } catch (\Throwable $e) {
             Log::warning('AudioEnhancementService: video enhancement failed, continuing with original', [
-                'processing_id' => $processingId,
-                'error' => $e->getMessage(),
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             return null;
@@ -312,8 +317,8 @@ class AudioEnhancementService
         ];
 
         Log::info('AudioEnhancementService: running video enhancement pass', [
-            'processing_id' => $processingId,
-            'filter_chain' => $filterChain,
+            'processing_id' => $this->sanitizeForLog($processingId),
+            'filter_chain' => $this->sanitizeForLog($filterChain),
         ]);
 
         $process = new Process($command);

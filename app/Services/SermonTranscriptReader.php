@@ -6,12 +6,13 @@ namespace App\Services;
 
 use App\Models\Sermon;
 use App\Traits\HandlesSafePaths;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SermonTranscriptReader
 {
-    use HandlesSafePaths;
+    use HandlesSafePaths, SanitizesLogData;
 
     public function __construct(
         private readonly TranscriptStorageService $transcriptStorageService,
@@ -39,7 +40,7 @@ class SermonTranscriptReader
         if ($this->isUnsafePath($path)) {
             Log::warning('Unsafe path detected in transcript path', [
                 'sermon_id' => $sermon->id,
-                'path' => $path,
+                'path' => $this->sanitizeForLog($path),
             ]);
 
             return null;
@@ -65,7 +66,7 @@ class SermonTranscriptReader
         Log::warning('Transcript file not found on any configured disk', [
             'disks_checked' => $this->transcriptStorageService->getTranscriptReadDisks(),
             'sermon_id' => $sermon->id,
-            'transcript_file_path' => $path,
+            'transcript_file_path' => $this->sanitizeForLog($path),
         ]);
 
         return null;

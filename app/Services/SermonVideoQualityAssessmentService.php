@@ -56,9 +56,10 @@ class SermonVideoQualityAssessmentService
         } catch (\Throwable $e) {
             Log::warning('Sermon video quality assessment failed', [
                 'sermon_id' => $sermon->id,
-                'video_path' => self::sanitizeForLog($videoPath),
+                'video_path' => $this->sanitizeForLog($videoPath),
                 'disk' => $disk,
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             return SermonVideoQualityAssessmentResult::failed();
@@ -85,11 +86,11 @@ class SermonVideoQualityAssessmentService
             return ['result' => SermonVideoQualityAssessmentResult::failed('missing_video_path'), 'localVideoPath' => null];
         }
 
-        if (! $this->frameExtractionService->videoFileExists($videoPath, $disk)) {
-            return ['result' => SermonVideoQualityAssessmentResult::failed('missing_video_file'), 'localVideoPath' => null];
-        }
-
         try {
+            if (! $this->frameExtractionService->videoFileExists($videoPath, $disk)) {
+                return ['result' => SermonVideoQualityAssessmentResult::failed('missing_video_file'), 'localVideoPath' => null];
+            }
+
             $localVideoPath = $this->frameExtractionService->ensureLocalVideoPath($videoPath, $disk);
             $isS3Download = $disk && $this->storageHelper->isS3CompatibleDisk(Storage::disk($disk));
 
@@ -102,9 +103,10 @@ class SermonVideoQualityAssessmentService
         } catch (\Throwable $e) {
             Log::warning('Sermon video quality assessment failed', [
                 'sermon_id' => $sermon->id,
-                'video_path' => self::sanitizeForLog($videoPath),
+                'video_path' => $this->sanitizeForLog($videoPath),
                 'disk' => $disk,
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             return ['result' => SermonVideoQualityAssessmentResult::failed(), 'localVideoPath' => null];
@@ -507,8 +509,9 @@ class SermonVideoQualityAssessmentService
             }
         } catch (\Throwable $e) {
             Log::warning('Failed to cleanup video-quality frame', [
-                'frame_path' => self::sanitizeForLog($framePath),
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'frame_path' => $this->sanitizeForLog($framePath),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
         }
     }

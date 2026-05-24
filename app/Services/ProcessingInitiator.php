@@ -59,20 +59,20 @@ class ProcessingInitiator
         if ($preExtractedMetadata !== null) {
             $baseMetadata = $preExtractedMetadata;
             Log::info('Initiating media processing with pre-extracted metadata', [
-                'processing_id' => self::sanitizeForLog($processingId),
+                'processing_id' => $this->sanitizeForLog($processingId),
                 'processing_type' => $processingType->value,
-                'original_filename' => self::sanitizeForLog($file->getClientOriginalName()),
+                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
             ]);
         } else {
             $extractedDateTime = $this->metadataService->extractDateFromVideo($file, $clientFileDate);
             $extractedService = $this->determineService($extractedDateTime, $file->getClientOriginalName());
 
             Log::info('Extracted metadata from media file', [
-                'processing_id' => self::sanitizeForLog($processingId),
+                'processing_id' => $this->sanitizeForLog($processingId),
                 'processing_type' => $processingType->value,
-                'original_filename' => self::sanitizeForLog($file->getClientOriginalName()),
-                'extracted_date' => $extractedDateTime->toDateString(),
-                'extracted_datetime' => $extractedDateTime->toDateTimeString(),
+                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                'extracted_date' => $this->sanitizeForLog($extractedDateTime->toDateString()),
+                'extracted_datetime' => $this->sanitizeForLog($extractedDateTime->toDateTimeString()),
                 'extracted_service' => $extractedService->value,
             ]);
 
