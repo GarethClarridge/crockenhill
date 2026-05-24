@@ -33,7 +33,6 @@ class PageRepository
             return Page::query()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
-                ->with('media')
                 ->where('area', $areaValue)
                 ->get();
         });
@@ -56,7 +55,6 @@ class PageRepository
             return Page::query()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
-                ->with('media')
                 ->where('area', $areaValue)
                 ->whereIn('slug', $orderedSlugs)
                 ->get()

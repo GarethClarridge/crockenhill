@@ -110,7 +110,7 @@ class PageLinksRepositoryTest extends TestCase
     }
 
     #[Test]
-    public function it_selects_only_required_columns_and_loads_media(): void
+    public function it_selects_only_required_columns_and_does_not_eager_load_media(): void
     {
         Page::factory()->create([
             'area' => PageArea::Church,
@@ -134,7 +134,10 @@ class PageLinksRepositoryTest extends TestCase
         $this->assertArrayNotHasKey('body', $attributes);
         $this->assertArrayNotHasKey('markdown', $attributes);
 
-        // Verify media relation is eager loaded
-        $this->assertTrue($result->relationLoaded('media'));
+        // The media relation must NOT be eager loaded: Spatie's Media model is not on the
+        // cache.serializable_classes allow-list, so any cached collection carrying a loaded
+        // media relation will hydrate as __PHP_Incomplete_Class and break downstream
+        // Spatie loadMedia() filters.
+        $this->assertFalse($result->relationLoaded('media'));
     }
 }
