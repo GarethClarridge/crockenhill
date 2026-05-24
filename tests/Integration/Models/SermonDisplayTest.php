@@ -132,35 +132,29 @@ class SermonDisplayTest extends TestCase
     }
 
     #[Test]
-    public function it_falls_back_to_column_when_relation_is_loaded_but_invalid(): void
+    public function it_falls_back_to_column_when_relation_is_loaded_but_both_references_are_empty(): void
     {
-        // Use a state where normalized_reference is technically non-empty but maybe something invalid
-        // for the purpose of the test, though normalized_reference check will prevent actual empty strings.
-        $passage = ScripturePassage::factory()->create([
+        // Build an unsaved passage instance with both reference fields empty (bypasses DB constraints)
+        // to simulate a legacy row that somehow has no usable reference text.
+        $passage = new ScripturePassage;
+        $passage->setRawAttributes([
+            'id' => 99999,
+            'bible_id' => 'de4e12af7f895db2-01',
+            'normalized_reference' => '',
             'display_reference' => null,
-            'normalized_reference' => 'INVALID',
+            'html_content' => '<p>content</p>',
+            'copyright' => 'Public Domain',
+            'fetched_at' => now()->toDateTimeString(),
         ]);
-
-        // Force empty strings via DB to test fallback if we want, but better to test with nulls
-        // which are allowed for display_reference.
-        // Actually the test was trying to simulate a loaded but "empty" state.
-        // If we want to test fallback, we should ensure displayReference presenter logic handles it.
 
         $sermon = Sermon::factory()->create([
             'reference' => 'John 3:16',
             'scripture_passage_id' => null,
         ]);
 
-        // Manually set relation to simulate loaded but invalid state
-        // We bypass the model setters by using setRawAttributes if we really wanted empty strings,
-        // but let's just use what's allowed.
-        $passage->display_reference = null;
-        $passage->normalized_reference = ' '; // will be trimmed to '' by setter if we use it, but factory might allow it if we are careful.
-
         $sermon->setRelation('scripturePassage', $passage);
 
         $this->assertTrue($sermon->relationLoaded('scripturePassage'));
-        // If presenter sees empty display and empty normalized, it should fall back to $sermon->reference
         $this->assertEquals('John 3:16', $this->presenter->displayReference($sermon));
     }
 
