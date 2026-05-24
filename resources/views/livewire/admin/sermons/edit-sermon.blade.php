@@ -98,14 +98,24 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Points</label>
-                    @foreach($points as $index => $point)
-                        <div class="flex gap-2 mb-2">
-                            <x-input wire:model="form.points.{{ $index }}" class="flex-1" />
-                            <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600"
-                                wire:click="removePoint({{ $index }})"
-                                aria-label="Remove point" />
-                        </div>
-                    @endforeach
+                    <div class="space-y-2">
+                        @foreach($points as $index => $point)
+                            <div wire:key="point-{{ $index }}"
+                                 x-transition:enter="transition ease-out duration-200"
+                                 x-transition:enter-start="opacity-0 -translate-y-2"
+                                 x-transition:enter-end="opacity-100 translate-y-0"
+                                 x-transition:leave="transition ease-in duration-150"
+                                 x-transition:leave-start="opacity-100 translate-y-0"
+                                 x-transition:leave-end="opacity-0 -translate-y-2"
+                                 class="flex gap-2">
+                                <x-input wire:model="form.points.{{ $index }}" class="flex-1" />
+                                <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600"
+                                    wire:click="removePoint({{ $index }})"
+                                    wire:confirm="Remove this sermon point?"
+                                    aria-label="Remove point" />
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             </div>
 

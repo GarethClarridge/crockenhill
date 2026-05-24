@@ -28,6 +28,10 @@ $target = $attributes->get('wire:target', $wireClick ?: $wireSubmit);
 
 // Except wire:target to avoid duplication in merge
 $filteredAttributes = $attributes->except(['wire:target']);
+
+if ($slot->isEmpty() && $attributes->has('aria-label') && !$attributes->has('title')) {
+    $filteredAttributes = $filteredAttributes->merge(['title' => $attributes->get('aria-label')]);
+}
 @endphp
 
 <button {{ $filteredAttributes->merge(['class' => $classes, 'type' => $type]) }} wire:loading.attr="disabled" @if($target) wire:target="{{ $target }}" @endif>
