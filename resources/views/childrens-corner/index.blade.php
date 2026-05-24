@@ -25,6 +25,7 @@
             :description="$description"
             :image="asset('/images/homepage/may2024wide.webp')"
         />
+        <x-breadcrumbs area="christ" :heading="$heading" jsonOnly />
 
         @if (isset($json_ld_data))
             <script type="application/ld+json">

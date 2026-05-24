@@ -20,9 +20,6 @@
         ?? (isset($page) ? $page->meta_description : null)
         ?? ($description ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading);
 
-    $breadcrumbItems = ($area && $heading)
-        ? app(\App\Presenters\BreadcrumbPresenter::class)->items($area, $heading)
-        : null;
 @endphp
 
 {{-- Title is escaped here to match @section('title', ...) which also stores escaped content; layout escapes again, yielding the double-escape used by tests. --}}
@@ -40,7 +37,10 @@
     :image-alt="$headingpicture ? 'Crockenhill Baptist Church: ' . $heading : null"
     :canonical="$canonical"
 />
-<x-schema.webpage :$heading :description="$resolvedDescription" :image="$headingpicture ?? null" :canonical="$canonical" :$breadcrumbItems />
+<x-schema.webpage :$heading :description="$resolvedDescription" :image="$headingpicture ?? null" :canonical="$canonical" />
+@if($area && $heading)
+<x-breadcrumbs :$area :$heading jsonOnly />
+@endif
 @endpush
 @endif
 
