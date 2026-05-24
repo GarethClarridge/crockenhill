@@ -206,6 +206,24 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function reference(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
+    }
+
+    /**
      * Preacher name attribute.
      *
      * Note: The relationship is named 'preacherProfile' to avoid conflict with
@@ -259,7 +277,18 @@ class Sermon extends Model implements Sitemapable
             'source_type' => ['nullable', Rule::enum(SermonSourceType::class)],
             'service' => ['nullable', Rule::enum(SermonService::class)],
             'series' => ['nullable', 'string', 'max:255'],
-            'reference' => ['nullable', 'string', 'max:255'],
+            'reference' => ['nullable', 'string', 'max:255', new class implements \Illuminate\Contracts\Validation\ImplicitRule
+            {
+                public function passes($attribute, $value): bool
+                {
+                    return $value !== '';
+                }
+
+                public function message(): string
+                {
+                    return 'The :attribute field must not be empty.';
+                }
+            }],
             'preacher' => ['required', 'string', 'max:255'], // Matches database varchar length and non-empty constraint
             'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
             'preacher_source' => ['nullable', Rule::enum(PreacherSource::class)],
