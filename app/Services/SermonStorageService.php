@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Sermon;
 use App\Traits\HandlesSafePaths;
+use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +16,7 @@ use LogicException;
 
 class SermonStorageService
 {
-    use HandlesSafePaths;
+    use HandlesSafePaths, SanitizesLogData;
 
     private const STATS_CHUNK_SIZE = 100;
 
@@ -412,8 +413,9 @@ class SermonStorageService
                 'sermon_id' => $sermon->id,
                 'from_disk' => $info['disk'],
                 'to_disk' => $targetDisk,
-                'path' => $info['path'],
-                'error' => $e->getMessage(),
+                'path' => $this->sanitizeForLog($info['path']),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             return false;
