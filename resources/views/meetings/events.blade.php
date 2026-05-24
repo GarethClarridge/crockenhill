@@ -22,7 +22,6 @@
             :heading="$heading"
             :description="$description"
         />
-        <x-breadcrumbs :$area :heading="$heading" jsonOnly />
 
         @if($schemaEvents->isNotEmpty())
             <script type="application/ld+json">

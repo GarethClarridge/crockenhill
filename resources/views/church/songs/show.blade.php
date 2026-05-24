@@ -12,7 +12,6 @@
     :description="$description"
     :main-entity="route('church.songs.show', $song->slug) . '#song'"
 />
-<x-breadcrumbs area="church" :heading="$heading" jsonOnly />
 <x-schema.music-composition :$song />
 @stop
 

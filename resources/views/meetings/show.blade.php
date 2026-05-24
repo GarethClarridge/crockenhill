@@ -35,7 +35,6 @@
             :description="$description ?? $heading"
             :image="$headingpicture"
         />
-        <x-breadcrumbs :$area :heading="$heading" jsonOnly />
 
         @if($meeting->is_recurring && $meeting->frequency)
             <script type="application/ld+json">

@@ -38,9 +38,12 @@
     :canonical="$canonical"
 />
 <x-schema.webpage :$heading :description="$resolvedDescription" :image="$headingpicture ?? null" :canonical="$canonical" />
-@if($area && $heading)
-<x-breadcrumbs :$area :$heading jsonOnly />
+@endpush
 @endif
+
+@if($area && $heading)
+@push('meta_tags')
+<x-breadcrumbs :$area :$heading jsonOnly />
 @endpush
 @endif
 

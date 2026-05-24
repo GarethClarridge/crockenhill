@@ -28,7 +28,6 @@
             :image="$share_image"
             :main-entity="url('/christ/sermons/preachers/' . $preacher->slug) . '#person'"
         />
-        <x-breadcrumbs area="christ" :heading="$heading" jsonOnly />
         <x-schema.person :$preacher />
 
         <script type="application/ld+json">

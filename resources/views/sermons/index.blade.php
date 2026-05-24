@@ -28,7 +28,6 @@
             :image="asset('/images/headings/large/sermons.webp')"
             :canonical="$canonical_url"
         />
-        <x-breadcrumbs area="christ" :heading="$heading" jsonOnly />
     @endpush
 
     @if (isset($content))

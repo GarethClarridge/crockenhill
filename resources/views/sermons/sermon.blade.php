@@ -50,7 +50,6 @@
             :image="$sermonView['thumbnail_url']"
             :main-entity="$sermonView['canonical_url'] . '#sermon'"
         />
-        <x-breadcrumbs area="christ" :heading="$fullTitle" jsonOnly />
     @endpush
 
     <article class="space-y-6">
