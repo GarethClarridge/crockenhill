@@ -14,7 +14,9 @@ use App\Presenters\SermonArchiveSeoPresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonSitemapPresenter;
 use App\Presenters\SermonViewPresenter;
+use App\Repositories\MeetingListRepository;
 use App\Repositories\PageRepository;
+use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
 use App\Services\PageImageCacheService;
 use App\Services\PublicMeetingReadModelCache;
@@ -38,6 +40,8 @@ class AppServiceProvider extends ServiceProvider
          */
         $this->app->singleton(SermonRepository::class);
         $this->app->singleton(PageRepository::class);
+        $this->app->singleton(PreacherListRepository::class);
+        $this->app->singleton(MeetingListRepository::class);
         $this->app->singleton(PageImageCacheService::class);
         $this->app->singleton(PageImagePresenter::class);
         $this->app->singleton(PageCardPresenter::class);
