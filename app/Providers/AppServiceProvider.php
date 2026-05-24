@@ -39,19 +39,25 @@ class AppServiceProvider extends ServiceProvider
          * as singletons to reduce object instantiation overhead during the request cycle.
          */
         $this->app->singleton(BibleCanon::class);
-        $this->app->singleton(MeetingListRepository::class);
         $this->app->singleton(MeetingSitemapPresenter::class);
         $this->app->singleton(PageCardPresenter::class);
         $this->app->singleton(PageImageCacheService::class);
         $this->app->singleton(PageImagePresenter::class);
-        $this->app->singleton(PageRepository::class);
         $this->app->singleton(PageSitemapPresenter::class);
-        $this->app->singleton(PreacherListRepository::class);
         $this->app->singleton(PublicMeetingReadModelCache::class);
         $this->app->singleton(PublicPageReadModelCache::class);
         $this->app->singleton(RelatedPagePresenter::class);
         $this->app->singleton(SermonArchiveSeoPresenter::class);
-        $this->app->singleton(SermonRepository::class);
+
+        /**
+         * Performance Optimization: These carry request-level memoization, so they should
+         * be shared within a single request cycle (scoped) rather than globally (singleton)
+         * to avoid leaking stale state in shared worker runtimes like Octane or FrankenPHP.
+         */
+        $this->app->scoped(MeetingListRepository::class);
+        $this->app->scoped(PageRepository::class);
+        $this->app->scoped(PreacherListRepository::class);
+        $this->app->scoped(SermonRepository::class);
 
         /**
          * Performance Optimization: These collaborators carry request-level memoization,
