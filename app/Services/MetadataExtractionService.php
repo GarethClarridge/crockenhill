@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Data\SermonMetadata;
 use App\Enums\SermonService;
+use App\Traits\SanitizesLogData;
 use Carbon\Carbon;
 use FFMpeg\FFProbe;
 use Illuminate\Http\UploadedFile;
@@ -15,6 +16,7 @@ use Owenoj\LaravelGetId3\GetId3;
 
 class MetadataExtractionService
 {
+    use SanitizesLogData;
     /**
      * @var array<string, int>
      */
@@ -358,8 +360,8 @@ class MetadataExtractionService
         } catch (\Exception $e) {
             // Log the error but don't fail the entire process
             Log::warning('Failed to extract audio info from uploaded file', [
-                'filename' => $file->getClientOriginalName(),
-                'error' => $e->getMessage(),
+                'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return $this->getDefaultAudioInfo($file);
@@ -387,8 +389,8 @@ class MetadataExtractionService
         } catch (\Exception $e) {
             // Log the error but don't fail the entire process
             Log::warning('Failed to extract audio info from file path', [
-                'filepath' => $filePath,
-                'error' => $e->getMessage(),
+                'filepath' => $this->sanitizeForLog($filePath),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return $this->getDefaultAudioInfoFromPath($filePath);
@@ -571,8 +573,8 @@ class MetadataExtractionService
 
             if (! $filePath || ! file_exists($filePath)) {
                 Log::warning('Video file not found for date extraction, using available fallbacks', [
-                    'file_path' => $filePath,
-                    'filename' => $filename,
+                    'file_path' => is_string($filePath) ? $this->sanitizeForLog($filePath) : null,
+                    'filename' => $this->sanitizeForLog($filename),
                 ]);
 
                 return $filenameDate ?? $clientDate ?? $this->extractDateFromFilename($filename);
@@ -597,7 +599,7 @@ class MetadataExtractionService
                 // the metadata is likely a download/re-encode timestamp — prefer the filename.
                 if ($filenameDate !== null && $metadataDate->isAfter($filenameDate->copy()->endOfDay())) {
                     Log::info('Filename date preferred: metadata creation_time is newer', [
-                        'filename' => $filename,
+                        'filename' => $this->sanitizeForLog($filename),
                         'filename_date' => $filenameDate->toDateString(),
                         'metadata_date' => $metadataDate->toDateString(),
                     ]);
@@ -606,8 +608,8 @@ class MetadataExtractionService
                 }
 
                 Log::info('Extracted creation date from video metadata tags', [
-                    'filename' => $filename,
-                    'creation_time' => $creationTime,
+                    'filename' => $this->sanitizeForLog($filename),
+                    'creation_time' => $this->sanitizeForLog((string) $creationTime),
                 ]);
 
                 return $metadataDate;
@@ -616,7 +618,7 @@ class MetadataExtractionService
             // Strategy 2: Use a real date from the filename before trusting browser lastModified.
             if ($filenameDate !== null) {
                 Log::info('Using filename date for video date extraction', [
-                    'filename' => $filename,
+                    'filename' => $this->sanitizeForLog($filename),
                     'filename_date' => $filenameDate->toDateString(),
                 ]);
 
@@ -626,8 +628,8 @@ class MetadataExtractionService
             // Strategy 3: Use client-provided file date (from JavaScript extraction of File.lastModified).
             if ($clientDate !== null) {
                 Log::info('Using client-provided file modification date', [
-                    'filename' => $filename,
-                    'client_date' => $clientProvidedDate,
+                    'filename' => $this->sanitizeForLog($filename),
+                    'client_date' => $this->sanitizeForLog((string) $clientProvidedDate),
                     'parsed_date' => $clientDate->toDateString(),
                 ]);
 
@@ -646,7 +648,7 @@ class MetadataExtractionService
                     $daysDiff = abs($fileDate->diffInDays(Carbon::now()));
                     if ($daysDiff >= 1) {
                         Log::info('Using original file modification timestamp', [
-                            'filename' => $filename,
+                            'filename' => $this->sanitizeForLog($filename),
                             'file_date' => $fileDate->toDateString(),
                             'days_difference' => $daysDiff,
                         ]);
@@ -657,14 +659,15 @@ class MetadataExtractionService
             }
 
             Log::info('No creation date in video metadata or file timestamp, falling back to filename', [
-                'filename' => $filename,
+                'filename' => $this->sanitizeForLog($filename),
                 'available_tags' => $tags ? array_keys($tags) : [],
             ]);
 
         } catch (\Exception $e) {
             Log::warning('Failed to extract date from video metadata, using filename fallback', [
-                'filename' => $file instanceof UploadedFile ? $file->getClientOriginalName() : basename($file),
-                'error' => $e->getMessage(),
+                'filename' => $this->sanitizeForLog($file instanceof UploadedFile ? $file->getClientOriginalName() : basename($file)),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
         }
 
@@ -682,9 +685,9 @@ class MetadataExtractionService
             return Carbon::parse($clientProvidedDate);
         } catch (\Exception $e) {
             Log::warning('Failed to parse client-provided date, falling back', [
-                'filename' => $filename,
-                'client_date' => $clientProvidedDate,
-                'error' => $e->getMessage(),
+                'filename' => $this->sanitizeForLog($filename),
+                'client_date' => $this->sanitizeForLog((string) $clientProvidedDate),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return null;
@@ -765,11 +768,11 @@ class MetadataExtractionService
             }
 
             Log::info('Extracted ID3 metadata from audio file', [
-                'filename' => $file->getClientOriginalName(),
-                'title' => $title,
-                'preacher' => $preacher,
-                'series' => $series,
-                'reference' => $reference,
+                'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                'title' => $this->sanitizeForLog((string) $title),
+                'preacher' => $this->sanitizeForLog((string) $preacher),
+                'series' => $this->sanitizeForLog((string) $series),
+                'reference' => $this->sanitizeForLog((string) $reference),
                 'title_type' => gettype($title),
                 'title_empty' => empty($title),
                 'raw_info_keys' => array_keys($info),
@@ -783,8 +786,8 @@ class MetadataExtractionService
             ];
         } catch (\Exception $e) {
             Log::warning('Failed to extract ID3 metadata from audio file', [
-                'filename' => $file->getClientOriginalName(),
-                'error' => $e->getMessage(),
+                'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return [
@@ -821,8 +824,8 @@ class MetadataExtractionService
             ];
         } catch (\Exception $e) {
             Log::warning('Failed to extract ID3 metadata from audio file path', [
-                'filepath' => $filePath,
-                'error' => $e->getMessage(),
+                'filepath' => $this->sanitizeForLog($filePath),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return [
