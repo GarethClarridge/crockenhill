@@ -8,7 +8,9 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Repositories\MeetingListRepository;
 use App\Repositories\PageRepository;
+use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
 use App\Services\PageImageCacheService;
 use App\Services\PodcastFeedService;
@@ -22,6 +24,8 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
 {
     public function __construct(
         private readonly SermonRepository $sermonRepository,
+        private readonly PreacherListRepository $preacherListRepository,
+        private readonly MeetingListRepository $meetingListRepository,
         private readonly PageRepository $pageRepository,
         private readonly PageImageCacheService $pageImageCacheService,
         private readonly PodcastFeedService $podcastFeedService,
@@ -61,9 +65,11 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
     {
         Cache::forget('sitemap');
         Cache::forget('nav_pages');
-        Cache::forget('admin_preacher_list');
-        Cache::forget('public_preacher_list');
-        Cache::forget('admin_meeting_list');
+
+        $this->preacherListRepository->forgetFlexibleCaches();
+        $this->preacherListRepository->clearInternalCaches();
+        $this->meetingListRepository->forgetFlexibleCaches();
+        $this->meetingListRepository->clearInternalCaches();
 
         if ($model instanceof Page) {
             $this->pageRepository->clearAreaCache($model->area);
