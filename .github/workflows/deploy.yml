@@ -269,8 +269,9 @@ jobs:
           key: composer-${{ hashFiles('composer.lock') }}
 
       - name: Prepare Laravel environment
+        shell: bash
         run: |
-          mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+          mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
           cp .env.example .env
           echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
 
