@@ -39,6 +39,7 @@ class PageRepository
         $cacheKey = "page_links_{$areaValue}";
 
         if (isset($this->memoizedPresents[$cacheKey])) {
+            /** @var Collection<int, Page> */
             return $this->memoizedPresents[$cacheKey];
         }
 
@@ -59,6 +60,7 @@ class PageRepository
     public function getLinksForAreaSlugs(string|PageArea $area, array $slugs, string $cacheKey): Collection
     {
         if (isset($this->memoizedPresents[$cacheKey])) {
+            /** @var Collection<int, Page> */
             return $this->memoizedPresents[$cacheKey];
         }
 
