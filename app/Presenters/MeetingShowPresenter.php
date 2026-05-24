@@ -63,10 +63,9 @@ class MeetingShowPresenter
      */
     public function photos(Meeting $meeting): Collection
     {
-        /** @var Collection<int, Media> $media */
         $media = $meeting->getMedia('photos');
 
-        return $media->map(fn (Media $item): array => [
+        return Collection::make($media->all())->map(fn (Media $item): array => [
             'name' => $item->name,
             'thumbnail' => $item->getUrl('thumbnail'),
             'url' => $item->getUrl('gallery'),
