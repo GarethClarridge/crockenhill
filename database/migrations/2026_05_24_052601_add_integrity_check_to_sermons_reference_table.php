@@ -19,12 +19,9 @@ return new class extends Migration
             return;
         }
 
-        // 1. Data Cleanup: Trim existing data and convert whitespace-only to NULL
-        DB::table('sermons')->update([
-            'reference' => DB::raw("NULLIF(TRIM(reference), '')"),
-        ]);
-
-        // 2. Add CHECK constraint (MySQL 8.0.16+)
+        // Add CHECK constraint (MySQL 8.0.16+)
+        // We do not modify existing data here per Warden standards;
+        // if violations exist, the migration will fail loudly.
         if (DB::getDriverName() === 'mysql') {
             DB::statement(sprintf(
                 "ALTER TABLE sermons ADD CONSTRAINT %s CHECK (reference IS NULL OR (BINARY reference = TRIM(reference) AND reference != ''))",
