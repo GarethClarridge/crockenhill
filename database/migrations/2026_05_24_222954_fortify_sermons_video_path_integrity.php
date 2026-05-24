@@ -8,16 +8,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    private const BIBLE_ID_FORMAT_CHECK = 'scripture_passages_bible_id_format_check';
-
-    private const NORMALIZED_REF_FORMAT_CHECK = 'scripture_passages_normalized_reference_format_check';
+    private const CONSTRAINT_NAME = 'sermons_video_file_path_format_check';
 
     /**
      * Run the migrations.
      */
     public function up(): void
     {
-        if (! Schema::hasTable('scripture_passages')) {
+        if (! Schema::hasTable('sermons')) {
             return;
         }
 
@@ -26,24 +24,16 @@ return new class extends Migration
         }
 
         // 1. Data Cleanup: Trim existing data
-        DB::table('scripture_passages')->update([
-            'bible_id' => DB::raw('TRIM(bible_id)'),
-            'normalized_reference' => DB::raw('TRIM(normalized_reference)'),
+        DB::table('sermons')->update([
+            'video_file_path' => DB::raw('TRIM(video_file_path)'),
         ]);
 
-        // 2. Add CHECK constraints
+        // 2. Add CHECK constraint
         // BINARY ensures exact character-for-character match for the trim check.
-        if (! $this->constraintExists('scripture_passages', self::BIBLE_ID_FORMAT_CHECK)) {
+        if (! $this->constraintExists('sermons', self::CONSTRAINT_NAME)) {
             DB::statement(sprintf(
-                "ALTER TABLE scripture_passages ADD CONSTRAINT %s CHECK (BINARY bible_id = TRIM(bible_id) AND bible_id != '')",
-                self::BIBLE_ID_FORMAT_CHECK
-            ));
-        }
-
-        if (! $this->constraintExists('scripture_passages', self::NORMALIZED_REF_FORMAT_CHECK)) {
-            DB::statement(sprintf(
-                "ALTER TABLE scripture_passages ADD CONSTRAINT %s CHECK (BINARY normalized_reference = TRIM(normalized_reference) AND normalized_reference != '')",
-                self::NORMALIZED_REF_FORMAT_CHECK
+                "ALTER TABLE sermons ADD CONSTRAINT %s CHECK (video_file_path IS NULL OR (BINARY video_file_path = TRIM(video_file_path) AND video_file_path != ''))",
+                self::CONSTRAINT_NAME
             ));
         }
     }
@@ -53,7 +43,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (! Schema::hasTable('scripture_passages')) {
+        if (! Schema::hasTable('sermons')) {
             return;
         }
 
@@ -61,8 +51,7 @@ return new class extends Migration
             return;
         }
 
-        $this->dropConstraintIfExists('scripture_passages', self::BIBLE_ID_FORMAT_CHECK);
-        $this->dropConstraintIfExists('scripture_passages', self::NORMALIZED_REF_FORMAT_CHECK);
+        $this->dropConstraintIfExists('sermons', self::CONSTRAINT_NAME);
     }
 
     private function dropConstraintIfExists(string $table, string $constraintName): void

@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Closure;
 use Database\Factories\ScripturePassageFactory;
-use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\Rule;
 
 /**
  * App\Models\ScripturePassage
@@ -51,59 +47,6 @@ class ScripturePassage extends Model
     {
         return [
             'fetched_at' => 'datetime',
-        ];
-    }
-
-    /**
-     * @return Attribute<string, string>
-     */
-    protected function bibleId(): Attribute
-    {
-        return Attribute::make(
-            set: fn (string $value): string => trim($value),
-        );
-    }
-
-    /**
-     * @return Attribute<string, string>
-     */
-    protected function normalizedReference(): Attribute
-    {
-        return Attribute::make(
-            set: fn (string $value): string => trim($value),
-        );
-    }
-
-    /**
-     * @return array<string, list<mixed>>
-     */
-    public static function validationRules(?self $passage = null): array
-    {
-        $uniqueRule = Rule::unique('scripture_passages');
-        if ($passage) {
-            $uniqueRule->ignore($passage->id);
-        }
-
-        $trimmedTextRule = new class implements ValidationRule
-        {
-            public function validate(string $attribute, mixed $value, Closure $fail): void
-            {
-                if ($value === null) {
-                    return;
-                }
-
-                if (! is_string($value) || $value === '' || trim($value) !== $value) {
-                    $fail('The :attribute field must not be empty or contain leading or trailing whitespace.');
-                }
-            }
-        };
-
-        return [
-            'bible_id' => ['required', 'string', 'max:255', $trimmedTextRule, $uniqueRule->where('normalized_reference', request('normalized_reference'))],
-            'normalized_reference' => ['required', 'string', 'max:255', $trimmedTextRule],
-            'html_content' => ['required', 'string'],
-            'copyright' => ['required', 'string'],
-            'fetched_at' => ['required', 'date'],
         ];
     }
 
