@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Repositories\MeetingListRepository;
+use App\Repositories\PageRepository;
+use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Foundation\Testing\WithCachedConfig;
@@ -47,6 +50,9 @@ abstract class TestCase extends BaseTestCase
         }
 
         $this->app->forgetInstance(SermonRepository::class);
+        $this->app->forgetInstance(PageRepository::class);
+        $this->app->forgetInstance(PreacherListRepository::class);
+        $this->app->forgetInstance(MeetingListRepository::class);
 
         Cache::flush();
     }

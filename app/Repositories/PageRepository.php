@@ -20,6 +20,12 @@ class PageRepository
         'page_card_rail_church',
     ];
 
+    /** @var array<string, mixed> */
+    private array $memoizedPresents = [];
+
+    /** @var array<string, true> */
+    private array $computed = [];
+
     /**
      * Get and cache all public links for an area.
      *
@@ -28,14 +34,24 @@ class PageRepository
     public function getAllLinksForArea(string|PageArea $area): Collection
     {
         $areaValue = $area instanceof PageArea ? $area->value : $area;
+        $key = "page_links_{$areaValue}";
 
-        return Cache::flexible("page_links_{$areaValue}", [86400, 172800], function () use ($areaValue) {
+        if (isset($this->computed[$key])) {
+            /** @var Collection<int, Page> */
+            return $this->memoizedPresents[$key];
+        }
+
+        $links = Cache::flexible($key, [86400, 172800], function () use ($areaValue) {
             return Page::query()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
                 ->where('area', $areaValue)
                 ->get();
         });
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedPresents[$key] = $links;
     }
 
     /**
@@ -51,7 +67,12 @@ class PageRepository
             return collect();
         }
 
-        return Cache::flexible($cacheKey, [86400, 172800], function () use ($areaValue, $orderedSlugs) {
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<int, Page> */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        $links = Cache::flexible($cacheKey, [86400, 172800], function () use ($areaValue, $orderedSlugs) {
             return Page::query()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
@@ -65,6 +86,20 @@ class PageRepository
                 })
                 ->values();
         });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $links;
+    }
+
+    /**
+     * Clear all internal memoization caches.
+     * Useful for long-running processes or tests.
+     */
+    public function clearInternalCaches(): void
+    {
+        $this->memoizedPresents = [];
+        $this->computed = [];
     }
 
     /**
@@ -78,6 +113,8 @@ class PageRepository
         foreach (self::PAGE_CARD_CACHE_KEYS as $cacheKey) {
             $this->forgetFlexible($cacheKey);
         }
+
+        $this->clearInternalCaches();
     }
 
     private function forgetFlexible(string $cacheKey): void

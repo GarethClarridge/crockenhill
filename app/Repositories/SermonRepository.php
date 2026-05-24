@@ -20,14 +20,11 @@ use Illuminate\Support\Str;
 
 class SermonRepository
 {
-    /** @var array<int, string>|null */
-    private ?array $memoizedSeries = null;
+    /** @var array<string, mixed> */
+    private array $memoizedPresents = [];
 
-    /** @var array<string, Collection<int, string>> */
-    private array $memoizedBooks = [];
-
-    /** @var array<string, Collection<int, int>> */
-    private array $memoizedChapters = [];
+    /** @var array<string, true> */
+    private array $computed = [];
 
     public function __construct(
         private readonly SermonScriptureFilterIndexService $indexService,
@@ -321,16 +318,21 @@ class SermonRepository
      */
     public function getSeriesForDisplay(): array
     {
-        if ($this->memoizedSeries !== null) {
-            return $this->memoizedSeries;
+        if (isset($this->computed['series'])) {
+            /** @var array<int, string> */
+            return $this->memoizedPresents['series'];
         }
 
-        return $this->memoizedSeries = Cache::flexible('sermon_series', [86400, 172800], function (): array {
+        $series = Cache::flexible('sermon_series', [86400, 172800], function (): array {
             $series = $this->getExistingSeries();
             sort($series);
 
             return $series;
         });
+
+        $this->computed['series'] = true;
+
+        return $this->memoizedPresents['series'] = $series;
     }
 
     /**
@@ -348,11 +350,12 @@ class SermonRepository
 
         $cacheKey = 'sermon_scripture_books_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
-        if (isset($this->memoizedBooks[$cacheKey])) {
-            return $this->memoizedBooks[$cacheKey];
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<int, string> */
+            return $this->memoizedPresents[$cacheKey];
         }
 
-        return $this->memoizedBooks[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($preacherId, $series): Collection {
+        $books = Cache::flexible($cacheKey, [86400, 172800], function () use ($preacherId, $series): Collection {
             $query = SermonScriptureFilter::query();
 
             if ($preacherId === null && $series === null) {
@@ -370,6 +373,10 @@ class SermonRepository
                 ->distinct()
                 ->pluck('bible_book');
         });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $books;
     }
 
     /**
@@ -387,11 +394,12 @@ class SermonRepository
 
         $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
-        if (isset($this->memoizedChapters[$cacheKey])) {
-            return $this->memoizedChapters[$cacheKey];
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<int, int> */
+            return $this->memoizedPresents[$cacheKey];
         }
 
-        return $this->memoizedChapters[$cacheKey] = Cache::flexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
+        $chapters = Cache::flexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
             $query = SermonScriptureFilter::query()->where('bible_book', $book);
 
             if ($preacherId === null && $series === null) {
@@ -410,6 +418,10 @@ class SermonRepository
                 ->orderBy('bible_chapter')
                 ->pluck('bible_chapter');
         });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $chapters;
     }
 
     /**
@@ -489,6 +501,16 @@ class SermonRepository
     }
 
     /**
+     * Clear all internal memoization caches.
+     * Useful for long-running processes or tests.
+     */
+    public function clearInternalCaches(): void
+    {
+        $this->memoizedPresents = [];
+        $this->computed = [];
+    }
+
+    /**
      * Clear all cached sermon listings.
      */
     public function clearListingCaches(Sermon|Preacher|null $model = null): void
@@ -499,9 +521,7 @@ class SermonRepository
         $this->forgetFlexible('sermon_scripture_books_all_all');
         $this->forgetFlexible('sermons_jsonld_recent_100');
 
-        $this->memoizedSeries = null;
-        $this->memoizedBooks = [];
-        $this->memoizedChapters = [];
+        $this->clearInternalCaches();
 
         if ($model instanceof Sermon) {
             $this->clearScriptureChapterCaches($model);
