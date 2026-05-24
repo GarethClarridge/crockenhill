@@ -1,0 +1,154 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Livewire\Admin\CalendarEvents;
+
+use App\Actions\CategorizeCalendarEvent;
+use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
+use App\Models\CalendarEvent;
+use App\Models\Meeting;
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class ListCalendarEventsTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    private User $admin;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->admin = User::factory()->crockenhillAdmin()->create(['is_admin' => true]);
+    }
+
+    #[Test]
+    public function it_renders_successfully_for_admin(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ListCalendarEvents::class)
+            ->assertStatus(200)
+            ->assertSee('Calendar Events');
+    }
+
+    #[Test]
+    public function it_lists_calendar_events(): void
+    {
+        $this->actingAs($this->admin);
+
+        CalendarEvent::factory()->create(['title' => 'Event One', 'start_datetime' => now()->addDay()]);
+        CalendarEvent::factory()->create(['title' => 'Event Two', 'start_datetime' => now()->addDays(2)]);
+
+        Livewire::test(ListCalendarEvents::class)
+            ->assertSee('Event One')
+            ->assertSee('Event Two');
+    }
+
+    #[Test]
+    public function it_filters_by_search_term(): void
+    {
+        $this->actingAs($this->admin);
+
+        CalendarEvent::factory()->create(['title' => 'Prayer Meeting', 'start_datetime' => now()->addDay()]);
+        CalendarEvent::factory()->create(['title' => 'Bible Study', 'start_datetime' => now()->addDays(2)]);
+
+        Livewire::test(ListCalendarEvents::class)
+            ->set('search', 'Prayer')
+            ->assertSee('Prayer Meeting')
+            ->assertDontSee('Bible Study');
+    }
+
+    #[Test]
+    public function it_filters_by_meeting(): void
+    {
+        $this->actingAs($this->admin);
+
+        $meeting = Meeting::factory()->create(['slug' => 'sunday-service']);
+        CalendarEvent::factory()->create(['title' => 'Sunday Service Event', 'meeting_slug' => 'sunday-service', 'start_datetime' => now()->addDay()]);
+        CalendarEvent::factory()->create(['title' => 'Other Event', 'meeting_slug' => null, 'start_datetime' => now()->addDays(2)]);
+
+        Livewire::test(ListCalendarEvents::class)
+            ->set('meetingFilter', 'sunday-service')
+            ->assertSee('Sunday Service Event')
+            ->assertDontSee('Other Event');
+    }
+
+    #[Test]
+    public function it_filters_uncategorized_only(): void
+    {
+        $this->actingAs($this->admin);
+
+        Meeting::factory()->create(['slug' => 'existing-meeting']);
+        CalendarEvent::factory()->create(['title' => 'Categorized Event', 'meeting_slug' => 'existing-meeting', 'start_datetime' => now()->addDay()]);
+        CalendarEvent::factory()->create(['title' => 'Uncategorized Event', 'meeting_slug' => null, 'start_datetime' => now()->addDays(2)]);
+
+        Livewire::test(ListCalendarEvents::class)
+            ->set('uncategorizedOnly', true)
+            ->assertSee('Uncategorized Event')
+            ->assertDontSee('Categorized Event');
+    }
+
+    #[Test]
+    public function it_filters_upcoming_only_by_default(): void
+    {
+        $this->actingAs($this->admin);
+
+        CalendarEvent::factory()->create(['title' => 'Upcoming Event', 'start_datetime' => now()->addDay()]);
+        CalendarEvent::factory()->create(['title' => 'Past Event', 'start_datetime' => now()->subDay()]);
+
+        Livewire::test(ListCalendarEvents::class)
+            ->assertSee('Upcoming Event')
+            ->assertDontSee('Past Event');
+    }
+
+    #[Test]
+    public function it_can_show_past_events_when_upcoming_filter_is_off(): void
+    {
+        $this->actingAs($this->admin);
+
+        CalendarEvent::factory()->create(['title' => 'Past Event', 'start_datetime' => now()->subDay()]);
+
+        Livewire::test(ListCalendarEvents::class)
+            ->set('upcomingOnly', false)
+            ->assertSee('Past Event');
+    }
+
+    #[Test]
+    public function it_can_categorize_an_event(): void
+    {
+        $this->actingAs($this->admin);
+
+        $event = CalendarEvent::factory()->create(['meeting_slug' => null]);
+        $meeting = Meeting::factory()->create(['slug' => 'new-meeting']);
+
+        $this->mock(CategorizeCalendarEvent::class, function ($mock) use ($event) {
+            $mock->shouldReceive('execute')
+                ->once()
+                ->with(\Mockery::on(fn ($arg) => $arg->id === $event->id), 'new-meeting');
+        });
+
+        Livewire::test(ListCalendarEvents::class)
+            ->call('categorize', $event->id, 'new-meeting')
+            ->assertDispatched('notify', type: 'success', message: 'Event categorized');
+    }
+
+    #[Test]
+    public function it_requires_admin_authorization_for_categorize_action(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $event = CalendarEvent::factory()->create(['meeting_slug' => null]);
+
+        $this->actingAs($user);
+
+        // While route middleware usually prevents access,
+        // the action itself should also be protected by WithAdminAuthorization
+        Livewire::test(ListCalendarEvents::class)
+            ->call('categorize', $event->id, 'some-meeting')
+            ->assertForbidden();
+    }
+}
