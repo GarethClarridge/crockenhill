@@ -148,12 +148,11 @@ class GoogleCalendarSyncService
     }
 
     /**
-     * @param  array<string, mixed>  $eventData
-     */
-    /**
      * Push a manual meeting_slug categorization to the Google Calendar event's extended properties.
      *
      * Returns true when the Google write succeeded, false when it failed gracefully.
+     *
+     * @param  array<string, mixed>  $eventData
      */
     public function syncCategorizationToGoogle(string $googleEventId, string $meetingSlug): bool
     {

@@ -224,8 +224,7 @@ class Page extends Model implements HasMedia, Sitemapable
 
     /**
      * Get the meeting associated with this page.
-     */
-    /**
+     *
      * @return HasOne<Meeting, $this>
      */
     public function meeting(): HasOne

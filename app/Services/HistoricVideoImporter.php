@@ -631,10 +631,6 @@ class HistoricVideoImporter
      * Dispatch a single work item through the livestream pipeline.
      *
      * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
-     * @return array{tag: string, processing_id: string, detail: string|null}
-     */
-    /**
-     * @param  array{tag: string, label: string, files: list<string>, date: Carbon, service: SermonService, client_file_date: string, bytes: int}  $item
      * @return list<array{tag: string, processing_id: string, detail: string|null}>
      */
     private function dispatchItem(array $item, bool $noConcat, bool $reEncodeMismatched): array

@@ -531,8 +531,7 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Get the processing logs for this sermon.
-     */
-    /**
+     *
      * @return HasMany<MediaProcessingLog, $this>
      */
     public function processingLogs(): HasMany
@@ -542,8 +541,7 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Get the livestream processing log for this sermon.
-     */
-    /**
+     *
      * @return BelongsTo<MediaProcessingLog, $this>
      */
     public function livestreamProcessing(): BelongsTo
