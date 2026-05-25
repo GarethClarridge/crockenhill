@@ -20,7 +20,7 @@ class MeetingSitemapPresenter
      */
     public function toSitemapTag(Meeting $meeting): Url|string|array
     {
-        $url = Url::create("/community/{$meeting->slug}")
+        $url = Url::create(route('meetings.show', ['meeting' => $meeting->slug]))
             ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
             ->setPriority(0.6);
 
