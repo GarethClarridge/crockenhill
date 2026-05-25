@@ -25,8 +25,9 @@ class Login extends Component
     /**
      * Security: Explicit length constraints are enforced on input fields to provide
      * Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
+     *
+     * @var string|array<string, mixed>
      */
-    /** @var string|array<string, mixed> */
     #[Validate('required|string|email|max:255')]
     public string|array $email = '';
 

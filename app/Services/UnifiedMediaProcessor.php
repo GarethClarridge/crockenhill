@@ -324,8 +324,7 @@ class UnifiedMediaProcessor
     /**
      * Process video by extracting audio and joining existing sermon processing.
      * Uses ProcessingInitiator for shared metadata extraction and log creation.
-     */
-    /**
+     *
      * @param  array<string, mixed>  $options
      */
     private function processDirectVideo(

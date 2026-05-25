@@ -37,15 +37,12 @@ class VideoExtractionService
     }
 
     /**
-     * Extract video segment with stream copy (no re-encoding) - primary method
+     * Extract video segment with stream copy (no re-encoding) - primary method.
      *
      * @param  string  $inputPath  Path to the original video file
      * @param  object  $segment  Segment data with start_time and end_time
-     * @param  array  $options  Extraction options
+     * @param  array<string, mixed>  $options  Extraction options
      * @return string|UploadedFile Based on options['return_type']
-     */
-    /**
-     * @param  array<string, mixed>  $options
      */
     public function extractSegment(string $inputPath, object $segment, array $options = []): string|UploadedFile
     {
