@@ -35,7 +35,7 @@ class PreacherItemListPresenter
                 $item = [
                     '@type' => 'Person',
                     'name' => $preacher->name,
-                    'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
+                    'url' => route('sermons.preacher', ['preacher' => $preacher->slug]),
                     'jobTitle' => 'Preacher',
                     'worksFor' => $worksFor,
                 ];

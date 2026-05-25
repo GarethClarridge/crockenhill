@@ -25,7 +25,7 @@ class PreacherSitemapPresenter
      */
     public function toSitemapTag(Preacher $preacher): Url|string|array
     {
-        $url = Url::create("/christ/sermons/preachers/{$preacher->slug}")
+        $url = Url::create(route('sermons.preacher', ['preacher' => $preacher->slug]))
             ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
             ->setPriority(0.6);
 

@@ -80,11 +80,21 @@ class SermonRepository
     /**
      * Get the latest sermons grouped by date.
      *
+     * Performance Optimization: Implements request-level memoization to avoid redundant
+     * flexible cache lookups and hits within a single request cycle.
+     *
      * @return Collection<string, Collection<int, Sermon>>
      */
     public function getLatestSermons(): Collection
     {
-        return Cache::flexible('latest_sermons', [86400, 172800], function (): Collection {
+        $cacheKey = 'latest_sermons';
+
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<string, Collection<int, Sermon>> */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        $sermons = Cache::flexible($cacheKey, [86400, 172800], function (): Collection {
             $distinct_dates = Sermon::query()
                 ->whereSermon()
                 ->select('date')
@@ -104,16 +114,30 @@ class SermonRepository
                 ->get()
                 ->groupBy(fn ($sermon) => $sermon->date->format('Y-m-d'));
         });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
      * Get all sermons grouped by date.
      *
+     * Performance Optimization: Implements request-level memoization to avoid redundant
+     * flexible cache lookups and hits within a single request cycle.
+     *
      * @return Collection<string, Collection<int, Sermon>>
      */
     public function getAllSermons(): Collection
     {
-        return Cache::flexible('all_sermons', [86400, 172800], function (): Collection {
+        $cacheKey = 'all_sermons';
+
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<string, Collection<int, Sermon>> */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        $sermons = Cache::flexible($cacheKey, [86400, 172800], function (): Collection {
             /** @var Collection<string, Collection<int, Sermon>> $grouped */
             $grouped = $this->publicSermonQuery()
                 ->orderBy('date', 'desc')
@@ -126,54 +150,98 @@ class SermonRepository
 
             return $grouped;
         });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
      * Get sermons for a specific series.
      *
+     * Performance Optimization: Implements request-level memoization to avoid redundant
+     * flexible cache lookups and hits within a single request cycle.
+     *
      * @return Collection<int, Sermon>
      */
     public function getSermonsBySeries(string $seriesName): Collection
     {
-        return Cache::flexible('sermons_series_'.Str::slug($seriesName), [86400, 172800], function () use ($seriesName): Collection {
+        $cacheKey = 'sermons_series_'.Str::slug($seriesName);
+
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<int, Sermon> */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        $sermons = Cache::flexible($cacheKey, [86400, 172800], function () use ($seriesName): Collection {
             return $this->publicSermonQuery()
                 ->where('series', $seriesName)
                 ->orderBy('date', 'desc')
                 ->get();
         });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
      * Get sermons for a specific preacher.
      *
      * Performance Optimization: Caches the preacher's sermon listing for 24 hours using flexible
-     * cache to reduce redundant DB queries when viewing preacher profiles.
+     * cache to reduce redundant DB queries when viewing preacher profiles. Implements
+     * request-level memoization to avoid redundant cache hits within a single request.
      *
      * @return Collection<int, Sermon>
      */
     public function getSermonsByPreacher(Preacher $preacher): Collection
     {
-        return Cache::flexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher): Collection {
+        $cacheKey = $this->preacherCacheKey($preacher);
+
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<int, Sermon> */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        $sermons = Cache::flexible($cacheKey, [86400, 172800], function () use ($preacher): Collection {
             return $this->publicSermonQuery()
                 ->where('preacher_id', $preacher->id)
                 ->orderBy('date', 'desc')
                 ->get();
         });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
      * Get sermons for a specific service.
      *
+     * Performance Optimization: Implements request-level memoization to avoid redundant
+     * flexible cache lookups and hits within a single request cycle.
+     *
      * @return Collection<int, Sermon>
      */
     public function getSermonsByService(SermonService $service): Collection
     {
-        return Cache::flexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service): Collection {
+        $cacheKey = "sermons_service_{$service->value}";
+
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<int, Sermon> */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        $sermons = Cache::flexible($cacheKey, [86400, 172800], function () use ($service): Collection {
             return $this->publicSermonQuery()
                 ->where('service', $service)
                 ->orderBy('date', 'desc')
                 ->get();
         });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
@@ -214,15 +282,29 @@ class SermonRepository
      * Why: `ItemList` schema doesn't require the full archive; loading every sermon
      * with relations on every request is wasteful at 700+ rows.
      *
+     * Performance Optimization: Implements request-level memoization to avoid redundant
+     * flexible cache lookups and hits within a single request cycle.
+     *
      * @return Collection<int, Sermon>
      */
     public function getRecentSermonsForJsonLd(int $limit = 100): Collection
     {
-        return Cache::flexible("sermons_jsonld_recent_{$limit}", [86400, 172800], function () use ($limit): Collection {
+        $cacheKey = "sermons_jsonld_recent_{$limit}";
+
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<int, Sermon> */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        $sermons = Cache::flexible($cacheKey, [86400, 172800], function () use ($limit): Collection {
             return $this->publicBrowseQuery()
                 ->limit($limit)
                 ->get();
         });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
