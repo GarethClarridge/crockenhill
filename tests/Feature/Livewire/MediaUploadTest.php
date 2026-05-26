@@ -54,6 +54,7 @@ class MediaUploadTest extends TestCase
 
         // Fake disks used by the component
         Storage::fake('local');
+        Storage::disk('local')->makeDirectory('livewire-tmp');
     }
 
     #[Test]
