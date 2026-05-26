@@ -52,7 +52,7 @@ class SermonOpenGraphTest extends TestCase
         $response->assertSee('<meta property="og:image"', false);
         $response->assertSee('<meta property="og:image:width"', false);
         $response->assertSee('<meta property="og:image:height"', false);
-        $response->assertSee('<meta property="og:image:alt" content="Sermon: Test Sermon Title">', false);
+        $response->assertSee('<meta property="og:image:alt" content="Sermon: Test Sermon Title by John Smith">', false);
         $response->assertSee('<meta property="og:audio"', false);
 
         // Check Twitter Card meta tags

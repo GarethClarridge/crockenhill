@@ -197,6 +197,11 @@ class SitemapService
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY);
 
             $latestSermon = $representativeSermons->get($book);
+
+            if ($latestSermon && $latestSermon->updated_at && $latestSermon->updated_at->year > 0) {
+                $url->setLastModificationDate($latestSermon->updated_at);
+            }
+
             $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
 
             $url->addImage($image ?: $sermonsImage, "Sermons on {$book}");
@@ -309,6 +314,11 @@ class SitemapService
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY);
 
             $latestSermon = $representativeSermons->get($series);
+
+            if ($latestSermon && $latestSermon->updated_at && $latestSermon->updated_at->year > 0) {
+                $url->setLastModificationDate($latestSermon->updated_at);
+            }
+
             $image = $latestSermon ? $this->sermonViewPresenter->thumbnailUrl($latestSermon) : null;
 
             $url->addImage($image ?: $sermonsImage, "Sermon Series: {$series}");

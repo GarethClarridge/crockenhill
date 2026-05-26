@@ -840,6 +840,26 @@ class SermonViewPresenter
      * Checks for existing database-stored descriptions before falling back
      * to dynamic generation.
      */
+    /**
+     * Get the descriptive alt text for a sermon thumbnail image.
+     */
+    public function imageAlt(Sermon $sermon): string
+    {
+        $preacherName = $this->displayPreacherName($sermon);
+
+        return 'Sermon: '.$sermon->title.($preacherName ? ' by '.$preacherName : '');
+    }
+
+    /**
+     * Get the descriptive alt text for a Children's Corner talk thumbnail image.
+     */
+    public function childrensTalkImageAlt(Sermon $sermon): string
+    {
+        $preacherName = $this->displayPreacherName($sermon);
+
+        return "Children's Corner: ".$sermon->title.($preacherName ? ' by '.$preacherName : '');
+    }
+
     public function metaDescription(Sermon $sermon): string
     {
         $key = $this->cacheKey($sermon, 'meta_desc');
