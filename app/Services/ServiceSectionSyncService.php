@@ -9,6 +9,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\SectionPublication\SectionPublicationHandlerFactory;
 use App\Support\ServiceSectionConfidence;
+use App\Traits\SanitizesLogData;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Validator;
 
 class ServiceSectionSyncService
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly SectionPublicationHandlerFactory $handlerFactory,
     ) {}
@@ -187,11 +190,11 @@ class ServiceSectionSyncService
         $isPublishableType = $this->isPublishableType($incomingPayload['section_type']);
 
         if ($existing->published_sermon_id !== null) {
-            Log::warning('Published service section superseded by classification refresh', [
+            Log::warning('Published service section superseded by classification refresh', $this->sanitizeArrayForLog([
                 'service_section_id' => $existing->id,
                 'processing_log_id' => $existing->media_processing_log_id,
                 'published_sermon_id' => $existing->published_sermon_id,
-            ]);
+            ]));
         }
 
         return [
@@ -226,12 +229,12 @@ class ServiceSectionSyncService
             return;
         }
 
-        Log::warning('Published service section removed but no handler registered', [
+        Log::warning('Published service section removed but no handler registered', $this->sanitizeArrayForLog([
             'service_section_id' => $section->id,
             'processing_log_id' => $section->media_processing_log_id,
             'published_sermon_id' => $section->published_sermon_id,
             'signature' => $this->buildSignatureFromExisting($section),
-        ]);
+        ]));
     }
 
     /**
@@ -337,11 +340,11 @@ class ServiceSectionSyncService
                 Storage::disk($disk)->delete($path);
             }
         } catch (\Throwable $throwable) {
-            Log::warning('Failed to clean up extracted section asset on disk', [
+            Log::warning('Failed to clean up extracted section asset on disk', $this->sanitizeArrayForLog([
                 'disk' => $disk,
                 'path' => $path,
                 'error' => $throwable->getMessage(),
-            ]);
+            ]));
         }
     }
 }

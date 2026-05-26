@@ -38,10 +38,10 @@ class TranscriptStorageService
             // Ensure transcript directory exists
             if (! $storage->exists(self::TRANSCRIPT_DIRECTORY)) {
                 $storage->makeDirectory(self::TRANSCRIPT_DIRECTORY);
-                Log::info('Created transcript directory', [
+                Log::info('Created transcript directory', $this->sanitizeArrayForLog([
                     'directory' => self::TRANSCRIPT_DIRECTORY,
                     'disk' => $disk,
-                ]);
+                ]));
             }
 
             // Store the transcript
@@ -51,22 +51,22 @@ class TranscriptStorageService
                 throw new Exception('Failed to write transcript to storage');
             }
 
-            Log::info('Transcript stored successfully', [
+            Log::info('Transcript stored successfully', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermonId,
-                'file_path' => $this->sanitizeForLog($filePath),
+                'file_path' => $filePath,
                 'disk' => $disk,
                 'size' => strlen($transcript),
-            ]);
+            ]));
 
             return $filePath;
         } catch (Exception $e) {
-            Log::error('Failed to store transcript', [
+            Log::error('Failed to store transcript', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermonId,
-                'file_path' => $this->sanitizeForLog($filePath),
+                'file_path' => $filePath,
                 'disk' => $disk,
-                'error' => $this->sanitizeForLog($e->getMessage()),
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
             throw new Exception("Failed to store transcript for sermon {$sermonId}: ".$e->getMessage());
         }
     }
@@ -85,11 +85,11 @@ class TranscriptStorageService
         $storage = Storage::disk($disk);
 
         if (! $storage->exists($filePath)) {
-            Log::info('Transcript file not found', [
+            Log::info('Transcript file not found', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermonId,
-                'file_path' => $this->sanitizeForLog($filePath),
+                'file_path' => $filePath,
                 'disk' => $disk,
-            ]);
+            ]));
 
             return null;
         }
@@ -101,22 +101,22 @@ class TranscriptStorageService
                 return null;
             }
 
-            Log::info('Transcript retrieved successfully', [
+            Log::info('Transcript retrieved successfully', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermonId,
-                'file_path' => $this->sanitizeForLog($filePath),
+                'file_path' => $filePath,
                 'disk' => $disk,
                 'size' => strlen($content),
-            ]);
+            ]));
 
             return $content;
         } catch (Exception $e) {
-            Log::error('Failed to retrieve transcript', [
+            Log::error('Failed to retrieve transcript', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermonId,
-                'file_path' => $this->sanitizeForLog($filePath),
+                'file_path' => $filePath,
                 'disk' => $disk,
-                'error' => $this->sanitizeForLog($e->getMessage()),
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             return null;
         }
@@ -150,11 +150,11 @@ class TranscriptStorageService
         $storage = Storage::disk($disk);
 
         if (! $storage->exists($filePath)) {
-            Log::info('Transcript file does not exist, nothing to delete', [
+            Log::info('Transcript file does not exist, nothing to delete', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermonId,
-                'file_path' => $this->sanitizeForLog($filePath),
+                'file_path' => $filePath,
                 'disk' => $disk,
-            ]);
+            ]));
 
             return true;
         }
@@ -163,28 +163,28 @@ class TranscriptStorageService
             $success = $storage->delete($filePath);
 
             if ($success) {
-                Log::info('Transcript deleted successfully', [
+                Log::info('Transcript deleted successfully', $this->sanitizeArrayForLog([
                     'sermon_id' => $sermonId,
-                    'file_path' => $this->sanitizeForLog($filePath),
+                    'file_path' => $filePath,
                     'disk' => $disk,
-                ]);
+                ]));
             } else {
-                Log::warning('Failed to delete transcript file', [
+                Log::warning('Failed to delete transcript file', $this->sanitizeArrayForLog([
                     'sermon_id' => $sermonId,
-                    'file_path' => $this->sanitizeForLog($filePath),
+                    'file_path' => $filePath,
                     'disk' => $disk,
-                ]);
+                ]));
             }
 
             return $success;
         } catch (Exception $e) {
-            Log::error('Error deleting transcript', [
+            Log::error('Error deleting transcript', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermonId,
-                'file_path' => $this->sanitizeForLog($filePath),
+                'file_path' => $filePath,
                 'disk' => $disk,
-                'error' => $this->sanitizeForLog($e->getMessage()),
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             return false;
         }
@@ -197,7 +197,9 @@ class TranscriptStorageService
      */
     public function cleanupOnFailure(int $sermonId): void
     {
-        Log::info('Cleaning up transcript files after processing failure', ['sermon_id' => $sermonId]);
+        Log::info('Cleaning up transcript files after processing failure', $this->sanitizeArrayForLog([
+            'sermon_id' => $sermonId,
+        ]));
 
         $this->deleteTranscript($sermonId);
     }
@@ -252,12 +254,12 @@ class TranscriptStorageService
 
                 return is_string($content) ? $content : null;
             } catch (Exception $e) {
-                Log::warning('Failed to read transcript from disk', [
+                Log::warning('Failed to read transcript from disk', $this->sanitizeArrayForLog([
                     'disk' => $disk,
-                    'transcript_file_path' => $this->sanitizeForLog($path),
-                    'error' => $this->sanitizeForLog($e->getMessage()),
+                    'transcript_file_path' => $path,
+                    'error' => $e->getMessage(),
                     'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-                ]);
+                ]));
             }
         }
 

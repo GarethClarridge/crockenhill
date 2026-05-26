@@ -9,6 +9,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -16,6 +17,8 @@ use Illuminate\Support\Str;
 
 final class LegacySermonImporter
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly ProcessingRunOrchestrator $orchestrator,
         private readonly MetadataExtractionService $metadataExtractionService,
@@ -61,10 +64,10 @@ final class LegacySermonImporter
                     $imported++;
                 }
             } catch (\Throwable $e) {
-                Log::error('Legacy sermon import failed for file', [
+                Log::error('Legacy sermon import failed for file', $this->sanitizeArrayForLog([
                     'file' => $filename,
                     'error' => $e->getMessage(),
-                ]);
+                ]));
                 $result = 'error';
                 $message = $e->getMessage();
                 $errors++;

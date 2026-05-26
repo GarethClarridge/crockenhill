@@ -9,6 +9,7 @@ use App\Exceptions\NonRetryableTranscriptionException;
 use App\Exceptions\TranscriptionException;
 use App\Traits\DetectsStorageType;
 use App\Traits\HandlesTranscriptStorage;
+use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +21,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 {
     use DetectsStorageType;
     use HandlesTranscriptStorage;
+    use SanitizesLogData;
 
     public function __construct(
         private readonly SermonProcessingLogger $logger,
@@ -340,12 +342,12 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         $sizeMB = round($fileSize / 1024 / 1024, 1);
         $maxSizeMB = round($maxSize / 1024 / 1024, 1);
 
-        Log::info('Audio file exceeds transcription limit, attempting compression', [
+        Log::info('Audio file exceeds transcription limit, attempting compression', $this->sanitizeArrayForLog([
             'processing_id' => $processingId,
             'original_size_mb' => $sizeMB,
             'max_size_mb' => $maxSizeMB,
             'file_path' => $filePath,
-        ]);
+        ]));
 
         try {
             // Attempt to compress the file
@@ -367,21 +369,21 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 );
             }
 
-            Log::info('Audio compression successful', [
+            Log::info('Audio compression successful', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
                 'original_size_mb' => $sizeMB,
                 'compressed_size_mb' => $compressedSizeMB,
                 'compression_ratio' => round(($fileSize - $compressedSize) / $fileSize * 100, 1),
-            ]);
+            ]));
 
             return $compressedPath;
 
         } catch (Exception $e) {
-            Log::error('Audio compression failed', [
+            Log::error('Audio compression failed', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
                 'original_size_mb' => $sizeMB,
                 'error' => $e->getMessage(),
-            ]);
+            ]));
 
             throw new TranscriptionException(
                 "Audio file too large ({$sizeMB}MB) and compression failed: {$e->getMessage()}. ".
@@ -405,7 +407,9 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
         // Must have minimum length
         if (strlen($transcript) < 50) {
-            Log::warning('Transcript too short', ['length' => strlen($transcript)]);
+            Log::warning('Transcript too short', $this->sanitizeArrayForLog([
+                'length' => strlen($transcript),
+            ]));
 
             return false;
         }
@@ -413,7 +417,9 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         // Must have reasonable word count
         $wordCount = str_word_count($transcript);
         if ($wordCount < 10) {
-            Log::warning('Transcript has too few words', ['word_count' => $wordCount]);
+            Log::warning('Transcript has too few words', $this->sanitizeArrayForLog([
+                'word_count' => $wordCount,
+            ]));
 
             return false;
         }
@@ -426,7 +432,9 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
         foreach ($gibberishPatterns as $pattern) {
             if (preg_match($pattern, $transcript)) {
-                Log::warning('Transcript appears to contain gibberish', ['pattern' => $pattern]);
+                Log::warning('Transcript appears to contain gibberish', $this->sanitizeArrayForLog([
+                    'pattern' => $pattern,
+                ]));
 
                 return false;
             }

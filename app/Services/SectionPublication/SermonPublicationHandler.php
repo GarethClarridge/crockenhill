@@ -15,11 +15,14 @@ use App\Services\MediaProcessingIdentityResolver;
 use App\Services\SermonCreationService;
 use App\Services\ServiceSectionPublicationTransitionService;
 use App\Support\ServiceSectionConfidence;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class SermonPublicationHandler implements SectionPublicationHandler
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly ChildrensTalkSpeakerService $childrensTalkSpeakerService,
         private readonly SermonCreationService $sermonCreationService,
@@ -137,11 +140,11 @@ class SermonPublicationHandler implements SectionPublicationHandler
             return;
         }
 
-        Log::warning('Published service section removed during sync', [
+        Log::warning('Published service section removed during sync', $this->sanitizeArrayForLog([
             'service_section_id' => $section->id,
             'processing_log_id' => $section->media_processing_log_id,
             'published_sermon_id' => $section->published_sermon_id,
-        ]);
+        ]));
     }
 
     private function promoteExtractedAsset(

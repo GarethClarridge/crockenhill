@@ -8,11 +8,14 @@ use App\Contracts\ProvidesSafeMessage;
 use App\Enums\ProcessingStatus;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class ProcessingRunFailureHandler
 {
+    use SanitizesLogData;
+
     public const PROFILE_AUDIO = 'audio';
 
     public const PROFILE_VIDEO = 'video';
@@ -28,12 +31,12 @@ class ProcessingRunFailureHandler
 
     public function handle(string $processingId, \Throwable $exception, string $profile): void
     {
-        Log::error('Processing run failure', [
+        Log::error('Processing run failure', $this->sanitizeArrayForLog([
             'processing_id' => $processingId,
             'profile' => $profile,
             'error' => $exception->getMessage(),
-            'trace' => $exception->getTraceAsString(),
-        ]);
+            'trace' => $this->sanitizeStackTrace($exception->getTraceAsString()),
+        ]));
 
         $processingLog = MediaProcessingLog::query()
             ->where('processing_id', $processingId)
@@ -46,10 +49,10 @@ class ProcessingRunFailureHandler
         $processingLog = $processingLog->fresh() ?? $processingLog;
 
         if ($processingLog->isCancelled()) {
-            Log::info('Skipping failure handling for cancelled processing run', [
+            Log::info('Skipping failure handling for cancelled processing run', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
                 'profile' => $profile,
-            ]);
+            ]));
 
             return;
         }
@@ -110,11 +113,11 @@ class ProcessingRunFailureHandler
             Mail::to(config('media-processing.email.admin_email'))
                 ->queue(new LivestreamProcessingFailed($processingLog->processing_id, $exception));
         } catch (\Throwable $mailException) {
-            Log::warning('Failed to queue livestream processing failure email, continuing', [
+            Log::warning('Failed to queue livestream processing failure email, continuing', $this->sanitizeArrayForLog([
                 'processing_id' => $processingLog->processing_id,
                 'original_error' => $exception->getMessage(),
                 'email_error' => $mailException->getMessage(),
-            ]);
+            ]));
         }
     }
 
