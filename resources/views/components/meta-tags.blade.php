@@ -26,6 +26,7 @@
     $metaDescription = $description ?? $title;
     $metaImage = $image ?? asset('images/Primary.png');
     $metaUrl = $canonical ?? url()->current();
+    $twitterCard = $image ? 'summary_large_image' : 'summary';
 @endphp
 
 {{-- Open Graph meta tags --}}
@@ -70,10 +71,14 @@
 <meta property="article:tag" content="{{ $tag }}">
 @endforeach
 @endif
+@elseif($type === 'profile')
+@if($author)
+<meta property="profile:username" content="{{ $author }}">
+@endif
 @endif
 
 {{-- Twitter Card meta tags --}}
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="{{ $twitterCard }}">
 <meta name="twitter:title" content="{{ $fullTitle }}">
 <meta name="twitter:description" content="{{ $metaDescription }}">
 <meta name="twitter:image" content="{{ $metaImage }}">

@@ -63,8 +63,8 @@ class CreatePreacher extends Component
 
                 return [
                     'preacher_id' => $preacher->id,
-                    'name' => self::sanitizeForLog((string) $preacher->name),
-                    'slug' => self::sanitizeForLog((string) $preacher->slug),
+                    'name' => $this->sanitizeForLog((string) $preacher->name),
+                    'slug' => $this->sanitizeForLog((string) $preacher->slug),
                 ];
             },
             logAction: 'New preacher created by admin',

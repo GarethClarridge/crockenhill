@@ -8,6 +8,7 @@ use App\Data\PodcastFeedItemReadModel;
 use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
+use App\Repositories\SermonRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -16,6 +17,7 @@ class PodcastFeedService
     public function __construct(
         private readonly SermonStorageService $storageService,
         private readonly SermonViewPresenter $sermonViewPresenter,
+        private readonly SermonRepository $sermonRepository,
     ) {}
 
     /**
@@ -56,14 +58,9 @@ class PodcastFeedService
         /** @var int $limit */
         $limit = config('podcast.items_limit', 100);
 
-        return Sermon::query()
-            ->whereSermon()
+        return $this->sermonRepository
+            ->publicSermonQuery()
             ->forPodcast()
-            ->select(['id', 'title', 'audio_file_path', 'filetype', 'date', 'service', 'series', 'reference', 'preacher', 'preacher_id', 'duration', 'summary', 'slug', 'thumbnail_file_path', 'thumbnail_generated_at', 'transcript_file_path', 'updated_at', 'scripture_passage_id', 'content_type'])
-            ->with([
-                'preacherProfile:id,name,slug,image_path',
-                'scripturePassage:id,display_reference,normalized_reference',
-            ])
             ->forService($serviceType)
             ->limit($limit)
             ->get()

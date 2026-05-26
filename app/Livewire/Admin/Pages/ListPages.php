@@ -74,7 +74,7 @@ class ListPages extends Component
             logAction: 'Page deleted by admin',
             logFields: [
                 'page_id' => $page->id,
-                'heading' => self::sanitizeForLog((string) $page->heading),
+                'heading' => $this->sanitizeForLog((string) $page->heading),
             ],
         );
 
@@ -104,8 +104,8 @@ class ListPages extends Component
 
                 $logPages = $pages->map(fn (Page $page) => [
                     'id' => $page->id,
-                    'heading' => self::sanitizeForLog((string) $page->heading),
-                    'slug' => self::sanitizeForLog((string) $page->slug),
+                    'heading' => $this->sanitizeForLog((string) $page->heading),
+                    'slug' => $this->sanitizeForLog((string) $page->slug),
                 ])->all();
 
                 $pages->each->delete();

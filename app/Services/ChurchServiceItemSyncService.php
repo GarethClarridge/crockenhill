@@ -310,9 +310,6 @@ class ChurchServiceItemSyncService
 
     /**
      * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
-     */
-    /**
-     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @param  array<string, mixed>|null  $rawIncomingItem
      */
     private function updateMatchedItem(

@@ -9,6 +9,7 @@ use App\Models\Sermon;
 use App\Presenters\RelatedPagePresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonViewPresenter;
+use App\Repositories\SermonRepository;
 use Illuminate\View\View;
 
 class ChildrensCornerController extends Controller
@@ -17,31 +18,13 @@ class ChildrensCornerController extends Controller
         private readonly RelatedPagePresenter $relatedPagePresenter,
         private readonly SermonViewPresenter $sermonViewPresenter,
         private readonly SermonItemListPresenter $itemListPresenter,
+        private readonly SermonRepository $sermonRepository,
     ) {}
 
     public function index(): View
     {
-        $talks = Sermon::query()
-            ->whereChildrensTalk()
-            ->select([
-                'id',
-                'title',
-                'slug',
-                'date',
-                'preacher',
-                'preacher_id',
-                'audio_file_path',
-                'video_file_path',
-                'video_quality_status',
-                'video_visibility_override',
-                'thumbnail_file_path',
-                'thumbnail_metadata',
-                'scripture_passage_id',
-            ])
-            ->with([
-                'preacherProfile:id,name,slug',
-                'scripturePassage:id,display_reference,normalized_reference',
-            ])
+        $talks = $this->sermonRepository
+            ->basePublicSermonQuery(SermonContentType::ChildrensTalk)
             ->orderBy('date', 'desc')
             ->paginate(12);
 

@@ -105,7 +105,7 @@ class EditUser extends Component
 
                 return [
                     'target_user_id' => $this->user->id,
-                    'target_user_email' => self::sanitizeForLog($this->user->email),
+                    'target_user_email' => $this->sanitizeForLog($this->user->email),
                     'old_is_admin' => $oldIsAdmin,
                     'new_is_admin' => $newIsAdmin,
                 ];

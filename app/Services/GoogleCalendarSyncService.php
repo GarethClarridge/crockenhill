@@ -31,7 +31,7 @@ class GoogleCalendarSyncService
             $googleEvents = $this->fetchEventsFromGoogle($startDate, $endDate);
         } catch (\Exception $e) {
             Log::error('Failed to fetch events from Google Calendar', [
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
             throw $e;
         }
@@ -55,8 +55,8 @@ class GoogleCalendarSyncService
             } catch (\Exception $e) {
                 Log::warning('Failed to sync single event', [
                     /** @phpstan-ignore-next-line */
-                    'event_id' => self::sanitizeForLog((string) $googleEvent->id),
-                    'error' => self::sanitizeForLog($e->getMessage()),
+                    'event_id' => $this->sanitizeForLog((string) $googleEvent->id),
+                    'error' => $this->sanitizeForLog($e->getMessage()),
                 ]);
             }
         }
@@ -148,9 +148,6 @@ class GoogleCalendarSyncService
     }
 
     /**
-     * @param  array<string, mixed>  $eventData
-     */
-    /**
      * Push a manual meeting_slug categorization to the Google Calendar event's extended properties.
      *
      * Returns true when the Google write succeeded, false when it failed gracefully.
@@ -177,8 +174,8 @@ class GoogleCalendarSyncService
             return true;
         } catch (\Exception $e) {
             Log::warning('Failed to update Google Calendar extended property', [
-                'google_event_id' => self::sanitizeForLog($googleEventId),
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'google_event_id' => $this->sanitizeForLog($googleEventId),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return false;
@@ -211,8 +208,8 @@ class GoogleCalendarSyncService
             return true;
         } catch (\Exception $e) {
             Log::warning('Failed to clear Google Calendar extended property', [
-                'google_event_id' => self::sanitizeForLog($googleEventId),
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'google_event_id' => $this->sanitizeForLog($googleEventId),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return false;

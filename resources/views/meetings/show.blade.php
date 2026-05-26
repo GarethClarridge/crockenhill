@@ -27,7 +27,7 @@
         <x-meta-tags
             :title="$pageTitle"
             :description="$description ?? $heading"
-            :image="$headingpicture"
+            :image="$headingpicture ?? null"
             :image-alt="'Meeting: ' . $heading"
         />
         <x-schema.webpage

@@ -19,6 +19,8 @@
             :description="$description"
             :image="$share_image"
             :image-alt="'Preacher: ' . $preacher->name"
+            type="profile"
+            :author="$preacher->slug"
             label1="Sermons"
             :data1="$sermons->count()"
         />

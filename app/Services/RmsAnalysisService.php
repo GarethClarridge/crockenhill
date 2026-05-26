@@ -138,9 +138,8 @@ class RmsAnalysisService
     }
 
     /**
-     * Get total duration from RMS log content
-     */
-    /**
+     * Get total duration from RMS log content.
+     *
      * @param  array<int, string>  $lines
      */
     public function getTotalDuration(string $logContent, array $lines): float

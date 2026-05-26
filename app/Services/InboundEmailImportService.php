@@ -10,6 +10,7 @@ use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +18,8 @@ use InvalidArgumentException;
 
 class InboundEmailImportService
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
         private readonly ChurchServiceItemSyncService $itemSyncService,
@@ -192,12 +195,12 @@ class InboundEmailImportService
 
         $this->markEmailAsProcessed($inboundEmail, $mergeResult->churchService, $reviewedByUserId, $reviewMode);
 
-        Log::warning('Church service imported from email (existing)', [
+        Log::warning('Church service imported from email (existing)', $this->sanitizeArrayForLog([
             'admin_id' => $reviewedByUserId,
             'church_service_id' => $existingService->id,
             'email_id' => $inboundEmail->id,
             'was_merged' => $mergeResult->wasMerged,
-        ]);
+        ]));
 
         return $mergeResult->churchService;
     }
@@ -243,11 +246,11 @@ class InboundEmailImportService
 
         $this->markEmailAsProcessed($inboundEmail, $churchService, $reviewedByUserId, $reviewMode);
 
-        Log::warning('Church service imported from email (new)', [
+        Log::warning('Church service imported from email (new)', $this->sanitizeArrayForLog([
             'admin_id' => $reviewedByUserId,
             'church_service_id' => $churchService->id,
             'email_id' => $inboundEmail->id,
-        ]);
+        ]));
 
         return $this->canonicalUpdateService->finalize(
             $churchService,

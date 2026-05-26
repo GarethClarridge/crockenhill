@@ -37,6 +37,7 @@ class PodcastFeedServiceTest extends TestCase
                 $this->storageService,
                 app(SermonTranscriptReader::class),
             ),
+            app(\App\Repositories\SermonRepository::class),
         );
         Sermon::query()->delete();
         Cache::flush();

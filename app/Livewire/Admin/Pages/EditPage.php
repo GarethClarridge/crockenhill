@@ -40,8 +40,8 @@ class EditPage extends Component
 
                 return [
                     'page_id' => $this->page->id,
-                    'heading' => self::sanitizeForLog($fresh instanceof Page ? $fresh->heading : $this->page->heading),
-                    'slug' => self::sanitizeForLog($fresh instanceof Page ? $fresh->slug : $this->page->slug),
+                    'heading' => $this->sanitizeForLog($fresh instanceof Page ? $fresh->heading : $this->page->heading),
+                    'slug' => $this->sanitizeForLog($fresh instanceof Page ? $fresh->slug : $this->page->slug),
                 ];
             },
             logAction: 'Page updated by admin',

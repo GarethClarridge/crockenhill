@@ -162,23 +162,21 @@
         @else
             <section class="mx-auto mt-8 max-w-2xl px-6">
                 @if ($hasActiveFilters)
-                    <x-card heading="No sermons match these filters">
-                        <p class="text-gray-600">
-                            Try another book, chapter, preacher, or series, or clear the filters to return to the full sermon archive.
-                        </p>
-
-                        <div class="mt-4">
-                            <x-form-button type="button" variant="outline" size="sm" icon="x-mark" wire:click="clearFilters">
-                                Clear filters
-                            </x-form-button>
-                        </div>
-                    </x-card>
+                    <x-empty-state
+                        icon="magnifying-glass"
+                        title="No sermons match these filters"
+                        description="Try another book, chapter, preacher, or series, or clear the filters to return to the full sermon archive."
+                    >
+                        <x-form-button type="button" variant="outline" size="sm" icon="x-mark" wire:click="clearFilters">
+                            Clear filters
+                        </x-form-button>
+                    </x-empty-state>
                 @else
-                    <x-card heading="No sermons published yet">
-                        <p class="text-gray-600">
-                            Sermons will appear here once they have been added to the public archive.
-                        </p>
-                    </x-card>
+                    <x-empty-state
+                        icon="inbox"
+                        title="No sermons published yet"
+                        description="Sermons will appear here once they have been added to the public archive."
+                    />
                 @endif
             </section>
         @endif

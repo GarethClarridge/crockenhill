@@ -137,10 +137,11 @@ class SermonExposurePolicy
             return $this->publicUrl($sermon);
         }
 
-        $year = $sermon->date->format('Y');
-        $month = $sermon->date->format('m');
-
-        return url("/christ/sermons/{$year}/{$month}/{$sermon->slug}");
+        return route('sermons.show.dated', [
+            'year' => $sermon->date->format('Y'),
+            'month' => $sermon->date->format('m'),
+            'sermon' => $sermon->slug,
+        ]);
     }
 
     private function automaticVideoVisibility(Sermon $sermon): bool

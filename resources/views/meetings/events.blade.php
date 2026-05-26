@@ -17,6 +17,8 @@
         <x-meta-tags
             :title="$heading"
             :description="$description"
+            :image="$headingpicture ?? null"
+            :image-alt="'Events for ' . ($heading ?? $meeting->slug)"
         />
         <x-schema.webpage
             :heading="$heading"

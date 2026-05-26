@@ -218,8 +218,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
     /**
      * Get the page that provides content for this meeting.
-     */
-    /**
+     *
      * @return BelongsTo<Page, $this>
      */
     public function page(): BelongsTo

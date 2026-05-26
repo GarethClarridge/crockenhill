@@ -171,7 +171,7 @@ class SermonItemListPresenter
             '@type' => 'Article',
             'headline' => $sermon->title,
             'name' => $sermon->title,
-            'url' => $sermonView['public_url'],
+            'url' => $sermonView['canonical_url'],
             'description' => $metaDescription,
             'datePublished' => $datePublished,
             'dateModified' => $sermon->updated_at?->toIso8601String() ?? $datePublished,
@@ -182,7 +182,7 @@ class SermonItemListPresenter
             'publisher' => $publisher,
             'mainEntityOfPage' => [
                 '@type' => 'WebPage',
-                '@id' => $sermonView['public_url'],
+                '@id' => $sermonView['canonical_url'],
             ],
             'image' => $sermonView['thumbnail_url'] ?: $logoUrl,
         ];

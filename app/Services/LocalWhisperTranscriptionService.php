@@ -8,6 +8,7 @@ use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\TranscriptionException;
 use App\Traits\DetectsStorageType;
 use App\Traits\HandlesTranscriptStorage;
+use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -18,6 +19,7 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
 {
     use DetectsStorageType;
     use HandlesTranscriptStorage;
+    use SanitizesLogData;
 
     public function __construct(
         private readonly SermonProcessingLogger $logger,
@@ -242,10 +244,10 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
         }
 
         if (empty($transcript)) {
-            Log::warning('Local Whisper returned an empty chunk transcript', [
+            Log::warning('Local Whisper returned an empty chunk transcript', $this->sanitizeArrayForLog([
                 'context' => $validationContext,
                 'file' => basename($filePath),
-            ]);
+            ]));
         }
 
         $isValidTranscript = $this->validateTranscript($transcript, $validationContext);
@@ -404,11 +406,11 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
         $sizeMB = round($fileSize / 1024 / 1024, 1);
         $maxSizeMB = round($maxSize / 1024 / 1024, 1);
 
-        Log::info('Audio file exceeds transcription limit, attempting compression', [
+        Log::info('Audio file exceeds transcription limit, attempting compression', $this->sanitizeArrayForLog([
             'processing_id' => $processingId,
             'original_size_mb' => $sizeMB,
             'max_size_mb' => $maxSizeMB,
-        ]);
+        ]));
 
         try {
             $compressedPath = $this->chunkingService->compressAudioForTranscription($filePath, $processingId);
@@ -448,13 +450,13 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
         ];
 
         if (strlen($transcript) < 50) {
-            Log::warning('Local Whisper transcript too short', $metadata);
+            Log::warning('Local Whisper transcript too short', $this->sanitizeArrayForLog($metadata));
 
             return false;
         }
 
         if (str_word_count($transcript) < 10) {
-            Log::warning('Local Whisper transcript has too few words', $metadata);
+            Log::warning('Local Whisper transcript has too few words', $this->sanitizeArrayForLog($metadata));
 
             return false;
         }
@@ -466,10 +468,10 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
 
         foreach ($gibberishPatterns as $pattern) {
             if (preg_match($pattern, $transcript)) {
-                Log::warning('Local Whisper transcript appears to contain gibberish', [
+                Log::warning('Local Whisper transcript appears to contain gibberish', $this->sanitizeArrayForLog([
                     ...$metadata,
                     'pattern' => $pattern,
-                ]);
+                ]));
 
                 return false;
             }

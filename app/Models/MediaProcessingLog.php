@@ -502,9 +502,8 @@ class MediaProcessingLog extends Model
     // Accessors for backward compatibility
 
     /**
-     * Accessor for stored_file_path (maps to source_file_path)
-     */
-    /**
+     * Accessor for stored_file_path (maps to source_file_path).
+     *
      * @return Attribute<string|null, string|null>
      */
     protected function storedFilePath(): Attribute

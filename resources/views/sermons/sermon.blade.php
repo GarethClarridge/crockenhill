@@ -29,7 +29,7 @@
             :image="$sermonView['thumbnail_url']"
             :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
             :image-height="$sermonView['thumbnail_url'] ? 720 : 600"
-            :image-alt="'Sermon: ' . $sermon->title"
+            :image-alt="app(\App\Presenters\SermonViewPresenter::class)->imageAlt($sermon)"
             :audio="$sermonView['audio_url']"
             :video="$sermonView['video_url']"
             :canonical="$sermonView['canonical_url']"
