@@ -111,6 +111,7 @@ class SermonOpenGraphTest extends TestCase
 
         // Should still have basic Open Graph meta tags with preacher name in title
         $response->assertSee('<meta property="og:title" content="Minimal Sermon | Test Preacher | Crockenhill Baptist Church">', false);
+        $response->assertSee('<meta property="og:image:alt" content="Sermon: Minimal Sermon by Test Preacher">', false);
 
         // Should not include series or reference in description when not present
         $content = $response->getContent();

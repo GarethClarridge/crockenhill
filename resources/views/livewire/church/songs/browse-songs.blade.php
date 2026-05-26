@@ -59,23 +59,25 @@
         @if ($songs->isEmpty())
             <section class="pt-2">
                 @if ($search !== '')
-                    <x-card heading="No songs match your search">
-                        <p class="text-gray-600">Try different words, or clear the search to browse the full catalogue.</p>
-                        <div class="mt-4">
-                            <x-form-button type="button" variant="outline" size="sm" icon="x-mark" wire:click="$set('search', '')">
-                                Clear search
-                            </x-form-button>
-                        </div>
-                    </x-card>
+                    <x-empty-state
+                        icon="magnifying-glass"
+                        title="No songs match your search"
+                        description="Try different words, or clear the search to browse the full catalogue."
+                    >
+                        <x-form-button type="button" variant="outline" size="sm" icon="x-mark" wire:click="$set('search', '')">
+                            Clear search
+                        </x-form-button>
+                    </x-empty-state>
                 @else
-                    <x-card heading="No songs sung in the last 3 years">
-                        <p class="text-gray-600">We do not have any worship song usage to show for the last 3 years. Switch to <strong>All time</strong> to browse the full catalogue.</p>
-                        <div class="mt-4">
-                            <x-form-button type="button" variant="outline" size="sm" icon="clock" wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_ALL }}')">
-                                Show all time
-                            </x-form-button>
-                        </div>
-                    </x-card>
+                    <x-empty-state
+                        icon="clock"
+                        title="No songs sung in the last 3 years"
+                        description="We do not have any worship song usage to show for the last 3 years. Switch to All time to browse the full catalogue."
+                    >
+                        <x-form-button type="button" variant="outline" size="sm" icon="clock" wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_ALL }}')">
+                            Show all time
+                        </x-form-button>
+                    </x-empty-state>
                 @endif
             </section>
         @endif
