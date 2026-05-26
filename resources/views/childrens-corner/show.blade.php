@@ -24,7 +24,7 @@
             :image="$sermonView['thumbnail_url']"
             :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
             :image-height="$sermonView['thumbnail_url'] ? 720 : 600"
-            :image-alt="\"Children's Corner: {$sermon->title}\""
+            :image-alt="app(\App\Presenters\SermonViewPresenter::class)->childrensTalkImageAlt($sermon)"
             :audio="$sermonView['audio_url']"
             :video="$sermonView['video_url']"
             :canonical="$sermonView['public_url']"

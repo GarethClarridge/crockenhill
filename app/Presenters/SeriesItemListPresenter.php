@@ -28,7 +28,7 @@ class SeriesItemListPresenter
                     'item' => [
                         '@type' => 'CreativeWorkSeries',
                         'name' => $seriesName,
-                        'url' => url('/christ/sermons/series/'.Str::slug($seriesName)),
+                        'url' => route('sermons.series.show', ['series' => Str::slug($seriesName)]),
                     ],
                 ];
             })->values()->all(),
