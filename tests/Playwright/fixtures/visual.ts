@@ -20,13 +20,24 @@ const FREEZE_STYLES = `
 async function stabilise(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
   await page.addStyleTag({ content: FREEZE_STYLES });
-  await page.evaluate(() => document.fonts.ready);
 
   await page.evaluate(async () => {
     document.querySelectorAll('img[loading="lazy"]').forEach((img) => {
       img.setAttribute('loading', 'eager');
       (img as HTMLImageElement).fetchPriority = 'high';
     });
+
+    // Force every declared font face to load before measuring. `document.fonts.ready`
+    // alone only awaits faces the browser has already chosen to fetch — faces that
+    // are declared but not yet matched against rendered text can still load and
+    // swap *after* `ready` resolves, shifting line metrics and changing page height
+    // between Playwright's consecutive screenshot attempts.
+    const faceLoads: Promise<unknown>[] = [];
+    document.fonts.forEach((face) => {
+      faceLoads.push(face.load().catch(() => undefined));
+    });
+    await Promise.all(faceLoads);
+    await document.fonts.ready;
 
     const totalHeight = document.documentElement.scrollHeight;
     const step = window.innerHeight;
@@ -48,6 +59,9 @@ async function stabilise(page: Page): Promise<void> {
       )
     );
 
+    // Two RAFs let any scroll-triggered Alpine transitions (e.g. the back-to-top
+    // button's enter/leave animation, which fires on the synthetic scroll above)
+    // finish committing their final state before the screenshot is taken.
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
   });
 }
