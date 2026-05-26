@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 
 class SermonAnalysisValidator
 {
+    use SanitizesLogData;
+
     public const MAX_TITLE_WORDS = 12;
 
     public const MAX_TITLE_CHARACTERS = 60;
@@ -28,10 +31,10 @@ class SermonAnalysisValidator
 
         // Must have minimum length
         if (strlen($transcript) < self::MIN_TRANSCRIPT_LENGTH) {
-            Log::warning('Transcript too short for analysis', [
+            Log::warning('Transcript too short for analysis', $this->sanitizeArrayForLog([
                 'length' => strlen($transcript),
                 'minimum' => self::MIN_TRANSCRIPT_LENGTH,
-            ]);
+            ]));
 
             return false;
         }
@@ -39,9 +42,9 @@ class SermonAnalysisValidator
         // Must have reasonable word count
         $wordCount = str_word_count($transcript);
         if ($wordCount < 20) {
-            Log::warning('Transcript has too few words for analysis', [
+            Log::warning('Transcript has too few words for analysis', $this->sanitizeArrayForLog([
                 'word_count' => $wordCount,
-            ]);
+            ]));
 
             return false;
         }

@@ -53,29 +53,29 @@ class AudioExtractionService
             $maxSize = $audioConfig['max_file_size'] ?? (25 * 1024 * 1024);
 
             if ($fileSize > $maxSize) {
-                Log::info('Audio file too large, applying fallback compression', [
+                Log::info('Audio file too large, applying fallback compression', $this->sanitizeArrayForLog([
                     'original_size' => $fileSize,
                     'max_size' => $maxSize,
-                ]);
+                ]));
 
                 $outputPath = $this->compressForTranscription($outputPath);
             }
 
-            Log::info('Audio extracted from video', [
-                'video_path' => $this->sanitizeForLog($videoPath),
-                'audio_path' => $this->sanitizeForLog($outputPath),
+            Log::info('Audio extracted from video', $this->sanitizeArrayForLog([
+                'video_path' => $videoPath,
+                'audio_path' => $outputPath,
                 'duration' => $duration,
                 'file_size' => $this->getLocalFileSize($outputPath),
-            ]);
+            ]));
 
             return $outputPath;
 
         } catch (\Exception $e) {
-            Log::error('Failed to extract audio from video', [
-                'video_path' => $this->sanitizeForLog($videoPath),
-                'error' => $this->sanitizeForLog($e->getMessage()),
+            Log::error('Failed to extract audio from video', $this->sanitizeArrayForLog([
+                'video_path' => $videoPath,
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             throw $e;
         }
@@ -111,11 +111,11 @@ class AudioExtractionService
             return $compressedPath;
 
         } catch (\Exception $e) {
-            Log::error('Failed to compress audio file', [
-                'input_path' => $this->sanitizeForLog($inputPath),
-                'error' => $this->sanitizeForLog($e->getMessage()),
+            Log::error('Failed to compress audio file', $this->sanitizeArrayForLog([
+                'input_path' => $inputPath,
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             throw $e;
         }

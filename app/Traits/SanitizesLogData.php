@@ -18,6 +18,31 @@ trait SanitizesLogData
     }
 
     /**
+     * Recursively sanitize all string values in an array for logging.
+     *
+     * @param  array<mixed>  $data
+     * @return array<mixed>
+     */
+    protected function sanitizeArrayForLog(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = $this->sanitizeArrayForLog($value);
+            } elseif (is_string($value)) {
+                // Security: Avoid double-sanitization of already-sanitized stack traces
+                // which would flatten them and reduce readability.
+                if (str_contains(strtolower((string) $key), 'trace')) {
+                    continue;
+                }
+
+                $data[$key] = $this->sanitizeForLog($value);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
      * Sanitise a stack trace before writing to logs.
      * Strips server base paths and redacts credential-like patterns.
      */

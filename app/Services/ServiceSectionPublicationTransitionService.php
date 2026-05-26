@@ -6,10 +6,13 @@ namespace App\Services;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
+use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 
 class ServiceSectionPublicationTransitionService
 {
+    use SanitizesLogData;
+
     public function isPublishableType(ServiceSection $section): bool
     {
         /** @var array<string, class-string> $handlers */
@@ -55,11 +58,11 @@ class ServiceSectionPublicationTransitionService
     public function transition(ServiceSection $section, ServiceSectionPublicationStatus $target): bool
     {
         if (! $this->canTransition($section, $target)) {
-            Log::error('Invalid service section publication transition attempted', [
+            Log::error('Invalid service section publication transition attempted', $this->sanitizeArrayForLog([
                 'service_section_id' => $section->id,
                 'from' => $section->publication_status->value,
                 'to' => $target->value,
-            ]);
+            ]));
 
             return false;
         }

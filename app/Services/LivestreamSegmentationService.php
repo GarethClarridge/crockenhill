@@ -9,6 +9,7 @@ use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,8 @@ use RuntimeException;
 
 class LivestreamSegmentationService
 {
+    use SanitizesLogData;
+
     public function __construct(
         private readonly VideoStorageService $storageService,
         private readonly VideoSegmentationService $segmentationService,
@@ -25,11 +28,11 @@ class LivestreamSegmentationService
     public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null, ?string $dedupKey = null): ProcessingResult
     {
         try {
-            Log::info('Starting livestream processing', [
+            Log::info('Starting livestream processing', $this->sanitizeArrayForLog([
                 'original_filename' => $videoFile->getClientOriginalName(),
                 'file_size' => $videoFile->getSize(),
                 'client_file_date' => $clientFileDate,
-            ]);
+            ]));
 
             if (! $this->storageService->validateStorageSpace($videoFile->getSize())) {
                 throw new Exception('Insufficient storage space for processing');
@@ -72,10 +75,10 @@ class LivestreamSegmentationService
 
             app(ProcessingRunOrchestrator::class)->start($processingLog);
 
-            Log::info('Livestream processing initiated', [
+            Log::info('Livestream processing initiated', $this->sanitizeArrayForLog([
                 'processing_id' => $processingLog->processing_id,
                 'log_id' => $processingLog->id,
-            ]);
+            ]));
 
             return ProcessingResult::success(
                 processingId: $processingLog->processing_id,
@@ -83,10 +86,10 @@ class LivestreamSegmentationService
             );
 
         } catch (Exception $e) {
-            Log::error('Failed to start livestream processing', [
+            Log::error('Failed to start livestream processing', $this->sanitizeArrayForLog([
                 'error' => $e->getMessage(),
                 'original_filename' => $videoFile->getClientOriginalName(),
-            ]);
+            ]));
 
             throw $e;
         }
