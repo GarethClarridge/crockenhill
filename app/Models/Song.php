@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Database\Factories\SongFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -71,6 +72,44 @@ class Song extends Model
     ];
 
     /**
+     * @return Attribute<string, string>
+     */
+    protected function title(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => trim($value),
+        );
+    }
+
+    /**
+     * @return Attribute<string, string>
+     */
+    protected function canonicalKey(): Attribute
+    {
+        return Attribute::make(
+            set: fn (string $value): string => self::canonicalizeKey($value),
+        );
+    }
+
+    /**
+     * @return Attribute<?string, ?string>
+     */
+    protected function alternateTitle(): Attribute
+    {
+        return Attribute::make(
+            set: function (?string $value): ?string {
+                if ($value === null) {
+                    return null;
+                }
+
+                $trimmed = trim($value);
+
+                return $trimmed === '' ? null : $trimmed;
+            },
+        );
+    }
+
+    /**
      * @return array<string, list<string|mixed>>
      */
     public static function validationRules(?self $song = null): array
@@ -78,8 +117,11 @@ class Song extends Model
         $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
         $uniqueSlug = Rule::unique('songs', 'slug');
 
+        $uniqueCanonicalKey = Rule::unique('songs', 'canonical_key');
+
         if ($song) {
             $uniqueSlug->ignore($song->id);
+            $uniqueCanonicalKey->ignore($song->id);
         }
 
         $slugRule[] = $uniqueSlug;
@@ -87,7 +129,7 @@ class Song extends Model
         return [
             'title' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
-            'canonical_key' => ['required', 'string', 'max:255'],
+            'canonical_key' => ['required', 'string', 'max:255', $uniqueCanonicalKey],
             'alternate_title' => ['nullable', 'string', 'max:255'],
             'lyrics_xml' => ['required', 'string'],
             'lyrics_plain' => ['nullable', 'string'],
