@@ -77,7 +77,7 @@ class SongIntegrityTest extends TestCase
             }
 
             DB::table('songs')->insert([
-                'slug' => 'invalid_slug_with_underscore',
+                'slug' => $slug,
                 'canonical_key' => $canonicalKey,
                 'title' => 'Repair Test',
                 'lyrics_xml' => '<song></song>',

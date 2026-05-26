@@ -23,39 +23,68 @@ return new class extends Migration
             return;
         }
 
-        // 1. Data Cleanup: Normalize existing data where possible (trimming and lowercasing)
-        // For canonical_key we also normalize whitespace as per the model's canonicalizeKey().
-        // Repair any records that would end up empty or duplicated if needed, though
-        // Warden principles prefer failing if corruption is severe.
+        // 1. Normalise title and alternate_title (trimming only — no collision risk on these).
         DB::table('songs')->update([
             'title' => DB::raw('TRIM(title)'),
-            'canonical_key' => DB::raw("LOWER(TRIM(REGEXP_REPLACE(canonical_key, '[[:space:]]+', ' ')))"),
             'alternate_title' => DB::raw("NULLIF(TRIM(alternate_title), '')"),
         ]);
 
-        // If trimming title results in empty strings, use a fallback to satisfy the constraint
+        // Fallback for titles that trimmed to empty.
         DB::table('songs')
             ->where('title', '')
             ->update(['title' => DB::raw("CONCAT('Song ', id)")]);
 
-        // If normalizing canonical_key results in empty strings, use a fallback
+        // 2. Normalise canonical_key to match Song::canonicalizeKey():
+        //    a) Strip @ suffix (SUBSTRING_INDEX gives the part before the first @).
+        //    b) Lowercase, trim, and collapse internal whitespace.
+        DB::table('songs')->update([
+            'canonical_key' => DB::raw(
+                "LOWER(TRIM(REGEXP_REPLACE(TRIM(SUBSTRING_INDEX(canonical_key, '@', 1)), '[[:space:]]+', ' ')))"
+            ),
+        ]);
+
+        // Fallback for keys that normalised to empty.
         DB::table('songs')
             ->where('canonical_key', '')
             ->update(['canonical_key' => DB::raw("CONCAT('legacy-song-', id)")]);
 
-        // 2. Drop existing basic NOT EMPTY constraints to replace them with strict BINARY trim checks.
+        // 3. Resolve any canonical_key collisions introduced by normalisation.
+        //    For each set of duplicate keys, keep the lowest-id row unchanged and
+        //    append -<id> to every other row so the UNIQUE index is not violated.
+        $duplicates = DB::table('songs')
+            ->select('canonical_key')
+            ->groupBy('canonical_key')
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck('canonical_key');
+
+        foreach ($duplicates as $key) {
+            // Fetch all rows sharing this key, ordered by id so the first is kept.
+            $ids = DB::table('songs')
+                ->where('canonical_key', $key)
+                ->orderBy('id')
+                ->pluck('id');
+
+            // Skip the first (keeper); rename the rest.
+            foreach ($ids->skip(1) as $id) {
+                DB::table('songs')
+                    ->where('id', $id)
+                    ->update(['canonical_key' => $key.'-'.$id]);
+            }
+        }
+
+        // 4. Drop existing basic NOT EMPTY constraints to replace them with strict BINARY trim checks.
         $this->dropConstraintIfExists('songs', self::TITLE_CHECK);
         $this->dropConstraintIfExists('songs', self::CANONICAL_KEY_CHECK);
 
-        // 3. Add upgraded/new CHECK constraints.
-        // BINARY ensures exact character-for-character match for the trim check.
+        // 5. Add upgraded/new CHECK constraints.
+        //    BINARY ensures exact character-for-character match for the trim check.
         DB::statement(sprintf(
             "ALTER TABLE songs ADD CONSTRAINT %s CHECK (BINARY title = TRIM(title) AND title != '')",
             self::TITLE_CHECK
         ));
 
         DB::statement(sprintf(
-            "ALTER TABLE songs ADD CONSTRAINT %s CHECK (BINARY canonical_key = LOWER(TRIM(REGEXP_REPLACE(canonical_key, '[[:space:]]+', ' '))) AND canonical_key != '')",
+            "ALTER TABLE songs ADD CONSTRAINT %s CHECK (BINARY canonical_key = LOWER(TRIM(REGEXP_REPLACE(canonical_key, '[[:space:]]+', ' '))) AND canonical_key != '' AND LOCATE('@', canonical_key) = 0)",
             self::CANONICAL_KEY_CHECK
         ));
 

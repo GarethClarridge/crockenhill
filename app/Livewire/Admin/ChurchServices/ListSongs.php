@@ -72,7 +72,14 @@ class ListSongs extends Component
         $this->computeHasFilters();
 
         $search = trim($this->search);
+
+        // canonical_key values never contain @ (the mutator strips it), so strip any @ suffix
+        // from the search term before matching, mirroring Song::canonicalizeKey().
+        $atPos = strpos($search, '@');
+        $canonicalSearch = $atPos !== false ? trim(substr($search, 0, $atPos)) : $search;
+
         $escapedSearch = $this->escapeLike($search);
+        $escapedCanonicalSearch = $this->escapeLike($canonicalSearch);
 
         $usageSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(*)');
         $servicesCountSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(DISTINCT church_service_items.church_service_id)');
@@ -86,11 +93,11 @@ class ListSongs extends Component
             ->selectSub($usageSubQuery, 'usage_count')
             ->selectSub($servicesCountSubQuery, 'services_count')
             ->selectSub($lastUsedDateSubQuery, 'last_used_date')
-            ->when($search !== '', function (Builder $query) use ($escapedSearch): void {
-                $query->where(function (Builder $searchQuery) use ($escapedSearch): void {
+            ->when($search !== '', function (Builder $query) use ($escapedSearch, $escapedCanonicalSearch): void {
+                $query->where(function (Builder $searchQuery) use ($escapedSearch, $escapedCanonicalSearch): void {
                     $searchQuery->where('songs.title', 'like', "%{$escapedSearch}%")
                         ->orWhere('songs.alternate_title', 'like', "%{$escapedSearch}%")
-                        ->orWhere('songs.canonical_key', 'like', "%{$escapedSearch}%")
+                        ->orWhere('songs.canonical_key', 'like', "%{$escapedCanonicalSearch}%")
                         ->orWhere('songs.ccli_number', 'like', "%{$escapedSearch}%")
                         ->orWhereHas('authors', fn (Builder $authorQuery) => $authorQuery->where('display_name', 'like', "%{$escapedSearch}%"));
                 });

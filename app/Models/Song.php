@@ -117,14 +117,28 @@ class Song extends Model
         $slugRule = ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'];
         $uniqueSlug = Rule::unique('songs', 'slug');
 
-        $uniqueCanonicalKey = Rule::unique('songs', 'canonical_key');
+        $ignoreId = $song?->id;
 
         if ($song) {
             $uniqueSlug->ignore($song->id);
-            $uniqueCanonicalKey->ignore($song->id);
         }
 
         $slugRule[] = $uniqueSlug;
+
+        // Uniqueness must be checked against the *normalised* key, because the attribute
+        // setter applies canonicalizeKey() before persistence. Comparing the raw input
+        // against stored (already-normalised) values would miss collisions like "My Song@x"
+        // vs. the stored "my song".
+        $uniqueCanonicalKey = function (string $attribute, mixed $value, \Closure $fail) use ($ignoreId): void {
+            $normalised = self::canonicalizeKey((string) $value);
+            $query = self::query()->where('canonical_key', $normalised);
+            if ($ignoreId !== null) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            if ($query->exists()) {
+                $fail('The canonical key has already been taken.');
+            }
+        };
 
         return [
             'title' => ['required', 'string', 'max:255'],
