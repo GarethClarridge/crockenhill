@@ -132,7 +132,7 @@ class ListSermons extends Component
         $query = Sermon::query()
             ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path', 'content_type', 'updated_at'])
             ->with([
-                'preacherProfile:id,name,slug',
+                'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',
             ])
             ->when($this->search !== '', function ($query) use ($escapedSearch): void {
@@ -153,7 +153,7 @@ class ListSermons extends Component
             ->when($this->seriesFilter, fn ($q) => $q->where('series', $this->seriesFilter))
             ->when($this->hasVideoFilter, fn ($q) => $q->whereNotNull('video_file_path'))
             ->when($this->needsReviewFilter, fn ($q) => $q->where('needs_preacher_review', true))
-            ->when($this->last12Months, fn ($q) => $q->where('date', '>=', now()->subYear()));
+            ->when($this->last12Months, fn ($q) => $q->last12Months());
 
         $direction = $this->sortDirection === 'desc' ? 'desc' : 'asc';
 
