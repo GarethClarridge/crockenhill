@@ -24,7 +24,7 @@ class SermonPageContextServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonPageContextService();
+        $this->service = new SermonPageContextService;
     }
 
     #[Test]

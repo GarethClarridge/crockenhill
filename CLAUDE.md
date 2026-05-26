@@ -126,6 +126,7 @@ All emails use `Mail::queue()` for async delivery. Queue driver (`QUEUE_DRIVER`)
 - **Coverage**: Every new feature or bug fix must have accompanying tests covering happy path, failure paths, and edge cases
 - **Minimum viable run**: Filter to the affected file/test name rather than running everything
 - **Key Files**: `SermonPagesTest.php`, `SermonTest.php`, `MeetingTest.php`
+- **Diagnosing failures without re-running**: The parallel suite output is often truncated before the failure summary. Always pipe through `tee` so the full output is on disk: `vendor/bin/sail artisan test --parallel --compact 2>&1 | tee /tmp/test-output.txt`. When it fails, grep the file for the failure list: `grep -E "^\s+[0-9]+\)" /tmp/test-output.txt`. Then filter directly: `vendor/bin/sail artisan test --compact --filter=failingTestName`. Never re-run the full suite to discover which test failed.
 
 ### File Locations
 - **Models**: `app/Models/` (Sermon, Page, Meeting, User)
