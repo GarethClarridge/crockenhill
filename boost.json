@@ -1,18 +1,25 @@
 {
     "agents": [
         "codex",
-        "claude_code"
+        "claude_code",
+        "gemini"
     ],
+    "cloud": false,
     "guidelines": true,
-    "herd_mcp": false,
     "mcp": true,
+    "nightwatch": false,
     "packages": [
-        "spatie/guidelines-skills"
+        "spatie/guidelines-skills",
+        "spatie/laravel-medialibrary",
+        "barryvdh/laravel-debugbar"
     ],
     "sail": true,
     "skills": [
+        "laravel-best-practices",
         "livewire-development",
         "tailwindcss-development",
+        "medialibrary-development",
+        "debug-using-debugbar",
         "spatie-javascript",
         "spatie-laravel-php",
         "spatie-security",
