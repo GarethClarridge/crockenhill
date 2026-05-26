@@ -19,9 +19,14 @@ return new class extends Migration
             return;
         }
 
+        // Normalise any leading/trailing whitespace before applying the constraint,
+        // since production data may contain values that would otherwise violate it.
+        DB::table('sermons')
+            ->whereNotNull('reference')
+            ->whereRaw("reference != TRIM(reference) OR reference = ''")
+            ->update(['reference' => DB::raw("NULLIF(TRIM(reference), '')")]);
+
         // Add CHECK constraint (MySQL 8.0.16+)
-        // We do not modify existing data here per Warden standards;
-        // if violations exist, the migration will fail loudly.
         if (DB::getDriverName() === 'mysql') {
             DB::statement(sprintf(
                 "ALTER TABLE sermons ADD CONSTRAINT %s CHECK (reference IS NULL OR (BINARY reference = TRIM(reference) AND reference != ''))",

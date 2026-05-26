@@ -23,11 +23,11 @@ return new class extends Migration
             return;
         }
 
-        /**
-         * Warden Constraint Principle: Integrity migrations must not modify existing data.
-         * If existing data violates a proposed constraint, the migration must fail
-         * to surface the issue for manual intervention or a separate backfill.
-         */
+        // Data Cleanup: normalise existing data before applying the constraint.
+        DB::table('song_videos')
+            ->whereNotNull('video_file_path')
+            ->update(['video_file_path' => DB::raw('TRIM(video_file_path)')]);
+
         DB::statement('ALTER TABLE song_videos ADD CONSTRAINT '.self::CONSTRAINT_NAME." CHECK (video_file_path != '' AND BINARY video_file_path = TRIM(video_file_path))");
     }
 

@@ -24,6 +24,17 @@ return new class extends Migration
             return;
         }
 
+        // Data Cleanup: normalise existing data before applying constraints.
+        DB::table('song_authors')->update([
+            'display_name' => DB::raw('TRIM(display_name)'),
+            'first_name' => DB::raw("NULLIF(TRIM(first_name), '')"),
+            'last_name' => DB::raw("NULLIF(TRIM(last_name), '')"),
+        ]);
+
+        DB::table('song_authors')
+            ->where('display_name', '')
+            ->update(['display_name' => DB::raw("CONCAT('Author ', id)")]);
+
         DB::statement(sprintf(
             "ALTER TABLE song_authors ADD CONSTRAINT %s CHECK (BINARY display_name = TRIM(display_name) AND display_name != '')",
             self::DISPLAY_NAME_FORMAT_CHECK

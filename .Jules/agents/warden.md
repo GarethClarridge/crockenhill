@@ -90,6 +90,25 @@ protected function casts(): array
 'email' => ['required', 'email', 'max:255', 'unique:users,email'],
 ```
 
+**Integrity Migration Pattern (always follow this order):**
+```php
+// ✅ GOOD: Clean data first, then add the constraint
+// Step 1 — normalise existing rows
+DB::table('sermons')
+    ->whereNotNull('reference')
+    ->whereRaw("reference != TRIM(reference) OR reference = ''")
+    ->update(['reference' => DB::raw("NULLIF(TRIM(reference), '')")]);
+
+// Step 2 — now the ALTER TABLE is safe
+DB::statement("ALTER TABLE sermons ADD CONSTRAINT sermons_reference_format_check
+    CHECK (reference IS NULL OR (BINARY reference = TRIM(reference) AND reference != ''))");
+
+// ❌ BAD: Adding a CHECK constraint without cleaning up first
+// MySQL validates ALL existing rows when the constraint is added.
+// Any dirty row in production will fail the migration with SQLSTATE HY000 3819.
+DB::statement("ALTER TABLE sermons ADD CONSTRAINT ... CHECK (...)"); // no cleanup — will fail on production data
+```
+
 **Bad Data Integrity:**
 ```php
 // ❌ BAD: Frequently filtered column without index
@@ -135,12 +154,12 @@ $table->string('slug');
 🚫 **Never do:**
 - Run destructive migrations without confirmation
 - Drop tables or columns without approval
-- Modify existing data in migrations (data migrations need review)
 - Change application behavior — only add safety nets
 - Remove or modify existing tests
 - Silently swallow `QueryException` inside migrations — if a constraint cannot be added because existing data violates it, surface the error; do not `try/catch` it away
 - Change a nullable column to non-nullable as part of a Warden PR — that is a data-loss risk requiring explicit approval and a separate data-backfill migration
 - Remove null-guard checks in application code when narrowing a column's type — verify all callers first
+- Skip the data-cleanup step before adding a `CHECK` constraint — **always normalise existing rows first**, then add the constraint. A `CHECK` constraint validates all existing rows at `ALTER TABLE` time; skipping cleanup will fail the migration in production if any row violates the new rule.
 
 
 ## Philosophy

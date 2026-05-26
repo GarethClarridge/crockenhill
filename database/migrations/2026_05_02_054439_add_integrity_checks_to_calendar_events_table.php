@@ -33,7 +33,26 @@ return new class extends Migration
         });
 
         if (DB::getDriverName() === 'mysql') {
-            // 2. Add CHECK constraints.
+            // 2. Data Cleanup: normalise existing data before applying constraints.
+            // google_event_id and title come from the Google Calendar API and may carry
+            // leading/trailing whitespace. speaker and location are optional free text.
+            DB::table('calendar_events')->update([
+                'google_event_id' => DB::raw('TRIM(google_event_id)'),
+                'title' => DB::raw('TRIM(title)'),
+                'speaker' => DB::raw("NULLIF(TRIM(speaker), '')"),
+                'location' => DB::raw("NULLIF(TRIM(location), '')"),
+            ]);
+
+            // Fallback for identity columns that trimmed to empty.
+            DB::table('calendar_events')
+                ->where('google_event_id', '')
+                ->update(['google_event_id' => DB::raw("CONCAT('event-', id)")]);
+
+            DB::table('calendar_events')
+                ->where('title', '')
+                ->update(['title' => DB::raw("CONCAT('Event ', id)")]);
+
+            // 3. Add CHECK constraints.
             // google_event_id must be trimmed and not empty
             DB::statement(sprintf(
                 "ALTER TABLE calendar_events ADD CONSTRAINT %s CHECK (BINARY google_event_id = TRIM(google_event_id) AND google_event_id != '')",
