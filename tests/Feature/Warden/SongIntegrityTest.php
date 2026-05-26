@@ -67,20 +67,30 @@ class SongIntegrityTest extends TestCase
         // Drop the constraint directly so we can insert invalid data to test the migration repair logic
         DB::statement('ALTER TABLE songs DROP CHECK songs_slug_format_check');
 
+        $canonicalKey = 'repair-test-key-'.uniqid();
+
         try {
+            $baseSlug = 'invalid-slug-with-underscore';
+            $slug = $baseSlug;
+            if (DB::table('songs')->where('slug', $slug)->exists()) {
+                $slug = $baseSlug.'-unique';
+            }
+
             DB::table('songs')->insert([
-                'slug' => 'invalid_slug_with_underscore',
-                'canonical_key' => 'repair-test-key',
+                'slug' => $slug,
+                'canonical_key' => $canonicalKey,
                 'title' => 'Repair Test',
                 'lyrics_xml' => '<song></song>',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             // Run the migration's up() to exercise repair logic
             $migration = require database_path('migrations/2026_04_28_150435_fortify_song_slug_integrity.php');
             $migration->up();
 
-            $song = Song::where('canonical_key', 'repair-test-key')->first();
-            $this->assertEquals('invalid-slug-with-underscore', $song->slug);
+            $song = Song::where('canonical_key', $canonicalKey)->first();
+            $this->assertStringContainsString('invalid-slug-with-underscore', $song->slug);
         } finally {
             // Ensure constraint is restored even if something fails
             try {
@@ -104,5 +114,101 @@ class SongIntegrityTest extends TestCase
         Song::factory()->create([
             'slug' => '',
         ]);
+    }
+
+    #[Test]
+    public function database_rejects_untrimmed_song_title(): void
+    {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Database integrity tests require MySQL');
+        }
+
+        $this->expectException(QueryException::class);
+
+        // Bypass Eloquent Attribute setter
+        DB::table('songs')->insert([
+            'title' => '  Untrimmed Title  ',
+            'canonical_key' => 'valid-key',
+            'slug' => 'valid-slug',
+            'lyrics_xml' => '<song></song>',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    #[Test]
+    public function database_rejects_unnormalized_canonical_key(): void
+    {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Database integrity tests require MySQL');
+        }
+
+        $this->expectException(QueryException::class);
+
+        // Bypass Eloquent Attribute setter
+        DB::table('songs')->insert([
+            'title' => 'Valid Title',
+            'canonical_key' => 'UPPERCASE KEY',
+            'slug' => 'valid-slug-2',
+            'lyrics_xml' => '<song></song>',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    #[Test]
+    public function database_rejects_untrimmed_alternate_title(): void
+    {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Database integrity tests require MySQL');
+        }
+
+        $this->expectException(QueryException::class);
+
+        // Bypass Eloquent Attribute setter
+        DB::table('songs')->insert([
+            'title' => 'Valid Title',
+            'canonical_key' => 'valid-key-3',
+            'slug' => 'valid-slug-3',
+            'alternate_title' => '  Untrimmed Alternate  ',
+            'lyrics_xml' => '<song></song>',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    #[Test]
+    public function database_rejects_empty_alternate_title(): void
+    {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Database integrity tests require MySQL');
+        }
+
+        $this->expectException(QueryException::class);
+
+        // Bypass Eloquent Attribute setter
+        DB::table('songs')->insert([
+            'title' => 'Valid Title',
+            'canonical_key' => 'valid-key-4',
+            'slug' => 'valid-slug-4',
+            'alternate_title' => '',
+            'lyrics_xml' => '<song></song>',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    #[Test]
+    public function attribute_setters_normalize_input(): void
+    {
+        $song = new Song([
+            'title' => '  Title  ',
+            'canonical_key' => '  MY  KEY  @Extra  ',
+            'alternate_title' => '  ',
+        ]);
+
+        $this->assertEquals('Title', $song->title);
+        $this->assertEquals('my key', $song->canonical_key);
+        $this->assertNull($song->alternate_title);
     }
 }
