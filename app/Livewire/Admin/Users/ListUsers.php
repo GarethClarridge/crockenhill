@@ -79,7 +79,7 @@ class ListUsers extends Component
             logAction: 'User deleted by admin',
             logFields: [
                 'deleted_user_id' => $user->id,
-                'deleted_user_email' => self::sanitizeForLog((string) $user->email),
+                'deleted_user_email' => $this->sanitizeForLog((string) $user->email),
             ],
         );
 
@@ -107,7 +107,7 @@ class ListUsers extends Component
 
                 return [
                     'target_user_id' => $user->id,
-                    'target_user_email' => self::sanitizeForLog((string) $user->email),
+                    'target_user_email' => $this->sanitizeForLog((string) $user->email),
                     'new_is_admin' => $user->is_admin,
                 ];
             },

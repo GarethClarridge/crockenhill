@@ -75,7 +75,7 @@ class ListMeetings extends Component
             logAction: 'Meeting deleted by admin',
             logFields: [
                 'meeting_id' => $meeting->id,
-                'slug' => self::sanitizeForLog((string) $meeting->slug),
+                'slug' => $this->sanitizeForLog((string) $meeting->slug),
             ],
         );
 

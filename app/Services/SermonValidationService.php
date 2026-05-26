@@ -214,8 +214,8 @@ class SermonValidationService
         } catch (\Exception $e) {
             // If we can't check disk space, log but don't fail
             Log::warning('Could not check disk space', [
-                'disk' => self::sanitizeForLog($disk),
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'disk' => $this->sanitizeForLog($disk),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
         }
 

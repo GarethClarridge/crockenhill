@@ -97,8 +97,8 @@ class SaveChurchServiceFromAdmin
         Log::warning('Church service saved by admin', [
             'admin_id' => $userId,
             'church_service_id' => $churchService->id,
-            'date' => self::sanitizeForLog($churchService->date->toDateString()),
-            'service' => self::sanitizeForLog($churchService->service->value),
+            'date' => $this->sanitizeForLog($churchService->date->toDateString()),
+            'service' => $this->sanitizeForLog($churchService->service->value),
             'item_count' => count($syncPayload),
         ]);
 

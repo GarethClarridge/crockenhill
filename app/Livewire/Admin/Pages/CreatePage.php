@@ -29,8 +29,8 @@ class CreatePage extends Component
 
                 return [
                     'page_id' => $page->id,
-                    'heading' => self::sanitizeForLog($page->heading),
-                    'slug' => self::sanitizeForLog($page->slug),
+                    'heading' => $this->sanitizeForLog($page->heading),
+                    'slug' => $this->sanitizeForLog($page->slug),
                 ];
             },
             logAction: 'New page created by admin',

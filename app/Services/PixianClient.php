@@ -52,7 +52,7 @@ class PixianClient
         $imageContents = @file_get_contents($imagePath);
         if (! is_string($imageContents) || $imageContents === '') {
             Log::warning('Pixian request skipped: image could not be read', [
-                'image_path' => self::sanitizeForLog($imagePath),
+                'image_path' => $this->sanitizeForLog($imagePath),
             ]);
 
             return null;
@@ -62,8 +62,8 @@ class PixianClient
             $response = $this->makeRequest($imagePath, $imageContents);
         } catch (ConnectionException $e) {
             Log::warning('Pixian connection error during background removal', [
-                'image_path' => self::sanitizeForLog($imagePath),
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'image_path' => $this->sanitizeForLog($imagePath),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return null;
@@ -78,8 +78,8 @@ class PixianClient
         $body = $response->body();
         if ($body === '') {
             Log::warning('Pixian returned an empty response body', [
-                'image_path' => self::sanitizeForLog($imagePath),
-                'request_id' => self::sanitizeForLog((string) $response->header('x-request-id')),
+                'image_path' => $this->sanitizeForLog($imagePath),
+                'request_id' => $this->sanitizeForLog((string) $response->header('x-request-id')),
             ]);
 
             return null;
@@ -108,10 +108,10 @@ class PixianClient
         $body = $response->body();
 
         Log::warning('Pixian background removal failed', [
-            'image_path' => self::sanitizeForLog($imagePath),
+            'image_path' => $this->sanitizeForLog($imagePath),
             'status' => $response->status(),
-            'body' => self::sanitizeForLog($body !== '' ? $body : (string) json_encode($response->json())),
-            'request_id' => self::sanitizeForLog((string) $this->extractRequestId($response)),
+            'body' => $this->sanitizeForLog($body !== '' ? $body : (string) json_encode($response->json())),
+            'request_id' => $this->sanitizeForLog((string) $this->extractRequestId($response)),
         ]);
     }
 

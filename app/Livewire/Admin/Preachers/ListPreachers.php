@@ -66,7 +66,7 @@ class ListPreachers extends Component
             logAction: 'Preacher deleted by admin',
             logFields: [
                 'preacher_id' => $preacher->id,
-                'name' => self::sanitizeForLog((string) $preacher->name),
+                'name' => $this->sanitizeForLog((string) $preacher->name),
             ],
         );
 

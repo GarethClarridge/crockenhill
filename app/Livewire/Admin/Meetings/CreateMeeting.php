@@ -27,7 +27,7 @@ class CreateMeeting extends Component
 
                 return [
                     'meeting_id' => $meeting->id,
-                    'slug' => self::sanitizeForLog((string) $meeting->slug),
+                    'slug' => $this->sanitizeForLog((string) $meeting->slug),
                 ];
             },
             logAction: 'New meeting created by admin',
