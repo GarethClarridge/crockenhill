@@ -104,8 +104,8 @@ class CalendarService
         Log::warning('Calendar event manually categorized', [
             'admin_id' => auth()->id(),
             'event_id' => $event->id,
-            'event_title' => self::sanitizeForLog($event->title),
-            'meeting_slug' => self::sanitizeForLog($meetingSlug),
+            'event_title' => $this->sanitizeForLog($event->title),
+            'meeting_slug' => $this->sanitizeForLog($meetingSlug),
         ]);
 
         $googleSynced = $this->googleSync->syncCategorizationToGoogle($event->google_event_id, $meetingSlug);
@@ -125,7 +125,7 @@ class CalendarService
         Log::warning('Calendar event un-categorized', [
             'admin_id' => auth()->id(),
             'event_id' => $event->id,
-            'event_title' => self::sanitizeForLog($event->title),
+            'event_title' => $this->sanitizeForLog($event->title),
         ]);
 
         $googleSynced = $this->googleSync->removeCategorizationFromGoogle($event->google_event_id);

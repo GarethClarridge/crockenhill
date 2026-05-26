@@ -73,7 +73,7 @@ class ApiBibleClient
     private function assertDailyBudget(string $context): void
     {
         if (! $this->hasDailyBudget()) {
-            Log::warning('api.bible daily budget exhausted — skipping '.self::sanitizeForLog($context), [
+            Log::warning('api.bible daily budget exhausted — skipping '.$this->sanitizeForLog($context), [
                 'budget' => $this->dailyBudget,
             ]);
 
@@ -108,7 +108,7 @@ class ApiBibleClient
 
                 if ($status === 429 || $status >= 500) {
                     Log::warning('api.bible search rate-limited or server error', [
-                        'reference' => self::sanitizeForLog($normalizedReference),
+                        'reference' => $this->sanitizeForLog($normalizedReference),
                         'status' => $status,
                     ]);
 
@@ -116,7 +116,7 @@ class ApiBibleClient
                 }
 
                 Log::info('api.bible search returned non-2xx (terminal)', [
-                    'reference' => self::sanitizeForLog($normalizedReference),
+                    'reference' => $this->sanitizeForLog($normalizedReference),
                     'status' => $status,
                 ]);
 
@@ -130,7 +130,7 @@ class ApiBibleClient
             $passages = is_array($data['passages'] ?? null) ? $data['passages'] : [];
 
             if (empty($passages)) {
-                Log::info('api.bible search returned no passages', ['reference' => self::sanitizeForLog($normalizedReference)]);
+                Log::info('api.bible search returned no passages', ['reference' => $this->sanitizeForLog($normalizedReference)]);
 
                 return null;
             }
@@ -163,16 +163,16 @@ class ApiBibleClient
             );
         } catch (ConnectionException $e) {
             Log::error('api.bible connection error during search', [
-                'reference' => self::sanitizeForLog($normalizedReference),
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'reference' => $this->sanitizeForLog($normalizedReference),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             throw $e;
         } catch (RequestException $e) {
             Log::error('api.bible request error during search', [
-                'reference' => self::sanitizeForLog($normalizedReference),
+                'reference' => $this->sanitizeForLog($normalizedReference),
                 'status' => $e->response->status(),
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return null;
@@ -200,7 +200,7 @@ class ApiBibleClient
 
                 if ($status === 429 || $status >= 500) {
                     Log::warning('api.bible passage fetch rate-limited or server error', [
-                        'passage_id' => self::sanitizeForLog($passageId),
+                        'passage_id' => $this->sanitizeForLog($passageId),
                         'status' => $status,
                     ]);
 
@@ -208,7 +208,7 @@ class ApiBibleClient
                 }
 
                 Log::info('api.bible passage fetch returned non-2xx (terminal)', [
-                    'passage_id' => self::sanitizeForLog($passageId),
+                    'passage_id' => $this->sanitizeForLog($passageId),
                     'status' => $status,
                 ]);
 
@@ -242,14 +242,14 @@ class ApiBibleClient
             );
         } catch (ConnectionException $e) {
             Log::error('api.bible connection error during passage fetch', [
-                'passage_id' => self::sanitizeForLog($passageId),
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'passage_id' => $this->sanitizeForLog($passageId),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             throw $e;
         } catch (RequestException $e) {
             Log::error('api.bible request error during passage fetch', [
-                'passage_id' => self::sanitizeForLog($passageId),
+                'passage_id' => $this->sanitizeForLog($passageId),
                 'status' => $e->response->status(),
             ]);
 

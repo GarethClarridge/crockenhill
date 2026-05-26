@@ -99,7 +99,7 @@ class ListSermons extends Component
             logAction: 'Sermon deleted by admin',
             logFields: [
                 'sermon_id' => $sermon->id,
-                'title' => self::sanitizeForLog((string) $sermon->title),
+                'title' => $this->sanitizeForLog((string) $sermon->title),
             ],
         );
 

@@ -83,8 +83,8 @@ class EditPreacher extends Component
 
                 return [
                     'preacher_id' => $this->preacher->id,
-                    'name' => self::sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->name : (string) $this->preacher->name),
-                    'slug' => self::sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->slug : (string) $this->preacher->slug),
+                    'name' => $this->sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->name : (string) $this->preacher->name),
+                    'slug' => $this->sanitizeForLog($fresh instanceof Preacher ? (string) $fresh->slug : (string) $this->preacher->slug),
                 ];
             },
             logAction: 'Preacher updated by admin',
@@ -133,9 +133,9 @@ class EditPreacher extends Component
 
                     return [
                         'preacher_id' => $this->preacher->id,
-                        'preacher_name' => self::sanitizeForLog((string) $this->preacher->name),
+                        'preacher_name' => $this->sanitizeForLog((string) $this->preacher->name),
                         'alias_id' => $alias->id,
-                        'alias' => self::sanitizeForLog((string) $alias->alias),
+                        'alias' => $this->sanitizeForLog((string) $alias->alias),
                     ];
                 }
 
@@ -204,7 +204,7 @@ class EditPreacher extends Component
 
                     return [
                         'preacher_id' => $this->preacher->id,
-                        'preacher_name' => self::sanitizeForLog((string) $this->preacher->name),
+                        'preacher_name' => $this->sanitizeForLog((string) $this->preacher->name),
                         'profile_id' => $profile->id,
                     ];
                 }

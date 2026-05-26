@@ -38,7 +38,7 @@ class EditMeeting extends Component
 
                 return [
                     'meeting_id' => $this->meeting->id,
-                    'slug' => self::sanitizeForLog($fresh instanceof Meeting ? (string) $fresh->slug : (string) $this->meeting->slug),
+                    'slug' => $this->sanitizeForLog($fresh instanceof Meeting ? (string) $fresh->slug : (string) $this->meeting->slug),
                 ];
             },
             logAction: 'Meeting updated by admin',

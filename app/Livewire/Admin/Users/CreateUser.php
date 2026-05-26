@@ -77,8 +77,8 @@ class CreateUser extends Component
 
                 return [
                     'target_user_id' => $user->id,
-                    'target_user_name' => self::sanitizeForLog($user->name),
-                    'target_user_email' => self::sanitizeForLog($user->email),
+                    'target_user_name' => $this->sanitizeForLog($user->name),
+                    'target_user_email' => $this->sanitizeForLog($user->email),
                     'is_admin' => $user->is_admin,
                 ];
             },

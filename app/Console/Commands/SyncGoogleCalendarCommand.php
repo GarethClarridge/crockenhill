@@ -37,7 +37,7 @@ class SyncGoogleCalendarCommand extends Command
         } catch (Exception $e) {
             $this->error('Sync failed: '.$e->getMessage());
             Log::error('Calendar sync failed', [
-                'error' => self::sanitizeForLog($e->getMessage()),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
 
             return 1;
