@@ -33,17 +33,58 @@ class SermonRepository
     /**
      * Build the base query for public sermon listings and browse pages.
      *
+     * Performance Optimization: Limits retrieved columns to the set required by
+     * SermonViewPresenter and SermonExposurePolicy to minimize memory usage and
+     * prevent N+1 lazy-loading of media metadata or related profile images.
+     *
      * @return Builder<Sermon>
      */
-    public function publicSermonQuery(): Builder
+    public function basePublicSermonQuery(?SermonContentType $contentType = null): Builder
     {
         return Sermon::query()
-            ->whereSermon()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'duration', 'audio_file_path', 'video_file_path', 'transcript_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at', 'meta_description', 'summary', 'show_summary'])
+            ->when($contentType, fn (Builder $q) => $q->where('content_type', $contentType))
+            ->select([
+                'id',
+                'title',
+                'date',
+                'slug',
+                'service',
+                'preacher',
+                'preacher_id',
+                'series',
+                'reference',
+                'scripture_passage_id',
+                'duration',
+                'filetype',
+                'audio_file_path',
+                'video_file_path',
+                'transcript_file_path',
+                'thumbnail_file_path',
+                'thumbnail_generated_at',
+                'thumbnail_metadata',
+                'source_type',
+                'content_type',
+                'updated_at',
+                'meta_description',
+                'summary',
+                'show_summary',
+                'video_quality_status',
+                'video_visibility_override',
+            ])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',
             ]);
+    }
+
+    /**
+     * Build the base query for public sermon listings (ContentType::Sermon).
+     *
+     * @return Builder<Sermon>
+     */
+    public function publicSermonQuery(): Builder
+    {
+        return $this->basePublicSermonQuery(SermonContentType::Sermon);
     }
 
     /**
