@@ -27,6 +27,9 @@ use App\Services\SermonTranscriptReader;
 use App\Services\TranscriptStorageService;
 use App\Support\BibleCanon;
 use App\Support\ParallelTestingProcessLimiter;
+use Faker\Factory as FakerFactory;
+use Faker\Generator as FakerGenerator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -66,10 +69,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(SermonItemListPresenter::class);
         $this->app->scoped(SermonSitemapPresenter::class);
         $this->app->scoped(PreacherSitemapPresenter::class);
+
+        $this->registerDeterministicFakerForVisualRegression();
     }
 
     public function boot(): void
     {
+        $this->freezeClockForVisualRegression();
+
         if (config('thumbnail-generation.enabled') && ! extension_loaded('gd')) {
             throw new \RuntimeException(
                 'Thumbnail generation requires the GD PHP extension. '.
@@ -89,5 +96,49 @@ class AppServiceProvider extends ServiceProvider
                 ->symbols()
                 ->uncompromised();
         });
+    }
+
+    /**
+     * Bind a seeded Faker generator so factory output is reproducible across runs.
+     *
+     * Why: Playwright visual-regression baselines require byte-identical seed data
+     * between the run that captured the baseline and every subsequent verification
+     * run. Unseeded faker produces different sentences, dates, and paragraph
+     * lengths each time `db:seed` runs, which changes page heights and breaks
+     * snapshot diffs even when the application code has not changed.
+     */
+    private function registerDeterministicFakerForVisualRegression(): void
+    {
+        $seed = config('playwright.seed');
+
+        if ($seed === null || $seed === '') {
+            return;
+        }
+
+        $this->app->singleton(FakerGenerator::class, function () use ($seed): FakerGenerator {
+            $generator = FakerFactory::create(config('app.faker_locale', 'en_US'));
+            $generator->seed((int) $seed);
+
+            return $generator;
+        });
+    }
+
+    /**
+     * Freeze Carbon::now() to a fixed instant so time-windowed queries are stable.
+     *
+     * Why: CalendarController::index filters events within `now()` to
+     * `now()->addMonths(6)`. As real-time ticks forward across event boundaries,
+     * the set of events on /calendar changes, which changes page height and
+     * breaks visual regression snapshots.
+     */
+    private function freezeClockForVisualRegression(): void
+    {
+        $frozen = config('playwright.frozen_now');
+
+        if ($frozen === null || $frozen === '') {
+            return;
+        }
+
+        Carbon::setTestNow(Carbon::parse($frozen));
     }
 }
