@@ -70,7 +70,6 @@ class UnifiedMediaProcessorTest extends TestCase
             $this->mediaValidation,
             app(ProcessingRunOrchestrator::class),
             app(GetMediaProcessingStatus::class),
-            $this->livestreamService,
         );
     }
 

@@ -26,7 +26,6 @@ class UnifiedMediaProcessor
         private readonly MediaValidationService $mediaValidation,
         private readonly ProcessingRunOrchestrator $processingRunOrchestrator,
         private readonly GetMediaProcessingStatus $getMediaProcessingStatus,
-        private readonly LivestreamSegmentationService $livestreamService,
     ) {}
 
     /**
@@ -82,7 +81,7 @@ class UnifiedMediaProcessor
             return match ($mediaType) {
                 MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey),
                 MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey),
-                MediaType::Livestream => $this->livestreamService->startProcessing($file, $clientFileDate, $fileHash, $dedupKey),
+                MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey),
             };
         } catch (UniqueConstraintViolationException) {
             return $this->reuseRacedDuplicate($dedupKey);
@@ -140,6 +139,18 @@ class UnifiedMediaProcessor
     public function canHandle(string $processingId): bool
     {
         return $this->getMediaProcessingStatus->canHandle($processingId);
+    }
+
+    /**
+     * Resolve the livestream service lazily. Constructor-injecting it would
+     * force every UnifiedMediaProcessor resolution (including status checks
+     * that never touch livestream) to eagerly build the livestream service
+     * graph — which is wasteful and breaks targeted-binding tests that
+     * assert livestream is not touched on read paths.
+     */
+    private function livestreamService(): LivestreamSegmentationService
+    {
+        return app(LivestreamSegmentationService::class);
     }
 
     /**
