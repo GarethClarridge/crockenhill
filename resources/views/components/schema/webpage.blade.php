@@ -18,12 +18,12 @@
         'description' => $description ?? $heading,
         'isPartOf' => [
             '@type' => 'WebSite',
-            '@id' => config('app.url').'/',
+            '@id' => config('app.url').'/#website',
         ],
         'publisher' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),
-            '@id' => config('app.url').'/',
+            '@id' => config('app.url').'/#organization',
             'logo' => [
                 '@type' => 'ImageObject',
                 'url' => asset('images/Primary.png'),

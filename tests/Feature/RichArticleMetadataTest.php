@@ -43,6 +43,6 @@ class RichArticleMetadataTest extends TestCase
 
         // Check Schema.org Linking
         $response->assertSee('"publisher":', false);
-        $response->assertSee('"@id": "http://localhost/"', false);
+        $response->assertSee('"@id": "http://localhost/#organization"', false);
     }
 }
