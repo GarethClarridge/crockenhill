@@ -1,7 +1,7 @@
 @props(['label' => null, 'hint' => null, 'required' => false, 'maxlength' => null, 'autofocus' => false, 'autogrow' => false])
 
 @php
-$modelName = $attributes->wire('model')->value();
+$modelName = $attributes->wire('model')?->value();
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
 $textareaClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 disabled:opacity-50 disabled:bg-gray-50 disabled:cursor-not-allowed'
@@ -20,15 +20,21 @@ $describedBy = implode(' ', $describedBy);
     count: 0,
     limit: {{ $maxlength ?? 'null' }},
     autogrow: {{ $autogrow ? 'true' : 'false' }},
-    resize() {
-        if (!this.autogrow) return;
-        this.$refs.textarea.style.height = 'auto';
-        this.$refs.textarea.style.height = this.$refs.textarea.scrollHeight + 'px';
+    resize(el) {
+        if (!this.autogrow || !el) return;
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
     }
 }" x-init="
     count = $refs.textarea.value.length;
     @if($autofocus) $nextTick(() => $refs.textarea.focus()) @endif
-    if (autogrow) $nextTick(() => resize());
+    if (autogrow) $nextTick(() => resize($refs.textarea));
+    @if($modelName)
+        $watch('$wire.{{ $modelName }}', () => {
+            count = $refs.textarea.value.length;
+            if (autogrow) resize($refs.textarea);
+        });
+    @endif
 ">
     @if($label)
         <label @if($id) for="{{ $id }}" @endif class="block text-sm font-medium text-gray-700 mb-1">
@@ -40,7 +46,7 @@ $describedBy = implode(' ', $describedBy);
     <div class="relative">
         <textarea
             x-ref="textarea"
-            @input="count = $el.value.length; if (autogrow) resize();"
+            @input="count = $el.value.length; if (autogrow) resize($el);"
             {{ $attributes->merge([
                 'rows' => 3,
                 'class' => $textareaClasses,
