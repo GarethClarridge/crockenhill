@@ -17,7 +17,7 @@
         '@' . 'context' => 'https://schema.org',
         '@type' => 'Church',
         'name' => config('organization.name'),
-        '@id' => config('app.url').'/',
+        '@id' => config('app.url').'/#organization',
         'url' => config('app.url'),
         'logo' => [
             '@type' => 'ImageObject',

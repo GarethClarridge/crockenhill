@@ -4,7 +4,7 @@
         '@' . 'context' => 'https://schema.org',
         '@type' => 'WebSite',
         'name' => config('organization.name'),
-        '@id' => config('app.url').'/',
+        '@id' => config('app.url').'/#website',
         'url' => config('app.url'),
     ];
 @endphp
