@@ -563,6 +563,8 @@ class SermonViewPresenter
         foreach ($sermons as $sermon) {
             $this->displayPreacherName($sermon);
             $this->displayReference($sermon);
+            $this->formattedDates($sermon);
+            $this->serviceLabel($sermon);
         }
     }
 

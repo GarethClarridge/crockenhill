@@ -447,10 +447,7 @@ class SermonRepository
         }
 
         $series = Cache::flexible('sermon_series', [86400, 172800], function (): array {
-            $series = $this->getExistingSeries();
-            sort($series);
-
-            return $series;
+            return $this->getExistingSeries();
         });
 
         $this->computed['series'] = true;
