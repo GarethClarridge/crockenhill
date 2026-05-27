@@ -36,7 +36,7 @@ class ProcessMediaRequest extends MediaProcessingRequest
 
         return [
             ...$fileRules,
-            'type' => [$this->route('type') ? 'nullable' : 'required', Rule::enum(MediaType::class)],
+            'type' => [$this->route('type') ? 'nullable' : 'required', 'max:20', Rule::enum(MediaType::class)],
             ...VideoProcessingOptions::validationRules($mediaType),
         ];
     }

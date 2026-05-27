@@ -43,7 +43,7 @@ class UpdateSermonRequest extends FormRequest
             'duration' => $modelRules['duration'],
             'segment_start_time' => $modelRules['segment_start_time'],
             'segment_end_time' => $modelRules['segment_end_time'],
-            'points' => ['nullable', 'json'],
+            'points' => ['nullable', 'json', 'max:10000'],
             'summary' => ['nullable', 'string', 'max:1000'],
             'show_summary' => ['nullable', 'boolean'],
             'show_points' => ['nullable', 'boolean'],

@@ -26,7 +26,7 @@ class CategorizeEventRequest extends FormRequest
     {
         return [
             'event_id' => ['required', 'integer', 'exists:calendar_events,id'],
-            'meeting_slug' => ['required', 'string', 'exists:meetings,slug'],
+            'meeting_slug' => ['required', 'string', 'max:255', 'exists:meetings,slug'],
         ];
     }
 

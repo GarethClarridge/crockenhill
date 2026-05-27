@@ -248,7 +248,7 @@ class MediaController extends Controller
      */
     private function handleApiException(\Exception $e, string $logMessage, array $context = [], array $body = []): JsonResponse
     {
-        Log::error($logMessage, array_merge($context, [
+        Log::error($logMessage, array_merge($this->sanitizeArrayForLog($context), [
             'error' => $this->sanitizeForLog($e->getMessage()),
             'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
         ]));
