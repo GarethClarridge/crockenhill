@@ -20,6 +20,7 @@ $describedBy = implode(' ', $describedBy);
     count: 0,
     limit: {{ $maxlength ?? 'null' }},
     autogrow: {{ $autogrow ? 'true' : 'false' }},
+    resizeObserver: null,
     resize(el) {
         if (!this.autogrow || !el) return;
         el.style.height = 'auto';
@@ -28,14 +29,20 @@ $describedBy = implode(' ', $describedBy);
 }" x-init="
     count = $refs.textarea.value.length;
     @if($autofocus) $nextTick(() => $refs.textarea.focus()) @endif
-    if (autogrow) $nextTick(() => resize($refs.textarea));
+    if (autogrow) {
+        $nextTick(() => resize($refs.textarea));
+        if (typeof ResizeObserver !== 'undefined') {
+            resizeObserver = new ResizeObserver(() => resize($refs.textarea));
+            resizeObserver.observe($refs.textarea);
+        }
+    }
     @if($modelName)
         $watch('$wire.{{ $modelName }}', () => {
             count = $refs.textarea.value.length;
             if (autogrow) resize($refs.textarea);
         });
     @endif
-">
+" x-destroy="resizeObserver?.disconnect()">
     @if($label)
         <label @if($id) for="{{ $id }}" @endif class="block text-sm font-medium text-gray-700 mb-1">
             {{ $label }}
