@@ -94,7 +94,7 @@
         <x-card heading="AI-Generated Content">
             <div class="space-y-4">
                 <x-textarea label="Summary" wire:model="form.summary" rows="5" maxlength="1000"
-                    hint="AI-generated sermon summary" />
+                    hint="AI-generated sermon summary" autogrow />
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Points</label>
