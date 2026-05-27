@@ -23,6 +23,7 @@ class LivestreamSegmentationService
         private readonly VideoStorageService $storageService,
         private readonly VideoSegmentationService $segmentationService,
         private readonly ProcessingInitiator $processingInitiator,
+        private readonly ProcessingRunOrchestrator $orchestrator,
     ) {}
 
     public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null, ?string $dedupKey = null): ProcessingResult
@@ -73,7 +74,7 @@ class LivestreamSegmentationService
                 ]
             );
 
-            app(ProcessingRunOrchestrator::class)->start($processingLog);
+            $this->orchestrator->start($processingLog);
 
             Log::info('Livestream processing initiated', $this->sanitizeArrayForLog([
                 'processing_id' => $processingLog->processing_id,
@@ -110,7 +111,7 @@ class LivestreamSegmentationService
             throw new Exception('Only failed or cancelled processing can be retried');
         }
 
-        app(ProcessingRunOrchestrator::class)->retry($processingLog);
+        $this->orchestrator->retry($processingLog);
 
         return $this->buildProcessingResult($processingLog->fresh() ?? $processingLog);
     }
@@ -130,7 +131,7 @@ class LivestreamSegmentationService
             throw new Exception('Cannot cancel completed processing');
         }
 
-        return app(ProcessingRunOrchestrator::class)->cancel($processingLog);
+        return $this->orchestrator->cancel($processingLog);
     }
 
     public function getProcessingStatus(string $processingId): StandardProcessingResponse

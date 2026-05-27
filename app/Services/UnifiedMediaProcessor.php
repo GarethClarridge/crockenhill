@@ -141,6 +141,13 @@ class UnifiedMediaProcessor
         return $this->getMediaProcessingStatus->canHandle($processingId);
     }
 
+    /**
+     * Resolve the livestream service lazily. Constructor-injecting it would
+     * force every UnifiedMediaProcessor resolution (including status checks
+     * that never touch livestream) to eagerly build the livestream service
+     * graph — which is wasteful and breaks targeted-binding tests that
+     * assert livestream is not touched on read paths.
+     */
     private function livestreamService(): LivestreamSegmentationService
     {
         return app(LivestreamSegmentationService::class);

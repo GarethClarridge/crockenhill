@@ -148,6 +148,12 @@ class ProcessingRunOrchestrator
 
         Bus::chain($jobs)
             ->catch(function (\Throwable $exception) use ($processingId, $failureProfile): void {
+                /**
+                 * Late-resolve the failure handler instead of capturing $this so that the
+                 * closure remains safely serializable by Laravel's queue infrastructure
+                 * (the orchestrator's dependency graph may contain non-serializable
+                 * collaborators like swapped-in test doubles).
+                 */
                 app(ProcessingRunFailureHandler::class)->handle($processingId, $exception, $failureProfile);
             })
             ->onQueue($queueName)

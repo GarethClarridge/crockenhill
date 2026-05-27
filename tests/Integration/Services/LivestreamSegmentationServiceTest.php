@@ -63,6 +63,7 @@ class LivestreamSegmentationServiceTest extends TestCase
             $this->storageService,
             $this->segmentationService,
             $this->processingInitiator,
+            app(ProcessingRunOrchestrator::class),
         );
     }
 
