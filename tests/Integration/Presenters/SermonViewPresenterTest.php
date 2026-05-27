@@ -648,4 +648,33 @@ class SermonViewPresenterTest extends TestCase
         $this->assertSame('PT1H', $this->presenter->durationIso8601($sermon));
         $this->assertSame('John 3:16', $this->presenter->displayReference($sermon));
     }
+
+    #[Test]
+    public function pre_warm_for_admin_list_populates_formatted_dates_and_service_label_caches(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'date' => '2025-03-15',
+            'service' => SermonService::Morning,
+        ]);
+
+        // Sanity check: caches start empty.
+        $reflection = new \ReflectionClass($this->presenter);
+        $datesProp = $reflection->getProperty('memoizedDates');
+        $datesProp->setAccessible(true);
+        $memoProp = $reflection->getProperty('memoized');
+        $memoProp->setAccessible(true);
+        $this->assertSame([], $datesProp->getValue($this->presenter));
+        $this->assertArrayNotHasKey('service_label_morning', $memoProp->getValue($this->presenter));
+
+        $this->presenter->preWarmForAdminList(collect([$sermon]));
+
+        // Pre-warm must populate the date-format cache keyed by timestamp,
+        // and the service-label cache keyed by enum value. Without these,
+        // every admin list row re-formats the date string and re-derives
+        // the enum label, which the optimization removes.
+        $this->assertArrayHasKey($sermon->date->getTimestamp(), $datesProp->getValue($this->presenter));
+        $this->assertSame('Morning', $memoProp->getValue($this->presenter)['service_label_morning'] ?? null);
+        $this->assertSame('March 15, 2025', $this->presenter->formattedDates($sermon)['human']);
+        $this->assertSame('Morning', $this->presenter->serviceLabel($sermon));
+    }
 }
