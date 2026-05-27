@@ -103,8 +103,6 @@ class ProcessingRunOrchestratorTest extends TestCase
 
         $this->app->forgetInstance(ProcessingRunFailureHandler::class);
         $this->app->instance(ProcessingRunFailureHandler::class, new ProcessingRunFailureHandler($storageService, app(MediaProcessingRunTransitionService::class)));
-        $this->app->instance(ProcessingRunFailureHandler::class, new ProcessingRunFailureHandler($storageService, app(MediaProcessingRunTransitionService::class)));
-        $this->app->instance(ProcessingRunFailureHandler::class, new ProcessingRunFailureHandler($storageService, app(MediaProcessingRunTransitionService::class)));
         $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         try {
@@ -140,6 +138,7 @@ class ProcessingRunOrchestratorTest extends TestCase
             ->with(Mockery::type('array'));
 
         $this->app->forgetInstance(ProcessingRunFailureHandler::class);
+        $this->app->instance(ProcessingRunFailureHandler::class, new ProcessingRunFailureHandler($storageService, app(MediaProcessingRunTransitionService::class)));
         $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         try {
@@ -266,6 +265,7 @@ class ProcessingRunOrchestratorTest extends TestCase
             ->with(Mockery::type('array'));
 
         $this->app->forgetInstance(ProcessingRunFailureHandler::class);
+        $this->app->instance(ProcessingRunFailureHandler::class, new ProcessingRunFailureHandler($storageService, app(MediaProcessingRunTransitionService::class)));
         $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         try {
