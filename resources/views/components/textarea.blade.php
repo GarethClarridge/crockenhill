@@ -1,12 +1,13 @@
-@props(['label' => null, 'hint' => null, 'required' => false, 'maxlength' => null, 'autofocus' => false])
+@props(['label' => null, 'hint' => null, 'required' => false, 'maxlength' => null, 'autofocus' => false, 'autogrow' => false])
 
 @php
-$modelName = $attributes->wire('model')->value();
+$modelName = $attributes->wire('model')?->value();
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
 $textareaClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 disabled:opacity-50 disabled:bg-gray-50 disabled:cursor-not-allowed'
     . ($hasError ? ' border-red-300' : ' border-gray-300')
-    . ($modelName ? ' pr-10' : '');
+    . ($modelName ? ' pr-10' : '')
+    . ($autogrow ? ' resize-none overflow-hidden' : '');
 
 $describedBy = [];
 if ($hint) $describedBy[] = $id . '-hint';
@@ -15,7 +16,33 @@ if ($maxlength) $describedBy[] = $id . '-counter';
 $describedBy = implode(' ', $describedBy);
 @endphp
 
-<div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }} }" x-init="count = $refs.textarea.value.length; @if($autofocus) $nextTick(() => $refs.textarea.focus()) @endif">
+<div x-data="{
+    count: 0,
+    limit: {{ $maxlength ?? 'null' }},
+    autogrow: {{ $autogrow ? 'true' : 'false' }},
+    resizeObserver: null,
+    resize(el) {
+        if (!this.autogrow || !el) return;
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+    }
+}" x-init="
+    count = $refs.textarea.value.length;
+    @if($autofocus) $nextTick(() => $refs.textarea.focus()) @endif
+    if (autogrow) {
+        $nextTick(() => resize($refs.textarea));
+        if (typeof ResizeObserver !== 'undefined') {
+            resizeObserver = new ResizeObserver(() => resize($refs.textarea));
+            resizeObserver.observe($refs.textarea);
+        }
+    }
+    @if($modelName)
+        $watch('$wire.{{ $modelName }}', () => {
+            count = $refs.textarea.value.length;
+            if (autogrow) resize($refs.textarea);
+        });
+    @endif
+" x-destroy="resizeObserver?.disconnect()">
     @if($label)
         <label @if($id) for="{{ $id }}" @endif class="block text-sm font-medium text-gray-700 mb-1">
             {{ $label }}
@@ -26,7 +53,7 @@ $describedBy = implode(' ', $describedBy);
     <div class="relative">
         <textarea
             x-ref="textarea"
-            @input="count = $el.value.length"
+            @input="count = $el.value.length; if (autogrow) resize($el);"
             {{ $attributes->merge([
                 'rows' => 3,
                 'class' => $textareaClasses,
