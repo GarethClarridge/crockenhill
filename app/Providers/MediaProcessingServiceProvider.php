@@ -10,6 +10,7 @@ use App\Services\LivestreamSegmentationService;
 use App\Services\NullSpeakerIdentificationService;
 use App\Services\ProcessingInitiator;
 use App\Services\ProcessingLogService;
+use App\Services\ProcessingRunOrchestrator;
 use App\Services\ResemblyzerSpeakerIdentificationService;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoSegmentationService;
@@ -33,6 +34,7 @@ class MediaProcessingServiceProvider extends ServiceProvider
                 $app->make(VideoStorageService::class),
                 $app->make(VideoSegmentationService::class),
                 $app->make(ProcessingInitiator::class),
+                $app->make(ProcessingRunOrchestrator::class),
             );
         });
         $this->app->bind(ProcessingLogService::class);

@@ -19,6 +19,7 @@ class ProcessingRunOrchestrator
         private readonly ProcessingPhaseResetService $phaseResetService,
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
         private readonly VideoStorageService $videoStorageService,
+        private readonly ProcessingRunFailureHandler $failureHandler,
     ) {}
 
     public function start(MediaProcessingLog $processingLog): void
@@ -148,7 +149,7 @@ class ProcessingRunOrchestrator
 
         Bus::chain($jobs)
             ->catch(function (\Throwable $exception) use ($processingId, $failureProfile): void {
-                app(ProcessingRunFailureHandler::class)->handle($processingId, $exception, $failureProfile);
+                $this->failureHandler->handle($processingId, $exception, $failureProfile);
             })
             ->onQueue($queueName)
             ->dispatch();
@@ -169,7 +170,7 @@ class ProcessingRunOrchestrator
 
                 Bus::chain($chainJobs)
                     ->catch(function (\Throwable $exception) use ($processingId): void {
-                        app(ProcessingRunFailureHandler::class)->handle(
+                        $this->failureHandler->handle(
                             $processingId,
                             $exception,
                             ProcessingRunFailureHandler::PROFILE_LIVESTREAM
@@ -179,7 +180,7 @@ class ProcessingRunOrchestrator
                     ->dispatch();
             })
             ->catch(function (Batch $batch, \Throwable $exception) use ($processingId): void {
-                app(ProcessingRunFailureHandler::class)->handle(
+                $this->failureHandler->handle(
                     $processingId,
                     $exception,
                     ProcessingRunFailureHandler::PROFILE_LIVESTREAM

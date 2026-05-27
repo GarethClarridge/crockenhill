@@ -42,9 +42,8 @@ class SermonController extends Controller
      * The BrowseSermons Livewire component owns the paginated sermon query and filter
      * normalization. The controller renders the page shell and handles SEO metadata.
      */
-    public function index(Request $request): View
+    public function index(Request $request, BibleCanon $bibleCanon): View
     {
-        $bibleCanon = app(BibleCanon::class);
         $filters = $this->sermonRepository->normalizeArchiveFilters(
             $bibleCanon,
             $request->query('book'),
@@ -131,7 +130,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function preachers(PreacherItemListPresenter $itemListPresenter): View
+    public function preachers(PreacherItemListPresenter $itemListPresenter, PreacherListRepository $preacherListRepository): View
     {
         $page = Page::query()
             ->select(['id', 'slug', 'body'])
@@ -142,7 +141,7 @@ class SermonController extends Controller
          * Performance Optimization: Use cached preacher list with counts to reduce
          * DB I/O and complex subqueries on every request.
          */
-        $preachers = app(PreacherListRepository::class)->forPublicList();
+        $preachers = $preacherListRepository->forPublicList();
 
         return view('sermons.preachers', [
             'preachers' => $preachers,

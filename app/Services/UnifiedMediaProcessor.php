@@ -26,6 +26,7 @@ class UnifiedMediaProcessor
         private readonly MediaValidationService $mediaValidation,
         private readonly ProcessingRunOrchestrator $processingRunOrchestrator,
         private readonly GetMediaProcessingStatus $getMediaProcessingStatus,
+        private readonly LivestreamSegmentationService $livestreamService,
     ) {}
 
     /**
@@ -81,7 +82,7 @@ class UnifiedMediaProcessor
             return match ($mediaType) {
                 MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey),
                 MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey),
-                MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey),
+                MediaType::Livestream => $this->livestreamService->startProcessing($file, $clientFileDate, $fileHash, $dedupKey),
             };
         } catch (UniqueConstraintViolationException) {
             return $this->reuseRacedDuplicate($dedupKey);
@@ -139,11 +140,6 @@ class UnifiedMediaProcessor
     public function canHandle(string $processingId): bool
     {
         return $this->getMediaProcessingStatus->canHandle($processingId);
-    }
-
-    private function livestreamService(): LivestreamSegmentationService
-    {
-        return app(LivestreamSegmentationService::class);
     }
 
     /**
