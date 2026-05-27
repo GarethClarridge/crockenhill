@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Exceptions\VideoProcessingException;
 use App\Traits\DetectsStorageType;
 use App\Traits\RequiresFfmpeg;
+use App\Traits\SanitizesLogData;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Media\Video;
@@ -25,6 +26,7 @@ class AudioCompressionService
 {
     use DetectsStorageType;
     use RequiresFfmpeg;
+    use SanitizesLogData;
 
     private string $tempDisk;
 
@@ -75,11 +77,11 @@ class AudioCompressionService
         try {
 
             Log::info('Starting FFmpeg audio extraction', [
-                'input_path' => $inputVideoPath,
-                'processing_path' => $processingPath,
-                'permanent_path' => $permanentPath,
+                'input_path' => $this->sanitizeForLog($inputVideoPath),
+                'processing_path' => $this->sanitizeForLog($processingPath),
+                'permanent_path' => $this->sanitizeForLog($permanentPath),
                 'use_s3_processing' => $useS3Processing,
-                'permanent_disk' => $resolvedPermanentDisk,
+                'permanent_disk' => $this->sanitizeForLog($resolvedPermanentDisk),
                 'start_time' => $startTime,
                 'duration' => $duration,
             ]);
@@ -108,8 +110,8 @@ class AudioCompressionService
             $validation = $this->validateAudioFileSize($processingPath);
 
             Log::info('FFmpeg audio extraction verification', [
-                'processing_path' => $processingPath,
-                'permanent_path' => $permanentPath,
+                'processing_path' => $this->sanitizeForLog($processingPath),
+                'permanent_path' => $this->sanitizeForLog($permanentPath),
                 'file_exists' => true,
                 'file_size' => filesize($processingPath),
                 'validation_passed' => $validation['valid'],
@@ -121,7 +123,7 @@ class AudioCompressionService
                 Log::info('Audio file too large, applying fallback compression', [
                     'original_size' => $validation['file_size'],
                     'max_size' => $validation['max_size'],
-                    'processing_path' => $processingPath,
+                    'processing_path' => $this->sanitizeForLog($processingPath),
                 ]);
 
                 $compressionResult = $this->compressAudioForTranscription($processingPath, $fallbackConfig);
@@ -129,7 +131,7 @@ class AudioCompressionService
                 $finalValidation = $this->validateAudioFileSize($fallbackPath);
 
                 Log::info('Fallback compression completed', [
-                    'compressed_path' => $compressionResult['relative_path'],
+                    'compressed_path' => $this->sanitizeForLog($compressionResult['relative_path']),
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
                     'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
@@ -141,7 +143,7 @@ class AudioCompressionService
                     $this->cleanupTemporaryFile($processingPath);
                     $this->cleanupTemporaryFile($fallbackPath);
                     Log::info('S3 upload completed and temp files cleaned up', [
-                        'permanent_path' => $permanentPath,
+                        'permanent_path' => $this->sanitizeForLog($permanentPath),
                         'compressed_used' => true,
                     ]);
                 }
@@ -161,14 +163,14 @@ class AudioCompressionService
                 $this->uploadToPermanentStorage($processingPath, $permanentPath, $uploadHandler);
                 $this->cleanupTemporaryFile($processingPath);
                 Log::info('S3 upload completed and temp file cleaned up', [
-                    'permanent_path' => $permanentPath,
+                    'permanent_path' => $this->sanitizeForLog($permanentPath),
                     'compressed_used' => false,
                 ]);
             }
 
             Log::info('Optimized audio extracted from segment without compression', [
-                'input_path' => $inputVideoPath,
-                'final_path' => $permanentPath,
+                'input_path' => $this->sanitizeForLog($inputVideoPath),
+                'final_path' => $this->sanitizeForLog($permanentPath),
                 'file_size' => $validation['file_size'],
                 'file_size_mb' => round($validation['file_size'] / 1024 / 1024, 1),
                 'start_time' => $startTime,
@@ -189,13 +191,13 @@ class AudioCompressionService
 
         } catch (\Exception $e) {
             Log::error('Failed to extract optimized audio from segment', [
-                'error' => $e->getMessage(),
-                'input_path' => $inputVideoPath,
-                'processing_path' => $processingPath,
-                'permanent_path' => $permanentPath,
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'input_path' => $this->sanitizeForLog($inputVideoPath),
+                'processing_path' => $this->sanitizeForLog($processingPath),
+                'permanent_path' => $this->sanitizeForLog($permanentPath),
                 'segment_start' => $startTime,
                 'segment_duration' => $duration,
-                'trace' => $e->getTraceAsString(),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             throw $e;
@@ -262,9 +264,9 @@ class AudioCompressionService
                 : $compressedPath;
 
             Log::info('Applied fallback compression to audio file', [
-                'original_path' => $inputPath,
-                'compressed_path' => $compressedPath,
-                'relative_path' => $relativePath,
+                'original_path' => $this->sanitizeForLog($inputPath),
+                'compressed_path' => $this->sanitizeForLog($compressedPath),
+                'relative_path' => $this->sanitizeForLog($relativePath),
                 'bitrate' => $compressionSettings['bitrate'],
                 'channels' => $compressionSettings['channels'],
             ]);
@@ -276,9 +278,9 @@ class AudioCompressionService
 
         } catch (\Exception $e) {
             Log::error('Failed to apply fallback compression', [
-                'error' => $e->getMessage(),
-                'input_path' => $inputPath,
-                'trace' => $e->getTraceAsString(),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'input_path' => $this->sanitizeForLog($inputPath),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
             throw $e;
