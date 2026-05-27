@@ -24,9 +24,13 @@ class RmsAnalysisService
     }
 
     /**
-     * Extract all RMS data with timestamps for segment calculation
+     * Extract all RMS data with timestamps for segment calculation.
      *
-     * @return array<array{time: float, rms: float}>
+     * Parses FFmpeg astats metadata lines to associate RMS levels with
+     * precise PTS timestamps.
+     *
+     * @param  string  $logContent  The raw output from the FFmpeg astats filter
+     * @return list<array{time: float, rms: float}>
      */
     public function extractRmsData(string $logContent): array
     {
@@ -55,9 +59,14 @@ class RmsAnalysisService
     }
 
     /**
-     * Calculate actual average and peak RMS for a segment
+     * Calculate actual average and peak RMS for a specific time segment.
      *
-     * @param  array<array{time: float, rms: float}>  $rmsData
+     * Filters the provided RMS dataset for entries within the time range
+     * and calculates statistical metrics. Used for final segment metadata.
+     *
+     * @param  float  $startTime  Start timestamp in seconds
+     * @param  float  $endTime  End timestamp in seconds
+     * @param  array<int, array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
      * @return array{avg: float, peak: float}
      */
     public function calculateSegmentRms(float $startTime, float $endTime, array $rmsData): array
@@ -84,9 +93,16 @@ class RmsAnalysisService
     }
 
     /**
-     * Parse audio sections from RMS log content
+     * Parse continuous audio sections that exceed the RMS threshold.
      *
-     * @return array<array{start: float, end: float}>
+     * Identifies "loud" periods in the audio by scanning the RMS log.
+     * Sections shorter than the minimum duration are ignored to filter out
+     * brief transients or noise spikes.
+     *
+     * @param  string  $logContent  The raw FFmpeg astats output
+     * @param  float|null  $threshold  Optional override for the RMS threshold (dB)
+     * @param  float|null  $minSectionDuration  Optional override for minimum duration (seconds)
+     * @return list<array{start: float, end: float}>
      */
     public function parseAudioSections(string $logContent, ?float $threshold = null, ?float $minSectionDuration = null): array
     {
@@ -140,7 +156,12 @@ class RmsAnalysisService
     /**
      * Get total duration from RMS log content.
      *
-     * @param  array<int, string>  $lines
+     * Scans the log lines for the highest PTS timestamp. If no timestamps
+     * are found, it falls back to an estimate based on the number of lines.
+     *
+     * @param  string  $logContent  The raw FFmpeg astats output
+     * @param  list<string>  $lines  The log content split into lines
+     * @return float Duration in seconds
      */
     public function getTotalDuration(string $logContent, array $lines): float
     {
@@ -159,9 +180,38 @@ class RmsAnalysisService
     }
 
     /**
-     * Determine which threshold to use based on configuration
+     * Determine the optimal RMS threshold for segmentation.
      *
-     * @return array<string, mixed>
+     * Prioritizes adaptive thresholding based on the specific audio file's
+     * noise floor and signal strength. Falls back to a fixed global threshold
+     * if adaptive calculation is disabled or fails.
+     *
+     * @param  string  $logContent  The raw FFmpeg astats output
+     * @return array{
+     *     threshold: float,
+     *     method: 'fixed'|'adaptive'|'fallback',
+     *     log_data: array{
+     *         method: string,
+     *         threshold_used: float,
+     *         reason?: string,
+     *         raw_threshold?: float,
+     *         sample_count?: int,
+     *         percentile_used?: float,
+     *         bounds_applied?: bool,
+     *     },
+     *     rms_stats?: array{
+     *         sample_count: int,
+     *         min: float,
+     *         max: float,
+     *         mean: float,
+     *         p25: float,
+     *         p50: float,
+     *         p75: float,
+     *         adaptive_threshold: float,
+     *     }
+     * }
+     *
+     * @throws SegmentationException If adaptive calculation fails and fallback is disabled
      */
     public function determineThreshold(string $logContent): array
     {
@@ -195,18 +245,49 @@ class RmsAnalysisService
                 'log_data' => [
                     'method' => 'fallback',
                     'threshold_used' => $this->rmsThreshold,
-                    'reason' => $adaptiveResult['error'] ?? 'adaptive_calculation_failed',
+                    'reason' => $adaptiveResult['error'],
                 ],
             ];
         }
 
-        throw new SegmentationException('Adaptive threshold calculation failed and fallback is disabled: '.($adaptiveResult['error'] ?? 'unknown_error'));
+        throw new SegmentationException('Adaptive threshold calculation failed and fallback is disabled: '.$adaptiveResult['error']);
     }
 
     /**
-     * Calculate adaptive threshold based on RMS distribution
+     * Calculate an adaptive threshold based on the RMS distribution of the file.
      *
-     * @return array<string, mixed>
+     * Analyzes the statistical distribution of RMS levels to find a threshold
+     * that separates "silence/background" from "signal". Uses a configurable
+     * percentile (e.g. 30th percentile) as the baseline for speech.
+     *
+     * @param  string  $logContent  The raw FFmpeg astats output
+     * @return array{
+     *     success: true,
+     *     threshold: float,
+     *     log_data: array{
+     *         method: 'adaptive',
+     *         threshold_used: float,
+     *         raw_threshold: float,
+     *         sample_count: int,
+     *         percentile_used: float,
+     *         bounds_applied: bool,
+     *     },
+     *     rms_stats: array{
+     *         sample_count: int,
+     *         min: float,
+     *         max: float,
+     *         mean: float,
+     *         p25: float,
+     *         p50: float,
+     *         p75: float,
+     *         adaptive_threshold: float,
+     *     },
+     * }|array{
+     *     success: false,
+     *     error: string,
+     *     sample_count?: int,
+     *     min_required?: int,
+     * }
      */
     public function calculateAdaptiveThreshold(string $logContent): array
     {
@@ -283,11 +364,14 @@ class RmsAnalysisService
     }
 
     /**
-     * Extract RMS values for specific timestamps
+     * Extract RMS values for specific target timestamps.
      *
-     * @param  array<array{time: float, rms: float}>  $rmsData
-     * @param  array<float>  $timestamps
-     * @return array<float>
+     * Searches the RMS dataset for entries closest to each target timestamp
+     * within a defined tolerance. Used for point-in-time audio analysis.
+     *
+     * @param  array<int, array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
+     * @param  list<float>  $timestamps  List of target timestamps in seconds
+     * @return list<float> List of matching RMS levels (dB)
      */
     public function extractRmsForTimestamps(array $rmsData, array $timestamps): array
     {
@@ -307,10 +391,15 @@ class RmsAnalysisService
     }
 
     /**
-     * Extract RMS values for a time region
+     * Extract all RMS values within a specific time region.
      *
-     * @param  array<array{time: float, rms: float}>  $rmsData
-     * @return array<float>
+     * Returns a flat list of all RMS levels recorded between the start and
+     * end times.
+     *
+     * @param  array<int, array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
+     * @param  float  $startTime  Start timestamp in seconds
+     * @param  float  $endTime  End timestamp in seconds
+     * @return list<float> List of RMS levels (dB)
      */
     public function extractRmsForRegion(array $rmsData, float $startTime, float $endTime): array
     {
@@ -325,11 +414,17 @@ class RmsAnalysisService
         return $values;
     }
 
+    /**
+     * Get the default (fixed) RMS threshold from configuration.
+     */
     public function getRmsThreshold(): float
     {
         return $this->rmsThreshold;
     }
 
+    /**
+     * Get the minimum section duration from configuration.
+     */
     public function getMinSectionDuration(): float
     {
         return $this->minSectionDuration;
