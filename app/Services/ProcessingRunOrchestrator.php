@@ -19,7 +19,6 @@ class ProcessingRunOrchestrator
         private readonly ProcessingPhaseResetService $phaseResetService,
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
         private readonly VideoStorageService $videoStorageService,
-        private readonly ProcessingRunFailureHandler $failureHandler,
     ) {}
 
     public function start(MediaProcessingLog $processingLog): void
@@ -149,7 +148,13 @@ class ProcessingRunOrchestrator
 
         Bus::chain($jobs)
             ->catch(function (\Throwable $exception) use ($processingId, $failureProfile): void {
-                $this->failureHandler->handle($processingId, $exception, $failureProfile);
+                /**
+                 * Late-resolve the failure handler instead of capturing $this so that the
+                 * closure remains safely serializable by Laravel's queue infrastructure
+                 * (the orchestrator's dependency graph may contain non-serializable
+                 * collaborators like swapped-in test doubles).
+                 */
+                app(ProcessingRunFailureHandler::class)->handle($processingId, $exception, $failureProfile);
             })
             ->onQueue($queueName)
             ->dispatch();
@@ -170,7 +175,7 @@ class ProcessingRunOrchestrator
 
                 Bus::chain($chainJobs)
                     ->catch(function (\Throwable $exception) use ($processingId): void {
-                        $this->failureHandler->handle(
+                        app(ProcessingRunFailureHandler::class)->handle(
                             $processingId,
                             $exception,
                             ProcessingRunFailureHandler::PROFILE_LIVESTREAM
@@ -180,7 +185,7 @@ class ProcessingRunOrchestrator
                     ->dispatch();
             })
             ->catch(function (Batch $batch, \Throwable $exception) use ($processingId): void {
-                $this->failureHandler->handle(
+                app(ProcessingRunFailureHandler::class)->handle(
                     $processingId,
                     $exception,
                     ProcessingRunFailureHandler::PROFILE_LIVESTREAM

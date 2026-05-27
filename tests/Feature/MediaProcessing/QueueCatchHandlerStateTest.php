@@ -331,6 +331,7 @@ class QueueCatchHandlerStateTest extends TestCase
             $storageService,
             $segmentationService,
             $processingInitiator,
+            app(ProcessingRunOrchestrator::class),
         );
     }
 
