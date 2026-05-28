@@ -30,7 +30,7 @@ class SermonViewPresenterTest extends TestCase
     {
         parent::setUp();
 
-        Carbon::setTestNow('2025-03-15 12:00:00');
+        $this->travelTo(Carbon::parse('2025-03-15 12:00:00'));
 
         Storage::fake('public');
         Config::set('media-processing.storage.sermon_disk', 'public');
@@ -130,7 +130,7 @@ class SermonViewPresenterTest extends TestCase
         Storage::disk('public')->put('thumbnails/test.jpg', 'thumb');
         Storage::disk('public')->put('transcripts/test.md', 'Transcript body');
 
-        Carbon::setTestNow('2026-02-15');
+        $this->travelTo(Carbon::parse('2026-02-15 12:00:00'));
 
         $sermon = Sermon::factory()->create([
             'slug' => 'presented-sermon',
