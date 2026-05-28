@@ -28,7 +28,7 @@
             @forelse($meetings as $meeting)
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-3">
-                        <a href="/meetings/{{ $meeting->slug }}" class="font-medium hover:text-cbc-teal">
+                        <a href="{{ route('meetings.show', $meeting) }}" class="font-medium hover:text-cbc-teal">
                             {{ $meeting->slug }}
                         </a>
                     </td>
