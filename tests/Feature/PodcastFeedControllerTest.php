@@ -38,7 +38,7 @@ class PodcastFeedControllerTest extends TestCase
     #[Test]
     public function morning_feed_includes_morning_sermons(): void
     {
-        $sermon = Sermon::factory()->create([
+        $sermon = Sermon::factory()->withAudio()->create([
             'title' => 'Morning Message',
             'service' => SermonService::Morning,
             'content_type' => SermonContentType::Sermon,

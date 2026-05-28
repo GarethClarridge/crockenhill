@@ -109,6 +109,17 @@ class SermonFactory extends Factory
     }
 
     /**
+     * Sermon has an audio file path set (the default factory leaves audio null).
+     */
+    public function withAudio(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'audio_file_path' => 'sermons/'.($attributes['slug'] ?? Str::random(8)).'.mp3',
+            'filetype' => 'mp3',
+        ]);
+    }
+
+    /**
      * Sermon has a transcript file path set (automated processing).
      */
     public function withTranscript(): static

@@ -97,7 +97,9 @@ class SermonPagesTest extends TestCase
             'transcript_file_path' => $transcriptPath,
         ]);
 
-        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
+        // The transcript is rendered (and sanitised) by the lazy-loaded transcript
+        // endpoint, not inlined into the sermon page, so assert against that route.
+        $response = $this->get("/christ/sermons/{$sermon->slug}/transcript");
 
         $response->assertStatus(200);
         $response->assertSee('Safe transcript content.');
@@ -117,7 +119,9 @@ class SermonPagesTest extends TestCase
             'transcript_file_path' => $transcriptPath,
         ]);
 
-        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
+        // The transcript is rendered (and sanitised) by the lazy-loaded transcript
+        // endpoint, not inlined into the sermon page, so assert against that route.
+        $response = $this->get("/christ/sermons/{$sermon->slug}/transcript");
 
         $response->assertStatus(200);
         $response->assertSee('Click me');

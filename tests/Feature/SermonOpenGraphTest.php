@@ -27,7 +27,7 @@ class SermonOpenGraphTest extends TestCase
     public function sermon_page_includes_open_graph_meta_tags_with_thumbnail()
     {
         // Create a sermon with thumbnail
-        $sermon = Sermon::factory()->create([
+        $sermon = Sermon::factory()->withAudio()->create([
             'title' => 'Test Sermon Title',
             'preacher' => 'John Smith',
             'date' => '2024-01-15',

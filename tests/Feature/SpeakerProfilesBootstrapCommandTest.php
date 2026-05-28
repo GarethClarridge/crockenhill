@@ -29,7 +29,7 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
             'name' => 'Mark Drury Bootstrap Test',
             'slug' => 'mark-drury-bootstrap-test',
         ]);
-        Sermon::factory()->count(2)->withPreacher($preacher)->create();
+        Sermon::factory()->count(2)->withPreacher($preacher)->withAudio()->create();
 
         $embedding = array_fill(0, 256, 0.1);
 
@@ -74,7 +74,7 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
             'name' => 'Mark Drury Bootstrap Idempotent',
             'slug' => 'mark-drury-bootstrap-idempotent',
         ]);
-        Sermon::factory()->count(2)->withPreacher($preacher)->create();
+        Sermon::factory()->count(2)->withPreacher($preacher)->withAudio()->create();
 
         $embedding = array_fill(0, 256, 0.2);
 
