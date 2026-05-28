@@ -6,6 +6,9 @@
         'name' => config('organization.name'),
         '@id' => config('app.url').'/#website',
         'url' => config('app.url'),
+        'publisher' => [
+            '@id' => config('app.url').'/#organization',
+        ],
     ];
 @endphp
 

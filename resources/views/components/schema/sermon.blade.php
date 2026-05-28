@@ -45,13 +45,7 @@
         'genre' => 'Sermon',
         'author' => $author,
         'publisher' => [
-            '@type' => 'Organization',
-            'name' => config('organization.name'),
             '@id' => config('app.url').'/#organization',
-            'logo' => [
-                '@type' => 'ImageObject',
-                'url' => asset('images/Primary.png'),
-            ],
         ],
         'mainEntityOfPage' => [
             '@type' => 'WebPage',
