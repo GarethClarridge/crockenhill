@@ -288,7 +288,7 @@ class Sermon extends Model implements Sitemapable
             'scripture_passage_id' => ['nullable', 'integer', 'exists:scripture_passages,id'],
             'download_count' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],
-            'livestream_processing_id' => ['nullable', 'string', 'size:36', 'exists:media_processing_logs,processing_id'],
+            'livestream_processing_id' => ['nullable', 'uuid', 'exists:media_processing_logs,processing_id'],
         ];
     }
 

@@ -47,6 +47,10 @@ class WardenSermonValidationTest extends TestCase
 
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('livestream_processing_id', $validator->errors()->toArray());
+        $this->assertEquals(
+            'The livestream processing id field must be a valid UUID.',
+            $validator->errors()->first('livestream_processing_id')
+        );
     }
 
     #[Test]
