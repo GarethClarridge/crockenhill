@@ -57,11 +57,11 @@ if ($slot->isEmpty() && $attributes->has('aria-label') && !$attributes->has('tit
 <div class="{{ $wrapperClasses }}">
   <a {{ $attributes->merge(['class' => $classes]) }} href="{{ $link }}" @if($navigate && !str_starts_with($link, '#')) wire:navigate @endif>
     @if($icon && $iconPosition !== 'trailing')
-      <x-dynamic-component :component="$iconComponent" class="{{ $resolvedIconClass }}" />
+      <x-dynamic-component :component="$iconComponent" class="{{ $resolvedIconClass }}" aria-hidden="true" />
     @endif
     {{ $slot }}
     @if($icon && $iconPosition === 'trailing')
-      <x-dynamic-component :component="$iconComponent" class="{{ $resolvedIconClass }}" />
+      <x-dynamic-component :component="$iconComponent" class="{{ $resolvedIconClass }}" aria-hidden="true" />
     @endif
   </a>
 </div>
