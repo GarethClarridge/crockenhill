@@ -62,6 +62,14 @@
                         '@type' => 'Organization',
                         'name' => config('organization.name'),
                         'url' => url('/'),
+                        '@id' => config('app.url').'/#organization',
+                    ],
+                    'offers' => [
+                        '@type' => 'Offer',
+                        'url' => url()->current(),
+                        'price' => '0',
+                        'priceCurrency' => 'GBP',
+                        'availability' => 'https://schema.org/InStock',
                     ],
                     'schedule' => [
                         '@type' => 'Schedule',
@@ -103,6 +111,8 @@
                                 'name' => $event->title,
                                 'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? $pageDescription ?? $heading), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
+                                'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
+                                'eventStatus' => 'https://schema.org/EventScheduled',
                                 'location' => [
                                     '@type' => 'Place',
                                     'name' => $event->location ?? $meeting->location ?? 'Crockenhill Baptist Church',
@@ -120,6 +130,14 @@
                                     '@type' => 'Organization',
                                     'name' => config('organization.name'),
                                     'url' => url('/'),
+                                    '@id' => config('app.url').'/#organization',
+                                ],
+                                'offers' => [
+                                    '@type' => 'Offer',
+                                    'url' => url()->current(),
+                                    'price' => '0',
+                                    'priceCurrency' => 'GBP',
+                                    'availability' => 'https://schema.org/InStock',
                                 ],
                             ],
                         ];

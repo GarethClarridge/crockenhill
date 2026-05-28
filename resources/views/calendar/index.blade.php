@@ -54,6 +54,8 @@
                                 'name' => $event->title,
                                 'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? 'Church event at Crockenhill Baptist Church'), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
+                                'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
+                                'eventStatus' => 'https://schema.org/EventScheduled',
                                 'location' => [
                                     '@type' => 'Place',
                                     'name' => $event->location ?? ($event->meeting?->location ?? 'Crockenhill Baptist Church'),
@@ -71,6 +73,14 @@
                                     '@type' => 'Organization',
                                     'name' => $orgName,
                                     'url' => $orgUrl,
+                                    '@id' => config('app.url').'/#organization',
+                                ],
+                                'offers' => [
+                                    '@type' => 'Offer',
+                                    'url' => url()->current(),
+                                    'price' => '0',
+                                    'priceCurrency' => 'GBP',
+                                    'availability' => 'https://schema.org/InStock',
                                 ],
                             ],
                         ];
