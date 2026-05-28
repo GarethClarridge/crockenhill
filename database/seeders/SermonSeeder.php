@@ -34,6 +34,7 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $markDrury?->id,
                 'preacher_source' => 'manual',
                 'series' => 'Christmas Messages',
+                'audio_file_path' => null,
                 'points' => '1. The historical reality\n2. The divine purpose\n3. The eternal significance',
             ],
             [
@@ -46,6 +47,7 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $markDrury?->id,
                 'preacher_source' => 'manual',
                 'series' => '1 John',
+                'audio_file_path' => null,
                 'points' => '1. God is light\n2. Fellowship with God\n3. Confession and forgiveness',
             ],
             [
@@ -59,6 +61,7 @@ class SermonSeeder extends Seeder
                 'preacher_source' => 'default',
                 'needs_preacher_review' => true,
                 'series' => 'Special Events',
+                'audio_file_path' => null,
                 'points' => '1. Praise\n2. Thanksgiving',
             ],
         ];
@@ -95,6 +98,7 @@ class SermonSeeder extends Seeder
                 'preacher' => $preacher?->name ?? 'Mark Drury',
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
+                'audio_file_path' => null,
                 'content_type' => SermonContentType::ChildrensTalk->value,
             ],
             [
@@ -106,6 +110,7 @@ class SermonSeeder extends Seeder
                 'preacher' => $preacher?->name ?? 'Mark Drury',
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
+                'audio_file_path' => null,
                 'content_type' => SermonContentType::ChildrensTalk->value,
             ],
             [
@@ -117,6 +122,7 @@ class SermonSeeder extends Seeder
                 'preacher' => $preacher?->name ?? 'Mark Drury',
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
+                'audio_file_path' => null,
                 'content_type' => SermonContentType::ChildrensTalk->value,
             ],
         ];
@@ -154,6 +160,7 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
                 'series' => 'Parables of Jesus',
+                'audio_file_path' => null,
                 'points' => '1. The son who wandered\n2. The father who waited\n3. The grace that restores',
                 'livestream_processing_id' => 'seed-prodigal-son-processing',
             ]
