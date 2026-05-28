@@ -56,7 +56,7 @@ class WardenSermonValidationTest extends TestCase
     #[Test]
     public function it_accepts_a_valid_existing_livestream_processing_id(): void
     {
-        $log = MediaProcessingLog::factory()->create([
+        $log = MediaProcessingLog::factory()->livestream()->create([
             'processing_id' => '12345678-1234-1234-1234-1234567890ab',
         ]);
 
@@ -69,6 +69,25 @@ class WardenSermonValidationTest extends TestCase
         ]);
 
         $this->assertFalse($validator->fails());
+    }
+
+    #[Test]
+    public function it_rejects_a_non_livestream_processing_id(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->create([
+            'processing_id' => 'abcdef12-3456-7890-abcd-ef1234567890',
+        ]);
+
+        $rules = Sermon::validationRules();
+
+        $validator = Validator::make([
+            'livestream_processing_id' => $log->processing_id,
+        ], [
+            'livestream_processing_id' => $rules['livestream_processing_id'],
+        ]);
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('livestream_processing_id', $validator->errors()->toArray());
     }
 
     #[Test]

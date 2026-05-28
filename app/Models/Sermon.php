@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Data\ThumbnailMetadata;
 use App\Data\ThumbnailMetadataCast;
+use App\Enums\MediaType;
 use App\Enums\PreacherSource;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonContentType;
@@ -288,7 +289,12 @@ class Sermon extends Model implements Sitemapable
             'scripture_passage_id' => ['nullable', 'integer', 'exists:scripture_passages,id'],
             'download_count' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],
-            'livestream_processing_id' => ['nullable', 'uuid', 'exists:media_processing_logs,processing_id'],
+            'livestream_processing_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('media_processing_logs', 'processing_id')
+                    ->where('processing_type', MediaType::Livestream->value),
+            ],
         ];
     }
 
