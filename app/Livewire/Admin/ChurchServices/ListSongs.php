@@ -85,10 +85,15 @@ class ListSongs extends Component
         $servicesCountSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(DISTINCT church_service_items.church_service_id)');
         $lastUsedDateSubQuery = $this->usageBaseQuery()->selectRaw('MAX(church_services.date)');
 
+        /**
+         * Performance Optimization: Limits retrieved columns for songs and eager-loaded
+         * authors to required fields for the admin listing. This avoids loading large
+         * longText columns (lyrics_xml, lyrics_plain) to reduce memory usage and DB I/O.
+         */
         $songs = Song::query()
-            ->select('songs.*')
+            ->select(['songs.id', 'songs.slug', 'songs.title', 'songs.alternate_title', 'songs.ccli_number', 'songs.canonical_key'])
             ->with([
-                'authors' => fn ($query) => $query->orderBy('display_name'),
+                'authors' => fn ($query) => $query->select(['song_authors.id', 'song_authors.display_name'])->orderBy('display_name'),
             ])
             ->selectSub($usageSubQuery, 'usage_count')
             ->selectSub($servicesCountSubQuery, 'services_count')
