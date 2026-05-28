@@ -21,7 +21,13 @@
             '@id' => config('app.url').'/#website',
         ],
         'publisher' => [
+            '@type' => 'Organization',
+            'name' => config('organization.name'),
             '@id' => config('app.url').'/#organization',
+            'logo' => [
+                '@type' => 'ImageObject',
+                'url' => asset('images/Primary.png'),
+            ],
         ],
         'breadcrumb' => [
             '@type' => 'BreadcrumbList',
