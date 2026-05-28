@@ -8,7 +8,6 @@ use App\View\Composers\ChurchPageComposer;
 use App\View\Composers\CommunityPageComposer;
 use App\View\Composers\HomePageComposer;
 use App\View\Composers\PageShowComposer;
-use App\View\Composers\PhotoSelectorComposer;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,7 +26,6 @@ class ViewServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        View::composer('includes.photo-selector', PhotoSelectorComposer::class);
         View::composer('pages.show', PageShowComposer::class);
         View::composer('full-width-pages.home', HomePageComposer::class);
         View::composer('full-width-pages.community', CommunityPageComposer::class);

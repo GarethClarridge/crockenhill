@@ -166,8 +166,8 @@ class VideoSegmentationService
     }
 
     /**
-     * @param  array<int, array<string, float>>  $loudSections
-     * @param  array<string, mixed>  $rmsData
+     * @param  array<int, array{start: float, end: float}>  $loudSections
+     * @param  array<int, array{time: float, rms: float}>  $rmsData
      * @return array<int, LivestreamSegment>
      */
     private function combineLoudAndQuietSections(array $loudSections, float $totalDuration, array $rmsData): array
@@ -390,7 +390,7 @@ class VideoSegmentationService
 
             $rmsData = $this->rmsAnalysisService->extractRmsData($logContent);
 
-            $songRmsValues = $this->rmsAnalysisService->extractRmsForTimestamps($rmsData, $songCluster['samples']);
+            $songRmsValues = $this->rmsAnalysisService->extractRmsForTimestamps($rmsData, array_values($songCluster['samples']));
 
             if (empty($songRmsValues)) {
                 throw new SegmentationException('No RMS data found for song period');
