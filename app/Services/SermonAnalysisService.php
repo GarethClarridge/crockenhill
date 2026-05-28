@@ -33,13 +33,17 @@ class SermonAnalysisService implements SermonAnalysisInterface
     }
 
     /**
-     * Analyze sermon transcript using AI to extract comprehensive information
+     * Analyze sermon transcript using AI to extract comprehensive information.
+     *
+     * Coordinates the full analysis pipeline: validation, optional series retrieval,
+     * AI interaction, and data normalization into a SermonAnalysis DTO.
      *
      * @param  string  $transcript  The sermon transcript to analyze
-     * @param  array<int, string>  $existingSeries  Optional array of existing series names
+     * @param  array<int, string>  $existingSeries  Optional array of existing series names for context
+     * @param  string|null  $processingId  Processing ID for log correlation
      * @return SermonAnalysis The analyzed sermon data
      *
-     * @throws Exception When analysis fails
+     * @throws Exception When validation fails, AI analysis fails, or response is malformed
      */
     public function analyzeSermon(string $transcript, array $existingSeries = [], ?string $processingId = null): SermonAnalysis
     {
@@ -91,12 +95,21 @@ class SermonAnalysisService implements SermonAnalysisInterface
     }
 
     /**
-     * Perform comprehensive AI analysis using OpenAI GPT API with retry logic.
+     * Perform comprehensive AI analysis using OpenAI GPT API.
      *
      * @param  string  $transcript  The sermon transcript
      * @param  array<int, string>  $existingSeries  Array of existing series names
      * @param  string  $processingId  Processing ID for logging
-     * @return array<string, mixed> The parsed analysis results
+     * @return array{
+     *     title: string,
+     *     series: string|null,
+     *     reference: string|null,
+     *     points: list<string>,
+     *     summary: string|null,
+     *     transcript: string,
+     * } The parsed analysis results
+     *
+     * @throws Exception|\OpenAI\Exceptions\ErrorException|\OpenAI\Exceptions\TransporterException
      */
     private function performAiAnalysis(string $transcript, array $existingSeries, string $processingId): array
     {
@@ -127,9 +140,16 @@ class SermonAnalysisService implements SermonAnalysisInterface
      * Execute a single AI analysis attempt.
      *
      * @param  array<int, string>  $existingSeries
-     * @return array<string, mixed>
+     * @return array{
+     *     title: string,
+     *     series: string|null,
+     *     reference: string|null,
+     *     points: list<string>,
+     *     summary: string|null,
+     *     transcript: string,
+     * }
      *
-     * @throws Exception|\TypeError
+     * @throws Exception|\TypeError|\OpenAI\Exceptions\ErrorException|\OpenAI\Exceptions\TransporterException
      */
     private function runAnalysisAttempt(string $transcript, array $existingSeries, string $processingId, int $attempt, float $apiStartTime): array
     {
@@ -256,9 +276,16 @@ class SermonAnalysisService implements SermonAnalysisInterface
     /**
      * Parse and validate OpenAI API response.
      *
-     * @return array<string, mixed>
+     * @return array{
+     *     title?: string,
+     *     series?: string|null,
+     *     reference?: string|null,
+     *     points?: array<int, string>,
+     *     summary?: string|null,
+     *     transcript?: string,
+     * }
      *
-     * @throws Exception
+     * @throws Exception If the response structure is invalid or JSON parsing fails
      */
     private function parseAiResponse(CreateResponse $response, string $processingId): array
     {
@@ -291,7 +318,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
     /**
      * Execute AI analysis request via OpenAI SDK.
      *
-     * @throws Exception
+     * @throws Exception|\OpenAI\Exceptions\ErrorException|\TypeError
      */
     private function executeAiRequest(string $prompt, string $model, string $processingId, int $attempt): CreateResponse
     {

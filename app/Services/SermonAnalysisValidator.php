@@ -53,11 +53,21 @@ class SermonAnalysisValidator
     }
 
     /**
-     * Validate and clean the AI analysis data
+     * Validate and clean raw AI analysis data.
+     *
+     * Normalises types, applies British English spelling corrections, enforces
+     * word limits on titles, and ensures a valid structure for the SermonAnalysis DTO.
      *
      * @param  array<string, mixed>  $analysisData  Raw analysis data from AI
      * @param  string  $originalTranscript  Original transcript for fallback
-     * @return array<string, mixed> Validated and cleaned analysis data
+     * @return array{
+     *     title: string,
+     *     series: string|null,
+     *     reference: string|null,
+     *     points: list<string>,
+     *     summary: string|null,
+     *     transcript: string,
+     * } Validated and cleaned analysis data
      */
     public function validateAndCleanAnalysisData(array $analysisData, string $originalTranscript): array
     {
@@ -116,7 +126,10 @@ class SermonAnalysisValidator
     }
 
     /**
-     * Validate and clean sermon title
+     * Validate and clean sermon title.
+     *
+     * Trims whitespace, removes wrapping quotes, applies British English
+     * spelling corrections, and enforces the MAX_TITLE_WORDS limit.
      *
      * @param  string  $title  Raw title from AI
      * @return string Validated and cleaned title
@@ -159,7 +172,10 @@ class SermonAnalysisValidator
     }
 
     /**
-     * Validate Bible reference format
+     * Validate Bible reference format.
+     *
+     * Checks if the reference matches a basic book + chapter pattern
+     * (e.g. "John 3", "1 Peter 2").
      *
      * @param  string  $reference  Raw Bible reference
      * @return string|null Validated reference or null if invalid
@@ -178,7 +194,10 @@ class SermonAnalysisValidator
     }
 
     /**
-     * Validate and clean sermon summary
+     * Validate and clean sermon summary.
+     *
+     * Trims whitespace, removes quotes, applies British English corrections,
+     * and limits to approximately 200 words, attempting to end on a full sentence.
      *
      * @param  string  $summary  Raw summary from AI
      * @return string|null Validated and cleaned summary or null if invalid
