@@ -34,7 +34,6 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $markDrury?->id,
                 'preacher_source' => 'manual',
                 'series' => 'Christmas Messages',
-                'audio_file_path' => 'christmas-2024-morning.mp3',
                 'points' => '1. The historical reality\n2. The divine purpose\n3. The eternal significance',
             ],
             [
@@ -47,7 +46,6 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $markDrury?->id,
                 'preacher_source' => 'manual',
                 'series' => '1 John',
-                'audio_file_path' => '1-john-walking-in-light.mp3',
                 'points' => '1. God is light\n2. Fellowship with God\n3. Confession and forgiveness',
             ],
             [
@@ -61,7 +59,6 @@ class SermonSeeder extends Seeder
                 'preacher_source' => 'default',
                 'needs_preacher_review' => true,
                 'series' => 'Special Events',
-                'audio_file_path' => 'special-2024-other.mp3',
                 'points' => '1. Praise\n2. Thanksgiving',
             ],
         ];
@@ -98,7 +95,6 @@ class SermonSeeder extends Seeder
                 'preacher' => $preacher?->name ?? 'Mark Drury',
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
-                'audio_file_path' => 'childrens-talk-who-is-jesus.mp3',
                 'content_type' => SermonContentType::ChildrensTalk->value,
             ],
             [
@@ -110,7 +106,6 @@ class SermonSeeder extends Seeder
                 'preacher' => $preacher?->name ?? 'Mark Drury',
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
-                'audio_file_path' => 'childrens-talk-god-made-world.mp3',
                 'content_type' => SermonContentType::ChildrensTalk->value,
             ],
             [
@@ -122,7 +117,6 @@ class SermonSeeder extends Seeder
                 'preacher' => $preacher?->name ?? 'Mark Drury',
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
-                'audio_file_path' => 'childrens-talk-good-shepherd.mp3',
                 'content_type' => SermonContentType::ChildrensTalk->value,
             ],
         ];
@@ -160,7 +154,6 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
                 'series' => 'Parables of Jesus',
-                'audio_file_path' => 'the-prodigal-son.mp3',
                 'points' => '1. The son who wandered\n2. The father who waited\n3. The grace that restores',
                 'livestream_processing_id' => 'seed-prodigal-son-processing',
             ]

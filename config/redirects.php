@@ -49,7 +49,7 @@ return [
     'about-us/links' => '/church/links',
     'about-us/statementoffaith' => '/church/statement-of-faith',
     'about-us/whatwebelieve' => '/church/what-we-believe',
-    'about-us/privacy-policy' => '/church/privacy-policy',
+    'about-us/privacy-policy' => '/church/privacy-notice',
     'about-us/safeguarding-policy' => '/church/safeguarding-policy',
 
     'buzz-club' => '/community/buzz-club',
