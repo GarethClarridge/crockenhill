@@ -58,7 +58,7 @@ class SermonAnalysisValidator
      * Normalises types, applies British English spelling corrections, enforces
      * word limits on titles, and ensures a valid structure for the SermonAnalysis DTO.
      *
-     * @param  array<string, mixed>  $analysisData  Raw analysis data from AI
+     * @param  array{title?: mixed, series?: mixed, reference?: mixed, points?: mixed, summary?: mixed}  $analysisData  Raw analysis data from AI
      * @param  string  $originalTranscript  Original transcript for fallback
      * @return array{
      *     title: string,
@@ -72,27 +72,15 @@ class SermonAnalysisValidator
     public function validateAndCleanAnalysisData(array $analysisData, string $originalTranscript): array
     {
         // Validate and clean title
-        $rawTitle = $analysisData['title'] ?? '';
-        $title = $this->validateAndCleanTitle(is_string($rawTitle) ? $rawTitle : (string) $rawTitle);
+        $title = $this->validateAndCleanTitle((string) ($analysisData['title'] ?? ''));
 
         // Validate series (must be null or non-empty string)
-        $series = null;
-        if (! empty($analysisData['series']) && is_string($analysisData['series'])) {
-            $series = trim($analysisData['series']);
-            if (empty($series) || strtolower($series) === 'null' || strtolower($series) === 'none') {
-                $series = null;
-            }
-        }
+        $series = $this->sanitizeAiNullableString($analysisData['series'] ?? null);
 
         // Validate reference (must be null or valid Bible reference format)
-        $reference = null;
-        if (! empty($analysisData['reference']) && is_string($analysisData['reference'])) {
-            $reference = trim($analysisData['reference']);
-            if (empty($reference) || strtolower($reference) === 'null' || strtolower($reference) === 'none') {
-                $reference = null;
-            } else {
-                $reference = $this->validateBibleReference($reference);
-            }
+        $reference = $this->sanitizeAiNullableString($analysisData['reference'] ?? null);
+        if ($reference !== null) {
+            $reference = $this->validateBibleReference($reference);
         }
 
         // Validate points (must be array of strings)
@@ -112,8 +100,7 @@ class SermonAnalysisValidator
         }
 
         // Validate and clean summary
-        $rawSummary = $analysisData['summary'] ?? '';
-        $summary = $this->validateAndCleanSummary(is_string($rawSummary) ? $rawSummary : (string) $rawSummary);
+        $summary = $this->validateAndCleanSummary((string) ($analysisData['summary'] ?? ''));
 
         return [
             'title' => $title,
@@ -240,5 +227,26 @@ class SermonAnalysisValidator
         }
 
         return $summary;
+    }
+
+    /**
+     * Sanitize a nullable string from AI response.
+     *
+     * Handles common AI patterns like 'null', 'none', and empty strings
+     * by normalizing them to PHP null.
+     */
+    private function sanitizeAiNullableString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        if ($trimmed === '' || strtolower($trimmed) === 'null' || strtolower($trimmed) === 'none') {
+            return null;
+        }
+
+        return $trimmed;
     }
 }
