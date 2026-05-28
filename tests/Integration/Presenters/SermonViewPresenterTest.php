@@ -13,6 +13,7 @@ use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -28,6 +29,8 @@ class SermonViewPresenterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->travelTo(Carbon::parse('2025-03-15 12:00:00'));
 
         Storage::fake('public');
         Config::set('media-processing.storage.sermon_disk', 'public');
@@ -127,9 +130,11 @@ class SermonViewPresenterTest extends TestCase
         Storage::disk('public')->put('thumbnails/test.jpg', 'thumb');
         Storage::disk('public')->put('transcripts/test.md', 'Transcript body');
 
+        $this->travelTo(Carbon::parse('2026-02-15 12:00:00'));
+
         $sermon = Sermon::factory()->create([
             'slug' => 'presented-sermon',
-            'date' => '2026-02-15',
+            'date' => now()->toDateString(),
             'preacher' => 'Test Preacher',
             'preacher_id' => $preacher->id,
             'audio_file_path' => 'sermons/test.mp3',
@@ -385,13 +390,13 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->make([
             'title' => 'The Prodigal Son',
             'preacher' => 'John Smith',
-            'date' => '2024-03-10',
+            'date' => now()->subDay(),
         ]);
 
         $description = $this->presenter->metaDescription($sermon);
 
         $this->assertStringContainsString("Listen to 'The Prodigal Son' by John Smith", $description);
-        $this->assertStringContainsString('preached on March 10, 2024', $description);
+        $this->assertStringContainsString('preached on March 14, 2025', $description);
     }
 
     #[Test]
@@ -400,7 +405,7 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->make([
             'title' => 'The Prodigal Son',
             'preacher' => 'John Smith',
-            'date' => '2024-03-10',
+            'date' => now()->subDay(),
             'reference' => 'Luke 15:11-32',
             'series' => 'Parables of Jesus',
         ]);
@@ -417,7 +422,7 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->make([
             'title' => 'The Prodigal Son',
             'preacher' => 'John Smith',
-            'date' => '2024-03-10',
+            'date' => now()->subDay(),
             'reference' => null,
             'series' => null,
             'show_summary' => true,
@@ -436,7 +441,7 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->make([
             'title' => 'The Prodigal Son',
             'preacher' => 'John Smith',
-            'date' => '2024-03-10',
+            'date' => now()->subDay(),
             'reference' => null,
             'series' => null,
             'show_summary' => false,
@@ -455,7 +460,7 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->make([
             'title' => $longTitle,
             'preacher' => 'John Smith',
-            'date' => '2024-03-10',
+            'date' => now()->subDay(),
             'reference' => null,
             'series' => null,
         ]);
@@ -473,7 +478,7 @@ class SermonViewPresenterTest extends TestCase
         $sermon = Sermon::factory()->make([
             'title' => 'The Prodigal Son',
             'preacher' => 'John Smith',
-            'date' => '2024-03-10',
+            'date' => now()->subDay(),
             'reference' => null,
             'series' => null,
             'show_summary' => true,
@@ -650,31 +655,40 @@ class SermonViewPresenterTest extends TestCase
     }
 
     #[Test]
-    public function pre_warm_for_admin_list_populates_formatted_dates_and_service_label_caches(): void
+    public function pre_warm_for_admin_list_populates_caches_behaviorally(): void
     {
+        $preacher = Preacher::factory()->create(['name' => 'Original Name']);
+        $passage = ScripturePassage::factory()->create(['display_reference' => 'Original Ref']);
+
         $sermon = Sermon::factory()->create([
-            'date' => '2025-03-15',
+            'preacher_id' => $preacher->id,
+            'scripture_passage_id' => $passage->id,
+            'date' => now()->toDateString(),
             'service' => SermonService::Morning,
         ]);
+        $sermon->load(['preacherProfile', 'scripturePassage']);
 
-        // Sanity check: caches start empty.
-        $reflection = new \ReflectionClass($this->presenter);
-        $datesProp = $reflection->getProperty('memoizedDates');
-        $datesProp->setAccessible(true);
-        $memoProp = $reflection->getProperty('memoized');
-        $memoProp->setAccessible(true);
-        $this->assertSame([], $datesProp->getValue($this->presenter));
-        $this->assertArrayNotHasKey('service_label_morning', $memoProp->getValue($this->presenter));
-
+        // 1. Pre-warm the presenter with the sermon collection
         $this->presenter->preWarmForAdminList(collect([$sermon]));
 
-        // Pre-warm must populate the date-format cache keyed by timestamp,
-        // and the service-label cache keyed by enum value. Without these,
-        // every admin list row re-formats the date string and re-derives
-        // the enum label, which the optimization removes.
-        $this->assertArrayHasKey($sermon->date->getTimestamp(), $datesProp->getValue($this->presenter));
-        $this->assertSame('Morning', $memoProp->getValue($this->presenter)['service_label_morning'] ?? null);
+        // 2. Mutate related data in memory. If the presenter cached these during
+        // pre-warm, it will NOT consult the profile/passage relations again.
+        $sermon->preacherProfile->name = 'New Name';
+        $sermon->scripturePassage->display_reference = 'New Ref';
+
+        // 3. Subsequent calls must hit the cache and return the original (pre-warmed) values.
+        // This confirms pre-warm did its job without inspecting private properties.
+        $this->assertSame('Original Name', $this->presenter->displayPreacherName($sermon));
+        $this->assertSame('Original Ref', $this->presenter->displayReference($sermon));
+
+        // These don't depend on external mutable state, but we check them to ensure
+        // pre-warm didn't break basic presentation.
         $this->assertSame('March 15, 2025', $this->presenter->formattedDates($sermon)['human']);
         $this->assertSame('Morning', $this->presenter->serviceLabel($sermon));
+
+        // 4. Clear caches and verify it now picks up the mutated values.
+        $this->presenter->clearInternalCaches();
+        $this->assertSame('New Name', $this->presenter->displayPreacherName($sermon));
+        $this->assertSame('New Ref', $this->presenter->displayReference($sermon));
     }
 }
