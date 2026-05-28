@@ -33,6 +33,8 @@ abstract class MediaProcessingRequest extends FormRequest
      * External uploader tools predate the Form Request migration and already
      * handle 400 for a malformed processingId. Preserving that contract here
      * means only body-field validation failures surface as 422.
+     *
+     * @throws HttpException
      */
     protected function assertProcessingIdShape(): void
     {
