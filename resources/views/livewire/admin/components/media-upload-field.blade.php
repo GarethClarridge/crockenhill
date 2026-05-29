@@ -36,7 +36,7 @@
 
         @if($file)
             <div class="mt-4">
-                <img src="{{ $file->temporaryUrl() }}" alt="Preview of selected image" class="w-32 h-32 object-cover rounded-lg mx-auto" />
+                <img src="{{ $file->temporaryUrl() }}" alt="Preview of selected image" class="w-32 h-32 object-cover rounded-lg mx-auto" loading="lazy" />
                 <x-form-button variant="primary" size="sm" wire:click="upload" class="mt-2">
                     Upload
                 </x-form-button>
