@@ -277,7 +277,7 @@ readonly class StandardProcessingResponse
                     : null,
             ],
             MediaType::Video => [
-                'has_thumbnail' => $log->sermon && ! empty($log->sermon->thumbnail_file_path),
+                'has_thumbnail' => $log->sermon && $log->sermon->hasThumbnail(),
                 'video_duration' => $log->duration,
             ],
             MediaType::Audio => [
@@ -288,8 +288,8 @@ readonly class StandardProcessingResponse
         // Add thumbnail data if sermon exists
         $sermon = $log->sermon;
         if ($sermon instanceof Sermon) {
-            $metadata['thumbnail_generated'] = ! empty($sermon->thumbnail_file_path);
-            $metadata['thumbnail_url'] = $sermon->thumbnail_file_path
+            $metadata['thumbnail_generated'] = $sermon->hasThumbnail();
+            $metadata['thumbnail_url'] = $sermon->hasThumbnail()
                 ? app(SermonStorageService::class)->getThumbnailUrl($sermon)
                 : null;
             $metadata['thumbnail_generated_at'] = $sermon->thumbnail_generated_at?->toISOString();

@@ -217,7 +217,7 @@ class SermonStorageService
     {
         $path = $this->getThumbnailCandidatePath($sermon, $candidateId, $variant);
 
-        if (! is_string($path) || $path === '') {
+        if (! filled($path)) {
             return null;
         }
 
@@ -278,11 +278,11 @@ class SermonStorageService
     {
         $videoPath = $sermon->video_file_path;
 
-        if (! is_string($videoPath) || $videoPath === '') {
+        if (! filled($videoPath)) {
             return null;
         }
 
-        $this->validatePath($videoPath, 'video file');
+        $this->validatePath((string) $videoPath, 'video file');
 
         if ($this->requiresGuardedDelivery($videoPath)) {
             return route('sermons.video', ['sermon' => $sermon->slug]);
@@ -503,26 +503,26 @@ class SermonStorageService
 
     private function resolveThumbnailUrl(Sermon $sermon, mixed $path, string $type): ?string
     {
-        if (! is_string($path) || $path === '') {
+        if (! filled($path)) {
             return null;
         }
 
-        $this->ensurePubliclyResolvable($path, $type);
+        $this->ensurePubliclyResolvable((string) $path, $type);
 
         return $this->resolvePublicUrl(
-            $this->resolveThumbnailDisk($path),
-            $path,
-            $this->thumbnailVersion($sermon, $path),
+            $this->resolveThumbnailDisk((string) $path),
+            (string) $path,
+            $this->thumbnailVersion($sermon, (string) $path),
         );
     }
 
     private function resolveThumbnailDeliveryUrl(Sermon $sermon, mixed $path, string $type, string $routeName): ?string
     {
-        if (! is_string($path) || $path === '') {
+        if (! filled($path)) {
             return null;
         }
 
-        $this->validatePath($path, $type);
+        $this->validatePath((string) $path, $type);
 
         if ($this->requiresGuardedDelivery($path)) {
             return route($routeName, ['sermon' => $sermon->slug]);
