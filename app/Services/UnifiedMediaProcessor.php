@@ -20,6 +20,12 @@ class UnifiedMediaProcessor
 {
     use SanitizesLogData;
 
+    /**
+     * Orchestrates the complete media processing lifecycle.
+     *
+     * Serves as the central coordination layer between controllers,
+     * initiators, validators, and the background job orchestrator.
+     */
     public function __construct(
         private readonly ProcessingInitiator $processingInitiator,
         private readonly MetadataExtractionService $metadataService,
@@ -29,7 +35,18 @@ class UnifiedMediaProcessor
     ) {}
 
     /**
-     * @param  array<string, mixed>  $options
+     * Entry point for all media uploads (audio, video, and livestream).
+     *
+     * Handles deduplication, validation, and dispatches the file to the
+     * appropriate processing pipeline based on its MediaType.
+     *
+     * @param  string  $type  The media type string (audio, video, livestream)
+     * @param  UploadedFile  $file  The uploaded media file
+     * @param  string|null  $clientFileDate  Optional date provided by the client
+     * @param  array{auto_trim?: bool, video_processing_mode?: string}  $options  Processing configuration
+     * @return ProcessingResult The result of the initiation attempt
+     *
+     * @throws UniqueConstraintViolationException If a duplicate race occurs
      */
     public function process(
         string $type,
@@ -88,11 +105,25 @@ class UnifiedMediaProcessor
         }
     }
 
+    /**
+     * Retrieve the current processing status for a given ID.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return StandardProcessingResponse The current state snapshot
+     */
     public function getStatus(string $processingId): StandardProcessingResponse
     {
         return $this->getMediaProcessingStatus->get($processingId);
     }
 
+    /**
+     * Retrieve status along with recent processing logs.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  bool  $includeLogs  Whether to include the log collection
+     * @param  int  $logLimit  Maximum number of recent log entries to return
+     * @return StandardProcessingResponse The status with attached logs
+     */
     public function getStatusWithLogs(string $processingId, bool $includeLogs = false, int $logLimit = 20): StandardProcessingResponse
     {
         if (! $includeLogs) {
@@ -103,7 +134,10 @@ class UnifiedMediaProcessor
     }
 
     /**
-     * @return array{success: bool, message: string}
+     * Attempt to cancel an active processing run.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return array{success: bool, message: string} Whether cancellation was successful
      */
     public function cancel(string $processingId): array
     {
@@ -121,6 +155,12 @@ class UnifiedMediaProcessor
         ];
     }
 
+    /**
+     * Attempt to restart a failed or cancelled processing run.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return ProcessingResult The result of the retry initiation
+     */
     public function retry(string $processingId): ProcessingResult
     {
         $log = $this->getMediaProcessingStatus->find($processingId);
@@ -136,6 +176,14 @@ class UnifiedMediaProcessor
         return $this->processingRunOrchestrator->retry($log);
     }
 
+    /**
+     * Verify if the processor can manage a given processing ID.
+     *
+     * Useful for pre-flight checks before attempting status or cancel actions.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return bool True if the record exists and is accessible
+     */
     public function canHandle(string $processingId): bool
     {
         return $this->getMediaProcessingStatus->canHandle($processingId);
