@@ -20,6 +20,7 @@
                                     src="{{ $candidate['preview_url'] }}"
                                     alt="Thumbnail candidate {{ $loop->iteration }}"
                                     class="h-32 w-full rounded-lg border border-gray-200 object-cover"
+                                    loading="lazy"
                                 >
                             @endif
 
@@ -35,6 +36,7 @@
                                         src="{{ $candidate['card_url'] }}"
                                         alt="Card thumbnail candidate {{ $loop->iteration }}"
                                         class="h-16 w-24 rounded-md border border-gray-200 object-cover"
+                                        loading="lazy"
                                     >
                                 @endif
                             </div>
@@ -67,6 +69,7 @@
                     src="{{ route('sermons.thumbnail', $sermon->slug) }}"
                     alt="Current sermon thumbnail"
                     class="h-32 w-full rounded-lg border border-gray-200 object-cover"
+                    loading="lazy"
                 >
                 <p class="text-sm text-gray-600">
                     This sermon has an existing thumbnail but no saved alternatives yet. Regenerate thumbnails to create five selectable options.

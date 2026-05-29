@@ -61,7 +61,26 @@ class ListSectionPublications extends Component
         $this->hasFilters = $search !== ''
             || $this->publicationStatus !== ServiceSectionPublicationStatus::PendingApproval->value;
 
+        /**
+         * Performance Optimization: Limits retrieved columns for service sections
+         * and eager-loaded relationships to required fields to reduce memory usage
+         * and DB I/O.
+         */
         $sections = ServiceSection::query()
+            ->select([
+                'id',
+                'media_processing_log_id',
+                'section_type',
+                'title',
+                'start_time',
+                'end_time',
+                'publication_status',
+                'published_sermon_id',
+                'confidence',
+                'metadata',
+                'created_at',
+                'updated_at',
+            ])
             ->with([
                 'processingLog:id,processing_id,extracted_date,extracted_service,processing_metadata',
                 'publishedSermon:id,title,slug,content_type',
