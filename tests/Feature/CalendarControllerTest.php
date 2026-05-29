@@ -189,7 +189,7 @@ class CalendarControllerTest extends TestCase
             'start_datetime' => now()->addDays(1),
             'end_datetime' => now()->addDays(1)->addHour(),
             'status' => 'confirmed',
-            'title' => 'Uncategorized Upcoming',
+            'title' => 'Uncategorised Upcoming',
         ]);
 
         CalendarEvent::factory()->create([
@@ -197,7 +197,7 @@ class CalendarControllerTest extends TestCase
             'start_datetime' => now()->subDays(1),
             'end_datetime' => now()->subDays(1)->addHour(),
             'status' => 'confirmed',
-            'title' => 'Uncategorized Past',
+            'title' => 'Uncategorised Past',
         ]);
 
         CalendarEvent::factory()->create([
@@ -205,7 +205,7 @@ class CalendarControllerTest extends TestCase
             'start_datetime' => now()->addDays(2),
             'end_datetime' => now()->addDays(2)->addHour(),
             'status' => 'tentative',
-            'title' => 'Uncategorized Tentative',
+            'title' => 'Uncategorised Tentative',
         ]);
 
         CalendarEvent::factory()->create([
@@ -213,16 +213,16 @@ class CalendarControllerTest extends TestCase
             'start_datetime' => now()->addDays(1),
             'end_datetime' => now()->addDays(1)->addHour(),
             'status' => 'confirmed',
-            'title' => 'Categorized Upcoming',
+            'title' => 'Categorised Upcoming',
         ]);
 
         $response = $this->get(route('calendar.uncategorized'));
 
         $response->assertStatus(200);
-        $response->assertSee('Uncategorized Upcoming');
-        $response->assertDontSee('Uncategorized Past');
-        $response->assertDontSee('Uncategorized Tentative');
-        $response->assertDontSee('Categorized Upcoming');
+        $response->assertSee('Uncategorised Upcoming');
+        $response->assertDontSee('Uncategorised Past');
+        $response->assertDontSee('Uncategorised Tentative');
+        $response->assertDontSee('Categorised Upcoming');
     }
 
     #[Test]

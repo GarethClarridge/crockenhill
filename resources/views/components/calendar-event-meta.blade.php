@@ -13,7 +13,7 @@
 @php
 $meeting = $meeting ?? $event->meeting;
 $isUncategorized = $event->meeting_slug === null;
-$meetingLabel = $event->meeting_slug ?? 'Uncategorized';
+$meetingLabel = $event->meeting_slug ?? 'Uncategorised';
 @endphp
 
 <div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mb-3">

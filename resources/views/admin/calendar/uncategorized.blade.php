@@ -4,8 +4,8 @@
 <x-admin.shell heading="Categorise Calendar Events">
 
 <x-admin.page
-    title="Uncategorized Events"
-    description="These events couldn't be automatically categorized. Please assign them to the appropriate meeting type."
+    title="Uncategorised Events"
+    description="These events couldn't be automatically categorised. Please assign them to the appropriate meeting type."
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.calendar.patterns') }}" variant="outline" inline>
@@ -42,7 +42,7 @@
                             />
 
                             <x-form-button type="submit" variant="primary" size="sm">
-                                Categorize
+                                Categorise
                             </x-form-button>
                         </form>
                     </div>
@@ -52,8 +52,8 @@
     @else
         <div class="text-center py-12">
             <x-heroicon-o-check-circle class="mx-auto h-12 w-12 text-green-400" />
-            <h3 class="mt-2 text-sm font-medium text-gray-900">All events are categorized</h3>
-            <p class="mt-1 text-sm text-gray-500">Great! All calendar events have been properly categorized.</p>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">All events are categorised</h3>
+            <p class="mt-1 text-sm text-gray-500">Great! All calendar events have been properly categorised.</p>
         </div>
     @endif
 

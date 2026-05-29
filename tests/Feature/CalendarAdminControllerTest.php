@@ -175,6 +175,7 @@ class CalendarAdminControllerTest extends TestCase
 
         $response->assertSessionHas('success');
         $this->assertStringContainsString('synced to Google Calendar', session('success'));
+        $this->assertStringContainsString('categorised', session('success'));
     }
 
     #[Test]
@@ -198,6 +199,7 @@ class CalendarAdminControllerTest extends TestCase
         $response->assertSessionHas('success');
         $this->assertStringContainsString('Google sync failed', session('success'));
         $this->assertStringContainsString('will retry on next sync', session('success'));
+        $this->assertStringContainsString('categorised', session('success'));
     }
 
     #[Test]
@@ -340,6 +342,6 @@ class CalendarAdminControllerTest extends TestCase
         $successMessage = session('success');
         $this->assertStringContainsString('Processed: 5', $successMessage);
         $this->assertStringContainsString('Deleted: 1', $successMessage);
-        $this->assertStringContainsString('Uncategorized: 2', $successMessage);
+        $this->assertStringContainsString('Uncategorised: 2', $successMessage);
     }
 }

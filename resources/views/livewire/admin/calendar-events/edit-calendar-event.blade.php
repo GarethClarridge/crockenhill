@@ -36,7 +36,7 @@
     </x-card>
 
     <x-slot:sidebar>
-        <x-card heading="Categorization">
+        <x-card heading="Categorisation">
             <div class="space-y-4">
                 <x-select label="Meeting" wire:model="meetingSlug"
                     :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])->values()->toArray()"
@@ -54,7 +54,7 @@
                 @if($calendarEvent->google_event_id)
                     <p class="text-sm"><span class="font-semibold">Google ID:</span> {{ Str::limit($calendarEvent->google_event_id, 20) }}</p>
                 @endif
-                <p class="text-sm"><span class="font-semibold">Auto-categorized:</span> {{ $calendarEvent->is_categorized_automatically ? 'Yes' : 'No' }}</p>
+                <p class="text-sm"><span class="font-semibold">Auto-categorised:</span> {{ $calendarEvent->is_categorized_automatically ? 'Yes' : 'No' }}</p>
             </div>
         </x-card>
     </x-slot:sidebar>
