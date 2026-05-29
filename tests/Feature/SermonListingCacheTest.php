@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
@@ -16,24 +17,35 @@ class SermonListingCacheTest extends TestCase
 
     protected $seed = true;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        DB::enableQueryLog();
+    }
+
+    protected function tearDown(): void
+    {
+        DB::disableQueryLog();
+        parent::tearDown();
+    }
+
     #[Test]
     public function series_page_caches_sermons(): void
     {
         Sermon::factory()->create(['series' => 'Genesis']);
         $url = '/christ/sermons/series/genesis';
 
-        // Warm the cache
         $this->get($url)->assertOk();
 
-        // Verify caching via behavior: second request should perform no sermon queries
-        DB::enableQueryLog();
+        app(SermonRepository::class)->clearInternalCaches();
+        DB::flushQueryLog();
+
         $this->get($url)->assertOk();
 
         $sermonQueries = collect(DB::getQueryLog())
             ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
 
         $this->assertCount(0, $sermonQueries, 'Sermons should be retrieved from cache, not database');
-        DB::disableQueryLog();
     }
 
     #[Test]
@@ -42,18 +54,17 @@ class SermonListingCacheTest extends TestCase
         Sermon::factory()->create(['service' => 'morning']);
         $url = '/christ/sermons/morning';
 
-        // Warm the cache
         $this->get($url)->assertOk();
 
-        // Verify caching via behavior: second request should perform no sermon queries
-        DB::enableQueryLog();
+        app(SermonRepository::class)->clearInternalCaches();
+        DB::flushQueryLog();
+
         $this->get($url)->assertOk();
 
         $sermonQueries = collect(DB::getQueryLog())
             ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
 
         $this->assertCount(0, $sermonQueries, 'Sermons should be retrieved from cache, not database');
-        DB::disableQueryLog();
     }
 
     #[Test]
@@ -62,20 +73,18 @@ class SermonListingCacheTest extends TestCase
         $sermon = Sermon::factory()->create(['series' => 'Genesis']);
         $url = '/christ/sermons/series/genesis';
 
-        // Warm the cache
         $this->get($url)->assertOk();
 
         $sermon->update(['title' => 'Updated Genesis Sermon']);
 
-        // Verify invalidation: next request should re-query the database
-        DB::enableQueryLog();
+        DB::flushQueryLog();
+
         $this->get($url)->assertOk();
 
         $sermonQueries = collect(DB::getQueryLog())
             ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
 
         $this->assertNotEmpty($sermonQueries, 'Sermon cache should have been invalidated');
-        DB::disableQueryLog();
     }
 
     #[Test]
@@ -84,19 +93,17 @@ class SermonListingCacheTest extends TestCase
         $sermon = Sermon::factory()->create(['service' => 'morning']);
         $url = '/christ/sermons/morning';
 
-        // Warm the cache
         $this->get($url)->assertOk();
 
         $sermon->delete();
 
-        // Verify invalidation: next request should re-query the database
-        DB::enableQueryLog();
+        DB::flushQueryLog();
+
         $this->get($url)->assertOk();
 
         $sermonQueries = collect(DB::getQueryLog())
             ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
 
         $this->assertNotEmpty($sermonQueries, 'Sermon cache should have been invalidated');
-        DB::disableQueryLog();
     }
 }
