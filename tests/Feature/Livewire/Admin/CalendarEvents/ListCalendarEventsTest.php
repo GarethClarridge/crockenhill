@@ -84,13 +84,13 @@ class ListCalendarEventsTest extends TestCase
         $this->actingAs($this->admin);
 
         Meeting::factory()->create(['slug' => 'existing-meeting']);
-        CalendarEvent::factory()->create(['title' => 'Categorized Event', 'meeting_slug' => 'existing-meeting', 'start_datetime' => now()->addDay()]);
-        CalendarEvent::factory()->create(['title' => 'Uncategorized Event', 'meeting_slug' => null, 'start_datetime' => now()->addDays(2)]);
+        CalendarEvent::factory()->create(['title' => 'Categorised Event', 'meeting_slug' => 'existing-meeting', 'start_datetime' => now()->addDay()]);
+        CalendarEvent::factory()->create(['title' => 'Uncategorised Event', 'meeting_slug' => null, 'start_datetime' => now()->addDays(2)]);
 
         Livewire::test(ListCalendarEvents::class)
             ->set('uncategorizedOnly', true)
-            ->assertSee('Uncategorized Event')
-            ->assertDontSee('Categorized Event');
+            ->assertSee('Uncategorised Event')
+            ->assertDontSee('Categorised Event');
     }
 
     #[Test]
@@ -134,7 +134,7 @@ class ListCalendarEventsTest extends TestCase
 
         Livewire::test(ListCalendarEvents::class)
             ->call('categorize', $event->id, 'new-meeting')
-            ->assertDispatched('notify', type: 'success', message: 'Event categorized');
+            ->assertDispatched('notify', type: 'success', message: 'Event categorised');
     }
 
     #[Test]

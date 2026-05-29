@@ -1,6 +1,6 @@
 <x-admin.list-shell
     title="Calendar Events"
-    description="Manage and categorize calendar events"
+    description="Manage and categorise calendar events"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.calendar.sync') }}" variant="secondary" icon="arrow-path" inline>
@@ -17,7 +17,7 @@
                 :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])->values()->toArray()"
                 class="w-48" />
 
-            <x-toggle label="Uncategorized Only" wire:model.live="uncategorizedOnly" />
+            <x-toggle label="Uncategorised Only" wire:model.live="uncategorizedOnly" />
             <x-toggle label="Upcoming Only" wire:model.live="upcomingOnly" />
 
             <x-slot:actions>
@@ -76,11 +76,11 @@
                         @else
                             <div class="flex gap-2 items-center">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                                    Uncategorized
+                                    Uncategorised
                                 </span>
                                 <select wire:change="categorize({{ $event->id }}, $event.target.value)"
                                     class="text-xs rounded-md border-gray-300 shadow-sm focus:border-cbc-teal focus:ring-cbc-teal w-40">
-                                    <option value="">Categorize...</option>
+                                    <option value="">Categorise...</option>
                                     @foreach($meetings as $slug => $name)
                                         <option value="{{ $slug }}">{{ $name }}</option>
                                     @endforeach

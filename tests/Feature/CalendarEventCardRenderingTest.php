@@ -143,7 +143,7 @@ class CalendarEventCardRenderingTest extends TestCase
             ['event' => $uncategorized],
         );
 
-        $this->assertStringContainsString('Uncategorized', $rendered);
+        $this->assertStringContainsString('Uncategorised', $rendered);
         $this->assertStringContainsString('bg-yellow-100', $rendered);
     }
 

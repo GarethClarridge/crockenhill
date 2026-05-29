@@ -37,7 +37,7 @@ class CalendarAdminController extends Controller
             'uncategorizedEvents' => $uncategorizedEvents,
             'meetings' => $meetings,
             'heading' => 'Categorise Calendar Events',
-            'description' => 'Review uncategorized calendar events.',
+            'description' => 'Review uncategorised calendar events.',
             'content' => '',
             'links' => collect(),
         ]);
@@ -53,8 +53,8 @@ class CalendarAdminController extends Controller
         );
 
         $message = $result->googleSynced
-            ? "Event '{$result->event->title}' categorized and synced to Google Calendar"
-            : "Event '{$result->event->title}' categorized (Google sync failed — will retry on next sync)";
+            ? "Event '{$result->event->title}' categorised and synced to Google Calendar"
+            : "Event '{$result->event->title}' categorised (Google sync failed — will retry on next sync)";
 
         return redirect()->back()->with('success', $message);
     }
@@ -91,7 +91,7 @@ class CalendarAdminController extends Controller
             return redirect()->back()->with('success',
                 "Sync completed! Processed: {$report['processed_events']}, ".
                 "Deleted: {$report['deleted_events']}, ".
-                "Uncategorized: {$report['uncategorized_events']}"
+                "Uncategorised: {$report['uncategorized_events']}"
             );
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Sync failed: '.$e->getMessage());

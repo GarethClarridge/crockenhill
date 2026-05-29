@@ -213,7 +213,7 @@ Church
       good news of salvation to all people through Jesus Christ.
     </p>
     <p>
-      We believe that the gospel centers on the death of Jesus
+      We believe that the gospel centres on the death of Jesus
       Christ on the cross in our place.
     </p>
     <p>

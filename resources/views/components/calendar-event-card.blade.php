@@ -13,7 +13,7 @@
 @php
 $meeting = $meeting ?? $event->meeting;
 $isUncategorized = $event->meeting_slug === null;
-$meetingLabel = $event->meeting_slug ?? 'Uncategorized';
+$meetingLabel = $event->meeting_slug ?? 'Uncategorised';
 $cardClasses = match($variant) {
     'compact' => 'bg-gray-50 rounded-lg border border-gray-200 p-4',
     'admin'   => 'max-w-full rounded-lg shadow bg-white border-1 border-gray-300 p-0 m-2',

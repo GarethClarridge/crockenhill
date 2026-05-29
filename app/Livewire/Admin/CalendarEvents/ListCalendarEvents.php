@@ -56,7 +56,7 @@ class ListCalendarEvents extends Component
             app(CategorizeCalendarEvent::class)->execute($event, $meetingSlug);
         }
 
-        $this->success('Event categorized');
+        $this->success('Event categorised');
     }
 
     public function render(): View

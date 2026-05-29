@@ -4,12 +4,12 @@
 <x-admin.shell heading="Calendar Patterns">
 
 <x-admin.page
-    title="Calendar Categorization Patterns"
-    description="These patterns are used to automatically categorize calendar events based on their titles. Patterns are defined in the config/calendar.php file."
+    title="Categorisation Patterns"
+    description="These patterns are used to automatically categorise calendar events based on their titles. Patterns are defined in the config/calendar.php file."
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.calendar.uncategorized') }}" variant="outline" inline>
-            &larr; Uncategorized Events
+            &larr; Uncategorised Events
         </x-button>
     </x-slot:actions>
 
@@ -69,10 +69,10 @@
             <div>
                 <h3 class="text-sm font-medium text-gray-900">How Pattern Matching Works</h3>
                 <ul class="mt-2 text-sm text-gray-600 list-disc pl-5 space-y-1">
-                    <li>Events are automatically categorized when their title contains any of the defined patterns</li>
+                    <li>Events are automatically categorised when their title contains any of the defined patterns</li>
                     <li>Matching is performed during calendar sync from Google Calendar</li>
-                    <li>Events that don't match any pattern are marked as "uncategorized"</li>
-                    <li>Manual categorization via Extended Properties always takes precedence</li>
+                    <li>Events that don't match any pattern are marked as "uncategorised"</li>
+                    <li>Manual categorisation via Extended Properties always takes precedence</li>
                 </ul>
             </div>
         </div>
