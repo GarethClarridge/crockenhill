@@ -19,12 +19,12 @@ class PreacherItemListPresenter
     {
         $orgName = (string) config('organization.name');
         $appUrl = (string) config('app.url');
-        $appId = $appUrl.'/';
+        $orgId = $appUrl.'/#organization';
 
         $worksFor = [
             '@type' => 'Organization',
             'name' => $orgName,
-            '@id' => $appId,
+            '@id' => $orgId,
         ];
 
         return [
@@ -32,10 +32,12 @@ class PreacherItemListPresenter
             '@type' => 'ItemList',
             'numberOfItems' => $preachers->count(),
             'itemListElement' => $preachers->map(function ($preacher, $index) use ($worksFor) {
+                $preacherUrl = route('sermons.preacher', ['preacher' => $preacher->slug]);
                 $item = [
                     '@type' => 'Person',
+                    '@id' => $preacherUrl.'#person',
                     'name' => $preacher->name,
-                    'url' => route('sermons.preacher', ['preacher' => $preacher->slug]),
+                    'url' => $preacherUrl,
                     'jobTitle' => 'Preacher',
                     'worksFor' => $worksFor,
                 ];
