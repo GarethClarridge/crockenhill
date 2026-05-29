@@ -52,7 +52,7 @@ class AdminCalendarEventTest extends TestCase
 
         Livewire::test(ListCalendarEvents::class)
             ->call('categorize', $event->id, $meeting->slug)
-            ->assertDispatched('notify', type: 'success', message: 'Event categorized');
+            ->assertDispatched('notify', type: 'success', message: 'Event categorised');
 
         $this->assertDatabaseHas('calendar_events', [
             'id' => $event->id,
@@ -226,7 +226,7 @@ class AdminCalendarEventTest extends TestCase
 
         Livewire::test(ListCalendarEvents::class)
             ->call('categorize', $event->id, $meeting->slug)
-            ->assertDispatched('notify', type: 'success', message: 'Event categorized');
+            ->assertDispatched('notify', type: 'success', message: 'Event categorised');
 
         $this->assertDatabaseHas('calendar_events', [
             'id' => $event->id,
