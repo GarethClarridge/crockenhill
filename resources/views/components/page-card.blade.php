@@ -16,9 +16,11 @@
     $pageUrl = data_get($page, 'url');
 
     if (! is_string($pageUrl) || $pageUrl === '') {
-        $pageUrl = $pageArea === 'sermons'
-            ? '/christ/sermons/'.$pageSlug
-            : '/'.$pageArea.'/'.$pageSlug;
+        $pageUrl = match (true) {
+            $pageArea === 'sermons' && $pageSlug === 'all' => route('sermons.index'),
+            $pageArea === 'sermons' => '/christ/sermons/'.$pageSlug,
+            default => '/'.$pageArea.'/'.$pageSlug,
+        };
     }
 @endphp
 <div class="group relative mb-4 flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">

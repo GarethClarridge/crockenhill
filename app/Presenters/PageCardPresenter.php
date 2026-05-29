@@ -20,15 +20,19 @@ class PageCardPresenter
     {
         $area = $page->area->value;
 
+        $url = match (true) {
+            $area === 'sermons' && $page->slug === 'all' => route('sermons.index'),
+            $area === 'sermons' => "/christ/sermons/{$page->slug}",
+            default => '/'.$area.'/'.$page->slug,
+        };
+
         return [
             'area' => $area,
             'description' => $page->description,
             'heading' => $page->heading,
             'image_url' => $this->pageImagePresenter->headingImageSmallUrl($page) ?? '/images/headings/small/default.webp',
             'slug' => $page->slug,
-            'url' => $area === 'sermons'
-                ? "/christ/sermons/{$page->slug}"
-                : '/'.$area.'/'.$page->slug,
+            'url' => $url,
         ];
     }
 
