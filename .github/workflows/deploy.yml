@@ -100,6 +100,26 @@ jobs:
       - name: Run migrations
         run: php artisan migrate --force
 
+      - name: Verify schema dump is current
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for f in database/migrations/*.php; do
+            name=$(basename "$f" .php)
+            if ! grep -qF "'${name}'" database/schema/mysql-schema.sql; then
+              missing+=("$name")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf "Schema dump is stale. Missing migrations:\n"
+            printf "  %s\n" "${missing[@]}"
+            echo ""
+            echo "Fix: vendor/bin/sail artisan schema:dump  (never --prune)"
+            exit 1
+          fi
+          echo "Schema dump is current."
+
       - name: Formatting (Pint)
         run: ./vendor/bin/pint --test
         continue-on-error: true

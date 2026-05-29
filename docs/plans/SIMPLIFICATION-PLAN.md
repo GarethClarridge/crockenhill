@@ -2,7 +2,7 @@
 
 Consolidated 2026-05-22 from the prior dated plans (`SIMPLIFICATION-PLAN-2026-02-25.md` and `SIMPLIFICATION-PLAN-2026-05-22.md`). Phases that were already completed in the 2026-02-25 plan have been dropped — see [docs/archived-plans/SIMPLIFICATION-PLAN-2026-02-25.md](../archived-plans/SIMPLIFICATION-PLAN-2026-02-25.md) for the historical execution log.
 
-This file tracks only work that still appears necessary, re-audited against the current codebase on 2026-05-22.
+This file tracks only work that still appears necessary, re-audited against the current codebase on 2026-05-22 and spot-checked again on 2026-05-29.
 
 ## Scope
 
@@ -22,9 +22,9 @@ Phase numbers from the prior plans are preserved to keep prior context reference
 
 ### Phase 9: Legacy Storage Migration and Cleanup
 
-Priority: **Critical** — last reported audit found 93% of sermons (662/710) still on legacy storage patterns. Re-confirm before execution.
+Priority: **Medium** — the legacy runtime fallback still exists, but the 2026-05-29 local database spot-check found no remaining legacy-pattern sermon audio paths (`817` sermons total, `810` with audio paths, `0` bare legacy filenames, `810` slash-delimited paths, `7` empty audio paths). Re-confirm against the target production dataset before deleting fallback support.
 
-Status: **Pending** — runtime still branches on legacy formats in `SermonStorageService::getSermonFileInfo()`.
+Status: **Pending / mostly migrated** — runtime still branches on legacy formats in `SermonStorageService::getSermonFileInfo()`, but the current local data no longer appears to need the legacy branch.
 
 Target files:
 
@@ -38,11 +38,11 @@ Tooling (already complete — no changes needed):
 
 Tasks:
 
-- [ ] Run `MigrateSermonStorageCommand` with `--dry-run` first to preview scope and catch issues.
-- [ ] Execute the migration against the target disk to canonicalize the remaining legacy sermons.
+- [ ] Run `MigrateSermonStorageCommand` with `--dry-run` first to preview scope and catch issues in the target environment.
+- [ ] If the target environment still has legacy rows, execute the migration against the target disk to canonicalize them.
 - [ ] Run `VerifySermonStorageCommand` to confirm all files are accessible in canonical locations.
 - [ ] Strip legacy-pattern detection from `SermonStorageService::getSermonFileInfo()` and `resolveFileInfo()`.
-- [ ] Remove `filetype` column dependency and `legacy_disk` configuration.
+- [ ] Remove remaining `filetype` dependency from runtime storage resolution. `legacy_disk` configuration is already gone from `config/media-processing.php`; only the service fallback default remains.
 - [ ] Remove `MigrateSermonStorageCommand` and `VerifySermonStorageCommand` after verification.
 
 Exit criteria:
@@ -52,21 +52,21 @@ Exit criteria:
 
 ### Phase 13: Schema Snapshot and Migration Hygiene
 
-Priority: **Medium** — schema dump was regenerated on 2026-05-21, but no drift guardrail exists.
+Priority: **Medium** — schema dump was regenerated previously, but it has drifted again and no drift guardrail exists.
 
-Status: **Partially complete** — dump is fresh; guardrails still missing.
+Status: **Complete** — dump regenerated to include all migrations through `2026_05_26_165514_fortify_song_identity_columns`; CI drift gate added to `deploy.yml`.
 
 Target files:
 
-- [database/schema/mysql-schema.sql](../../database/schema/mysql-schema.sql) — currently fresh; needs a mechanism to stay fresh.
+- [database/schema/mysql-schema.sql](../../database/schema/mysql-schema.sql) — currently stale; needs regeneration or removal from the bootstrap strategy.
 - CI or local tooling that depends on schema snapshots.
 - [AuditSchemaGuardrailsCommand](../../app/Console/Commands) — already exists; confirm it is wired into a regular check.
 
 Tasks:
 
-- [ ] Decide one approach and enforce it: keep the schema dump current, or stop relying on it.
-- [ ] If retained, add a CI check (or pre-push hook) that fails when migrations diverge from `mysql-schema.sql`.
-- [ ] Remove stale tooling assumptions tied to pre-cleanup schema shapes.
+- [x] Decide one approach and enforce it: keep the schema dump current, or stop relying on it.
+- [x] If retained, regenerate the dump after all current migrations, then add a CI check (or pre-push hook) that fails when migrations diverge from `mysql-schema.sql`.
+- [x] Remove stale tooling assumptions tied to pre-cleanup schema shapes.
 
 Exit criteria:
 
@@ -77,16 +77,16 @@ Exit criteria:
 
 Priority: **Low-Medium** — incremental work, no urgency.
 
-Status: **Pending** — five services remain oversized. Current line counts (2026-05-22):
+Status: **Pending** — six hotspots remain oversized, including five services plus the `SermonViewPresenter` outlier. Current line counts (2026-05-29):
 
 | Service | Lines | Public Methods (prior count) |
 |---------|------:|---------------:|
-| [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 952 | — |
-| [MetadataExtractionService](../../app/Services/MetadataExtractionService.php) | 887 | 12 |
+| [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 995 | — |
+| [MetadataExtractionService](../../app/Services/MetadataExtractionService.php) | 891 | 12 |
 | [ThumbnailGenerationService](../../app/Services/ThumbnailGenerationService.php) | 848 | 7 |
-| [VideoExtractionService](../../app/Services/VideoExtractionService.php) | 582 | 8 |
-| [AudioTranscriptionService](../../app/Services/AudioTranscriptionService.php) | 550 | 8 |
-| [SermonAnalysisService](../../app/Services/SermonAnalysisService.php) | 475 | 6 |
+| [VideoExtractionService](../../app/Services/VideoExtractionService.php) | 579 | 8 |
+| [AudioTranscriptionService](../../app/Services/AudioTranscriptionService.php) | 558 | 8 |
+| [SermonAnalysisService](../../app/Services/SermonAnalysisService.php) | 502 | 6 |
 
 `SermonViewPresenter` is added here from the May audit — it is the largest single class in the codebase.
 
@@ -112,7 +112,7 @@ Status: **Pending**.
 Tasks:
 
 - [ ] Move the file to `app/Exceptions/` and update the namespace to `App\Exceptions`.
-- [ ] Update the single caller (`ApiBibleClient`) and any test imports.
+- [ ] Update callers (`ApiBibleClient`, `FetchBibleTextForSermon`) and any test imports.
 - [ ] Run PHPStan + the API Bible test file to confirm.
 
 Exit criteria:
@@ -190,7 +190,7 @@ Status: **Pending**.
 There are currently three distinct implementations of the same path-traversal / scheme-injection guard:
 
 1. [app/Traits/HandlesSafePaths.php](../../app/Traits/HandlesSafePaths.php) — the canonical version (`isUnsafePath()`), used by 5 callers.
-2. [app/Actions/DeleteLivestreamUpload.php:310](../../app/Actions/DeleteLivestreamUpload.php#L310) and [app/Actions/DeleteLivestreamUpload.php:436-447](../../app/Actions/DeleteLivestreamUpload.php#L436-L447) — open-coded `str_contains($path, '..')` and starts-with-`/` checks.
+2. [app/Actions/DeleteLivestreamUpload.php:310](../../app/Actions/DeleteLivestreamUpload.php#L310) and [app/Actions/DeleteLivestreamUpload.php:436-447](../../app/Actions/DeleteLivestreamUpload.php#L436-L447) — open-coded `str_contains($path, '..')`, absolute path, and Windows drive-letter checks.
 3. [app/Models/Preacher.php:117](../../app/Models/Preacher.php#L117) — separate `http|//|/` check on `image_path`.
 
 Tasks:
@@ -209,12 +209,12 @@ Priority: **Medium** — clarifies an existing naming inconsistency.
 
 Status: **Pending**.
 
-The four classes under [app/Repositories/](../../app/Repositories/) are not repositories in the DDD sense. They are read-side caching wrappers:
+Three of the four classes under [app/Repositories/](../../app/Repositories/) are not repositories in the DDD sense. They are read-side caching wrappers:
 
-- [MeetingListRepository.php](../../app/Repositories/MeetingListRepository.php) — 33 lines, single `Cache::flexible` call.
-- [PreacherListRepository.php](../../app/Repositories/PreacherListRepository.php) — 53 lines, two cached lookups.
-- [PageRepository.php](../../app/Repositories/PageRepository.php) — 90 lines, three cached lookups + cache-bust helper.
-- [SermonRepository.php](../../app/Repositories/SermonRepository.php) — 556 lines (this one *is* a real repository; leave it).
+- [MeetingListRepository.php](../../app/Repositories/MeetingListRepository.php) — 58 lines, single cached lookup plus request memoization.
+- [PreacherListRepository.php](../../app/Repositories/PreacherListRepository.php) — 87 lines, two cached lookups plus request memoization.
+- [PageRepository.php](../../app/Repositories/PageRepository.php) — 125 lines, two cached lookups + cache-bust helper.
+- [SermonRepository.php](../../app/Repositories/SermonRepository.php) — 696 lines (this one *is* a real repository with substantive query logic; leave it).
 
 Two sibling classes already follow a cleaner convention in `Services/`: [PublicPageReadModelCache.php](../../app/Services/PublicPageReadModelCache.php) and [PublicMeetingReadModelCache.php](../../app/Services/PublicMeetingReadModelCache.php). Having both `Repositories/` and `Services/` host the same pattern doubles the place a future reader has to look.
 
@@ -224,7 +224,7 @@ Tasks:
 - [ ] Rename `PreacherListRepository` → `PreacherListCache`, move to `app/Services/`.
 - [ ] Rename `PageRepository` → `PageListCache`, move to `app/Services/`. (The `ADMIN_LIST_CACHE_KEY` constants and observer references must be updated.)
 - [ ] Leave `SermonRepository` in place — it is a genuine repository with substantive query logic.
-- [ ] Update [SitemapCacheObserver.php](../../app/Observers/SitemapCacheObserver.php), [PreacherObserver.php](../../app/Observers/PreacherObserver.php), and any controllers/Livewire components that import from `App\Repositories`.
+- [ ] Update [SitemapCacheObserver.php](../../app/Observers/SitemapCacheObserver.php), [AppServiceProvider.php](../../app/Providers/AppServiceProvider.php), `tests/TestCase.php`, and any controllers/Livewire components/presenters/tests that import the renamed classes from `App\Repositories`. `PreacherObserver` no longer imports these classes.
 
 Exit criteria:
 
@@ -242,13 +242,13 @@ Several action classes are pure single-call delegations and serve no test-seam p
 Candidates (verify call counts before deleting):
 
 - [app/Actions/CategorizeCalendarEvent.php](../../app/Actions/CategorizeCalendarEvent.php) — 24 lines. Two callers, both `app(CategorizeCalendarEvent::class)->execute(...)`. Inline `$calendarService->manuallyCategorizeEvent(...)` / `manuallyUnCategorizeEvent(...)` directly at the call sites in [ListCalendarEvents.php:56](../../app/Livewire/Admin/CalendarEvents/ListCalendarEvents.php#L56) and [EditCalendarEvent.php:97](../../app/Livewire/Admin/CalendarEvents/EditCalendarEvent.php#L97).
-- [app/Actions/Meetings/CreateMeetingCalendarEvent.php](../../app/Actions/Meetings/CreateMeetingCalendarEvent.php) — 24 lines, single line of behavior. The dedicated test ([CreateMeetingCalendarEventTest.php](../../tests/Integration/Actions/Meetings/CreateMeetingCalendarEventTest.php)) is testing nothing the underlying `GoogleCalendarSyncService` test does not already cover.
+- [app/Actions/Meetings/CreateMeetingCalendarEvent.php](../../app/Actions/Meetings/CreateMeetingCalendarEvent.php) — 24 lines, single line of behavior. As of 2026-05-29 it appears to have no production callers; only the dedicated test ([CreateMeetingCalendarEventTest.php](../../tests/Integration/Actions/Meetings/CreateMeetingCalendarEventTest.php)) references it. Delete it unless a hidden external entrypoint exists.
 - [app/Actions/QueueScriptureEnrichment.php](../../app/Actions/QueueScriptureEnrichment.php) — confirm call sites; this one at least has guard logic (config check + empty-reference check), so consider it a "keep" candidate unless the same guards live on every call path.
 
 Tasks:
 
 - [ ] For each candidate, confirm the call count and that the underlying service is already covered by tests.
-- [ ] Delete the action + its dedicated test if both conditions hold.
+- [ ] Delete the action + its dedicated test if both conditions hold; delete `CreateMeetingCalendarEvent` outright if the no-production-caller finding still holds.
 - [ ] Verify by running the affected feature tests.
 
 Exit criteria:
@@ -267,14 +267,14 @@ The 18 files under [app/Presenters/](../../app/Presenters/) serve three differen
 |-------|-------|---------|
 | Sitemap | MeetingSitemapPresenter, PageSitemapPresenter, PreacherSitemapPresenter, SermonSitemapPresenter | `Url::create(...)` builder |
 | SEO / Schema.org | SermonArchiveSeoPresenter, SeriesItemListPresenter, SongArchiveSeoPresenter, SongItemListPresenter, SermonItemListPresenter, PreacherItemListPresenter | JSON-LD shape builder |
-| View data | PageLayoutPresenter, PageCardPresenter, PageImagePresenter, RelatedPagePresenter, SermonViewPresenter (952 lines!), ChurchServiceShowPresenter, MeetingShowPresenter, BreadcrumbPresenter | Model → view-ready array/object |
+| View data | PageLayoutPresenter, PageCardPresenter, PageImagePresenter, RelatedPagePresenter, SermonViewPresenter (995 lines!), ChurchServiceShowPresenter, MeetingShowPresenter, BreadcrumbPresenter | Model → view-ready array/object |
 
 "Presenter" is currently a junk-drawer label. The sitemap presenters are tightly coupled to [SitemapService.php](../../app/Services/SitemapService.php) and would be more discoverable adjacent to it. The SEO/Schema.org presenters share a more cohesive purpose than they share with the view-data presenters.
 
 Tasks:
 
 - [ ] Decide on a target shape — options include `app/Sitemap/`, `app/Seo/`, and a slimmer `app/Presenters/`.
-- [ ] Verify that `SermonViewPresenter` (the 952-line outlier) is on the Phase 14 decomposition list — it now is.
+- [ ] Verify that `SermonViewPresenter` (the 995-line outlier) is on the Phase 14 decomposition list — it now is.
 - [ ] Do not move without consensus — this is the largest-blast-radius item in this plan.
 
 Exit criteria:
@@ -284,8 +284,8 @@ Exit criteria:
 ## Suggested Order
 
 1. **Phase 15** — Trivial, no risk. 5 minutes.
-2. **Phase 9** — Critical. Largest user-visible cleanup; tooling is ready.
-3. **Phase 13** — Add the drift guardrail now that the dump is fresh.
+2. **Phase 13** — Regenerate or retire the stale schema dump, then add the drift guardrail.
+3. **Phase 9** — Verify production storage counts, then remove fallback/tooling if the migration is truly complete.
 4. **Phase 18** — Independent; removes a confusing pattern.
 5. **Phase 21** — File-count reduction; bundle the action deletions into one PR.
 6. **Phase 19** — Security-adjacent; consolidate before anything else touches `DeleteLivestreamUpload`.
