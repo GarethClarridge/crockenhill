@@ -567,7 +567,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function hasTranscript(): bool
     {
-        return ! empty($this->transcript_file_path) && trim((string) $this->transcript_file_path) !== '';
+        return filled($this->transcript_file_path);
     }
 
     /**
@@ -581,7 +581,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function hasThumbnail(): bool
     {
-        return ! empty($this->thumbnail_file_path) && trim((string) $this->thumbnail_file_path) !== '';
+        return filled($this->thumbnail_file_path);
     }
 
     public function hasPlainThumbnail(): bool
@@ -750,7 +750,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function hasVideo(): bool
     {
-        return ! empty($this->video_file_path);
+        return filled($this->video_file_path);
     }
 
     public function videoQualityStatus(): SermonVideoQualityStatus
