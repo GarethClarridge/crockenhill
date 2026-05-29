@@ -55,11 +55,11 @@ class SermonItemListPresenter
         $orgName = (string) config('organization.name');
         $logoUrl = asset('images/Primary.png');
         $appUrl = (string) config('app.url');
-        $appId = $appUrl.'/';
+        $orgId = $appUrl.'/#organization';
 
-        $publisher = $this->buildPublisher($orgName, $logoUrl, $appId);
+        $publisher = $this->buildPublisher($orgName, $logoUrl, $orgId);
         $contentLocation = $this->buildContentLocation($orgName);
-        $worksFor = $this->buildWorksFor($orgName, $appId);
+        $worksFor = $this->buildWorksFor($orgName, $orgId);
 
         return [
             '@context' => 'https://schema.org',
@@ -79,12 +79,12 @@ class SermonItemListPresenter
     /**
      * @return array<string, mixed>
      */
-    private function buildPublisher(string $orgName, string $logoUrl, string $appId): array
+    private function buildPublisher(string $orgName, string $logoUrl, string $orgId): array
     {
         return [
             '@type' => 'Organization',
             'name' => $orgName,
-            '@id' => $appId,
+            '@id' => $orgId,
             'logo' => [
                 '@type' => 'ImageObject',
                 'url' => $logoUrl,
@@ -106,12 +106,12 @@ class SermonItemListPresenter
     /**
      * @return array<string, mixed>
      */
-    private function buildWorksFor(string $orgName, string $appId): array
+    private function buildWorksFor(string $orgName, string $orgId): array
     {
         return [
             '@type' => 'Organization',
             'name' => $orgName,
-            '@id' => $appId,
+            '@id' => $orgId,
         ];
     }
 
@@ -135,6 +135,7 @@ class SermonItemListPresenter
 
         $author = [
             '@type' => 'Person',
+            '@id' => $sermonView['preacher_url'].'#person',
             'name' => $sermonView['preacher_name'],
             'url' => $sermonView['preacher_url'],
             'jobTitle' => 'Preacher',
@@ -182,7 +183,7 @@ class SermonItemListPresenter
             'publisher' => $publisher,
             'mainEntityOfPage' => [
                 '@type' => 'WebPage',
-                '@id' => $sermonView['canonical_url'],
+                '@id' => $sermonView['canonical_url'].'#webpage',
             ],
             'image' => $sermonView['thumbnail_url'] ?: $logoUrl,
         ];
