@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -19,47 +19,84 @@ class SermonListingCacheTest extends TestCase
     #[Test]
     public function series_page_caches_sermons(): void
     {
-        $sermon = Sermon::factory()->create(['series' => 'Genesis']);
-        $slug = 'genesis';
-        Cache::forget("sermons_series_$slug");
+        Sermon::factory()->create(['series' => 'Genesis']);
+        $url = '/christ/sermons/series/genesis';
 
-        $this->get("/christ/sermons/series/$slug");
-        $this->assertTrue(Cache::has("sermons_series_$slug"));
+        // Warm the cache
+        $this->get($url)->assertOk();
+
+        // Verify caching via behavior: second request should perform no sermon queries
+        DB::enableQueryLog();
+        $this->get($url)->assertOk();
+
+        $sermonQueries = collect(DB::getQueryLog())
+            ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
+
+        $this->assertCount(0, $sermonQueries, 'Sermons should be retrieved from cache, not database');
+        DB::disableQueryLog();
     }
 
     #[Test]
     public function service_page_caches_sermons(): void
     {
-        Cache::forget('sermons_service_morning');
+        Sermon::factory()->create(['service' => 'morning']);
+        $url = '/christ/sermons/morning';
 
-        $this->get('/christ/sermons/morning');
-        $this->assertTrue(Cache::has('sermons_service_morning'));
+        // Warm the cache
+        $this->get($url)->assertOk();
+
+        // Verify caching via behavior: second request should perform no sermon queries
+        DB::enableQueryLog();
+        $this->get($url)->assertOk();
+
+        $sermonQueries = collect(DB::getQueryLog())
+            ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
+
+        $this->assertCount(0, $sermonQueries, 'Sermons should be retrieved from cache, not database');
+        DB::disableQueryLog();
     }
 
     #[Test]
     public function series_cache_is_invalidated_when_sermon_in_series_is_updated(): void
     {
         $sermon = Sermon::factory()->create(['series' => 'Genesis']);
-        $slug = 'genesis';
+        $url = '/christ/sermons/series/genesis';
 
-        $this->get("/christ/sermons/series/$slug");
-        $this->assertTrue(Cache::has("sermons_series_$slug"));
+        // Warm the cache
+        $this->get($url)->assertOk();
 
         $sermon->update(['title' => 'Updated Genesis Sermon']);
 
-        $this->assertFalse(Cache::has("sermons_series_$slug"));
+        // Verify invalidation: next request should re-query the database
+        DB::enableQueryLog();
+        $this->get($url)->assertOk();
+
+        $sermonQueries = collect(DB::getQueryLog())
+            ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
+
+        $this->assertNotEmpty($sermonQueries, 'Sermon cache should have been invalidated');
+        DB::disableQueryLog();
     }
 
     #[Test]
     public function service_cache_is_invalidated_when_sermon_in_service_is_deleted(): void
     {
         $sermon = Sermon::factory()->create(['service' => 'morning']);
+        $url = '/christ/sermons/morning';
 
-        $this->get('/christ/sermons/morning');
-        $this->assertTrue(Cache::has('sermons_service_morning'));
+        // Warm the cache
+        $this->get($url)->assertOk();
 
         $sermon->delete();
 
-        $this->assertFalse(Cache::has('sermons_service_morning'));
+        // Verify invalidation: next request should re-query the database
+        DB::enableQueryLog();
+        $this->get($url)->assertOk();
+
+        $sermonQueries = collect(DB::getQueryLog())
+            ->filter(fn ($query) => str_contains((string) $query['query'], 'sermons'));
+
+        $this->assertNotEmpty($sermonQueries, 'Sermon cache should have been invalidated');
+        DB::disableQueryLog();
     }
 }
