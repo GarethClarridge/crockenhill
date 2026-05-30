@@ -16,14 +16,13 @@ class MeetingTest extends TestCase
     use DatabaseTransactions;
 
     #[Test]
-    public function meeting_accessors()
+    public function meeting_accessors(): void
     {
         // Test getFormattedDateTimeAttribute
         $date = Carbon::create(2023, 1, 15, 10, 30, 0);
         $meetingWithDate = Meeting::factory()->onDate($date)->create();
-        // Assuming a format like 'F j, Y, g:i A' (e.g., January 15, 2023, 10:30 AM)
+
         $this->assertEquals($date->format('F j, Y, g:i A'), $meetingWithDate->formatted_date_time);
-        // Assumes: public function getFormattedDateTimeAttribute() { return $this->meeting_date ? $this->meeting_date->format('F j, Y, g:i A') : null; }
 
         // Test location (formerly location_address)
         $address = '123 Main St, Anytown, AT 12345';
@@ -32,6 +31,36 @@ class MeetingTest extends TestCase
 
         $meetingWithoutAddress = Meeting::factory()->create(['location' => null]);
         $this->assertNull($meetingWithoutAddress->location);
+    }
+
+    #[Test]
+    public function attribute_setters_perform_trimming_and_nulling(): void
+    {
+        $meeting = Meeting::factory()->create([
+            'day' => '  Monday  ',
+            'who' => '  Everyone  ',
+            'location' => '  The Church Hall  ',
+            'leaders_phone' => '  0123456789  ',
+            'leaders_email' => '  TEST@EXAMPLE.COM  ',
+        ]);
+
+        $this->assertEquals('Monday', $meeting->day);
+        $this->assertEquals('Everyone', $meeting->who);
+        $this->assertEquals('The Church Hall', $meeting->location);
+        $this->assertEquals('0123456789', $meeting->leaders_phone);
+        $this->assertEquals('test@example.com', $meeting->leaders_email);
+
+        $meeting->update([
+            'day' => '   ',
+            'location' => '',
+            'leaders_phone' => null,
+            'leaders_email' => "\t",
+        ]);
+
+        $this->assertNull($meeting->day);
+        $this->assertNull($meeting->location);
+        $this->assertNull($meeting->leaders_phone);
+        $this->assertNull($meeting->leaders_email);
     }
 
     #[Test]
@@ -98,51 +127,98 @@ class MeetingTest extends TestCase
     }
 
     #[Test]
-    public function custom_meeting_methods()
+    public function get_next_occurrence_handles_all_frequencies(): void
     {
-        // Test getNextOccurrence() method for a weekly recurring meeting
-        $today = Carbon::now();
-        // Create a meeting that happened last week on the same weekday as today
-        $lastWeekMeetingDate = $today->copy()->subWeek();
-        $weeklyMeeting = Meeting::factory()
-            ->recurring('weekly')
-            ->onDate($lastWeekMeetingDate)
-            ->create();
+        // Set fixed "now" for deterministic tests
+        $now = Carbon::create(2024, 1, 15, 12, 0, 0);
+        Carbon::setTestNow($now);
 
-        $nextOccurrence = $weeklyMeeting->getNextOccurrence();
-        $this->assertInstanceOf(Carbon::class, $nextOccurrence);
-        // The next occurrence should be today (if time hasn't passed) or next week on the same day.
-        // For simplicity, checking if it's the same day of week and in the future or today.
-        $this->assertTrue($nextOccurrence->isSameDay($today) || $nextOccurrence->isSameDay($today->copy()->addWeek()));
-        $this->assertTrue($nextOccurrence->greaterThanOrEqualTo($today->startOfDay()));
-        $this->assertEquals($lastWeekMeetingDate->format('H:i:s'), $nextOccurrence->format('H:i:s')); // Should keep the same time
+        // 1. Daily frequency
+        $dailyMeeting = Meeting::factory()->recurring('daily')->create([
+            'meeting_date' => $now->copy()->subDays(5),
+            'start_time' => $now->format('H:i:s'),
+        ]);
+        $nextDaily = $dailyMeeting->getNextOccurrence();
+        $this->assertNotNull($nextDaily, 'Daily meeting occurrence should not be null');
+        $this->assertTrue($nextDaily->isSameDay($now), 'Daily meeting should occur today. Got: '.$nextDaily->toDateTimeString().' Expected: '.$now->toDateTimeString());
+        $this->assertEquals($now->format('H:i:s'), $nextDaily->format('H:i:s'));
 
-        // Test with a non-recurring meeting
-        $nonRecurringMeeting = Meeting::factory()->notRecurring()->onDate(Carbon::now()->subDays(5))->create();
-        $this->assertNull($nonRecurringMeeting->getNextOccurrence());
+        // If time for today has passed
+        Carbon::setTestNow($now->copy()->addHours(1));
+        $nextDailyPast = $dailyMeeting->getNextOccurrence();
+        $this->assertTrue($nextDailyPast->isSameDay($now->copy()->addDay()));
 
-        // Test with a recurring meeting whose start date is in the future
-        $futureStartDate = Carbon::now()->addMonth();
-        $futureRecurringMeeting = Meeting::factory()
-            ->recurring('monthly')
-            ->onDate($futureStartDate)
-            ->create();
-        $nextFutureOccurrence = $futureRecurringMeeting->getNextOccurrence();
-        $this->assertInstanceOf(Carbon::class, $nextFutureOccurrence);
-        $this->assertTrue($nextFutureOccurrence->isSameDay($futureStartDate));
+        // 2. Weekly frequency
+        Carbon::setTestNow($now);
+        $weeklyMeeting = Meeting::factory()->recurring('weekly')->create([
+            'meeting_date' => $now->copy()->subWeeks(2),
+            'start_time' => $now->format('H:i:s'),
+        ]);
+        $nextWeekly = $weeklyMeeting->getNextOccurrence();
+        $this->assertTrue($nextWeekly->isSameDay($now));
 
-        // Assumes a method like (simplified for weekly):
-        // public function getNextOccurrence(): ?Carbon {
-        //     if (!$this->is_recurring || !$this->meeting_date || $this->frequency !== 'weekly') {
-        //         return null;
-        //     }
-        //     $next = $this->meeting_date->copy();
-        //     $now = Carbon::now();
-        //     while($next->lessThan($now)) {
-        //         $next->addWeek();
-        //     }
-        //     return $next;
-        // }
-        // More complex logic needed for various frequencies like 'monthly', 'annually' etc.
+        // 3. Monthly frequency (Normal)
+        $monthlyMeeting = Meeting::factory()->recurring('monthly')->create([
+            'meeting_date' => $now->copy()->subMonths(2),
+            'start_time' => $now->format('H:i:s'),
+        ]);
+        $nextMonthly = $monthlyMeeting->getNextOccurrence();
+        $this->assertTrue($nextMonthly->isSameDay($now));
+
+        // 4. Monthly frequency (End of month clamping)
+        // Set now to June 15th
+        Carbon::setTestNow(Carbon::create(2024, 6, 15, 12, 0, 0));
+        // Meeting started on May 31st
+        $eomDate = Carbon::create(2024, 5, 31, 19, 0, 0);
+        $eomMeeting = Meeting::factory()->recurring('monthly')->create([
+            'meeting_date' => $eomDate,
+            'day' => $eomDate->format('l'),
+            'start_time' => '19:00:00',
+            'end_time' => '20:00:00',
+        ]);
+        $nextEom = $eomMeeting->getNextOccurrence();
+        // June only has 30 days, so it should clamp to June 30th
+        $this->assertTrue($nextEom->isSameDay(Carbon::create(2024, 6, 30)));
+        $this->assertEquals('19:00:00', $nextEom->format('H:i:s'));
+
+        // 5. Annual frequency (Normal)
+        Carbon::setTestNow($now);
+        $annualMeeting = Meeting::factory()->recurring('annually')->create([
+            'meeting_date' => $now->copy()->subYears(1),
+            'start_time' => $now->format('H:i:s'),
+        ]);
+        $nextAnnual = $annualMeeting->getNextOccurrence();
+        $this->assertTrue($nextAnnual->isSameDay($now));
+
+        // 6. Annual frequency (Leap year handling)
+        Carbon::setTestNow(Carbon::create(2025, 1, 1));
+        // Meeting started on Feb 29, 2024 (Leap year)
+        $leapMeeting = Meeting::factory()->recurring('annually')->onDate(Carbon::create(2024, 2, 29))->create();
+        $nextLeap = $leapMeeting->getNextOccurrence();
+        // 2025 is not a leap year, should clamp to Feb 28th
+        $this->assertTrue($nextLeap->isSameDay(Carbon::create(2025, 2, 28)));
+
+        // 7. Non-recurring
+        $nonRecurring = Meeting::factory()->notRecurring()->onDate($now->copy()->subDays(5))->create();
+        $this->assertNull($nonRecurring->getNextOccurrence());
+
+        // 8. Future start date
+        Carbon::setTestNow($now); // Ensure we are back to Jan 15th
+        $futureDate = Carbon::create(2024, 1, 18, 12, 0, 0);
+        $futureMeeting = Meeting::factory()->recurring('weekly')->create();
+        $futureMeeting->meeting_date = $futureDate;
+        $futureMeeting->day = $futureDate->format('l');
+        $futureMeeting->save();
+
+        // Refresh to ensure we have the same precision/format as from DB
+        $futureMeeting->refresh();
+
+        $this->assertEquals($futureDate->toDateString(), $futureMeeting->meeting_date->toDateString(), 'Meeting date should be exactly 3 days from now');
+
+        $nextFuture = $futureMeeting->getNextOccurrence();
+        $this->assertNotNull($nextFuture, 'Next occurrence should not be null for future recurring meeting');
+        $this->assertTrue($nextFuture->isSameDay($futureDate), 'Next occurrence should be the future start date. Got: '.($nextFuture ? $nextFuture->toDateTimeString() : 'null').' Expected: '.$futureDate->toDateTimeString());
+
+        Carbon::setTestNow(); // Reset
     }
 }

@@ -327,7 +327,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
             return null;
         }
 
-        $now = now();
+        $now = Carbon::now();
 
         if ($meetingDate->gte($now)) {
             return $meetingDate->copy();
@@ -345,7 +345,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     {
         $nextOccurrence = $now->copy()->setTimeFrom($meetingDate);
 
-        if ($nextOccurrence->isPast()) {
+        if ($nextOccurrence->lessThan($now)) {
             $nextOccurrence->addDay();
         }
 
@@ -372,7 +372,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
             ->day(min($originalDay, $now->daysInMonth))
             ->setTimeFrom($meetingDate);
 
-        if ($candidate->isFuture()) {
+        if (! $candidate->isPast()) {
             return $candidate;
         }
 
@@ -395,7 +395,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
             ->day(min($originalDay, $currentYearCandidate->daysInMonth))
             ->setTimeFrom($meetingDate);
 
-        if ($currentYearOccurrence->isFuture()) {
+        if (! $currentYearOccurrence->isPast()) {
             return $currentYearOccurrence;
         }
 
