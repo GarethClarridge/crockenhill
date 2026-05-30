@@ -67,9 +67,9 @@ class MediaController extends Controller
 
             if ($result->success) {
                 return response()->json($result->toArray(), 202);
-            } else {
-                return response()->json($result->toArray(), 422);
             }
+
+            return response()->json($result->toArray(), 422);
 
         } catch (\Exception $e) {
             return $this->handleApiException($e, 'Media upload failed', [

@@ -244,9 +244,9 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
                         $endVerse = isset($matches[4]) ? $matches[4] : null;
 
                         return $endVerse ? "{$book} {$chapter}:{$verse}-{$endVerse}" : "{$book} {$chapter}:{$verse}";
-                    } else {
-                        return "{$book} {$chapter}";
                     }
+
+                    return "{$book} {$chapter}";
                 }
             }
         }

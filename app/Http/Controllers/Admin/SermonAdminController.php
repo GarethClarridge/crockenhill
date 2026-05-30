@@ -87,11 +87,11 @@ class SermonAdminController extends Controller
                 return redirect()
                     ->route('sermons.index')
                     ->with('message', "Processing started for \"{$file->getClientOriginalName()}\". Processing ID: {$result->processingId}");
-            } else {
-                return redirect()
-                    ->back()
-                    ->with('error', $result->message);
             }
+
+            return redirect()
+                ->back()
+                ->with('error', $result->message);
 
         } catch (\Exception $e) {
             Log::error('Sermon upload failed', [

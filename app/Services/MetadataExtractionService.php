@@ -267,9 +267,9 @@ class MetadataExtractionService
                 // Use the same 2 PM (14:00) cutoff
                 if ($hour < 14) {
                     return SermonService::Morning;
-                } else {
-                    return SermonService::Evening;
                 }
+
+                return SermonService::Evening;
             }
         }
 

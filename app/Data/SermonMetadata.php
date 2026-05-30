@@ -108,9 +108,9 @@ class SermonMetadata extends Data
                 // If created before 2 PM, assume morning service
                 if ($creationTime->hour < 14) {
                     return SermonService::Morning;
-                } else {
-                    return SermonService::Evening;
                 }
+
+                return SermonService::Evening;
             }
         } catch (\Exception $e) {
             // If we can't determine from file time, fall back to default
