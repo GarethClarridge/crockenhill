@@ -14,7 +14,7 @@ class SyncSongsCommand extends Command
                             {--path= : Path to OpenLP songs SQLite file}
                             {--dry-run : Preview sync changes without persisting anything}';
 
-    protected $description = 'Sync OpenLP songs catalog into canonical songs/authors/songbooks tables';
+    protected $description = 'Sync OpenLP songs catalogue into canonical songs/authors/songbooks tables';
 
     public function handle(SongCatalogSyncService $syncService): int
     {
@@ -29,7 +29,7 @@ class SyncSongsCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info('Song catalog sync completed.');
+        $this->info('Song catalogue sync completed.');
         $this->line('Path: '.$metrics['path']);
 
         if ($metrics['dry_run']) {

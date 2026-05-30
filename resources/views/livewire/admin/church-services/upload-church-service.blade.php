@@ -7,7 +7,7 @@
             Create service
         </x-button>
         <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-            Song catalog
+            Song catalogue
         </x-button>
         <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
             Submit email text

@@ -98,7 +98,7 @@
 
                     @if($item['section_type'] === \App\Enums\ServiceSectionType::SONG->value)
                         <div class="mt-4 space-y-3">
-                            <p class="text-sm text-gray-500">Search the song catalog to link this item to a canonical song.</p>
+                            <p class="text-sm text-gray-500">Search the song catalogue to link this item to a canonical song.</p>
 
                             @if(($songSuggestions[$index] ?? []) !== [])
                                 <div class="overflow-hidden rounded-md border border-gray-200">
@@ -142,7 +142,7 @@
         <x-card heading="Guidance">
             <div class="space-y-3 text-sm text-gray-600">
                 <p>Use the service type dropdown to capture the planned structure, not just the spoken title.</p>
-                <p>Songs can be saved as free text, but linking them to the catalog improves later matching and reporting.</p>
+                <p>Songs can be saved as free text, but linking them to the catalogue improves later matching and reporting.</p>
                 <p>Manual saves become the canonical reviewed service list and clear any existing review flag.</p>
             </div>
         </x-card>

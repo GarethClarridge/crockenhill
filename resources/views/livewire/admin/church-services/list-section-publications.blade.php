@@ -9,7 +9,7 @@
             Review dashboard
         </x-button>
         <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-            Song catalog
+            Song catalogue
         </x-button>
         <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
             Back to services

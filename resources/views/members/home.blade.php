@@ -69,7 +69,7 @@
             </x-button>
 
             <x-button link="{{ route('admin.services.songs.index') }}" icon="musical-note" iconStyle="solid">
-              Song catalog
+              Song catalogue
             </x-button>
           </div>
         </div>
