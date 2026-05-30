@@ -13,7 +13,7 @@
             Review emails
         </x-button>
         <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-            Song catalog
+            Song catalogue
         </x-button>
         <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
             Create service

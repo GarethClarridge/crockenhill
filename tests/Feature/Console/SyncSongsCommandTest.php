@@ -41,7 +41,7 @@ class SyncSongsCommandTest extends TestCase
 
         $this->artisan('service-tracking:sync-songs', ['--path' => $path])
             ->assertExitCode(0)
-            ->expectsOutputToContain('Song catalog sync completed.');
+            ->expectsOutputToContain('Song catalogue sync completed.');
 
         $this->assertDatabaseCount('songs', 3);
         $this->assertDatabaseCount('song_authors', 3);

@@ -103,7 +103,7 @@
     @endif
 
     <div class="prose max-w-none mb-8">
-        <p>Here are all upcoming events from our church calendar. Events are automatically synchronized from our Google Calendar.</p>
+        <p>Here are all upcoming events from our church calendar. Events are automatically synchronised from our Google Calendar.</p>
     </div>
 
     @if($allEvents->count() > 0)
