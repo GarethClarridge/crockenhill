@@ -123,6 +123,19 @@ class DurationConstraintTest extends TestCase
         $this->assertFalse(Validator::make(['duration' => -1], $rules)->passes());
         $this->assertFalse(Validator::make(['sermon_start_time' => -1], $rules)->passes());
         $this->assertFalse(Validator::make(['sermon_start_time' => 20, 'sermon_end_time' => 10], $rules)->passes());
+
+        // Additional fields synchronized with schema
+        $this->assertTrue(Validator::make(['attempt_count' => 0], $rules)->passes());
+        $this->assertFalse(Validator::make(['attempt_count' => -1], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['current_step' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['current_step' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['source_file_path' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['source_file_path' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['audio_file_path' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['audio_file_path' => str_repeat('a', 256)], $rules)->passes());
     }
 
     #[Test]

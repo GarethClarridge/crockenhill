@@ -637,6 +637,20 @@ class MediaProcessingLog extends Model
             'sermon_id' => ['nullable', 'integer', 'exists:sermons,id'],
             'owner_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'church_service_id' => ['nullable', 'integer', 'exists:church_services,id'],
+            'error_message' => ['nullable', 'string'],
+            'current_step' => ['nullable', 'string', 'max:255'],
+            'source_file_path' => ['nullable', 'string', 'max:255'],
+            'audio_file_path' => ['nullable', 'string', 'max:255'],
+            'video_file_path' => ['nullable', 'string', 'max:255'],
+            'transcript_file_path' => ['nullable', 'string', 'max:255'],
+            'enhanced_audio_file_path' => ['nullable', 'string', 'max:255'],
+            'rms_log_path' => ['nullable', 'string', 'max:255'],
+            'threshold_method' => ['nullable', 'string', 'max:255'],
+            'adaptive_threshold' => ['nullable', 'numeric', 'min:0'],
+            'queue_name' => ['nullable', 'string', 'max:255'],
+            'job_id' => ['nullable', 'string', 'max:255'],
+            'attempt_count' => ['nullable', 'integer', 'min:0'],
+            'is_degraded_completion' => ['nullable', 'boolean'],
         ];
     }
 
