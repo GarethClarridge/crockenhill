@@ -14,6 +14,14 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Owenoj\LaravelGetId3\GetId3;
 
+/**
+ * Service for extracting sermon metadata from various media sources.
+ *
+ * This service implements a multi-layered extraction strategy for dates and
+ * church services, using file metadata (FFprobe, GetID3), filename parsing,
+ * and client-provided timestamps with cascading fallbacks to ensure metadata
+ * is populated even when source data is incomplete.
+ */
 class MetadataExtractionService
 {
     use SanitizesLogData;
@@ -48,6 +56,15 @@ class MetadataExtractionService
         'december' => 12,
     ];
 
+    /**
+     * Extract comprehensive sermon metadata from an uploaded file.
+     *
+     * Combines filename parsing, file modification timestamps, and ID3 tag
+     * extraction to build a complete SermonMetadata DTO.
+     *
+     * @param  UploadedFile  $file  The uploaded audio or video file
+     * @return SermonMetadata The extracted metadata record
+     */
     public function extractFromUploadedFile(UploadedFile $file): SermonMetadata
     {
         $originalName = $file->getClientOriginalName();
@@ -70,6 +87,16 @@ class MetadataExtractionService
         );
     }
 
+    /**
+     * Extract a sermon date from a filename using multiple regex patterns.
+     *
+     * Strategy prioritizes ISO format (YYYY-MM-DD) for its lack of ambiguity,
+     * followed by European format (DD-MM-YYYY) and compact format (YYYYMMDD).
+     * If no full date is found, it attempts to extract a 4-digit year.
+     *
+     * @param  string  $filename  The filename to parse
+     * @return Carbon The extracted date, or Carbon::today() as a final fallback
+     */
     public function extractDateFromFilename(string $filename): Carbon
     {
         // Remove only the last extension (e.g., .mp3) to preserve dates with dots
@@ -221,6 +248,15 @@ class MetadataExtractionService
         return null;
     }
 
+    /**
+     * Determine the sermon service (Morning/Evening) from an uploaded file.
+     *
+     * First attempts to use the file's modification timestamp (mtime). If the
+     * timestamp is unavailable or fails, it falls back to filename patterns.
+     *
+     * @param  UploadedFile  $file  The uploaded file
+     * @return SermonService The identified service
+     */
     public function determineServiceFromFile(UploadedFile $file): SermonService
     {
         try {
@@ -241,6 +277,15 @@ class MetadataExtractionService
         return $this->determineServiceFromFilename($file->getClientOriginalName());
     }
 
+    /**
+     * Determine the sermon service based on a specific time of day.
+     *
+     * Uses a fixed cutoff: services starting between 06:00 and 13:59 are
+     * classified as Morning, all others as Evening.
+     *
+     * @param  Carbon  $time  The time to evaluate
+     * @return SermonService The identified service
+     */
     public function determineServiceFromTime(Carbon $time): SermonService
     {
         $hour = $time->hour;
@@ -252,6 +297,15 @@ class MetadataExtractionService
         return SermonService::Evening;
     }
 
+    /**
+     * Determine the sermon service based on filename keywords and patterns.
+     *
+     * Scans for time patterns (HH-MM), service names ("morning", "evening"),
+     * and time indicators ("AM", "PM", "18:30").
+     *
+     * @param  string  $filename  The filename to scan
+     * @return SermonService The identified service (defaults to Morning)
+     */
     public function determineServiceFromFilename(string $filename): SermonService
     {
         $lowerFilename = strtolower($filename);
@@ -302,6 +356,16 @@ class MetadataExtractionService
         return SermonService::Morning;
     }
 
+    /**
+     * Verify if the given year, month, and day form a valid calendar date.
+     *
+     * Constraints: Year must be between 1900 and (current year + 1).
+     *
+     * @param  int  $year  Four-digit year
+     * @param  int  $month  Month (1-12)
+     * @param  int  $day  Day (1-31)
+     * @return bool True if the date is valid and within bounds
+     */
     public function isValidDate(int $year, int $month, int $day): bool
     {
         if ($year < 1900 || $year > date('Y') + 1) {
@@ -319,6 +383,15 @@ class MetadataExtractionService
         return checkdate($month, $day, $year);
     }
 
+    /**
+     * Extract sermon metadata from a local filesystem path.
+     *
+     * Similar to extractFromUploadedFile but designed for files already
+     * present on the local or S3-compatible filesystem.
+     *
+     * @param  string  $filePath  The path to the file
+     * @return SermonMetadata The extracted metadata record
+     */
     public function extractFromFilePath(string $filePath): SermonMetadata
     {
         $filename = basename($filePath);
@@ -341,9 +414,10 @@ class MetadataExtractionService
     }
 
     /**
-     * Extract audio file information using GetID3
+     * Extract audio stream information using GetID3.
      *
-     * @return array<string, float|int|string|null>
+     * @param  UploadedFile  $file  The uploaded audio file
+     * @return array{duration: float|null, bitrate: int|null, format: string|null, filesize: int|null} Technical audio metadata
      */
     public function extractAudioInfo(UploadedFile $file): array
     {
@@ -370,9 +444,10 @@ class MetadataExtractionService
     }
 
     /**
-     * Extract audio file information from file path using GetID3
+     * Extract audio stream information from a file path using GetID3.
      *
-     * @return array<string, float|int|string|null>
+     * @param  string  $filePath  Path to the audio file
+     * @return array{duration: float|null, bitrate: int|null, format: string|null, filesize: int|null} Technical audio metadata
      */
     public function extractAudioInfoFromPath(string $filePath): array
     {
@@ -498,7 +573,7 @@ class MetadataExtractionService
     /**
      * Get default audio info when extraction fails
      *
-     * @return array<string, float|int|string|null>
+     * @return array{duration: float|null, bitrate: int|null, format: string|null, filesize: int|null}
      */
     private function getDefaultAudioInfo(UploadedFile $file): array
     {
@@ -513,7 +588,7 @@ class MetadataExtractionService
     /**
      * Get default audio info from file path when extraction fails
      *
-     * @return array<string, float|int|string|null>
+     * @return array{duration: float|null, bitrate: int|null, format: string|null, filesize: int|null}
      */
     private function getDefaultAudioInfoFromPath(string $filePath): array
     {
