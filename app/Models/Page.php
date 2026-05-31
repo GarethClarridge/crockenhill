@@ -174,13 +174,13 @@ class Page extends Model implements HasMedia, Sitemapable
     {
         return Attribute::make(
             get: function (): ?string {
-                if ($this->slug) {
+                if ($this->slug !== null && $this->slug !== '') {
                     return '/'.trim($this->area->value, '/').'/'.trim($this->slug, '/');
                 }
 
-                return null; // Or some default/error handling if slug is missing
+                return null;
             }
-        )->shouldCache();
+        );
     }
 
     /**
