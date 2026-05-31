@@ -123,6 +123,7 @@ class SermonPageContextServiceTest extends TestCase
         // Create several non-reading sections that should not be fetched
         ServiceSection::factory()->count(5)->create([
             'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
             'section_type' => ServiceSectionType::SERMON->value,
         ]);
 
