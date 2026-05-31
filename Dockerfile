@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Frontend Assets
 # =============================================================================
-FROM node:22-alpine AS frontend
+FROM node:26-alpine AS frontend
 
 WORKDIR /build
 
