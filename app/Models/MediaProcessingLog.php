@@ -646,7 +646,7 @@ class MediaProcessingLog extends Model
             'enhanced_audio_file_path' => ['nullable', 'string', 'max:255'],
             'rms_log_path' => ['nullable', 'string', 'max:255'],
             'threshold_method' => ['nullable', 'string', 'max:255'],
-            'adaptive_threshold' => ['nullable', 'numeric', 'min:0'],
+            'adaptive_threshold' => ['nullable', 'numeric'],
             'queue_name' => ['nullable', 'string', 'max:255'],
             'job_id' => ['nullable', 'string', 'max:255'],
             'attempt_count' => ['nullable', 'integer', 'min:0'],
