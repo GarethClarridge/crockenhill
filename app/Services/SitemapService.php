@@ -256,7 +256,7 @@ class SitemapService
             ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
             ->with([
                 'sermons' => fn ($query) => $query->whereSermon()
-                    ->select(['id', 'preacher_id', 'title', 'date', 'slug', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'video_visibility_override', 'video_quality_status', 'content_type', 'updated_at'])
+                    ->select(['id', 'preacher_id', 'title', 'date', 'slug', 'audio_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'video_file_path', 'video_visibility_override', 'video_quality_status', 'content_type', 'updated_at'])
                     ->orderBy('date', 'desc')
                     ->limit(1),
             ])
