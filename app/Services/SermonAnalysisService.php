@@ -109,7 +109,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      *     transcript: string,
      * } The parsed analysis results
      *
-     * @throws Exception|\OpenAI\Exceptions\ErrorException|\OpenAI\Exceptions\TransporterException
+     * @throws Exception|ErrorException|TransporterException
      */
     private function performAiAnalysis(string $transcript, array $existingSeries, string $processingId): array
     {
@@ -149,7 +149,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      *     transcript: string,
      * }
      *
-     * @throws Exception|\TypeError|\OpenAI\Exceptions\ErrorException|\OpenAI\Exceptions\TransporterException
+     * @throws Exception|\TypeError|ErrorException|TransporterException
      */
     private function runAnalysisAttempt(string $transcript, array $existingSeries, string $processingId, int $attempt, float $apiStartTime): array
     {
@@ -318,7 +318,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
     /**
      * Execute AI analysis request via OpenAI SDK.
      *
-     * @throws Exception|\OpenAI\Exceptions\ErrorException|\TypeError
+     * @throws Exception|ErrorException|\TypeError
      */
     private function executeAiRequest(string $prompt, string $model, string $processingId, int $attempt): CreateResponse
     {
