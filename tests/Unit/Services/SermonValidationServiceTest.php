@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\MediaType;
+use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\MediaValidationService;
 use App\Services\SermonValidationService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
@@ -53,7 +56,7 @@ class SermonValidationServiceTest extends TestCase
         $file = UploadedFile::fake()->create('sermon.mp3');
         $this->mediaValidation->shouldReceive('validateUploadedFile')
             ->once()
-            ->with(\App\Enums\MediaType::Audio, $file);
+            ->with(MediaType::Audio, $file);
 
         $this->service->validateAudioFile($file);
     }
@@ -141,10 +144,10 @@ class SermonValidationServiceTest extends TestCase
     #[Test]
     public function generate_fallback_title_uses_date_fallback_when_filename_invalid(): void
     {
-        $date = \Carbon\Carbon::parse('2024-05-20');
+        $date = Carbon::parse('2024-05-20');
         $sermon = Sermon::factory()->make([
             'date' => $date,
-            'service' => \App\Enums\SermonService::Morning,
+            'service' => SermonService::Morning,
         ]);
         $log = MediaProcessingLog::factory()->make([
             'original_filename' => 'abc.mp3', // Too short after processing

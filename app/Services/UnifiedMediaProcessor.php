@@ -205,7 +205,7 @@ class UnifiedMediaProcessor
      * Process an audio file through the complete automation pipeline.
      * Uses ProcessingInitiator for shared log-creation boundary (same as video/livestream).
      *
-     * @throws \Illuminate\Database\UniqueConstraintViolationException
+     * @throws UniqueConstraintViolationException
      */
     private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash, ?string $dedupKey): ProcessingResult
     {
@@ -387,7 +387,7 @@ class UnifiedMediaProcessor
      *
      * @param  array<string, mixed>  $options
      *
-     * @throws \Illuminate\Database\UniqueConstraintViolationException
+     * @throws UniqueConstraintViolationException
      */
     private function processDirectVideo(
         UploadedFile $file,

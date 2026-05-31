@@ -65,7 +65,11 @@ runs:
         set -euo pipefail
         mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
         cp .env.example .env
-        echo "VIEW_COMPILED_PATH=${{ inputs.view-compiled-path }}" >> .env
+        view_compiled_path="${{ inputs.view-compiled-path }}"
+        if [[ "$view_compiled_path" != /* ]]; then
+          view_compiled_path="$PWD/$view_compiled_path"
+        fi
+        echo "VIEW_COMPILED_PATH=$view_compiled_path" >> .env
 
     - name: Install PHP dependencies
       if: inputs.composer-install == 'true'
