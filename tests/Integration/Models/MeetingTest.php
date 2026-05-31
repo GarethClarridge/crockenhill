@@ -137,6 +137,7 @@ class MeetingTest extends TestCase
         $dailyMeeting = Meeting::factory()->recurring('daily')->create([
             'meeting_date' => $now->copy()->subDays(5),
             'start_time' => $now->format('H:i:s'),
+            'end_time' => $now->copy()->addHour()->format('H:i:s'),
         ]);
         $nextDaily = $dailyMeeting->getNextOccurrence();
         $this->assertNotNull($nextDaily, 'Daily meeting occurrence should not be null');
@@ -153,6 +154,7 @@ class MeetingTest extends TestCase
         $weeklyMeeting = Meeting::factory()->recurring('weekly')->create([
             'meeting_date' => $now->copy()->subWeeks(2),
             'start_time' => $now->format('H:i:s'),
+            'end_time' => $now->copy()->addHour()->format('H:i:s'),
         ]);
         $nextWeekly = $weeklyMeeting->getNextOccurrence();
         $this->assertTrue($nextWeekly->isSameDay($now));
@@ -161,6 +163,7 @@ class MeetingTest extends TestCase
         $monthlyMeeting = Meeting::factory()->recurring('monthly')->create([
             'meeting_date' => $now->copy()->subMonths(2),
             'start_time' => $now->format('H:i:s'),
+            'end_time' => $now->copy()->addHour()->format('H:i:s'),
         ]);
         $nextMonthly = $monthlyMeeting->getNextOccurrence();
         $this->assertTrue($nextMonthly->isSameDay($now));
@@ -186,6 +189,7 @@ class MeetingTest extends TestCase
         $annualMeeting = Meeting::factory()->recurring('annually')->create([
             'meeting_date' => $now->copy()->subYears(1),
             'start_time' => $now->format('H:i:s'),
+            'end_time' => $now->copy()->addHour()->format('H:i:s'),
         ]);
         $nextAnnual = $annualMeeting->getNextOccurrence();
         $this->assertTrue($nextAnnual->isSameDay($now));
