@@ -56,7 +56,7 @@ class SermonSitemapPresenter
             $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
         }
 
-        $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
+        $videoUrl = $sermon->hasVideo() ? $this->sermonViewPresenter->videoUrl($sermon) : null;
 
         if ($videoUrl !== null && $thumbnailUrl !== null) {
             $videoOptions = [
