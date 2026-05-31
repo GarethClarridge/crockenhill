@@ -122,15 +122,15 @@
 
                     <div class="divide-y divide-gray-100">
                         @foreach($events as $event)
-                            <div id="event-{{ $event->id }}" class="px-6 py-4 hover:bg-gray-50 transition-colors">
-                                <x-calendar-event-card
-                                    :event="$event"
-                                    variant="list"
-                                    :show-date="false"
-                                    date-format="l, F j, Y"
-                                    description-limit="150"
-                                />
-                            </div>
+                            <x-calendar-event-card
+                                id="event-{{ $event->id }}"
+                                class="px-6 py-4 hover:bg-gray-50 transition-colors"
+                                :event="$event"
+                                variant="list"
+                                :show-date="false"
+                                date-format="l, F j, Y"
+                                description-limit="150"
+                            />
                         @endforeach
                     </div>
                 </div>
