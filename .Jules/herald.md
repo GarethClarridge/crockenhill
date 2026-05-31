@@ -1,0 +1,3 @@
+## 2025-05-15 - Documenting Livestream Media Processing Orchestration
+**Learning:** Documenting complex service orchestrators requires balancing "what" the method does with "why" it does it (e.g., explaining the 2x storage space requirement or the eager-loading strategy for status retrieval). Precise array shapes for summary methods (like `getProcessingSummary`) are high-leverage documentation wins that immediately improve IDE autocompletion and PHPStan accuracy.
+**Action:** Always look for associative array returns in services and replace generic `array<string, mixed>` with explicit PHPStan shapes. Ensure `@throws` annotations capture both domain-specific `Exception` calls and lower-level `RuntimeException` triggers.

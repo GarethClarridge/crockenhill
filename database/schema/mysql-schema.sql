@@ -884,10 +884,11 @@ CREATE TABLE `songs` (
   KEY `songs_ccli_number_index` (`ccli_number`),
   KEY `songs_deleted_at_index` (`deleted_at`),
   FULLTEXT KEY `songs_lyrics_plain_fulltext` (`lyrics_plain`),
-  CONSTRAINT `songs_canonical_key_check` CHECK ((`canonical_key` <> _utf8mb3'')),
+  CONSTRAINT `songs_alternate_title_check` CHECK (((`alternate_title` is null) or ((cast(`alternate_title` as char charset binary) = trim(`alternate_title`)) and (`alternate_title` <> _utf8mb4'')))),
+  CONSTRAINT `songs_canonical_key_check` CHECK (((cast(`canonical_key` as char charset binary) = lower(trim(regexp_replace(`canonical_key`,_utf8mb3'[[:space:]]+',_utf8mb4' ')))) and (`canonical_key` <> _utf8mb3'') and (locate(_utf8mb3'@',`canonical_key`) = 0))),
   CONSTRAINT `songs_lyrics_xml_check` CHECK ((`lyrics_xml` <> _utf8mb3'')),
-  CONSTRAINT `songs_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb4'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
-  CONSTRAINT `songs_title_check` CHECK ((`title` <> _utf8mb3''))
+  CONSTRAINT `songs_slug_format_check` CHECK (regexp_like(`slug`,_utf8mb3'^[a-z0-9]+(?:-[a-z0-9]+)*$',_utf8mb4'c')),
+  CONSTRAINT `songs_title_check` CHECK (((cast(`title` as char charset binary) = trim(`title`)) and (`title` <> _utf8mb3'')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `speaker_profiles`;
@@ -1142,3 +1143,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_17_053346_add_f
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_20_054000_add_integrity_check_to_song_videos_table',69);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_24_052601_add_integrity_check_to_sermons_reference_table',70);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_23_053404_add_check_constraints_to_scripture_passages_table',71);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_26_165514_fortify_song_identity_columns',72);

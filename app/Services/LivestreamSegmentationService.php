@@ -15,6 +15,15 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
+/**
+ * Service for orchestrating the livestream media processing lifecycle.
+ *
+ * This service serves as the primary entry point for livestream video uploads,
+ * managing the sequence of storage validation, temporary file persistence,
+ * metadata extraction, and the initiation of the background processing pipeline.
+ * It also provides methods for managing active processing runs (retry, cancel)
+ * and retrieving their current status and results.
+ */
 class LivestreamSegmentationService
 {
     use SanitizesLogData;
@@ -26,6 +35,22 @@ class LivestreamSegmentationService
         private readonly ProcessingRunOrchestrator $orchestrator,
     ) {}
 
+    /**
+     * Entry point for all livestream video uploads.
+     *
+     * Validates available storage space (requiring 2x file size), stores the
+     * file temporarily, extracts initial metadata, and initiates the
+     * background processing pipeline.
+     *
+     * @param  UploadedFile  $videoFile  The uploaded video file
+     * @param  string|null  $clientFileDate  Optional date provided by the client
+     * @param  string|null  $fileHash  Pre-computed file hash for deduplication
+     * @param  string|null  $dedupKey  Pre-built deduplication key
+     * @return ProcessingResult The result of the initiation attempt
+     *
+     * @throws Exception If storage space is insufficient or video format is invalid
+     * @throws RuntimeException If storage service fails to return required file paths
+     */
     public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null, ?string $dedupKey = null): ProcessingResult
     {
         try {
@@ -96,6 +121,17 @@ class LivestreamSegmentationService
         }
     }
 
+    /**
+     * Restart a failed or cancelled livestream processing run.
+     *
+     * Ensures the record exists and is in a retryable state before
+     * re-dispatching the processing jobs.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return LivestreamProcessingResult The updated processing result
+     *
+     * @throws Exception If record not found or status is not retryable
+     */
     public function retryProcessing(string $processingId): LivestreamProcessingResult
     {
         $processingLog = MediaProcessingLog::query()
@@ -116,6 +152,14 @@ class LivestreamSegmentationService
         return $this->buildProcessingResult($processingLog->fresh() ?? $processingLog);
     }
 
+    /**
+     * Attempt to cancel an active livestream processing run.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return bool True if cancellation was successful
+     *
+     * @throws Exception If record not found or already complete
+     */
     public function cancelProcessing(string $processingId): bool
     {
         $processingLog = MediaProcessingLog::query()
@@ -134,6 +178,17 @@ class LivestreamSegmentationService
         return $this->orchestrator->cancel($processingLog);
     }
 
+    /**
+     * Retrieve the current processing status for a given ID.
+     *
+     * Eager-loads associated segments and sermon records to provide a
+     * comprehensive state snapshot.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return StandardProcessingResponse The current state snapshot
+     *
+     * @throws Exception If the processing record is not found
+     */
     public function getProcessingStatus(string $processingId): StandardProcessingResponse
     {
         $processingLog = MediaProcessingLog::query()
@@ -148,6 +203,17 @@ class LivestreamSegmentationService
         return StandardProcessingResponse::fromProcessingLog($processingLog);
     }
 
+    /**
+     * Retrieve detailed results for a given livestream processing ID.
+     *
+     * Similar to getProcessingStatus but returns a specialized
+     * LivestreamProcessingResult DTO with segment-level detail.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return LivestreamProcessingResult The detailed results
+     *
+     * @throws Exception If the processing record is not found
+     */
     public function getProcessingResult(string $processingId): LivestreamProcessingResult
     {
         $processingLog = MediaProcessingLog::query()
@@ -163,7 +229,18 @@ class LivestreamSegmentationService
     }
 
     /**
-     * @return array<string, int|float>
+     * Get a high-level summary of all livestream processing activity.
+     *
+     * Returns counts for each status and the overall success rate.
+     *
+     * @return array{
+     *     total_processing_requests: int,
+     *     pending: int,
+     *     processing: int,
+     *     completed: int,
+     *     failed: int,
+     *     success_rate: float|int
+     * }
      */
     public function getProcessingSummary(): array
     {

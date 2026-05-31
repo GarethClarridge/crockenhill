@@ -5,13 +5,16 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test:
-    name: Test
+  master-validation:
+    name: Master Validation
     runs-on: ubuntu-latest
 
     services:
@@ -28,63 +31,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Guard bootstrap middleware safety
         run: ./scripts/check-bootstrap-safety.sh
 
       - name: Guard deploy view cache safety
-        run: |
-          set -euo pipefail
-          workflow=".github/workflows/deploy.yml"
+        run: ./scripts/check-deploy-view-cache-safety.sh
 
-          if ! grep -Fq "php artisan optimize --except=views" "$workflow"; then
-            echo "Deploy workflow must use: php artisan optimize --except=views"
-            exit 1
-          fi
-
-          if grep -E "php artisan (view:cache|view:clear)\\b" "$workflow"; then
-            echo "Deploy workflow must not run view:cache or view:clear."
-            exit 1
-          fi
-
-          if grep -F "php artisan optimize" "$workflow" | grep -Fv -- "--except=views" >/dev/null; then
-            echo "Found unsafe optimize command. Use --except=views."
-            exit 1
-          fi
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, redis
-          coverage: none
-
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      - name: Cache Composer
-        uses: actions/cache@v5
-        with:
-          path: vendor
-          key: composer-${{ hashFiles('composer.lock') }}
-
-      - name: Prepare Laravel environment
-        run: |
-          mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
-          cp .env.example .env
-          echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
-
-      - name: Install PHP dependencies
-        run: composer install --prefer-dist --no-interaction
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install and build frontend
-        run: npm ci && npm run build
+      - name: Setup Laravel
+        uses: ./.github/actions/setup-laravel
 
       - name: Configure Laravel for testing
         run: |
@@ -100,9 +57,11 @@ jobs:
       - name: Run migrations
         run: php artisan migrate --force
 
+      - name: Verify schema dump is current
+        run: ./scripts/check-schema-dump-current.sh
+
       - name: Formatting (Pint)
         run: ./vendor/bin/pint --test
-        continue-on-error: true
 
       - name: Typing baseline (changed app files)
         run: ./scripts/check-typing-baseline.sh "${{ github.event.before }}" "${{ github.sha }}"
@@ -111,10 +70,35 @@ jobs:
         run: composer phpstan
 
       - name: Tests (Core)
-        run: php artisan test --parallel --exclude-group=dedicated --exclude-group=performance
+        run: php artisan test --parallel --compact --exclude-group=dedicated --exclude-group=performance
 
       - name: Tests (Dedicated)
-        run: php artisan test --group=dedicated
+        run: php artisan test --compact --group=dedicated
+
+      - name: Upload Laravel logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: deploy-validation-laravel-logs
+          path: storage/logs
+          if-no-files-found: ignore
+
+      - name: Summarise master validation
+        if: always()
+        run: |
+          {
+            echo "### Master Validation"
+            echo ""
+            echo "- Bootstrap safety guard"
+            echo "- Deploy view-cache safety guard"
+            echo "- Frontend build"
+            echo "- Schema dump freshness"
+            echo "- Pint"
+            echo "- Typing baseline"
+            echo "- PHPStan"
+            echo "- Core PHPUnit suite"
+            echo "- Dedicated PHPUnit tests"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   dusk:
     name: Browser Tests (Dusk)
@@ -141,39 +125,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, redis
-          coverage: none
-
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      - name: Cache Composer
-        uses: actions/cache@v5
-        with:
-          path: vendor
-          key: composer-${{ hashFiles('composer.lock') }}
-
-      - name: Prepare Laravel environment
-        run: |
-          mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
-          cp .env.example .env
-          echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
-
-      - name: Install PHP dependencies
-        run: composer install --prefer-dist --no-interaction
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install and build frontend
-        run: npm ci && npm run build
+      - name: Setup Laravel
+        uses: ./.github/actions/setup-laravel
 
       - name: Configure Laravel for Dusk
         run: |
@@ -199,6 +152,7 @@ jobs:
             fi
             echo "Waiting for Selenium ($i/30)..."; sleep 2
           done
+
           STATUS="000"
           for i in $(seq 1 30); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/up 2>/dev/null || echo "000")
@@ -217,235 +171,31 @@ jobs:
           DUSK_DRIVER_URL: http://localhost:4444/wd/hub
         run: php artisan dusk
 
-      - name: Upload failure screenshots
+      - name: Upload Dusk artifacts
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: dusk-screenshots
-          path: tests/Browser/screenshots
-
-  playwright:
-    name: Visual Regression (Playwright)
-    runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.60.0-jammy
-      options: --user 0
-
-    services:
-      mysql:
-        image: mysql:8.0
-        command: --log-error-verbosity=1
-        env:
-          MYSQL_ROOT_PASSWORD: testing
-          MYSQL_DATABASE: testing
-          MYSQL_INITDB_SKIP_TZINFO: 1
-        ports:
-          - 3306:3306
-        options: --health-cmd="MYSQL_PWD=testing mysqladmin ping -uroot --silent" --health-interval=10s --health-timeout=5s --health-retries=3
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install PHP, FFmpeg, MySQL client
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y software-properties-common ca-certificates lsb-release apt-transport-https curl gnupg
-          curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /usr/share/keyrings/sury.gpg
-          echo "deb [signed-by=/usr/share/keyrings/sury.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/sury.list
-          apt-get update
-          apt-get install -y \
-            php8.4-cli php8.4-mysql php8.4-sqlite3 php8.4-curl php8.4-dom php8.4-xml \
-            php8.4-mbstring php8.4-zip php8.4-bcmath php8.4-intl php8.4-gd \
-            php8.4-soap php8.4-exif php8.4-iconv \
-            ffmpeg default-mysql-client unzip
-          update-alternatives --set php /usr/bin/php8.4
-          curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-      - name: Cache Composer
-        uses: actions/cache@v5
-        with:
-          path: vendor
-          key: composer-${{ hashFiles('composer.lock') }}
-
-      - name: Prepare Laravel environment
-        shell: bash
-        run: |
-          mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
-          cp .env.example .env
-          echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
-
-      - name: Install PHP dependencies
-        run: composer install --prefer-dist --no-interaction
-
-      - name: Install and build frontend
-        run: npm ci && npm run build
-
-      - name: Configure Laravel for Playwright
-        run: |
-          php artisan key:generate
-          APP_KEY=$(grep ^APP_KEY= .env | cut -d= -f2-)
-          cp .env.playwright.ci .env
-          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
-          sed -i 's|^DB_HOST=.*|DB_HOST=mysql|' .env
-
-      - name: Run migrations and seed
-        run: |
-          mysql -h mysql -u root -ptesting -e "CREATE DATABASE IF NOT EXISTS \`testing_pw\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-          php artisan migrate --force
-          php artisan db:seed --force
-
-      - name: Start application server
-        run: |
-          php artisan serve --host=0.0.0.0 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
-
-      - name: Wait for app server
-        run: |
-          STATUS="000"
-          for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/up 2>/dev/null || echo "000")
-            echo "App server /up status: $STATUS"
-            if [ "$STATUS" = "200" ]; then echo "App server ready"; break; fi
-            echo "Waiting for app server ($i/30)..."
-            sleep 2
-          done
-          [ "$STATUS" = "200" ] || { echo "App server failed to start"; cat storage/logs/serve.log; exit 1; }
-
-      - name: Run Playwright tests
-        env:
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:8000
-          CI: 'true'
-        run: npx playwright test
-
-      - name: Dump app server log
-        if: failure()
-        run: |
-          echo "===== storage/logs/serve.log ====="
-          cat storage/logs/serve.log || echo "(no serve.log)"
-          echo "===== storage/logs/laravel.log ====="
-          tail -n 500 storage/logs/laravel.log 2>/dev/null || echo "(no laravel.log)"
-
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report
+          name: dusk-artifacts
           path: |
-            playwright-report
-            test-results
+            tests/Browser/screenshots
+            tests/Browser/console
             storage/logs
-
-  lighthouse:
-    name: Lighthouse Audits
-    runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        command: --log-error-verbosity=1
-        env:
-          MYSQL_ROOT_PASSWORD: testing
-          MYSQL_DATABASE: testing
-          MYSQL_INITDB_SKIP_TZINFO: 1
-        ports:
-          - 3306:3306
-        options: --health-cmd="MYSQL_PWD=testing mysqladmin ping -uroot --silent" --health-interval=10s --health-timeout=5s --health-retries=3
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, redis
-          coverage: none
-
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      - name: Cache Composer
-        uses: actions/cache@v5
-        with:
-          path: vendor
-          key: composer-${{ hashFiles('composer.lock') }}
-
-      - name: Prepare Laravel environment
-        run: |
-          mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
-          cp .env.example .env
-          echo "VIEW_COMPILED_PATH=$(pwd)/storage/framework/views" >> .env
-
-      - name: Install PHP dependencies
-        run: composer install --prefer-dist --no-interaction
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install and build frontend
-        run: npm install && npm run build
-
-      - name: Configure Laravel for Lighthouse
-        run: |
-          php artisan key:generate
-          echo "DB_HOST=127.0.0.1" >> .env
-          echo "DB_DATABASE=testing" >> .env
-          echo "DB_USERNAME=root" >> .env
-          echo "DB_PASSWORD=testing" >> .env
-          echo "SESSION_DRIVER=array" >> .env
-          echo "QUEUE_CONNECTION=sync" >> .env
-          echo "TRANSCRIPTION_SERVICE_TYPE=mock" >> .env
-          sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=array/' .env
-          sed -i 's/^REDIS_HOST=.*/REDIS_HOST=127.0.0.1/' .env
-          sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
-
-      - name: Run migrations and seed
-        run: |
-          php artisan migrate --force
-          php artisan db:seed --force
-
-      - name: Start application server
-        run: php artisan serve --host=127.0.0.1 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
-
-      - name: Wait for app server
-        run: |
-          STATUS="000"
-          for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/up 2>/dev/null || echo "000")
-            echo "Waiting for app server ($i/30)... HTTP $STATUS"; sleep 2
-            if [ "$STATUS" = "200" ]; then echo "App server ready"; break; fi
-          done
-          [ "$STATUS" = "200" ] || { echo "App server failed to start"; cat storage/logs/serve.log; echo "=== Laravel log ==="; cat storage/logs/laravel.log 2>/dev/null || echo "(no laravel.log)"; exit 1; }
-
-      - name: Warm up audited URLs
-        run: |
-          for url in / /christ /church /community /calendar /christ/sermons; do
-            curl -sf "http://127.0.0.1:8000${url}" > /dev/null
-          done
-
-      - name: Run Lighthouse CI
-        run: npx lhci autorun --collect.numberOfRuns=1
-
-      - name: Upload Lighthouse report artifacts
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: lighthouse-reports
-          path: .lighthouseci
+          if-no-files-found: ignore
 
   build:
     name: Build & Push
-    needs: [test, dusk, lighthouse]
+    needs: [master-validation, dusk]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      attestations: write
+      id-token: write
     outputs:
-      image_tag: ${{ steps.image.outputs.tag }}
+      image_digest: ${{ steps.build-image.outputs.digest }}
       image_ref: ${{ steps.image.outputs.ref }}
+      image_repo: ${{ steps.image.outputs.repo }}
+      image_tag: ${{ steps.image.outputs.tag }}
 
     steps:
       - uses: actions/checkout@v6
@@ -460,25 +210,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix=
-            type=raw,value=latest
-
       - name: Resolve deterministic image tag
         id: image
         run: |
           set -euo pipefail
           image_repo="${REGISTRY}/${IMAGE_NAME}"
           image_repo="${image_repo,,}"
+          echo "repo=${image_repo}" >> "$GITHUB_OUTPUT"
           echo "tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           echo "ref=${image_repo}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ steps.image.outputs.repo }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
       - name: Build and push
+        id: build-image
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -489,6 +241,25 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: true
+
+      - name: Attest image provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ steps.image.outputs.repo }}
+          subject-digest: ${{ steps.build-image.outputs.digest }}
+          push-to-registry: true
+
+      - name: Summarise image build
+        if: always()
+        run: |
+          {
+            echo "### Production Image"
+            echo ""
+            echo "- Image: ${{ steps.image.outputs.ref }}"
+            echo "- Digest: ${{ steps.build-image.outputs.digest }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   smoke:
     name: Smoke (Image /up)
@@ -545,11 +316,26 @@ jobs:
           docker logs crockenhill-smoke
           exit 1
 
+      - name: Summarise image smoke
+        if: always()
+        run: |
+          {
+            echo "### Image Smoke"
+            echo ""
+            echo "- Image: ${{ needs.build.outputs.image_ref }}"
+            echo "- Result: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     name: Deploy
     needs: [build, smoke]
     runs-on: ubuntu-latest
     environment: production
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    env:
+      BACKUP_FILE: backups/db-${{ github.run_id }}-${{ github.run_attempt }}.sql.gz
 
     steps:
       - uses: actions/checkout@v6
@@ -576,13 +362,14 @@ jobs:
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
         env:
+          BACKUP_FILE: ${{ env.BACKUP_FILE }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         with:
           host: ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           command_timeout: 240m
-          envs: IMAGE_TAG
+          envs: IMAGE_TAG,BACKUP_FILE
           script: |
             set -eu
             cd /srv/crockenhill
@@ -598,13 +385,12 @@ jobs:
             docker image prune -af
             docker builder prune -af
 
-            # Pull new image
+            # Pull new image.
             docker compose -f docker-compose.prod.yml --env-file .env.production pull
 
-            # Start dependencies and wait for health
+            # Start dependencies and wait for health.
             docker compose -f docker-compose.prod.yml --env-file .env.production up -d mysql redis
 
-            # Wait for MySQL to be healthy
             echo "Waiting for MySQL to be healthy..."
             MAX_RETRIES=30
             COUNT=0
@@ -620,39 +406,48 @@ jobs:
               exit 1
             fi
 
-            # Source environment variables for the backup step
             if [ -f .env.production ]; then
-              export $(grep -E '^DB_(DATABASE|USERNAME|PASSWORD)=' .env.production | xargs)
+              set -a
+              . ./.env.production
+              set +a
             fi
 
-            # Backup database before migration (keeps last 5 backups)
-            BACKUP_FILE="backups/db-$(date +%Y%m%d-%H%M%S).sql.gz"
-            mkdir -p backups
+            : "${DB_DATABASE:?Missing DB_DATABASE in .env.production}"
+            : "${DB_USERNAME:?Missing DB_USERNAME in .env.production}"
+            : "${DB_PASSWORD:?Missing DB_PASSWORD in .env.production}"
+
+            mkdir -p "$(dirname "$BACKUP_FILE")"
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T -e MYSQL_PWD="${DB_PASSWORD}" mysql \
               mysqldump --no-tablespaces -u"${DB_USERNAME}" "${DB_DATABASE}" \
               | gzip > "$BACKUP_FILE"
             ls -t backups/*.sql.gz | tail -n +6 | xargs -r rm
 
-            # Preview migrations (fail early if there's an issue)
             docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \
               php artisan migrate --pretend --force
 
-            # Run actual migrations
             docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \
               php artisan migrate --force
 
-            # Restart all services
             docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 
-            # Clear caches and optimize.
-            # Skip views to avoid clearing runtime-generated Blade files
-            # while live PHP-FPM workers are serving traffic.
+            # Skip views to avoid clearing runtime-generated Blade files while
+            # live PHP-FPM workers are serving traffic.
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
               php artisan optimize --except=views
 
-            # Post-deploy operational smoke check
             ./scripts/post-deploy-smoke.sh
 
-            # Remove the app image from the previous deploy once the new
-            # container has passed the operational smoke check.
             docker image prune -af
+
+      - name: Summarise deployment
+        if: always()
+        run: |
+          {
+            echo "### Production Deploy"
+            echo ""
+            echo "- Commit: ${{ github.sha }}"
+            echo "- Image: ${{ needs.build.outputs.image_ref }}"
+            echo "- Digest: ${{ needs.build.outputs.image_digest }}"
+            echo "- Backup: ${{ env.BACKUP_FILE }}"
+            echo "- Result: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"

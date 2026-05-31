@@ -204,6 +204,8 @@ class UnifiedMediaProcessor
     /**
      * Process an audio file through the complete automation pipeline.
      * Uses ProcessingInitiator for shared log-creation boundary (same as video/livestream).
+     *
+     * @throws UniqueConstraintViolationException
      */
     private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash, ?string $dedupKey): ProcessingResult
     {
@@ -271,6 +273,9 @@ class UnifiedMediaProcessor
         }
     }
 
+    /**
+     * @throws \RuntimeException
+     */
     private function storeAudioFile(UploadedFile $file, SermonMetadata $metadata): string
     {
         $disk = config('media-processing.storage.sermon_disk', 'public');
@@ -381,6 +386,8 @@ class UnifiedMediaProcessor
      * Uses ProcessingInitiator for shared metadata extraction and log creation.
      *
      * @param  array<string, mixed>  $options
+     *
+     * @throws UniqueConstraintViolationException
      */
     private function processDirectVideo(
         UploadedFile $file,

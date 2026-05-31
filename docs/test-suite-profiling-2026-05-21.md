@@ -89,8 +89,9 @@ the schema file automatically and loads it instead of running migrations one-by-
 the test database. After loading the schema file, Laravel still runs any incremental migrations
 not present in the dump's migrations table.
 
-- **Status:** Done. Run `vendor/bin/sail artisan schema:dump` periodically to refresh the schema
-  file after new migrations land.
+- **Status:** Done. Run `vendor/bin/sail artisan schema:dump` in the same PR as each migration
+  batch — never after the fact. A CI gate in `deploy.yml` fails the build if the dump is missing
+  any migration file.
 - **Measured impact:** ~17 s saving (3:48 → 3:31 wall time after the earlier test refactors).
 - **Cumulative with #2 below:** ~5:00 → 3:31, a 30% reduction.
 
