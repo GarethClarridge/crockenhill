@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
+use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
@@ -17,6 +18,8 @@ use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use OpenAI\Exceptions\ErrorException;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Resources\Chat;
+use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -89,7 +92,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     }
 
     #[Test]
-    public function it_gets_existing_series_from_database(): void
+    public function it_includes_existing_series_in_analysis_prompt(): void
     {
         // Clear any existing sermons to ensure test isolation
         Sermon::query()->delete();
@@ -100,17 +103,33 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         Sermon::factory()->create(['series' => null]); // Should be ignored
         Sermon::factory()->create(['series' => '']); // Should be ignored
 
-        // Use reflection to test the private method
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('getExistingSeries');
-        $method->setAccessible(true);
+        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
-        $existingSeries = $method->invoke($this->service);
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                'title' => 'God\'s Amazing Love',
+                                'series' => 'John Study',
+                                'reference' => 'John 3:16-21',
+                                'points' => ['First point', 'Second point', 'Third point'],
+                            ]),
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
 
-        $this->assertIsArray($existingSeries);
-        $this->assertContains('John Study', $existingSeries);
-        $this->assertContains('Romans Study', $existingSeries);
-        $this->assertCount(2, $existingSeries);
+        $this->service->analyzeSermon($transcript);
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            $prompt = $parameters['messages'][1]['content'];
+
+            // Verify that only valid series are included in the prompt, correctly formatted
+            return str_contains($prompt, "EXISTING SERMON SERIES (match one if applicable):\nJohn Study, Romans Study\n");
+        });
     }
 
     #[Test]
@@ -317,46 +336,46 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     }
 
     #[Test]
-    public function it_has_all_required_public_methods(): void
+    public function it_implements_analysis_interface(): void
     {
-        // Test that all required public methods exist
-        $reflection = new \ReflectionClass($this->service);
-
-        $this->assertTrue($reflection->hasMethod('analyzeSermon'));
-        $this->assertTrue($reflection->hasMethod('generateTitle'));
-        $this->assertTrue($reflection->hasMethod('identifySeries'));
-        $this->assertTrue($reflection->hasMethod('extractBiblePassage'));
-        $this->assertTrue($reflection->hasMethod('extractSermonPoints'));
-
-        // Test that key private methods still exist on this service
-        $this->assertTrue($reflection->hasMethod('getExistingSeries'));
-
-        // Test that moved methods now live on the collaborator classes
-        $validatorReflection = new \ReflectionClass($this->validator);
-        $this->assertTrue($validatorReflection->hasMethod('validateTranscript'));
-        $this->assertTrue($validatorReflection->hasMethod('validateAndCleanAnalysisData'));
-
-        $promptBuilderReflection = new \ReflectionClass($this->promptBuilder);
-        $this->assertTrue($promptBuilderReflection->hasMethod('buildAnalysisPrompt'));
+        $this->assertInstanceOf(SermonAnalysisInterface::class, $this->service);
     }
 
     #[Test]
-    public function it_handles_database_errors_when_getting_existing_series(): void
+    public function it_falls_back_to_empty_series_list_on_database_error(): void
     {
-        // Temporarily change the database connection to an invalid one to trigger exception
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('getExistingSeries');
-        $method->setAccessible(true);
+        $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
-        // Set an invalid database connection that will cause an exception
+        // Mock OpenAI to avoid actual API call
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => json_encode([
+                                'title' => 'Test Title',
+                                'series' => null,
+                                'reference' => null,
+                                'points' => ['Point'],
+                            ]),
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        // Set an invalid database connection that will cause an exception when getting series
         $originalConnection = config('database.default');
         config(['database.connections.invalid' => ['driver' => 'invalid']]);
         config(['database.default' => 'invalid']);
 
         try {
-            $result = $method->invoke($this->service);
-            $this->assertIsArray($result);
-            $this->assertEmpty($result);
+            // Should not throw and prompt should still be built
+            $this->service->analyzeSermon($transcript);
+
+            OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+                return str_contains($parameters['messages'][1]['content'], 'None available');
+            });
         } finally {
             // Restore the original connection
             config(['database.default' => $originalConnection]);
