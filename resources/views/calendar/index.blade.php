@@ -40,20 +40,21 @@
                 $orgPostalCode = config('organization.address.postal_code');
                 $orgCountry = config('organization.address.country');
                 $primaryImage = asset('images/Primary.png');
+                $currentUrl = request()->url();
             @endphp
             <script type="application/ld+json">
                 {!! json_encode([
                     '@' . 'context' => 'https://schema.org',
                     '@type' => 'ItemList',
-                    'itemListElement' => $allEvents->map(function ($event, $index) use ($orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $primaryImage) {
+                    'itemListElement' => $allEvents->map(function ($event, $index) use ($orgName, $orgUrl, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $primaryImage, $currentUrl) {
                         $eventData = [
                             '@type' => 'ListItem',
                             'position' => $index + 1,
                             'item' => [
                                 '@type' => 'Event',
-                                '@id' => url()->current() . '#event-' . $event->google_event_id,
+                                '@id' => $currentUrl . '#event-' . $event->id,
                                 'name' => $event->title,
-                                'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? 'Church event at Crockenhill Baptist Church'), 150),
+                                'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? "Church event at {$orgName}"), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
                                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                                 'eventStatus' => 'https://schema.org/EventScheduled',
@@ -121,7 +122,7 @@
 
                     <div class="divide-y divide-gray-100">
                         @foreach($events as $event)
-                            <div class="px-6 py-4 hover:bg-gray-50 transition-colors">
+                            <div id="event-{{ $event->id }}" class="px-6 py-4 hover:bg-gray-50 transition-colors">
                                 <x-calendar-event-card
                                     :event="$event"
                                     variant="list"
