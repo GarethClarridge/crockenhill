@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
+use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
@@ -18,6 +19,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use OpenAI\Exceptions\ErrorException;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Resources\Chat;
+use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -104,7 +106,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $transcript = str_repeat('This is a valid sermon transcript with enough words to pass validation. ', 10);
 
         OpenAI::fake([
-            \OpenAI\Responses\Chat\CreateResponse::fake([
+            CreateResponse::fake([
                 'choices' => [
                     [
                         'message' => [
@@ -336,7 +338,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     #[Test]
     public function it_implements_analysis_interface(): void
     {
-        $this->assertInstanceOf(\App\Contracts\SermonAnalysisInterface::class, $this->service);
+        $this->assertInstanceOf(SermonAnalysisInterface::class, $this->service);
     }
 
     #[Test]
@@ -346,7 +348,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
 
         // Mock OpenAI to avoid actual API call
         OpenAI::fake([
-            \OpenAI\Responses\Chat\CreateResponse::fake([
+            CreateResponse::fake([
                 'choices' => [
                     [
                         'message' => [
