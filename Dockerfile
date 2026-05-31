@@ -50,7 +50,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
         libonig-dev libpng-dev libsqlite3-dev libwebp-dev libxml2-dev libzip-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j"$(nproc)" \
-        bcmath curl exif gd intl mbstring mysqli opcache pcntl \
+        bcmath curl exif gd intl mbstring mysqli pcntl \
         pdo_mysql pdo_sqlite soap sockets zip \
     # Build tools required for resemblyzer's native extension (webrtcvad)
     # Speaker identification runtime dependencies. Install PyTorch from the
