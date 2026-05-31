@@ -102,62 +102,29 @@ class MetadataExtractionService
         // Remove only the last extension (e.g., .mp3) to preserve dates with dots
         $nameWithoutExtension = preg_replace('/\.[^.]+$/', '', $filename) ?? $filename;
 
-        $foundDatePattern = false;
+        $matched = false;
+        $explicitDate = $this->parseExplicitDate($nameWithoutExtension, $matched);
 
-        // ISO format: YYYY-MM-DD (try first as it's most specific)
-        if (preg_match('/(\d{4})[_\-\s\.\/](\d{1,2})[_\-\s\.\/](\d{1,2})/', $nameWithoutExtension, $matches)) {
-            $foundDatePattern = true;
-            $year = (int) $matches[1];
-            $month = (int) $matches[2];
-            $day = (int) $matches[3];
-
-            if ($this->isValidDate($year, $month, $day)) {
-                return Carbon::createFromDate($year, $month, $day);
-            }
-        }
-
-        // European format: DD-MM-YYYY (only if ISO didn't match)
-        if (! $foundDatePattern && preg_match('/(\d{1,2})[_\-\s\.\/](\d{1,2})[_\-\s\.\/](\d{4})/', $nameWithoutExtension, $matches)) {
-            $foundDatePattern = true;
-            $day = (int) $matches[1];
-            $month = (int) $matches[2];
-            $year = (int) $matches[3];
-
-            if ($this->isValidDate($year, $month, $day)) {
-                return Carbon::createFromDate($year, $month, $day);
-            }
-        }
-
-        // Compact format: YYYYMMDD
-        if (! $foundDatePattern && preg_match('/(\d{4})(\d{2})(\d{2})/', $nameWithoutExtension, $matches)) {
-            $foundDatePattern = true;
-            $year = (int) $matches[1];
-            $month = (int) $matches[2];
-            $day = (int) $matches[3];
-
-            if ($this->isValidDate($year, $month, $day)) {
-                return Carbon::createFromDate($year, $month, $day);
-            }
-        }
-
-        // Named month format: 5th April 2026, 5 April 2026, April 5 2026
-        if (! $foundDatePattern) {
-            $namedMonthDate = $this->tryExtractNamedMonthDate($nameWithoutExtension);
-            if ($namedMonthDate !== null) {
-                return $namedMonthDate;
-            }
+        if ($explicitDate !== null) {
+            return $explicitDate;
         }
 
         // If we found a date pattern but it was invalid, don't try year extraction
-        if ($foundDatePattern) {
+        if ($matched) {
             return Carbon::today();
+        }
+
+        // Named month format: 5th April 2026, 5 April 2026, April 5 2026
+        $namedMonthDate = $this->tryExtractNamedMonthDate($nameWithoutExtension);
+        if ($namedMonthDate !== null) {
+            return $namedMonthDate;
         }
 
         // Year only extraction (only if no date pattern was found)
         if (preg_match('/(\d{4})/', $nameWithoutExtension, $matches)) {
             $year = (int) $matches[1];
-            if ($year >= 1900 && $year <= date('Y') + 1) {
-                return Carbon::createFromDate($year, (int) date('n'), (int) date('j'));
+            if ($year >= 1900 && $year <= now()->year + 1) {
+                return Carbon::createFromDate($year, now()->month, now()->day);
             }
         }
 
@@ -174,47 +141,55 @@ class MetadataExtractionService
     {
         $nameWithoutExtension = preg_replace('/\.[^.]+$/', '', $filename) ?? $filename;
 
-        // ISO format: YYYY-MM-DD
-        if (preg_match('/(\d{4})[_\-\s\.\/](\d{1,2})[_\-\s\.\/](\d{1,2})/', $nameWithoutExtension, $matches)) {
-            $year = (int) $matches[1];
-            $month = (int) $matches[2];
-            $day = (int) $matches[3];
+        $matched = false;
+        $explicitDate = $this->parseExplicitDate($nameWithoutExtension, $matched);
 
-            if ($this->isValidDate($year, $month, $day)) {
-                return Carbon::createFromDate($year, $month, $day);
-            }
-
-            return null;
-        }
-
-        // European format: DD-MM-YYYY
-        if (preg_match('/(\d{1,2})[_\-\s\.\/](\d{1,2})[_\-\s\.\/](\d{4})/', $nameWithoutExtension, $matches)) {
-            $day = (int) $matches[1];
-            $month = (int) $matches[2];
-            $year = (int) $matches[3];
-
-            if ($this->isValidDate($year, $month, $day)) {
-                return Carbon::createFromDate($year, $month, $day);
-            }
-
-            return null;
-        }
-
-        // Compact format: YYYYMMDD
-        if (preg_match('/(\d{4})(\d{2})(\d{2})/', $nameWithoutExtension, $matches)) {
-            $year = (int) $matches[1];
-            $month = (int) $matches[2];
-            $day = (int) $matches[3];
-
-            if ($this->isValidDate($year, $month, $day)) {
-                return Carbon::createFromDate($year, $month, $day);
-            }
-
-            return null;
+        if ($explicitDate !== null || $matched) {
+            return $explicitDate;
         }
 
         // Named month format: 5th April 2026, 5 April 2026, April 5 2026
         return $this->tryExtractNamedMonthDate($nameWithoutExtension);
+    }
+
+    /**
+     * Parse explicit date patterns (ISO, European, Compact) from a filename.
+     */
+    private function parseExplicitDate(string $nameWithoutExtension, bool &$matched): ?Carbon
+    {
+        // ISO format: YYYY-MM-DD
+        if (preg_match('/(\d{4})[_\-\s\.\/](\d{1,2})[_\-\s\.\/](\d{1,2})/', $nameWithoutExtension, $matches)) {
+            $matched = true;
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
+
+            return $this->isValidDate($year, $month, $day) ? Carbon::createFromDate($year, $month, $day) : null;
+        }
+
+        // European format: DD-MM-YYYY
+        if (preg_match('/(\d{1,2})[_\-\s\.\/](\d{1,2})[_\-\s\.\/](\d{4})/', $nameWithoutExtension, $matches)) {
+            $matched = true;
+            $day = (int) $matches[1];
+            $month = (int) $matches[2];
+            $year = (int) $matches[3];
+
+            return $this->isValidDate($year, $month, $day) ? Carbon::createFromDate($year, $month, $day) : null;
+        }
+
+        // Compact format: YYYYMMDD
+        if (preg_match('/(\d{4})(\d{2})(\d{2})/', $nameWithoutExtension, $matches)) {
+            $matched = true;
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
+
+            return $this->isValidDate($year, $month, $day) ? Carbon::createFromDate($year, $month, $day) : null;
+        }
+
+        $matched = false;
+
+        return null;
     }
 
     private function tryExtractNamedMonthDate(string $nameWithoutExtension): ?Carbon
@@ -368,7 +343,7 @@ class MetadataExtractionService
      */
     public function isValidDate(int $year, int $month, int $day): bool
     {
-        if ($year < 1900 || $year > date('Y') + 1) {
+        if ($year < 1900 || $year > now()->year + 1) {
             return false;
         }
 
@@ -643,7 +618,6 @@ class MetadataExtractionService
         $clientDate = $this->parseClientProvidedDate($clientProvidedDate, $filename);
 
         try {
-            // Get file path - handle both UploadedFile and string path
             $filePath = $file instanceof UploadedFile ? $file->getRealPath() : $file;
             $filenameDate = $this->tryExtractDateFromFilename($filename);
 
@@ -656,21 +630,10 @@ class MetadataExtractionService
                 return $filenameDate ?? $clientDate ?? $this->extractDateFromFilename($filename);
             }
 
-            // Strategy 1: Try to extract creation date from video metadata using FFprobe.
-            $ffprobe = FFProbe::create([
-                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
-                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
-            ]);
+            // Strategy 1: Video metadata (FFprobe)
+            $metadataDate = $this->extractDateFromVideoMetadata($filePath);
 
-            $format = $ffprobe->format($filePath);
-
-            // Try to get creation_time from video metadata
-            // This is typically set by video recording devices
-            $tags = $format->get('tags');
-            if ($tags && isset($tags['creation_time'])) {
-                $creationTime = $tags['creation_time'];
-                $metadataDate = Carbon::parse($creationTime);
-
+            if ($metadataDate !== null) {
                 // If the filename encodes a real date that is older than the metadata date,
                 // the metadata is likely a download/re-encode timestamp — prefer the filename.
                 if ($filenameDate !== null && $metadataDate->isAfter($filenameDate->copy()->endOfDay())) {
@@ -685,13 +648,13 @@ class MetadataExtractionService
 
                 Log::info('Extracted creation date from video metadata tags', [
                     'filename' => $this->sanitizeForLog($filename),
-                    'creation_time' => $this->sanitizeForLog((string) $creationTime),
+                    'metadata_date' => $metadataDate->toDateString(),
                 ]);
 
                 return $metadataDate;
             }
 
-            // Strategy 2: Use a real date from the filename before trusting browser lastModified.
+            // Strategy 2: Filename parsing
             if ($filenameDate !== null) {
                 Log::info('Using filename date for video date extraction', [
                     'filename' => $this->sanitizeForLog($filename),
@@ -701,59 +664,92 @@ class MetadataExtractionService
                 return $filenameDate;
             }
 
-            // Strategy 3: Use client-provided file date (from JavaScript extraction of File.lastModified).
+            // Strategy 3: Client-provided file date
             if ($clientDate !== null) {
                 Log::info('Using client-provided file modification date', [
                     'filename' => $this->sanitizeForLog($filename),
-                    'client_date' => $this->sanitizeForLog((string) $clientProvidedDate),
                     'parsed_date' => $clientDate->toDateString(),
                 ]);
 
                 return $clientDate;
             }
 
-            // Strategy 4: For UploadedFile, check the original file's modification time
-            // This preserves the date from the user's filesystem before Laravel stores it
-            if ($file instanceof UploadedFile) {
-                $originalMtime = filemtime($filePath);
-                if ($originalMtime !== false) {
-                    $fileDate = Carbon::createFromTimestamp($originalMtime);
+            // Strategy 4: File modification timestamp
+            $fileTimestampDate = $this->extractDateFromFileTimestamp($filePath);
 
-                    // Only use file timestamp if it's reasonable (not just uploaded seconds ago)
-                    // and different from current date by more than a day
-                    $daysDiff = abs($fileDate->diffInDays(Carbon::now()));
-                    if ($daysDiff >= 1) {
-                        Log::info('Using original file modification timestamp', [
-                            'filename' => $this->sanitizeForLog($filename),
-                            'file_date' => $fileDate->toDateString(),
-                            'days_difference' => $daysDiff,
-                        ]);
+            if ($fileTimestampDate !== null) {
+                Log::info('Using original file modification timestamp', [
+                    'filename' => $this->sanitizeForLog($filename),
+                    'file_date' => $fileTimestampDate->toDateString(),
+                ]);
 
-                        return $fileDate;
-                    }
-                }
+                return $fileTimestampDate;
             }
 
             Log::info('No creation date in video metadata or file timestamp, falling back to filename', [
                 'filename' => $this->sanitizeForLog($filename),
-                'available_tags' => $tags ? array_keys($tags) : [],
             ]);
 
         } catch (\Exception $e) {
             Log::warning('Failed to extract date from video metadata, using filename fallback', [
-                'filename' => $this->sanitizeForLog($file instanceof UploadedFile ? $file->getClientOriginalName() : basename($file)),
+                'filename' => $this->sanitizeForLog($filename),
                 'error' => $this->sanitizeForLog($e->getMessage()),
-                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
         }
 
-        // Fallback to filename extraction
+        // Final fallback to filename extraction
         return $this->tryExtractDateFromFilename($filename) ?? $clientDate ?? $this->extractDateFromFilename($filename);
+    }
+
+    /**
+     * Extract creation date from video metadata using FFprobe.
+     */
+    private function extractDateFromVideoMetadata(string $filePath): ?Carbon
+    {
+        try {
+            $ffprobe = FFProbe::create([
+                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
+                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
+            ]);
+
+            $format = $ffprobe->format($filePath);
+            $tags = $format->get('tags');
+
+            if ($tags && isset($tags['creation_time'])) {
+                return Carbon::parse($tags['creation_time']);
+            }
+        } catch (\Exception $e) {
+            // Silently fail, cascading to next strategy
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract date from the file's modification timestamp if it differs significantly from now.
+     */
+    private function extractDateFromFileTimestamp(string $filePath): ?Carbon
+    {
+        $mtime = filemtime($filePath);
+
+        if ($mtime === false) {
+            return null;
+        }
+
+        $fileDate = Carbon::createFromTimestamp($mtime);
+
+        // Only use file timestamp if it's reasonable (not just uploaded seconds ago)
+        // and different from current date by at least one full day.
+        if (abs($fileDate->diffInDays(Carbon::now())) >= 1) {
+            return $fileDate;
+        }
+
+        return null;
     }
 
     private function parseClientProvidedDate(?string $clientProvidedDate, string $filename): ?Carbon
     {
-        if ($clientProvidedDate === null || $clientProvidedDate === '') {
+        if (! filled($clientProvidedDate)) {
             return null;
         }
 
@@ -935,11 +931,7 @@ class MetadataExtractionService
 
     private function toNullableString(mixed $value): ?string
     {
-        if (is_string($value) && $value !== '') {
-            return $value;
-        }
-
-        return null;
+        return filled($value) && is_string($value) ? $value : null;
     }
 
     /**
@@ -955,12 +947,6 @@ class MetadataExtractionService
 
         $value = $values[0] ?? null;
 
-        if (! is_string($value) && ! is_numeric($value)) {
-            return null;
-        }
-
-        $trimmed = trim((string) $value);
-
-        return $trimmed === '' ? null : $trimmed;
+        return filled($value) ? trim((string) $value) : null;
     }
 }
