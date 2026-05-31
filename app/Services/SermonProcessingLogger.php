@@ -34,7 +34,7 @@ class SermonProcessingLogger
             'timestamp' => now()->toISOString(),
         ];
 
-        Log::info('Sermon processing started', $context);
+        Log::info('Sermon processing started', $this->sanitizeArrayForLog($context));
     }
 
     /**
@@ -74,7 +74,7 @@ class SermonProcessingLogger
 
         $sanitizedStep = $this->sanitizeForLog($step);
         $sanitizedStatus = $this->sanitizeForLog($status);
-        Log::log($logLevel, "Processing step: {$sanitizedStep} - {$sanitizedStatus}", $context);
+        Log::log($logLevel, "Processing step: {$sanitizedStep} - {$sanitizedStatus}", $this->sanitizeArrayForLog($context));
     }
 
     /**
@@ -106,7 +106,8 @@ class SermonProcessingLogger
 
         $logLevel = $statusCode >= 400 ? 'error' : 'info';
         $sanitizedService = $this->sanitizeForLog($service);
-        Log::log($logLevel, "API call to {$sanitizedService}: {$endpoint}", $context);
+        $sanitizedEndpoint = $this->sanitizeForLog($endpoint);
+        Log::log($logLevel, "API call to {$sanitizedService}: {$sanitizedEndpoint}", $this->sanitizeArrayForLog($context));
     }
 
     /**
@@ -142,7 +143,7 @@ class SermonProcessingLogger
 
         $logLevel = $errorMessage ? 'error' : 'info';
         $sanitizedOperation = $this->sanitizeForLog($operation);
-        Log::log($logLevel, "File operation: {$sanitizedOperation}", $context);
+        Log::log($logLevel, "File operation: {$sanitizedOperation}", $this->sanitizeArrayForLog($context));
     }
 
     /**
@@ -176,7 +177,7 @@ class SermonProcessingLogger
         };
 
         $statusLabel = $status->value;
-        Log::log($logLevel, "Sermon processing {$statusLabel}", $context);
+        Log::log($logLevel, "Sermon processing {$statusLabel}", $this->sanitizeArrayForLog($context));
     }
 
     /**
@@ -204,7 +205,7 @@ class SermonProcessingLogger
         ], $additionalContext);
 
         $sanitizedStep = $this->sanitizeForLog($step);
-        Log::error("Processing error in step: {$sanitizedStep}", $context);
+        Log::error("Processing error in step: {$sanitizedStep}", $this->sanitizeArrayForLog($context));
     }
 
     /**
@@ -220,7 +221,7 @@ class SermonProcessingLogger
             'timestamp' => now()->toISOString(),
         ];
 
-        Log::info('Performance metrics', $context);
+        Log::info('Performance metrics', $this->sanitizeArrayForLog($context));
     }
 
     /**
@@ -245,7 +246,7 @@ class SermonProcessingLogger
         };
 
         $sanitizedCheckName = $this->sanitizeForLog($checkName);
-        Log::log($logLevel, "Health check: {$sanitizedCheckName}", $context);
+        Log::log($logLevel, "Health check: {$sanitizedCheckName}", $this->sanitizeArrayForLog($context));
     }
 
     /**
@@ -308,10 +309,10 @@ class SermonProcessingLogger
         }
         $statistics['error_patterns'] = $errorCounts;
 
-        Log::info('Processing statistics generated', [
+        Log::info('Processing statistics generated', $this->sanitizeArrayForLog([
             'statistics' => $statistics,
             'timestamp' => now()->toISOString(),
-        ]);
+        ]));
 
         return $statistics;
     }
@@ -366,17 +367,19 @@ class SermonProcessingLogger
     public function logWarning(string $processingId, string $step, string $message, array $context = []): void
     {
         $sanitizedStep = $this->sanitizeForLog($step);
-        Log::warning("Processing warning in step: {$sanitizedStep}", [
+        Log::warning("Processing warning in step: {$sanitizedStep}", $this->sanitizeArrayForLog([
             'processing_id' => $processingId,
             'step' => $sanitizedStep,
             'warning_message' => $this->sanitizeForLog($message),
             'timestamp' => now()->toISOString(),
             'context' => $context,
-        ]);
+        ]));
     }
 
     /**
      * Generate a processing report for a livestream processing record.
+     *
+     * @throws \Exception When the processing record is not found.
      */
     public function generateProcessingReport(string $processingId): ProcessingReport
     {
