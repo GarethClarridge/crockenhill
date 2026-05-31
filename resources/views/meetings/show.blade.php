@@ -108,6 +108,7 @@
                             'position' => $index + 1,
                             'item' => [
                                 '@type' => 'Event',
+                                '@id' => url()->current() . '#event-' . $event->google_event_id,
                                 'name' => $event->title,
                                 'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? $pageDescription ?? $heading), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),

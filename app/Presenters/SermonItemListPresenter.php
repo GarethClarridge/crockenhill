@@ -170,6 +170,7 @@ class SermonItemListPresenter
     ): array {
         return [
             '@type' => 'Article',
+            '@id' => $sermonView['canonical_url'].'#sermon',
             'headline' => $sermon->title,
             'name' => $sermon->title,
             'url' => $sermonView['canonical_url'],

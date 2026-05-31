@@ -23,13 +23,16 @@ class SongItemListPresenter
                 'name' => (string) $author->display_name,
             ])->values()->all();
 
+            $songUrl = route('church.songs.show', $song->slug);
+
             return [
                 '@type' => 'ListItem',
                 'position' => $index + 1,
                 'item' => [
                     '@type' => 'MusicComposition',
+                    '@id' => $songUrl.'#song',
                     'name' => $song->title,
-                    'url' => route('church.songs.show', $song->slug),
+                    'url' => $songUrl,
                     'author' => $authors,
                 ],
             ];
