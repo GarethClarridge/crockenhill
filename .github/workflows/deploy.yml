@@ -245,7 +245,7 @@ jobs:
 
       - name: Attest image provenance
         continue-on-error: true
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ steps.image.outputs.repo }}
           subject-digest: ${{ steps.build-image.outputs.digest }}
