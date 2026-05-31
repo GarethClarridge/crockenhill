@@ -1,0 +1,8 @@
+# Production-sensitive infrastructure should get an explicit human look when
+# GitHub branch protection enables CODEOWNER reviews.
+/.github/ @GarethClarridge
+/docker/ @GarethClarridge
+/docker-compose.prod.yml @GarethClarridge
+/scripts/post-deploy-smoke.sh @GarethClarridge
+/bootstrap/app.php @GarethClarridge
+/database/migrations/ @GarethClarridge

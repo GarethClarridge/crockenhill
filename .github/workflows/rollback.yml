@@ -1,0 +1,97 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Git SHA image tag to redeploy.
+        required: true
+        type: string
+      confirm:
+        description: Type "rollback" to confirm.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  rollback:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Confirm rollback request
+        run: |
+          if [ "${{ inputs.confirm }}" != "rollback" ]; then
+            echo "Rollback confirmation did not match."
+            exit 1
+          fi
+
+      - name: Prepare remote smoke script directory
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: mkdir -p /srv/crockenhill/scripts
+
+      - name: Upload post-deploy smoke script
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: scripts/post-deploy-smoke.sh
+          target: /srv/crockenhill/scripts
+          strip_components: 1
+          overwrite: true
+
+      - name: Redeploy selected image
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          command_timeout: 60m
+          envs: IMAGE_TAG
+          script: |
+            set -eu
+            cd /srv/crockenhill
+
+            chmod +x ./scripts/post-deploy-smoke.sh
+
+            export IMAGE_TAG
+            echo "Rolling back to app image tag: ${IMAGE_TAG}"
+
+            docker compose -f docker-compose.prod.yml --env-file .env.production pull app
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+              php artisan optimize --except=views
+
+            ./scripts/post-deploy-smoke.sh
+
+      - name: Summarise rollback
+        if: always()
+        run: |
+          {
+            echo "### Production Rollback"
+            echo ""
+            echo "- Requested image tag: ${{ inputs.image_tag }}"
+            echo "- Result: ${{ job.status }}"
+            echo ""
+            echo "Database restore is deliberately manual. This workflow only redeploys an application image."
+          } >> "$GITHUB_STEP_SUMMARY"

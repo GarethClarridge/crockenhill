@@ -1,0 +1,90 @@
+name: Setup Laravel
+description: Install PHP, Composer dependencies, optional Node dependencies, and prepare Laravel storage directories.
+
+inputs:
+  php-version:
+    description: PHP version to install.
+    default: '8.4'
+  node-version:
+    description: Node.js version to install when frontend setup is enabled.
+    default: '22'
+  php-extensions:
+    description: PHP extensions required by the application.
+    default: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, redis
+  composer-install:
+    description: Whether to install Composer dependencies.
+    default: 'true'
+  composer-args:
+    description: Composer install arguments.
+    default: --prefer-dist --no-interaction
+  install-ffmpeg:
+    description: Whether to install FFmpeg via apt.
+    default: 'true'
+  frontend:
+    description: Whether to install Node dependencies.
+    default: 'true'
+  frontend-build:
+    description: Whether to build frontend assets after installing Node dependencies.
+    default: 'true'
+  npm-install-command:
+    description: Command used to install Node dependencies.
+    default: npm ci
+  npm-build-command:
+    description: Command used to build frontend assets.
+    default: npm run build
+  view-compiled-path:
+    description: Value appended to .env for VIEW_COMPILED_PATH.
+    default: storage/framework/views
+
+runs:
+  using: composite
+  steps:
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.php-version }}
+        extensions: ${{ inputs.php-extensions }}
+        coverage: none
+
+    - name: Install FFmpeg
+      if: inputs.install-ffmpeg == 'true'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+    - name: Cache Composer
+      if: inputs.composer-install == 'true'
+      uses: actions/cache@v5
+      with:
+        path: vendor
+        key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+        restore-keys: composer-${{ runner.os }}-
+
+    - name: Prepare Laravel environment
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+        cp .env.example .env
+        echo "VIEW_COMPILED_PATH=${{ inputs.view-compiled-path }}" >> .env
+
+    - name: Install PHP dependencies
+      if: inputs.composer-install == 'true'
+      shell: bash
+      run: composer install ${{ inputs.composer-args }}
+
+    - name: Setup Node
+      if: inputs.frontend == 'true'
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+
+    - name: Install frontend dependencies
+      if: inputs.frontend == 'true'
+      shell: bash
+      run: ${{ inputs.npm-install-command }}
+
+    - name: Build frontend assets
+      if: inputs.frontend == 'true' && inputs.frontend-build == 'true'
+      shell: bash
+      run: ${{ inputs.npm-build-command }}

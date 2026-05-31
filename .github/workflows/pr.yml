@@ -1,0 +1,98 @@
+name: PR
+
+on:
+  pull_request:
+    branches: [master]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Laravel Quality Gate
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        command: --log-error-verbosity=1
+        env:
+          MYSQL_ROOT_PASSWORD: testing
+          MYSQL_DATABASE: testing
+          MYSQL_INITDB_SKIP_TZINFO: 1
+        ports:
+          - 3306:3306
+        options: --health-cmd="MYSQL_PWD=testing mysqladmin ping -uroot --silent" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Guard bootstrap middleware safety
+        run: ./scripts/check-bootstrap-safety.sh
+
+      - name: Guard deploy view cache safety
+        run: ./scripts/check-deploy-view-cache-safety.sh
+
+      - name: Setup Laravel
+        uses: ./.github/actions/setup-laravel
+
+      - name: Configure Laravel for testing
+        run: |
+          php artisan key:generate
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_DATABASE=testing" >> .env
+          echo "DB_USERNAME=root" >> .env
+          echo "DB_PASSWORD=testing" >> .env
+          echo "SESSION_DRIVER=array" >> .env
+          echo "QUEUE_CONNECTION=sync" >> .env
+          echo "TRANSCRIPTION_SERVICE_TYPE=mock" >> .env
+
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      - name: Verify schema dump is current
+        run: ./scripts/check-schema-dump-current.sh
+
+      - name: Formatting (Pint)
+        run: ./vendor/bin/pint --test
+
+      - name: Typing baseline (changed app files)
+        run: ./scripts/check-typing-baseline.sh "${{ github.event.pull_request.base.sha || github.event.before }}" "${{ github.sha }}"
+
+      - name: PHPStan
+        run: composer phpstan
+
+      - name: Tests (Core)
+        run: php artisan test --parallel --compact --exclude-group=dedicated --exclude-group=performance
+
+      - name: Upload Laravel logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-laravel-logs
+          path: storage/logs
+          if-no-files-found: ignore
+
+      - name: Summarise PR quality gate
+        if: always()
+        run: |
+          {
+            echo "### PR Quality Gate"
+            echo ""
+            echo "- Bootstrap safety guard"
+            echo "- Deploy view-cache safety guard"
+            echo "- Frontend build"
+            echo "- Schema dump freshness"
+            echo "- Pint"
+            echo "- Typing baseline"
+            echo "- PHPStan"
+            echo "- Core PHPUnit suite"
+          } >> "$GITHUB_STEP_SUMMARY"
