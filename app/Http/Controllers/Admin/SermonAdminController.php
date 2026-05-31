@@ -31,11 +31,11 @@ class SermonAdminController extends Controller
     {
         $this->authorize('delete', $sermon);
 
-        Log::warning('Sermon deleted by admin', [
+        Log::warning('Sermon deleted by admin', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
             'sermon_id' => $sermon->id,
-            'title' => $this->sanitizeForLog((string) $sermon->title),
-        ]);
+            'title' => $sermon->title,
+        ]));
 
         $sermon->delete();
 
@@ -77,12 +77,12 @@ class SermonAdminController extends Controller
                 : $this->mediaProcessor->process($type, $file, options: $options);
 
             if ($result->success) {
-                Log::warning('Media processing initiated by admin', [
+                Log::warning('Media processing initiated by admin', $this->sanitizeArrayForLog([
                     'admin_id' => auth()->id(),
                     'type' => $type,
-                    'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
-                    'processing_id' => $this->sanitizeForLog((string) $result->processingId),
-                ]);
+                    'filename' => $file->getClientOriginalName(),
+                    'processing_id' => (string) $result->processingId,
+                ]));
 
                 return redirect()
                     ->route('sermons.index')
@@ -94,11 +94,11 @@ class SermonAdminController extends Controller
                 ->with('error', $result->message);
 
         } catch (\Exception $e) {
-            Log::error('Sermon upload failed', [
-                'error' => $this->sanitizeForLog($e->getMessage()),
+            Log::error('Sermon upload failed', $this->sanitizeArrayForLog([
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
                 'user_id' => $request->user()?->id,
-            ]);
+            ]));
 
             return redirect()
                 ->back()
