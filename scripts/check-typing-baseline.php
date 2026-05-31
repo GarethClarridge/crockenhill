@@ -168,6 +168,20 @@ function previousSignificantToken(array $tokens, int $index): mixed
 }
 
 /**
+ * Properties inherited from Laravel's Model base class that cannot be re-typed
+ * in child classes because PHP forbids redeclaring a parent's typed property.
+ *
+ * @var list<string>
+ */
+const LARAVEL_INHERITED_PROPERTIES = [
+    '$fillable', '$guarded', '$hidden', '$visible', '$appends',
+    '$with', '$withCount', '$perPage', '$incrementing', '$timestamps',
+    '$dateFormat', '$casts', '$dispatchesEvents', '$observables',
+    '$relations', '$touches', '$table', '$primaryKey', '$keyType',
+    '$connection', '$classCastCache', '$attributeCastCache',
+];
+
+/**
  * @param  array<int, mixed>  $tokens
  */
 function propertyDeclarationMissingType(array $tokens, int $index): bool
@@ -194,6 +208,10 @@ function propertyDeclarationMissingType(array $tokens, int $index): bool
         }
 
         if (is_array($token) && $token[0] === T_VARIABLE) {
+            if (in_array($token[1], LARAVEL_INHERITED_PROPERTIES, true)) {
+                return false;
+            }
+
             return true;
         }
 
