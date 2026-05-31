@@ -29,7 +29,7 @@ RUN composer dump-autoload --optimize --no-dev --no-scripts
 # =============================================================================
 # Stage 3: Production Image
 # =============================================================================
-FROM php:8.4-fpm-bookworm
+FROM php:8.5-fpm-bookworm
 
 LABEL maintainer="Crockenhill Baptist Church"
 
