@@ -649,7 +649,8 @@ class MediaProcessingLog extends Model
             'adaptive_threshold' => ['nullable', 'numeric'],
             'queue_name' => ['nullable', 'string', 'max:255'],
             'job_id' => ['nullable', 'string', 'max:255'],
-            'attempt_count' => ['nullable', 'integer', 'min:0'],
+            'dedup_key' => ['nullable', 'string', 'max:128'],
+            'attempt_count' => ['nullable', 'integer', 'min:0', 'max:65535'],
             'is_degraded_completion' => ['nullable', 'boolean'],
         ];
     }

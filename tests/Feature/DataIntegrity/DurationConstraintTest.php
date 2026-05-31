@@ -126,7 +126,12 @@ class DurationConstraintTest extends TestCase
 
         // Additional fields synchronized with schema
         $this->assertTrue(Validator::make(['attempt_count' => 0], $rules)->passes());
+        $this->assertTrue(Validator::make(['attempt_count' => 65535], $rules)->passes());
         $this->assertFalse(Validator::make(['attempt_count' => -1], $rules)->passes());
+        $this->assertFalse(Validator::make(['attempt_count' => 65536], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['dedup_key' => str_repeat('a', 128)], $rules)->passes());
+        $this->assertFalse(Validator::make(['dedup_key' => str_repeat('a', 129)], $rules)->passes());
 
         $this->assertTrue(Validator::make(['current_step' => str_repeat('a', 255)], $rules)->passes());
         $this->assertFalse(Validator::make(['current_step' => str_repeat('a', 256)], $rules)->passes());
@@ -136,6 +141,35 @@ class DurationConstraintTest extends TestCase
 
         $this->assertTrue(Validator::make(['audio_file_path' => str_repeat('a', 255)], $rules)->passes());
         $this->assertFalse(Validator::make(['audio_file_path' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['video_file_path' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['video_file_path' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['transcript_file_path' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['transcript_file_path' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['enhanced_audio_file_path' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['enhanced_audio_file_path' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['rms_log_path' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['rms_log_path' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['threshold_method' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['threshold_method' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['adaptive_threshold' => -42.5], $rules)->passes());
+        $this->assertTrue(Validator::make(['adaptive_threshold' => 0.0], $rules)->passes());
+        $this->assertFalse(Validator::make(['adaptive_threshold' => 'not-a-number'], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['queue_name' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['queue_name' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['job_id' => str_repeat('a', 255)], $rules)->passes());
+        $this->assertFalse(Validator::make(['job_id' => str_repeat('a', 256)], $rules)->passes());
+
+        $this->assertTrue(Validator::make(['is_degraded_completion' => true], $rules)->passes());
+        $this->assertTrue(Validator::make(['is_degraded_completion' => false], $rules)->passes());
+        $this->assertFalse(Validator::make(['is_degraded_completion' => 'maybe'], $rules)->passes());
     }
 
     #[Test]
