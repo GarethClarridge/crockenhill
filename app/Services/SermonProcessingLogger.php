@@ -106,7 +106,8 @@ class SermonProcessingLogger
 
         $logLevel = $statusCode >= 400 ? 'error' : 'info';
         $sanitizedService = $this->sanitizeForLog($service);
-        Log::log($logLevel, "API call to {$sanitizedService}: {$endpoint}", $this->sanitizeArrayForLog($context));
+        $sanitizedEndpoint = $this->sanitizeForLog($endpoint);
+        Log::log($logLevel, "API call to {$sanitizedService}: {$sanitizedEndpoint}", $this->sanitizeArrayForLog($context));
     }
 
     /**
