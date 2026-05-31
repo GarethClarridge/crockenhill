@@ -53,6 +53,7 @@
                 'position' => $index + 1,
                 'item' => [
                     '@type' => 'Event',
+                    '@id' => url()->current() . '#event-' . \Illuminate\Support\Str::slug($event['name']),
                     'name' => $event['name'],
                     'startDate' => $event['startDate'],
                     'location' => [

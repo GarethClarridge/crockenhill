@@ -23,10 +23,10 @@ $cardClasses = match($variant) {
 @endphp
 
 @if($variant !== 'list')
-<div class="{{ $cardClasses }}">
+<div {{ $attributes->merge(['class' => $cardClasses]) }}>
 @endif
     @if($variant === 'list' || $variant === 'compact')
-        <div class="flex items-start justify-between">
+        <div {{ $variant === 'list' ? $attributes->merge(['class' => 'flex items-start justify-between']) : $attributes->class(['flex items-start justify-between']) }}>
             <div class="flex-1">
                 <h4 class="font-medium text-gray-900 mb-2">{{ $event->title }}</h4>
 

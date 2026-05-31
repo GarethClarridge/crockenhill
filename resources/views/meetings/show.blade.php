@@ -108,6 +108,7 @@
                             'position' => $index + 1,
                             'item' => [
                                 '@type' => 'Event',
+                                '@id' => request()->url() . '#event-' . $event->id,
                                 'name' => $event->title,
                                 'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? $pageDescription ?? $heading), 150),
                                 'startDate' => $event->start_datetime->toIso8601String(),
@@ -240,6 +241,7 @@
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
             @foreach($upcomingEvents->take(6) as $event)
                 <x-calendar-event-card
+                    id="event-{{ $event->id }}"
                     :event="$event"
                     :meeting="$meeting"
                     :show-meeting-badge="false"
