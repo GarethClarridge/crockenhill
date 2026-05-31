@@ -37,11 +37,12 @@
     </span>
   </a>
 
-  <div
+  <nav
     class="col-span-5 hidden h-full w-full self-stretch transition-opacity duration-150 lg:block"
     :class="expanded ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'"
     :aria-hidden="expanded"
     :inert="expanded"
+    aria-label="Main navigation"
   >
     <ul class="mx-auto flex h-full items-stretch fill-white font-display text-l">
       <li class="flex">
@@ -68,7 +69,7 @@
         </a>
       </li>
     </ul>
-  </div>
+  </nav>
 
   <button
     class="ms-4 flex items-center justify-end rounded px-3 py-1 select-none whitespace-nowrap transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark lg:col-start-12"
@@ -86,7 +87,7 @@
 
   </div>
 
-  <div
+  <nav
     x-show="expanded"
     x-transition:enter="transform-gpu transition ease-out duration-200"
     x-transition:enter-start="-translate-y-3 opacity-0"
@@ -98,6 +99,7 @@
     id="mobile-menu"
     class="absolute left-0 right-0 top-full z-30 -mt-px w-screen bg-gradient-to-bl from-cbc-teal-deeper/95 via-cbc-teal-dark/95 to-cbc-teal/92 p-6 font-sans normal-case text-base leading-relaxed text-white shadow-2xl ring-1 ring-black/10 backdrop-blur-md"
     tabindex="-1"
+    aria-label="Mobile navigation"
     x-cloak
   >
     <ul class="mt-3 grid grid-cols-1 gap-10 text-center md:grid-cols-3 md:gap-8">
@@ -201,5 +203,5 @@
     </li>
     @endif
     </ul>
-  </div>
+  </nav>
 </div>
