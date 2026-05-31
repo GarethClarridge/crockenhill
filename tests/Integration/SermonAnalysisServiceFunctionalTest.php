@@ -125,10 +125,8 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
             $prompt = $parameters['messages'][1]['content'];
 
-            // Should contain valid series but not placeholders for null/empty values
-            return str_contains($prompt, 'John Study') &&
-                   str_contains($prompt, 'Romans Study') &&
-                   ! str_contains($prompt, 'John Study, Romans Study, ,');
+            // Verify that only valid series are included in the prompt, correctly formatted
+            return str_contains($prompt, "EXISTING SERMON SERIES (match one if applicable):\nJohn Study, Romans Study\n");
         });
     }
 
