@@ -38,7 +38,7 @@ class PublicSongListController extends Controller
         $this->abortIfDisabled();
 
         $song->load([
-            'authors' => fn ($query) => $query->orderBy('display_name'),
+            'authors' => fn ($query) => $query->select(['song_authors.id', 'song_authors.display_name'])->orderBy('display_name'),
         ]);
 
         $stats = $songUsageService->statsForSong($song);

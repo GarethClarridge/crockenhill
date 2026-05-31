@@ -115,7 +115,7 @@
                     </td>
                     {{-- Meeting --}}
                     <td class="px-4 py-3">
-                        @if($page->meeting)
+                        @if($page->meeting_exists)
                             <x-heroicon-o-calendar class="w-5 h-5 text-blue-500" title="Linked to meeting" aria-label="Linked to meeting" />
                         @else
                             <span class="text-gray-300" title="No linked meeting">-</span>

@@ -129,7 +129,8 @@ class ListPages extends Component
 
         $pages = Page::query()
             ->select(['id', 'slug', 'heading', 'description', 'area', 'admin', 'navigation', 'updated_at'])
-            ->with(['media', 'meeting'])
+            ->with(['media'])
+            ->withExists('meeting')
             ->when($this->search !== '', fn ($q) => $q->where(fn ($sub) => $sub->where('heading', 'like', "%{$escapedSearch}%")
                 ->orWhere('description', 'like', "%{$escapedSearch}%")))
             ->when($this->areaFilter, fn ($q) => $q->where('area', $this->areaFilter))
