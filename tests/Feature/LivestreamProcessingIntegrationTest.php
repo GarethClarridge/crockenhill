@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\LivestreamSegmentClassification;
 use App\Enums\SermonSourceType;
 use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
@@ -256,7 +257,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->assertNotNull($sermonSegment);
         $this->assertEquals(180, $sermonSegment->start_time);
         $this->assertEquals(2100, $sermonSegment->end_time);
-        $this->assertEquals(\App\Enums\LivestreamSegmentClassification::Speech, $sermonSegment->classification);
+        $this->assertEquals(LivestreamSegmentClassification::Speech, $sermonSegment->classification);
     }
 
     public function test_video_storage_integration()

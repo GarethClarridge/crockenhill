@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Models;
 
+use App\Enums\LivestreamSegmentClassification;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,7 +26,7 @@ class LivestreamSegmentTest extends TestCase
             'start_time' => 10.5,
             'end_time' => 20.5,
             'duration' => 10.0,
-            'classification' => \App\Enums\LivestreamSegmentClassification::Speech,
+            'classification' => LivestreamSegmentClassification::Speech,
             'avg_rms' => -25.0,
             'peak_rms' => -15.0,
             'is_sermon_candidate' => true,

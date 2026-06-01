@@ -21,7 +21,7 @@ use Illuminate\Validation\Rule;
  * @property float $start_time
  * @property float $end_time
  * @property float $duration
- * @property string $classification
+ * @property LivestreamSegmentClassification $classification
  * @property float|null $avg_rms
  * @property float|null $peak_rms
  * @property bool $is_sermon_candidate
@@ -92,7 +92,7 @@ class LivestreamSegment extends Model
      * @param  Builder<LivestreamSegment>  $query
      * @return Builder<LivestreamSegment>
      */
-    public function scopeClassifiedAs(Builder $query, string $classification): Builder
+    public function scopeClassifiedAs(Builder $query, LivestreamSegmentClassification|string $classification): Builder
     {
         return $query->where('classification', $classification);
     }
@@ -103,7 +103,7 @@ class LivestreamSegment extends Model
      */
     public function scopeSpeech(Builder $query): Builder
     {
-        return $query->where('classification', LivestreamSegmentClassification::Speech->value);
+        return $query->where('classification', LivestreamSegmentClassification::Speech);
     }
 
     /**
@@ -112,7 +112,7 @@ class LivestreamSegment extends Model
      */
     public function scopeSong(Builder $query): Builder
     {
-        return $query->where('classification', LivestreamSegmentClassification::Song->value);
+        return $query->where('classification', LivestreamSegmentClassification::Song);
     }
 
     /**
@@ -121,7 +121,7 @@ class LivestreamSegment extends Model
      */
     public function scopeSilence(Builder $query): Builder
     {
-        return $query->where('classification', LivestreamSegmentClassification::Silence->value);
+        return $query->where('classification', LivestreamSegmentClassification::Silence);
     }
 
     /**
