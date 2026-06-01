@@ -33,7 +33,7 @@ class BladeShellRenderingTest extends TestCase
         $response = $this->get('/login');
 
         $response->assertOk();
-        $response->assertSee('<meta name="description" content="Login to your account">', false);
+        $response->assertSee('<meta name="description" content="Log in to your account">', false);
     }
 
     #[Test]

@@ -43,7 +43,7 @@ class LoginTest extends DuskTestCase
             $browser->visit('/login')
                 ->type('input[type="email"]', $user->email)
                 ->type('input[type="password"]', 'password')
-                ->press('Login')
+                ->press('Log in')
                 ->waitForLocation('/church/members')
                 ->assertPathIs('/church/members');
         });
@@ -59,7 +59,7 @@ class LoginTest extends DuskTestCase
             $browser->visit('/login')
                 ->type('input[type="email"]', $user->email)
                 ->type('input[type="password"]', 'wrong-password')
-                ->press('Login')
+                ->press('Log in')
                 ->waitForText('These credentials do not match our records')
                 ->assertSee('These credentials do not match our records');
         });
@@ -76,14 +76,14 @@ class LoginTest extends DuskTestCase
                 $browser->visit('/login')
                     ->type('input[type="email"]', $email)
                     ->type('input[type="password"]', 'wrong-password')
-                    ->press('Login')
+                    ->press('Log in')
                     ->pause(500);
             }
 
             $browser->visit('/login')
                 ->type('input[type="email"]', $email)
                 ->type('input[type="password"]', 'wrong-password')
-                ->press('Login')
+                ->press('Log in')
                 ->waitForText('Too many login attempts', 15)
                 ->assertSee('Too many login attempts');
         });
@@ -101,7 +101,7 @@ class LoginTest extends DuskTestCase
                 ->type('input[type="email"]', $user->email)
                 ->type('input[type="password"]', 'password')
                 ->check('#remember')
-                ->press('Login')
+                ->press('Log in')
                 ->waitForLocation('/church/members')
                 ->assertHasCookie('remember_web_'.sha1('Illuminate\Auth\SessionGuard'));
         });

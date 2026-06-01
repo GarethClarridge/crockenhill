@@ -52,7 +52,7 @@
         </div>
 
         <div class="mt-4 text-center text-sm">
-            <a href="{{ route('login') }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors">Already have an account? Login</a>
+            <a href="{{ route('login') }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors">Already have an account? Log in</a>
         </div>
     </div>
 </form>
