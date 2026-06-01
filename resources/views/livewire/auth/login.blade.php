@@ -29,7 +29,7 @@
 
         <div class="mt-6">
             <x-form-button variant="primary" class="w-full text-xl py-3">
-                Login
+                Log in
             </x-form-button>
         </div>
 
