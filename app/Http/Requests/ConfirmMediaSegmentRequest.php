@@ -16,7 +16,7 @@ class ConfirmMediaSegmentRequest extends MediaProcessingRequest
     public function rules(): array
     {
         return [
-            'segment_id' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'segment_id' => ['required', 'integer', 'min:1'],
         ];
     }
 }
