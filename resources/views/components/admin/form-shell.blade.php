@@ -20,9 +20,11 @@
         $gridAttributes = $gridAttributes->merge(['wire:target' => $saveAction]);
     }
 
-    $hotkeyAttributes = $hotkeyAttributes->merge([
-        'x-data' => '{ topVisible: true' . ($saveAction ? ', saveAction: ' . \Illuminate\Support\Js::from($saveAction) . ', save() { this.$wire.call(this.saveAction); }' : '') . ' }',
-    ]);
+    $xData = $saveAction
+        ? sprintf('{ topVisible: true, saveAction: %s, save() { this.$wire.call(this.saveAction); } }', \Illuminate\Support\Js::from($saveAction))
+        : '{ topVisible: true }';
+
+    $hotkeyAttributes = $hotkeyAttributes->merge(['x-data' => $xData]);
 @endphp
 
 <div {{ $hotkeyAttributes }}>
