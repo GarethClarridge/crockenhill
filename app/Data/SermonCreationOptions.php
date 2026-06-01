@@ -17,12 +17,12 @@ class SermonCreationOptions
 {
     /**
      * @param  array{
-     *     title: string,
-     *     series: string|null,
-     *     reference: string|null,
-     *     points: list<string>,
-     *     summary: string|null,
-     *     transcript: string
+     *     title?: string,
+     *     series?: string|null,
+     *     reference?: string|null,
+     *     points?: list<string>,
+     *     summary?: string|null,
+     *     transcript?: string
      * }|null  $aiAnalysis
      */
     public function __construct(
@@ -68,12 +68,12 @@ class SermonCreationOptions
      * Create options for audio upload processing
      *
      * @param  array{
-     *     title: string,
-     *     series: string|null,
-     *     reference: string|null,
-     *     points: list<string>,
-     *     summary: string|null,
-     *     transcript: string
+     *     title?: string,
+     *     series?: string|null,
+     *     reference?: string|null,
+     *     points?: list<string>,
+     *     summary?: string|null,
+     *     transcript?: string
      * }  $aiAnalysis
      */
     public static function fromAudioUpload(MediaProcessingLog $log, array $aiAnalysis): self
@@ -95,12 +95,12 @@ class SermonCreationOptions
      * Create options for video upload processing
      *
      * @param  array{
-     *     title: string,
-     *     series: string|null,
-     *     reference: string|null,
-     *     points: list<string>,
-     *     summary: string|null,
-     *     transcript: string
+     *     title?: string,
+     *     series?: string|null,
+     *     reference?: string|null,
+     *     points?: list<string>,
+     *     summary?: string|null,
+     *     transcript?: string
      * }  $aiAnalysis
      */
     public static function fromVideoUpload(MediaProcessingLog $log, array $aiAnalysis): self

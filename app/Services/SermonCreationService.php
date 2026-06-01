@@ -620,7 +620,7 @@ class SermonCreationService
      *
      * @param  TitleGenerationStrategy  $strategy  The strategy to use (AI, Filename, Custom)
      * @param  array{
-     *     ai_analysis?: array{title: string, series: string|null, reference: string|null, points: list<string>, summary: string|null, transcript: string}|null,
+     *     ai_analysis?: array{title?: string, series?: string|null, reference?: string|null, points?: list<string>, summary?: string|null, transcript?: string}|null,
      *     filename: string,
      *     custom_title?: string|null,
      *     id3_title?: string|null,
@@ -645,7 +645,7 @@ class SermonCreationService
      * Generate title using ID3 tags first, then AI analysis, then filename.
      *
      * @param  array{
-     *     ai_analysis?: array{title: string, series: string|null, reference: string|null, points: list<string>, summary: string|null, transcript: string}|null,
+     *     ai_analysis?: array{title?: string, series?: string|null, reference?: string|null, points?: list<string>, summary?: string|null, transcript?: string}|null,
      *     filename: string,
      *     id3_title?: string|null
      * }  $context
@@ -680,7 +680,7 @@ class SermonCreationService
      */
     private function generateTitleFromFilename(array $context): string
     {
-        $filename = $context['filename'] ?? '';
+        $filename = $context['filename'];
         /** @var MediaProcessingLog|null $processingLog */
         $processingLog = $context['processing_log'] ?? null;
 
@@ -708,13 +708,17 @@ class SermonCreationService
             if ($processingLog) {
                 $service = $context['service'] ?? $this->extractServiceType($processingLog, $filename);
             } else {
-                // Fallback: simple filename parsing when no processing log
-                $serviceValue = $context['service'] ?? (str_contains(strtolower($filename), 'evening') ? 'evening' : 'morning');
-                $service = $serviceValue instanceof SermonService ? $serviceValue : (SermonService::tryFrom((string) $serviceValue) ?? SermonService::Morning);
+                $service = $context['service'] ?? null;
+                if (! $service instanceof SermonService) {
+                    $service = str_contains(strtolower($filename), 'evening')
+                        ? SermonService::Evening
+                        : SermonService::Morning;
+                }
             }
 
             $serviceLabel = $service->label();
-            $title = $serviceLabel.' Sermon - '.date('F j, Y', strtotime($date));
+            $timestamp = strtotime($date);
+            $title = $serviceLabel.' Sermon - '.date('F j, Y', $timestamp !== false ? $timestamp : null);
         }
 
         // Capitalize words properly
