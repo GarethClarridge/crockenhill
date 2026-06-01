@@ -198,13 +198,13 @@ class SermonValidationServiceTest extends TestCase
         $errors = $this->service->validateSermonData([
             'title' => str_repeat('a', 256),
             'date' => '2024-05-20',
-            'preacher' => str_repeat('a', 101),
-            'series' => str_repeat('a', 101),
+            'preacher' => str_repeat('a', 256),
+            'series' => str_repeat('a', 256),
             'reference' => str_repeat('a', 256),
         ]);
         $this->assertContains('Sermon title too long (maximum 255 characters)', $errors);
-        $this->assertContains('Preacher name too long (maximum 100 characters)', $errors);
-        $this->assertContains('Series name too long (maximum 100 characters)', $errors);
+        $this->assertContains('Preacher name too long (maximum 255 characters)', $errors);
+        $this->assertContains('Series name too long (maximum 255 characters)', $errors);
         $this->assertContains('Bible reference too long (maximum 255 characters)', $errors);
 
         // 3. Invalid formats

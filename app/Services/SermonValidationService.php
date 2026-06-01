@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\MediaType;
+use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -12,6 +13,7 @@ use App\Repositories\SermonRepository;
 use App\Traits\SanitizesLogData;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class SermonValidationService
@@ -134,61 +136,36 @@ class SermonValidationService
      */
     public function validateSermonData(array $data): array
     {
-        $errors = [];
+        $sermon = isset($data['sermon_id']) ? Sermon::query()->find($data['sermon_id']) : null;
+        $rules = Sermon::validationRules($sermon);
 
-        // Title validation
-        if (empty($data['title'])) {
-            $errors[] = 'Sermon title is required';
-        } elseif (strlen($data['title']) > 255) {
-            $errors[] = 'Sermon title too long (maximum 255 characters)';
+        // Date validation is not in model rules as it's often inferred
+        $rules['date'] = ['required', 'date'];
+
+        // Filter rules to only include what's in the data or required
+        $activeRules = array_intersect_key($rules, $data);
+        if (! isset($data['title'])) {
+            $activeRules['title'] = $rules['title'];
+        }
+        if (! isset($data['date'])) {
+            $activeRules['date'] = $rules['date'];
         }
 
-        // Date validation
-        if (empty($data['date'])) {
-            $errors[] = 'Sermon date is required';
-        } elseif (! strtotime($data['date'])) {
-            $errors[] = 'Invalid sermon date format';
-        }
+        $validator = Validator::make($data, $activeRules, [
+            'title.required' => 'Sermon title is required',
+            'title.max' => 'Sermon title too long (maximum 255 characters)',
+            'date.required' => 'Sermon date is required',
+            'date.date' => 'Invalid sermon date format',
+            'service.'.\Illuminate\Validation\Rules\Enum::class => 'Invalid service type. Must be one of: '.implode(', ', SermonService::values()),
+            'preacher.max' => 'Preacher name too long (maximum 255 characters)',
+            'series.max' => 'Series name too long (maximum 255 characters)',
+            'reference.max' => 'Bible reference too long (maximum 255 characters)',
+            'slug.regex' => 'Slug can only contain lowercase letters, numbers, and hyphens',
+            'slug.unique' => 'Slug already exists - must be unique',
+        ]);
 
-        // Service validation
-        if (! empty($data['service'])) {
-            $validServices = ['morning', 'evening', 'other'];
-            if (! in_array($data['service'], $validServices)) {
-                $errors[] = 'Invalid service type. Must be one of: '.implode(', ', $validServices);
-            }
-        }
-
-        // Preacher validation
-        if (! empty($data['preacher']) && strlen($data['preacher']) > 100) {
-            $errors[] = 'Preacher name too long (maximum 100 characters)';
-        }
-
-        // Series validation
-        if (! empty($data['series']) && strlen($data['series']) > 100) {
-            $errors[] = 'Series name too long (maximum 100 characters)';
-        }
-
-        // Reference validation
-        if (! empty($data['reference']) && strlen($data['reference']) > 255) {
-            $errors[] = 'Bible reference too long (maximum 255 characters)';
-        }
-
-        // Slug validation and uniqueness
-        if (! empty($data['slug'])) {
-            if (! preg_match('/^[a-z0-9\-]+$/', $data['slug'])) {
-                $errors[] = 'Slug can only contain lowercase letters, numbers, and hyphens';
-            }
-
-            // Check slug uniqueness (if sermon ID provided, exclude it)
-            $slugQuery = Sermon::query()->where('slug', $data['slug']);
-            if (! empty($data['sermon_id'])) {
-                $slugQuery->where('id', '!=', $data['sermon_id']);
-            }
-
-            if ($slugQuery->exists()) {
-                $errors[] = 'Slug already exists - must be unique';
-            }
-        }
+        /** @var array<int, string> $errors */
+        $errors = $validator->errors()->all();
 
         return $errors;
     }
