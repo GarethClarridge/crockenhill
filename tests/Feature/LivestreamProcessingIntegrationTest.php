@@ -256,7 +256,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->assertNotNull($sermonSegment);
         $this->assertEquals(180, $sermonSegment->start_time);
         $this->assertEquals(2100, $sermonSegment->end_time);
-        $this->assertEquals('speech', $sermonSegment->classification);
+        $this->assertEquals(\App\Enums\LivestreamSegmentClassification::Speech, $sermonSegment->classification);
     }
 
     public function test_video_storage_integration()

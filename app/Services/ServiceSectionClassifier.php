@@ -117,12 +117,12 @@ class ServiceSectionClassifier
     {
         /** @var Collection<int, LivestreamSegment> $audibleSegments */
         $audibleSegments = $segments
-            ->filter(fn (LivestreamSegment $segment): bool => in_array($segment->classification, [LivestreamSegmentClassification::Song->value, LivestreamSegmentClassification::Speech->value], true))
+            ->filter(fn (LivestreamSegment $segment): bool => in_array($segment->classification, [LivestreamSegmentClassification::Song, LivestreamSegmentClassification::Speech], true))
             ->values();
 
         /** @var Collection<int, LivestreamSegment> $speechSegments */
         $speechSegments = $audibleSegments
-            ->filter(fn (LivestreamSegment $segment): bool => $segment->classification === LivestreamSegmentClassification::Speech->value)
+            ->filter(fn (LivestreamSegment $segment): bool => $segment->classification === LivestreamSegmentClassification::Speech)
             ->values();
 
         $sermonEvaluation = $this->sermonConfidenceService->evaluate($speechSegments);
@@ -133,7 +133,7 @@ class ServiceSectionClassifier
         foreach ($audibleSegments as $index => $segment) {
             $sectionOrder = $index + 1;
 
-            if ($segment->classification === LivestreamSegmentClassification::Song->value) {
+            if ($segment->classification === LivestreamSegmentClassification::Song) {
                 $sections[] = $this->makeAudioOnlySection(
                     $segment,
                     $sectionOrder,
@@ -203,7 +203,7 @@ class ServiceSectionClassifier
         $metadata = array_merge([
             'confidence_level' => $confidenceLevel,
             'classification_mode' => 'audio_only',
-            'detected_segment_class' => $segment->classification,
+            'detected_segment_class' => $segment->classification->value,
         ], $extraMetadata);
 
         if ($reviewReason !== null) {

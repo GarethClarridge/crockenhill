@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -62,13 +63,17 @@ class LivestreamSegment extends Model
     protected function casts(): array
     {
         return [
+            'media_processing_log_id' => 'integer',
+            'segment_index' => 'integer',
             'metadata' => 'array',
             'start_time' => 'float',
             'end_time' => 'float',
             'duration' => 'float',
+            'classification' => LivestreamSegmentClassification::class,
+            'is_sermon_segment' => 'boolean',
+            'is_sermon_candidate' => 'boolean',
             'avg_rms' => 'float',
             'peak_rms' => 'float',
-            'is_sermon_candidate' => 'boolean',
             'segment_order' => 'integer',
             'visual_confidence' => 'float',
             'visual_sample_count' => 'integer',
@@ -163,17 +168,17 @@ class LivestreamSegment extends Model
 
     public function isSpeech(): bool
     {
-        return $this->classification === LivestreamSegmentClassification::Speech->value;
+        return $this->classification === LivestreamSegmentClassification::Speech;
     }
 
     public function isSong(): bool
     {
-        return $this->classification === LivestreamSegmentClassification::Song->value;
+        return $this->classification === LivestreamSegmentClassification::Song;
     }
 
     public function isSilence(): bool
     {
-        return $this->classification === LivestreamSegmentClassification::Silence->value;
+        return $this->classification === LivestreamSegmentClassification::Silence;
     }
 
     public function isSermonCandidate(): bool
@@ -263,11 +268,19 @@ class LivestreamSegment extends Model
     public static function validationRules(): array
     {
         return [
+            'media_processing_log_id' => ['required', 'integer', 'exists:media_processing_logs,id'],
+            'segment_index' => ['required', 'integer', 'min:0', 'max:65535'],
             'start_time' => ['required', 'numeric', 'min:0'],
             'end_time' => ['required', 'numeric', 'min:0', 'gte:start_time'],
             'duration' => ['required', 'numeric', 'min:0'],
+            'classification' => ['required', Rule::enum(LivestreamSegmentClassification::class)],
+            'is_sermon_segment' => ['sometimes', 'boolean'],
+            'is_sermon_candidate' => ['sometimes', 'boolean'],
+            'avg_rms' => ['nullable', 'numeric'],
+            'peak_rms' => ['nullable', 'numeric'],
             'visual_sample_count' => ['nullable', 'integer', 'min:0'],
             'visual_confidence' => ['nullable', 'numeric', 'between:0,1'],
+            'calibration_method' => ['nullable', 'string', 'max:255'],
             'segment_order' => ['nullable', 'integer', 'min:0'],
         ];
     }
@@ -281,13 +294,13 @@ class LivestreamSegment extends Model
 
         return [
             'total_segments' => $segments->count(),
-            'speech_segments' => $segments->where('classification', LivestreamSegmentClassification::Speech->value)->count(),
-            'song_segments' => $segments->where('classification', LivestreamSegmentClassification::Song->value)->count(),
-            'silence_segments' => $segments->where('classification', LivestreamSegmentClassification::Silence->value)->count(),
+            'speech_segments' => $segments->where('classification', LivestreamSegmentClassification::Speech)->count(),
+            'song_segments' => $segments->where('classification', LivestreamSegmentClassification::Song)->count(),
+            'silence_segments' => $segments->where('classification', LivestreamSegmentClassification::Silence)->count(),
             'total_duration' => $segments->sum('duration'),
-            'speech_duration' => $segments->where('classification', LivestreamSegmentClassification::Speech->value)->sum('duration'),
-            'song_duration' => $segments->where('classification', LivestreamSegmentClassification::Song->value)->sum('duration'),
-            'longest_speech_duration' => $segments->where('classification', LivestreamSegmentClassification::Speech->value)->max('duration'),
+            'speech_duration' => $segments->where('classification', LivestreamSegmentClassification::Speech)->sum('duration'),
+            'song_duration' => $segments->where('classification', LivestreamSegmentClassification::Song)->sum('duration'),
+            'longest_speech_duration' => $segments->where('classification', LivestreamSegmentClassification::Speech)->max('duration'),
         ];
     }
 }

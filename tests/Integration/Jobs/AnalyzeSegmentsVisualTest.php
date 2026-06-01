@@ -643,7 +643,13 @@ class AnalyzeSegmentsVisualTest extends TestCase
 
         // Confirm the interleaved structure: speech, song, speech, song, speech
         $classifications = $segments->pluck('classification')->all();
-        $this->assertEquals(['speech', 'song', 'speech', 'song', 'speech'], $classifications);
+        $this->assertEquals([
+            \App\Enums\LivestreamSegmentClassification::Speech,
+            \App\Enums\LivestreamSegmentClassification::Song,
+            \App\Enums\LivestreamSegmentClassification::Speech,
+            \App\Enums\LivestreamSegmentClassification::Song,
+            \App\Enums\LivestreamSegmentClassification::Speech,
+        ], $classifications);
 
         // Confirm segment_order values are 0-indexed sequential
         $segmentOrders = $segments->pluck('segment_order')->map(fn ($o) => (int) $o)->all();
