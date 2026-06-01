@@ -15,6 +15,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Enum;
 
 class SermonValidationService
 {
@@ -136,6 +137,7 @@ class SermonValidationService
      */
     public function validateSermonData(array $data): array
     {
+        /** @var Sermon|null $sermon */
         $sermon = isset($data['sermon_id']) ? Sermon::query()->find($data['sermon_id']) : null;
         $rules = Sermon::validationRules($sermon);
 
@@ -156,7 +158,7 @@ class SermonValidationService
             'title.max' => 'Sermon title too long (maximum 255 characters)',
             'date.required' => 'Sermon date is required',
             'date.date' => 'Invalid sermon date format',
-            'service.'.\Illuminate\Validation\Rules\Enum::class => 'Invalid service type. Must be one of: '.implode(', ', SermonService::values()),
+            'service.'.Enum::class => 'Invalid service type. Must be one of: '.implode(', ', SermonService::values()),
             'preacher.max' => 'Preacher name too long (maximum 255 characters)',
             'series.max' => 'Series name too long (maximum 255 characters)',
             'reference.max' => 'Bible reference too long (maximum 255 characters)',

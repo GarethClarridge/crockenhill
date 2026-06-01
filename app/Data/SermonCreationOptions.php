@@ -74,9 +74,9 @@ class SermonCreationOptions
      *     points: list<string>,
      *     summary: string|null,
      *     transcript: string
-     * }  $aiAnalysis
+     * }|null  $aiAnalysis
      */
-    public static function fromAudioUpload(MediaProcessingLog $log, array $aiAnalysis): self
+    public static function fromAudioUpload(MediaProcessingLog $log, ?array $aiAnalysis): self
     {
         return new self(
             audioFilePath: self::requireAudioFilePath($log->source_file_path, $log->processing_id),
@@ -101,9 +101,9 @@ class SermonCreationOptions
      *     points: list<string>,
      *     summary: string|null,
      *     transcript: string
-     * }  $aiAnalysis
+     * }|null  $aiAnalysis
      */
-    public static function fromVideoUpload(MediaProcessingLog $log, array $aiAnalysis): self
+    public static function fromVideoUpload(MediaProcessingLog $log, ?array $aiAnalysis): self
     {
         return new self(
             audioFilePath: self::requireAudioFilePath($log->audio_file_path, $log->processing_id),

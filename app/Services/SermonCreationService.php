@@ -444,7 +444,7 @@ class SermonCreationService
             $sermonData['reference'] = $options->aiAnalysis['reference'];
         }
 
-        if ($options->aiAnalysis && isset($options->aiAnalysis['points'])) {
+        if ($options->aiAnalysis && array_key_exists('points', $options->aiAnalysis)) {
             $sermonData['points'] = $options->aiAnalysis['points'];
         }
 
@@ -680,7 +680,7 @@ class SermonCreationService
      */
     private function generateTitleFromFilename(array $context): string
     {
-        $filename = $context['filename'] ?? '';
+        $filename = $context['filename'];
         /** @var MediaProcessingLog|null $processingLog */
         $processingLog = $context['processing_log'] ?? null;
 
@@ -709,12 +709,12 @@ class SermonCreationService
                 $service = $context['service'] ?? $this->extractServiceType($processingLog, $filename);
             } else {
                 // Fallback: simple filename parsing when no processing log
-                $serviceValue = $context['service'] ?? (str_contains(strtolower($filename), 'evening') ? 'evening' : 'morning');
-                $service = $serviceValue instanceof SermonService ? $serviceValue : (SermonService::tryFrom((string) $serviceValue) ?? SermonService::Morning);
+                $service = $context['service'] ?? (str_contains(strtolower($filename), 'evening') ? SermonService::Evening : SermonService::Morning);
             }
 
             $serviceLabel = $service->label();
-            $title = $serviceLabel.' Sermon - '.date('F j, Y', strtotime($date));
+            $timestamp = strtotime($date) ?: null;
+            $title = $serviceLabel.' Sermon - '.date('F j, Y', $timestamp);
         }
 
         // Capitalize words properly

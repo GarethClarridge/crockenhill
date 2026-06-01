@@ -73,7 +73,8 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             // Update processing log to indicate we're starting
             $this->markProcessingRunAsProcessing($this->processingLog, 'creating_sermon_record');
 
-            $aiAnalysis = $this->processingLog->ai_analysis?->toArray() ?? [];
+            /** @var array{title: string, series: string|null, reference: string|null, points: list<string>, summary: string|null, transcript: string}|null $aiAnalysis */
+            $aiAnalysis = $this->processingLog->ai_analysis?->toArray();
             $id3Metadata = $this->processingLog->processing_metadata?->id3Metadata;
 
             // Prepare options using factory method based on processing type
