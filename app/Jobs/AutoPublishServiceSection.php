@@ -26,7 +26,7 @@ class AutoPublishServiceSection implements ShouldQueue
     public int $timeout = 600;
 
     public function __construct(
-        private int $serviceSectionId
+        public readonly int $serviceSectionId
     ) {}
 
     /**
