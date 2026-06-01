@@ -214,7 +214,7 @@ class SermonCreationService
         Log::info('SermonCreationService: enriched existing sermon', [
             'sermon_id' => $existing->id,
             'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
-            'fields_updated' => array_keys($updates),
+            'fields_updated' => array_map(fn (string $key) => $this->sanitizeForLog($key), array_keys($updates)),
         ]);
 
         return $existing->refresh();
@@ -288,7 +288,7 @@ class SermonCreationService
         Log::info('SermonCreationService: replaced existing sermon media', [
             'sermon_id' => $existing->id,
             'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
-            'fields_updated' => array_keys($updates),
+            'fields_updated' => array_map(fn (string $key) => $this->sanitizeForLog($key), array_keys($updates)),
         ]);
 
         return $existing->refresh();
