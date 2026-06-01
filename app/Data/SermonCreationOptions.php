@@ -16,7 +16,14 @@ use App\Models\ServiceSection;
 class SermonCreationOptions
 {
     /**
-     * @param  array<string, mixed>|null  $aiAnalysis
+     * @param  array{
+     *     title: string,
+     *     series: string|null,
+     *     reference: string|null,
+     *     points: list<string>,
+     *     summary: string|null,
+     *     transcript: string
+     * }|null  $aiAnalysis
      */
     public function __construct(
         // Required fields
@@ -60,7 +67,14 @@ class SermonCreationOptions
     /**
      * Create options for audio upload processing
      *
-     * @param  array<string, mixed>  $aiAnalysis
+     * @param  array{
+     *     title: string,
+     *     series: string|null,
+     *     reference: string|null,
+     *     points: list<string>,
+     *     summary: string|null,
+     *     transcript: string
+     * }  $aiAnalysis
      */
     public static function fromAudioUpload(MediaProcessingLog $log, array $aiAnalysis): self
     {
@@ -80,7 +94,14 @@ class SermonCreationOptions
     /**
      * Create options for video upload processing
      *
-     * @param  array<string, mixed>  $aiAnalysis
+     * @param  array{
+     *     title: string,
+     *     series: string|null,
+     *     reference: string|null,
+     *     points: list<string>,
+     *     summary: string|null,
+     *     transcript: string
+     * }  $aiAnalysis
      */
     public static function fromVideoUpload(MediaProcessingLog $log, array $aiAnalysis): self
     {

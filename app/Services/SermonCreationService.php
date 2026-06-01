@@ -28,6 +28,21 @@ class SermonCreationService
         private readonly SermonRepository $sermonRepository,
     ) {}
 
+    /**
+     * Create or update a sermon record based on a "richness-aware" upsert strategy.
+     *
+     * This method manages the lifecycle of sermon records when new media is processed.
+     * It uses a richness hierarchy (Livestream > Video > Audio) to decide whether to:
+     * - Enrich: Incoming pipeline is richer than the existing record (e.g., adding video to an audio-only sermon).
+     * - Replace: Incoming and existing have same richness (e.g., re-uploading audio).
+     * - Reject: Refuse to downgrade (e.g., uploading audio for a sermon that already has video).
+     *
+     * @param  MediaProcessingLog  $processingLog  The log of the current processing run
+     * @param  SermonCreationOptions  $options  Consolidated options and metadata for creation
+     * @return Sermon The created or updated sermon model
+     *
+     * @throws SermonRichnessDowngradeException When attempting to overwrite a richer record
+     */
     public function createSermon(
         MediaProcessingLog $processingLog,
         SermonCreationOptions $options
@@ -601,9 +616,19 @@ class SermonCreationService
     }
 
     /**
-     * Generate sermon title using specified strategy
+     * Generate sermon title using specified strategy.
      *
-     * @param  array<string, mixed>  $context
+     * @param  TitleGenerationStrategy  $strategy  The strategy to use (AI, Filename, Custom)
+     * @param  array{
+     *     ai_analysis?: array{title: string, series: string|null, reference: string|null, points: list<string>, summary: string|null, transcript: string}|null,
+     *     filename: string,
+     *     custom_title?: string|null,
+     *     id3_title?: string|null,
+     *     processing_log?: MediaProcessingLog|null,
+     *     date?: string,
+     *     service?: SermonService
+     * }  $context  Data context for title generation
+     * @return string The generated and truncated title
      */
     public function generateTitle(
         TitleGenerationStrategy $strategy,
@@ -617,9 +642,13 @@ class SermonCreationService
     }
 
     /**
-     * Generate title using ID3 tags first, then AI analysis, then filename
+     * Generate title using ID3 tags first, then AI analysis, then filename.
      *
-     * @param  array<string, mixed>  $context
+     * @param  array{
+     *     ai_analysis?: array{title: string, series: string|null, reference: string|null, points: list<string>, summary: string|null, transcript: string}|null,
+     *     filename: string,
+     *     id3_title?: string|null
+     * }  $context
      */
     private function generateTitleAiWithFallback(array $context): string
     {
@@ -640,9 +669,14 @@ class SermonCreationService
     }
 
     /**
-     * Generate title from filename only
+     * Generate title from filename only.
      *
-     * @param  array<string, mixed>  $context
+     * @param  array{
+     *     filename: string,
+     *     processing_log?: MediaProcessingLog|null,
+     *     date?: string,
+     *     service?: SermonService
+     * }  $context
      */
     private function generateTitleFromFilename(array $context): string
     {
@@ -690,6 +724,12 @@ class SermonCreationService
         return Str::limit($title, 100, '');
     }
 
+    /**
+     * Determine if a string looks like an unparsed filename fragment.
+     *
+     * Returns true for strings that are entirely numbers, spaces, or separators,
+     * preventing them from being used as actual sermon titles.
+     */
     private function looksLikeFilenameFragment(string $title): bool
     {
         $normalized = trim($title);
@@ -698,10 +738,12 @@ class SermonCreationService
             return true;
         }
 
+        // Match patterns like "10 24" or "10 24 2024" (mostly numeric fragments)
         if (preg_match('/^\d{1,2}(?:\s+\d{2})+(?:\s+\d+)?$/', $normalized) === 1) {
             return true;
         }
 
+        // Match strings composed only of digits, whitespace, and separators (-, _, :)
         return preg_match('/^[\d\s:_-]+$/', $normalized) === 1;
     }
 
