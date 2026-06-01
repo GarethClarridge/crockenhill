@@ -15,6 +15,7 @@
     <img
       src="{{ $headingpicture }}"
       alt=""
+      role="presentation"
       class="w-full h-full object-cover"
       loading="eager"
       fetchpriority="high"
