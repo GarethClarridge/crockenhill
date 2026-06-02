@@ -14,20 +14,34 @@ use Illuminate\Support\Str;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 
+/**
+ * Service for analyzing video files and segmenting them into meaningful components.
+ *
+ * Utilizes FFmpeg/FFprobe to extract technical metadata and generate RMS (loudness) logs.
+ * These logs are then analyzed to differentiate between speech and song segments,
+ * identifying the primary sermon candidate based on duration and characteristics.
+ */
 class VideoSegmentationService
 {
+    /** Region in seconds to sample adjacent speech for per-song RMS threshold calibration. */
     private const CALIBRATION_SPEECH_BUFFER = 60.0;
 
+    /** Minimum allowed RMS threshold (dB) to avoid near-silent noise floor interference. */
     private const THRESHOLD_SAFETY_FLOOR = -80.0;
 
+    /** Maximum allowed RMS threshold (dB) to prevent bias toward extreme peaks. */
     private const THRESHOLD_SAFETY_CEILING = -20.0;
 
+    /** Time window (seconds) to search for song start boundaries before a visual estimate. */
     private const INTRO_SEARCH_BUFFER = 120.0;
 
+    /** Time window (seconds) to search for song end boundaries after a visual estimate. */
     private const OUTRO_SEARCH_BUFFER = 60.0;
 
+    /** Maximum gap (seconds) between loud sections allowed before they are considered distinct events. */
     private const RMS_SECTION_MERGE_GAP = 45.0;
 
+    /** Hard limit on how far ahead of a visual detection point we will search for an audio start. */
     private const VISUAL_START_LEAD_CAP_SECONDS = 10.0;
 
     private ?FFProbe $ffprobe = null;
@@ -51,6 +65,19 @@ class VideoSegmentationService
         $this->tempDisk = config()->string('media-processing.storage.temp_disk', 'local');
     }
 
+    /**
+     * Generate an RMS loudness log for a video file using FFmpeg.
+     *
+     * Extracts precise loudness data at 8kHz for performance, producing a log
+     * that maps PTS timestamps to RMS levels.
+     *
+     * @param  string  $videoPath  Absolute path to the source video file
+     * @return string  Relative path to the generated RMS log on the temporary disk
+     *
+     * @throws ProcessFailedException If the FFmpeg process fails
+     * @throws SegmentationException If the log file is not created or is empty
+     * @throws \Exception For underlying storage or permission failures
+     */
     public function generateRmsLog(string $videoPath): string
     {
         $rmsLogPath = 'temp/rms_'.Str::uuid().'.log';
@@ -107,7 +134,23 @@ class VideoSegmentationService
     }
 
     /**
-     * @return array<string, mixed>
+     * Analyze an RMS log to identify speech and song segments.
+     *
+     * Determines an adaptive or fixed threshold to partition the audio into
+     * high-signal (song) and low-signal (speech) blocks.
+     *
+     * @param  string  $rmsLogPath  Relative path to the RMS log file
+     * @return array{
+     *     segments: list<LivestreamSegment>,
+     *     threshold_metadata: array{
+     *         threshold: float,
+     *         method: 'fixed'|'adaptive'|'fallback',
+     *         log_data: array<string, mixed>,
+     *         rms_stats?: array<string, mixed>
+     *     }
+     * }
+     *
+     * @throws SegmentationException If the RMS log is missing or invalid
      */
     public function analyzeSegments(string $rmsLogPath): array
     {
@@ -148,7 +191,7 @@ class VideoSegmentationService
     }
 
     /**
-     * @return LivestreamSegment[]
+     * @return list<LivestreamSegment>
      */
     private function parseRmsLog(string $logContent, ?float $adaptiveThreshold = null): array
     {
@@ -168,7 +211,7 @@ class VideoSegmentationService
     /**
      * @param  array<int, array{start: float, end: float}>  $loudSections
      * @param  array<int, array{time: float, rms: float}>  $rmsData
-     * @return array<int, LivestreamSegment>
+     * @return list<LivestreamSegment>
      */
     private function combineLoudAndQuietSections(array $loudSections, float $totalDuration, array $rmsData): array
     {
@@ -224,8 +267,8 @@ class VideoSegmentationService
     }
 
     /**
-     * @param  LivestreamSegment[]  $segments
-     * @return LivestreamSegment[]
+     * @param  list<LivestreamSegment>  $segments
+     * @return list<LivestreamSegment>
      */
     private function identifySermonCandidate(array $segments): array
     {
@@ -252,7 +295,20 @@ class VideoSegmentationService
     }
 
     /**
-     * @return array<string, float|int|string|null>
+     * Extract technical metadata from a video file using FFprobe.
+     *
+     * @param  string  $videoPath  Absolute path to the video file
+     * @return array{
+     *     duration: float,
+     *     format_name: string,
+     *     size: int,
+     *     bit_rate: int,
+     *     width: int|null,
+     *     height: int|null,
+     *     codec: string|null
+     * }
+     *
+     * @throws \Exception If FFprobe fails to read the file
      */
     public function getVideoMetadata(string $videoPath): array
     {
@@ -292,6 +348,12 @@ class VideoSegmentationService
         }
     }
 
+    /**
+     * Verify that a file is a valid video format supported by the pipeline.
+     *
+     * @param  string  $videoPath  Absolute path to the video file
+     * @return bool True if the format is recognized and supported
+     */
     public function validateVideoFile(string $videoPath): bool
     {
         // In testing environment, always return true for validation
@@ -369,8 +431,13 @@ class VideoSegmentationService
     }
 
     /**
-     * Calibrate per-song RMS threshold based on song and adjacent speech
+     * Calibrate a customized RMS threshold for a specific song cluster.
      *
+     * Compares the signal level within known visual song samples against the
+     * adjacent "speech" buffer to find the optimal separation point for
+     * precise boundary detection.
+     *
+     * @param  string  $rmsLogPath  Relative path to the RMS log
      * @param  array{
      *     start_estimate: float,
      *     end_estimate: float,
@@ -380,8 +447,14 @@ class VideoSegmentationService
      *     refined_visual_start?: float,
      *     refined_visual_end?: float,
      *     dense_sample_count?: int
-     * }  $songCluster
-     * @return array<string, float>
+     * }  $songCluster  Visual analysis results for the song
+     * @return array{
+     *     threshold: float,
+     *     song_avg_rms: float,
+     *     speech_avg_rms: float
+     * }
+     *
+     * @throws SegmentationException If no RMS data exists for the specified timestamps
      */
     public function calibratePerSongThreshold(string $rmsLogPath, array $songCluster): array
     {
@@ -445,8 +518,13 @@ class VideoSegmentationService
     }
 
     /**
-     * Detect precise boundaries for a song cluster using min/max of visual and RMS boundaries
+     * Detect precise start and end boundaries for a song cluster.
      *
+     * Merges visual detection estimates with RMS signal transitions to find
+     * the exact timestamps where a song begins and ends. Returns a
+     * LivestreamSegment DTO populated with these boundaries.
+     *
+     * @param  string  $rmsLogPath  Relative path to the RMS log
      * @param  array{
      *     start_estimate: float,
      *     end_estimate: float,
@@ -456,7 +534,11 @@ class VideoSegmentationService
      *     refined_visual_start?: float,
      *     refined_visual_end?: float,
      *     dense_sample_count?: int
-     * }  $cluster
+     * }  $cluster  Visual analysis results for the song
+     * @param  float  $threshold  The calibrated RMS threshold to use for boundary detection
+     * @return LivestreamSegment  A transient segment model representing the detected song
+     *
+     * @throws \Exception If boundary detection logic fails
      */
     public function detectBoundariesForCluster(
         string $rmsLogPath,

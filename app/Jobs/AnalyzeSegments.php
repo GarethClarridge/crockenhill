@@ -371,7 +371,7 @@ class AnalyzeSegments implements ShouldQueue
         /** @var array<int, LivestreamSegment> $rmsSegments */
         $rmsSegments = $rmsAnalysis['segments'];
         /** @var array<string, mixed> $thresholdMetadata */
-        $thresholdMetadata = $rmsAnalysis['threshold_metadata'] ?? [];
+        $thresholdMetadata = $rmsAnalysis['threshold_metadata'];
         $fallbackThreshold = $this->resolveVisualFallbackThreshold($thresholdMetadata);
 
         // Get total duration from RMS log for sermon identification
