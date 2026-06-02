@@ -122,7 +122,7 @@ class SermonCandidateConfidenceService
         /** @var Collection<int, LivestreamSegment> $speechSegments */
         $speechSegments = LivestreamSegment::query()
             ->where('media_processing_log_id', $processingLog->id)
-            ->where('classification', LivestreamSegmentClassification::Speech->value)
+            ->where('classification', LivestreamSegmentClassification::Speech)
             ->orderBy('start_time')
             ->orderBy('id')
             ->get();

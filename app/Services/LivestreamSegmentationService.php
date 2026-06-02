@@ -269,7 +269,7 @@ class LivestreamSegmentationService
                 startTime: (float) ($segment->start_time ?? 0.0),
                 endTime: (float) ($segment->end_time ?? 0.0),
                 duration: (float) ($segment->duration ?? 0.0),
-                classification: $segment->classification,
+                classification: $segment->classification->value,
                 avgRms: (float) ($segment->avg_rms ?? 0.0),
                 peakRms: (float) ($segment->peak_rms ?? 0.0),
                 isSermonCandidate: $segment->is_sermon_candidate,
