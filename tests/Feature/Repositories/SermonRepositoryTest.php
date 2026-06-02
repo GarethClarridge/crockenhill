@@ -33,6 +33,7 @@ class SermonRepositoryTest extends TestCase
         Preacher::query()->delete();
 
         $this->repository = app(SermonRepository::class);
+        $this->repository->clearInternalCaches();
         Cache::flush();
     }
 
