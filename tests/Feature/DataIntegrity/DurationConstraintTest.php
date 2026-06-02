@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
+use App\Enums\LivestreamSegmentClassification;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\SongVideo;
@@ -184,11 +185,21 @@ class DurationConstraintTest extends TestCase
     #[Test]
     public function it_validates_livestream_segment_rules_at_application_level(): void
     {
+        $log = MediaProcessingLog::factory()->create();
         $rules = LivestreamSegment::validationRules();
 
-        $this->assertTrue(Validator::make(['start_time' => 0, 'end_time' => 10, 'duration' => 10], $rules)->passes());
-        $this->assertFalse(Validator::make(['start_time' => -1, 'end_time' => 10, 'duration' => 11], $rules)->passes());
-        $this->assertFalse(Validator::make(['start_time' => 10, 'end_time' => 5, 'duration' => 0], $rules)->passes());
-        $this->assertFalse(Validator::make(['start_time' => 0, 'end_time' => 10, 'duration' => -1], $rules)->passes());
+        $validPayload = [
+            'media_processing_log_id' => $log->id,
+            'segment_index' => 0,
+            'start_time' => 0,
+            'end_time' => 10,
+            'duration' => 10,
+            'classification' => LivestreamSegmentClassification::Speech->value,
+        ];
+
+        $this->assertTrue(Validator::make($validPayload, $rules)->passes());
+        $this->assertFalse(Validator::make(array_merge($validPayload, ['start_time' => -1, 'duration' => 11]), $rules)->passes());
+        $this->assertFalse(Validator::make(array_merge($validPayload, ['start_time' => 10, 'end_time' => 5, 'duration' => 0]), $rules)->passes());
+        $this->assertFalse(Validator::make(array_merge($validPayload, ['duration' => -1]), $rules)->passes());
     }
 }

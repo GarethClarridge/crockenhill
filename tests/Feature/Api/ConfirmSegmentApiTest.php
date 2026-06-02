@@ -158,11 +158,15 @@ class ConfirmSegmentApiTest extends TestCase
     #[Test]
     public function it_returns_422_for_an_unknown_processing_id(): void
     {
+        // Create a real segment so the Form Request's exists:livestream_segments,id passes,
+        // letting the controller's InvalidArgumentException path return {'success': false}.
+        $log = $this->makeLivestreamLogAwaitingReview();
+        $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
         $token = $this->tokenFor($this->admin);
 
         $this->withToken($token)
             ->postJson('/api/media/processing/00000000-0000-0000-0000-000000000000/confirm-segment', [
-                'segment_id' => 1,
+                'segment_id' => $segment->id,
             ])
             ->assertUnprocessable()
             ->assertJsonFragment(['success' => false]);
