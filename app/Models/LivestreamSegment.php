@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\LivestreamSegmentClassification;
 use Database\Factories\LivestreamSegmentFactory;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -250,7 +251,7 @@ class LivestreamSegment extends Model
     protected function classificationDisplay(): Attribute
     {
         return Attribute::make(
-            get: fn () => ucfirst($this->classification)
+            get: fn () => ucfirst($this->classification->value)
         );
     }
 
@@ -263,7 +264,7 @@ class LivestreamSegment extends Model
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<string|ValidationRule|\Stringable>>
      */
     public static function validationRules(): array
     {
