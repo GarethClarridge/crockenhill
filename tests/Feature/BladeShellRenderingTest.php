@@ -24,7 +24,7 @@ class BladeShellRenderingTest extends TestCase
         $response = $this->get('/login');
 
         $response->assertOk();
-        $response->assertSee('<title>Login | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Log in | Crockenhill Baptist Church</title>', false);
     }
 
     #[Test]
@@ -42,7 +42,7 @@ class BladeShellRenderingTest extends TestCase
         $response = $this->get('/forgot-password');
 
         $response->assertOk();
-        $response->assertSee('<title>Forgot Password | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Forgot password | Crockenhill Baptist Church</title>', false);
     }
 
     #[Test]
