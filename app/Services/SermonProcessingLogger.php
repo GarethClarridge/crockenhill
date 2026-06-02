@@ -500,8 +500,8 @@ class SermonProcessingLogger
      */
     private function buildSegmentSummary(Collection $segments): array
     {
-        $songSegments = $segments->where('classification', LivestreamSegmentClassification::Song->value);
-        $speechSegments = $segments->where('classification', LivestreamSegmentClassification::Speech->value);
+        $songSegments = $segments->where('classification', LivestreamSegmentClassification::Song);
+        $speechSegments = $segments->where('classification', LivestreamSegmentClassification::Speech);
         $sermonSegment = $segments->where('is_sermon_candidate', true)->first();
 
         return [

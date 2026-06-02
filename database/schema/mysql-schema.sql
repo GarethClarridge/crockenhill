@@ -225,6 +225,7 @@ CREATE TABLE `livestream_segments` (
   KEY `livestream_segments_is_sermon_candidate_index` (`is_sermon_candidate`),
   KEY `livestream_segments_log_order_index` (`media_processing_log_id`,`segment_order`,`start_time`),
   KEY `livestream_segments_log_classification_time_index` (`media_processing_log_id`,`classification`,`start_time`),
+  KEY `livestream_segments_log_start_time_index` (`media_processing_log_id`,`start_time`),
   CONSTRAINT `livestream_segments_media_processing_log_id_foreign` FOREIGN KEY (`media_processing_log_id`) REFERENCES `media_processing_logs` (`id`) ON DELETE CASCADE,
   CONSTRAINT `livestream_segments_segment_order_check` CHECK (((`segment_order` >= 0) or (`segment_order` is null))),
   CONSTRAINT `livestream_segments_timing_check` CHECK (((`start_time` >= 0) and (`end_time` >= `start_time`) and (`duration` >= 0))),
@@ -775,7 +776,9 @@ DROP TABLE IF EXISTS `song_author_song`;
 CREATE TABLE `song_author_song` (
   `song_id` bigint unsigned NOT NULL,
   `song_author_id` bigint unsigned NOT NULL,
-  `author_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
+  `author_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  KEY `song_author_song_song_id_index` (`song_id`),
+  KEY `song_author_song_song_author_id_index` (`song_author_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `song_authors`;
@@ -1144,3 +1147,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_20_054000_add_i
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_24_052601_add_integrity_check_to_sermons_reference_table',70);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_23_053404_add_check_constraints_to_scripture_passages_table',71);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_26_165514_fortify_song_identity_columns',72);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_01_065205_add_timing_index_to_livestream_segments_table',73);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_02_203631_add_indexes_to_song_author_song_table',74);

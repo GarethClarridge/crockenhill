@@ -27,22 +27,27 @@
             {{-- Manual refresh button --}}
             <button
                 wire:click="refreshLogs"
-                class="p-1 text-gray-500 hover:text-gray-700 rounded"
+                class="p-1 text-gray-500 hover:text-gray-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                 aria-label="Refresh logs"
             >
                 <svg wire:loading.remove wire:target="refreshLogs" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
-                <svg wire:loading wire:target="refreshLogs" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <span wire:loading wire:target="refreshLogs" role="status" aria-live="polite">
+                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="sr-only">Refreshing logs...</span>
+                </span>
             </button>
 
             {{-- Toggle expanded --}}
             <button
                 wire:click="toggleExpanded"
-                class="text-gray-500 hover:text-gray-700 focus:outline-none"
+                class="text-gray-500 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded"
+                :aria-expanded="$wire.expanded ? 'true' : 'false'"
+                aria-controls="processing-logs-content"
             >
                 <span x-show="!$wire.expanded" class="text-sm">Show Logs</span>
                 <span x-show="$wire.expanded" class="text-sm">Hide Logs</span>
@@ -56,7 +61,7 @@
         </div>
     </div>
 
-    <div x-show="$wire.expanded" x-transition class="p-4">
+    <div id="processing-logs-content" x-show="$wire.expanded" x-transition class="p-4">
         {{-- Performance Summary --}}
         @if($showMetrics && !empty($performanceMetrics))
             <div class="grid grid-cols-3 gap-4 mb-6">
@@ -80,11 +85,12 @@
             <div class="flex flex-wrap gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
                 {{-- Log limit --}}
                 <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium text-gray-700">Limit:</label>
+                    <label for="log-limit" class="text-sm font-medium text-gray-700">Limit:</label>
                     <select
+                        id="log-limit"
                         wire:model.live="logLimit"
                         wire:change="updateLogLimit"
-                        class="text-sm border-gray-300 rounded"
+                        class="text-sm border-gray-300 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                     >
                         <option value="10">10</option>
                         <option value="20">20</option>
@@ -95,11 +101,12 @@
 
                 {{-- Level filter --}}
                 <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium text-gray-700">Level:</label>
+                    <label for="filter-level" class="text-sm font-medium text-gray-700">Level:</label>
                     <select
+                        id="filter-level"
                         wire:model.live="filterLevel"
                         wire:change="updateFilter"
-                        class="text-sm border-gray-300 rounded"
+                        class="text-sm border-gray-300 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                     >
                         <option value="all">All</option>
                         <option value="error">Errors</option>
@@ -112,11 +119,12 @@
                 {{-- Step filter --}}
                 @if(!empty($this->availableSteps))
                     <div class="flex items-center space-x-2">
-                        <label class="text-sm font-medium text-gray-700">Step:</label>
+                        <label for="filter-step" class="text-sm font-medium text-gray-700">Step:</label>
                         <select
+                            id="filter-step"
                             wire:model.live="filterStep"
                             wire:change="updateFilter"
-                            class="text-sm border-gray-300 rounded"
+                            class="text-sm border-gray-300 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                         >
                             <option value="all">All Steps</option>
                             @foreach($this->availableSteps as $step)
@@ -229,7 +237,7 @@
                 <p class="mt-2">No processing logs available</p>
                 <button
                     wire:click="fetchLogs"
-                    class="mt-2 text-blue-600 hover:text-blue-800"
+                    class="mt-2 text-blue-600 hover:text-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded"
                 >
                     Try fetching logs
                 </button>

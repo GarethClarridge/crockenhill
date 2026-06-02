@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Data\LivestreamSegment as LivestreamSegmentData;
+use App\Enums\LivestreamSegmentClassification;
 use App\Jobs\AnalyzeSegments;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
@@ -643,7 +644,13 @@ class AnalyzeSegmentsVisualTest extends TestCase
 
         // Confirm the interleaved structure: speech, song, speech, song, speech
         $classifications = $segments->pluck('classification')->all();
-        $this->assertEquals(['speech', 'song', 'speech', 'song', 'speech'], $classifications);
+        $this->assertEquals([
+            LivestreamSegmentClassification::Speech,
+            LivestreamSegmentClassification::Song,
+            LivestreamSegmentClassification::Speech,
+            LivestreamSegmentClassification::Song,
+            LivestreamSegmentClassification::Speech,
+        ], $classifications);
 
         // Confirm segment_order values are 0-indexed sequential
         $segmentOrders = $segments->pluck('segment_order')->map(fn ($o) => (int) $o)->all();
