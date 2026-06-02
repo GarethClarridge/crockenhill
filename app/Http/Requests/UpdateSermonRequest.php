@@ -32,7 +32,7 @@ class UpdateSermonRequest extends FormRequest
         return [
             'title' => $modelRules['title'],
             'slug' => $modelRules['slug'],
-            'date' => ['required', 'date_format:Y-m-d'],
+            'date' => ['required', 'string', 'max:255', 'date_format:Y-m-d'],
             'service' => array_merge(['required'], array_filter($modelRules['service'], fn ($r) => $r !== 'nullable')),
             'series' => $modelRules['series'],
             'reference' => $modelRules['reference'],
