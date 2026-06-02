@@ -250,13 +250,13 @@ class BrowseSermons extends Component
     #[Computed]
     public function seoTitle(): string
     {
-        return app(SermonArchiveSeoPresenter::class)->title($this->activeFilters());
+        return app(SermonArchiveSeoPresenter::class)->title($this->activeFilters(), $this->getPage());
     }
 
     #[Computed]
     public function seoDescription(): string
     {
-        return app(SermonArchiveSeoPresenter::class)->description($this->activeFilters());
+        return app(SermonArchiveSeoPresenter::class)->description($this->activeFilters(), $this->getPage());
     }
 
     #[Computed]

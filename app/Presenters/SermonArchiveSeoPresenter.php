@@ -19,30 +19,36 @@ class SermonArchiveSeoPresenter
      *
      * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
      */
-    public function title(array $filters): string
+    public function title(array $filters, int $page = 1): string
     {
-        if (! array_filter($filters)) {
-            return 'Sermons';
-        }
+        $base = 'Sermons';
 
-        $parts = [];
+        if (array_filter($filters)) {
+            $parts = [];
 
-        if ($filters['book']) {
-            $parts[] = $filters['chapter'] ? "{$filters['book']} {$filters['chapter']}" : $filters['book'];
-        }
-
-        if ($filters['preacherId']) {
-            $preacherName = $this->resolvePreacherName($filters['preacherId']);
-            if ($preacherName) {
-                $parts[] = $preacherName;
+            if ($filters['book']) {
+                $parts[] = $filters['chapter'] ? "{$filters['book']} {$filters['chapter']}" : $filters['book'];
             }
+
+            if ($filters['preacherId']) {
+                $preacherName = $this->resolvePreacherName($filters['preacherId']);
+                if ($preacherName) {
+                    $parts[] = $preacherName;
+                }
+            }
+
+            if ($filters['series']) {
+                $parts[] = $filters['series'];
+            }
+
+            $base = implode(' | ', $parts).' | Sermons';
         }
 
-        if ($filters['series']) {
-            $parts[] = $filters['series'];
+        if ($page > 1) {
+            return "{$base} (Page {$page})";
         }
 
-        return implode(' | ', $parts).' | Sermons';
+        return $base;
     }
 
     /**
@@ -50,31 +56,37 @@ class SermonArchiveSeoPresenter
      *
      * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
      */
-    public function description(array $filters): string
+    public function description(array $filters, int $page = 1): string
     {
         if (! array_filter($filters)) {
-            return 'Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.';
-        }
+            $desc = 'Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.';
+        } else {
+            $parts = [];
 
-        $parts = [];
-
-        if ($filters['book']) {
-            $scripture = $filters['chapter'] ? "{$filters['book']} {$filters['chapter']}" : $filters['book'];
-            $parts[] = "on {$scripture}";
-        }
-
-        if ($filters['preacherId']) {
-            $preacherName = $this->resolvePreacherName($filters['preacherId']);
-            if ($preacherName) {
-                $parts[] = "by {$preacherName}";
+            if ($filters['book']) {
+                $scripture = $filters['chapter'] ? "{$filters['book']} {$filters['chapter']}" : $filters['book'];
+                $parts[] = "on {$scripture}";
             }
+
+            if ($filters['preacherId']) {
+                $preacherName = $this->resolvePreacherName($filters['preacherId']);
+                if ($preacherName) {
+                    $parts[] = "by {$preacherName}";
+                }
+            }
+
+            if ($filters['series']) {
+                $parts[] = "in the '{$filters['series']}' series";
+            }
+
+            $desc = 'Watch or listen to Bible-based sermons '.implode(' ', $parts).' from Crockenhill Baptist Church. Explore recent teaching from our morning and evening services.';
         }
 
-        if ($filters['series']) {
-            $parts[] = "in the '{$filters['series']}' series";
+        if ($page > 1) {
+            return "{$desc} - Page {$page}";
         }
 
-        return 'Watch or listen to Bible-based sermons '.implode(' ', $parts).' from Crockenhill Baptist Church. Explore recent teaching from our morning and evening services.';
+        return $desc;
     }
 
     /**
