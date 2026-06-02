@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Tests\Integration\SEO;
 
 use App\Models\Sermon;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PaginationSeoTest extends TestCase
 {
     use DatabaseTransactions;
 
-    public function test_sermon_archive_page_2_has_correct_title(): void
+    #[Test]
+    public function sermon_archive_page_2_has_correct_title(): void
     {
-        // Create enough sermons to have 2 pages (24 per page)
         Sermon::factory()->count(30)->create();
 
         $response = $this->get('/christ/sermons?page=2');
@@ -24,9 +26,10 @@ class PaginationSeoTest extends TestCase
         $response->assertSee('<meta name="description" content="Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series. - Page 2">', false);
     }
 
-    public function test_song_archive_page_2_has_correct_title(): void
+    #[Test]
+    public function song_archive_page_2_has_correct_title(): void
     {
-        $user = \App\Models\User::factory()->create(['email_verified_at' => now()]);
+        $user = User::factory()->create(['email_verified_at' => now()]);
         $response = $this->actingAs($user)->get('/church/songs?page=2');
 
         $response->assertStatus(200);

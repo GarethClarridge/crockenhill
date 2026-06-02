@@ -88,6 +88,11 @@ class BrowseSermons extends Component
         $this->dispatchMetadataUpdate();
     }
 
+    public function updatedPage(): void
+    {
+        $this->dispatchMetadataUpdate();
+    }
+
     public function clearFilters(): void
     {
         $this->reset([
