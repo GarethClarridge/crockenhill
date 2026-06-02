@@ -137,19 +137,9 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
         $this->assertSame(2, $count);
 
         Bus::assertDispatched(ReconcileServiceSections::class, function (ReconcileServiceSections $job) use ($matchedByColumns, $matchedSecond): bool {
-            $processingLog = $this->jobProperty($job, 'processingLog');
-
-            return $processingLog instanceof MediaProcessingLog
-                && in_array($processingLog->id, [$matchedByColumns->id, $matchedSecond->id], true);
+            return $job->processingLog instanceof MediaProcessingLog
+                && in_array($job->processingLog->id, [$matchedByColumns->id, $matchedSecond->id], true);
         });
         Bus::assertDispatched(ReconcileServiceSections::class, 2);
-    }
-
-    private function jobProperty(ReconcileServiceSections $job, string $property): mixed
-    {
-        $reflection = new \ReflectionProperty($job, $property);
-        $reflection->setAccessible(true);
-
-        return $reflection->getValue($job);
     }
 }

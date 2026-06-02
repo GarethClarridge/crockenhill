@@ -25,8 +25,8 @@ class ReconcileServiceSections implements ShouldBeUnique, ShouldQueue
     public int $timeout = 600;
 
     public function __construct(
-        private MediaProcessingLog $processingLog,
-        private ChurchService $churchService,
+        public readonly MediaProcessingLog $processingLog,
+        public readonly ChurchService $churchService,
     ) {}
 
     public function handle(

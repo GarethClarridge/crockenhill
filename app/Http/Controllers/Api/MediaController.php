@@ -53,12 +53,12 @@ class MediaController extends Controller
         try {
             $file = $request->file('file');
 
-            Log::info('Media upload initiated', [
+            Log::info('Media upload initiated', $this->sanitizeArrayForLog([
                 'type' => $type,
                 'user_id' => $request->user()?->id,
-                'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                'filename' => $file->getClientOriginalName(),
                 'size' => $file->getSize(),
-            ]);
+            ]));
 
             $options = $this->processingOptions($type, $validated);
             $result = $options === []
@@ -165,10 +165,10 @@ class MediaController extends Controller
             $result = $this->cancelProcessing($processingId);
 
             if ($result['success']) {
-                Log::warning('Media processing cancelled via API', [
-                    'processing_id' => $this->sanitizeForLog($processingId),
+                Log::warning('Media processing cancelled via API', $this->sanitizeArrayForLog([
+                    'processing_id' => $processingId,
                     'user_id' => $request->user()?->id,
-                ]);
+                ]));
             }
 
             return response()->json($result, $result['success'] ? 200 : 400);
@@ -194,11 +194,11 @@ class MediaController extends Controller
         try {
             $action->execute($processingId, (int) $request->input('segment_id'), $user);
 
-            Log::warning('Sermon segment confirmed via API', [
-                'processing_id' => $this->sanitizeForLog($processingId),
+            Log::warning('Sermon segment confirmed via API', $this->sanitizeArrayForLog([
+                'processing_id' => $processingId,
                 'segment_id' => $request->input('segment_id'),
                 'user_id' => $user->id,
-            ]);
+            ]));
 
             return response()->json([
                 'success' => true,
@@ -227,10 +227,10 @@ class MediaController extends Controller
             $result = $this->mediaProcessor->retry($processingId);
 
             if ($result->success) {
-                Log::warning('Media processing retry initiated via API', [
-                    'processing_id' => $this->sanitizeForLog($processingId),
+                Log::warning('Media processing retry initiated via API', $this->sanitizeArrayForLog([
+                    'processing_id' => $processingId,
                     'user_id' => $request->user()?->id,
-                ]);
+                ]));
             }
 
             return response()->json($result->toArray(), $result->success ? 202 : 422);
@@ -248,10 +248,10 @@ class MediaController extends Controller
      */
     private function handleApiException(\Exception $e, string $logMessage, array $context = [], array $body = []): JsonResponse
     {
-        Log::error($logMessage, array_merge($this->sanitizeArrayForLog($context), [
-            'error' => $this->sanitizeForLog($e->getMessage()),
+        Log::error($logMessage, $this->sanitizeArrayForLog(array_merge($context, [
+            'error' => $e->getMessage(),
             'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-        ]));
+        ])));
 
         if ($body === []) {
             $body = ['success' => false, 'message' => $logMessage];

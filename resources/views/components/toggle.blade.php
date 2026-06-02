@@ -79,7 +79,7 @@
             @endif
             @if($modelName)
                 @error($modelName)
-                    <p @if($id) id="{{ $id }}-error" @endif class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
+                    <p id="{{ $id }}-error" class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
                 @enderror
             @endif
         </div>

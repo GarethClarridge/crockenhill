@@ -47,6 +47,7 @@ class UnifiedMediaProcessor
      * @return ProcessingResult The result of the initiation attempt
      *
      * @throws UniqueConstraintViolationException If a duplicate race occurs
+     * @throws \Exception For underlying service or storage failures
      */
     public function process(
         string $type,
@@ -54,12 +55,12 @@ class UnifiedMediaProcessor
         ?string $clientFileDate = null,
         array $options = []
     ): ProcessingResult {
-        Log::info('Unified media processing started', [
+        Log::info('Unified media processing started', $this->sanitizeArrayForLog([
             'type' => $type,
-            'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+            'filename' => $file->getClientOriginalName(),
             'size' => $file->getSize(),
-            'client_file_date' => $clientFileDate ? $this->sanitizeForLog($clientFileDate) : null,
-        ]);
+            'client_file_date' => $clientFileDate,
+        ]));
 
         $mediaType = MediaType::tryFrom($type);
 
@@ -205,17 +206,18 @@ class UnifiedMediaProcessor
      * Process an audio file through the complete automation pipeline.
      * Uses ProcessingInitiator for shared log-creation boundary (same as video/livestream).
      *
-     * @throws UniqueConstraintViolationException
+     * @throws UniqueConstraintViolationException If a duplicate race occurs
+     * @throws \Exception For underlying service or storage failures
      */
     private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash, ?string $dedupKey): ProcessingResult
     {
         try {
-            Log::info('Starting audio processing', [
-                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+            Log::info('Starting audio processing', $this->sanitizeArrayForLog([
+                'original_filename' => $file->getClientOriginalName(),
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
-                'client_file_date' => $clientFileDate ? $this->sanitizeForLog($clientFileDate) : null,
-            ]);
+                'client_file_date' => $clientFileDate,
+            ]));
 
             $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
 
@@ -238,17 +240,17 @@ class UnifiedMediaProcessor
                 ]
             );
 
-            Log::info('Audio file stored, processing log created', [
-                'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
-                'stored_path' => $this->sanitizeForLog($storedFilePath),
-                'id3_metadata' => $this->sanitizeForLog(json_encode($id3Metadata) ?: ''),
-            ]);
+            Log::info('Audio file stored, processing log created', $this->sanitizeArrayForLog([
+                'processing_id' => $processingLog->processing_id,
+                'stored_path' => $storedFilePath,
+                'id3_metadata' => json_encode($id3Metadata) ?: '',
+            ]));
 
             $this->processingRunOrchestrator->start($processingLog);
 
-            Log::info('Audio processing jobs dispatched', [
-                'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
-            ]);
+            Log::info('Audio processing jobs dispatched', $this->sanitizeArrayForLog([
+                'processing_id' => $processingLog->processing_id,
+            ]));
 
             return ProcessingResult::success(
                 processingId: $processingLog->processing_id,
@@ -259,11 +261,11 @@ class UnifiedMediaProcessor
         } catch (UniqueConstraintViolationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            Log::error('Failed to initiate audio processing', [
-                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
-                'error' => $this->sanitizeForLog($e->getMessage()),
+            Log::error('Failed to initiate audio processing', $this->sanitizeArrayForLog([
+                'original_filename' => $file->getClientOriginalName(),
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             return ProcessingResult::failure(
                 processingId: 'failed-'.Str::uuid(),
@@ -342,11 +344,11 @@ class UnifiedMediaProcessor
             return null;
         }
 
-        Log::info('Duplicate upload detected, reusing existing processing run', [
-            'dedup_key' => $this->sanitizeForLog($dedupKey),
-            'existing_processing_id' => $this->sanitizeForLog($existingLog->processing_id),
+        Log::info('Duplicate upload detected, reusing existing processing run', $this->sanitizeArrayForLog([
+            'dedup_key' => $dedupKey,
+            'existing_processing_id' => $existingLog->processing_id,
             'processing_type' => $existingLog->processing_type->value,
-        ]);
+        ]));
 
         return ProcessingResult::success(
             processingId: $existingLog->processing_id,
@@ -361,10 +363,10 @@ class UnifiedMediaProcessor
             $racedLog = MediaProcessingLog::query()->where('dedup_key', $dedupKey)->first();
 
             if ($racedLog !== null) {
-                Log::info('Concurrent duplicate resolved via constraint violation, reusing raced run', [
-                    'dedup_key' => $this->sanitizeForLog($dedupKey),
-                    'existing_processing_id' => $this->sanitizeForLog($racedLog->processing_id),
-                ]);
+                Log::info('Concurrent duplicate resolved via constraint violation, reusing raced run', $this->sanitizeArrayForLog([
+                    'dedup_key' => $dedupKey,
+                    'existing_processing_id' => $racedLog->processing_id,
+                ]));
 
                 return ProcessingResult::success(
                     processingId: $racedLog->processing_id,
@@ -387,7 +389,8 @@ class UnifiedMediaProcessor
      *
      * @param  array<string, mixed>  $options
      *
-     * @throws UniqueConstraintViolationException
+     * @throws UniqueConstraintViolationException If a duplicate race occurs
+     * @throws \Exception For underlying service or storage failures
      */
     private function processDirectVideo(
         UploadedFile $file,
@@ -428,11 +431,11 @@ class UnifiedMediaProcessor
         } catch (UniqueConstraintViolationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            Log::error('Failed to initiate video processing', [
-                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
-                'error' => $this->sanitizeForLog($e->getMessage()),
+            Log::error('Failed to initiate video processing', $this->sanitizeArrayForLog([
+                'original_filename' => $file->getClientOriginalName(),
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             return ProcessingResult::failure(
                 processingId: 'failed-'.Str::uuid(),

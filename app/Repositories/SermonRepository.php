@@ -364,8 +364,8 @@ class SermonRepository
 
         return Sermon::query()
             ->where('date', $dateString)
-            ->where('service', $service->value)
-            ->where('content_type', $contentType->value)
+            ->where('service', $service)
+            ->where('content_type', $contentType)
             ->first();
     }
 

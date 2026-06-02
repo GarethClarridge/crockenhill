@@ -540,10 +540,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         Bus::assertDispatched(AutoPublishServiceSection::class, function (AutoPublishServiceSection $job) use ($section) {
             // Verify it was dispatched for the correct section.
-            $reflection = new \ReflectionClass($job);
-            $property = $reflection->getProperty('serviceSectionId');
-
-            return $property->getValue($job) === $section->id;
+            return $job->serviceSectionId === $section->id;
         });
     }
 

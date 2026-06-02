@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\PageArea;
-use App\Enums\SermonContentType;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
@@ -17,7 +16,6 @@ use App\Presenters\SermonSitemapPresenter;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -165,9 +163,9 @@ class SitemapService
             return;
         }
 
-        $subquery = DB::table('sermons')
+        $subquery = Sermon::query()
             ->join('sermon_scripture_filters', 'sermons.id', '=', 'sermon_scripture_filters.sermon_id')
-            ->where('sermons.content_type', SermonContentType::Sermon->value)
+            ->whereSermon()
             ->select([
                 'sermons.id',
                 'sermons.title',
@@ -217,7 +215,7 @@ class SitemapService
     {
         $pages = Page::query()
             ->public()
-            ->where('area', '!=', PageArea::Members->value)
+            ->where('area', '!=', PageArea::Members)
             ->whereColumn('slug', '!=', 'area')
             ->where(function ($query): void {
                 // Exclude sermon-area index pages whose slugs duplicate static routes.
@@ -295,8 +293,8 @@ class SitemapService
             return;
         }
 
-        $subquery = DB::table('sermons')
-            ->where('content_type', SermonContentType::Sermon->value)
+        $subquery = Sermon::query()
+            ->whereSermon()
             ->whereNotNull('series')
             ->where('series', '!=', '')
             ->select([
