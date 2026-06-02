@@ -131,6 +131,38 @@ class CreateMeetingTest extends TestCase
     }
 
     #[Test]
+    public function it_accepts_valid_start_and_end_times(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateMeeting::class)
+            ->set('form.slug', 'timed-meeting')
+            ->set('form.type', MeetingType::Adults->value)
+            ->set('form.day', 'Monday')
+            ->set('form.who', 'Adults')
+            ->set('form.startTime', '10:30')
+            ->set('form.endTime', '11:30')
+            ->call('save')
+            ->assertHasNoErrors(['form.startTime', 'form.endTime']);
+    }
+
+    #[Test]
+    public function it_rejects_end_time_before_start_time(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateMeeting::class)
+            ->set('form.slug', 'bad-time-meeting')
+            ->set('form.type', MeetingType::Adults->value)
+            ->set('form.day', 'Monday')
+            ->set('form.who', 'Adults')
+            ->set('form.startTime', '11:30')
+            ->set('form.endTime', '10:30')
+            ->call('save')
+            ->assertHasErrors(['form.endTime' => 'after_or_equal']);
+    }
+
+    #[Test]
     public function it_clears_frequency_when_recurring_is_disabled(): void
     {
         $this->actingAs($this->admin);

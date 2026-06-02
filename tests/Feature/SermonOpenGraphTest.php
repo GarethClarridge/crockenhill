@@ -83,11 +83,10 @@ class SermonOpenGraphTest extends TestCase
         $response->assertSee('<meta property="og:description"', false);
         $response->assertSee('<meta property="og:image"', false);
 
-        // Should use fallback image (either default thumbnail or Primary.png)
-        $content = $response->getContent();
-        $this->assertTrue(
-            str_contains($content, 'default-sermon-thumbnail.jpg') ||
-            str_contains($content, 'Primary.png'),
+        // Should use the site-wide fallback image (Primary.png) when no thumbnail exists
+        $this->assertStringContainsString(
+            'Primary.png',
+            (string) $response->getContent(),
             'Should include fallback image when no thumbnail is available'
         );
     }

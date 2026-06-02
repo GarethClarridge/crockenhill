@@ -6,13 +6,8 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use App\Models\User;
-use App\Services\ProcessingResult;
-use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -99,51 +94,6 @@ class SermonAdminControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertViewIs('sermons.upload');
-    }
-
-    #[Test]
-    public function admin_can_process_media_upload(): void
-    {
-        Storage::fake('local');
-        $file = UploadedFile::fake()->create('sermon.mp3', 100);
-
-        $mockProcessor = Mockery::mock(UnifiedMediaProcessor::class);
-        $mockProcessor->shouldReceive('process')
-            ->once()
-            ->with('audio', Mockery::type(UploadedFile::class))
-            ->andReturn(ProcessingResult::success('proc-123', 'Processing started'));
-
-        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
-
-        $response = $this->actingAs($this->admin)->post('/admin/sermon-upload', [
-            'file' => $file,
-            'type' => 'audio',
-        ]);
-
-        $response->assertRedirect(route('sermons.index'));
-        $response->assertSessionHas('message', 'Processing started for "sermon.mp3". Processing ID: proc-123');
-    }
-
-    #[Test]
-    public function process_media_upload_handles_failure(): void
-    {
-        Storage::fake('local');
-        $file = UploadedFile::fake()->create('sermon.mp3', 100);
-
-        $mockProcessor = Mockery::mock(UnifiedMediaProcessor::class);
-        $mockProcessor->shouldReceive('process')
-            ->once()
-            ->andReturn(ProcessingResult::failure('proc-123', 'Failed to process', 'ERR_CODE'));
-
-        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
-
-        $response = $this->actingAs($this->admin)->post('/admin/sermon-upload', [
-            'file' => $file,
-            'type' => 'audio',
-        ]);
-
-        $response->assertRedirect();
-        $response->assertSessionHas('error', 'Failed to process');
     }
 
     #[Test]

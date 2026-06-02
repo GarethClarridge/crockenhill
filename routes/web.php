@@ -71,11 +71,6 @@ Route::view('/community', 'full-width-pages.community')->name('community');
 // High priority redirect that needs to be processed early
 Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
 
-// Meeting routes
-Route::resource('meetings', MeetingController::class)
-    ->only(['index', 'update', 'destroy'])
-    ->middleware(['auth', 'verified', 'admin']);
-
 // Calendar routes
 Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
 Route::get('/calendar/uncategorized', [CalendarController::class, 'uncategorized'])->name('calendar.uncategorized');
@@ -167,11 +162,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('calendar.patterns');
     Route::post('/calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('calendar.sync');
 
-    // Sermon upload
+    // Sermon upload (form renders the media-upload Livewire component; submission
+    // is handled by the component / the /api/media/{type} API, not a POST route here)
     Route::get('/sermon-upload', [SermonAdminController::class, 'upload'])->name('sermon-upload.create');
-    Route::post('/sermon-upload', [SermonAdminController::class, 'processMedia'])
-        ->middleware('throttle:media-upload')
-        ->name('sermon-upload.store');
 
     // Pages
     Route::get('/pages', ListPages::class)->name('pages.index');

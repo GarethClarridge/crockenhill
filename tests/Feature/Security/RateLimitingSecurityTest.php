@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -30,7 +31,7 @@ class RateLimitingSecurityTest extends TestCase
     }
 
     #[Test]
-    public function web_sermon_upload_is_now_rate_limited(): void
+    public function audio_upload_is_rate_limited(): void
     {
         Storage::fake('public');
 
@@ -46,22 +47,20 @@ class RateLimitingSecurityTest extends TestCase
             );
         });
 
-        $this->actingAs($admin);
+        Sanctum::actingAs($admin, ['*']);
 
         // The 'media-upload' limiter allows 5 per minute for audio.
         // We'll attempt 6 uploads.
         for ($i = 0; $i < 5; $i++) {
-            $response = $this->post('/admin/sermon-upload', [
-                'type' => 'audio',
+            $response = $this->postJson('/api/media/audio', [
                 'file' => UploadedFile::fake()->create('sermon.mp3', 100),
             ]);
 
-            $response->assertStatus(302);
+            $response->assertStatus(202);
         }
 
         // The 6th request should be throttled
-        $response = $this->post('/admin/sermon-upload', [
-            'type' => 'audio',
+        $response = $this->postJson('/api/media/audio', [
             'file' => UploadedFile::fake()->create('sermon.mp3', 100),
         ]);
 
@@ -69,7 +68,7 @@ class RateLimitingSecurityTest extends TestCase
     }
 
     #[Test]
-    public function web_video_upload_has_stricter_rate_limit(): void
+    public function video_upload_has_stricter_rate_limit(): void
     {
         Storage::fake('public');
 
@@ -84,18 +83,16 @@ class RateLimitingSecurityTest extends TestCase
             );
         });
 
-        $this->actingAs($admin);
+        Sanctum::actingAs($admin, ['*']);
 
         // The 'media-upload' limiter allows 1 per minute for video/livestream.
-        $response = $this->post('/admin/sermon-upload', [
-            'type' => 'video',
+        $response = $this->postJson('/api/media/video', [
             'file' => UploadedFile::fake()->create('sermon.mp4', 1000),
         ]);
-        $response->assertStatus(302);
+        $response->assertStatus(202);
 
         // The 2nd request should be throttled
-        $response = $this->post('/admin/sermon-upload', [
-            'type' => 'video',
+        $response = $this->postJson('/api/media/video', [
             'file' => UploadedFile::fake()->create('sermon.mp4', 1000),
         ]);
         $response->assertStatus(429);

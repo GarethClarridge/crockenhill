@@ -116,7 +116,7 @@ class BladeShellRenderingTest extends TestCase
     {
         $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
 
-        $response = $this->actingAs($admin)->get('/meetings');
+        $response = $this->actingAs($admin)->get('/admin/meetings');
 
         $response->assertOk();
         $response->assertSee('<title>Meetings | Crockenhill Baptist Church</title>', false);
@@ -145,6 +145,6 @@ class BladeShellRenderingTest extends TestCase
 
         // Admin Shell
         $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
-        $this->actingAs($admin)->get('/meetings')->assertSeeHtml('<main id="main-content" class="mb-3" tabindex="-1">');
+        $this->actingAs($admin)->get('/admin/meetings')->assertSeeHtml('<main id="main-content" class="mb-3" tabindex="-1">');
     }
 }

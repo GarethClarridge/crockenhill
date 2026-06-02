@@ -126,29 +126,4 @@ class UnifiedMediaProcessingTest extends TestCase
         $response->assertJsonStructure(['processing_id', 'message']);
         $this->assertEquals('audio-id', $response->json('processing_id'));
     }
-
-    #[Test]
-    public function web_interface_uses_same_processing_pipeline()
-    {
-        // Test: Web upload flows to same service as API
-        $user = User::factory()->create([
-            'email' => 'test@crockenhill.org',
-            'email_verified_at' => now(),
-            'is_admin' => true,
-        ]);
-        $this->actingAs($user);
-
-        $audioFile = UploadedFile::fake()->create('sermon.mp3', 5000, 'audio/mpeg');
-
-        $response = $this->post('/admin/sermon-upload', [
-            'file' => $audioFile,
-            'type' => 'audio',
-        ]);
-
-        // Should redirect with success message containing processing ID
-        $response->assertRedirect();
-        $response->assertSessionHas('message');
-        $message = session('message');
-        $this->assertStringContainsString('audio-id', $message);
-    }
 }

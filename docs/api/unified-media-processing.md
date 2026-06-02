@@ -357,7 +357,7 @@ Serve a sermon's thumbnail image directly with proper caching headers.
 <!-- With fallback -->
 <img src="/christ/sermons/gods-providence-in-our-lives/thumbnail" 
      alt="Sermon Thumbnail"
-     onerror="this.src='/images/default-sermon-thumbnail.jpg'">
+     onerror="this.src='/images/Primary.png'">
 ```
 
 ### 8. Sermon Data with Thumbnails

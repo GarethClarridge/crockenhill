@@ -158,25 +158,6 @@ class AuditLoggingTest extends TestCase
     }
 
     #[Test]
-    public function it_logs_meeting_deletion_via_controller(): void
-    {
-        Log::spy();
-        $meeting = Meeting::factory()->create(['slug' => 'meeting-slug']);
-
-        $this->actingAs($this->admin)
-            ->delete(route('meetings.destroy', $meeting))
-            ->assertRedirect();
-
-        $this->assertDatabaseMissing('meetings', ['id' => $meeting->id]);
-
-        Log::assertLogged('warning', fn (string $message, array $context): bool => $message === 'Meeting deleted by admin' &&
-            $context['admin_id'] === $this->admin->id &&
-            $context['meeting_id'] === $meeting->id &&
-            $context['slug'] === 'meeting-slug'
-        );
-    }
-
-    #[Test]
     public function it_logs_preacher_deletion_via_livewire(): void
     {
         Log::spy();

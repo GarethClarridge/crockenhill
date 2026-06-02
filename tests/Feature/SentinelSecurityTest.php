@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class SentinelSecurityTest extends TestCase
@@ -25,9 +26,10 @@ class SentinelSecurityTest extends TestCase
         $response = $this->actingAs($user)->get('/admin/sermon-upload');
         $response->assertStatus(403);
 
-        // Attempt to post upload as non-admin
-        $response = $this->actingAs($user)->post('/admin/sermon-upload', [
-            'type' => 'audio',
+        // Attempt to upload via the media API as non-admin — the media.process
+        // middleware denies anyone without admin access.
+        Sanctum::actingAs($user, ['*']);
+        $response = $this->postJson('/api/media/audio', [
             'file' => UploadedFile::fake()->create('sermon.mp3', 100),
         ]);
         $response->assertStatus(403);
@@ -63,17 +65,24 @@ class SentinelSecurityTest extends TestCase
                 ->andThrow(new \Exception('Sensitive database error or path: /secret/path'));
         });
 
-        $response = $this->actingAs($admin)->post('/admin/sermon-upload', [
-            'type' => 'audio',
+        Sanctum::actingAs($admin, ['*']);
+        $response = $this->postJson('/api/media/audio', [
             'file' => UploadedFile::fake()->create('sermon.mp3', 100),
         ]);
 
-        $response->assertRedirect();
-        $response->assertSessionHas('error', 'An error occurred during upload. Please try again or contact support.');
+        // The API returns a generic 500 payload — the sensitive exception text must
+        // never reach the client, only the sanitized server log.
+        $response->assertStatus(500);
+        $response->assertExactJson([
+            'success' => false,
+            'message' => 'Media upload failed',
+            'error_code' => 'UPLOAD_FAILED',
+        ]);
+        $this->assertStringNotContainsString('/secret/path', (string) $response->getContent());
 
         Log::shouldHaveReceived('error')
             ->once()
-            ->with('Sermon upload failed', \Mockery::on(function ($data) {
+            ->with('Media upload failed', \Mockery::on(function ($data) {
                 return str_contains($data['error'], 'Sensitive database error');
             }));
     }

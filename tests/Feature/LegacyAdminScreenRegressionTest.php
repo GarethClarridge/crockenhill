@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\Meeting;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -36,32 +35,6 @@ class LegacyAdminScreenRegressionTest extends TestCase
             'is_admin' => false,
             'email_verified_at' => now(),
         ]);
-    }
-
-    // --- meetings/index ---
-
-    #[Test]
-    public function meetings_index_requires_authentication(): void
-    {
-        $response = $this->get(route('meetings.index'));
-
-        $response->assertRedirect('/login');
-    }
-
-    #[Test]
-    public function meetings_index_forbids_non_admin(): void
-    {
-        $response = $this->actingAs($this->regularUser)->get(route('meetings.index'));
-
-        $response->assertForbidden();
-    }
-
-    #[Test]
-    public function meetings_index_loads_for_admin(): void
-    {
-        $response = $this->actingAs($this->admin)->get(route('meetings.index'));
-
-        $response->assertOk();
     }
 
     // --- admin/calendar/uncategorized ---
@@ -139,18 +112,5 @@ class LegacyAdminScreenRegressionTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.sermons.edit', $sermon->slug));
 
         $response->assertOk();
-    }
-
-    // --- meetings/index view data ---
-
-    #[Test]
-    public function meetings_index_passes_meetings_to_view(): void
-    {
-        Meeting::factory()->count(3)->create();
-
-        $response = $this->actingAs($this->admin)->get(route('meetings.index'));
-
-        $response->assertOk();
-        $response->assertViewHas('meetings');
     }
 }

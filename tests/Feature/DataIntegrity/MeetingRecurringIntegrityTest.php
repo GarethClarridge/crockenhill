@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\DataIntegrity;
 
 use App\Enums\MeetingFrequency;
-use App\Enums\MeetingType;
-use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Meeting;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -65,83 +62,5 @@ class MeetingRecurringIntegrityTest extends TestCase
 
         $this->assertFalse($meeting->is_recurring);
         $this->assertNull($meeting->frequency);
-    }
-
-    #[Test]
-    public function update_meeting_request_validates_recurring_frequency(): void
-    {
-        $request = new UpdateMeetingRequest;
-        $rules = $request->rules();
-
-        $validator = Validator::make([
-            'slug' => 'test-meeting',
-            'type' => MeetingType::Occasional->value,
-            'day' => 'Monday',
-            'who' => 'Everyone',
-            'pictures' => true,
-            'is_recurring' => true,
-            'frequency' => null,
-        ], $rules);
-
-        $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('frequency', $validator->errors()->toArray());
-    }
-
-    #[Test]
-    public function update_meeting_request_validates_time_formats(): void
-    {
-        $request = new UpdateMeetingRequest;
-        $rules = $request->rules();
-
-        // Test valid format with seconds
-        $validator = Validator::make([
-            'slug' => 'test-meeting',
-            'type' => MeetingType::Occasional->value,
-            'day' => 'Monday',
-            'who' => 'Everyone',
-            'pictures' => true,
-            'start_time' => '10:30:00',
-        ], $rules);
-
-        $this->assertFalse($validator->fails());
-
-        // Test valid format H:i
-        $validator = Validator::make([
-            'slug' => 'test-meeting',
-            'type' => MeetingType::Occasional->value,
-            'day' => 'Monday',
-            'who' => 'Everyone',
-            'pictures' => true,
-            'start_time' => '10:30',
-        ], $rules);
-
-        $this->assertFalse($validator->fails());
-
-        // Test end_time after or equal to start_time
-        $validator = Validator::make([
-            'slug' => 'test-meeting',
-            'type' => MeetingType::Occasional->value,
-            'day' => 'Monday',
-            'who' => 'Everyone',
-            'pictures' => true,
-            'start_time' => '10:30',
-            'end_time' => '11:30',
-        ], $rules);
-
-        $this->assertFalse($validator->fails());
-
-        // Test end_time before start_time
-        $validator = Validator::make([
-            'slug' => 'test-meeting',
-            'type' => MeetingType::Occasional->value,
-            'day' => 'Monday',
-            'who' => 'Everyone',
-            'pictures' => true,
-            'start_time' => '11:30',
-            'end_time' => '10:30',
-        ], $rules);
-
-        $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('end_time', $validator->errors()->toArray());
     }
 }
