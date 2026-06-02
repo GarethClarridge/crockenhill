@@ -34,6 +34,7 @@ class SermonRepositoryTest extends TestCase
 
         $this->repository = app(SermonRepository::class);
         Cache::flush();
+        $this->repository->clearInternalCaches();
     }
 
     // ── Archive Filter Normalization ─────────────────────────────────────────
@@ -95,6 +96,41 @@ class SermonRepositoryTest extends TestCase
     }
 
     // ── Series Retrieval ─────────────────────────────────────────────────────
+
+    #[Test]
+    public function it_returns_sermons_for_a_specific_series(): void
+    {
+        Sermon::factory()->create(['series' => 'Study in Romans', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Study in John', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+
+        $result = $this->repository->getSermonsBySeries('Study in Romans');
+
+        $this->assertCount(1, $result);
+        $this->assertEquals('Study in Romans', $result->first()->series);
+    }
+
+    #[Test]
+    public function it_returns_sermons_for_a_series_ordered_by_date_descending(): void
+    {
+        Sermon::factory()->create([
+            'series' => 'Study in Romans',
+            'date' => '2024-01-01',
+            'content_type' => SermonContentType::Sermon,
+            'reference' => null,
+        ]);
+        Sermon::factory()->create([
+            'series' => 'Study in Romans',
+            'date' => '2024-01-15',
+            'content_type' => SermonContentType::Sermon,
+            'reference' => null,
+        ]);
+
+        $result = $this->repository->getSermonsBySeries('Study in Romans');
+
+        $this->assertCount(2, $result);
+        $this->assertEquals('2024-01-15', $result->first()->date->format('Y-m-d'));
+        $this->assertEquals('2024-01-01', $result->last()->date->format('Y-m-d'));
+    }
 
     #[Test]
     public function it_returns_unique_series_names_sorted_alphabetically(): void
@@ -310,6 +346,40 @@ class SermonRepositoryTest extends TestCase
     }
 
     // ── Caching & Invalidation ───────────────────────────────────────────────
+
+    #[Test]
+    public function it_memoizes_series_sermons_at_the_request_level(): void
+    {
+        Sermon::factory()->create(['series' => 'Study in Romans', 'reference' => null]);
+
+        $first = $this->repository->getSermonsBySeries('Study in Romans');
+        $second = $this->repository->getSermonsBySeries('Study in Romans');
+
+        $this->assertSame($first, $second, 'Successive calls must return the same collection instance (memoized)');
+    }
+
+    #[Test]
+    public function it_memoizes_service_sermons_at_the_request_level(): void
+    {
+        Sermon::factory()->create(['service' => SermonService::Morning, 'reference' => null]);
+
+        $first = $this->repository->getSermonsByService(SermonService::Morning);
+        $second = $this->repository->getSermonsByService(SermonService::Morning);
+
+        $this->assertSame($first, $second, 'Successive calls must return the same collection instance (memoized)');
+    }
+
+    #[Test]
+    public function it_memoizes_preacher_sermons_at_the_request_level(): void
+    {
+        $preacher = Preacher::factory()->create();
+        Sermon::factory()->create(['preacher_id' => $preacher->id, 'reference' => null]);
+
+        $first = $this->repository->getSermonsByPreacher($preacher);
+        $second = $this->repository->getSermonsByPreacher($preacher);
+
+        $this->assertSame($first, $second, 'Successive calls must return the same collection instance (memoized)');
+    }
 
     #[Test]
     public function it_caches_preacher_sermon_listing(): void
