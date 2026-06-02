@@ -52,10 +52,12 @@ class SermonController extends Controller
             $request->query('series'),
         );
 
+        $page = $request->integer('page', 1);
+
         return view('sermons.index', [
-            'heading' => $this->seoPresenter->title($filters),
-            'description' => $this->seoPresenter->description($filters),
-            'canonical_url' => $this->seoPresenter->canonical($filters, $request->integer('page', 1)),
+            'heading' => $this->seoPresenter->title($filters, $page),
+            'description' => $this->seoPresenter->description($filters, $page),
+            'canonical_url' => $this->seoPresenter->canonical($filters, $page),
             'area' => 'christ',
             'links' => $this->sermonLinks('sermons'),
             'slug' => 'sermons',

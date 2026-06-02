@@ -10,26 +10,38 @@ class SongArchiveSeoPresenter
 {
     public function __construct(private readonly PublicSongCatalogService $catalog) {}
 
-    public function title(?string $search, string $range): string
+    public function title(?string $search, string $range, int $page = 1): string
     {
         if (filled($search)) {
-            return "{$search} | Songs";
+            $base = "{$search} | Songs";
+        } else {
+            $base = $this->catalog->normalizeRange($range) === PublicSongCatalogService::RANGE_RECENT
+                ? 'Recent Songs'
+                : 'All Songs';
         }
 
-        return $this->catalog->normalizeRange($range) === PublicSongCatalogService::RANGE_RECENT
-            ? 'Recent Songs'
-            : 'All Songs';
+        if ($page > 1) {
+            return "{$base} (Page {$page})";
+        }
+
+        return $base;
     }
 
-    public function description(?string $search, string $range): string
+    public function description(?string $search, string $range, int $page = 1): string
     {
         if (filled($search)) {
-            return "Browse songs matching '{$search}' at Crockenhill Baptist Church.";
+            $desc = "Browse songs matching '{$search}' at Crockenhill Baptist Church.";
+        } else {
+            $desc = $this->catalog->normalizeRange($range) === PublicSongCatalogService::RANGE_RECENT
+                ? 'Browse the songs most recently sung at Crockenhill Baptist Church.'
+                : 'Browse the full song catalogue of Crockenhill Baptist Church.';
         }
 
-        return $this->catalog->normalizeRange($range) === PublicSongCatalogService::RANGE_RECENT
-            ? 'Browse the songs most recently sung at Crockenhill Baptist Church.'
-            : 'Browse the full song catalogue of Crockenhill Baptist Church.';
+        if ($page > 1) {
+            return "{$desc} - Page {$page}";
+        }
+
+        return $desc;
     }
 
     public function canonical(?string $search, string $range, int $page = 1): string

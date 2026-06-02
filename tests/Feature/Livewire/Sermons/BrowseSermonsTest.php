@@ -75,6 +75,27 @@ class BrowseSermonsTest extends TestCase
     }
 
     #[Test]
+    public function pagination_change_dispatches_metadata_update_event(): void
+    {
+        Sermon::factory()->count(25)->create();
+
+        Livewire::test(BrowseSermons::class)
+            ->call('gotoPage', 2)
+            ->assertDispatched('sermon-filters-updated');
+    }
+
+    #[Test]
+    public function seo_title_includes_page_number_on_paginated_pages(): void
+    {
+        Sermon::factory()->count(25)->create();
+
+        $component = Livewire::test(BrowseSermons::class)
+            ->call('gotoPage', 2);
+
+        $this->assertStringContainsString('Page 2', $component->get('seoTitle'));
+    }
+
+    #[Test]
     public function book_filter_returns_matching_sermons(): void
     {
         $john = $this->createIndexedSermon([
