@@ -72,7 +72,7 @@
                         <div class="hidden sm:block">
                             <p class="text-sm font-medium text-gray-500">Unsaved changes on <span class="text-gray-900">{{ $title }}</span></p>
                         </div>
-                        <div class="flex flex-1 sm:flex-none items-center justify-end gap-2" @click="topVisible = true">
+                        <div class="flex flex-1 sm:flex-none items-center justify-end gap-2">
                             {{ $actions }}
                         </div>
                     </div>

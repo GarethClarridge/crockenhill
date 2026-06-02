@@ -51,5 +51,8 @@ class AdminFormUXTest extends TestCase
         $this->assertStringContainsString('fixed bottom-0 left-0 right-0', $html);
         $this->assertStringContainsString('Unsaved changes on', $html);
         $this->assertStringContainsString('Test Page', $html);
+
+        // Intersection observer must be sole source of truth — no click override
+        $this->assertStringNotContainsString('@click="topVisible = true"', $html);
     }
 }
