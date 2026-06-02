@@ -72,7 +72,7 @@ class VideoSegmentationService
      * that maps PTS timestamps to RMS levels.
      *
      * @param  string  $videoPath  Absolute path to the source video file
-     * @return string  Relative path to the generated RMS log on the temporary disk
+     * @return string Relative path to the generated RMS log on the temporary disk
      *
      * @throws ProcessFailedException If the FFmpeg process fails
      * @throws SegmentationException If the log file is not created or is empty
@@ -536,7 +536,7 @@ class VideoSegmentationService
      *     dense_sample_count?: int
      * }  $cluster  Visual analysis results for the song
      * @param  float  $threshold  The calibrated RMS threshold to use for boundary detection
-     * @return LivestreamSegment  A transient segment model representing the detected song
+     * @return LivestreamSegment A transient segment model representing the detected song
      *
      * @throws \Exception If boundary detection logic fails
      */
