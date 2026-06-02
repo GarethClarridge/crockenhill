@@ -172,12 +172,12 @@ class FrameExtractionService
             $metadata = $this->videoService->getVideoMetadata($videoPath);
 
             return [
-                'duration' => (float) ($metadata['duration'] ?? 0.0),
+                'duration' => $metadata['duration'],
                 'width' => (int) ($metadata['width'] ?? 1920),
                 'height' => (int) ($metadata['height'] ?? 1080),
-                'format_name' => (string) ($metadata['format_name'] ?? 'unknown'),
-                'size' => (int) ($metadata['size'] ?? 0),
-                'bit_rate' => (int) ($metadata['bit_rate'] ?? 0),
+                'format_name' => $metadata['format_name'],
+                'size' => $metadata['size'],
+                'bit_rate' => $metadata['bit_rate'],
                 'codec' => (string) ($metadata['codec'] ?? 'unknown'),
             ];
         } catch (\Exception $e) {
