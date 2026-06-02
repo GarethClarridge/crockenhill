@@ -14,6 +14,10 @@ class SermonArchiveSeoPresenter
      */
     private array $memoizedPreacherNames = [];
 
+    public function __construct(
+        private readonly PreacherListRepository $preacherListRepository,
+    ) {}
+
     /**
      * Generate SEO title based on filters.
      *
@@ -110,7 +114,7 @@ class SermonArchiveSeoPresenter
         }
 
         // Try the cached public collection first (it's memoized at the repository layer)
-        $preacher = app(PreacherListRepository::class)->forPublicList()->firstWhere('id', $preacherId);
+        $preacher = $this->preacherListRepository->forPublicList()->firstWhere('id', $preacherId);
 
         if ($preacher) {
             return $this->memoizedPreacherNames[$preacherId] = $preacher->name;
