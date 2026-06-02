@@ -776,7 +776,9 @@ DROP TABLE IF EXISTS `song_author_song`;
 CREATE TABLE `song_author_song` (
   `song_id` bigint unsigned NOT NULL,
   `song_author_id` bigint unsigned NOT NULL,
-  `author_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
+  `author_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  KEY `song_author_song_song_id_index` (`song_id`),
+  KEY `song_author_song_song_author_id_index` (`song_author_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `song_authors`;
@@ -1146,3 +1148,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_24_052601_add_i
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_23_053404_add_check_constraints_to_scripture_passages_table',71);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_26_165514_fortify_song_identity_columns',72);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_01_065205_add_timing_index_to_livestream_segments_table',73);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_02_203631_add_indexes_to_song_author_song_table',74);
