@@ -136,11 +136,9 @@ class SitemapService
         /**
          * Performance Optimization: Use lazy() to iterate through models one by one,
          * keeping memory usage low for sites with large numbers of sermons.
-         *
-         * Excludes 'thumbnail_metadata' as it is not utilized in sitemap generation.
          */
         $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'updated_at', 'audio_file_path', 'video_file_path', 'video_quality_status', 'video_visibility_override', 'thumbnail_file_path', 'thumbnail_generated_at', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'scripture_passage_id'])
+            ->select(['id', 'title', 'date', 'slug', 'updated_at', 'audio_file_path', 'video_file_path', 'video_quality_status', 'video_visibility_override', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'scripture_passage_id'])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',
@@ -217,21 +215,23 @@ class SitemapService
      */
     private function addPages(Sitemap $sitemap): void
     {
-        /**
-         * Performance Optimization: Excludes redundant pages to avoid duplicate <loc> entries
-         * in the sitemap and improve search engine crawl efficiency.
-         *
-         * Exclusions:
-         * - Area landing pages (e.g. /christ, /church) already added as static URLs.
-         * - Utility/Index pages (e.g. 'preachers', 'series', 'all') that overlap with index routes.
-         * - Pages with an associated Meeting record (already added in addMeetings).
-         */
         $pages = Page::query()
             ->public()
             ->where('area', '!=', PageArea::Members->value)
             ->whereColumn('slug', '!=', 'area')
-            ->whereNotIn('slug', ['preachers', 'series', 'all'])
-            ->whereDoesntHave('meeting')
+            ->where(function ($query): void {
+                // Exclude sermon-area index pages whose slugs duplicate static routes.
+                // The (area, slug) unique constraint means the same slug in another area is a distinct URL.
+                $query->where('area', '!=', PageArea::Sermons->value)
+                    ->orWhereNotIn('slug', ['preachers', 'series', 'all']);
+            })
+            ->where(function ($query): void {
+                // Only exclude community pages whose slug matches a meeting slug,
+                // since meeting URLs are always /community/{meeting-slug}.
+                // Pages in other areas linked to a meeting have different URLs and must stay.
+                $query->where('area', '!=', PageArea::Community->value)
+                    ->orWhereDoesntHave('meeting');
+            })
             ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
             /**
              * Performance Optimization: Only eager load 'media' (needed for images),
@@ -266,17 +266,11 @@ class SitemapService
      */
     private function addPreachers(Sitemap $sitemap): void
     {
-        /**
-         * Performance Optimization: Limits retrieved columns for preachers and their latest
-         * sermon to required fields to reduce memory usage and DB I/O.
-         *
-         * Excludes 'thumbnail_metadata' as it is not utilized in sitemap generation.
-         */
         $preachers = Preacher::query()->active()
             ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
             ->with([
                 'sermons' => fn ($query) => $query->whereSermon()
-                    ->select(['id', 'preacher_id', 'title', 'date', 'slug', 'audio_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'video_file_path', 'video_visibility_override', 'video_quality_status', 'content_type', 'updated_at'])
+                    ->select(['id', 'preacher_id', 'title', 'date', 'slug', 'audio_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'video_file_path', 'video_visibility_override', 'video_quality_status', 'content_type', 'updated_at'])
                     ->orderBy('date', 'desc')
                     ->limit(1),
             ])
