@@ -91,7 +91,7 @@ class SermonRepositoryScriptureCacheTest extends TestCase
     #[Test]
     public function it_invalidates_chapter_list_cache(): void
     {
-        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
+        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon, 'reference' => null]);
         SermonScriptureFilter::factory()->create([
             'sermon_id' => $sermon->id,
             'bible_book' => 'John',
