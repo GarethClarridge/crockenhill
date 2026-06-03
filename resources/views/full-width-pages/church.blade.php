@@ -293,7 +293,7 @@ Church
   </x-text>
 
   <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
-    <x-clickable-card link="safeguarding-policy" heading="Safeguarding policy">
+    <x-clickable-card link="/church/safeguarding-policy" heading="Safeguarding policy">
       Our safeguarding policy outlines how we work to keep
       children and vulnerable adults safe.
     </x-clickable-card>
@@ -303,27 +303,27 @@ Church
       childrens' groups are safe and fun for all involved.
     </x-clickable-card>
 
-    <x-clickable-card link="privacy-notice" heading="Privacy notice">
+    <x-clickable-card link="/church/privacy-notice" heading="Privacy notice">
       Our privacy notice summarises how we use data and keep it safe.
     </x-clickable-card>
 
-    <x-clickable-card link="data-protection-policy" heading="Data protection policy">
+    <x-clickable-card link="/church/data-protection-policy" heading="Data protection policy">
       A detailed policy on using data and keeping it safe.
     </x-clickable-card>
 
-    <x-clickable-card link="information-security-policy" heading="Information security policy">
+    <x-clickable-card link="/church/information-security-policy" heading="Information security policy">
       How we store information safely.
     </x-clickable-card>
 
-    <x-clickable-card link="records-retention-policy" heading="Records retention policy">
+    <x-clickable-card link="/church/records-retention-policy" heading="Records retention policy">
       Our policy on retaining and destroying records.
     </x-clickable-card>
 
-    <x-clickable-card link="data-breach-policy" heading="Data breach policy">
+    <x-clickable-card link="/church/data-breach-policy" heading="Data breach policy">
       Our policy on what to do in the event of a data breach.
     </x-clickable-card>
 
-    <x-clickable-card link="data-protection-complaints-process" heading="Data protection complaints process">
+    <x-clickable-card link="/church/data-protection-complaints-process" heading="Data protection complaints process">
       What to do if you have a complaint about our handling of your data.
     </x-clickable-card>
   </div>
