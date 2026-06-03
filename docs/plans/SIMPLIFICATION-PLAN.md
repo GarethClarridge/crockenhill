@@ -77,18 +77,20 @@ Exit criteria:
 
 Priority: **Low-Medium** — incremental work, no urgency.
 
-Status: **Pending** — six hotspots remain oversized, including five services plus the `SermonViewPresenter` outlier. Current line counts (2026-05-29):
+Status: **In progress** — first increment landed 2026-06-03 (`SermonViewPresenter` pure-formatting extraction); five services and the remainder of the presenter still oversized. Current line counts (2026-06-03):
 
 | Service | Lines | Public Methods (prior count) |
 |---------|------:|---------------:|
-| [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 995 | — |
-| [MetadataExtractionService](../../app/Services/MetadataExtractionService.php) | 891 | 12 |
+| [MetadataExtractionService](../../app/Services/MetadataExtractionService.php) | 952 | 12 |
+| [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 922 | — |
 | [ThumbnailGenerationService](../../app/Services/ThumbnailGenerationService.php) | 848 | 7 |
 | [VideoExtractionService](../../app/Services/VideoExtractionService.php) | 579 | 8 |
 | [AudioTranscriptionService](../../app/Services/AudioTranscriptionService.php) | 558 | 8 |
 | [SermonAnalysisService](../../app/Services/SermonAnalysisService.php) | 502 | 6 |
 
-`SermonViewPresenter` is added here from the May audit — it is the largest single class in the codebase.
+`SermonViewPresenter` was added here from the May audit as the largest single class in the codebase.
+
+Increment 1 (2026-06-03): extracted the dependency-free duration/outline formatting out of `SermonViewPresenter` into a stateless [SermonContentFormatter](../../app/Support/SermonContentFormatter.php) (`humanDuration`, `iso8601Duration`, `plainTextOutline`). The presenter's `formattedDuration` / `durationIso8601` / `plainTextOutline` now delegate; their per-method memoization was dropped (these are cheap pure functions of one column, so request-level caching bought nothing). Net: presenter 995 → 922 lines, plus a new 101-line collaborator covered directly by [tests/Unit/Support/SermonContentFormatterTest.php](../../tests/Unit/Support/SermonContentFormatterTest.php) — no DB or storage faking required. Public API unchanged; the 49 presenter/formatter tests and 55 downstream consumer tests pass.
 
 Tasks:
 

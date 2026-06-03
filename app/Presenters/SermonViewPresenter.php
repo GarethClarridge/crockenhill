@@ -9,7 +9,7 @@ use App\Models\Sermon;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;
-use Carbon\CarbonInterval;
+use App\Support\SermonContentFormatter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -57,63 +57,27 @@ class SermonViewPresenter
     ) {}
 
     /**
-     * Get the human-friendly formatted duration of the sermon.
-     *
-     * Performance Optimization: Memoizes duration formatting results
-     * to avoid redundant calculations across multiple views and components.
+     * Get the human-friendly formatted duration of the sermon (e.g. "1h 30m").
      */
     public function formattedDuration(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'duration');
-
-        if (isset($this->computed[$key])) {
-            return $this->memoized[$key];
-        }
-
-        if ($sermon->duration === null || $sermon->duration <= 0) {
-            $this->computed[$key] = true;
-
-            return $this->memoized[$key] = null;
-        }
-
-        $seconds = (int) $sermon->duration;
-        $hours = floor($seconds / 3600);
-        $minutes = floor(($seconds % 3600) / 60);
-
-        $duration = $hours > 0
-            ? "{$hours}h {$minutes}m"
-            : "{$minutes}m";
-
-        $this->computed[$key] = true;
-
-        return $this->memoized[$key] = $duration;
+        return SermonContentFormatter::humanDuration($this->durationInSeconds($sermon));
     }
 
     /**
      * Get the ISO 8601 duration string (e.g. PT45M) for the sermon.
-     *
-     * Performance Optimization: Memoizes duration formatting results
-     * to avoid redundant calculations across multiple views and components.
      */
     public function durationIso8601(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'duration_iso');
+        return SermonContentFormatter::iso8601Duration($this->durationInSeconds($sermon));
+    }
 
-        if (isset($this->computed[$key])) {
-            return $this->memoized[$key];
-        }
-
-        if ($sermon->duration === null || $sermon->duration <= 0) {
-            $this->computed[$key] = true;
-
-            return $this->memoized[$key] = null;
-        }
-
-        $duration = CarbonInterval::seconds($sermon->duration)->cascade()->spec();
-
-        $this->computed[$key] = true;
-
-        return $this->memoized[$key] = $duration;
+    /**
+     * Normalize the float-cast `duration` column to an integer number of seconds.
+     */
+    private function durationInSeconds(Sermon $sermon): ?int
+    {
+        return $sermon->duration === null ? null : (int) $sermon->duration;
     }
 
     /**
@@ -180,44 +144,7 @@ class SermonViewPresenter
      */
     public function plainTextOutline(Sermon $sermon): ?string
     {
-        $points = $sermon->points;
-
-        if (! is_array($points) || $points === []) {
-            return null;
-        }
-
-        $outline = '';
-        $counter = 1;
-
-        foreach ($points as $pointItem) {
-            $mainText = '';
-            $subLines = [];
-
-            if (is_array($pointItem)) {
-                $mainText = (isset($pointItem['point']) && is_scalar($pointItem['point'])) ? trim((string) $pointItem['point']) : '';
-                $subPoints = (isset($pointItem['sub_points']) && is_array($pointItem['sub_points'])) ? $pointItem['sub_points'] : [];
-
-                foreach ($subPoints as $subPoint) {
-                    if (is_scalar($subPoint) && filled($subPoint)) {
-                        $subLines[] = '   - '.trim((string) $subPoint);
-                    }
-                }
-            } elseif (is_scalar($pointItem)) {
-                $mainText = trim((string) $pointItem);
-            }
-
-            if ($mainText !== '' || count($subLines) > 0) {
-                $outline .= "{$counter}. ".($mainText !== '' ? $mainText : '(Untitled point)')."\n";
-
-                foreach ($subLines as $subLine) {
-                    $outline .= "{$subLine}\n";
-                }
-
-                $counter++;
-            }
-        }
-
-        return trim($outline) ?: null;
+        return SermonContentFormatter::plainTextOutline($sermon->points);
     }
 
     /**
