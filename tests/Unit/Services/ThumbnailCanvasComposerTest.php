@@ -226,26 +226,15 @@ class ThumbnailCanvasComposerTest extends TestCase
 
         // Guard the fixture: the overlap rule branches on line count, so confirm the
         // copy actually wrapped to three lines before asserting the three-line behaviour.
-        $this->assertSame(
-            3,
-            $this->countTitleLines($titleImage, 0, self::CENTERED_TITLE_MAX_Y),
-            'Expected the three-line fixture to render on exactly three lines'
-        );
+        $lineBands = $this->titleLineBands($titleImage, 0, self::CENTERED_TITLE_MAX_Y);
+        $this->assertCount(3, $lineBands, 'Expected the three-line fixture to render on exactly three lines');
 
-        // Restrict to the title region to exclude the bottom-corner overlay (same teal).
-        $titleBounds = $this->tealPixelBounds($titleImage, 0, self::CENTERED_TITLE_MAX_Y);
         $subjectBounds = $this->greenPixelBounds($subjectImage);
-
-        $this->assertNotNull($titleBounds);
         $this->assertNotNull($subjectBounds);
 
-        // Subject is intended to overlap the bottom ~1.5 lines of the title.
-        // We verify overlap by asserting that the subject's top is higher than the title's bottom.
-        $this->assertLessThan(
-            $titleBounds['max_y'],
-            $subjectBounds['min_y'],
-            'Expected foreground subject to vertically overlap the bottom part of the title text'
-        );
+        // The subject must start within the bottom line-and-a-half: a regression placing
+        // it over all three lines (too high) or below the last line (no overlap) fails.
+        $this->assertSubjectOverlapsBottomLineAndAHalf($lineBands, $subjectBounds['min_y'], 'three-line title');
     }
 
     #[Test]
@@ -264,24 +253,15 @@ class ThumbnailCanvasComposerTest extends TestCase
         // the copy actually wrapped to two lines before asserting the two-line behaviour.
         // Without this, a font-metric change that rendered the title on one line would
         // silently exercise the wrong branch and still pass.
-        $this->assertSame(
-            2,
-            $this->countTitleLines($titleImage, 0, self::CENTERED_TITLE_MAX_Y),
-            'Expected the two-line fixture to render on exactly two lines'
-        );
+        $lineBands = $this->titleLineBands($titleImage, 0, self::CENTERED_TITLE_MAX_Y);
+        $this->assertCount(2, $lineBands, 'Expected the two-line fixture to render on exactly two lines');
 
-        // Restrict to the title region to exclude the bottom-corner overlay (same teal).
-        $titleBounds = $this->tealPixelBounds($titleImage, 0, self::CENTERED_TITLE_MAX_Y);
         $subjectBounds = $this->greenPixelBounds($subjectImage);
-
-        $this->assertNotNull($titleBounds);
         $this->assertNotNull($subjectBounds);
 
-        $this->assertLessThan(
-            $titleBounds['max_y'],
-            $subjectBounds['min_y'],
-            'Expected foreground subject to vertically overlap the bottom of a two-line title'
-        );
+        // For two lines the subject should start partway into the first line (the bottom
+        // line-and-a-half), not above it (covering both lines) nor below the second line.
+        $this->assertSubjectOverlapsBottomLineAndAHalf($lineBands, $subjectBounds['min_y'], 'two-line title');
     }
 
     #[Test]
@@ -561,14 +541,21 @@ class ThumbnailCanvasComposerTest extends TestCase
         return $bounds;
     }
 
+    private function countTitleLines(ImageInterface $image, int $minY, int $maxY): int
+    {
+        return count($this->titleLineBands($image, $minY, $maxY));
+    }
+
     /**
-     * Count the rendered title lines by detecting contiguous bands of teal ink rows.
+     * Detect each rendered title line as a contiguous band of teal ink rows.
      *
      * Glyphs on a single line share a continuous baseline, so the only sizeable
      * vertical gaps in the teal-row profile fall between wrapped lines. A gap of a
      * few pixels is anti-aliasing noise; the inter-line gap is far larger.
+     *
+     * @return list<array{top:int,bottom:int}> ordered top-to-bottom
      */
-    private function countTitleLines(ImageInterface $image, int $minY, int $maxY): int
+    private function titleLineBands(ImageInterface $image, int $minY, int $maxY): array
     {
         $native = $image->core()->native();
         $this->assertInstanceOf(\GdImage::class, $native);
@@ -577,9 +564,10 @@ class ThumbnailCanvasComposerTest extends TestCase
         $height = imagesy($native);
         $scanMaxY = min($maxY, $height);
 
-        $lines = 0;
+        $bands = [];
         $gap = 0;
-        $insideLine = false;
+        $bandTop = null;
+        $lastInkRow = 0;
 
         for ($y = $minY; $y < $scanMaxY; $y++) {
             $rowHasTeal = false;
@@ -592,23 +580,57 @@ class ThumbnailCanvasComposerTest extends TestCase
             }
 
             if ($rowHasTeal) {
-                if (! $insideLine) {
-                    $lines++;
-                    $insideLine = true;
-                }
-
+                $bandTop ??= $y;
+                $lastInkRow = $y;
                 $gap = 0;
 
                 continue;
             }
 
             // A run of >=8 empty rows ends the current line; smaller gaps are noise.
-            if ($insideLine && ++$gap >= 8) {
-                $insideLine = false;
+            if ($bandTop !== null && ++$gap >= 8) {
+                $bands[] = ['top' => $bandTop, 'bottom' => $lastInkRow];
+                $bandTop = null;
             }
         }
 
-        return $lines;
+        if ($bandTop !== null) {
+            $bands[] = ['top' => $bandTop, 'bottom' => $lastInkRow];
+        }
+
+        return $bands;
+    }
+
+    /**
+     * Assert the foreground subject starts within the bottom line-and-a-half of the
+     * title (CENTERED_SUBJECT_OVERLAP_LINES = 1.5). The subject top must fall strictly
+     * below the second-from-last line's top — so it cannot cover the lines above the
+     * bottom line-and-a-half — and at or above the final line's top, so it genuinely
+     * overlaps. This frames the rule against the measured line bands rather than
+     * pinning an exact coordinate, catching a subject placed too high (covering more
+     * of the title) or too low (no meaningful overlap) without flaking on the few px
+     * of anti-aliasing variation at the band edges.
+     *
+     * @param  list<array{top:int,bottom:int}>  $lineBands
+     */
+    private function assertSubjectOverlapsBottomLineAndAHalf(array $lineBands, int $subjectTop, string $context): void
+    {
+        $lineCount = count($lineBands);
+        $this->assertGreaterThanOrEqual(2, $lineCount, "{$context}: expected at least two title lines");
+
+        $secondLastLineTop = $lineBands[$lineCount - 2]['top'];
+        $lastLineTop = $lineBands[$lineCount - 1]['top'];
+
+        $this->assertGreaterThan(
+            $secondLastLineTop,
+            $subjectTop,
+            "{$context}: subject starts too high (would cover more than the bottom line-and-a-half)"
+        );
+        $this->assertLessThanOrEqual(
+            $lastLineTop + 8,
+            $subjectTop,
+            "{$context}: subject starts too low to overlap the bottom line-and-a-half"
+        );
     }
 
     private function isTealPixel(\GdImage $image, int $x, int $y): bool
