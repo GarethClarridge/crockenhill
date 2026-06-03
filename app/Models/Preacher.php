@@ -28,6 +28,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property bool $is_active
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
+ * @property-read Sermon|null $latestSermon
  *
  * @method static \Database\Factories\PreacherFactory factory(...$parameters)
  * @method static Builder|Preacher newModelQuery()
@@ -134,6 +135,20 @@ class Preacher extends Model implements Sitemapable
     public function sermons(): HasMany
     {
         return $this->hasMany(Sermon::class);
+    }
+
+    /**
+     * Get the most recent public sermon preached by this preacher.
+     *
+     * Performance Optimization: Provides a clean, eager-loadable way to get
+     * the representative sermon for a preacher without loading the entire
+     * sermons collection or using broken limit(1) closures in eager loads.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne<Sermon, $this>
+     */
+    public function latestSermon(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Sermon::class)->whereSermon()->latestOfMany(['date', 'id']);
     }
 
     /**

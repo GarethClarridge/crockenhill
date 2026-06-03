@@ -35,6 +35,13 @@ class PreacherSitemapPresenter
 
         $imageUrl = $preacher->profile_image_url;
 
+        if (! $imageUrl && $preacher->relationLoaded('latestSermon')) {
+            $latestSermon = $preacher->latestSermon;
+            if ($latestSermon) {
+                $imageUrl = $this->sermonViewPresenter->thumbnailUrl($latestSermon);
+            }
+        }
+
         if (! $imageUrl && $preacher->relationLoaded('sermons')) {
             $latestSermon = $preacher->sermons->first();
             if ($latestSermon) {
