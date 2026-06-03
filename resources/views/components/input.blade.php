@@ -83,7 +83,7 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
                 x-show="$wire.{{ $modelName }}"
                 x-transition
                 wire:loading.remove wire:target="{{ $modelName }}">
-                <x-heroicon-o-x-mark class="h-4 w-4" />
+                <x-heroicon-o-x-mark class="h-4 w-4" aria-hidden="true" />
             </button>
         @endif
 
@@ -95,8 +95,8 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
                 :title="showPassword ? 'Hide password' : 'Show password'"
                 @if($modelName) wire:loading.remove wire:target="{{ $modelName }}" @endif
                 x-cloak>
-                <x-heroicon-o-eye x-show="!showPassword" class="h-5 w-5" />
-                <x-heroicon-o-eye-slash x-show="showPassword" class="h-5 w-5" />
+                <x-heroicon-o-eye x-show="!showPassword" class="h-5 w-5" aria-hidden="true" />
+                <x-heroicon-o-eye-slash x-show="showPassword" class="h-5 w-5" aria-hidden="true" />
             </button>
         @endif
 
