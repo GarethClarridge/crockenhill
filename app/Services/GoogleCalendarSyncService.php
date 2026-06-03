@@ -216,42 +216,6 @@ class GoogleCalendarSyncService
         }
     }
 
-    /**
-     * @param  array<string, mixed>  $eventData
-     */
-    public function createEventForMeeting(string $meetingSlug, array $eventData): Event
-    {
-        $meeting = Meeting::query()->where('slug', $meetingSlug)->firstOrFail();
-
-        $event = new Event;
-        /** @phpstan-ignore-next-line */
-        $event->name = $eventData['title'];
-        /** @phpstan-ignore-next-line */
-        $event->startDateTime = Carbon::parse($eventData['start_datetime']);
-        /** @phpstan-ignore-next-line */
-        $event->endDateTime = Carbon::parse($eventData['end_datetime']);
-        /** @phpstan-ignore-next-line */
-        $event->location = $eventData['location'] ?? $meeting->location;
-        /** @phpstan-ignore-next-line */
-        $event->description = $eventData['description'] ?? '';
-
-        // Set extended properties on the underlying Google Calendar event
-        $extendedProperties = [
-            'private' => [
-                'meeting_slug' => $meetingSlug,
-                'speaker_name' => $eventData['speaker'] ?? '',
-            ],
-        ];
-        /** @phpstan-ignore-next-line */
-        $event->googleEvent->setExtendedProperties($extendedProperties);
-
-        $event->save();
-
-        $this->syncSingleEvent($event);
-
-        return $event;
-    }
-
     private function determineMeetingSlug(Event $googleEvent): ?string
     {
         // Access extended properties from the underlying Google Calendar event
