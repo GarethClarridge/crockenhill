@@ -28,8 +28,9 @@
                wire:model="file"
                accept="{{ $accept }}"
                @if($multiple) multiple @endif
-               aria-describedby="file-help"
-               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
+               aria-describedby="file-help @error('file') file-error @enderror"
+               @error('file') aria-invalid="true" @enderror
+               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-green-50 file:text-green-700 hover:file:bg-green-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded-md" />
         <p id="file-help" class="text-sm text-gray-500 mt-2">
             Accepted formats: JPG, PNG, WebP. Max size: {{ round($maxSize / 1024, 1) }}MB
         </p>
@@ -45,6 +46,6 @@
     </div>
 
     @error('file')
-        <p class="text-red-600 text-sm mt-2" role="alert">{{ $message }}</p>
+        <p id="file-error" class="text-red-600 text-sm mt-2" role="alert">{{ $message }}</p>
     @enderror
 </div>
