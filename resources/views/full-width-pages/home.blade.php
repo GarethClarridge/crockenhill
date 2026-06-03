@@ -106,48 +106,6 @@
     label="What to expect on Sunday mornings"
     ariaLabel="What to expect on Sunday mornings" />
 
-  <!-- <x-youtube
-      link="https://www.youtube.com/embed?listType=playlist&list=UUtSUTtkZlALToswWQpWS2kA"
-      title=""
-    /> -->
-
-  <!-- <section class="-mb-10 bg-size-cover bg-center bg-[url('/images/homepage/christmas2023.webp')] bg-gray-700 bg-blend-multiply">
-    <div class="my-10 px-4 mx-auto max-w-screen-xl text-center pt-24 pb-12">
-      <h2 class="mb-20 text-4xl font-display leading-none text-white md:text-5xl lg:text-6xl">
-        Christmas at Crockenhill Baptist Church
-      </h2>
-      <h3 class="font-display mt-8 text-xl text-white lg:text-2xl sm:px-16 lg:px-48">
-        Preparing Room
-      </h3>
-      <p class="mb-8 text-lg font-normal text-white lg:text-xl sm:px-16 lg:px-48">
-        Saturday 30th November, 3-6pm
-      </p>
-      <h3 class="font-display mt-8 text-xl text-white lg:text-2xl sm:px-16 lg:px-48">
-        Coffee Cup Carols
-      </h3>
-      <p class="mb-8 text-lg font-normal text-white lg:text-xl sm:px-16 lg:px-48">
-        Thursday 12th, 10:30am
-      </p>
-      <h3 class="font-display mt-8 text-xl text-white lg:text-2xl sm:px-16 lg:px-48">
-        Carols in the Chequers
-      </h3>
-      <p class="mb-8 text-lg font-normal text-white lg:text-xl sm:px-16 lg:px-48">
-        Wednesday 18th, 7:30pm
-      </p>
-      <h3 class="font-display mt-8 text-xl text-white lg:text-2xl sm:px-16 lg:px-48">
-        Carols by Candlelight
-      </h3>
-      <p class="mb-8 text-lg font-normal text-white lg:text-xl sm:px-16 lg:px-48">
-        Sunday 22nd, 6:00pm
-      </p>
-      <h3 class="font-display mt-8 text-xl text-white lg:text-2xl sm:px-16 lg:px-48">
-        Christmas Morning Service
-      </h3>
-      <p class="mb-8 text-lg font-normal text-white lg:text-xl sm:px-16 lg:px-48">
-        Wednesday 25th, 10:30am
-      </p>
-    </div>
-  </section> -->
 
   <x-h2>
     Strengthening believers
@@ -180,7 +138,6 @@
     </p>
   </x-text>
 
-  <!-- <x-youtube link="https://www.youtube.com/embed/Ue3rHGDMzjU" title="Good News in 90 Seconds" /> -->
 
   <x-public-cta
     class="mb-8 mt-6 sm:px-0"
