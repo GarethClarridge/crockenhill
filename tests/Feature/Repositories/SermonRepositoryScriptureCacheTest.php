@@ -24,10 +24,6 @@ class SermonRepositoryScriptureCacheTest extends TestCase
     {
         parent::setUp();
 
-        SermonScriptureFilter::query()->delete();
-        Sermon::query()->delete();
-        Preacher::query()->delete();
-
         $this->repository = app(SermonRepository::class);
         Cache::flush();
         $this->repository->clearInternalCaches();
@@ -99,7 +95,7 @@ class SermonRepositoryScriptureCacheTest extends TestCase
         SermonScriptureFilter::factory()->create([
             'sermon_id' => $sermon->id,
             'bible_book' => 'John',
-            'bible_chapter' => 3
+            'bible_chapter' => 3,
         ]);
 
         $this->repository->getScriptureChapters('John');
@@ -109,7 +105,7 @@ class SermonRepositoryScriptureCacheTest extends TestCase
         SermonScriptureFilter::factory()->create([
             'sermon_id' => $sermon->id,
             'bible_book' => 'John',
-            'bible_chapter' => 4
+            'bible_chapter' => 4,
         ]);
         $this->repository->clearInternalCaches();
 
@@ -139,7 +135,15 @@ class SermonRepositoryScriptureCacheTest extends TestCase
         ]);
         SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'Acts']);
 
-        // Cache both old and "future" new states (simulating multiple users or navigations)
+        // Seed the new-identity with data so its cache holds a non-empty collection.
+        $sermonNew = Sermon::factory()->create([
+            'content_type' => SermonContentType::Sermon,
+            'preacher_id' => $preacherNew->id,
+            'series' => $seriesNew,
+        ]);
+        SermonScriptureFilter::factory()->create(['sermon_id' => $sermonNew->id, 'bible_book' => 'Acts']);
+
+        // Warm both caches with real data
         $this->repository->getScriptureBooks($preacherOld->id, $seriesOld);
         $this->repository->getScriptureBooks($preacherNew->id, $seriesNew);
 
@@ -170,6 +174,8 @@ class SermonRepositoryScriptureCacheTest extends TestCase
         // Clean up any auto-synced filters from observer
         SermonScriptureFilter::query()->where('sermon_id', $sermon->id)->delete();
         SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John', 'bible_chapter' => 3]);
+        // Seed a real Mark entry so the Mark cache holds a non-empty collection.
+        SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'Mark', 'bible_chapter' => 1]);
 
         // Populate caches
         $this->repository->getScriptureChapters('John');
