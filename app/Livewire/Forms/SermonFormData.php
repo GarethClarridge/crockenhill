@@ -109,7 +109,10 @@ class SermonFormData extends Form
             'preacherConfidence' => $modelRules['preacher_confidence'],
             'duration' => $modelRules['duration'],
             'segmentStartTime' => $modelRules['segment_start_time'],
-            'segmentEndTime' => $modelRules['segment_end_time'],
+            'segmentEndTime' => array_map(
+                fn ($rule) => $rule === 'gte:segment_start_time' ? 'gte:segmentStartTime' : $rule,
+                $modelRules['segment_end_time']
+            ),
             'downloadCount' => $modelRules['download_count'],
             'reference' => $modelRules['reference'],
             'series' => $modelRules['series'],
