@@ -300,7 +300,7 @@ Church
 
     <x-clickable-card link="/media/documents/BehaviourPolicy.pdf" heading="Positive behaviour policy">
       Our positive behaviour policy guides how we make sure our
-      childrens' groups are safe and fun for all involved.
+      children's groups are safe and fun for all involved.
     </x-clickable-card>
 
     <x-clickable-card link="privacy-notice" heading="Privacy notice">
