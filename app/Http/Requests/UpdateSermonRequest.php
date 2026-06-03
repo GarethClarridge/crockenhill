@@ -32,31 +32,24 @@ class UpdateSermonRequest extends FormRequest
         return [
             'title' => $modelRules['title'],
             'slug' => $modelRules['slug'],
-            'date' => ['required', 'string', 'max:255', 'date_format:Y-m-d'],
+            'date' => $modelRules['date'],
             'service' => array_merge(['required'], array_filter($modelRules['service'], fn ($r) => $r !== 'nullable')),
             'series' => $modelRules['series'],
             'reference' => $modelRules['reference'],
             'preacher' => $modelRules['preacher'],
+            'preacher_id' => $modelRules['preacher_id'],
             'preacher_source' => $modelRules['preacher_source'],
             'preacher_confidence' => $modelRules['preacher_confidence'],
             'download_count' => $modelRules['download_count'],
             'duration' => $modelRules['duration'],
             'segment_start_time' => $modelRules['segment_start_time'],
             'segment_end_time' => $modelRules['segment_end_time'],
-            'points' => ['nullable', 'json', 'max:10000'],
-            'summary' => ['nullable', 'string', 'max:1000'],
-            'show_summary' => ['nullable', 'boolean'],
-            'show_points' => ['nullable', 'boolean'],
-        ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function messages(): array
-    {
-        return [
-            'points.json' => 'The sermon outline points must be a valid JSON structure.',
+            'points' => $modelRules['points'],
+            'summary' => $modelRules['summary'],
+            'show_summary' => $modelRules['show_summary'],
+            'show_points' => $modelRules['show_points'],
+            'needs_preacher_review' => $modelRules['needs_preacher_review'],
+            'meta_description' => $modelRules['meta_description'],
         ];
     }
 }

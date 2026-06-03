@@ -101,22 +101,25 @@ class SermonFormData extends Form
         return [
             'title' => $modelRules['title'],
             'slug' => $modelRules['slug'],
-            'date' => 'required|date',
+            'date' => $modelRules['date'],
             'service' => $modelRules['service'],
             'preacher' => $modelRules['preacher'],
             'preacherId' => $modelRules['preacher_id'],
             'preacherSource' => $modelRules['preacher_source'],
             'preacherConfidence' => $modelRules['preacher_confidence'],
             'duration' => $modelRules['duration'],
-            'segmentStartTime' => ['nullable', 'numeric', 'min:0'],
-            'segmentEndTime' => ['nullable', 'numeric', 'min:0', 'gte:segmentStartTime'],
+            'segmentStartTime' => $modelRules['segment_start_time'],
+            'segmentEndTime' => array_map(
+                fn ($rule) => $rule === 'gte:segment_start_time' ? 'gte:segmentStartTime' : $rule,
+                $modelRules['segment_end_time']
+            ),
             'downloadCount' => $modelRules['download_count'],
             'reference' => $modelRules['reference'],
             'series' => $modelRules['series'],
-            'summary' => 'nullable|string|max:1000',
-            'points' => 'array',
-            'showSummary' => 'boolean',
-            'showPoints' => 'boolean',
+            'summary' => $modelRules['summary'],
+            'points' => $modelRules['points'],
+            'showSummary' => $modelRules['show_summary'],
+            'showPoints' => $modelRules['show_points'],
         ];
     }
 

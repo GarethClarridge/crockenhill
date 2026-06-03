@@ -273,6 +273,7 @@ class Sermon extends Model implements Sitemapable
         return [
             'title' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
+            'date' => ['required', 'date_format:Y-m-d'],
             'audio_file_path' => ['nullable', 'string', 'max:255'],
             'video_file_path' => ['nullable', 'string', 'max:500'],
             'content_type' => ['required', Rule::enum(SermonContentType::class)],
@@ -289,6 +290,14 @@ class Sermon extends Model implements Sitemapable
             'scripture_passage_id' => ['nullable', 'integer', 'exists:scripture_passages,id'],
             'download_count' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0'],
+            'summary' => ['nullable', 'string', 'max:1000'],
+            'points' => ['nullable', 'array', 'max:100'],
+            'show_summary' => ['boolean'],
+            'show_points' => ['boolean'],
+            'needs_preacher_review' => ['boolean'],
+            'transcript_file_path' => ['nullable', 'string', 'max:255'],
+            'thumbnail_file_path' => ['nullable', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:255'],
             'livestream_processing_id' => [
                 'nullable',
                 'uuid',
