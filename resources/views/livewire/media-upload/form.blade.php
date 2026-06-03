@@ -134,7 +134,7 @@
                     @enderror
                 </div>
 
-                <livewire:media-upload.progress
+                <livewire:media-upload-progress
                     :is-uploading="$isUploading"
                     :status="$status"
                     :upload-progress="$uploadProgress"
@@ -193,7 +193,7 @@
                 },
             }"
         >
-            <livewire:media-upload.status
+            <livewire:media-upload-status
                 :processing-id="$processingId"
                 :status="$status"
                 :current-step="$currentStep"

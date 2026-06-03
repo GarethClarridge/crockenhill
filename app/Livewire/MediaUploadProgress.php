@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Livewire\MediaUpload;
+namespace App\Livewire;
 
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Reactive;
 use Livewire\Component;
 
-class Progress extends Component
+class MediaUploadProgress extends Component
 {
     #[Reactive]
     public bool $isUploading = false;

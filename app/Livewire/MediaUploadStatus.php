@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Livewire\MediaUpload;
+namespace App\Livewire;
 
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Reactive;
 use Livewire\Component;
 
-class Status extends Component
+class MediaUploadStatus extends Component
 {
     #[Reactive]
     public ?string $processingId = null;
