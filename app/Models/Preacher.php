@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -28,6 +29,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property bool $is_active
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
+ * @property-read Sermon|null $latestSermon
  *
  * @method static \Database\Factories\PreacherFactory factory(...$parameters)
  * @method static Builder|Preacher newModelQuery()
@@ -134,6 +136,14 @@ class Preacher extends Model implements Sitemapable
     public function sermons(): HasMany
     {
         return $this->hasMany(Sermon::class);
+    }
+
+    /**
+     * @return HasOne<Sermon, $this>
+     */
+    public function latestSermon(): HasOne
+    {
+        return $this->hasOne(Sermon::class)->whereSermon()->latestOfMany(['date', 'id']);
     }
 
     /**

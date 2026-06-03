@@ -9,11 +9,6 @@ use Spatie\Sitemap\Tags\Url;
 
 class PreacherSitemapPresenter
 {
-    /**
-     * Performance Optimization: Uses constructor dependency injection for
-     * SermonViewPresenter to avoid redundant app() service locator calls
-     * during bulk sitemap generation for all preachers.
-     */
     public function __construct(
         private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
@@ -35,8 +30,8 @@ class PreacherSitemapPresenter
 
         $imageUrl = $preacher->profile_image_url;
 
-        if (! $imageUrl && $preacher->relationLoaded('sermons')) {
-            $latestSermon = $preacher->sermons->first();
+        if (! $imageUrl && $preacher->relationLoaded('latestSermon')) {
+            $latestSermon = $preacher->latestSermon;
             if ($latestSermon) {
                 $imageUrl = $this->sermonViewPresenter->thumbnailUrl($latestSermon);
             }
