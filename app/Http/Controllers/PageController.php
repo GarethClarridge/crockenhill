@@ -91,12 +91,12 @@ class PageController extends Controller
     /**
      * Resolves the view for a page, allowing per-slug child views to override
      * the default layout. If a view exists at pages.{area}.{slug} it will be
-     * used; otherwise the standard layouts/page template is returned.
+     * used; otherwise the pages.show template is returned.
      *
      * NOTE: The override view file name is coupled to the page slug and area.
      * If a page with a bespoke view (e.g. pages/christ/free-bible.blade.php)
      * has its slug or area changed in the admin, this method will silently
-     * fall back to layouts/page and the custom content will stop rendering.
+     * fall back to pages.show and the custom content will stop rendering.
      * Keep slug, area, and view file name in sync when making such changes.
      */
     private function resolveView(string $area, string $slug): string

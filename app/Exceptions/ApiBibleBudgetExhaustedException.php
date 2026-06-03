@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Exceptions;
 
 /**
  * Thrown by ApiBibleClient when the daily API call budget is exhausted.

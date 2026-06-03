@@ -404,9 +404,6 @@ class SermonStorageService
                 return false;
             }
 
-            // Optionally delete from source disk (commented out for safety)
-            // Storage::disk($info['disk'])->delete($info['path']);
-
             return true;
         } catch (Exception $e) {
             Log::error('Failed to move sermon file', [

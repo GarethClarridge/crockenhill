@@ -105,15 +105,15 @@ Exit criteria:
 
 Priority: **Trivial** — single move, zero behavior change.
 
-Status: **Pending**.
+Status: **Complete** — moved to `app/Exceptions/ApiBibleBudgetExhaustedException.php`; all callers updated.
 
 [app/Services/ApiBibleBudgetExhaustedException.php](../../app/Services/ApiBibleBudgetExhaustedException.php) lives in the wrong namespace. Other custom exceptions ([ProcessingException.php](../../app/Exceptions/ProcessingException.php), [InvalidFileException.php](../../app/Exceptions/InvalidFileException.php)) live in `App\Exceptions`.
 
 Tasks:
 
-- [ ] Move the file to `app/Exceptions/` and update the namespace to `App\Exceptions`.
-- [ ] Update callers (`ApiBibleClient`, `FetchBibleTextForSermon`) and any test imports.
-- [ ] Run PHPStan + the API Bible test file to confirm.
+- [x] Move the file to `app/Exceptions/` and update the namespace to `App\Exceptions`.
+- [x] Update callers (`ApiBibleClient`, `FetchBibleTextForSermon`) and any test imports.
+- [x] Run PHPStan + the API Bible test file to confirm.
 
 Exit criteria:
 
@@ -285,13 +285,13 @@ Exit criteria:
 
 Priority: **Trivial** — documentation fix, zero behavior change.
 
-Status: **Pending** — carried over from the 2026-05-14 legacy code audit and re-verified 2026-06-03 (line numbers shifted since the audit was written).
+Status: **Complete** — both `layouts/page` references in the docblock updated to `pages.show`.
 
 The `resolveView()` docblock in [app/Http/Controllers/PageController.php:91-101](../../app/Http/Controllers/PageController.php#L91-L101) describes the fallback as "the standard `layouts/page` template". That template no longer exists (deleted in commit `237896e81`); the method actually returns `'pages.show'` ([PageController.php:106](../../app/Http/Controllers/PageController.php#L106)). Pure documentation rot.
 
 Tasks:
 
-- [ ] Update the docblock so the two `layouts/page` references (lines 94 and 99) name the real fallback, `pages.show`.
+- [x] Update the docblock so the two `layouts/page` references (lines 94 and 99) name the real fallback, `pages.show`.
 
 Exit criteria:
 
@@ -301,7 +301,7 @@ Exit criteria:
 
 Priority: **Trivial** — single-line decision, no behavior change until acted on.
 
-Status: **Pending** — carried over from the 2026-05-14 audit and re-verified 2026-06-03 (the line moved from the audit's reported `286` to [app/Services/SermonStorageService.php:408](../../app/Services/SermonStorageService.php#L408)).
+Status: **Complete** — commented-out delete and its surrounding comment removed. The source file is intentionally kept intact during a copy operation; if deletion is later required it should be an explicit, tested code path, not a commented-out line.
 
 ```php
 // Storage::disk($info['disk'])->delete($info['path']);
@@ -313,7 +313,7 @@ This is a different concern from Phase 9, which edits the same file: Phase 9 str
 
 Tasks:
 
-- [ ] Decide whether the delete should fire; uncomment it or delete the comment accordingly.
+- [x] Decide whether the delete should fire; uncomment it or delete the comment accordingly.
 
 Exit criteria:
 
@@ -361,14 +361,14 @@ Exit criteria:
 - [ ] Sermon legacy storage fallbacks are retired after canonical migration completion.
 - [ ] Schema snapshot strategy is consistent and drift-free, with automatic guardrails.
 - [ ] Remaining hotspot services are decomposed with focused tests.
-- [ ] No file in `app/Services/` is an exception class.
+- [x] No file in `app/Services/` is an exception class.
 - [ ] No project-local trait is consumed by exactly one class for state-bearing behavior.
 - [ ] No project code branches on `app()->runningUnitTests()`.
 - [ ] Exactly one canonical implementation of path-safety checks.
 - [ ] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.
 - [ ] No action class is a pure single-call wrapper without guard logic.
 - [ ] `app/Presenters/` is split or scoped to a single responsibility.
-- [ ] No docblock or comment references the deleted `layouts/page` template.
-- [ ] No commented-out destructive storage operation remains in the codebase.
+- [x] No docblock or comment references the deleted `layouts/page` template.
+- [x] No commented-out destructive storage operation remains in the codebase.
 - [ ] Completed one-shot legacy importers are removed (or explicitly retained with a documented reason).
 - [ ] Required quality gates pass for each delivered phase.

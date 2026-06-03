@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Services\ApiBibleBudgetExhaustedException;
+use App\Exceptions\ApiBibleBudgetExhaustedException;
 use App\Services\ApiBibleClient;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;

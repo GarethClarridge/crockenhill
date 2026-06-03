@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Data\ApiBiblePassageResult;
+use App\Exceptions\ApiBibleBudgetExhaustedException;
 use App\Traits\SanitizesLogData;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
