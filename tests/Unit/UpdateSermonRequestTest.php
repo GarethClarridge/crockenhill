@@ -105,8 +105,8 @@ class UpdateSermonRequestTest extends TestCase
 
     public static function validationDataProvider(): array
     {
-        $validJsonPoints = json_encode([['point' => 'P1', 'sub_points' => ['S1.1']]]);
-        $invalidJsonPoints = 'This is not json';
+        $validPoints = [['point' => 'P1', 'sub_points' => ['S1.1']]];
+        $invalidPoints = 'This is not an array';
 
         return [
             'all_valid_data_with_points' => [
@@ -118,7 +118,7 @@ class UpdateSermonRequestTest extends TestCase
                     'series' => 'Valid Series',
                     'reference' => 'John 1:1',
                     'preacher' => 'Valid Preacher',
-                    'points' => $validJsonPoints,
+                    'points' => $validPoints,
                 ],
                 'shouldPass' => true,
             ],
@@ -149,13 +149,13 @@ class UpdateSermonRequestTest extends TestCase
             'service_invalid_value' => [['title' => 'VT', 'date' => '2024-01-01', 'service' => 'special', 'preacher' => 'VP'], false, ['service' => 'selected service is invalid']],
 
             // Points validation
-            'points_invalid_json' => [['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => $invalidJsonPoints], false, ['points' => 'valid JSON structure']],
-            'points_valid_empty_json_array' => [ // Empty array is valid JSON
-                'data' => ['title' => 'VT', 'slug' => 'vt', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => '[]'],
+            'points_invalid_array' => [['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => $invalidPoints], false, ['points' => 'must be an array']],
+            'points_valid_empty_array' => [
+                'data' => ['title' => 'VT', 'slug' => 'vt', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => []],
                 'shouldPass' => true,
             ],
-            'points_empty_string_is_treated_as_null_and_passes' => [ // Renamed and expectation changed
-                // Assuming ConvertEmptyStringsToNull middleware is active, '' becomes null, and nullable|json passes.
+            'points_empty_string_is_treated_as_null_and_passes' => [
+                // Assuming ConvertEmptyStringsToNull middleware is active, '' becomes null, and nullable|array passes.
                 'data' => ['title' => 'VT', 'slug' => 'vt', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => ''],
                 'shouldPass' => true,
                 'expectedErrors' => [], // No errors expected if it passes
