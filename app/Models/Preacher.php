@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -138,15 +139,9 @@ class Preacher extends Model implements Sitemapable
     }
 
     /**
-     * Get the most recent public sermon preached by this preacher.
-     *
-     * Performance Optimization: Provides a clean, eager-loadable way to get
-     * the representative sermon for a preacher without loading the entire
-     * sermons collection or using broken limit(1) closures in eager loads.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasOne<Sermon, $this>
+     * @return HasOne<Sermon, $this>
      */
-    public function latestSermon(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function latestSermon(): HasOne
     {
         return $this->hasOne(Sermon::class)->whereSermon()->latestOfMany(['date', 'id']);
     }

@@ -34,11 +34,6 @@ class SitemapService
 
     /**
      * Generate sitemap.xml
-     *
-     * Performance Optimization: Limits retrieved columns for dynamic models and eager loads
-     * required relationships to prevent N+1 queries. Large text fields like body, markdown,
-     * and transcript are excluded to reduce memory usage. For sermons, 'thumbnail_metadata'
-     * is excluded as it is not utilized in sitemap generation.
      */
     public function generate(): bool
     {
@@ -263,11 +258,6 @@ class SitemapService
      */
     private function addPreachers(Sitemap $sitemap): void
     {
-        /**
-         * Performance Optimization: Eager loads the 'latestSermon' relationship with
-         * restricted columns to avoid N+1 queries when resolving preacher sitemap images.
-         * This replaces a previously broken limit(1) closure on the sermons relation.
-         */
         $preachers = Preacher::query()->active()
             ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
             ->with([
@@ -295,10 +285,6 @@ class SitemapService
 
     /**
      * Add sermon series URLs to the sitemap.
-     *
-     * Performance Optimization: Fetches latest representative sermons for all series
-     * in a single bulk query using a window function to eliminate N+1 bottlenecks
-     * during sitemap generation.
      */
     private function addSeries(Sitemap $sitemap): void
     {
