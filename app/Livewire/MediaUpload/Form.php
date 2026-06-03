@@ -7,7 +7,6 @@ namespace App\Livewire\MediaUpload;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
-use App\Livewire\Traits\HasConditionalLogging;
 use App\Livewire\Traits\WithUploadLifecycle;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -21,6 +20,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -42,7 +42,6 @@ use Livewire\WithFileUploads;
  */
 class Form extends Component
 {
-    use HasConditionalLogging;
     use WithFileUploads;
     use WithUploadLifecycle;
 
@@ -81,33 +80,33 @@ class Form extends Component
 
     public function mount(): void
     {
-        $this->logInfo('MediaUpload: Component mounting', [
+        Log::info('MediaUpload: Component mounting', [
             'user_id' => Auth::id(),
             'timestamp' => now()->toDateTimeString(),
         ]);
 
         if (! Gate::allows('create', Sermon::class)) {
-            $this->logError('MediaUpload: Unauthorized access attempt', [
+            Log::error('MediaUpload: Unauthorized access attempt', [
                 'user_id' => Auth::id(),
             ]);
             abort(403, 'Unauthorized to upload sermons.');
         }
 
-        $this->logInfo('MediaUpload: Component mounted successfully', [
+        Log::info('MediaUpload: Component mounted successfully', [
             'user_id' => Auth::id(),
         ]);
     }
 
     public function startProcessing(): void
     {
-        $this->logInfo('startProcessing method called', [
+        Log::info('startProcessing method called', [
             'processing_id' => $this->processingId,
             'temp_file_path' => $this->tempFilePath,
             'media_type' => $this->mediaType,
         ]);
 
         if (! $this->tempFilePath) {
-            $this->logError('Missing processing data', [
+            Log::error('Missing processing data', [
                 'processing_id' => $this->processingId,
                 'temp_file_path' => $this->tempFilePath,
             ]);
@@ -130,7 +129,7 @@ class Form extends Component
                 true
             );
 
-            $this->logInfo('Processing with file date', [
+            Log::info('Processing with file date', [
                 'file_modified_date' => $this->fileModifiedDate,
                 'original_filename' => $this->originalFileName,
             ]);
@@ -158,7 +157,7 @@ class Form extends Component
                 $this->cancelledMessage = null;
             }
 
-            $this->logInfo('Media processing initiated', [
+            Log::info('Media processing initiated', [
                 'processing_id' => $this->processingId,
                 'media_type' => $this->mediaType,
                 'user_id' => Auth::id(),
@@ -166,7 +165,7 @@ class Form extends Component
             ]);
 
         } catch (\Exception $e) {
-            $this->logError('Media processing failed', [
+            Log::error('Media processing failed', [
                 'processing_id' => $this->processingId,
                 'error' => $e->getMessage(),
                 'media_type' => $this->mediaType,
@@ -189,9 +188,9 @@ class Form extends Component
             if (file_exists($fullTempPath)) {
                 try {
                     unlink($fullTempPath);
-                    $this->logInfo('Cleaned up Livewire temp file', ['path' => $fullTempPath]);
+                    Log::info('Cleaned up Livewire temp file', ['path' => $fullTempPath]);
                 } catch (\Exception $e) {
-                    $this->logError('Failed to clean up Livewire temp file', [
+                    Log::error('Failed to clean up Livewire temp file', [
                         'path' => $fullTempPath,
                         'error' => $e->getMessage(),
                     ]);
@@ -260,7 +259,7 @@ class Form extends Component
             }
 
         } catch (\Exception $e) {
-            $this->logError('Failed to cancel processing', [
+            Log::error('Failed to cancel processing', [
                 'processing_id' => $this->processingId,
                 'error' => $e->getMessage(),
             ]);
@@ -320,14 +319,14 @@ class Form extends Component
             }
 
             if ($this->status !== $previousStatus || $this->progressPercentage !== $previousProgress) {
-                $this->logDebug('Processing status updated', [
+                Log::debug('Processing status updated', [
                     'processing_id' => $this->processingId,
                     'status' => $nextStatus,
                     'progress' => $nextProgress,
                 ]);
             }
         } catch (\Exception $e) {
-            $this->logError('Failed to check processing status', [
+            Log::error('Failed to check processing status', [
                 'processing_id' => $this->processingId,
                 'error' => $e->getMessage(),
             ]);

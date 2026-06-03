@@ -5,19 +5,17 @@ declare(strict_types=1);
 namespace App\Livewire;
 
 use App\Data\ProcessingLogEntry;
-use App\Livewire\Traits\HasConditionalLogging;
 use App\Services\GetMediaProcessingStatus;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 use Livewire\Attributes\Lazy;
 use Livewire\Component;
 
 class ProcessingLogsViewer extends Component
 {
-    use HasConditionalLogging;
-
     private GetMediaProcessingStatus $getMediaProcessingStatus;
 
     public string $processingId;
@@ -76,7 +74,7 @@ class ProcessingLogsViewer extends Component
         $this->logLimit = $logLimit;
         $this->lastFetch = now();
 
-        $this->logDebug('ProcessingLogsViewer: Component mounting', [
+        Log::debug('ProcessingLogsViewer: Component mounting', [
             'processing_id' => $processingId,
             'auto_refresh' => $autoRefresh,
             'expanded' => $expanded,
@@ -124,12 +122,12 @@ class ProcessingLogsViewer extends Component
 
                 $this->lastFetch = now();
             } else {
-                $this->logWarning('ProcessingLogsViewer: Processing record not found', [
+                Log::warning('ProcessingLogsViewer: Processing record not found', [
                     'processing_id' => $this->processingId,
                 ]);
             }
         } catch (\Exception $e) {
-            $this->logError('ProcessingLogsViewer: Error fetching logs', [
+            Log::error('ProcessingLogsViewer: Error fetching logs', [
                 'processing_id' => $this->processingId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -149,7 +147,7 @@ class ProcessingLogsViewer extends Component
 
     public function updatedAutoRefresh(bool $value): void
     {
-        $this->logDebug('ProcessingLogsViewer: Auto refresh toggled', [
+        Log::debug('ProcessingLogsViewer: Auto refresh toggled', [
             'processing_id' => $this->processingId,
             'auto_refresh' => $value,
         ]);
@@ -169,7 +167,7 @@ class ProcessingLogsViewer extends Component
     public function updateFilter(): void
     {
         // Filters are applied in the computed property, no need to refetch
-        $this->logDebug('ProcessingLogsViewer: Filter updated', [
+        Log::debug('ProcessingLogsViewer: Filter updated', [
             'processing_id' => $this->processingId,
             'filter_level' => $this->filterLevel,
             'filter_step' => $this->filterStep,

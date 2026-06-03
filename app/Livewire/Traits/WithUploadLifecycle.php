@@ -7,6 +7,7 @@ namespace App\Livewire\Traits;
 use App\Enums\MediaType;
 use App\Services\MediaValidationService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -69,7 +70,7 @@ trait WithUploadLifecycle
         $this->cancelledMessage = null;
         $this->uploadProgress = 0;
 
-        $this->logInfo('MediaUpload: File upload started', [
+        Log::info('MediaUpload: File upload started', [
             'media_type' => $this->mediaType,
             'file_name' => $this->mediaFile->getClientOriginalName(),
         ]);
@@ -78,13 +79,13 @@ trait WithUploadLifecycle
     public function uploadComplete(): void
     {
         if ($this->uploadCancelled) {
-            $this->logInfo('Upload complete but was cancelled, ignoring');
+            Log::info('Upload complete but was cancelled, ignoring');
 
             return;
         }
 
         if ($this->processingId !== null || $this->tempFilePath !== null || $this->showProcessingStatus) {
-            $this->logInfo('Upload completion already handled, ignoring duplicate trigger', [
+            Log::info('Upload completion already handled, ignoring duplicate trigger', [
                 'processing_id' => $this->processingId,
                 'temp_file_path' => $this->tempFilePath,
             ]);
@@ -101,7 +102,7 @@ trait WithUploadLifecycle
         $this->isUploading = false;
         $this->uploadProgress = 100;
 
-        $this->logInfo('MediaUpload: File upload completed, starting validation', [
+        Log::info('MediaUpload: File upload completed, starting validation', [
             'file_name' => $this->mediaFile->getClientOriginalName(),
         ]);
 
@@ -122,7 +123,7 @@ trait WithUploadLifecycle
             $tempFilePath = $this->mediaFile->store('temp/livewire-upload', 'local');
             $this->tempFilePath = $tempFilePath;
 
-            $this->logInfo('File stored to temp directory', [
+            Log::info('File stored to temp directory', [
                 'temp_file_path' => $tempFilePath,
                 'full_path' => storage_path('app/'.$tempFilePath),
                 'file_exists' => file_exists(storage_path('app/'.$tempFilePath)),
@@ -130,7 +131,7 @@ trait WithUploadLifecycle
 
             $this->startProcessing();
 
-            $this->logInfo('Media processing started', [
+            Log::info('Media processing started', [
                 'processing_id' => $this->processingId,
                 'media_type' => $this->mediaType,
                 'user_id' => Auth::id(),
@@ -140,7 +141,7 @@ trait WithUploadLifecycle
             $this->handleUploadError('Validation failed: '.$e->getMessage());
             $this->setErrorBag($e->validator->getMessageBag());
         } catch (\Exception $e) {
-            $this->logError('Media processing preparation failed', [
+            Log::error('Media processing preparation failed', [
                 'error' => $e->getMessage(),
                 'media_type' => $this->mediaType,
                 'user_id' => Auth::id(),
@@ -152,7 +153,7 @@ trait WithUploadLifecycle
 
     public function uploadMedia(): void
     {
-        $this->logInfo('Manual upload trigger received');
+        Log::info('Manual upload trigger received');
         $this->uploadComplete();
     }
 
@@ -162,7 +163,7 @@ trait WithUploadLifecycle
             return;
         }
 
-        $this->logInfo('Upload cancelled by user', [
+        Log::info('Upload cancelled by user', [
             'file_name' => $this->originalFileName ?? 'unknown',
             'upload_progress' => $this->uploadProgress,
         ]);
@@ -221,7 +222,7 @@ trait WithUploadLifecycle
         $rules = $this->rules;
         $rules['mediaFile'] = $fileRules['file'];
 
-        $this->logInfo('MediaUpload: Dynamic rules from config', [
+        Log::info('MediaUpload: Dynamic rules from config', [
             'media_type' => $this->mediaType,
             'rules' => $rules['mediaFile'],
         ]);

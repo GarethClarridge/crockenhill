@@ -164,7 +164,7 @@ Exit criteria:
 
 Priority: **Low** — small surface, but eliminates a confusing pattern.
 
-Status: **Pending**.
+Status: **Complete** — trait deleted; all `$this->log*()` calls in `MediaUpload/Form.php`, `WithUploadLifecycle.php`, and `ProcessingLogsViewer.php` replaced with direct `Log::` facade calls. Test logging is silenced via the existing `LOG_CHANNEL=testing` config in `phpunit.xml`.
 
 [app/Livewire/Traits/HasConditionalLogging.php](../../app/Livewire/Traits/HasConditionalLogging.php) wraps every `Log::info|warning|error|debug` call in `if (! app()->runningUnitTests())`. Production code should not branch on test context. The trait is used in two files ([MediaUpload/Form.php](../../app/Livewire/MediaUpload/Form.php) and [ProcessingLogsViewer.php](../../app/Livewire/ProcessingLogsViewer.php)).
 
@@ -172,10 +172,10 @@ The right place to silence logging during tests is the test config.
 
 Tasks:
 
-- [ ] Verify or add a `LOG_CHANNEL=null` (or `LOG_LEVEL=emergency`) entry in [phpunit.xml](../../phpunit.xml) and the Dusk env file.
-- [ ] Replace all `$this->logInfo(...)` / `logWarning` / `logError` / `logDebug` calls in the two consumers with direct `Log::` facade calls.
-- [ ] Delete the trait file.
-- [ ] Run the affected test files to confirm no stray log output appears.
+- [x] Verify or add a `LOG_CHANNEL=null` (or `LOG_LEVEL=emergency`) entry in [phpunit.xml](../../phpunit.xml) and the Dusk env file. (`LOG_CHANNEL=testing` already set; routes to a file channel — no test noise.)
+- [x] Replace all `$this->logInfo(...)` / `logWarning` / `logError` / `logDebug` calls in the two consumers with direct `Log::` facade calls. (`WithUploadLifecycle` also updated.)
+- [x] Delete the trait file.
+- [x] Run the affected test files to confirm no stray log output appears.
 
 Exit criteria:
 
@@ -363,7 +363,7 @@ Exit criteria:
 - [ ] Remaining hotspot services are decomposed with focused tests.
 - [x] No file in `app/Services/` is an exception class.
 - [ ] No project-local trait is consumed by exactly one class for state-bearing behavior.
-- [ ] No project code branches on `app()->runningUnitTests()`.
+- [x] No project code branches on `app()->runningUnitTests()`.
 - [ ] Exactly one canonical implementation of path-safety checks.
 - [ ] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.
 - [ ] No action class is a pure single-call wrapper without guard logic.
