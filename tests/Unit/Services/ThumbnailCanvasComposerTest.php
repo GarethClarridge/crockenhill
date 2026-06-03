@@ -242,6 +242,16 @@ class ThumbnailCanvasComposerTest extends TestCase
         // as resolveCenteredForegroundTopY(43, 2, 100, 80) === 83).
         $image = $this->centeredCanvas('symmetric', self::TWO_LINE_CENTERED_TITLE);
 
+        // Guard the fixture itself: the overlap rule branches on line count, so confirm
+        // the copy actually wrapped to two lines before asserting the two-line behaviour.
+        // Without this, a font-metric change that rendered the title on one line would
+        // silently exercise the wrong branch and still pass.
+        $this->assertSame(
+            2,
+            $this->countTitleLines($image, 0, self::CENTERED_TITLE_MAX_Y),
+            'Expected the two-line fixture to render on exactly two lines'
+        );
+
         // Restrict to the title region to exclude the bottom-corner overlay (same teal).
         $titleBounds = $this->tealPixelBounds($image, 0, self::CENTERED_TITLE_MAX_Y);
         $subjectBounds = $this->greenPixelBounds($image);
@@ -512,20 +522,7 @@ class ThumbnailCanvasComposerTest extends TestCase
 
         for ($y = $minY; $y < $scanMaxY; $y++) {
             for ($x = 0; $x < $width; $x++) {
-                $colorIndex = imagecolorat($native, $x, $y);
-                $color = imagecolorsforindex($native, $colorIndex);
-
-                if ((int) $color['alpha'] >= 127) {
-                    continue;
-                }
-
-                $red = (int) $color['red'];
-                $green = (int) $color['green'];
-                $blue = (int) $color['blue'];
-
-                // Brand teal is #145557 (20, 85, 87). Detect by relative color dominance
-                // to remain robust against anti-aliasing on the light background.
-                if (($green - $red) < 30 || ($blue - $red) < 30 || abs($green - $blue) > 30) {
+                if (! $this->isTealPixel($native, $x, $y)) {
                     continue;
                 }
 
@@ -544,5 +541,72 @@ class ThumbnailCanvasComposerTest extends TestCase
         }
 
         return $bounds;
+    }
+
+    /**
+     * Count the rendered title lines by detecting contiguous bands of teal ink rows.
+     *
+     * Glyphs on a single line share a continuous baseline, so the only sizeable
+     * vertical gaps in the teal-row profile fall between wrapped lines. A gap of a
+     * few pixels is anti-aliasing noise; the inter-line gap is far larger.
+     */
+    private function countTitleLines(ImageInterface $image, int $minY, int $maxY): int
+    {
+        $native = $image->core()->native();
+        $this->assertInstanceOf(\GdImage::class, $native);
+
+        $width = imagesx($native);
+        $height = imagesy($native);
+        $scanMaxY = min($maxY, $height);
+
+        $lines = 0;
+        $gap = 0;
+        $insideLine = false;
+
+        for ($y = $minY; $y < $scanMaxY; $y++) {
+            $rowHasTeal = false;
+
+            for ($x = 0; $x < $width; $x++) {
+                if ($this->isTealPixel($native, $x, $y)) {
+                    $rowHasTeal = true;
+                    break;
+                }
+            }
+
+            if ($rowHasTeal) {
+                if (! $insideLine) {
+                    $lines++;
+                    $insideLine = true;
+                }
+
+                $gap = 0;
+
+                continue;
+            }
+
+            // A run of >=8 empty rows ends the current line; smaller gaps are noise.
+            if ($insideLine && ++$gap >= 8) {
+                $insideLine = false;
+            }
+        }
+
+        return $lines;
+    }
+
+    private function isTealPixel(\GdImage $image, int $x, int $y): bool
+    {
+        $color = imagecolorsforindex($image, imagecolorat($image, $x, $y));
+
+        if ((int) $color['alpha'] >= 127) {
+            return false;
+        }
+
+        $red = (int) $color['red'];
+        $green = (int) $color['green'];
+        $blue = (int) $color['blue'];
+
+        // Brand teal is #145557 (20, 85, 87). Detect by relative color dominance
+        // to remain robust against anti-aliasing on the light background.
+        return ($green - $red) >= 30 && ($blue - $red) >= 30 && abs($green - $blue) <= 30;
     }
 }
