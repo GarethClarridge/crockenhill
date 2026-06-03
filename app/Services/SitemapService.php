@@ -34,11 +34,6 @@ class SitemapService
 
     /**
      * Generate sitemap.xml
-     *
-     * Performance Optimization: Limits retrieved columns for dynamic models and eager loads
-     * required relationships to prevent N+1 queries. Large text fields like body, markdown,
-     * and transcript are excluded to reduce memory usage. For sermons, 'thumbnail_metadata'
-     * is excluded as it is not utilized in sitemap generation.
      */
     public function generate(): bool
     {
@@ -173,7 +168,6 @@ class SitemapService
                 'sermons.slug',
                 'sermons.thumbnail_file_path',
                 'sermons.thumbnail_generated_at',
-                'sermons.thumbnail_metadata',
                 'sermons.video_file_path',
                 'sermons.video_visibility_override',
                 'sermons.video_quality_status',
@@ -267,10 +261,22 @@ class SitemapService
         $preachers = Preacher::query()->active()
             ->select(['id', 'name', 'slug', 'image_path', 'updated_at'])
             ->with([
-                'sermons' => fn ($query) => $query->whereSermon()
-                    ->select(['id', 'preacher_id', 'title', 'date', 'slug', 'audio_file_path', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'video_file_path', 'video_visibility_override', 'video_quality_status', 'content_type', 'updated_at'])
-                    ->orderBy('date', 'desc')
-                    ->limit(1),
+                'latestSermon' => fn ($query) => $query
+                    ->select([
+                        'sermons.id',
+                        'sermons.preacher_id',
+                        'sermons.title',
+                        'sermons.date',
+                        'sermons.slug',
+                        'sermons.audio_file_path',
+                        'sermons.thumbnail_file_path',
+                        'sermons.thumbnail_generated_at',
+                        'sermons.video_file_path',
+                        'sermons.video_visibility_override',
+                        'sermons.video_quality_status',
+                        'sermons.content_type',
+                        'sermons.updated_at',
+                    ]),
             ])
             ->lazy();
 
@@ -279,10 +285,6 @@ class SitemapService
 
     /**
      * Add sermon series URLs to the sitemap.
-     *
-     * Performance Optimization: Fetches latest representative sermons for all series
-     * in a single bulk query using a window function to eliminate N+1 bottlenecks
-     * during sitemap generation.
      */
     private function addSeries(Sitemap $sitemap): void
     {
@@ -305,7 +307,6 @@ class SitemapService
                 'series',
                 'thumbnail_file_path',
                 'thumbnail_generated_at',
-                'thumbnail_metadata',
                 'video_file_path',
                 'video_visibility_override',
                 'video_quality_status',

@@ -409,7 +409,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function scopeWhereSermon(Builder $query): Builder
     {
-        return $query->where('content_type', SermonContentType::Sermon);
+        return $query->where($query->qualifyColumn('content_type'), SermonContentType::Sermon);
     }
 
     /**
@@ -418,7 +418,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function scopeWhereChildrensTalk(Builder $query): Builder
     {
-        return $query->where('content_type', SermonContentType::ChildrensTalk);
+        return $query->where($query->qualifyColumn('content_type'), SermonContentType::ChildrensTalk);
     }
 
     /**
