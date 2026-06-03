@@ -14,18 +14,45 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * Service for managing the lifecycle of song video recordings.
+ *
+ * This service handles the storage, feature selection, and cleanup of video files
+ * associated with individual songs. It supports both manual uploads from the admin
+ * interface and automated extractions from church service recordings.
+ */
 class SongVideoService
 {
+    /**
+     * Get the publicly accessible URL for a song video.
+     *
+     * @param  SongVideo  $video  The video model to get the URL for
+     * @return string The absolute URL to the video file
+     */
     public function getVideoUrl(SongVideo $video): string
     {
         return Storage::disk($this->sermonDisk())->url($video->video_file_path);
     }
 
+    /**
+     * Retrieve the currently featured or primary video for a given song.
+     *
+     * @param  Song  $song  The song model
+     * @return SongVideo|null The featured video if one exists
+     */
     public function getDisplayVideoForSong(Song $song): ?SongVideo
     {
         return $song->displayVideo();
     }
 
+    /**
+     * Set a specific video as the featured video for its song.
+     *
+     * Only one video can be featured per song at a time. This method ensures
+     * that any existing featured video for the same song is unfeatured.
+     *
+     * @param  SongVideo  $video  The video to feature
+     */
     public function featureVideo(SongVideo $video): void
     {
         DB::transaction(function () use ($video): void {
@@ -44,12 +71,25 @@ class SongVideoService
         });
     }
 
+    /**
+     * Remove the featured status from a video.
+     *
+     * @param  SongVideo  $video  The video to unfeature
+     */
     public function unfeatureVideo(SongVideo $video): void
     {
         $video->is_featured = false;
         $video->save();
     }
 
+    /**
+     * Delete a song video record and its corresponding file from storage.
+     *
+     * If the video was linked to a service section, that section is reset
+     * to allow for potential re-extraction in the future.
+     *
+     * @param  SongVideo  $video  The video to delete
+     */
     public function deleteVideo(SongVideo $video): void
     {
         $sectionId = $video->service_section_id;
@@ -62,6 +102,13 @@ class SongVideoService
         }
     }
 
+    /**
+     * Create a new song video from a manual file upload.
+     *
+     * @param  Song  $song  The song the video belongs to
+     * @param  UploadedFile  $file  The uploaded video file
+     * @return SongVideo The newly created video record
+     */
     public function createFromUpload(Song $song, UploadedFile $file): SongVideo
     {
         $storagePath = 'sermons/songs/'.$song->id.'/'.Str::ulid()->toBase32().'.mp4';
@@ -79,6 +126,18 @@ class SongVideoService
         ]);
     }
 
+    /**
+     * Create a song video record from an automated extraction process.
+     *
+     * Links the video to the specific service section and processing run
+     * from which it was extracted.
+     *
+     * @param  ServiceSection  $section  The service section the video was extracted from
+     * @param  string  $videoPath  The path to the extracted video file in storage
+     * @return SongVideo The newly created video record
+     *
+     * @throws \RuntimeException If the section does not have a linked song or church service item
+     */
     public function createFromExtraction(ServiceSection $section, string $videoPath): SongVideo
     {
         $item = $section->churchServiceItem;
