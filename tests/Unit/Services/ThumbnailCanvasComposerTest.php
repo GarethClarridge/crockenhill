@@ -20,9 +20,12 @@ class ThumbnailCanvasComposerTest extends TestCase
     // of the clamp, so the copy length is deliberately tuned to the centered layout.
     private const string TALL_CENTERED_TITLE = 'Blessed Are The Peacemakers';
 
-    // Genuinely wraps to two lines (only ~2 short words fit per line at the 225px
-    // reference font), exercising the two-line branch of the foreground-overlap rule.
-    private const string TWO_LINE_CENTERED_TITLE = 'Grace Alone';
+    // Two long words that each fill a line, so the copy wraps to two lines under both
+    // exact glyph metrics (imagettfbbox) AND the fallback estimator that
+    // ThumbnailTextHelper uses when imagettfbbox is unavailable (strlen * fontSize *
+    // 0.6 => 12 chars/line at the 150px centered font; each word here is <=12 chars).
+    // A short title like "Grace Alone" (11 chars) stays on one line under the fallback.
+    private const string TWO_LINE_CENTERED_TITLE = 'Boundless Compassion';
 
     // Centered title area spans Y=0..468 (65% of 720px). Overlay pixels below this must be excluded.
     private const int CENTERED_TITLE_MAX_Y = 468;
