@@ -151,8 +151,9 @@ class ThumbnailCanvasComposerTest extends TestCase
         // Title is drawn in the brand foreground colour (#145557 = dark teal).
         // The centered layout now keeps a 6% top inset (y >= 43 on a 720px canvas).
         $foundTeal = false;
+        $width = imagesx($native);
         for ($y = 43; $y <= 360 && ! $foundTeal; $y++) {
-            for ($x = 0; $x < imagesx($native) && ! $foundTeal; $x++) {
+            for ($x = 0; $x < $width && ! $foundTeal; $x++) {
                 $colorIndex = imagecolorat($native, $x, $y);
                 $color = imagecolorsforindex($native, $colorIndex);
                 if ((int) $color['red'] < 40 && (int) $color['green'] > 60 && (int) $color['blue'] > 60) {
@@ -377,9 +378,11 @@ class ThumbnailCanvasComposerTest extends TestCase
         $this->assertInstanceOf(\GdImage::class, $native);
 
         $bounds = null;
+        $width = imagesx($native);
+        $height = imagesy($native);
 
-        for ($y = $minY; $y <= min($maxY, imagesy($native) - 1); $y++) {
-            for ($x = $minX; $x <= min($maxX, imagesx($native) - 1); $x++) {
+        for ($y = $minY; $y <= min($maxY, $height - 1); $y++) {
+            for ($x = $minX; $x <= min($maxX, $width - 1); $x++) {
                 if (! $this->isNonBackgroundPixel($native, $x, $y)) {
                     continue;
                 }
@@ -426,9 +429,11 @@ class ThumbnailCanvasComposerTest extends TestCase
         $this->assertInstanceOf(\GdImage::class, $native);
 
         $bounds = null;
+        $width = imagesx($native);
+        $height = imagesy($native);
 
-        for ($y = 0; $y < imagesy($native); $y++) {
-            for ($x = 0; $x < imagesx($native); $x++) {
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
                 $colorIndex = imagecolorat($native, $x, $y);
                 $color = imagecolorsforindex($native, $colorIndex);
 
@@ -470,9 +475,11 @@ class ThumbnailCanvasComposerTest extends TestCase
         $this->assertInstanceOf(\GdImage::class, $native);
 
         $bounds = null;
+        $width = imagesx($native);
+        $height = imagesy($native);
 
-        for ($y = 0; $y < imagesy($native); $y++) {
-            for ($x = 0; $x < imagesx($native); $x++) {
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
                 $colorIndex = imagecolorat($native, $x, $y);
                 $color = imagecolorsforindex($native, $colorIndex);
 
