@@ -14,6 +14,12 @@ use Tests\TestCase;
 
 class ThumbnailCanvasComposerTest extends TestCase
 {
+    // Long enough to reach the Y=43 top-padding clamp on a 720px canvas.
+    private const string LONG_CENTERED_TITLE = 'This is an extremely long title designed to wrap across three lines on the centered canvas, ensuring it extends well beyond the top half of the thumbnail to test vertical layout flexibility';
+
+    // Centered title area spans Y=0..468 (65% of 720px). Overlay pixels below this must be excluded.
+    private const int CENTERED_TITLE_MAX_Y = 468;
+
     /** @var array<string, ImageInterface> */
     private static array $canvasCache = [];
 
@@ -168,16 +174,17 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_keeps_centered_title_pixels_below_the_increased_top_padding(): void
     {
-        // Render a title long enough to be pushed to the top padding.
-        $image = $this->centeredCanvas(null);
+        // Must use a tall title that actually reaches the Y=43 clamp; a short title like
+        // "Grace Alone" starts naturally far below the clamp, making the assertion trivial.
+        $image = $this->centeredCanvas(null, self::LONG_CENTERED_TITLE);
 
-        $bounds = $this->tealPixelBounds($image);
+        // Restrict to the title region to exclude the bottom-corner overlay, which shares
+        // the same foreground teal and would otherwise satisfy the Y bounds.
+        $bounds = $this->tealPixelBounds($image, 0, self::CENTERED_TITLE_MAX_Y);
 
         $this->assertNotNull($bounds);
 
-        // Center-aligned title in top-quarter should start at or below Y=43 (6% of 720px).
-        // Since resolveCenteredTitleTopY(720, 340) returns 43, title pixels should not exist significantly above Y=43.
-        // We allow a small tolerance (6px) for font-rendering anti-aliasing artifacts.
+        // Title pixels should start at Y=43 (±6px tolerance for anti-aliasing).
         $this->assertGreaterThanOrEqual(37, $bounds['min_y']);
         $this->assertLessThanOrEqual(50, $bounds['min_y'], 'Expected title pixels to start near Y=43 (6% of 720px canvas), not significantly below it');
     }
@@ -185,16 +192,14 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_allows_centered_title_copy_to_extend_beyond_the_top_half_of_the_canvas(): void
     {
-        // Use a very long title that should occupy most of the canvas height.
-        $longTitle = 'This is an extremely long title designed to wrap across three lines on the centered canvas, ensuring it extends well beyond the top half of the thumbnail to test vertical layout flexibility';
-        $image = $this->centeredCanvas(null, $longTitle);
+        $image = $this->centeredCanvas(null, self::LONG_CENTERED_TITLE);
 
-        $bounds = $this->tealPixelBounds($image);
+        // Restrict to the title region to exclude the bottom-corner overlay (same teal).
+        // Canvas height 720, midpoint 360, max title height 468 (65%).
+        $bounds = $this->tealPixelBounds($image, 0, self::CENTERED_TITLE_MAX_Y);
 
         $this->assertNotNull($bounds);
 
-        // Canvas height is 720. Midpoint is 360.
-        // A long title is allowed to extend up to 65% height (468px).
         $this->assertGreaterThan(360, $bounds['max_y'], 'Expected title pixels to extend into the bottom half of the canvas');
     }
 
@@ -205,7 +210,8 @@ class ThumbnailCanvasComposerTest extends TestCase
         $title = 'This Title Has Three Lines For Centered Layout Verification';
         $image = $this->centeredCanvas('symmetric', $title);
 
-        $titleBounds = $this->tealPixelBounds($image);
+        // Restrict to the title region to exclude the bottom-corner overlay (same teal).
+        $titleBounds = $this->tealPixelBounds($image, 0, self::CENTERED_TITLE_MAX_Y);
         $subjectBounds = $this->greenPixelBounds($image);
 
         $this->assertNotNull($titleBounds);
@@ -228,7 +234,8 @@ class ThumbnailCanvasComposerTest extends TestCase
         $title = 'Blessed Are The Peacemakers';
         $image = $this->centeredCanvas('symmetric', $title);
 
-        $titleBounds = $this->tealPixelBounds($image);
+        // Restrict to the title region to exclude the bottom-corner overlay (same teal).
+        $titleBounds = $this->tealPixelBounds($image, 0, self::CENTERED_TITLE_MAX_Y);
         $subjectBounds = $this->greenPixelBounds($image);
 
         $this->assertNotNull($titleBounds);
@@ -485,7 +492,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     /**
      * @return array{min_x:int,max_x:int,min_y:int,max_y:int}|null
      */
-    private function tealPixelBounds(ImageInterface $image): ?array
+    private function tealPixelBounds(ImageInterface $image, int $minY = 0, ?int $maxY = null): ?array
     {
         $native = $image->core()->native();
         $this->assertInstanceOf(\GdImage::class, $native);
@@ -493,8 +500,9 @@ class ThumbnailCanvasComposerTest extends TestCase
         $bounds = null;
         $width = imagesx($native);
         $height = imagesy($native);
+        $scanMaxY = min($maxY ?? $height, $height);
 
-        for ($y = 0; $y < $height; $y++) {
+        for ($y = $minY; $y < $scanMaxY; $y++) {
             for ($x = 0; $x < $width; $x++) {
                 $colorIndex = imagecolorat($native, $x, $y);
                 $color = imagecolorsforindex($native, $colorIndex);
