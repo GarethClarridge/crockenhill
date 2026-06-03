@@ -32,7 +32,7 @@ class UpdateSermonRequest extends FormRequest
         return [
             'title' => $modelRules['title'],
             'slug' => $modelRules['slug'],
-            'date' => ['required', 'date_format:Y-m-d'],
+            'date' => $modelRules['date'],
             'service' => array_merge(['required'], array_filter($modelRules['service'], fn ($r) => $r !== 'nullable')),
             'series' => $modelRules['series'],
             'reference' => $modelRules['reference'],
@@ -44,22 +44,12 @@ class UpdateSermonRequest extends FormRequest
             'duration' => $modelRules['duration'],
             'segment_start_time' => $modelRules['segment_start_time'],
             'segment_end_time' => $modelRules['segment_end_time'],
-            'points' => ['nullable', 'array', 'max:100'],
+            'points' => $modelRules['points'],
             'summary' => $modelRules['summary'],
             'show_summary' => $modelRules['show_summary'],
             'show_points' => $modelRules['show_points'],
             'needs_preacher_review' => $modelRules['needs_preacher_review'],
             'meta_description' => $modelRules['meta_description'],
-        ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function messages(): array
-    {
-        return [
-            'points.json' => 'The sermon outline points must be a valid JSON structure.',
         ];
     }
 }
