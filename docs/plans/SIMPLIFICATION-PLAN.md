@@ -281,9 +281,70 @@ Exit criteria:
 
 - The `Presenters/` directory contains files that share a single responsibility, or is split into directories that each do.
 
+### Phase 23: Correct Stale `PageController` Docblock
+
+Priority: **Trivial** — documentation fix, zero behavior change.
+
+Status: **Pending** — carried over from the 2026-05-14 legacy code audit and re-verified 2026-06-03 (line numbers shifted since the audit was written).
+
+The `resolveView()` docblock in [app/Http/Controllers/PageController.php:91-101](../../app/Http/Controllers/PageController.php#L91-L101) describes the fallback as "the standard `layouts/page` template". That template no longer exists (deleted in commit `237896e81`); the method actually returns `'pages.show'` ([PageController.php:106](../../app/Http/Controllers/PageController.php#L106)). Pure documentation rot.
+
+Tasks:
+
+- [ ] Update the docblock so the two `layouts/page` references (lines 94 and 99) name the real fallback, `pages.show`.
+
+Exit criteria:
+
+- No docblock references the deleted `layouts/page` template.
+
+### Phase 24: Resolve Commented-Out Destructive Delete in `SermonStorageService`
+
+Priority: **Trivial** — single-line decision, no behavior change until acted on.
+
+Status: **Pending** — carried over from the 2026-05-14 audit and re-verified 2026-06-03 (the line moved from the audit's reported `286` to [app/Services/SermonStorageService.php:408](../../app/Services/SermonStorageService.php#L408)).
+
+```php
+// Storage::disk($info['disk'])->delete($info['path']);
+```
+
+Commented-out destructive code is neither a working safeguard nor a clear "don't do this" warning. Either uncomment it (if the file should actually be deleted at this point) or remove the comment entirely.
+
+This is a different concern from Phase 9, which edits the same file: Phase 9 strips legacy *path-format branching* from `getSermonFileInfo()` / `resolveFileInfo()`, whereas this line is a dormant *delete* operation in a separate method. Non-overlapping, but coordinate if both land in the same window.
+
+Tasks:
+
+- [ ] Decide whether the delete should fire; uncomment it or delete the comment accordingly.
+
+Exit criteria:
+
+- No commented-out destructive storage operation remains in `SermonStorageService`.
+
+### Phase 25: Decide Fate of Legacy One-Shot Importers
+
+Priority: **Low** — file/table removal contingent on an operational decision.
+
+Status: **Investigate** — carried over from the 2026-05-14 audit; the four files still exist as of 2026-06-03.
+
+Two pairs of importer + command look like completed one-shot backfills:
+
+- [app/Services/LegacySermonImporter.php](../../app/Services/LegacySermonImporter.php) + [app/Console/Commands/ImportLegacySermonBatchCommand.php](../../app/Console/Commands/ImportLegacySermonBatchCommand.php) — imports MP3s from a CSV tape index.
+- [app/Services/LegacyPlayDateSongUsageImporter.php](../../app/Services/LegacyPlayDateSongUsageImporter.php) + [app/Console/Commands/ImportLegacySongUsageCommand.php](../../app/Console/Commands/ImportLegacySongUsageCommand.php) — backfills song usage from old SQL dumps.
+
+If the historic import (commit `b5088b74e` "Historic video import") is complete and won't be re-run, these — plus the `play_date` table, if it backs the second importer and nothing else reads it — can be removed.
+
+Tasks:
+
+- [ ] Confirm with the maintainer that the historic imports are complete and will not be re-run.
+- [ ] If confirmed, delete both importer/command pairs and their tests.
+- [ ] Check whether the `play_date` table is read by anything other than `LegacyPlayDateSongUsageImporter`; if not, drop it in a migration.
+
+Exit criteria:
+
+- No completed one-shot importer remains as live, runnable code.
+
 ## Suggested Order
 
-1. **Phase 15** — Trivial, no risk. 5 minutes.
+1. **Phase 15 + Phase 23 + Phase 24** — Trivial, no risk. Bundle the namespace move and the two doc/comment cleanups into one housekeeping PR. ~15 minutes.
 2. **Phase 13** — Regenerate or retire the stale schema dump, then add the drift guardrail.
 3. **Phase 9** — Verify production storage counts, then remove fallback/tooling if the migration is truly complete.
 4. **Phase 18** — Independent; removes a confusing pattern.
@@ -291,8 +352,9 @@ Exit criteria:
 6. **Phase 19** — Security-adjacent; consolidate before anything else touches `DeleteLivestreamUpload`.
 7. **Phase 16 + Phase 17 together** — Both rework the same `MediaUpload` component; do as one PR with full Dusk run.
 8. **Phase 20** — Mechanical rename across a known caller set.
-9. **Phase 14** — Ongoing incremental decomposition of oversized services (including `SermonViewPresenter`).
-10. **Phase 22** — Last, and only after Phase 14 has reduced `SermonViewPresenter`.
+9. **Phase 25** — Investigate-then-decide; needs maintainer sign-off that the historic imports are done before any deletion.
+10. **Phase 14** — Ongoing incremental decomposition of oversized services (including `SermonViewPresenter`).
+11. **Phase 22** — Last, and only after Phase 14 has reduced `SermonViewPresenter`.
 
 ## Definition of Done
 
@@ -306,4 +368,7 @@ Exit criteria:
 - [ ] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.
 - [ ] No action class is a pure single-call wrapper without guard logic.
 - [ ] `app/Presenters/` is split or scoped to a single responsibility.
+- [ ] No docblock or comment references the deleted `layouts/page` template.
+- [ ] No commented-out destructive storage operation remains in the codebase.
+- [ ] Completed one-shot legacy importers are removed (or explicitly retained with a documented reason).
 - [ ] Required quality gates pass for each delivered phase.
