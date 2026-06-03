@@ -112,7 +112,7 @@
                                     <summary class="list-none cursor-pointer px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
                                         <span class="flex items-center justify-between gap-3">
                                             <span>Original email</span>
-                                            <span class="text-xs font-normal text-gray-500">Plain text, sanitized HTML, and parser data</span>
+                                            <span class="text-xs font-normal text-gray-500">Plain text, sanitised HTML, and parser data</span>
                                         </span>
                                     </summary>
 
@@ -139,7 +139,7 @@
                                                     </div>
                                                 @elseif($review['has_html_body'] ?? false)
                                                     <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
-                                                        Stored HTML contained no safe renderable content after sanitization.
+                                                        Stored HTML contained no safe renderable content after sanitisation.
                                                     </p>
                                                 @else
                                                     <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">

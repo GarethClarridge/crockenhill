@@ -92,7 +92,7 @@
       Jesus Christ is by far the most influential person in history.
     </p>
     <p>
-      But how did a man born the son of a carpenter in a vilage
+      But how did a man born the son of a carpenter in a village
       smaller than Crockenhill, in a province on the edge of the
       Roman Empire end up shaping the course of history, the
       culture of nations, and the lives of up to 2 billion people?
