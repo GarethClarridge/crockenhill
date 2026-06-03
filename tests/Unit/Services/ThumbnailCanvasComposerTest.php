@@ -215,13 +215,26 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_allows_the_centered_foreground_subject_to_overlap_the_bottom_line_and_a_half_of_the_title(): void
     {
-        // Render a centered canvas with a 3-line title and a subject.
-        $title = 'This Title Has Three Lines For Centered Layout Verification';
-        $image = $this->centeredCanvas('symmetric', $title);
+        // Measure title geometry on a subject-free render and the subject on the
+        // composited render: the subject is drawn on top of the title, so measuring
+        // the title where the opaque subject overlaps it would under-report its extent
+        // (and line count) by exactly the region under test.
+        //
+        // TALL_CENTERED_TITLE is verified to wrap to three lines at a large font.
+        $titleImage = $this->centeredCanvas(null, self::TALL_CENTERED_TITLE);
+        $subjectImage = $this->centeredCanvas('symmetric', self::TALL_CENTERED_TITLE);
+
+        // Guard the fixture: the overlap rule branches on line count, so confirm the
+        // copy actually wrapped to three lines before asserting the three-line behaviour.
+        $this->assertSame(
+            3,
+            $this->countTitleLines($titleImage, 0, self::CENTERED_TITLE_MAX_Y),
+            'Expected the three-line fixture to render on exactly three lines'
+        );
 
         // Restrict to the title region to exclude the bottom-corner overlay (same teal).
-        $titleBounds = $this->tealPixelBounds($image, 0, self::CENTERED_TITLE_MAX_Y);
-        $subjectBounds = $this->greenPixelBounds($image);
+        $titleBounds = $this->tealPixelBounds($titleImage, 0, self::CENTERED_TITLE_MAX_Y);
+        $subjectBounds = $this->greenPixelBounds($subjectImage);
 
         $this->assertNotNull($titleBounds);
         $this->assertNotNull($subjectBounds);
@@ -240,7 +253,12 @@ class ThumbnailCanvasComposerTest extends TestCase
     {
         // Covers the two-line variant of the overlap rule (previously tested via reflection
         // as resolveCenteredForegroundTopY(43, 2, 100, 80) === 83).
-        $image = $this->centeredCanvas('symmetric', self::TWO_LINE_CENTERED_TITLE);
+        //
+        // Measure title geometry on a subject-free render and the subject on the
+        // composited render: the subject is drawn on top of the title, so measuring the
+        // title where the opaque subject overlaps it would under-report its extent.
+        $titleImage = $this->centeredCanvas(null, self::TWO_LINE_CENTERED_TITLE);
+        $subjectImage = $this->centeredCanvas('symmetric', self::TWO_LINE_CENTERED_TITLE);
 
         // Guard the fixture itself: the overlap rule branches on line count, so confirm
         // the copy actually wrapped to two lines before asserting the two-line behaviour.
@@ -248,13 +266,13 @@ class ThumbnailCanvasComposerTest extends TestCase
         // silently exercise the wrong branch and still pass.
         $this->assertSame(
             2,
-            $this->countTitleLines($image, 0, self::CENTERED_TITLE_MAX_Y),
+            $this->countTitleLines($titleImage, 0, self::CENTERED_TITLE_MAX_Y),
             'Expected the two-line fixture to render on exactly two lines'
         );
 
         // Restrict to the title region to exclude the bottom-corner overlay (same teal).
-        $titleBounds = $this->tealPixelBounds($image, 0, self::CENTERED_TITLE_MAX_Y);
-        $subjectBounds = $this->greenPixelBounds($image);
+        $titleBounds = $this->tealPixelBounds($titleImage, 0, self::CENTERED_TITLE_MAX_Y);
+        $subjectBounds = $this->greenPixelBounds($subjectImage);
 
         $this->assertNotNull($titleBounds);
         $this->assertNotNull($subjectBounds);
