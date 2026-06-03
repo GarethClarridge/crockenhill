@@ -43,7 +43,14 @@
             @enderror
 
             @foreach($items as $index => $item)
-                <div wire:key="{{ $item['key'] }}" class="rounded-lg border border-gray-200 p-4">
+                <div wire:key="{{ $item['key'] }}"
+                    x-data="{ visible: false }"
+                    x-init="$nextTick(() => visible = true)"
+                    x-show="visible"
+                    x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 translate-y-4"
+                    x-transition:enter-end="opacity-100 translate-y-0"
+                    class="rounded-lg border border-gray-200 p-4">
                     <div class="flex items-start justify-between gap-4">
                         <div class="flex items-center gap-2 text-sm font-medium text-gray-500">
                             <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700">
@@ -75,6 +82,7 @@
                                 size="xs"
                                 icon="trash"
                                 wire:click="removeItem({{ $index }})"
+                                wire:confirm="Remove this service item?"
                                 aria-label="Remove item {{ $index + 1 }}" />
                         </div>
                     </div>
@@ -101,7 +109,11 @@
                             <p class="text-sm text-gray-500">Search the song catalogue to link this item to a canonical song.</p>
 
                             @if(($songSuggestions[$index] ?? []) !== [])
-                                <div class="overflow-hidden rounded-md border border-gray-200">
+                                <div
+                                    x-transition:enter="transition ease-out duration-200"
+                                    x-transition:enter-start="opacity-0 -translate-y-2"
+                                    x-transition:enter-end="opacity-100 translate-y-0"
+                                    class="overflow-hidden rounded-md border border-gray-200">
                                     <div class="divide-y divide-gray-200 bg-white">
                                         @foreach($songSuggestions[$index] as $suggestion)
                                             <button

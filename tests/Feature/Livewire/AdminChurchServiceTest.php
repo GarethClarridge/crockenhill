@@ -1080,6 +1080,19 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function manage_service_form_has_removal_confirmation(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ManageChurchService::class)
+            ->assertSeeHtml('wire:confirm="Remove this service item?"')
+            ->call('addItem')
+            ->assertCount('form.items', 2)
+            ->call('removeItem', 1)
+            ->assertCount('form.items', 1);
+    }
+
+    #[Test]
     public function list_component_shows_pending_merge_badge(): void
     {
         $this->actingAs($this->admin);

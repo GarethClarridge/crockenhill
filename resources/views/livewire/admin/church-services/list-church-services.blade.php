@@ -79,7 +79,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($churchServices as $churchService)
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-50" wire:loading.class.delay.200ms="opacity-50">
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $churchService->date->format('j M Y') }}</p>
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ match($churchService->service) {
