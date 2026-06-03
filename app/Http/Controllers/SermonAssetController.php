@@ -11,7 +11,7 @@ use App\Services\SafeMarkdownRenderer;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;
-use App\Traits\HandlesSafePaths;
+use App\Support\Path;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -21,8 +21,6 @@ use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class SermonAssetController extends Controller
 {
-    use HandlesSafePaths;
-
     public function __construct(
         private readonly SermonStorageService $storageService,
         private readonly SermonExposurePolicy $exposurePolicy,
@@ -69,7 +67,7 @@ class SermonAssetController extends Controller
             abort(404, 'Audio file not found.');
         }
 
-        if ($this->isUnsafePath($sermon->audio_file_path)) {
+        if (Path::isUnsafe($sermon->audio_file_path)) {
             abort(404, 'Invalid audio file path.');
         }
 
@@ -105,7 +103,7 @@ class SermonAssetController extends Controller
             abort(404, 'Video file not found.');
         }
 
-        if ($this->isUnsafePath($sermon->video_file_path)) {
+        if (Path::isUnsafe($sermon->video_file_path)) {
             abort(404, 'Invalid video file path.');
         }
 
@@ -145,7 +143,7 @@ class SermonAssetController extends Controller
             abort(404, 'Thumbnail not found.');
         }
 
-        if ($this->isUnsafePath($sermon->thumbnail_file_path)) {
+        if (Path::isUnsafe($sermon->thumbnail_file_path)) {
             abort(404, 'Invalid thumbnail file path.');
         }
 
@@ -180,7 +178,7 @@ class SermonAssetController extends Controller
             abort(404, 'Card thumbnail not found.');
         }
 
-        if ($this->isUnsafePath($cardThumbnailPath)) {
+        if (Path::isUnsafe($cardThumbnailPath)) {
             abort(404, 'Invalid thumbnail file path.');
         }
 

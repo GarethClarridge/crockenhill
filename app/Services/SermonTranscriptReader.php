@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Sermon;
-use App\Traits\HandlesSafePaths;
+use App\Support\Path;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SermonTranscriptReader
 {
-    use HandlesSafePaths, SanitizesLogData;
+    use SanitizesLogData;
 
     public function __construct(
         private readonly TranscriptStorageService $transcriptStorageService,
@@ -37,7 +37,7 @@ class SermonTranscriptReader
 
         $path = trim((string) $sermon->transcript_file_path);
 
-        if ($this->isUnsafePath($path)) {
+        if (Path::isUnsafe($path)) {
             Log::warning('Unsafe path detected in transcript path', [
                 'sermon_id' => $sermon->id,
                 'path' => $this->sanitizeForLog($path),

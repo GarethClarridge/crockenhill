@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Presenters\PreacherSitemapPresenter;
+use App\Support\Path;
 use Database\Factories\PreacherFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -116,7 +117,7 @@ class Preacher extends Model implements Sitemapable
                     return null;
                 }
 
-                if (str_starts_with($this->image_path, 'http') || str_starts_with($this->image_path, '//') || str_starts_with($this->image_path, '/')) {
+                if (Path::isAlreadyResolvableUrl($this->image_path)) {
                     return $this->image_path;
                 }
 

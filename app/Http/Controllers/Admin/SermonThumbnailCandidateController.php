@@ -7,15 +7,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Sermon;
 use App\Services\SermonStorageService;
-use App\Traits\HandlesSafePaths;
+use App\Support\Path;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class SermonThumbnailCandidateController extends Controller
 {
-    use HandlesSafePaths;
-
     public function __construct(
         private readonly SermonStorageService $storageService,
     ) {}
@@ -32,7 +30,7 @@ class SermonThumbnailCandidateController extends Controller
             abort(404, 'Thumbnail candidate not found.');
         }
 
-        if ($this->isUnsafePath($thumbnailPath)) {
+        if (Path::isUnsafe($thumbnailPath)) {
             abort(404, 'Invalid thumbnail file path.');
         }
 

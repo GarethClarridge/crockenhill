@@ -7,15 +7,13 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceSection;
-use App\Traits\HandlesSafePaths;
+use App\Support\Path;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class ServiceSectionCandidateMediaController extends Controller
 {
-    use HandlesSafePaths;
-
     public function serveAudio(ServiceSection $serviceSection): BinaryFileResponse
     {
         return $this->serveAsset(
@@ -46,7 +44,7 @@ class ServiceSectionCandidateMediaController extends Controller
             'Candidate media is no longer available.',
         );
 
-        if (! is_string($path) || $path === '' || $this->isUnsafePath($path)) {
+        if (! is_string($path) || $path === '' || Path::isUnsafe($path)) {
             abort(404, 'Candidate media not found.');
         }
 

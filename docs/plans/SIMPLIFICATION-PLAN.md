@@ -185,21 +185,24 @@ Exit criteria:
 
 Priority: **Low-Medium** — security-adjacent; worth doing once.
 
-Status: **Pending**.
+Status: **Complete** (2026-06-03).
 
-There are currently three distinct implementations of the same path-traversal / scheme-injection guard:
+Consolidated to a single static helper `App\Support\Path` (sibling of `MediaAssetPath`), replacing the stateless `HandlesSafePaths` trait. Two predicates now live there:
 
-1. [app/Traits/HandlesSafePaths.php](../../app/Traits/HandlesSafePaths.php) — the canonical version (`isUnsafePath()`), used by 5 callers.
-2. [app/Actions/DeleteLivestreamUpload.php:310](../../app/Actions/DeleteLivestreamUpload.php#L310) and [app/Actions/DeleteLivestreamUpload.php:436-447](../../app/Actions/DeleteLivestreamUpload.php#L436-L447) — open-coded `str_contains($path, '..')`, absolute path, and Windows drive-letter checks.
-3. [app/Models/Preacher.php:117](../../app/Models/Preacher.php#L117) — separate `http|//|/` check on `image_path`.
+- `Path::isUnsafe()` — the canonical reject-guard (traversal `..`, absolute `/`/`\`, URI scheme `://`). All 5 former trait callers ([SermonAssetController](../../app/Http/Controllers/SermonAssetController.php), [SermonThumbnailCandidateController](../../app/Http/Controllers/Admin/SermonThumbnailCandidateController.php), [ServiceSectionCandidateMediaController](../../app/Http/Controllers/Admin/ServiceSectionCandidateMediaController.php), [SermonStorageService](../../app/Services/SermonStorageService.php), [SermonTranscriptReader](../../app/Services/SermonTranscriptReader.php)) now call it directly, as does the stored-target branch of [DeleteLivestreamUpload](../../app/Actions/DeleteLivestreamUpload.php#L311) (replacing its open-coded `str_contains($path, '..')`).
+- `Path::isAlreadyResolvableUrl()` — captures `Preacher`'s *inverse* `http|//|/` predicate verbatim (it is an allow-as-is check, not a reject-guard, so it is a distinct named method rather than an abuse of `isUnsafe()`).
+
+`DeleteLivestreamUpload::isAbsolutePath()` / `isSafeAbsoluteDeletionPath()` were **intentionally left in place** — they implement the opposite policy (deliberately accept absolute paths, then confine them to `storage_path()`/`sys_get_temp_dir()`), so they are not duplicates of the canonical guard.
+
+The trait and its test were deleted; a new focused [tests/Unit/Support/PathTest.php](../../tests/Unit/Support/PathTest.php) covers both predicates.
 
 Tasks:
 
-- [ ] Promote the logic to a single static helper on a new `app/Support/Path.php` (or keep the trait but use it consistently — the trait pattern has no benefit since there is no state).
-- [ ] Replace the inline checks in `DeleteLivestreamUpload` and `Preacher` with calls to the canonical helper.
-- [ ] Add a single focused unit test covering: relative traversal (`../foo`), absolute path (`/foo`), windows path (`\foo`), URI scheme (`http://`, `file://`), and a safe relative path.
+- [x] Promote the logic to a single static helper on a new `app/Support/Path.php`.
+- [x] Replace the inline checks in `DeleteLivestreamUpload` and `Preacher` with calls to the canonical helper.
+- [x] Add a single focused unit test covering: relative traversal (`../foo`), absolute path (`/foo`), windows path (`\foo`), URI scheme (`http://`, `file://`), and a safe relative path.
 
-Exit criteria:
+Exit criteria (met):
 
 - Exactly one implementation of "is this path unsafe?" across the codebase.
 
@@ -358,7 +361,7 @@ Exit criteria:
 - [x] No file in `app/Services/` is an exception class.
 - [ ] No project-local trait is consumed by exactly one class for state-bearing behavior.
 - [x] No project code branches on `app()->runningUnitTests()`.
-- [ ] Exactly one canonical implementation of path-safety checks.
+- [x] Exactly one canonical implementation of path-safety checks.
 - [ ] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.
 - [x] No action class is a pure single-call wrapper without guard logic.
 - [ ] `app/Presenters/` is split or scoped to a single responsibility.
