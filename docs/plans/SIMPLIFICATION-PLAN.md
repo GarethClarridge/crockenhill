@@ -77,13 +77,13 @@ Exit criteria:
 
 Priority: **Low-Medium** — incremental work, no urgency.
 
-Status: **In progress** — first increment landed 2026-06-03 (`SermonViewPresenter` pure-formatting extraction); five services and the remainder of the presenter still oversized. Current line counts (2026-06-03):
+Status: **In progress** — two increments landed 2026-06-03 (`SermonViewPresenter` pure-formatting extraction; `MetadataExtractionService` filename-parsing extraction). Remaining hotspots still oversized. Current line counts (2026-06-03, post-increment-2):
 
 | Service | Lines | Public Methods (prior count) |
 |---------|------:|---------------:|
-| [MetadataExtractionService](../../app/Services/MetadataExtractionService.php) | 952 | 12 |
 | [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 922 | — |
 | [ThumbnailGenerationService](../../app/Services/ThumbnailGenerationService.php) | 848 | 7 |
+| [MetadataExtractionService](../../app/Services/MetadataExtractionService.php) | 734 | 12 |
 | [VideoExtractionService](../../app/Services/VideoExtractionService.php) | 579 | 8 |
 | [AudioTranscriptionService](../../app/Services/AudioTranscriptionService.php) | 558 | 8 |
 | [SermonAnalysisService](../../app/Services/SermonAnalysisService.php) | 502 | 6 |
@@ -91,6 +91,8 @@ Status: **In progress** — first increment landed 2026-06-03 (`SermonViewPresen
 `SermonViewPresenter` was added here from the May audit as the largest single class in the codebase.
 
 Increment 1 (2026-06-03): extracted the dependency-free duration/outline formatting out of `SermonViewPresenter` into a stateless [SermonContentFormatter](../../app/Support/SermonContentFormatter.php) (`humanDuration`, `iso8601Duration`, `plainTextOutline`). The presenter's `formattedDuration` / `durationIso8601` / `plainTextOutline` now delegate; their per-method memoization was dropped (these are cheap pure functions of one column, so request-level caching bought nothing). Net: presenter 995 → 922 lines, plus a new 101-line collaborator covered directly by [tests/Unit/Support/SermonContentFormatterTest.php](../../tests/Unit/Support/SermonContentFormatterTest.php) — no DB or storage faking required. Public API unchanged; the 49 presenter/formatter tests and 55 downstream consumer tests pass.
+
+Increment 2 (2026-06-03): extracted the pure, IO-free date/service inference out of `MetadataExtractionService` into [SermonFilenameParser](../../app/Services/SermonFilenameParser.php) (`extractDateFromFilename`, `tryExtractDateFromFilename`, `determineServiceFromFilename`, `determineServiceFromTime`, `isValidDate`, plus the `MONTH_NAME_NUMBERS` table and the `parseExplicitDate`/`tryExtractNamedMonthDate` helpers). The parser is injected into `MetadataExtractionService` (constructor default `new SermonFilenameParser`, so no provider binding and every existing `new MetadataExtractionService()` call site keeps working); the matching public methods now delegate, and the FFprobe-based `extractDateFromVideo` orchestration stays in the service since it is genuinely IO. Net: service 952 → 734 lines, plus a new 290-line collaborator with its own fast unit test [tests/Unit/Services/SermonFilenameParserTest.php](../../tests/Unit/Services/SermonFilenameParserTest.php). The existing `MetadataExtractionServiceTest` now doubles as delegation-seam coverage. Public API unchanged; 32 parser/service tests and 63 downstream consumer tests pass, PHPStan clean.
 
 Tasks:
 
