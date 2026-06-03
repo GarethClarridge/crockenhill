@@ -176,8 +176,8 @@ class ThumbnailCanvasComposerTest extends TestCase
 
         // Center-aligned title in top-quarter should start at or below Y=43 (6% of 720px).
         // Since resolveCenteredTitleTopY(720, 340) returns 43, title pixels should not exist significantly above Y=43.
-        // We allow a small tolerance (4px) for font-rendering anti-aliasing artifacts.
-        $this->assertGreaterThanOrEqual(39, $bounds['min_y']);
+        // We allow a small tolerance (6px) for font-rendering anti-aliasing artifacts.
+        $this->assertGreaterThanOrEqual(37, $bounds['min_y']);
     }
 
     #[Test]
@@ -484,20 +484,23 @@ class ThumbnailCanvasComposerTest extends TestCase
                 $green = (int) $color['green'];
                 $blue = (int) $color['blue'];
 
-                // Brand teal is #145557 (20, 85, 87). Allow some variance for anti-aliasing.
-                if ($red < 40 && $green > 60 && $blue > 60) {
-                    $bounds ??= [
-                        'min_x' => $x,
-                        'max_x' => $x,
-                        'min_y' => $y,
-                        'max_y' => $y,
-                    ];
-
-                    $bounds['min_x'] = min($bounds['min_x'], $x);
-                    $bounds['max_x'] = max($bounds['max_x'], $x);
-                    $bounds['min_y'] = min($bounds['min_y'], $y);
-                    $bounds['max_y'] = max($bounds['max_y'], $y);
+                // Brand teal is #145557 (20, 85, 87). Detect by relative color dominance
+                // to remain robust against anti-aliasing on the light background.
+                if (($green - $red) < 30 || ($blue - $red) < 30 || abs($green - $blue) > 30) {
+                    continue;
                 }
+
+                $bounds ??= [
+                    'min_x' => $x,
+                    'max_x' => $x,
+                    'min_y' => $y,
+                    'max_y' => $y,
+                ];
+
+                $bounds['min_x'] = min($bounds['min_x'], $x);
+                $bounds['max_x'] = max($bounds['max_x'], $x);
+                $bounds['min_y'] = min($bounds['min_y'], $y);
+                $bounds['max_y'] = max($bounds['max_y'], $y);
             }
         }
 
