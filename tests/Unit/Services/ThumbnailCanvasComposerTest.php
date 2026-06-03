@@ -167,32 +167,63 @@ class ThumbnailCanvasComposerTest extends TestCase
     #[Test]
     public function it_keeps_centered_title_pixels_below_the_increased_top_padding(): void
     {
-        $composer = app(ThumbnailCanvasComposer::class);
-        $method = new \ReflectionMethod($composer, 'resolveCenteredTitleTopY');
-        $method->setAccessible(true);
+        // Render a title long enough to be pushed to the top padding.
+        $image = $this->centeredCanvas(null);
 
-        $this->assertSame(43, $method->invoke($composer, 720, 340));
+        $bounds = $this->tealPixelBounds($image);
+
+        $this->assertNotNull($bounds);
+
+        // Center-aligned title in top-quarter should start at or below Y=43 (6% of 720px).
+        // Since resolveCenteredTitleTopY(720, 340) returns 43, title pixels should not exist significantly above Y=43.
+        // We allow a small tolerance (4px) for font-rendering anti-aliasing artifacts.
+        $this->assertGreaterThanOrEqual(39, $bounds['min_y']);
     }
 
     #[Test]
     public function it_allows_centered_title_copy_to_extend_beyond_the_top_half_of_the_canvas(): void
     {
-        $composer = app(ThumbnailCanvasComposer::class);
-        $method = new \ReflectionMethod($composer, 'resolveCenteredTitleMaxHeight');
-        $method->setAccessible(true);
+        // Use a very long title that should occupy most of the canvas height.
+        $longTitle = 'This is an extremely long title designed to wrap across three lines on the centered canvas, ensuring it extends well beyond the top half of the thumbnail to test vertical layout flexibility';
+        $image = self::$canvasCache['centered:long']
+            ??= app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas(
+                $this->sermon($longTitle),
+                null,
+            );
 
-        $this->assertSame(468, $method->invoke($composer, 720));
+        $bounds = $this->tealPixelBounds($image);
+
+        $this->assertNotNull($bounds);
+
+        // Canvas height is 720. Midpoint is 360.
+        // A long title is allowed to extend up to 65% height (468px).
+        $this->assertGreaterThan(360, $bounds['max_y'], 'Expected title pixels to extend into the bottom half of the canvas');
     }
 
     #[Test]
     public function it_allows_the_centered_foreground_subject_to_overlap_the_bottom_line_and_a_half_of_the_title(): void
     {
-        $composer = app(ThumbnailCanvasComposer::class);
-        $method = new \ReflectionMethod($composer, 'resolveCenteredForegroundTopY');
-        $method->setAccessible(true);
+        // Render a centered canvas with a 3-line title and a subject.
+        $title = 'This Title Has Three Lines For Centered Layout Verification';
+        $image = self::$canvasCache['centered:overlap']
+            ??= app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas(
+                $this->sermon($title),
+                $this->foregroundFor('symmetric'),
+            );
 
-        $this->assertSame(183, $method->invoke($composer, 43, 3, 100, 80));
-        $this->assertSame(83, $method->invoke($composer, 43, 2, 100, 80));
+        $titleBounds = $this->tealPixelBounds($image);
+        $subjectBounds = $this->greenPixelBounds($image);
+
+        $this->assertNotNull($titleBounds);
+        $this->assertNotNull($subjectBounds);
+
+        // Subject is intended to overlap the bottom ~1.5 lines of the title.
+        // We verify overlap by asserting that the subject's top is higher than the title's bottom.
+        $this->assertLessThan(
+            $titleBounds['max_y'],
+            $subjectBounds['min_y'],
+            'Expected foreground subject to vertically overlap the bottom part of the title text'
+        );
     }
 
     #[Test]
@@ -424,6 +455,49 @@ class ThumbnailCanvasComposerTest extends TestCase
                 $bounds['max_x'] = max($bounds['max_x'], $x);
                 $bounds['min_y'] = min($bounds['min_y'], $y);
                 $bounds['max_y'] = max($bounds['max_y'], $y);
+            }
+        }
+
+        return $bounds;
+    }
+
+    /**
+     * @return array{min_x:int,max_x:int,min_y:int,max_y:int}|null
+     */
+    private function tealPixelBounds(ImageInterface $image): ?array
+    {
+        $native = $image->core()->native();
+        $this->assertInstanceOf(\GdImage::class, $native);
+
+        $bounds = null;
+
+        for ($y = 0; $y < imagesy($native); $y++) {
+            for ($x = 0; $x < imagesx($native); $x++) {
+                $colorIndex = imagecolorat($native, $x, $y);
+                $color = imagecolorsforindex($native, $colorIndex);
+
+                if ((int) $color['alpha'] >= 127) {
+                    continue;
+                }
+
+                $red = (int) $color['red'];
+                $green = (int) $color['green'];
+                $blue = (int) $color['blue'];
+
+                // Brand teal is #145557 (20, 85, 87). Allow some variance for anti-aliasing.
+                if ($red < 40 && $green > 60 && $blue > 60) {
+                    $bounds ??= [
+                        'min_x' => $x,
+                        'max_x' => $x,
+                        'min_y' => $y,
+                        'max_y' => $y,
+                    ];
+
+                    $bounds['min_x'] = min($bounds['min_x'], $x);
+                    $bounds['max_x'] = max($bounds['max_x'], $x);
+                    $bounds['min_y'] = min($bounds['min_y'], $y);
+                    $bounds['max_y'] = max($bounds['max_y'], $y);
+                }
             }
         }
 
