@@ -210,7 +210,7 @@ Exit criteria (met):
 
 Priority: **Medium** — clarifies an existing naming inconsistency.
 
-Status: **Pending**.
+Status: **Complete** (2026-06-03). All three read-side caching wrappers were renamed and moved into `app/Services/` (`MeetingListCache`, `PreacherListCache`, `PageListCache`); `SermonRepository` stays put. Their two integration tests moved to `tests/Integration/Services/`. `PageCardService` dropped its now-same-namespace import. PHPStan clean; 117 focused tests pass (caches, consumers, sitemap/page-card/SEO presenters, calendar-event Livewire).
 
 Three of the four classes under [app/Repositories/](../../app/Repositories/) are not repositories in the DDD sense. They are read-side caching wrappers:
 
@@ -223,11 +223,11 @@ Two sibling classes already follow a cleaner convention in `Services/`: [PublicP
 
 Tasks:
 
-- [ ] Rename `MeetingListRepository` → `MeetingListCache`, move to `app/Services/`.
-- [ ] Rename `PreacherListRepository` → `PreacherListCache`, move to `app/Services/`.
-- [ ] Rename `PageRepository` → `PageListCache`, move to `app/Services/`. (The `ADMIN_LIST_CACHE_KEY` constants and observer references must be updated.)
-- [ ] Leave `SermonRepository` in place — it is a genuine repository with substantive query logic.
-- [ ] Update [SitemapCacheObserver.php](../../app/Observers/SitemapCacheObserver.php), [AppServiceProvider.php](../../app/Providers/AppServiceProvider.php), `tests/TestCase.php`, and any controllers/Livewire components/presenters/tests that import the renamed classes from `App\Repositories`. `PreacherObserver` no longer imports these classes.
+- [x] Rename `MeetingListRepository` → `MeetingListCache`, move to `app/Services/`.
+- [x] Rename `PreacherListRepository` → `PreacherListCache`, move to `app/Services/`.
+- [x] Rename `PageRepository` → `PageListCache`, move to `app/Services/`. (The `ADMIN_LIST_CACHE_KEY` constants and observer references must be updated.)
+- [x] Leave `SermonRepository` in place — it is a genuine repository with substantive query logic.
+- [x] Update [SitemapCacheObserver.php](../../app/Observers/SitemapCacheObserver.php), [AppServiceProvider.php](../../app/Providers/AppServiceProvider.php), `tests/TestCase.php`, and any controllers/Livewire components/presenters/tests that import the renamed classes from `App\Repositories`. `PreacherObserver` no longer imports these classes.
 
 Exit criteria:
 
@@ -362,7 +362,7 @@ Exit criteria:
 - [ ] No project-local trait is consumed by exactly one class for state-bearing behavior.
 - [x] No project code branches on `app()->runningUnitTests()`.
 - [x] Exactly one canonical implementation of path-safety checks.
-- [ ] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.
+- [x] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.
 - [x] No action class is a pure single-call wrapper without guard logic.
 - [ ] `app/Presenters/` is split or scoped to a single responsibility.
 - [x] No docblock or comment references the deleted `layouts/page` template.

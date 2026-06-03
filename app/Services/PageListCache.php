@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Repositories;
+namespace App\Services;
 
 use App\Enums\PageArea;
 use App\Models\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
-class PageRepository
+class PageListCache
 {
     /**
      * @var list<string>

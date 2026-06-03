@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Repositories;
+namespace App\Services;
 
 use App\Models\Preacher;
 use Illuminate\Database\Eloquent\Builder;
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
-class PreacherListRepository
+class PreacherListCache
 {
     public const ADMIN_LIST_CACHE_KEY = 'admin_preacher_list';
 

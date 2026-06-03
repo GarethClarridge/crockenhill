@@ -6,7 +6,7 @@ namespace Tests\Integration\Presenters;
 
 use App\Models\Preacher;
 use App\Presenters\SermonArchiveSeoPresenter;
-use App\Repositories\PreacherListRepository;
+use App\Services\PreacherListCache;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -222,9 +222,9 @@ class SermonArchiveSeoPresenterTest extends TestCase
     {
         $preacher = Preacher::factory()->create(['name' => 'Active Preacher', 'is_active' => true]);
 
-        // PreacherListRepository is a scoped singleton, we need to ensure the cache is clear
+        // PreacherListCache is a scoped singleton, we need to ensure the cache is clear
         // or just let it load since we are in an integration test.
-        app(PreacherListRepository::class)->clearInternalCaches();
+        app(PreacherListCache::class)->clearInternalCaches();
 
         $filters = [
             'book' => null,
@@ -233,7 +233,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
             'series' => null,
         ];
 
-        // Should use PreacherListRepository::forPublicList() which includes active preachers
+        // Should use PreacherListCache::forPublicList() which includes active preachers
         $this->assertStringContainsString('Active Preacher', $this->presenter->title($filters));
     }
 
@@ -242,7 +242,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
     {
         $preacher = Preacher::factory()->inactive()->create(['name' => 'Inactive Preacher']);
 
-        app(PreacherListRepository::class)->clearInternalCaches();
+        app(PreacherListCache::class)->clearInternalCaches();
 
         $filters = [
             'book' => null,

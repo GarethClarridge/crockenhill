@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\View\Presenters;
 
 use App\Models\Page;
-use App\Repositories\PageRepository;
+use App\Services\PageListCache;
 use Illuminate\Support\Collection;
 
 class PageLinksRepository
 {
     public function __construct(
-        private readonly PageRepository $pageRepository
+        private readonly PageListCache $pageRepository
     ) {}
 
     /**
@@ -75,7 +75,7 @@ class PageLinksRepository
         array $extraExcludedSlugs = [],
     ): Collection {
         /**
-         * Performance Optimization: Use PageRepository to fetch cached area links.
+         * Performance Optimization: Use PageListCache to fetch cached area links.
          * Shuffling and filtering are performed in PHP on the cached collection
          * to avoid database I/O on every request, which is efficient for
          * small area-specific datasets.

@@ -12,8 +12,8 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
+use App\Services\PreacherListCache;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -111,7 +111,7 @@ class ListSermons extends Component
      */
     protected function getPreachers(): Collection
     {
-        return app(PreacherListRepository::class)->forAdminList();
+        return app(PreacherListCache::class)->forAdminList();
     }
 
     /**

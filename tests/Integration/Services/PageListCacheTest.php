@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Repositories;
+namespace Tests\Integration\Services;
 
 use App\Enums\PageArea;
 use App\Models\Page;
-use App\Repositories\PageRepository;
+use App\Services\PageListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class PageRepositoryTest extends TestCase
+class PageListCacheTest extends TestCase
 {
     use RefreshDatabase;
 
-    private PageRepository $repository;
+    private PageListCache $repository;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->repository = app(PageRepository::class);
+        $this->repository = app(PageListCache::class);
     }
 
     #[Test]

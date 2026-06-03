@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use App\Models\Preacher;
-use App\Repositories\PreacherListRepository;
+use App\Services\PreacherListCache;
 
 class SermonArchiveSeoPresenter
 {
@@ -15,7 +15,7 @@ class SermonArchiveSeoPresenter
     private array $memoizedPreacherNames = [];
 
     public function __construct(
-        private readonly PreacherListRepository $preacherListRepository,
+        private readonly PreacherListCache $preacherListRepository,
     ) {}
 
     /**

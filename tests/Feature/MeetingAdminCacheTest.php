@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Meeting;
 use App\Models\Page;
-use App\Repositories\MeetingListRepository;
+use App\Services\MeetingListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
@@ -18,38 +18,38 @@ class MeetingAdminCacheTest extends TestCase
 
     protected $seed = true;
 
-    private MeetingListRepository $repository;
+    private MeetingListCache $repository;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->repository = app(MeetingListRepository::class);
+        $this->repository = app(MeetingListCache::class);
     }
 
     #[Test]
     public function admin_meeting_list_cache_is_populated_on_request(): void
     {
-        Cache::forget(MeetingListRepository::ADMIN_LIST_CACHE_KEY);
+        Cache::forget(MeetingListCache::ADMIN_LIST_CACHE_KEY);
 
-        $this->assertFalse(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
 
         $this->repository->forAdminList();
 
-        $this->assertTrue(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
     }
 
     #[Test]
     public function admin_meeting_list_cache_is_invalidated_when_meeting_is_created(): void
     {
         $this->repository->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
 
         Meeting::factory()->create([
             'slug' => 'new-meeting',
         ]);
 
-        $this->assertFalse(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
     }
 
     #[Test]
@@ -60,11 +60,11 @@ class MeetingAdminCacheTest extends TestCase
         ]);
 
         $this->repository->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
 
         $meeting->update(['who' => 'Updated Who']);
 
-        $this->assertFalse(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
     }
 
     #[Test]
@@ -75,11 +75,11 @@ class MeetingAdminCacheTest extends TestCase
         ]);
 
         $this->repository->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
 
         $meeting->delete();
 
-        $this->assertFalse(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
     }
 
     #[Test]
@@ -96,10 +96,10 @@ class MeetingAdminCacheTest extends TestCase
         ]);
 
         $this->repository->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
 
         $page->update(['heading' => 'New Heading']);
 
-        $this->assertFalse(Cache::has(MeetingListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
     }
 }

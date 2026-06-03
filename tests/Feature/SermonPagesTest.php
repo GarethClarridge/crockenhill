@@ -12,7 +12,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
-use App\Repositories\PreacherListRepository;
+use App\Services\PreacherListCache;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -399,7 +399,7 @@ class SermonPagesTest extends TestCase
         Sermon::factory()->create(['preacher_id' => $preacher->id, 'preacher' => $preacher->name]);
 
         // Warm the cache so the HTTP request exercises deserialization, not the DB path.
-        app(PreacherListRepository::class)->forPublicList();
+        app(PreacherListCache::class)->forPublicList();
 
         $this->get('/christ/sermons')->assertStatus(200);
     }

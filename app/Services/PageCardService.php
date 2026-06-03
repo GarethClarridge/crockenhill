@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\Presenters\PageCardPresenter;
-use App\Repositories\PageRepository;
 use Illuminate\Support\Collection;
 
 class PageCardService
@@ -45,7 +44,7 @@ class PageCardService
 
     public function __construct(
         private readonly PageCardPresenter $pageCardPresenter,
-        private readonly PageRepository $pageRepository
+        private readonly PageListCache $pageRepository
     ) {}
 
     /**
@@ -78,7 +77,7 @@ class PageCardService
     public function churchLinks(): Collection
     {
         /**
-         * Performance Optimization: Use PageRepository to fetch cached area links.
+         * Performance Optimization: Use PageListCache to fetch cached area links.
          */
         $pages = $this->pageRepository->getAllLinksForArea(PageArea::Church)
             ->filter(function (Page $page) {

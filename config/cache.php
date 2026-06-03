@@ -121,7 +121,7 @@ return [
         Collection::class,
         Page::class,
 
-        // Preacher models cached by PreacherListRepository::forPublicList()
+        // Preacher models cached by PreacherListCache::forPublicList()
         // for the public sermons browse filter and preachers index.
         Preacher::class,
 

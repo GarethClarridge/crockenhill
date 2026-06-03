@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Page;
-use App\Repositories\PageRepository;
 use App\Services\PageCardService;
+use App\Services\PageListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
@@ -27,7 +27,7 @@ class PageCacheTest extends TestCase
         $this->assertFalse(Cache::has("page_links_{$area}"));
 
         // Use the repository directly to verify caching
-        $repository = app(PageRepository::class);
+        $repository = app(PageListCache::class);
         $repository->getAllLinksForArea($area);
 
         $this->assertTrue(Cache::has("page_links_{$area}"));
@@ -37,7 +37,7 @@ class PageCacheTest extends TestCase
     public function page_links_cache_is_invalidated_when_page_is_created(): void
     {
         $area = 'church';
-        $repository = app(PageRepository::class);
+        $repository = app(PageListCache::class);
         $repository->getAllLinksForArea($area);
 
         $this->assertTrue(Cache::has("page_links_{$area}"));
@@ -61,7 +61,7 @@ class PageCacheTest extends TestCase
             'admin' => 'no',
         ]);
 
-        $repository = app(PageRepository::class);
+        $repository = app(PageListCache::class);
         $repository->getAllLinksForArea($area);
 
         $this->assertTrue(Cache::has("page_links_{$area}"));
@@ -81,7 +81,7 @@ class PageCacheTest extends TestCase
             'admin' => 'no',
         ]);
 
-        $repository = app(PageRepository::class);
+        $repository = app(PageListCache::class);
         $repository->getAllLinksForArea($area);
 
         $this->assertTrue(Cache::has("page_links_{$area}"));
@@ -94,7 +94,7 @@ class PageCacheTest extends TestCase
     #[Test]
     public function page_links_cache_is_area_specific(): void
     {
-        $repository = app(PageRepository::class);
+        $repository = app(PageListCache::class);
 
         $repository->getAllLinksForArea('church');
         $repository->getAllLinksForArea('community');

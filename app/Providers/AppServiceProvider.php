@@ -14,11 +14,11 @@ use App\Presenters\SermonArchiveSeoPresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonSitemapPresenter;
 use App\Presenters\SermonViewPresenter;
-use App\Repositories\MeetingListRepository;
-use App\Repositories\PageRepository;
-use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
+use App\Services\MeetingListCache;
 use App\Services\PageImageCacheService;
+use App\Services\PageListCache;
+use App\Services\PreacherListCache;
 use App\Services\PublicMeetingReadModelCache;
 use App\Services\PublicPageReadModelCache;
 use App\Services\SermonExposurePolicy;
@@ -58,9 +58,9 @@ class AppServiceProvider extends ServiceProvider
          * leaking state across long-running workers.
          */
         $this->app->scoped(SermonRepository::class);
-        $this->app->scoped(PageRepository::class);
-        $this->app->scoped(PreacherListRepository::class);
-        $this->app->scoped(MeetingListRepository::class);
+        $this->app->scoped(PageListCache::class);
+        $this->app->scoped(PreacherListCache::class);
+        $this->app->scoped(MeetingListCache::class);
         $this->app->scoped(SermonExposurePolicy::class);
         $this->app->scoped(SermonStorageService::class);
         $this->app->scoped(SermonTranscriptReader::class);

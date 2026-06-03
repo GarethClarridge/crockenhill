@@ -8,9 +8,9 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Repositories\PageRepository;
 use App\Repositories\SermonRepository;
 use App\Services\PageImageCacheService;
+use App\Services\PageListCache;
 use App\Services\PodcastFeedService;
 use App\Services\PublicMeetingReadModelCache;
 use App\Services\PublicPageReadModelCache;
@@ -22,7 +22,7 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
 {
     public function __construct(
         private readonly SermonRepository $sermonRepository,
-        private readonly PageRepository $pageRepository,
+        private readonly PageListCache $pageRepository,
         private readonly PageImageCacheService $pageImageCacheService,
         private readonly PodcastFeedService $podcastFeedService,
         private readonly PublicMeetingReadModelCache $publicMeetingReadModelCache,

@@ -15,8 +15,8 @@ use App\Presenters\SeriesItemListPresenter;
 use App\Presenters\SermonArchiveSeoPresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonViewPresenter;
-use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
+use App\Services\PreacherListCache;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
 use App\Support\BibleCanon;
@@ -132,7 +132,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function preachers(PreacherItemListPresenter $itemListPresenter, PreacherListRepository $preacherListRepository): View
+    public function preachers(PreacherItemListPresenter $itemListPresenter, PreacherListCache $preacherListRepository): View
     {
         $page = Page::query()
             ->select(['id', 'slug', 'body'])

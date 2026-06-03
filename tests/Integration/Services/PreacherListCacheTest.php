@@ -2,34 +2,34 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Repositories;
+namespace Tests\Integration\Services;
 
 use App\Enums\SermonContentType;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Repositories\PreacherListRepository;
+use App\Services\PreacherListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class PreacherListRepositoryTest extends TestCase
+class PreacherListCacheTest extends TestCase
 {
     use RefreshDatabase;
 
-    private PreacherListRepository $repository;
+    private PreacherListCache $repository;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->repository = app(PreacherListRepository::class);
+        $this->repository = app(PreacherListCache::class);
     }
 
     #[Test]
     public function it_returns_active_preachers_for_admin_list_and_caches_the_result(): void
     {
-        Cache::forget(PreacherListRepository::ADMIN_LIST_CACHE_KEY);
+        Cache::forget(PreacherListCache::ADMIN_LIST_CACHE_KEY);
         Preacher::query()->delete();
 
         $preacherA = Preacher::factory()->create(['name' => 'Zack', 'is_active' => true]);
@@ -43,13 +43,13 @@ class PreacherListRepositoryTest extends TestCase
         $this->assertEquals($preacherB->id, $list->keys()[0]);
         $this->assertEquals($preacherA->id, $list->keys()[1]);
 
-        $this->assertTrue(Cache::has(PreacherListRepository::ADMIN_LIST_CACHE_KEY));
+        $this->assertTrue(Cache::has(PreacherListCache::ADMIN_LIST_CACHE_KEY));
     }
 
     #[Test]
     public function it_returns_active_preachers_with_sermon_counts_for_public_list_and_caches_the_result(): void
     {
-        Cache::forget(PreacherListRepository::PUBLIC_LIST_CACHE_KEY);
+        Cache::forget(PreacherListCache::PUBLIC_LIST_CACHE_KEY);
         Preacher::query()->delete();
         Sermon::query()->delete();
 
@@ -78,13 +78,13 @@ class PreacherListRepositoryTest extends TestCase
         $this->assertEquals('Preacher B', $list->last()->name);
         $this->assertEquals(1, $list->last()->sermons_count);
 
-        $this->assertTrue(Cache::has(PreacherListRepository::PUBLIC_LIST_CACHE_KEY));
+        $this->assertTrue(Cache::has(PreacherListCache::PUBLIC_LIST_CACHE_KEY));
     }
 
     #[Test]
     public function it_deserializes_cached_preachers_as_proper_model_instances(): void
     {
-        Cache::forget(PreacherListRepository::PUBLIC_LIST_CACHE_KEY);
+        Cache::forget(PreacherListCache::PUBLIC_LIST_CACHE_KEY);
         Preacher::query()->delete();
 
         Preacher::factory()->create(['name' => 'Cache Test Preacher', 'is_active' => true]);

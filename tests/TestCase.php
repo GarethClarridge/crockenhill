@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests;
 
-use App\Repositories\MeetingListRepository;
-use App\Repositories\PageRepository;
-use App\Repositories\PreacherListRepository;
 use App\Repositories\SermonRepository;
+use App\Services\MeetingListCache;
+use App\Services\PageListCache;
+use App\Services\PreacherListCache;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Foundation\Testing\WithCachedConfig;
 use Illuminate\Support\Facades\Cache;
@@ -50,9 +50,9 @@ abstract class TestCase extends BaseTestCase
         }
 
         $this->app->forgetInstance(SermonRepository::class);
-        $this->app->forgetInstance(PageRepository::class);
-        $this->app->forgetInstance(PreacherListRepository::class);
-        $this->app->forgetInstance(MeetingListRepository::class);
+        $this->app->forgetInstance(PageListCache::class);
+        $this->app->forgetInstance(PreacherListCache::class);
+        $this->app->forgetInstance(MeetingListCache::class);
 
         Cache::flush();
     }

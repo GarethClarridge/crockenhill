@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Repositories;
+namespace App\Services;
 
 use App\Models\Meeting;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
-class MeetingListRepository
+class MeetingListCache
 {
     public const ADMIN_LIST_CACHE_KEY = 'admin_meeting_list';
 
