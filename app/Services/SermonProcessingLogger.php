@@ -197,7 +197,7 @@ class SermonProcessingLogger
             'exception_class' => get_class($exception),
             'exception_message' => $this->sanitizeForLog($exception->getMessage()),
             'exception_code' => $exception->getCode(),
-            'exception_file' => $exception->getFile(),
+            'exception_file' => self::sanitizeStackTrace($exception->getFile()),
             'exception_line' => $exception->getLine(),
             'stack_trace' => $this->sanitizeStackTrace($exception->getTraceAsString()),
             'memory_usage' => memory_get_usage(true),
