@@ -1085,7 +1085,11 @@ class AdminChurchServiceTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(ManageChurchService::class)
-            ->assertSeeHtml('wire:confirm="Remove this service item?"');
+            ->assertSeeHtml('wire:confirm="Remove this service item?"')
+            ->call('addItem')
+            ->assertCount('form.items', 2)
+            ->call('removeItem', 1)
+            ->assertCount('form.items', 1);
     }
 
     #[Test]
