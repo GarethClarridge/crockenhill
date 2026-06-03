@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\CalendarEvents;
 
-use App\Actions\CategorizeCalendarEvent;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Repositories\MeetingListRepository;
+use App\Services\CalendarService;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -53,7 +53,13 @@ class ListCalendarEvents extends Component
         $event = CalendarEvent::query()->find($eventId);
 
         if ($event) {
-            app(CategorizeCalendarEvent::class)->execute($event, $meetingSlug);
+            $calendarService = app(CalendarService::class);
+
+            if ($meetingSlug === null) {
+                $calendarService->manuallyUnCategorizeEvent($event->id);
+            } else {
+                $calendarService->manuallyCategorizeEvent($event->id, $meetingSlug);
+            }
         }
 
         $this->success('Event categorised');

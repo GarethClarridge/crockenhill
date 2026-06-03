@@ -235,23 +235,17 @@ Exit criteria:
 
 Priority: **Low** — file count reduction, not architectural change.
 
-Status: **Pending**.
+Status: **Complete** (2026-06-03).
 
-Several action classes are pure single-call delegations and serve no test-seam purpose (the underlying service is already mockable).
+Several action classes were pure single-call delegations that served no test-seam purpose (the underlying service is already mockable).
 
-Candidates (verify call counts before deleting):
+Resolution per candidate:
 
-- [app/Actions/CategorizeCalendarEvent.php](../../app/Actions/CategorizeCalendarEvent.php) — 24 lines. Two callers, both `app(CategorizeCalendarEvent::class)->execute(...)`. Inline `$calendarService->manuallyCategorizeEvent(...)` / `manuallyUnCategorizeEvent(...)` directly at the call sites in [ListCalendarEvents.php:56](../../app/Livewire/Admin/CalendarEvents/ListCalendarEvents.php#L56) and [EditCalendarEvent.php:97](../../app/Livewire/Admin/CalendarEvents/EditCalendarEvent.php#L97).
-- [app/Actions/Meetings/CreateMeetingCalendarEvent.php](../../app/Actions/Meetings/CreateMeetingCalendarEvent.php) — 24 lines, single line of behavior. As of 2026-05-29 it appears to have no production callers; only the dedicated test ([CreateMeetingCalendarEventTest.php](../../tests/Integration/Actions/Meetings/CreateMeetingCalendarEventTest.php)) references it. Delete it unless a hidden external entrypoint exists.
-- [app/Actions/QueueScriptureEnrichment.php](../../app/Actions/QueueScriptureEnrichment.php) — confirm call sites; this one at least has guard logic (config check + empty-reference check), so consider it a "keep" candidate unless the same guards live on every call path.
+- [app/Actions/CategorizeCalendarEvent.php] — **Inlined and deleted.** The null/non-null branch was routing, not guard logic. Inlined `$calendarService->manuallyUnCategorizeEvent(...)` / `manuallyCategorizeEvent(...)` directly at the two call sites in [ListCalendarEvents.php](../../app/Livewire/Admin/CalendarEvents/ListCalendarEvents.php) and [EditCalendarEvent.php](../../app/Livewire/Admin/CalendarEvents/EditCalendarEvent.php). The seam in `ListCalendarEventsTest` was moved down one layer to mock `CalendarService::manuallyCategorizeEvent` instead.
+- [app/Actions/Meetings/CreateMeetingCalendarEvent.php] — **Deleted** (plus its test and the now-empty `Meetings/` directories). Confirmed zero production callers; its sole consumer was its own test. Note: its target method `GoogleCalendarSyncService::createEventForMeeting()` is now unreferenced — flagged for a future dead-method sweep (out of scope for Phase 21, which is scoped to action classes).
+- [app/Actions/QueueScriptureEnrichment.php](../../app/Actions/QueueScriptureEnrichment.php) — **Kept.** It carries real guard logic (config `services.api_bible.enabled` check + empty-reference check), is injected into `SaveSermonDetails` and `ScriptureOperatorService`, and is mocked as a seam in two test files. A genuine collaborator, not a thin wrapper.
 
-Tasks:
-
-- [ ] For each candidate, confirm the call count and that the underlying service is already covered by tests.
-- [ ] Delete the action + its dedicated test if both conditions hold; delete `CreateMeetingCalendarEvent` outright if the no-production-caller finding still holds.
-- [ ] Verify by running the affected feature tests.
-
-Exit criteria:
+Exit criteria (met):
 
 - No action class in `app/Actions/` is a pure single-call wrapper without guard logic.
 
@@ -366,7 +360,7 @@ Exit criteria:
 - [x] No project code branches on `app()->runningUnitTests()`.
 - [ ] Exactly one canonical implementation of path-safety checks.
 - [ ] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.
-- [ ] No action class is a pure single-call wrapper without guard logic.
+- [x] No action class is a pure single-call wrapper without guard logic.
 - [ ] `app/Presenters/` is split or scoped to a single responsibility.
 - [x] No docblock or comment references the deleted `layouts/page` template.
 - [x] No commented-out destructive storage operation remains in the codebase.

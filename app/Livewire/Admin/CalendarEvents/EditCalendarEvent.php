@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\CalendarEvents;
 
-use App\Actions\CategorizeCalendarEvent;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Repositories\MeetingListRepository;
+use App\Services\CalendarService;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -94,7 +94,13 @@ class EditCalendarEvent extends Component
         ]);
 
         if ($oldMeetingSlug !== $validated['meetingSlug']) {
-            app(CategorizeCalendarEvent::class)->execute($this->calendarEvent, $validated['meetingSlug']);
+            $calendarService = app(CalendarService::class);
+
+            if ($validated['meetingSlug'] === null) {
+                $calendarService->manuallyUnCategorizeEvent($this->calendarEvent->id);
+            } else {
+                $calendarService->manuallyCategorizeEvent($this->calendarEvent->id, $validated['meetingSlug']);
+            }
         }
 
         $this->success('Calendar event updated');

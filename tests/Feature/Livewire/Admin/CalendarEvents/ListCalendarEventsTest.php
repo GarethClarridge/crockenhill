@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire\Admin\CalendarEvents;
 
-use App\Actions\CategorizeCalendarEvent;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\User;
+use App\Services\CalendarCategorizationResult;
+use App\Services\CalendarService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -126,10 +127,11 @@ class ListCalendarEventsTest extends TestCase
         $event = CalendarEvent::factory()->create(['meeting_slug' => null]);
         $meeting = Meeting::factory()->create(['slug' => 'new-meeting']);
 
-        $this->mock(CategorizeCalendarEvent::class, function ($mock) use ($event) {
-            $mock->shouldReceive('execute')
+        $this->mock(CalendarService::class, function ($mock) use ($event) {
+            $mock->shouldReceive('manuallyCategorizeEvent')
                 ->once()
-                ->with(\Mockery::on(fn ($arg) => $arg->id === $event->id), 'new-meeting');
+                ->with($event->id, 'new-meeting')
+                ->andReturn(new CalendarCategorizationResult($event, false));
         });
 
         Livewire::test(ListCalendarEvents::class)
