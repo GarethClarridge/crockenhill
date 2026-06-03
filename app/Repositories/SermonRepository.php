@@ -61,6 +61,7 @@ class SermonRepository
                 'transcript_file_path',
                 'thumbnail_file_path',
                 'thumbnail_generated_at',
+                'thumbnail_metadata',
                 'source_type',
                 'content_type',
                 'updated_at',
