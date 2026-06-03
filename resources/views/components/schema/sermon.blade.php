@@ -12,6 +12,9 @@
     $preacherName = $sermonView['preacher_name'];
     $thumbnailUrl = $sermonView['thumbnail_url'] ?: asset('images/Primary.png');
     $datePublished = $sermon->date->toIso8601String();
+    $lastModified = ($sermon->updated_at instanceof \Carbon\CarbonInterface && $sermon->updated_at->year > 0)
+        ? $sermon->updated_at->toIso8601String()
+        : $datePublished;
 
     $author = [
         '@type' => 'Person',
@@ -38,9 +41,7 @@
         'description' => $metaDescription,
         'image' => $thumbnailUrl,
         'datePublished' => $datePublished,
-        'dateModified' => ($sermon->updated_at instanceof \Carbon\CarbonInterface && $sermon->updated_at->year > 0)
-            ? $sermon->updated_at->toIso8601String()
-            : $datePublished,
+        'dateModified' => $lastModified,
         'inLanguage' => 'en-GB',
         'genre' => 'Sermon',
         'author' => $author,
@@ -58,6 +59,23 @@
             '@id' => $sermonView['canonical_url'] . '#webpage',
         ],
     ];
+
+    if ($sermon->series) {
+        $schema['keywords'] = $sermon->series;
+        $schema['isPartOf'] = [
+            '@type' => 'CreativeWorkSeries',
+            'name' => $sermon->series,
+            'url' => $sermonView['series_url'],
+            '@id' => $sermonView['series_url'] . '#series',
+        ];
+    }
+
+    if ($displayReference = $sermonView['display_reference']) {
+        $schema['about'] = [
+            '@type' => 'Thing',
+            'name' => $displayReference,
+        ];
+    }
 
     if ($sermonView['video_url']) {
         $schema['video'] = [

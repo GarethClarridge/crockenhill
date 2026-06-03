@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use App\Models\Sermon;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class SermonItemListPresenter
@@ -168,7 +169,11 @@ class SermonItemListPresenter
         array $contentLocation,
         string $logoUrl
     ): array {
-        return [
+        $lastModified = ($sermon->updated_at instanceof Carbon && $sermon->updated_at->year > 0)
+            ? $sermon->updated_at->toIso8601String()
+            : $datePublished;
+
+        $article = [
             '@type' => 'Article',
             '@id' => $sermonView['canonical_url'].'#sermon',
             'headline' => $sermon->title,
@@ -176,7 +181,7 @@ class SermonItemListPresenter
             'url' => $sermonView['canonical_url'],
             'description' => $metaDescription,
             'datePublished' => $datePublished,
-            'dateModified' => $sermon->updated_at?->toIso8601String() ?? $datePublished,
+            'dateModified' => $lastModified,
             'inLanguage' => 'en-GB',
             'genre' => 'Sermon',
             'contentLocation' => $contentLocation,
@@ -188,6 +193,25 @@ class SermonItemListPresenter
             ],
             'image' => $sermonView['thumbnail_url'] ?: $logoUrl,
         ];
+
+        if ($sermon->series) {
+            $article['keywords'] = $sermon->series;
+            $article['isPartOf'] = [
+                '@type' => 'CreativeWorkSeries',
+                'name' => $sermon->series,
+                'url' => $sermonView['series_url'],
+                '@id' => $sermonView['series_url'].'#series',
+            ];
+        }
+
+        if ($displayReference = $sermonView['display_reference']) {
+            $article['about'] = [
+                '@type' => 'Thing',
+                'name' => $displayReference,
+            ];
+        }
+
+        return $article;
     }
 
     /**
