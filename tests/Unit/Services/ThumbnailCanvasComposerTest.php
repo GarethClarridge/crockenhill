@@ -179,6 +179,7 @@ class ThumbnailCanvasComposerTest extends TestCase
         // Since resolveCenteredTitleTopY(720, 340) returns 43, title pixels should not exist significantly above Y=43.
         // We allow a small tolerance (6px) for font-rendering anti-aliasing artifacts.
         $this->assertGreaterThanOrEqual(37, $bounds['min_y']);
+        $this->assertLessThanOrEqual(50, $bounds['min_y'], 'Expected title pixels to start near Y=43 (6% of 720px canvas), not significantly below it');
     }
 
     #[Test]
@@ -186,11 +187,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     {
         // Use a very long title that should occupy most of the canvas height.
         $longTitle = 'This is an extremely long title designed to wrap across three lines on the centered canvas, ensuring it extends well beyond the top half of the thumbnail to test vertical layout flexibility';
-        $image = self::$canvasCache['centered:long']
-            ??= app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas(
-                $this->sermon($longTitle),
-                null,
-            );
+        $image = $this->centeredCanvas(null, $longTitle);
 
         $bounds = $this->tealPixelBounds($image);
 
@@ -206,11 +203,7 @@ class ThumbnailCanvasComposerTest extends TestCase
     {
         // Render a centered canvas with a 3-line title and a subject.
         $title = 'This Title Has Three Lines For Centered Layout Verification';
-        $image = self::$canvasCache['centered:overlap']
-            ??= app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas(
-                $this->sermon($title),
-                $this->foregroundFor('symmetric'),
-            );
+        $image = $this->centeredCanvas('symmetric', $title);
 
         $titleBounds = $this->tealPixelBounds($image);
         $subjectBounds = $this->greenPixelBounds($image);
@@ -224,6 +217,27 @@ class ThumbnailCanvasComposerTest extends TestCase
             $titleBounds['max_y'],
             $subjectBounds['min_y'],
             'Expected foreground subject to vertically overlap the bottom part of the title text'
+        );
+    }
+
+    #[Test]
+    public function it_allows_the_centered_foreground_subject_to_overlap_a_two_line_title(): void
+    {
+        // Covers the two-line variant of the overlap rule (previously tested via reflection
+        // as resolveCenteredForegroundTopY(43, 2, 100, 80) === 83).
+        $title = 'Blessed Are The Peacemakers';
+        $image = $this->centeredCanvas('symmetric', $title);
+
+        $titleBounds = $this->tealPixelBounds($image);
+        $subjectBounds = $this->greenPixelBounds($image);
+
+        $this->assertNotNull($titleBounds);
+        $this->assertNotNull($subjectBounds);
+
+        $this->assertLessThan(
+            $titleBounds['max_y'],
+            $subjectBounds['min_y'],
+            'Expected foreground subject to vertically overlap the bottom of a two-line title'
         );
     }
 
@@ -277,11 +291,13 @@ class ThumbnailCanvasComposerTest extends TestCase
     /**
      * @param  'symmetric'|'asymmetric'|null  $foreground
      */
-    private function centeredCanvas(?string $foreground): ImageInterface
+    private function centeredCanvas(?string $foreground, ?string $title = null): ImageInterface
     {
-        return self::$canvasCache['centered:'.($foreground ?? 'none')]
+        $key = 'centered:' . ($foreground ?? 'none') . ($title !== null ? ':' . md5($title) : '');
+
+        return self::$canvasCache[$key]
             ??= app(ThumbnailCanvasComposer::class)->buildCenteredThumbnailCanvas(
-                $this->sermon(),
+                $this->sermon($title ?? 'Grace Alone'),
                 $this->foregroundFor($foreground),
             );
     }
