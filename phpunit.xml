@@ -61,8 +61,13 @@
         <env name="DO_SPACES_SECRET_ACCESS_KEY" value="test_secret_key"/>
         <env name="DO_SPACES_DEFAULT_REGION" value="nyc3"/>
         <env name="DO_SPACES_BUCKET" value="test_bucket"/>
-        <env name="DO_SPACES_ENDPOINT" value="https://nyc3.digitaloceanspaces.com"/>
+        <!-- Refused-connection endpoint: a wrong S3 fallback errors in ms instead
+             of blocking ~12 s on a real DigitalOcean Spaces TCP timeout. Mirrors
+             the OPENAI_BASE_URL trick above. DO_SPACES_RETRIES=0 stops the AWS SDK
+             retrying the refused connection with backoff. -->
+        <env name="DO_SPACES_ENDPOINT" value="http://127.0.0.1:1"/>
         <env name="DO_SPACES_CDN_ENDPOINT" value="https://test.nyc3.cdn.digitaloceanspaces.com"/>
+        <env name="DO_SPACES_RETRIES" value="0"/>
 
         <!-- Processing Configuration -->
         <env name="PROCESSING_PERMANENT_DISK" value="local"/>

@@ -77,6 +77,10 @@ return [
             'region' => env('DO_SPACES_REGION', env('DO_SPACES_DEFAULT_REGION', 'nyc3')),
             'bucket' => env('DO_SPACES_BUCKET'),
             'endpoint' => env('DO_SPACES_ENDPOINT', 'https://nyc3.digitaloceanspaces.com'),
+            // Passed through to the AWS S3Client. Defaults to 3 in production;
+            // tests set DO_SPACES_RETRIES=0 so a refused fallback fails instantly.
+            // Cast to int because the SDK validates this key as an integer.
+            'retries' => (int) env('DO_SPACES_RETRIES', 3),
             'use_path_style_endpoint' => false,
             'throw' => false,
             'visibility' => 'public',

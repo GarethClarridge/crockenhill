@@ -8,9 +8,11 @@ use App\Repositories\SermonRepository;
 use App\Services\MeetingListCache;
 use App\Services\PageListCache;
 use App\Services\PreacherListCache;
+use Illuminate\Contracts\Validation\UncompromisedVerifier;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Foundation\Testing\WithCachedConfig;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -41,6 +43,12 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         $this->forceSafeOpenAiTestConfiguration();
+        $this->preventPwnedPasswordsNetworkCall();
+
+        // Fail loudly on any unmocked Laravel Http facade call rather than
+        // letting it hang on a real external request. Tests that need an HTTP
+        // response set their own Http::fake([...]), which overrides this.
+        Http::preventStrayRequests();
 
         // Clear compiled views once per process to prevent stale cached
         // class references after component refactors.
@@ -55,6 +63,29 @@ abstract class TestCase extends BaseTestCase
         $this->app->forgetInstance(MeetingListCache::class);
 
         Cache::flush();
+    }
+
+    /**
+     * Rebind the breach verifier so password validation never reaches
+     * api.pwnedpasswords.com during the suite.
+     *
+     * Production keeps Password::defaults()->uncompromised() byte-for-byte
+     * (see AppServiceProvider). Only the test container swaps the verifier for
+     * a no-network fake that treats every password as not-breached. A test
+     * that genuinely needs to assert breach rejection can rebind locally.
+     */
+    private function preventPwnedPasswordsNetworkCall(): void
+    {
+        $this->app->instance(UncompromisedVerifier::class, new class implements UncompromisedVerifier
+        {
+            /**
+             * @param  array<string, mixed>  $data
+             */
+            public function verify($data): bool
+            {
+                return true;
+            }
+        });
     }
 
     private function forceSafeOpenAiTestConfiguration(): void
