@@ -54,6 +54,7 @@ class SermonViewPresenter
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
         private readonly SermonTranscriptReader $transcriptReader,
+        private readonly SermonPresentationAssembler $assembler = new SermonPresentationAssembler,
     ) {}
 
     /**
@@ -313,39 +314,14 @@ class SermonViewPresenter
     /**
      * Present a lightweight subset of sermon view data for use in API resources.
      *
-     * Performance Optimization: Consolidates all required display fields into a
-     * single array to eliminate redundant presenter method calls and container
-     * lookups during API resource transformation.
+     * The field shape lives on SermonPresentationAssembler::forApi(); this method
+     * adds only request-level memoization of the assembled result.
      *
-     * @return array{
-     *     audio_url: ?string,
-     *     display_reference: ?string,
-     *     duration_iso8601: ?string,
-     *     formatted_duration: ?string,
-     *     human_date: string,
-     *     preacher_image_url: ?string,
-     *     preacher_name: ?string,
-     *     preacher_url: ?string,
-     *     series_url: ?string,
-     *     thumbnail_url: ?string,
-     *     video_url: ?string
-     * }
+     * @return array{audio_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, series_url: ?string, thumbnail_url: ?string, video_url: ?string}
      */
     public function presentForApi(Sermon $sermon): array
     {
-        return $this->memoize($sermon, 'api_present', 'memoizedPresents', fn (): array => [
-            'audio_url' => $this->audioUrl($sermon),
-            'display_reference' => $this->displayReference($sermon),
-            'duration_iso8601' => $this->durationIso8601($sermon),
-            'formatted_duration' => $this->formattedDuration($sermon),
-            'human_date' => $this->humanDate($sermon),
-            'preacher_image_url' => $this->preacherImageUrl($sermon),
-            'preacher_name' => $this->displayPreacherName($sermon),
-            'preacher_url' => $this->preacherUrl($sermon),
-            'series_url' => $this->seriesUrl($sermon),
-            'thumbnail_url' => $this->thumbnailUrl($sermon),
-            'video_url' => $this->videoUrl($sermon),
-        ]);
+        return $this->memoize($sermon, 'api_present', 'memoizedPresents', fn (): array => $this->assembler->forApi($this, $sermon));
     }
 
     /**
@@ -407,95 +383,30 @@ class SermonViewPresenter
     }
 
     /**
-     * @return array{
-     *     audio_url: ?string,
-     *     canonical_url: string,
-     *     card_thumbnail_url: ?string,
-     *     date_iso: string,
-     *     date_string: string,
-     *     display_reference: ?string,
-     *     duration_iso8601: ?string,
-     *     formatted_duration: ?string,
-     *     has_transcript: bool,
-     *     human_date: string,
-     *     plain_thumbnail_url: ?string,
-     *     preacher_image_url: ?string,
-     *     preacher_name: ?string,
-     *     preacher_url: ?string,
-     *     public_url: string,
-     *     series_url: ?string,
-     *     service_label: ?string,
-     *     thumbnail_url: ?string,
-     *     transcript_url: ?string,
-     *     video_url: ?string
-     * }
+     * Present the full field set for a sermon listing.
+     *
+     * The field shape lives on SermonPresentationAssembler::forList(); this method
+     * adds only request-level memoization of the assembled result.
+     *
+     * @return array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript_url: ?string, video_url: ?string}
      */
     public function presentForList(Sermon $sermon): array
     {
-        return $this->memoize($sermon, 'list_present', 'memoizedPresents', function () use ($sermon): array {
-            $hasTranscript = $sermon->hasTranscript();
-            $dates = $this->formattedDates($sermon);
-
-            return [
-                'audio_url' => $this->audioUrl($sermon),
-                'canonical_url' => $this->canonicalUrl($sermon),
-                'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
-                'date_iso' => $dates['iso'],
-                'date_string' => $dates['short'],
-                'display_reference' => $this->displayReference($sermon),
-                'duration_iso8601' => $this->durationIso8601($sermon),
-                'formatted_duration' => $this->formattedDuration($sermon),
-                'has_transcript' => $hasTranscript,
-                'human_date' => $dates['human'],
-                'plain_thumbnail_url' => $this->plainThumbnailUrl($sermon),
-                'preacher_image_url' => $this->preacherImageUrl($sermon),
-                'preacher_name' => $this->displayPreacherName($sermon),
-                'preacher_url' => $this->preacherUrl($sermon),
-                'public_url' => $this->publicUrl($sermon),
-                'series_url' => $this->seriesUrl($sermon),
-                'service_label' => $this->serviceLabel($sermon),
-                'thumbnail_url' => $this->thumbnailUrl($sermon),
-                'transcript_url' => $hasTranscript ? route('sermons.transcript', ['sermon' => $sermon->slug]) : null,
-                'video_url' => $this->videoUrl($sermon),
-            ];
-        });
+        return $this->memoize($sermon, 'list_present', 'memoizedPresents', fn (): array => $this->assembler->forList($this, $sermon));
     }
 
     /**
-     * @return array{
-     *     audio_url: ?string,
-     *     canonical_url: string,
-     *     card_thumbnail_url: ?string,
-     *     date_iso: string,
-     *     date_string: string,
-     *     display_reference: ?string,
-     *     duration_iso8601: ?string,
-     *     formatted_duration: ?string,
-     *     has_transcript: bool,
-     *     human_date: string,
-     *     plain_thumbnail_url: ?string,
-     *     preacher_image_url: ?string,
-     *     preacher_name: ?string,
-     *     preacher_url: ?string,
-     *     public_url: string,
-     *     series_url: ?string,
-     *     service_label: ?string,
-     *     thumbnail_url: ?string,
-     *     transcript: ?string,
-     *     transcript_url: ?string,
-     *     plain_text_outline: ?string,
-     *     video_url: ?string
-     * }
+     * Present the full single-sermon view payload (the listing fields plus the
+     * transcript and plain-text outline).
+     *
+     * The field shape lives on SermonPresentationAssembler::forFull(); this method
+     * adds only request-level memoization of the assembled result.
+     *
+     * @return array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, plain_text_outline: ?string, video_url: ?string}
      */
     public function present(Sermon $sermon): array
     {
-        return $this->memoize($sermon, 'full_present', 'memoizedPresents', fn (): array => array_merge(
-            $this->presentForList($sermon),
-            [
-                'transcript' => $this->transcriptReader->read($sermon),
-                'plain_text_outline' => $this->plainTextOutline($sermon),
-            ]
-        ));
+        return $this->memoize($sermon, 'full_present', 'memoizedPresents', fn (): array => $this->assembler->forFull($this, $sermon));
     }
 
     public function publicUrl(Sermon $sermon): string
