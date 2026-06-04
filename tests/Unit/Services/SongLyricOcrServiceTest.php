@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\SongLyricOcrService;
+use App\Services\Song\SongLyricOcrService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;

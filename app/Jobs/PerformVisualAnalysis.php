@@ -6,7 +6,7 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Services\MediaProcessingRunTransitionService;
-use App\Services\SongClusteringService;
+use App\Services\Song\SongClusteringService;
 use App\Services\VisualAnalysisService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;

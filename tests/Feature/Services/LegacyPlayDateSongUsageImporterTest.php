@@ -9,7 +9,7 @@ use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
-use App\Services\LegacyPlayDateSongUsageImporter;
+use App\Services\Song\LegacyPlayDateSongUsageImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;

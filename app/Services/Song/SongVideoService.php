@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Song;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ChurchServiceItem;

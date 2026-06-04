@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\SongClusteringService;
+use App\Services\Song\SongClusteringService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

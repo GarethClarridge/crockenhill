@@ -9,7 +9,7 @@ use App\Jobs\ClassifySpeechSections;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ServiceSectionSyncService;
-use App\Services\SongTitleHintExtractor;
+use App\Services\Song\SongTitleHintExtractor;
 use App\Services\SpeechSectionClassificationService;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;

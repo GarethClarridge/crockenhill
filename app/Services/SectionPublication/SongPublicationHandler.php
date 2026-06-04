@@ -11,7 +11,7 @@ use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\AudioEnhancementService;
 use App\Services\ServiceSectionPublicationTransitionService;
-use App\Services\SongVideoService;
+use App\Services\Song\SongVideoService;
 use App\Services\StorageAdapterHelper;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;

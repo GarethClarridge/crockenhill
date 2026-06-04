@@ -6,7 +6,7 @@ namespace Tests\Integration\Jobs;
 
 use App\Jobs\PerformVisualAnalysis;
 use App\Models\MediaProcessingLog;
-use App\Services\SongClusteringService;
+use App\Services\Song\SongClusteringService;
 use App\Services\VisualAnalysisService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;

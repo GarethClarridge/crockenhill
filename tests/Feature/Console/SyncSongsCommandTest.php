@@ -7,7 +7,7 @@ namespace Tests\Feature\Console;
 use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\SongBook;
-use App\Services\SongCatalogSyncService;
+use App\Services\Song\SongCatalogSyncService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;

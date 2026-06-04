@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\SongLyricSnippetBuilder;
+use App\Services\Song\SongLyricSnippetBuilder;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

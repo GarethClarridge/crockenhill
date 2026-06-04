@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\ServiceSectionType;
-use App\Services\SongTitleHintExtractor;
+use App\Services\Song\SongTitleHintExtractor;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\LegacyPlayDateSongUsageImporter;
+use App\Services\Song\LegacyPlayDateSongUsageImporter;
 use Illuminate\Console\Command;
 use Throwable;
 

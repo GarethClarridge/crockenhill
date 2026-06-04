@@ -8,7 +8,7 @@ use App\Models\Song;
 use App\Seo\SongArchiveSeoPresenter;
 use App\Seo\SongItemListPresenter;
 use App\Services\Public\PublicSongCatalogService;
-use App\Services\SongLyricSnippetBuilder;
+use App\Services\Song\SongLyricSnippetBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;

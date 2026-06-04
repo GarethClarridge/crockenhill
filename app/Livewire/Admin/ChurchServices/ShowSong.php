@@ -8,7 +8,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Models\SongVideo;
-use App\Services\SongVideoService;
+use App\Services\Song\SongVideoService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;

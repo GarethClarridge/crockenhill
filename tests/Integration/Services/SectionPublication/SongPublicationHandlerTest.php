@@ -16,7 +16,7 @@ use App\Models\SongVideo;
 use App\Services\AudioEnhancementService;
 use App\Services\SectionPublication\SongPublicationHandler;
 use App\Services\ServiceSectionPublicationTransitionService;
-use App\Services\SongVideoService;
+use App\Services\Song\SongVideoService;
 use App\Services\StorageAdapterHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;

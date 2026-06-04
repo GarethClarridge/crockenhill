@@ -8,7 +8,7 @@ use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\UnmatchedSongReviewApplicator;
+use App\Services\Song\UnmatchedSongReviewApplicator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;

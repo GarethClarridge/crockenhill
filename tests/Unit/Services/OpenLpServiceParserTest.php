@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\SermonService;
-use App\Services\OpenLpServiceParser;
+use App\Services\Song\OpenLpServiceParser;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;

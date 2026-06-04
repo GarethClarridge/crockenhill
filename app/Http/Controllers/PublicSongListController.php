@@ -8,7 +8,7 @@ use App\Models\Song;
 use App\Seo\SongArchiveSeoPresenter;
 use App\Services\Public\PublicSongCatalogService;
 use App\Services\Public\PublicSongUsageService;
-use App\Services\SongVideoService;
+use App\Services\Song\SongVideoService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
