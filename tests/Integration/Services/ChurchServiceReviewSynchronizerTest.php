@@ -9,7 +9,7 @@ use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\ChurchServiceReviewSynchronizer;
+use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;

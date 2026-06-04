@@ -8,7 +8,7 @@ use App\Enums\ChurchServiceItemSource;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
-use App\Services\ChurchServiceCanonicalStateService;
+use App\Services\ChurchService\ChurchServiceCanonicalStateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

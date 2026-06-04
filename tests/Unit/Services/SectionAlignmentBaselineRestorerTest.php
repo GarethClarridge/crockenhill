@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Models\ServiceSection;
-use App\Services\SectionAlignmentBaselineRestorer;
+use App\Services\ChurchService\SectionAlignmentBaselineRestorer;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

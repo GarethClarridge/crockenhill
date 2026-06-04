@@ -11,7 +11,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\OosAlignmentService;
+use App\Services\ChurchService\OosAlignmentService;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;

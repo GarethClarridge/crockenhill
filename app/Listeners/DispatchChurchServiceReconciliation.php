@@ -6,7 +6,7 @@ namespace App\Listeners;
 
 use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
-use App\Services\ChurchServiceReconciliationDispatcher;
+use App\Services\ChurchService\ChurchServiceReconciliationDispatcher;
 
 class DispatchChurchServiceReconciliation
 {

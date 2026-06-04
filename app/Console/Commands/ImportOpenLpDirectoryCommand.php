@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Data\OpenLpImportResult;
-use App\Services\ImportChurchServiceFromOpenLp;
+use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use Illuminate\Console\Command;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;

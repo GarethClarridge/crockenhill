@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
-use App\Services\AlignmentTriggerCalculator;
+use App\Services\ChurchService\AlignmentTriggerCalculator;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Foundation\Testing\RefreshDatabase;

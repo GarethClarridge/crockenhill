@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Models\ServiceSection;
-use App\Services\ExtractedSectionMediaChecker;
+use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;

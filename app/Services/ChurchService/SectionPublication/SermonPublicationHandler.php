@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\Services\SectionPublication;
+namespace App\Services\ChurchService\SectionPublication;
 
 use App\Contracts\SectionPublicationHandler;
 use App\Data\SermonCreationOptions;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
-use App\Services\ExtractedSectionMediaChecker;
+use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\Preacher\ChildrensTalkSpeakerService;
 use App\Services\SermonCreationService;
-use App\Services\ServiceSectionPublicationTransitionService;
+use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;

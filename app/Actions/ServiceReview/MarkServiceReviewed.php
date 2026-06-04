@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\ServiceReview;
 
 use App\Models\ChurchService;
-use App\Services\ChurchServiceReviewStateService;
+use App\Services\ChurchService\ChurchServiceReviewStateService;
 
 class MarkServiceReviewed
 {

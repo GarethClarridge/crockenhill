@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
-use App\Services\ServiceSectionClassifier;
-use App\Services\ServiceSectionSyncService;
+use App\Services\ChurchService\ServiceSectionClassifier;
+use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;

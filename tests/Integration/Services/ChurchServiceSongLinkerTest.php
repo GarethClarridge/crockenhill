@@ -8,7 +8,7 @@ use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
-use App\Services\ChurchServiceSongLinker;
+use App\Services\ChurchService\ChurchServiceSongLinker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

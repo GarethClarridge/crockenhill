@@ -7,7 +7,7 @@ namespace App\Actions\Publication;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
-use App\Services\ServiceSectionPublicationTransitionService;
+use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 
 class ExpireSectionPublicationAssets
 {

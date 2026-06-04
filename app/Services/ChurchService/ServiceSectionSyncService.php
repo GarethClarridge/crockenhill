@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\ChurchService;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\SectionPublication\SectionPublicationHandlerFactory;
+use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\SanitizesLogData;
 use Carbon\CarbonImmutable;

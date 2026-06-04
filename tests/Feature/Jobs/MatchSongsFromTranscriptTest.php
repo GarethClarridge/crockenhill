@@ -13,7 +13,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
-use App\Services\ChurchServiceReviewSynchronizer;
+use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\LocalWhisperTranscriptionService;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\Song\SongLyricOcrService;

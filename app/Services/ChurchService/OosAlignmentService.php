@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\ChurchService;
 
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionType;
@@ -10,6 +10,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\MediaProcessingIdentityResolver;
 use App\Services\Song\UnmatchedSongReviewApplicator;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;

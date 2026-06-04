@@ -7,7 +7,7 @@ namespace App\Livewire\Admin\ChurchServices;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
-use App\Services\ImportChurchServiceFromOpenLp;
+use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;

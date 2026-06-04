@@ -8,8 +8,8 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\ServiceSection;
-use App\Services\ExtractedSectionMediaChecker;
-use App\Services\ServiceSectionSyncService;
+use App\Services\ChurchService\ExtractedSectionMediaChecker;
+use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\VideoStorageService;
 
 class MergeAdjacentServiceSections

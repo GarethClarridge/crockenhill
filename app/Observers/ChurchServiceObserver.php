@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Models\ChurchService;
-use App\Services\ChurchServiceReconciliationDispatcher;
+use App\Services\ChurchService\ChurchServiceReconciliationDispatcher;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class ChurchServiceObserver implements ShouldHandleEventsAfterCommit

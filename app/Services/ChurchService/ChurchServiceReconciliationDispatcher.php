@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\ChurchService;
 
 use App\Jobs\ReconcileServiceSections;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingIdentityResolver;
 
 class ChurchServiceReconciliationDispatcher
 {

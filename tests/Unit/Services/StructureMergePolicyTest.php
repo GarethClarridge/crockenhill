@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\ChurchServiceItemSource;
-use App\Services\StructureMergePolicy;
+use App\Services\ChurchService\StructureMergePolicy;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

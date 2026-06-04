@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\ChurchService;
 
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;

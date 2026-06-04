@@ -10,7 +10,7 @@ use App\Enums\SermonService;
 use App\Livewire\Admin\ChurchServices\UploadChurchService;
 use App\Models\ChurchService;
 use App\Models\User;
-use App\Services\ImportChurchServiceFromOpenLp;
+use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;

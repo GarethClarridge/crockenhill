@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\SectionPublication;
+namespace App\Services\ChurchService\SectionPublication;
 
 use App\Contracts\SectionPublicationHandler;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -10,7 +10,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\AudioEnhancementService;
-use App\Services\ServiceSectionPublicationTransitionService;
+use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Song\SongVideoService;
 use App\Services\StorageAdapterHelper;
 use App\Traits\SanitizesLogData;

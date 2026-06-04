@@ -7,10 +7,10 @@ namespace App\Actions\ServiceReview;
 use App\Data\StructureMergeResolution;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
-use App\Services\ChurchServiceCanonicalStateService;
-use App\Services\ChurchServiceCanonicalUpdateService;
-use App\Services\ChurchServiceItemSyncService;
-use App\Services\ChurchServiceReviewStateService;
+use App\Services\ChurchService\ChurchServiceCanonicalStateService;
+use App\Services\ChurchService\ChurchServiceCanonicalUpdateService;
+use App\Services\ChurchService\ChurchServiceItemSyncService;
+use App\Services\ChurchService\ChurchServiceReviewStateService;
 use Illuminate\Support\Facades\Log;
 
 class ResolvePendingStructureMerge

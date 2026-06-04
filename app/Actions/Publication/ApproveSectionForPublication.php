@@ -8,9 +8,9 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\ServiceSection;
-use App\Services\ExtractedSectionMediaChecker;
+use App\Services\ChurchService\ExtractedSectionMediaChecker;
+use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Preacher\ChildrensTalkSpeakerService;
-use App\Services\ServiceSectionPublicationTransitionService;
 
 class ApproveSectionForPublication
 {

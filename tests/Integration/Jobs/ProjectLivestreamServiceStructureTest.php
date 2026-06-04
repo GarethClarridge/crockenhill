@@ -12,7 +12,7 @@ use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
 use App\Models\ServiceSection;
-use App\Services\LivestreamChurchServiceProjectionService;
+use App\Services\ChurchService\LivestreamChurchServiceProjectionService;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;

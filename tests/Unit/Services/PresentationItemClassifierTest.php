@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
-use App\Services\PresentationItemClassifier;
+use App\Services\ChurchService\PresentationItemClassifier;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

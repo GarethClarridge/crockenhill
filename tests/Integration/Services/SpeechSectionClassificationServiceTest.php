@@ -6,7 +6,7 @@ namespace Tests\Integration\Services;
 
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
-use App\Services\SpeechSectionClassificationService;
+use App\Services\ChurchService\SpeechSectionClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use OpenAI\Laravel\Facades\OpenAI;

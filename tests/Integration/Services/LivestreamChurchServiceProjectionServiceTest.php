@@ -11,7 +11,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\LivestreamChurchServiceProjectionService;
+use App\Services\ChurchService\LivestreamChurchServiceProjectionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;

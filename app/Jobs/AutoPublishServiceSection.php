@@ -6,7 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
-use App\Services\SectionPublication\SectionPublicationHandlerFactory;
+use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;

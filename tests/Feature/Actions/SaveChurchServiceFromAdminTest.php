@@ -14,7 +14,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
 use App\Models\Song;
 use App\Models\User;
-use App\Services\ChurchServiceItemSyncService;
+use App\Services\ChurchService\ChurchServiceItemSyncService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;

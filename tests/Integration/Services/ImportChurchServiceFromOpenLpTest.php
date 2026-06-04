@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\Song;
-use App\Services\ImportChurchServiceFromOpenLp;
+use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;

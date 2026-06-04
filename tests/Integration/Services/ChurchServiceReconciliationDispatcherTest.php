@@ -9,7 +9,7 @@ use App\Enums\SermonService;
 use App\Jobs\ReconcileServiceSections;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
-use App\Services\ChurchServiceReconciliationDispatcher;
+use App\Services\ChurchService\ChurchServiceReconciliationDispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use PHPUnit\Framework\Attributes\Test;

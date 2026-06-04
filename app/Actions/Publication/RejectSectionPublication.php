@@ -6,7 +6,7 @@ namespace App\Actions\Publication;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
-use App\Services\ServiceSectionPublicationTransitionService;
+use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 
 class RejectSectionPublication
 {

@@ -8,7 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UploadChurchServiceRequest;
 use App\Http\Resources\ChurchServiceResource;
 use App\Models\ChurchService;
-use App\Services\ImportChurchServiceFromOpenLp;
+use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;

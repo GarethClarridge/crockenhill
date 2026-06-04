@@ -14,7 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
-use App\Services\SectionPublication\SectionPublicationHandlerFactory;
+use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

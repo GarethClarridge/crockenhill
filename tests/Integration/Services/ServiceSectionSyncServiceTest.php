@@ -11,7 +11,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
-use App\Services\ServiceSectionSyncService;
+use App\Services\ChurchService\ServiceSectionSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

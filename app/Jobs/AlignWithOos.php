@@ -7,7 +7,7 @@ namespace App\Jobs;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Models\MediaProcessingLog;
-use App\Services\OosAlignmentService;
+use App\Services\ChurchService\OosAlignmentService;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;

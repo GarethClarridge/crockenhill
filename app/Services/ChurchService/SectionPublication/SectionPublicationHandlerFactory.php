@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\SectionPublication;
+namespace App\Services\ChurchService\SectionPublication;
 
 use App\Contracts\SectionPublicationHandler;
 use App\Models\ServiceSection;

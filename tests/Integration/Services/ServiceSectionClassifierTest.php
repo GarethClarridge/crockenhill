@@ -11,7 +11,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
-use App\Services\ServiceSectionClassifier;
+use App\Services\ChurchService\ServiceSectionClassifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
