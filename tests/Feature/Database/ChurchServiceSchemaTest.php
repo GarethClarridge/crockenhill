@@ -69,7 +69,7 @@ class ChurchServiceSchemaTest extends TestCase
         DB::table('church_services')
             ->where('id', $service->id)
             ->update([
-                'review_state' => ChurchServiceReviewState::NOT_REVIEWED->value,
+                'review_state' => ChurchServiceReviewState::NotReviewed->value,
                 'manual_reviewed_at' => null,
                 'manual_reviewed_by_user_id' => null,
                 'manual_review_reopened_at' => null,
@@ -87,7 +87,7 @@ class ChurchServiceSchemaTest extends TestCase
 
         $service->refresh();
 
-        $this->assertSame(ChurchServiceReviewState::REOPENED, $service->review_state);
+        $this->assertSame(ChurchServiceReviewState::Reopened, $service->review_state);
         $this->assertSame($reviewer->id, $service->manual_reviewed_by_user_id);
         $this->assertSame('openlp', $service->manual_review_reopened_by_source);
         $this->assertSame(ChurchServiceCanonicalConflictState::REOPENED, $service->canonical_conflict_state);

@@ -67,7 +67,7 @@ class ImportLegacySongUsageCommandTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame('legacy_play_date', $morningService->source);
-        $this->assertSame(ChurchServiceReviewState::REVIEWED, $morningService->review_state);
+        $this->assertSame(ChurchServiceReviewState::Reviewed, $morningService->review_state);
         $this->assertNotNull($morningService->manual_reviewed_at);
 
         $morningItems = ChurchServiceItem::query()

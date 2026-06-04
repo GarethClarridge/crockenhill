@@ -48,9 +48,9 @@ class ChurchServiceReviewStateService
         $metadata = ChurchServiceImportMetadata::fromArray($importMetadata);
 
         $reviewState = match (true) {
-            is_string($metadata->manualReview?->reopenedAt) => ChurchServiceReviewState::REOPENED,
-            is_string($metadata->manualReview?->reviewedAt) => ChurchServiceReviewState::REVIEWED,
-            default => ChurchServiceReviewState::NOT_REVIEWED,
+            is_string($metadata->manualReview?->reopenedAt) => ChurchServiceReviewState::Reopened,
+            is_string($metadata->manualReview?->reviewedAt) => ChurchServiceReviewState::Reviewed,
+            default => ChurchServiceReviewState::NotReviewed,
         };
 
         $canonicalConflict = $metadata->canonicalConflict;

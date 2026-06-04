@@ -62,7 +62,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $this->assertNull($result->import_metadata['canonical_conflict'] ?? null);
         $this->assertNull($result->import_metadata['canonical_conflict_history'] ?? null);
         $this->assertSame(ChurchServiceCanonicalConflictState::NONE, $result->canonical_conflict_state);
-        $this->assertSame(ChurchServiceReviewState::NOT_REVIEWED, $result->review_state);
+        $this->assertSame(ChurchServiceReviewState::NotReviewed, $result->review_state);
 
         Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);
     }
@@ -153,7 +153,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $this->assertTrue($result->import_metadata['canonical_conflict']['review_reopened']);
         $this->assertSame('openlp', $result->import_metadata['manual_review']['reopened_by_source'] ?? null);
         $this->assertArrayHasKey('reopened_at', $result->import_metadata['manual_review']);
-        $this->assertSame(ChurchServiceReviewState::REOPENED, $result->review_state);
+        $this->assertSame(ChurchServiceReviewState::Reopened, $result->review_state);
         $this->assertSame(ChurchServiceCanonicalConflictState::REOPENED, $result->canonical_conflict_state);
     }
 

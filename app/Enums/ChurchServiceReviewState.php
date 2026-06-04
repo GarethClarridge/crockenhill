@@ -6,7 +6,7 @@ namespace App\Enums;
 
 enum ChurchServiceReviewState: string
 {
-    case NOT_REVIEWED = 'not_reviewed';
-    case REVIEWED = 'reviewed';
-    case REOPENED = 'reopened';
+    case NotReviewed = 'not_reviewed';
+    case Reviewed = 'reviewed';
+    case Reopened = 'reopened';
 }
