@@ -12,6 +12,8 @@
                 @foreach($thumbnailCandidates as $candidate)
                     <div
                         wire:key="thumbnail-candidate-{{ $candidate['id'] }}"
+                        wire:loading.class="opacity-50"
+                        wire:target="selectThumbnailCandidate('{{ $candidate['id'] }}')"
                         class="rounded-lg border p-3 {{ $candidate['is_selected'] ? 'border-cbc-teal bg-cbc-teal/5' : 'border-gray-200 bg-white' }}"
                     >
                         <div class="space-y-3">

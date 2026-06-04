@@ -25,8 +25,10 @@
         <div class="flex flex-wrap items-center justify-center gap-3">
             <button
                 wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_ALL }}')"
+                wire:loading.attr="disabled"
+                wire:loading.class="opacity-50"
+                wire:target="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_ALL }}')"
                 type="button"
-                class="data-loading:opacity-50 data-loading:pointer-events-none"
                 @class([
                     'inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2',
                     'bg-cbc-teal-dark text-white' => $selectedRange === \App\Services\PublicSongCatalogService::RANGE_ALL,
@@ -38,8 +40,10 @@
             </button>
             <button
                 wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_RECENT }}')"
+                wire:loading.attr="disabled"
+                wire:loading.class="opacity-50"
+                wire:target="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_RECENT }}')"
                 type="button"
-                class="data-loading:opacity-50 data-loading:pointer-events-none"
                 @class([
                     'inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2',
                     'bg-cbc-teal-dark text-white' => $selectedRange === \App\Services\PublicSongCatalogService::RANGE_RECENT,
@@ -53,7 +57,7 @@
     </section>
 
     {{-- Results area --}}
-    <div id="song-results" tabindex="-1" class="focus:outline-none data-loading:opacity-60 data-loading:pointer-events-none" wire:target="search, range">
+    <div id="song-results" tabindex="-1" class="focus:outline-none" wire:loading.class="opacity-60 pointer-events-none" wire:target="search, range">
 
         {{-- Empty state --}}
         @if ($songs->isEmpty())
