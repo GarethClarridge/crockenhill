@@ -6,7 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 use Illuminate\Console\Command;
 
 class BackfillMediaProcessingIdentityCommand extends Command

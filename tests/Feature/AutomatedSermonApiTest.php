@@ -7,7 +7,7 @@ namespace Tests\Feature;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;

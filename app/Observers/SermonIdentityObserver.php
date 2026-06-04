@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Models\Sermon;
-use App\Services\SermonIdentitySyncService;
+use App\Services\Processing\SermonIdentitySyncService;
 
 class SermonIdentityObserver
 {

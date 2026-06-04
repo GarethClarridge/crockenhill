@@ -9,7 +9,7 @@ use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
-use App\Services\StorageAdapterHelper;
+use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

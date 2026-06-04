@@ -7,10 +7,10 @@ namespace App\Services\Media\Video;
 use App\Data\SermonVideoQualityAssessmentResult;
 use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
+use App\Services\Processing\StorageAdapterHelper;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use App\Services\StorageAdapterHelper;
 
 /**
  * Small, explainable video-quality gate for obvious sermon video failures.

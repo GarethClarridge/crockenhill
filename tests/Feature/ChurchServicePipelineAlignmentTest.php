@@ -18,7 +18,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\OosAlignmentService;
 use App\Services\ChurchService\ServiceSectionClassifier;
 use App\Services\ChurchService\ServiceSectionSyncService;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

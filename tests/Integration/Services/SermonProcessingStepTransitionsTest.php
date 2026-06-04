@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
-use App\Services\SermonProcessingStepTransitions;
+use App\Services\Processing\SermonProcessingStepTransitions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

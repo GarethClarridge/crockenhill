@@ -6,8 +6,8 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\AudioExtractionService;
-use App\Services\MediaProcessingRunTransitionService;
-use App\Services\StorageAdapterHelper;
+use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\StorageAdapterHelper;
 use App\Traits\ChecksCancellation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;

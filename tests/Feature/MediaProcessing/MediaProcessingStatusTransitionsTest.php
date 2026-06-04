@@ -10,7 +10,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;

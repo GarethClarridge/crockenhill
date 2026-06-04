@@ -7,7 +7,7 @@ namespace Tests\Unit\Services;
 use App\Data\LivestreamSegment;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Video\VideoSegmentationService;
-use App\Services\StorageAdapterHelper;
+use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

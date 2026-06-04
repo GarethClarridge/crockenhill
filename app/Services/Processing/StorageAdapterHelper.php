@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Processing;
 
 use App\Exceptions\VideoProcessingException;
 use FFMpeg\FFMpeg;

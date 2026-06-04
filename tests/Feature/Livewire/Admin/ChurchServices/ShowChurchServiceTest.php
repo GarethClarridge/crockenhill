@@ -17,7 +17,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
-use App\Services\ProcessingPipelineBuilder;
+use App\Services\Processing\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;

@@ -7,7 +7,7 @@ namespace Tests\Unit\Services;
 use App\Services\Media\Audio\AudioCompressionService;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Media\Video\VideoStorageService;
-use App\Services\StorageAdapterHelper;
+use App\Services\Processing\StorageAdapterHelper;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Media\Video;

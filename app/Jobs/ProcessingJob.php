@@ -6,8 +6,8 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\MediaProcessingRunTransitionService;
-use App\Services\SermonProcessingStepTransitions;
+use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\SermonProcessingStepTransitions;
 use App\Support\CancellationChecker;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Support\Facades\Log;

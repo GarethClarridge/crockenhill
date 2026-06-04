@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\ProcessingPhaseResetService;
+use App\Services\Processing\ProcessingPhaseResetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

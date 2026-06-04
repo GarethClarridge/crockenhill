@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use App\Services\Media\Audio\MockTranscriptionService;
 use App\Services\Media\Audio\TranscriptStorageService;
-use App\Services\SermonProcessingLogger;
+use App\Services\Processing\SermonProcessingLogger;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;

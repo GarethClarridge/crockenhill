@@ -12,7 +12,7 @@ use App\Models\Sermon;
 use App\Models\User;
 use App\Services\LivestreamSegmentationService;
 use App\Services\Media\Video\VideoSegmentationService;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;

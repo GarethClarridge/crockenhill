@@ -9,7 +9,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ServiceSection;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;

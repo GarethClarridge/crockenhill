@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\SermonValidationService;
+use App\Services\Processing\SermonValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test;

@@ -6,7 +6,7 @@ namespace App\Queries;
 
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;

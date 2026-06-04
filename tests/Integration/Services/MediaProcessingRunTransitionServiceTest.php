@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\MediaProcessingRunTransitionService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

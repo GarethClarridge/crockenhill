@@ -16,7 +16,7 @@ use App\Http\Requests\MediaStatusRequest;
 use App\Http\Requests\ProcessMediaRequest;
 use App\Http\Requests\RetryMediaProcessingRequest;
 use App\Models\User;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 use App\Traits\SanitizesLogData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\StreamedEvent;

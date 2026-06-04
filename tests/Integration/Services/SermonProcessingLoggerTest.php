@@ -8,7 +8,7 @@ use App\Data\ProcessingReport;
 use App\Enums\ProcessingStatus;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
-use App\Services\SermonProcessingLogger;
+use App\Services\Processing\SermonProcessingLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;

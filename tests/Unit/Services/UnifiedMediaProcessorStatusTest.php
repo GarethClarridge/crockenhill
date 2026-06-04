@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Models\MediaProcessingLog;
 use App\Services\LivestreamSegmentationService;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

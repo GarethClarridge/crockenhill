@@ -12,7 +12,7 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\OosAlignmentService;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

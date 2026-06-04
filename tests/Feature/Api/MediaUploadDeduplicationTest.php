@@ -8,7 +8,7 @@ use App\Enums\ApiTokenAbility;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\ProcessingInitiator;
+use App\Services\Processing\ProcessingInitiator;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;

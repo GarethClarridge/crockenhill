@@ -9,6 +9,8 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
+use App\Services\Processing\MetadataExtractionService;
+use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;

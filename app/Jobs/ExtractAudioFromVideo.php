@@ -8,7 +8,7 @@ use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoExtractionService;
-use App\Services\MediaProcessingRunTransitionService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Traits\ChecksCancellation;
 use FFMpeg\FFProbe;
 use Illuminate\Bus\Queueable;

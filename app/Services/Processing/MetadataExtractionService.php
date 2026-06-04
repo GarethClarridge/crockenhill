@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Processing;
 
 use App\Data\SermonMetadata;
 use App\Enums\SermonService;
@@ -13,6 +13,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Owenoj\LaravelGetId3\GetId3;
+use App\Services\SermonFilenameParser;
 
 /**
  * @see SermonFilenameParser for the pure date/service inference rules this service delegates to.

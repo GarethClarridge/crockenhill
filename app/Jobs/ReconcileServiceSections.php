@@ -8,7 +8,7 @@ use App\Enums\MediaType;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\OosAlignmentService;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;

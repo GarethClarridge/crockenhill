@@ -7,7 +7,7 @@ namespace App\Data;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\ProcessingPhaseRegistry;
+use App\Services\Processing\ProcessingPhaseRegistry;
 use App\Services\SermonStorageService;
 use Carbon\Carbon;
 

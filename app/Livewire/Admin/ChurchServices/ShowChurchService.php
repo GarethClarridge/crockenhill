@@ -13,7 +13,7 @@ use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Presenters\ChurchServiceShowPresenter;
 use App\Queries\ChurchServiceProcessingRunQuery;
-use App\Services\ProcessingRunOrchestrator;
+use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;

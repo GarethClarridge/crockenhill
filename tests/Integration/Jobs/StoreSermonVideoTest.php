@@ -7,7 +7,7 @@ namespace Tests\Integration\Jobs;
 use App\Jobs\StoreSermonVideo;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\SermonMetadataIntegrationService;
+use App\Services\Processing\SermonMetadataIntegrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;

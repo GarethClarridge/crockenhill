@@ -6,7 +6,7 @@ namespace Tests\Traits;
 
 use App\Data\ProcessingResult;
 use App\Data\SermonAnalysis;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 
 trait MediaProcessingTestHelpers
 {

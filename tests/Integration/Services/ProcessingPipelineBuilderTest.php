@@ -30,7 +30,7 @@ use App\Jobs\TranscribeSpeechSegments;
 use App\Jobs\ValidateAudioFile;
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
-use App\Services\ProcessingPipelineBuilder;
+use App\Services\Processing\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

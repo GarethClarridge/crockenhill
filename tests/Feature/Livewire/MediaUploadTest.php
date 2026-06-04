@@ -30,7 +30,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Media\Video\VideoStorageService;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Bus\PendingBatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;

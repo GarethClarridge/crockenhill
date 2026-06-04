@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\VideoSegmentationService;
-use App\Services\StorageAdapterHelper;
+use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Mockery;

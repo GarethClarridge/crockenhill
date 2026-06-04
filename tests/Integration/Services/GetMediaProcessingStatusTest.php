@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Actions\GetMediaProcessingStatus;
 use App\Enums\ProcessingStatus;
 use App\Models\User;
-use App\Services\ProcessingLogService;
+use App\Services\Processing\ProcessingLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;

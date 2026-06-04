@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Data\ProcessingLogCollection;
-use App\Services\ProcessingLogService;
+use App\Services\Processing\ProcessingLogService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;

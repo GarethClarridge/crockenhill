@@ -6,6 +6,7 @@ namespace App\Services\Media\Audio;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\TranscriptionException;
+use App\Services\Processing\SermonProcessingLogger;
 use App\Traits\DetectsStorageType;
 use App\Traits\HandlesTranscriptStorage;
 use App\Traits\SanitizesLogData;
@@ -14,7 +15,6 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use App\Services\SermonProcessingLogger;
 
 class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
 {

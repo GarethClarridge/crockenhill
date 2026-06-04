@@ -6,8 +6,8 @@ namespace Tests\Integration\Jobs;
 
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
-use App\Services\MediaProcessingRunTransitionService;
-use App\Services\MediaValidationService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\MediaValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

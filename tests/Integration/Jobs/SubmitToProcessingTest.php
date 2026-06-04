@@ -8,7 +8,7 @@ use App\Jobs\StoreSermonVideo;
 use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\MediaProcessingRunTransitionService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;

@@ -12,7 +12,7 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\Media\Video\VideoStorageService;
-use App\Services\ProcessingRunOrchestrator;
+use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;

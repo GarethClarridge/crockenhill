@@ -33,7 +33,7 @@ use App\Models\Sermon;
 use App\Services\LivestreamSegmentationService;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Media\Video\VideoStorageService;
-use App\Services\SermonProcessingLogger;
+use App\Services\Processing\SermonProcessingLogger;
 use Illuminate\Bus\PendingBatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;

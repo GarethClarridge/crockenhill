@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Repositories\SermonRepository;
+use App\Services\Processing\SermonProcessingLogger;
 use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Support\Facades\Log;

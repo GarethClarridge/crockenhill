@@ -6,7 +6,7 @@ namespace Tests\Feature\Security;
 
 use App\Data\ProcessingResult;
 use App\Models\User;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;

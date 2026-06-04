@@ -8,7 +8,7 @@ use App\Data\ProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\ApiTokenAbility;
 use App\Models\User;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\DataProvider;

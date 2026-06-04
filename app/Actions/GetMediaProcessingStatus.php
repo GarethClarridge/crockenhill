@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Data\StandardProcessingResponse;
-use App\Services\ProcessingLogService;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\Processing\ProcessingLogService;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Database\Eloquent\Builder;
 

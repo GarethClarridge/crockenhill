@@ -6,7 +6,7 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoStorageService;
-use App\Services\MediaProcessingRunTransitionService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;

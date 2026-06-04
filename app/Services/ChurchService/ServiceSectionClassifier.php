@@ -10,7 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\SermonCandidateConfidenceService;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Support\Collection;

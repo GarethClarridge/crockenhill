@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\SermonMetadataIntegrationService;
+use App\Services\Processing\SermonMetadataIntegrationService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;

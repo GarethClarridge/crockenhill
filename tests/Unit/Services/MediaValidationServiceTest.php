@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Enums\MediaType;
 use App\Exceptions\InvalidFileException;
-use App\Services\MediaValidationService;
+use App\Services\Processing\MediaValidationService;
 use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

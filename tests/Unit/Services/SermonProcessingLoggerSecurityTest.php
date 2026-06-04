@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\ProcessingStatus;
-use App\Services\SermonProcessingLogger;
+use App\Services\Processing\SermonProcessingLogger;
 use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

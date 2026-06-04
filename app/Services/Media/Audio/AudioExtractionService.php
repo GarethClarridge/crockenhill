@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Enums\MediaType;
+use App\Services\Processing\MediaValidationService;
 use App\Traits\SanitizesLogData;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use App\Services\MediaValidationService;
 
 /**
  * AudioExtractionService - Handles audio extraction and processing

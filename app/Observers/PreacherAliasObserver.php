@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Models\PreacherAlias;
-use App\Services\SermonIdentitySyncService;
+use App\Services\Processing\SermonIdentitySyncService;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class PreacherAliasObserver implements ShouldHandleEventsAfterCommit

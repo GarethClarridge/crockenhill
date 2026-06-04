@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Exceptions\VideoProcessingException;
-use App\Services\StorageAdapterHelper;
+use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

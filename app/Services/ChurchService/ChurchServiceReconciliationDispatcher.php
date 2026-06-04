@@ -7,7 +7,7 @@ namespace App\Services\ChurchService;
 use App\Jobs\ReconcileServiceSections;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 
 class ChurchServiceReconciliationDispatcher
 {

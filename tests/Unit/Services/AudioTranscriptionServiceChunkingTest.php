@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\Media\Audio\AudioChunkingService;
-use App\Services\SermonProcessingLogger;
+use App\Services\Processing\SermonProcessingLogger;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;

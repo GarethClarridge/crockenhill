@@ -11,10 +11,10 @@ use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Preacher\NullSpeakerIdentificationService;
 use App\Services\Preacher\ResemblyzerSpeakerIdentificationService;
-use App\Services\ProcessingInitiator;
-use App\Services\ProcessingLogService;
-use App\Services\ProcessingRunOrchestrator;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\ProcessingInitiator;
+use App\Services\Processing\ProcessingLogService;
+use App\Services\Processing\ProcessingRunOrchestrator;
+use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Support\ServiceProvider;
 
 class MediaProcessingServiceProvider extends ServiceProvider

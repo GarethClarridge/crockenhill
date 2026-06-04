@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Exceptions\TranscriptionException;
+use App\Services\Processing\SermonProcessingLogger;
 use Exception;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
@@ -12,7 +13,6 @@ use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Media\Audio;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use App\Services\SermonProcessingLogger;
 
 class AudioChunkingService
 {

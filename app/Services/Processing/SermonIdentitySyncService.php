@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Processing;
 
 use App\Enums\PreacherSource;
 use App\Models\Preacher;

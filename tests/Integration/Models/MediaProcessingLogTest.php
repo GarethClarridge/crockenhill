@@ -15,7 +15,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Media\Video\VideoStorageService;
-use App\Services\MediaProcessingRunTransitionService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;

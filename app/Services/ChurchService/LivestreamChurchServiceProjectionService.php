@@ -10,7 +10,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;

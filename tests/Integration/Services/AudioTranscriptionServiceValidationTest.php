@@ -9,7 +9,7 @@ use App\Services\Media\Audio\AudioChunkingService;
 use App\Services\Media\Audio\AudioTranscriptionService;
 use App\Services\Media\Audio\TranscriptFormatterService;
 use App\Services\Media\Audio\TranscriptStorageService;
-use App\Services\SermonProcessingLogger;
+use App\Services\Processing\SermonProcessingLogger;
 use Exception;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;

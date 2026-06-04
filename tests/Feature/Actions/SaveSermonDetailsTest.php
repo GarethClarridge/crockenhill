@@ -12,7 +12,7 @@ use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Services\Preacher\PreacherResolutionService;
-use App\Services\SermonIdentitySyncService;
+use App\Services\Processing\SermonIdentitySyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

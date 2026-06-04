@@ -6,8 +6,8 @@ namespace App\Jobs;
 
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
-use App\Services\MediaProcessingRunTransitionService;
-use App\Services\MediaValidationService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\MediaValidationService;
 use App\Traits\ChecksCancellation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;

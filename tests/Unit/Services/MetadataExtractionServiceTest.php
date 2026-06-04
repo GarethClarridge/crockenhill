@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Data\SermonMetadata;
 use App\Enums\SermonService;
-use App\Services\MetadataExtractionService;
+use App\Services\Processing\MetadataExtractionService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

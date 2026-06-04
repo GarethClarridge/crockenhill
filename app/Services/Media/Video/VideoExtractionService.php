@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Media\Video;
 
 use App\Exceptions\VideoProcessingException;
+use App\Services\Media\Audio\AudioCompressionService;
+use App\Services\Processing\StorageAdapterHelper;
 use App\Traits\RequiresFfmpeg;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\Format\Audio\Mp3;
@@ -14,8 +16,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use App\Services\Media\Audio\AudioCompressionService;
-use App\Services\StorageAdapterHelper;
 
 class VideoExtractionService
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Processing;
 
 use App\Actions\GetMediaProcessingStatus;
 use App\Contracts\ProvidesSafeMessage;
@@ -18,6 +18,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Services\LivestreamSegmentationService;
 
 class UnifiedMediaProcessor
 {

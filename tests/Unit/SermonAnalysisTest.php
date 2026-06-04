@@ -6,10 +6,10 @@ namespace Tests\Unit;
 
 use App\Repositories\SermonRepository;
 use App\Services\BritishEnglishConverter;
+use App\Services\Processing\SermonProcessingLogger;
 use App\Services\SermonAnalysisPromptBuilder;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonAnalysisValidator;
-use App\Services\SermonProcessingLogger;
 use Exception;
 use Tests\TestCase;
 

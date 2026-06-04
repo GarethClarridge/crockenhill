@@ -7,6 +7,7 @@ namespace App\Services\Media\Audio;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\NonRetryableTranscriptionException;
 use App\Exceptions\TranscriptionException;
+use App\Services\Processing\SermonProcessingLogger;
 use App\Traits\DetectsStorageType;
 use App\Traits\HandlesTranscriptStorage;
 use App\Traits\SanitizesLogData;
@@ -16,7 +17,6 @@ use Illuminate\Support\Facades\Storage;
 use OpenAI\Exceptions\ErrorException;
 use OpenAI\Exceptions\TransporterException;
 use OpenAI\Laravel\Facades\OpenAI;
-use App\Services\SermonProcessingLogger;
 
 class AudioTranscriptionService implements TranscriptionServiceInterface
 {

@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Exceptions\TranscriptionException;
 use App\Services\Media\Audio\AudioChunkingService;
-use App\Services\SermonProcessingLogger;
+use App\Services\Processing\SermonProcessingLogger;
 use Illuminate\Support\Facades\Config;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;

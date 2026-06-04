@@ -7,7 +7,7 @@ namespace Tests\Integration\Jobs;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoExtractionService;
-use App\Services\MediaProcessingRunTransitionService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

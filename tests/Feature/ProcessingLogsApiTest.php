@@ -8,7 +8,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\ProcessingLogService;
+use App\Services\Processing\ProcessingLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;

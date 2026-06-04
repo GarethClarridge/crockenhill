@@ -16,7 +16,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ServiceSectionClassifier;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\Media\Video\VideoExtractionService;
-use App\Services\StorageAdapterHelper;
+use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;

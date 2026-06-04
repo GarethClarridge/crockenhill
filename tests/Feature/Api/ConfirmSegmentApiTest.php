@@ -11,7 +11,7 @@ use App\Jobs\ExtractSermon;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\MediaProcessingRunTransitionService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Queue;

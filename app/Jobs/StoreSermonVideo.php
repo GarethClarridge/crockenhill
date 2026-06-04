@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
-use App\Services\MediaProcessingRunTransitionService;
-use App\Services\SermonMetadataIntegrationService;
+use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\SermonMetadataIntegrationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;

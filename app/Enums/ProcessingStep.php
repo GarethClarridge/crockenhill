@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
-use App\Services\ProcessingPhaseRegistry;
+use App\Services\Processing\ProcessingPhaseRegistry;
 
 /**
  * Canonical processing step names and their associated progress percentages.

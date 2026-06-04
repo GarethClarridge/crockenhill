@@ -11,7 +11,7 @@ use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Video\HistoricVideoImporter;
-use App\Services\UnifiedMediaProcessor;
+use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
