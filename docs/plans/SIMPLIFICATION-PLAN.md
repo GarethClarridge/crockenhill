@@ -135,20 +135,15 @@ Exit criteria:
 
 Priority: **Low** — small refactor, contained blast radius.
 
-Status: **Pending**.
+Status: **Complete** (2026-06-03, commit `9e6c9a112` "Phase 16 + 17: Consolidate MediaUpload Livewire component"). Option 1 (rename + relocate, the recommended path) was taken.
 
-[app/Livewire/MediaUpload.php](../../app/Livewire/MediaUpload.php) is a 9-line empty `extends Form {}` whose only role is to expose the alias `media-upload` to Livewire's class-name inference. The sibling files ([Form.php](../../app/Livewire/MediaUpload/Form.php), [Progress.php](../../app/Livewire/MediaUpload/Progress.php), [Status.php](../../app/Livewire/MediaUpload/Status.php)) already nest under `MediaUpload/`, so future readers reasonably expect `MediaUpload` to be a directory, not a class.
-
-Options (pick one):
-
-1. **Rename + relocate (recommended).** Rename `App\Livewire\MediaUpload\Form` → `App\Livewire\MediaUpload`, move it up one directory. The two child components (`Progress`, `Status`) sit in a sibling `MediaUploadParts/` directory or are renamed `MediaUploadProgress` / `MediaUploadStatus`. Delete the empty subclass.
-2. **Explicit Livewire alias.** Keep `Form` where it is, register `Livewire::component('media-upload', Form::class)` in a service provider, delete the empty subclass.
+The empty `MediaUpload extends Form {}` subclass was dropped. The real component was promoted from `MediaUpload/Form.php` up to [app/Livewire/MediaUpload.php](../../app/Livewire/MediaUpload.php), and the two child components were flattened out of the now-deleted `MediaUpload/` directory to [MediaUploadProgress.php](../../app/Livewire/MediaUploadProgress.php) / [MediaUploadStatus.php](../../app/Livewire/MediaUploadStatus.php) (aliases `media-upload-progress` / `media-upload-status`). The page-global `media-upload:*` event-name strings and the `livewire.media-upload.*` view paths were left unchanged (cross-component contract / blade paths).
 
 Tasks:
 
-- [ ] Decide between option 1 and option 2.
-- [ ] Update [resources/views/sermons/upload.blade.php:15](../../resources/views/sermons/upload.blade.php#L15) (`@livewire('media-upload')`) plus the two `<livewire:media-upload.progress>` / `<livewire:media-upload.status>` references in [resources/views/livewire/media-upload/form.blade.php](../../resources/views/livewire/media-upload/form.blade.php).
-- [ ] Re-run the existing media-upload Dusk + feature tests.
+- [x] Decide between option 1 and option 2. (Option 1 — rename + relocate.)
+- [x] Update [resources/views/sermons/upload.blade.php:15](../../resources/views/sermons/upload.blade.php#L15) (`@livewire('media-upload')` — unchanged alias) plus the two child-component references in [resources/views/livewire/media-upload/form.blade.php](../../resources/views/livewire/media-upload/form.blade.php) (now `<livewire:media-upload-progress>` / `<livewire:media-upload-status>`).
+- [x] Re-run the existing media-upload Dusk + feature tests. (41 focused tests + 41 Dusk tests pass.)
 
 Exit criteria:
 
@@ -158,15 +153,15 @@ Exit criteria:
 
 Priority: **Medium** — touches the largest Livewire component but the change is mechanical.
 
-Status: **Pending**.
+Status: **Complete** (2026-06-03, same commit as Phase 16, `9e6c9a112`).
 
-[app/Livewire/Traits/WithUploadLifecycle.php](../../app/Livewire/Traits/WithUploadLifecycle.php) is ~270 lines of stateful upload, validation, and progress-tracking logic. It is used by exactly one class ([MediaUpload/Form.php](../../app/Livewire/MediaUpload/Form.php)). A single-consumer trait that carries this much state is just a chapter of the component placed in a different file. It cannot be tested in isolation and forces every reader to chase imports.
+`app/Livewire/Traits/WithUploadLifecycle.php` was ~255 lines of stateful upload, validation, and progress-tracking logic used by exactly one class. As planned, it was inlined into the promoted [MediaUpload](../../app/Livewire/MediaUpload.php) component and deleted; the trait's `@property` bridge was replaced by real property declarations. `WithFileUploads` (the Livewire-provided trait) is retained; `HasConditionalLogging` had already been removed under Phase 18.
 
 Tasks:
 
-- [ ] Combine with Phase 16: after the rename, inline the trait's contents into the (renamed) `MediaUpload` component.
-- [ ] Keep `WithFileUploads` (Livewire-provided trait) and `HasConditionalLogging` for now (Phase 18 removes the latter).
-- [ ] Adjust PHPStan baseline if necessary.
+- [x] Combine with Phase 16: after the rename, inline the trait's contents into the (renamed) `MediaUpload` component.
+- [x] Keep `WithFileUploads` (Livewire-provided trait) — retained. (`HasConditionalLogging` was already gone via Phase 18.)
+- [x] Adjust PHPStan baseline if necessary. (PHPStan clean, 0 errors.)
 
 Exit criteria:
 
@@ -176,7 +171,7 @@ Exit criteria:
 
 Priority: **Low** — small surface, but eliminates a confusing pattern.
 
-Status: **Complete** — trait deleted; all `$this->log*()` calls in `MediaUpload/Form.php`, `WithUploadLifecycle.php`, and `ProcessingLogsViewer.php` replaced with direct `Log::` facade calls. Test logging is silenced via the existing `LOG_CHANNEL=testing` config in `phpunit.xml`.
+Status: **Complete** — trait deleted; all `$this->log*()` calls in the upload component (then `MediaUpload/Form.php` + its `WithUploadLifecycle` trait, since merged into [MediaUpload.php](../../app/Livewire/MediaUpload.php) under Phases 16/17) and `ProcessingLogsViewer.php` replaced with direct `Log::` facade calls. Test logging is silenced via the existing `LOG_CHANNEL=testing` config in `phpunit.xml`.
 
 [app/Livewire/Traits/HasConditionalLogging.php](../../app/Livewire/Traits/HasConditionalLogging.php) wraps every `Log::info|warning|error|debug` call in `if (! app()->runningUnitTests())`. Production code should not branch on test context. The trait is used in two files ([MediaUpload/Form.php](../../app/Livewire/MediaUpload/Form.php) and [ProcessingLogsViewer.php](../../app/Livewire/ProcessingLogsViewer.php)).
 
@@ -257,7 +252,7 @@ Several action classes were pure single-call delegations that served no test-sea
 Resolution per candidate:
 
 - [app/Actions/CategorizeCalendarEvent.php] — **Inlined and deleted.** The null/non-null branch was routing, not guard logic. Inlined `$calendarService->manuallyUnCategorizeEvent(...)` / `manuallyCategorizeEvent(...)` directly at the two call sites in [ListCalendarEvents.php](../../app/Livewire/Admin/CalendarEvents/ListCalendarEvents.php) and [EditCalendarEvent.php](../../app/Livewire/Admin/CalendarEvents/EditCalendarEvent.php). The seam in `ListCalendarEventsTest` was moved down one layer to mock `CalendarService::manuallyCategorizeEvent` instead.
-- [app/Actions/Meetings/CreateMeetingCalendarEvent.php] — **Deleted** (plus its test and the now-empty `Meetings/` directories). Confirmed zero production callers; its sole consumer was its own test. Note: its target method `GoogleCalendarSyncService::createEventForMeeting()` is now unreferenced — flagged for a future dead-method sweep (out of scope for Phase 21, which is scoped to action classes).
+- [app/Actions/Meetings/CreateMeetingCalendarEvent.php] — **Deleted** (plus its test and the now-empty `Meetings/` directories). Confirmed zero production callers; its sole consumer was its own test. Note: its target method `GoogleCalendarSyncService::createEventForMeeting()` was then left unreferenced — that dead-method sweep was completed in commit `fd3e5f278` ("Remove orphaned GoogleCalendarSyncService::createEventForMeeting").
 - [app/Actions/QueueScriptureEnrichment.php](../../app/Actions/QueueScriptureEnrichment.php) — **Kept.** It carries real guard logic (config `services.api_bible.enabled` check + empty-reference check), is injected into `SaveSermonDetails` and `ScriptureOperatorService`, and is mocked as a seam in two test files. A genuine collaborator, not a thin wrapper.
 
 Exit criteria (met):
@@ -270,20 +265,20 @@ Priority: **Low** — readability improvement, not behavior change.
 
 Status: **Investigate**.
 
-The 18 files under [app/Presenters/](../../app/Presenters/) serve three different responsibilities:
+The 20 files under [app/Presenters/](../../app/Presenters/) serve three different responsibilities:
 
 | Group | Files | Pattern |
 |-------|-------|---------|
 | Sitemap | MeetingSitemapPresenter, PageSitemapPresenter, PreacherSitemapPresenter, SermonSitemapPresenter | `Url::create(...)` builder |
 | SEO / Schema.org | SermonArchiveSeoPresenter, SeriesItemListPresenter, SongArchiveSeoPresenter, SongItemListPresenter, SermonItemListPresenter, PreacherItemListPresenter | JSON-LD shape builder |
-| View data | PageLayoutPresenter, PageCardPresenter, PageImagePresenter, RelatedPagePresenter, SermonViewPresenter (995 lines!), ChurchServiceShowPresenter, MeetingShowPresenter, BreadcrumbPresenter | Model → view-ready array/object |
+| View data | PageLayoutPresenter, PageCardPresenter, PageImagePresenter, RelatedPagePresenter, SermonViewPresenter (736 lines, down from 995 via Phase 14), SermonPresentationAssembler (new in Phase 14), ChurchServiceShowPresenter, MeetingShowPresenter, BreadcrumbPresenter | Model → view-ready array/object |
 
 "Presenter" is currently a junk-drawer label. The sitemap presenters are tightly coupled to [SitemapService.php](../../app/Services/SitemapService.php) and would be more discoverable adjacent to it. The SEO/Schema.org presenters share a more cohesive purpose than they share with the view-data presenters.
 
 Tasks:
 
 - [ ] Decide on a target shape — options include `app/Sitemap/`, `app/Seo/`, and a slimmer `app/Presenters/`.
-- [ ] Verify that `SermonViewPresenter` (the 995-line outlier) is on the Phase 14 decomposition list — it now is.
+- [x] Verify that `SermonViewPresenter` (formerly the 995-line outlier) is on the Phase 14 decomposition list — it is, and Phase 14 has since reduced it to 736 lines.
 - [ ] Do not move without consensus — this is the largest-blast-radius item in this plan.
 
 Exit criteria:
@@ -359,7 +354,7 @@ Exit criteria:
 4. **Phase 18** — Independent; removes a confusing pattern.
 5. **Phase 21** — File-count reduction; bundle the action deletions into one PR.
 6. **Phase 19** — Security-adjacent; consolidate before anything else touches `DeleteLivestreamUpload`.
-7. **Phase 16 + Phase 17 together** — Both rework the same `MediaUpload` component; do as one PR with full Dusk run.
+7. ~~**Phase 16 + Phase 17 together** — Both rework the same `MediaUpload` component; do as one PR with full Dusk run.~~ **Done** (commit `9e6c9a112`).
 8. **Phase 20** — Mechanical rename across a known caller set.
 9. **Phase 25** — Investigate-then-decide; needs maintainer sign-off that the historic imports are done before any deletion.
 10. **Phase 14** — Ongoing incremental decomposition of oversized services (including `SermonViewPresenter`).
@@ -371,7 +366,7 @@ Exit criteria:
 - [ ] Schema snapshot strategy is consistent and drift-free, with automatic guardrails.
 - [ ] Remaining hotspot services are decomposed with focused tests.
 - [x] No file in `app/Services/` is an exception class.
-- [ ] No project-local trait is consumed by exactly one class for state-bearing behavior.
+- [x] No project-local trait is consumed by exactly one class for state-bearing behavior.
 - [x] No project code branches on `app()->runningUnitTests()`.
 - [x] Exactly one canonical implementation of path-safety checks.
 - [x] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.
