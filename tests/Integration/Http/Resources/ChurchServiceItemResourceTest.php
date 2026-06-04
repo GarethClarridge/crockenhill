@@ -6,13 +6,13 @@ namespace Tests\Integration\Http\Resources;
 
 use App\Http\Resources\ChurchServiceItemResource;
 use App\Models\ChurchServiceItem;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChurchServiceItemResourceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_transforms_to_array_with_all_expected_keys(): void

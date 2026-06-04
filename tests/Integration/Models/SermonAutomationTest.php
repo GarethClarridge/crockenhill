@@ -6,13 +6,13 @@ namespace Tests\Integration\Models;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonAutomationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_is_automated_if_it_has_a_transcript(): void

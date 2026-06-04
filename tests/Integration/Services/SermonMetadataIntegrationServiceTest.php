@@ -283,10 +283,9 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     {
         Storage::fake();
 
-        // Should not throw any exception
-        $this->service->cleanupTemporaryVideoFiles('nonexistent-id');
+        $this->expectNotToPerformAssertions();
 
-        $this->assertTrue(true);
+        $this->service->cleanupTemporaryVideoFiles('nonexistent-id');
     }
 
     // --- validateVideoFile() (local files) ---

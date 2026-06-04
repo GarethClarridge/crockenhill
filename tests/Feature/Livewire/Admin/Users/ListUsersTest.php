@@ -6,7 +6,7 @@ namespace Tests\Feature\Livewire\Admin\Users;
 
 use App\Livewire\Admin\Users\ListUsers;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 class ListUsersTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $admin;
 

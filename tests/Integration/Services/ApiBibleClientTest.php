@@ -6,7 +6,7 @@ namespace Tests\Integration\Services;
 
 use App\Exceptions\ApiBibleBudgetExhaustedException;
 use App\Services\ApiBibleClient;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class ApiBibleClientTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private ApiBibleClient $client;
 

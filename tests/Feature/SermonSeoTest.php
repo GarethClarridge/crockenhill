@@ -8,19 +8,25 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonSeoTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
         Cache::flush();
+
+        // These tests assert exact "numberOfItems" counts on the rendered SEO
+        // JSON-LD, so they must start from an empty sermons table. A sibling
+        // suite that commits rows outside RefreshDatabase's transaction (e.g. a
+        // DatabaseMigrations DDL test) can otherwise leak sermons into the count.
+        Sermon::query()->delete();
     }
 
     #[Test]

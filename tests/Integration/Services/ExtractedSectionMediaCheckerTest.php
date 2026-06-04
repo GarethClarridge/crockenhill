@@ -6,7 +6,7 @@ namespace Tests\Integration\Services;
 
 use App\Models\ServiceSection;
 use App\Services\ExtractedSectionMediaChecker;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 class ExtractedSectionMediaCheckerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private ExtractedSectionMediaChecker $service;
 

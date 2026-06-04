@@ -260,7 +260,8 @@ class ProcessingLogsViewerTest extends TestCase
         $this->actingAs($this->admin);
 
         $mockStatusQuery = $this->createMock(GetMediaProcessingStatus::class);
-        $mockStatusQuery->method('getWithLogs')
+        $mockStatusQuery->expects($this->once())
+            ->method('getWithLogs')
             ->with('non-existent-id', 20)
             ->willReturn(StandardProcessingResponse::notFound());
         $this->app->instance(GetMediaProcessingStatus::class, $mockStatusQuery);

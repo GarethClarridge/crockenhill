@@ -7,7 +7,7 @@ namespace Tests\Feature\Warden;
 use App\Livewire\Auth\Register;
 use App\Models\User;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class UserIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_rejects_untrimmed_names_at_the_database_level(): void

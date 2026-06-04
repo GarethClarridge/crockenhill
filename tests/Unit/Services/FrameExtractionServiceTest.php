@@ -222,9 +222,9 @@ class FrameExtractionServiceTest extends TestCase
     #[Test]
     public function it_does_nothing_when_path_is_null(): void
     {
-        // Should not throw
+        $this->expectNotToPerformAssertions();
+
         $this->service->cleanupDownloadedVideo(null);
-        $this->assertTrue(true);
     }
 
     #[Test]

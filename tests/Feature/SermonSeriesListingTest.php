@@ -6,12 +6,12 @@ namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class SermonSeriesListingTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     public function test_sermon_serieses_page_renders_with_optimized_controller(): void
     {

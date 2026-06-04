@@ -6,14 +6,14 @@ namespace Tests\Integration\Models;
 
 use App\Enums\MeetingFrequency;
 use App\Models\Meeting;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MeetingRecursionTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function daily_recurrence_is_today_if_time_is_future(): void

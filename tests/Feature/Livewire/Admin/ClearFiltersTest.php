@@ -11,13 +11,13 @@ use App\Livewire\Admin\Preachers\ListPreachers;
 use App\Livewire\Admin\Sermons\ListSermons;
 use App\Livewire\Admin\Users\ListUsers;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
 
 class ClearFiltersTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $admin;
 

@@ -7,14 +7,14 @@ namespace Tests\Feature\Admin;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ServiceSectionCandidateMediaControllerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     // ── auth guard ─────────────────────────────────────────────────────────
 

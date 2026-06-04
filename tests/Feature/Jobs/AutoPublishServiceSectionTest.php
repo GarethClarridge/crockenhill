@@ -125,11 +125,11 @@ class AutoPublishServiceSectionTest extends TestCase
     #[Test]
     public function it_handles_missing_section_gracefully(): void
     {
+        // A missing section id is a no-op rather than an error.
+        $this->expectNotToPerformAssertions();
+
         (new AutoPublishServiceSection(99999))->handle(
             app(SectionPublicationHandlerFactory::class)
         );
-
-        // No exception — section simply not found.
-        $this->assertTrue(true);
     }
 }

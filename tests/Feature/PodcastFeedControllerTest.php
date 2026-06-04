@@ -7,13 +7,13 @@ namespace Tests\Feature;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PodcastFeedControllerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     // ── happy path ────────────────────────────────────────────────────────
 

@@ -6,13 +6,13 @@ namespace Tests\Feature\Security;
 
 use App\Enums\ApiTokenAbility;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ApiValidationSecurityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function sermon_api_index_rejects_out_of_range_per_page(): void

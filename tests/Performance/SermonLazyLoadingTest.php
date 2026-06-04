@@ -6,7 +6,7 @@ namespace Tests\Performance;
 
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -14,7 +14,7 @@ use Tests\TestCase;
 #[Group('performance')]
 class SermonLazyLoadingTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_has_content_type_loaded_in_public_sermon_query(): void

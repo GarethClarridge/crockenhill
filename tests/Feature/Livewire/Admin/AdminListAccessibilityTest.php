@@ -7,14 +7,14 @@ namespace Tests\Feature\Livewire\Admin;
 use App\Livewire\Admin\Sermons\ListSermons;
 use App\Models\Sermon;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AdminListAccessibilityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_renders_accessibility_features_when_paginator_is_provided(): void

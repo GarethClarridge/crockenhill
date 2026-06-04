@@ -7,13 +7,13 @@ namespace Tests\Feature;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class CalendarControllerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function tearDown(): void
     {

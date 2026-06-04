@@ -7,13 +7,13 @@ namespace Tests\Integration;
 use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Seo\SongItemListPresenter;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SongItemListPresenterTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_generates_item_list_json_ld_for_songs_with_id(): void

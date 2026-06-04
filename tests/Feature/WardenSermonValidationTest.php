@@ -6,14 +6,14 @@ namespace Tests\Feature;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class WardenSermonValidationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_rejects_a_non_existent_livestream_processing_id(): void

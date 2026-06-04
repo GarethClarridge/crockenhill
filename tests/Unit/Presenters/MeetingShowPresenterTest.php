@@ -7,14 +7,14 @@ namespace Tests\Unit\Presenters;
 use App\Models\Meeting;
 use App\Presenters\MeetingShowPresenter;
 use App\Presenters\PageLayoutPresenter;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MeetingShowPresenterTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private MeetingShowPresenter $presenter;
 

@@ -7,7 +7,7 @@ namespace Tests\Integration\Http\Resources;
 use App\Http\Resources\SermonResource;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Resources\MissingValue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class SermonResourceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private array $sermonViewData = [
         'audio_url' => 'https://example.com/audio.mp3',

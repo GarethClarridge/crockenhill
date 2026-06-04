@@ -9,14 +9,14 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use App\Repositories\SermonRepository;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonRepositoryScriptureCacheTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private SermonRepository $repository;
 

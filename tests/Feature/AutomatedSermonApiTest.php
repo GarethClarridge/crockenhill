@@ -8,7 +8,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\UnifiedMediaProcessor;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -21,8 +21,8 @@ use Tests\Traits\MediaProcessingTestHelpers;
 class AutomatedSermonApiTest extends TestCase
 {
     use BypassesThrottleRequests;
-    use DatabaseTransactions;
     use MediaProcessingTestHelpers;
+    use RefreshDatabase;
 
     protected User $user;
 
@@ -176,7 +176,8 @@ class AutomatedSermonApiTest extends TestCase
     {
         // Mock the UnifiedMediaProcessor to throw an exception
         $mockService = $this->createMock(UnifiedMediaProcessor::class);
-        $mockService->method('process')
+        $mockService->expects($this->once())
+            ->method('process')
             ->with('audio', $this->anything())
             ->willThrowException(new \Exception('Service unavailable'));
 

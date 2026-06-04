@@ -6,14 +6,14 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Sermon;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonThumbnailCandidateControllerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function admin_can_view_thumbnail_candidate_overlay(): void

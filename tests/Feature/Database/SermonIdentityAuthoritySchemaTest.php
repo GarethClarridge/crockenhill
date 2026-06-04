@@ -15,6 +15,9 @@ use Tests\TestCase;
 
 class SermonIdentityAuthoritySchemaTest extends TestCase
 {
+    // DatabaseMigrations (not RefreshDatabase) is required: these tests run
+    // migration up()/down() and DDL (ALTER TABLE ... NOT ENFORCED), which trigger
+    // MySQL implicit commits that would defeat RefreshDatabase's transaction wrapper.
     use DatabaseMigrations;
 
     #[Test]

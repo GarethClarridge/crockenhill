@@ -8,13 +8,13 @@ use App\Enums\SermonContentType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonControllerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private int $initialOutputBufferLevel;
 

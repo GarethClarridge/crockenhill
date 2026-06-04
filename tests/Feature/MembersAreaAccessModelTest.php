@@ -10,7 +10,7 @@ use App\Models\Sermon;
 use App\Models\Song;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail as VerifyEmailNotification;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -18,7 +18,7 @@ use Tests\TestCase;
 
 class MembersAreaAccessModelTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function self_registered_unverified_user_cannot_access_members_or_songs_routes(): void

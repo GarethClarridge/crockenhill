@@ -8,14 +8,14 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TextIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function sermon_title_is_automatically_trimmed()

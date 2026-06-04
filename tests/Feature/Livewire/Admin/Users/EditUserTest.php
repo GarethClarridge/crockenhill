@@ -6,7 +6,7 @@ namespace Tests\Feature\Livewire\Admin\Users;
 
 use App\Livewire\Admin\Users\EditUser;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Livewire\Livewire;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class EditUserTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $admin;
 

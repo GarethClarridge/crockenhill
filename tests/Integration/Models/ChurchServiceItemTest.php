@@ -9,13 +9,13 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Models\Song;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChurchServiceItemTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_casts_attributes_correctly(): void

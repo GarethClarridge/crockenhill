@@ -7,7 +7,7 @@ namespace Tests\Feature\Database;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class ChurchServiceItemIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_trims_title_and_type_via_model_setters(): void

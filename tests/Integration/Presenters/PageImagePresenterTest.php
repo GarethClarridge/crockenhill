@@ -7,13 +7,13 @@ namespace Tests\Integration\Presenters;
 use App\Models\Page;
 use App\Presenters\PageImagePresenter;
 use App\Services\PageImageCacheService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PageImagePresenterTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private PageImagePresenter $presenter;
 

@@ -310,9 +310,11 @@ class AudioChunkingServiceTest extends TestCase
             ->once()
             ->with('proc-123', 'chunk_cleanup', 'completed', Mockery::type('array'));
 
-        // Should not throw
         $this->service->cleanupChunkFiles(['/nonexistent/file.mp3'], 'proc-123');
-        $this->assertTrue(true);
+
+        // The cleanup completes without error and the file remains absent; the
+        // logger ->once() expectation above asserts the completion step fired.
+        $this->assertFileDoesNotExist('/nonexistent/file.mp3');
     }
 
     // ---- getAudioDuration (requires FFmpeg, test error handling) ----

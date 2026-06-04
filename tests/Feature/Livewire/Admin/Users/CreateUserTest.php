@@ -7,7 +7,7 @@ namespace Tests\Feature\Livewire\Admin\Users;
 use App\Livewire\Admin\Users\CreateUser;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 class CreateUserTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $admin;
 

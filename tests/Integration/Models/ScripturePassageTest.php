@@ -6,7 +6,7 @@ namespace Tests\Integration\Models;
 
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 class ScripturePassageTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_has_expected_casts(): void

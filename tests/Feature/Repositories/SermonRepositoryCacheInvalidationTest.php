@@ -8,14 +8,14 @@ use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonRepositoryCacheInvalidationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private SermonRepository $repository;
 

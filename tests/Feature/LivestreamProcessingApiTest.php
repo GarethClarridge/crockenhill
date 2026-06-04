@@ -13,7 +13,7 @@ use App\Services\LivestreamSegmentationService;
 use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoSegmentationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Bus;
@@ -26,7 +26,7 @@ use Tests\TestCase;
 
 class LivestreamProcessingApiTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {

@@ -9,7 +9,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class WardenIntegrityFixTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_enforces_scripture_passage_referential_integrity(): void

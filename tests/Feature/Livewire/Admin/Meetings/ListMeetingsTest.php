@@ -9,7 +9,7 @@ use App\Livewire\Admin\Meetings\ListMeetings;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class ListMeetingsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $admin;
 

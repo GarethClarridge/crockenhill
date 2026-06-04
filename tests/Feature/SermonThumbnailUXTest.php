@@ -6,13 +6,13 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SermonThumbnailUXTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {

@@ -7,7 +7,7 @@ namespace Tests\Feature\DataIntegrity;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class LivestreamSegmentIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_has_a_unique_constraint_on_media_processing_log_id_and_segment_index(): void

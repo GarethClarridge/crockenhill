@@ -8,7 +8,7 @@ use App\Livewire\Auth\Register as RegisterComponent;
 use App\Livewire\Auth\VerifyEmail as VerifyEmailComponent;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail as VerifyEmailNotification;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class LivewireAuthComponentsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function register_component_creates_user_and_redirects_to_verification_notice(): void

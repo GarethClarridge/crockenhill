@@ -8,7 +8,7 @@ use App\Enums\PageArea;
 use App\Livewire\Christ\BibleRequestForm;
 use App\Mail\BibleRequest;
 use App\Models\Page;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class BibleRequestFormTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {

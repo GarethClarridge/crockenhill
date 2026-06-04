@@ -13,14 +13,14 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\PreacherListCache;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonPagesTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private int $initialOutputBufferLevel;
 

@@ -8,12 +8,12 @@ use App\Enums\PreacherSource;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class PreacherCutoverCommandTest extends TestCase
 {
-    use DatabaseMigrations;
+    use RefreshDatabase;
 
     public function test_cutover_skips_blank_preacher_names_and_defaults_whitespace_sermons(): void
     {

@@ -13,13 +13,13 @@ use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Services\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SaveSermonDetailsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private SaveSermonDetails $action;
 

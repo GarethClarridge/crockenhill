@@ -6,7 +6,7 @@ namespace Tests\Feature\Models;
 
 use App\Models\SongBook;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 class SongBookIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_trims_name_and_publisher_automatically(): void

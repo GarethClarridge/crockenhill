@@ -168,6 +168,7 @@ class UnifiedMediaProcessorTest extends TestCase
         );
 
         $this->livestreamService
+            ->expects($this->once())
             ->method('startProcessing')
             ->with($file, null)
             ->willReturn($expectedResult);

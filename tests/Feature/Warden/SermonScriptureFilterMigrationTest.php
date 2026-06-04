@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Warden;
 
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonScriptureFilterMigrationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private const INTEGRITY_MIGRATION = '2026_04_22_054106_add_integrity_checks_to_sermon_scripture_filters_table.php';
 

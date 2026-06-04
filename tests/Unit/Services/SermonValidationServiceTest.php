@@ -13,7 +13,7 @@ use App\Repositories\SermonRepository;
 use App\Services\MediaValidationService;
 use App\Services\SermonValidationService;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
 use Mockery;
@@ -23,7 +23,7 @@ use Tests\TestCase;
 
 class SermonValidationServiceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private SermonValidationService $service;
 

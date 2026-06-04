@@ -9,13 +9,13 @@ use App\Jobs\ProcessingJob;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
 use App\Support\CancellationChecker;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ProcessingJobTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function step_logging_does_not_fail_the_job_when_the_parent_processing_log_is_missing(): void
@@ -32,9 +32,9 @@ class ProcessingJobTest extends TestCase
             }
         };
 
-        $job->writeStepLogs();
+        $this->expectNotToPerformAssertions();
 
-        $this->assertTrue(true);
+        $job->writeStepLogs();
     }
 
     #[Test]

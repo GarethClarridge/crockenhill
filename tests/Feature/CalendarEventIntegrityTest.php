@@ -8,14 +8,14 @@ use App\Enums\CalendarEventStatus;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class CalendarEventIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_trims_whitespace_from_attributes(): void

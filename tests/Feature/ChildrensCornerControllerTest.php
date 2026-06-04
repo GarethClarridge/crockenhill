@@ -7,13 +7,13 @@ namespace Tests\Feature;
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChildrensCornerControllerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private int $initialOutputBufferLevel;
 

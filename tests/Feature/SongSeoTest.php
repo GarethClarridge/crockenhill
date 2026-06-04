@@ -8,14 +8,14 @@ use App\Livewire\Church\Songs\BrowseSongs;
 use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SongSeoTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function song_archive_has_correct_default_seo_metadata(): void

@@ -10,7 +10,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\LegacySermonImporter;
 use App\Services\MetadataExtractionService;
 use App\Services\ProcessingRunOrchestrator;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -19,7 +19,7 @@ use Tests\TestCase;
 
 class LegacySermonImporterTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private LegacySermonImporter $importer;
 

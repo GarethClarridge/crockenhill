@@ -11,13 +11,13 @@ use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonStatusAndMediaTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     // ---- Processing Status Helpers ----
 

@@ -7,7 +7,7 @@ namespace Tests\Feature\Auth;
 use App\Livewire\Auth\Login as LoginComponent;
 use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +19,7 @@ use Tests\TestCase;
 
 class LoginTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function routes_are_loaded(): void

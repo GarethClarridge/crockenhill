@@ -8,13 +8,13 @@ use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\SongBook;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SongCatalogIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function database_rejects_song_with_empty_title(): void

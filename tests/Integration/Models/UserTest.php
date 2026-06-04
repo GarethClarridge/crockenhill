@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Models;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use PHPUnit\Framework\Attributes\Test;
@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 class UserTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_can_be_created_via_factory(): void

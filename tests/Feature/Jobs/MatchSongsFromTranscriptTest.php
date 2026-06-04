@@ -56,6 +56,9 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
+        // The disabled feature flag must short-circuit the job with no side effects.
+        $this->expectNotToPerformAssertions();
+
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
             app(UnmatchedSongReviewApplicator::class),
@@ -67,8 +70,6 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(SongLyricOcrService::class),
         );
 
-        // No sections to assert on — just verify no exception and step was skipped.
-        $this->assertTrue(true);
     }
 
     #[Test]
@@ -76,6 +77,9 @@ class MatchSongsFromTranscriptTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->audio()->pending()->create();
 
+        // A non-livestream processing type must short-circuit with no side effects.
+        $this->expectNotToPerformAssertions();
+
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
             app(UnmatchedSongReviewApplicator::class),
@@ -86,8 +90,6 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
         );
-
-        $this->assertTrue(true);
     }
 
     #[Test]
@@ -113,7 +115,11 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(SongLyricOcrService::class),
         );
 
-        $this->assertTrue(true);
+        // No unmatched sections exist, so the job leaves the confirmed section as-is.
+        $this->assertDatabaseHas('service_sections', [
+            'media_processing_log_id' => $log->id,
+            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+        ]);
     }
 
     // ---- Title-hint matching via canonical key ----
@@ -713,7 +719,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
-        ServiceSection::factory()->create([
+        $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::SONG->value,
             'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
@@ -735,8 +741,12 @@ class MatchSongsFromTranscriptTest extends TestCase
             $mockOcr,
         );
 
-        // Mockery will assert shouldNotReceive was satisfied.
-        $this->assertTrue(true);
+        // OCR was skipped (Mockery's shouldNotReceive guards the call), so the
+        // section stays unmatched rather than gaining an OCR-derived match.
+        $this->assertSame(
+            ServiceSectionSongMatchType::UNMATCHED,
+            $section->refresh()->song_match_type,
+        );
     }
 
     // ---- Regression: confirmed sections are not processed ----

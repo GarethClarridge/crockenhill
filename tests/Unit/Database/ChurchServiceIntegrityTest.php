@@ -7,13 +7,13 @@ namespace Tests\Unit\Database;
 use App\Enums\ChurchServiceReviewState;
 use App\Models\ChurchService;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChurchServiceIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_sets_manual_reviewed_by_user_id_to_null_when_user_is_deleted(): void

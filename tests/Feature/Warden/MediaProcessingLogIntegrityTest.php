@@ -6,14 +6,14 @@ namespace Tests\Feature\Warden;
 
 use App\Models\MediaProcessingLog;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MediaProcessingLogIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function sermon_time_range_is_rejected_by_database_when_end_is_before_start()
@@ -54,7 +54,10 @@ class MediaProcessingLogIntegrityTest extends TestCase
             )
         );
 
-        $this->assertTrue(true);
+        $this->assertDatabaseHas('media_processing_logs', [
+            'sermon_start_time' => 50.0,
+            'sermon_end_time' => 100.0,
+        ]);
     }
 
     #[Test]
@@ -75,7 +78,10 @@ class MediaProcessingLogIntegrityTest extends TestCase
             )
         );
 
-        $this->assertTrue(true);
+        $this->assertDatabaseHas('media_processing_logs', [
+            'sermon_start_time' => null,
+            'sermon_end_time' => 100.0,
+        ]);
     }
 
     #[Test]

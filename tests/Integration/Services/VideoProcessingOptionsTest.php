@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoProcessingOptions;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class VideoProcessingOptionsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function for_media_type_returns_empty_array_for_non_video(): void

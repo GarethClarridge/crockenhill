@@ -8,13 +8,13 @@ use App\Enums\SermonContentType;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonEagerLoadingTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_eager_loads_scripture_passage_in_public_query(): void

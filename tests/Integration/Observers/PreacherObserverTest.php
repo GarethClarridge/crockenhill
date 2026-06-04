@@ -7,13 +7,13 @@ namespace Tests\Integration\Observers;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Observers\PreacherObserver;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PreacherObserverTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_updates_sermon_preacher_names_when_preacher_name_is_updated(): void

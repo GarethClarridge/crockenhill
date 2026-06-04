@@ -6,13 +6,13 @@ namespace Tests\Integration\SEO;
 
 use App\Models\Sermon;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PaginationSeoTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function sermon_archive_page_2_has_correct_title(): void

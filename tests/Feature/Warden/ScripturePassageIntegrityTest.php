@@ -10,14 +10,14 @@ use App\Services\ApiBibleClient;
 use App\Services\ScriptureHtmlSanitizer;
 use App\Services\ScriptureOperatorService;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ScripturePassageIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_enforces_unique_bible_id_and_normalized_reference(): void

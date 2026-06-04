@@ -58,8 +58,9 @@ class AudioExtractionServiceTest extends TestCase
     {
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 
+        $this->expectNotToPerformAssertions();
+
         $this->service->validateAudioFile($file);
-        $this->assertTrue(true); // No exception thrown
     }
 
     #[Test]
@@ -67,8 +68,9 @@ class AudioExtractionServiceTest extends TestCase
     {
         $file = UploadedFile::fake()->create('sermon.wav', 2048, 'audio/wav');
 
+        $this->expectNotToPerformAssertions();
+
         $this->service->validateAudioFile($file);
-        $this->assertTrue(true);
     }
 
     #[Test]
@@ -76,8 +78,9 @@ class AudioExtractionServiceTest extends TestCase
     {
         $file = UploadedFile::fake()->create('sermon.m4a', 1024, 'audio/m4a');
 
+        $this->expectNotToPerformAssertions();
+
         $this->service->validateAudioFile($file);
-        $this->assertTrue(true);
     }
 
     #[Test]
@@ -131,8 +134,9 @@ class AudioExtractionServiceTest extends TestCase
     {
         $file = UploadedFile::fake()->create('sermon.mp4', 1024, 'audio/mp4');
 
+        $this->expectNotToPerformAssertions();
+
         $this->service->validateAudioFile($file);
-        $this->assertTrue(true);
     }
 
     // ---- extractFromVideo (requires FFmpeg, test error handling) ----

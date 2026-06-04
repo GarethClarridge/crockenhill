@@ -9,12 +9,12 @@ use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use App\Services\PreacherCutoverService;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class PreacherCutoverServiceTest extends TestCase
 {
-    use DatabaseMigrations;
+    use RefreshDatabase;
 
     public function test_it_links_sermons_and_defaults_blank_names_through_shared_service(): void
     {

@@ -331,9 +331,9 @@ class SongPublicationHandlerTest extends TestCase
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
-        // Should not throw or do anything.
+        $this->expectNotToPerformAssertions();
+
         $this->handler->afterExtraction($section);
-        $this->assertTrue(true);
     }
 
     // ---- Enhancement integration tests ----

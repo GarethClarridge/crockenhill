@@ -6,14 +6,14 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonOpenGraphTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -58,9 +58,6 @@ class SermonOpenGraphTest extends TestCase
         // Check Twitter Card meta tags
         $response->assertSee('<meta name="twitter:card" content="summary_large_image">', false);
         $response->assertSee('<meta name="twitter:title" content="Test Sermon Title | John Smith | Crockenhill Baptist Church">', false);
-
-        // Verify the page loads successfully with Open Graph tags
-        $this->assertTrue(true, 'Open Graph meta tags are successfully implemented');
     }
 
     #[Test]

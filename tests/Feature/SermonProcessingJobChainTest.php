@@ -512,11 +512,11 @@ class SermonProcessingJobChainTest extends TestCase
         // We'll create a job that will fail during execution by deleting the sermon after creation
         $sermon->delete();
 
+        // The job must handle the missing sermon gracefully without throwing.
+        $this->expectNotToPerformAssertions();
+
         $job = new SendCompletionNotification($processingLog);
         $job->handle();
-
-        // The job should handle the failure gracefully without throwing an exception
-        $this->assertTrue(true); // If we get here, the job didn't throw an exception
     }
 
     #[Test]

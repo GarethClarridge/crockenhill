@@ -140,9 +140,9 @@ class MediaValidationServiceTest extends TestCase
     {
         $file = $this->createMockUploadedFile('sermon.mp3', 'audio/mpeg', 1 * 1024 * 1024);
 
-        // Should not throw
+        $this->expectNotToPerformAssertions();
+
         $this->service->validateUploadedFile(MediaType::Audio, $file);
-        $this->assertTrue(true);
     }
 
     #[Test]

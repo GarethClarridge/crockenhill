@@ -12,14 +12,14 @@ use App\Models\Page;
 use App\Presenters\MeetingShowPresenter;
 use App\Services\PublicMeetingReadModelCache;
 use App\Services\PublicPageReadModelCache;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PublicMeetingReadModelCacheTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private PublicMeetingReadModelCache $service;
 
@@ -87,7 +87,7 @@ class PublicMeetingReadModelCacheTest extends TestCase
             slug: $page->slug,
         );
 
-        $this->publicPageReadModelCache->method('get')->with($this->callback(fn ($p) => $p->id === $page->id))->willReturn($pageReadModel);
+        $this->publicPageReadModelCache->expects($this->once())->method('get')->with($this->callback(fn ($p) => $p->id === $page->id))->willReturn($pageReadModel);
         $this->meetingShowPresenter->method('photos')->willReturn(collect());
 
         $result = $this->service->get($meeting);
@@ -203,10 +203,10 @@ class PublicMeetingReadModelCacheTest extends TestCase
     #[Test]
     public function forget_by_slug_does_nothing_for_invalid_slug(): void
     {
-        // We just verify it doesn't crash
+        // An empty or null slug must be a no-op rather than crash.
+        $this->expectNotToPerformAssertions();
+
         $this->service->forgetBySlug('');
         $this->service->forgetBySlug(null);
-
-        $this->assertTrue(true);
     }
 }

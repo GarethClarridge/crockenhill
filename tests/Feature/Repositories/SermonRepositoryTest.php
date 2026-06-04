@@ -11,7 +11,7 @@ use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use App\Repositories\SermonRepository;
 use App\Support\BibleCanon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
@@ -20,7 +20,7 @@ use Tests\TestCase;
 
 class SermonRepositoryTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private SermonRepository $repository;
 

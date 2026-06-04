@@ -10,14 +10,14 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Services\LegacyPlayDateSongUsageImporter;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
 
 class LegacyPlayDateSongUsageImporterTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private LegacyPlayDateSongUsageImporter $service;
 

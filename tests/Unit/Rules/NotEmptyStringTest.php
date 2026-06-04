@@ -21,21 +21,23 @@ class NotEmptyStringTest extends TestCase
     #[Test]
     public function it_passes_for_valid_strings(): void
     {
-        $this->rule->validate('attribute', 'valid string', function (): void {
-            $this->fail('Rule should have passed.');
+        $failed = false;
+        $this->rule->validate('attribute', 'valid string', function () use (&$failed): void {
+            $failed = true;
         });
 
-        $this->assertTrue(true);
+        $this->assertFalse($failed, 'Rule should have passed for a valid string.');
     }
 
     #[Test]
     public function it_passes_for_null(): void
     {
-        $this->rule->validate('attribute', null, function (): void {
-            $this->fail('Rule should have passed for null.');
+        $failed = false;
+        $this->rule->validate('attribute', null, function () use (&$failed): void {
+            $failed = true;
         });
 
-        $this->assertTrue(true);
+        $this->assertFalse($failed, 'Rule should have passed for null.');
     }
 
     #[Test]

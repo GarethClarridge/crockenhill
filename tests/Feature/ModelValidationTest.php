@@ -15,7 +15,7 @@ use App\Models\Meeting;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Enum;
@@ -23,7 +23,7 @@ use Tests\TestCase;
 
 class ModelValidationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     /**
      * Test that Sermon validation rules are robust and actually work.

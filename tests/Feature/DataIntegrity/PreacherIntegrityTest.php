@@ -10,14 +10,14 @@ use App\Models\Preacher;
 use App\Models\User;
 use App\Services\PreacherResolutionService;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PreacherIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_prevents_duplicate_preacher_name_at_database_level(): void

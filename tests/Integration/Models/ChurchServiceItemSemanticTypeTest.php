@@ -6,13 +6,13 @@ namespace Tests\Integration\Models;
 
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChurchServiceItemSemanticTypeTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_returns_explicit_section_type_if_set(): void

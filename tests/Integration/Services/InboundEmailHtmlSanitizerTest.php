@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Services\InboundEmailHtmlSanitizer;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class InboundEmailHtmlSanitizerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private InboundEmailHtmlSanitizer $sanitizer;
 

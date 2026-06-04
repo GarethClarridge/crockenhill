@@ -10,7 +10,7 @@ use App\Livewire\Admin\Sermons\EditSermon;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -18,7 +18,7 @@ use Tests\TestCase;
 
 class EditSermonTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $admin;
 

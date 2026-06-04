@@ -217,7 +217,5 @@ class AdaptiveThresholdBasicTest extends TestCase
         $rmsStats = json_decode($processing->rms_stats, true);
         $this->assertEquals(185565, $rmsStats['sample_count']);
         $this->assertEquals(-51.9, $rmsStats['p25']);
-
-        $this->assertTrue(true, 'Phase 1 implementation is properly integrated and testable');
     }
 }

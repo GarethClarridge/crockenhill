@@ -109,11 +109,11 @@ class AudioEnhancementServiceTest extends TestCase
 
         $result = $this->service->buildFilterChain('/some/file.mp3', 'test-id');
 
-        if ($result !== null) {
-            $this->assertStringNotContainsString('afftdn', $result);
-        }
-
-        $this->assertTrue(true); // passes even if null (no filters active)
+        // dynamic_norm stays enabled by default, so the chain is the non-null
+        // 'dynaudnorm' filter with the noise-reduction (afftdn) filter omitted.
+        $this->assertNotNull($result);
+        $this->assertStringNotContainsString('afftdn', $result);
+        $this->assertStringContainsString('dynaudnorm', $result);
     }
 
     // ---- enhanceVideo() ----

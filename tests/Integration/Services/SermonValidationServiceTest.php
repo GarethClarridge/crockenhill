@@ -8,14 +8,14 @@ use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonValidationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonValidationServiceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private SermonValidationService $service;
 
@@ -33,9 +33,9 @@ class SermonValidationServiceTest extends TestCase
     {
         $file = UploadedFile::fake()->create('sermon.mp3', 1000, 'audio/mpeg');
 
-        $this->service->validateAudioFile($file);
+        $this->expectNotToPerformAssertions();
 
-        $this->assertTrue(true); // Should not throw
+        $this->service->validateAudioFile($file);
     }
 
     #[Test]

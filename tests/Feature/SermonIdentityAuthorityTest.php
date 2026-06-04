@@ -122,11 +122,14 @@ class SermonIdentityAuthorityTest extends TestCase
         DB::table('sermons')->where('id', $zedSermon->id)->update(['preacher' => 'Alpha Cache']);
         DB::table('sermons')->where('id', $aaronSermon->id)->update(['preacher' => 'Zulu Cache']);
 
-        $titles = collect($this->getJson('/api/sermons?sort=preacher&order=asc&per_page=10')
+        // Filter to only the two sermons this test created so leaked rows from a
+        // sibling suite can't shift the positions; assert their relative order to
+        // prove canonical-name sorting (Aaron before Zed) ignores the stale cache.
+        $titles = collect($this->getJson('/api/sermons?sort=preacher&order=asc&per_page=100')
             ->assertOk()
             ->json('data'))
             ->pluck('title')
-            ->take(2)
+            ->filter(fn (string $title): bool => in_array($title, ['Aaron Sermon', 'Zed Sermon'], true))
             ->values()
             ->all();
 

@@ -34,9 +34,9 @@ class WithAdminAuthorizationTest extends TestCase
             }
         };
 
-        $authorizer->authorize();
+        $this->expectNotToPerformAssertions();
 
-        $this->assertTrue(true);
+        $authorizer->authorize();
     }
 
     #[Test]

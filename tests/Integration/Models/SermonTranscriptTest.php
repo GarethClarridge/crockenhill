@@ -7,7 +7,7 @@ namespace Tests\Integration\Models;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonTranscriptReader;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 class SermonTranscriptTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private SermonTranscriptReader $reader;
 

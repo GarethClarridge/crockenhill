@@ -7,14 +7,14 @@ namespace Tests\Feature\Warden;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PreacherAliasIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_normalizes_alias_on_save(): void

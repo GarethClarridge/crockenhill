@@ -9,13 +9,13 @@ use App\Enums\ProcessingStatus;
 use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MemberControllerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_redirects_unauthenticated_users_to_login(): void

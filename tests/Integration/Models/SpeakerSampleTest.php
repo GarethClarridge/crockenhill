@@ -9,13 +9,13 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SpeakerSampleTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_belongs_to_a_speaker_profile(): void

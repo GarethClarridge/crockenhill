@@ -63,19 +63,17 @@ class StorageAdapterHelperTest extends TestCase
     #[Test]
     public function it_does_nothing_for_nonexistent_file(): void
     {
-        // Should not throw
-        $this->helper->cleanupTempFile('/nonexistent/path/to/file.mp3');
+        $this->expectNotToPerformAssertions();
 
-        $this->assertTrue(true);
+        $this->helper->cleanupTempFile('/nonexistent/path/to/file.mp3');
     }
 
     #[Test]
     public function it_does_nothing_for_empty_path(): void
     {
-        // Should not throw
-        $this->helper->cleanupTempFile('');
+        $this->expectNotToPerformAssertions();
 
-        $this->assertTrue(true);
+        $this->helper->cleanupTempFile('');
     }
 
     // ---- uploadWithRetry ----

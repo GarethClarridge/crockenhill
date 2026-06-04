@@ -7,14 +7,14 @@ namespace Tests\Feature;
 use App\Enums\PageArea;
 use App\Models\Meeting;
 use App\Models\Page;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class RouteTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function main_routes_are_accessible_and_render_expected_content(): void

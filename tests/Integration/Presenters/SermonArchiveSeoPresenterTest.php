@@ -7,13 +7,13 @@ namespace Tests\Integration\Presenters;
 use App\Models\Preacher;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Services\PreacherListCache;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonArchiveSeoPresenterTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private SermonArchiveSeoPresenter $presenter;
 

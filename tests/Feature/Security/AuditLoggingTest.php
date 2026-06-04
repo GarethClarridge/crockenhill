@@ -32,7 +32,7 @@ use App\Models\SpeakerProfile;
 use App\Models\User;
 use App\Services\CalendarService;
 use App\Services\GoogleCalendarSyncService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -40,7 +40,7 @@ use Tests\TestCase;
 
 class AuditLoggingTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $admin;
 

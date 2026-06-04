@@ -11,7 +11,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -19,7 +19,7 @@ use Tests\TestCase;
 
 class MergeAdjacentServiceSectionsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private MergeAdjacentServiceSections $action;
 

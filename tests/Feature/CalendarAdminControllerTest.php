@@ -11,13 +11,13 @@ use App\Services\CalendarCategorizationResult;
 use App\Services\CalendarService;
 use App\Services\GoogleCalendarSyncService;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class CalendarAdminControllerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $adminUser;
 

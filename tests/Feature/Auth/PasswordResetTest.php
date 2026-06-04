@@ -8,7 +8,7 @@ use App\Livewire\Auth\ForgotPassword as ForgotPasswordComponent;
 use App\Livewire\Auth\ResetPassword as ResetPasswordComponent;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword as ResetPasswordNotification;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Livewire\Livewire;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function forgot_password_response_is_uniform_for_known_and_unknown_email_addresses(): void

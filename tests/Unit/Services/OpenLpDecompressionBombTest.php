@@ -42,8 +42,8 @@ class OpenLpDecompressionBombTest extends TestCase
         // Should not throw the entry-count exception
         // (may still throw for other reasons, so we only assert it's not the entry-count message)
         try {
-            $this->parser->parse($upload);
-            $this->assertTrue(true); // parsing succeeded
+            $result = $this->parser->parse($upload);
+            $this->assertNotNull($result, 'Parsing an archive at the entry-count limit should return a result.');
         } catch (ValidationException $e) {
             $this->assertStringNotContainsString(
                 'too many entries',

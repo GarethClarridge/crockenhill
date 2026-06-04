@@ -8,13 +8,13 @@ use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SitemapService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonListingNPlusOneTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function tearDown(): void
     {

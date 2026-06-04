@@ -8,7 +8,7 @@ use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\SermonStorageService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 class SermonAssetAuthorizationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {

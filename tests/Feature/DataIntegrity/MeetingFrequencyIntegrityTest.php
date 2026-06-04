@@ -9,7 +9,7 @@ use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Models\Meeting;
 use App\Models\User;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class MeetingFrequencyIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $admin;
 

@@ -11,14 +11,14 @@ use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Models\User;
 use App\Services\PublicSongCatalogService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class BrowseSongsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $user;
 

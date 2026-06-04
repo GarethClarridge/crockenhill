@@ -7,13 +7,13 @@ namespace Tests\Feature\DataIntegrity;
 use App\Enums\CalendarEventStatus;
 use App\Models\CalendarEvent;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class CalendarEventIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_allows_valid_status_values(): void

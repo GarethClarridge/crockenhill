@@ -6,13 +6,13 @@ namespace Tests\Integration\Models;
 
 use App\Models\Song;
 use App\Models\SongBook;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SongBookTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_can_be_created(): void

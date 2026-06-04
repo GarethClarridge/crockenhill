@@ -6,14 +6,14 @@ namespace Tests\Integration\Models;
 
 use App\Enums\MeetingFrequency;
 use App\Models\Meeting;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MeetingTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function meeting_accessors(): void

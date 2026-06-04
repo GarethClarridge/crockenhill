@@ -13,7 +13,7 @@ use App\Models\PreacherAlias;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -21,7 +21,7 @@ use Tests\TestCase;
 
 class AdminPreacherTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected User $admin;
 

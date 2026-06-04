@@ -7,7 +7,7 @@ namespace Tests\Performance;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Sitemap\SermonSitemapPresenter;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 #[Group('performance')]
 class SermonPresenterPerformanceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function presenter_can_handle_large_collections_efficiently(): void

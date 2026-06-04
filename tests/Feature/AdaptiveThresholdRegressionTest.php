@@ -26,9 +26,6 @@ class AdaptiveThresholdRegressionTest extends TestCase
 
         $this->assertFalse($adaptiveConfig['enabled']);
         $this->assertEquals(-35.0, $fixedThreshold);
-
-        // System should still work with fixed thresholds
-        $this->assertTrue(true, 'System can be configured to use fixed thresholds');
     }
 
     /**
@@ -75,8 +72,6 @@ class AdaptiveThresholdRegressionTest extends TestCase
             $this->assertNotEquals($expectedImprovements['old_song_rms'], $realSongRms,
                 'New system should not use hardcoded -20dB for songs');
         }
-
-        $this->assertTrue(true, 'Hardcoded RMS values have been replaced with real extracted values');
     }
 
     /**
@@ -129,8 +124,6 @@ class AdaptiveThresholdRegressionTest extends TestCase
         // Values should be reasonable
         $this->assertIsFloat($originalConfig['rms_threshold']);
         $this->assertLessThan(0, $originalConfig['rms_threshold'], 'RMS threshold should be negative dB');
-
-        $this->assertTrue(true, 'Backward compatibility maintained for existing configuration');
     }
 
     /**

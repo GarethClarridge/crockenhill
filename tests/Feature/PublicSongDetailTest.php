@@ -15,13 +15,13 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PublicSongDetailTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function guests_are_redirected_to_login(): void

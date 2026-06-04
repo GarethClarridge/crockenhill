@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Presenters\BreadcrumbPresenter;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class BreadcrumbRenderingTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     // -------------------------------------------------------------------------
     // BreadcrumbPresenter unit coverage

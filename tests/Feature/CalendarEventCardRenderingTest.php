@@ -6,14 +6,14 @@ namespace Tests\Feature;
 
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class CalendarEventCardRenderingTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private CalendarEvent $event;
 

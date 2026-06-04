@@ -8,14 +8,14 @@ use App\Jobs\AssessSermonVideoQuality;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class JobUniquenessTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function assess_video_quality_job_is_configured_to_be_unique(): void

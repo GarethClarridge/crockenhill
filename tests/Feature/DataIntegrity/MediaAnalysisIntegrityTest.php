@@ -7,7 +7,7 @@ namespace Tests\Feature\DataIntegrity;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 class MediaAnalysisIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function media_processing_log_rejects_negative_file_size_at_database_level(): void

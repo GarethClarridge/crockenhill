@@ -10,14 +10,14 @@ use App\Models\ServiceSection;
 use App\Services\AlignmentTriggerCalculator;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AlignmentTriggerCalculatorTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private AlignmentTriggerCalculator $calculator;
 

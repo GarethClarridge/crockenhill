@@ -8,13 +8,13 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Queries\ChurchServiceProcessingRunQuery;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChurchServiceProcessingRunQueryTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private ChurchServiceProcessingRunQuery $query;
 

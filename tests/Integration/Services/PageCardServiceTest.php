@@ -7,14 +7,14 @@ namespace Tests\Integration\Services;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\Services\PageCardService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PageCardServiceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private PageCardService $service;
 

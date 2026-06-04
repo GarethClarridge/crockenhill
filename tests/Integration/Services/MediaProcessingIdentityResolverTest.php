@@ -7,13 +7,13 @@ namespace Tests\Integration\Services;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaProcessingIdentityResolver;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MediaProcessingIdentityResolverTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private MediaProcessingIdentityResolver $resolver;
 

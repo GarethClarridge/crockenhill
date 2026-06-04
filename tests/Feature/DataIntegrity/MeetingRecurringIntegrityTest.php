@@ -7,14 +7,14 @@ namespace Tests\Feature\DataIntegrity;
 use App\Enums\MeetingFrequency;
 use App\Models\Meeting;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MeetingRecurringIntegrityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_rejects_recurring_meeting_without_frequency_at_database_level(): void

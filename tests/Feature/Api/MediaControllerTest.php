@@ -13,7 +13,7 @@ use App\Models\User;
 use App\Services\ProcessingResult;
 use App\Services\ProcessingRunOrchestrator;
 use App\Services\VideoStorageService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Config;
@@ -25,7 +25,7 @@ use Tests\TestCase;
 
 class MediaControllerTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $admin;
 

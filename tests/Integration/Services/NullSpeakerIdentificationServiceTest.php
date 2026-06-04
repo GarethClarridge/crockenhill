@@ -6,14 +6,14 @@ namespace Tests\Integration\Services;
 
 use App\Models\SpeakerProfile;
 use App\Services\NullSpeakerIdentificationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class NullSpeakerIdentificationServiceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private NullSpeakerIdentificationService $service;
 

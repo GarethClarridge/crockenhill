@@ -7,20 +7,13 @@ namespace Tests\Integration\Models;
 use App\Enums\PageArea;
 use App\Models\Page;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PageTest extends TestCase
 {
-    use DatabaseTransactions;
-
-    #[Test]
-    public function page_relationships()
-    {
-        // Implementation will follow - likely empty or for future relationships
-        $this->assertTrue(true); // Placeholder if no relationships to test initially
-    }
+    use RefreshDatabase;
 
     #[Test]
     public function page_accessors()

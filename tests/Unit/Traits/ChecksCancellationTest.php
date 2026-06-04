@@ -8,14 +8,14 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
 use App\Traits\ChecksCancellation;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ChecksCancellationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private object $subject;
 
