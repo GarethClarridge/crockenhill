@@ -7,9 +7,19 @@ namespace App\Services;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 
+/**
+ * Registry for media processing pipeline phases and their associated metadata.
+ *
+ * This class serves as the central source of truth for mapping discrete processing
+ * steps to progress percentages and defining how a failed or cancelled pipeline
+ * should be retried based on its last known state.
+ */
 class ProcessingPhaseRegistry
 {
     /**
+     * Retrieve the ordered collection of phases for a specific pipeline profile.
+     *
+     * @param  string  $pipeline  The pipeline profile (audio, video, video_auto_trim, livestream)
      * @return list<array{
      *     key: string,
      *     progress: int,
@@ -31,6 +41,16 @@ class ProcessingPhaseRegistry
         };
     }
 
+    /**
+     * Resolve the progress percentage for a given processing step.
+     *
+     * Iterates through available pipelines to find a matching step. If a media type
+     * is provided, its associated pipeline is prioritized in the search.
+     *
+     * @param  string|null  $step  The current processing step identifier
+     * @param  MediaType|null  $mediaType  Optional media type for pipeline prioritization
+     * @return int Progress percentage (0-100)
+     */
     public function progressForStep(?string $step, ?MediaType $mediaType = null): int
     {
         $normalizedStep = $this->normalizeStep($step);
@@ -57,6 +77,15 @@ class ProcessingPhaseRegistry
         return 50;
     }
 
+    /**
+     * Calculate the current progress percentage for a processing log.
+     *
+     * Maps the log's current step to its defined progress via the pipeline's
+     * phase registry, ensuring accurate progress reporting for active runs.
+     *
+     * @param  MediaProcessingLog  $processingLog  The processing log to evaluate
+     * @return int Progress percentage (0-100)
+     */
     public function progressForLog(MediaProcessingLog $processingLog): int
     {
         $normalizedStep = $this->normalizeStep($processingLog->current_step);
@@ -66,6 +95,13 @@ class ProcessingPhaseRegistry
     }
 
     /**
+     * Determine the appropriate retry plan for a failed or cancelled processing run.
+     *
+     * Analyzes the current step of the provided log and determines whether the
+     * pipeline can be resumed from a specific job offset, needs a full restart,
+     * or requires manual administrative review.
+     *
+     * @param  MediaProcessingLog  $processingLog  The failed or cancelled log
      * @return array{
      *     action: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream'|'manual_review',
      *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
