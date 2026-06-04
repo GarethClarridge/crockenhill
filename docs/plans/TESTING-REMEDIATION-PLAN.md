@@ -2,7 +2,7 @@
 
 Created 2026-06-04 from the findings in [docs/reviews/2026-06-04-testing-review.md](../reviews/2026-06-04-testing-review.md).
 
-This plan turns each recommendation (R1–R9) in that report into an ordered, verifiable phase. Phases are numbered `T1…T9` and map 1:1 to the report's recommendation IDs. Each phase is independently shippable.
+This plan turns each recommendation (R1–R9) in that review into an ordered, verifiable phase. Phases are numbered `T1…T9` and map 1:1 to the review's recommendation IDs. Each phase is independently shippable.
 
 ## Goal
 
@@ -22,11 +22,11 @@ Cut suite runtime and flakiness **without reducing real coverage**. The two leve
 3. `vendor/bin/sail artisan test --compact --parallel <focused test paths>` for the phase, then a full `--parallel` run before merge.
 4. `vendor/bin/sail artisan dusk` only for phases touching public routes or the upload form (none of T1–T9 do, but T3 touches SEO views — run Dusk there).
 
-To re-measure timing after a phase: `vendor/bin/sail artisan test --parallel --log-junit storage/test-timing.xml` and re-parse (see the report's Appendix).
+To re-measure timing after a phase: `vendor/bin/sail artisan test --parallel --log-junit storage/test-timing.xml` and re-parse (see the review's Appendix).
 
 ---
 
-## T1 — Eliminate the Pwned Passwords network call  (report R1)
+## T1 — Eliminate the Pwned Passwords network call  (review R1)
 
 **Priority: High · Risk: Very low · Est. impact: removes the 10 s `PasswordDefaultsTest` + `AuditLoggingTest::it_logs_user_creation` outliers and de-flakes 11 files.**
 
@@ -63,7 +63,7 @@ Do **not** edit `AppServiceProvider` (production keeps the breach check). Instea
 
 ---
 
-## T2 — Make the S3 / DigitalOcean fallback fail fast  (report R2)
+## T2 — Make the S3 / DigitalOcean fallback fail fast  (review R2)
 
 **Priority: High · Risk: Very low · Est. impact: removes the two ~12.6 s outliers (`SermonPagesTest`, `RobustPathProtectionTest`).**
 
@@ -92,7 +92,7 @@ Point the test endpoint at an address that **refuses immediately** instead of ti
 
 ---
 
-## T3 — Re-level the SEO / metadata cluster  (report R3)
+## T3 — Re-level the SEO / metadata cluster  (review R3)
 
 **Priority: High · Risk: Low–Medium (mitigated by keeping smoke tests) · Est. impact: removes dozens of full-render HTTP tests; biggest structural win.**
 
@@ -133,7 +133,7 @@ Point the test endpoint at an address that **refuses immediately** instead of ti
 
 ---
 
-## T4 — Catch future stray HTTP with `preventStrayRequests`  (report R4)
+## T4 — Catch future stray HTTP with `preventStrayRequests`  (review R4)
 
 **Priority: Medium · Risk: Low (but may surface existing offenders — triage required) · Depends on T1, T2.**
 
@@ -154,7 +154,7 @@ After T1/T2 remove the known stray calls, add `Http::preventStrayRequests()` in 
 
 ---
 
-## T5 — Trim thumbnail-render cost  (report R5)
+## T5 — Trim thumbnail-render cost  (review R5)
 
 **Priority: Medium · Risk: Medium (fidelity-sensitive) · Est. impact: up to ~54 s of summed work; investigate, don't degrade.**
 
@@ -175,7 +175,7 @@ After T1/T2 remove the known stray calls, add `Http::preventStrayRequests()` in 
 
 ---
 
-## T6 — Consolidate schema / column tests  (report R6)
+## T6 — Consolidate schema / column tests  (review R6)
 
 **Priority: Medium · Risk: Low · Depends on: Phase 13 CI drift gate (already shipped).**
 
@@ -183,7 +183,7 @@ After T1/T2 remove the known stray calls, add `Http::preventStrayRequests()` in 
 `tests/Feature/Database/` (12), `tests/Feature/Schema/`, and parts of `tests/Feature/DataIntegrity/` (26) assert column/table existence per column — re-asserting what migrations + `mysql-schema.sql` + the Phase 13 CI drift gate already guarantee. Each still boots the framework and hits MySQL.
 
 ### Tasks
-- [ ] Inventory every `Schema::hasColumn` / `Schema::hasTable` / column-type assertion (12 files identified in the report).
+- [ ] Inventory every `Schema::hasColumn` / `Schema::hasTable` / column-type assertion (12 files identified in the review).
 - [ ] For each table, collapse per-column existence assertions into **one** guardrail test per table (or delete where the Phase 13 drift gate fully covers it).
 - [ ] **Keep** every MySQL CHECK/ENUM constraint test (the `markTestSkipped('...requires MySQL')` ones) — these verify runtime behaviour, not schema shape.
 - [ ] Keep `DataIntegrity` tests that assert *behavioural* invariants (cascade deletes, uniqueness enforcement); only trim pure shape checks.
@@ -197,14 +197,14 @@ After T1/T2 remove the known stray calls, add `Http::preventStrayRequests()` in 
 
 ---
 
-## T7 — Replace placeholder assertions  (report R7)
+## T7 — Replace placeholder assertions  (review R7)
 
 **Priority: Low (signal quality) · Risk: Low.**
 
 ### Root cause
 35 `assertTrue(true)` placeholder assertions across ~10 files pass unconditionally (e.g. `SermonOpenGraphTest` ends a real test with `assertTrue(true, 'Open Graph meta tags are successfully implemented')`).
 
-### Target files (from the report grep)
+### Target files (from the review grep)
 `tests/Unit/ExampleTest`, `tests/Unit/StorageAdapterHelperTest`, `tests/Unit/Services/AudioExtractionServiceTest`, `MediaValidationServiceTest`, `FrameExtractionServiceTest`, `OpenLpDecompressionBombTest`, `AudioChunkingServiceTest`, `AudioEnhancementServiceTest`, `tests/Integration/Models/PageTest`, `tests/Integration/Livewire/Traits/WithAdminAuthorizationTest`, plus the SEO files touched in T3.
 
 ### Tasks
@@ -220,7 +220,7 @@ After T1/T2 remove the known stray calls, add `Http::preventStrayRequests()` in 
 
 ---
 
-## T8 — Standardise DB trait per directory + clear notices  (report R8)
+## T8 — Standardise DB trait per directory + clear notices  (review R8)
 
 **Priority: Low · Risk: Very low.**
 
@@ -240,7 +240,7 @@ After T1/T2 remove the known stray calls, add `Http::preventStrayRequests()` in 
 
 ---
 
-## T9 — Move pure-function unit tests off the Laravel `TestCase`  (report R9)
+## T9 — Move pure-function unit tests off the Laravel `TestCase`  (review R9)
 
 **Priority: Low–Medium · Risk: Low (verify each truly needs nothing from the container).**
 
