@@ -77,12 +77,12 @@ Exit criteria:
 
 Priority: **Low-Medium** — incremental work, no urgency.
 
-Status: **In progress** — three increments landed (two on 2026-06-03, one on 2026-06-04). Remaining hotspots still oversized. Current line counts (2026-06-04, post-increment-3):
+Status: **In progress** — four increments landed (two on 2026-06-03, two on 2026-06-04). Remaining hotspots still oversized. Current line counts (2026-06-04, post-increment-4):
 
 | Service | Lines | Public Methods (prior count) |
 |---------|------:|---------------:|
 | [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 896 | — |
-| [ThumbnailGenerationService](../../app/Services/ThumbnailGenerationService.php) | 848 | 7 |
+| [ThumbnailGenerationService](../../app/Services/ThumbnailGenerationService.php) | 800 | 7 |
 | [MetadataExtractionService](../../app/Services/MetadataExtractionService.php) | 734 | 12 |
 | [VideoExtractionService](../../app/Services/VideoExtractionService.php) | 579 | 8 |
 | [AudioTranscriptionService](../../app/Services/AudioTranscriptionService.php) | 558 | 8 |
@@ -95,6 +95,8 @@ Increment 1 (2026-06-03): extracted the dependency-free duration/outline formatt
 Increment 2 (2026-06-03): extracted the pure, IO-free date/service inference out of `MetadataExtractionService` into [SermonFilenameParser](../../app/Services/SermonFilenameParser.php) (`extractDateFromFilename`, `tryExtractDateFromFilename`, `determineServiceFromFilename`, `determineServiceFromTime`, `isValidDate`, plus the `MONTH_NAME_NUMBERS` table and the `parseExplicitDate`/`tryExtractNamedMonthDate` helpers). The parser is injected into `MetadataExtractionService` (constructor default `new SermonFilenameParser`, so no provider binding and every existing `new MetadataExtractionService()` call site keeps working); the matching public methods now delegate, and the FFprobe-based `extractDateFromVideo` orchestration stays in the service since it is genuinely IO. Net: service 952 → 734 lines, plus a new 290-line collaborator with its own fast unit test [tests/Unit/Services/SermonFilenameParserTest.php](../../tests/Unit/Services/SermonFilenameParserTest.php). The existing `MetadataExtractionServiceTest` now doubles as delegation-seam coverage. Public API unchanged; 32 parser/service tests and 63 downstream consumer tests pass, PHPStan clean.
 
 Increment 3 (2026-06-04): extracted the pure-string half of `SermonViewPresenter::metaDescription` into a new static [SermonContentFormatter::metaDescription](../../app/Support/SermonContentFormatter.php) — the SEO sentence assembly (verb selection from media availability, base sentence, reference/series appends, summary truncation to the 155-char limit). The presenter still resolves its inputs (explicit-attribute short-circuit, preacher name, display reference, `show_summary`/tag-stripping, `exposurePolicy->shouldExposeVideo`) but now passes primitives to the builder and assigns the result on a single memoized exit path — which incidentally closes a latent gap where the old truncation branches returned before writing `$this->memoized[$key]`. The truthiness checks on `series`/`summary` became `filled()`. Net: presenter 922 → 896 lines; formatter +73 lines covered by 8 new DB-free unit tests in [tests/Unit/Support/SermonContentFormatterTest.php](../../tests/Unit/Support/SermonContentFormatterTest.php). Public API unchanged; 56 formatter/presenter tests and 37 SEO/structured-data consumer tests pass, PHPStan clean.
+
+Increment 4 (2026-06-04): extracted the pure frame-scoring algorithm out of `ThumbnailGenerationService::scoreFrameQuality` into a new injectable [FrameQualityScorer](../../app/Services/FrameQualityScorer.php) (`score(\GdImage): float`). The service keeps only the IO half — resolve temp-disk path, `file_get_contents`, `imagecreatefromstring`, and `imagedestroy` (now in a `finally`, so the GD resource is freed even on a scoring throw) — and delegates the luminance/contrast/detail math. The scorer is constructor-injected with a `new FrameQualityScorer` default, so no provider binding and existing instantiations are unaffected. The buried weight/normalizer/grid literals became named constants (values unchanged). This is the first focused coverage of the scoring algorithm, which previously ran only transitively through `generateThumbnail` against real frames; the 6 new unit tests in [tests/Unit/Services/FrameQualityScorerTest.php](../../tests/Unit/Services/FrameQualityScorerTest.php) assert exact scores for solid black/grey/white frames and the relative ranking of a high-contrast pattern. Net: service 848 → 800 lines, plus a 118-line collaborator. Public API unchanged; 6 scorer tests and 36 thumbnail integration tests pass, PHPStan clean.
 
 Tasks:
 
