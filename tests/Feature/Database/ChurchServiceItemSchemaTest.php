@@ -19,12 +19,6 @@ class ChurchServiceItemSchemaTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function it_creates_the_source_column_for_church_service_items(): void
-    {
-        $this->assertTrue(Schema::hasColumn('church_service_items', 'source'));
-    }
-
-    #[Test]
     public function add_source_migration_backfills_existing_items_as_openlp(): void
     {
         $item = ChurchServiceItem::factory()->create([

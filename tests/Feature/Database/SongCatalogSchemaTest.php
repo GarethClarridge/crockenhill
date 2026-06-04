@@ -17,36 +17,15 @@ class SongCatalogSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * The song-catalog tables and columns are proven to exist by the model-factory
+     * inserts in the migration-idempotency and reconcile tests below (a missing column
+     * would throw at insert). Indexes have no behavioural witness, so this guardrail
+     * retains only the index assertions.
+     */
     #[Test]
-    public function it_creates_song_catalog_tables_columns_and_indexes(): void
+    public function it_creates_song_catalog_indexes(): void
     {
-        $this->assertTrue(Schema::hasTable('songs'));
-        $this->assertTrue(Schema::hasTable('song_authors'));
-        $this->assertTrue(Schema::hasTable('song_author_song'));
-        $this->assertTrue(Schema::hasTable('song_books'));
-        $this->assertTrue(Schema::hasTable('song_book_song'));
-
-        $this->assertTrue(Schema::hasColumns('songs', [
-            'id',
-            'canonical_key',
-            'title',
-            'alternate_title',
-            'lyrics_xml',
-            'lyrics_plain',
-            'verse_order',
-            'copyright',
-            'comments',
-            'ccli_number',
-            'import_metadata',
-            'deleted_at',
-            'created_at',
-            'updated_at',
-        ]));
-
-        $this->assertTrue(Schema::hasColumns('church_service_items', [
-            'song_id',
-        ]));
-
         $this->assertTrue(Schema::hasIndex('songs', 'songs_canonical_key_unique'));
         $this->assertTrue(Schema::hasIndex('songs', 'songs_ccli_number_index'));
         $this->assertTrue(Schema::hasIndex('songs', 'songs_deleted_at_index'));

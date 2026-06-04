@@ -23,41 +23,15 @@ class ServiceSectionSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * The phase-two columns on `service_sections` and `media_processing_logs` are
+     * exercised behaviourally by the constraint/cascade tests below and by the
+     * livestream Integration job suite. Indexes have no behavioural witness, so this
+     * guardrail retains only the index assertions.
+     */
     #[Test]
-    public function it_creates_phase_two_service_section_columns_and_indexes(): void
+    public function it_creates_phase_two_service_section_indexes(): void
     {
-        $this->assertTrue(Schema::hasColumns('service_sections', [
-            'id',
-            'media_processing_log_id',
-            'church_service_item_id',
-            'section_type',
-            'section_order',
-            'title',
-            'start_time',
-            'end_time',
-            'duration',
-            'confidence',
-            'status',
-            'needs_manual_review',
-            'source_segment_ids',
-            'metadata',
-            'publication_status',
-            'published_sermon_id',
-            'published_at',
-            'extracted_video_path',
-            'extracted_audio_path',
-            'extracted_at',
-            'unpublished_expires_at',
-            'created_at',
-            'updated_at',
-        ]));
-
-        $this->assertTrue(Schema::hasColumns('media_processing_logs', [
-            'extracted_date',
-            'extracted_service',
-            'church_service_id',
-        ]));
-
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_log_order_unique'));
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_log_type_index'));
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_needs_review_index'));

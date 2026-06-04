@@ -11,35 +11,12 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\LivestreamSectionToServiceItemMapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ColumnPromotionIntegrityTest extends TestCase
 {
     use RefreshDatabase;
-
-    #[Test]
-    public function church_services_table_has_pending_structure_merge_source_column(): void
-    {
-        $this->assertTrue(Schema::hasColumn('church_services', 'pending_structure_merge_source'));
-    }
-
-    #[Test]
-    public function church_service_items_table_has_livestream_columns(): void
-    {
-        $this->assertTrue(Schema::hasColumn('church_service_items', 'livestream_processing_id'));
-        $this->assertTrue(Schema::hasColumn('church_service_items', 'livestream_service_section_id'));
-    }
-
-    #[Test]
-    public function service_sections_table_has_promoted_columns(): void
-    {
-        $this->assertTrue(Schema::hasColumn('service_sections', 'confidence'));
-        $this->assertTrue(Schema::hasColumn('service_sections', 'song_match_type'));
-        $this->assertTrue(Schema::hasColumn('service_sections', 'matched_item_id'));
-        $this->assertTrue(Schema::hasColumn('service_sections', 'expected_item_id'));
-    }
 
     #[Test]
     public function pending_merge_source_column_is_nullable_string(): void

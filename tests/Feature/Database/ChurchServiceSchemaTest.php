@@ -19,23 +19,15 @@ class ChurchServiceSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * The review/canonical-conflict columns themselves are proven to exist by
+     * {@see the_migration_backfills_review_and_canonical_conflict_columns_from_import_metadata},
+     * which writes and reads every one of them. Indexes have no behavioural witness,
+     * so this guardrail retains just the index assertions.
+     */
     #[Test]
-    public function it_creates_normalized_review_and_canonical_conflict_columns(): void
+    public function it_creates_normalized_review_and_canonical_conflict_indexes(): void
     {
-        $this->assertTrue(Schema::hasColumns('church_services', [
-            'review_state',
-            'manual_reviewed_at',
-            'manual_reviewed_by_user_id',
-            'manual_review_reopened_at',
-            'manual_review_reopened_by_source',
-            'canonical_conflict_state',
-            'canonical_conflict_detected_at',
-            'canonical_conflict_incoming_source',
-            'canonical_conflict_reviewed_previously',
-            'canonical_conflict_canonical_changed',
-            'canonical_conflict_reason',
-        ]));
-
         $this->assertTrue(Schema::hasIndex('church_services', 'church_services_review_state_index'));
         $this->assertTrue(Schema::hasIndex('church_services', 'church_services_canonical_conflict_state_index'));
     }

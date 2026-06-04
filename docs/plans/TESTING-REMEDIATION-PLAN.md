@@ -183,17 +183,28 @@ After T1/T2 remove the known stray calls, add `Http::preventStrayRequests()` in 
 `tests/Feature/Database/` (12), `tests/Feature/Schema/`, and parts of `tests/Feature/DataIntegrity/` (26) assert column/table existence per column — re-asserting what migrations + `mysql-schema.sql` + the Phase 13 CI drift gate already guarantee. Each still boots the framework and hits MySQL.
 
 ### Tasks
-- [ ] Inventory every `Schema::hasColumn` / `Schema::hasTable` / column-type assertion (12 files identified in the review).
-- [ ] For each table, collapse per-column existence assertions into **one** guardrail test per table (or delete where the Phase 13 drift gate fully covers it).
-- [ ] **Keep** every MySQL CHECK/ENUM constraint test (the `markTestSkipped('...requires MySQL')` ones) — these verify runtime behaviour, not schema shape.
-- [ ] Keep `DataIntegrity` tests that assert *behavioural* invariants (cascade deletes, uniqueness enforcement); only trim pure shape checks.
+- [x] Inventory every `Schema::hasColumn` / `Schema::hasTable` / column-type assertion (12 files identified in the review).
+- [x] For each table, collapse per-column existence assertions into **one** guardrail test per table (or delete where the Phase 13 drift gate fully covers it).
+- [x] **Keep** every MySQL CHECK/ENUM constraint test (the `markTestSkipped('...requires MySQL')` ones) — these verify runtime behaviour, not schema shape.
+- [x] Keep `DataIntegrity` tests that assert *behavioural* invariants (cascade deletes, uniqueness enforcement); only trim pure shape checks.
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact --parallel tests/Feature/Database tests/Feature/Schema tests/Feature/DataIntegrity`
-- [ ] Deliberately break a column in a scratch migration and confirm the Phase 13 drift gate still catches it (so the consolidated coverage holds).
+- [x] `vendor/bin/sail artisan test --parallel tests/Feature/Database tests/Feature/Schema tests/Feature/DataIntegrity` (run per-directory; runner takes one path). Database 52, Schema 5, DataIntegrity 116 — all green.
+- [x] Deliberately added a scratch migration (`2099_..._scratch_drift_probe.php`) and confirmed `scripts/check-schema-dump-current.sh` (the Phase 13 gate, wired into `pr.yml`/`deploy.yml`) fails on it (exit 1) and passes once removed (exit 0).
+
+### What changed
+The redundancy was **positive column/table existence checks** that duplicate what migrations + the drift gate guarantee. The key discipline: **columns have a behavioural witness, named indexes usually do not.** A factory insert or migration-backfill test that writes and reads a column would throw on a missing column, so the `hasColumn` above it is dead weight. Named indexes affect only performance, so no functional test asserts them — those assertions were preserved.
+
+- `tests/Feature/Schema/ColumnPromotionIntegrityTest.php` — deleted 3 pure-shape `hasColumn` methods; columns are exercised by the sibling nullable-round-trip / FK / metadata tests. Dropped unused `Schema` import.
+- `tests/Feature/Database/ChurchServiceItemSchemaTest.php` — deleted `it_creates_the_source_column...`; the `source` column is written/read by the backfill test.
+- `tests/Feature/Database/ChurchServiceSchemaTest.php`, `ServiceSectionSchemaTest.php`, `ReportingStatePromotionSchemaTest.php`, `SongCatalogSchemaTest.php` — reduced each `it_creates_..._columns_and_indexes` method to its **index assertions only**; columns are witnessed by the backfill/constraint/factory tests in the same files (and, for `media_processing_logs` extracted columns, by the Integration job suite). Renamed methods to `..._indexes`.
+
+**Preserved untouched:** all MySQL CHECK/ENUM constraint tests, cascade/null-on-delete tests, migration idempotency/reconcile/conditional-add tests (the `hasColumn`/`hasTable` calls inside these assert *migration behaviour*, not standalone shape), `TargetedSchemaGuardrailsTest` (negative `assertFalse(hasTable/hasIndex)` removal checks + ENUM type assertions), `SchemaGuardrailAuditTest`, and the index-only DataIntegrity guardrails.
+
+Net: −4 test methods (1 Database, 3 Schema); column-list assertions collapsed (Database 175→162, Schema 22→15 assertions). No table lost its index guardrail; no behavioural coverage removed.
 
 ### Exit criteria
-- One schema-guardrail test per table; no per-column existence duplication; constraint/behaviour tests untouched.
+- [x] One schema-guardrail test per table; no per-column existence duplication; constraint/behaviour tests untouched.
 
 ---
 
@@ -279,7 +290,7 @@ Pure-logic tests under `tests/Unit/Services` and `tests/Unit/Support` — e.g. `
 - [ ] Each public page type has ≤2 SEO HTTP smoke tests; metadata variants live in presenter/formatter tests (T3).
 - [ ] `Http::preventStrayRequests()` guards the suite; no stray Laravel-`Http` calls (T4).
 - [ ] Redundant thumbnail-render variants trimmed without fidelity loss (T5).
-- [ ] One schema-guardrail test per table; MySQL constraint tests retained (T6).
+- [x] One schema-guardrail test per table; MySQL constraint tests retained (T6).
 - [ ] No `assertTrue(true)` placeholder assertions remain (T7).
 - [ ] Consistent DB trait per directory; deprecations at zero, notices minimised (T8).
 - [ ] Pure-function unit tests run on bare PHPUnit (T9).
