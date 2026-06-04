@@ -20,8 +20,12 @@
 !/storage/app/.gitignore
 !/storage/framework/.gitignore
 !/storage/logs/.gitignore
+!/storage/scratch/
+/storage/scratch/*
+!/storage/scratch/.gitignore
 
 # Laravel compiled/generated
+/routes.json
 /public/build
 /public/hot
 /public/css/filament
@@ -51,10 +55,6 @@
 /playwright-report/
 /test-results/
 /playwright/.cache/
-
-# Lock files
-composer.lock
-package-lock.json
 
 # Homestead
 Homestead.json

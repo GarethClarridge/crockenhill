@@ -12,7 +12,7 @@
     "homepage": "https://crockenhill.org",
     "type": "project",
     "require": {
-        "php": "^8.3.0",
+        "php": "^8.4",
         "blade-ui-kit/blade-heroicons": "^2.6",
         "intervention/image-laravel": "^4.0",
         "laravel/framework": "^13.0",
