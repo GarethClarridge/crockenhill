@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Contracts\ProvidesSafeMessage;
+use App\Data\ProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Bus\Batch;

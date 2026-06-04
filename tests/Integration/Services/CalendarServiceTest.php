@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Data\CalendarCategorizationResult;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
-use App\Services\CalendarCategorizationResult;
 use App\Services\CalendarService;
 use App\Services\GoogleCalendarSyncService;
 use Carbon\Carbon;

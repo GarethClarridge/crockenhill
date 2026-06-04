@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire;
 
+use App\Actions\GetMediaProcessingStatus;
 use App\Data\ProcessingLogCollection;
 use App\Data\ProcessingLogEntry;
 use App\Data\StandardProcessingResponse;
 use App\Livewire\ProcessingLogsViewer;
 use App\Models\User;
-use App\Services\GetMediaProcessingStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;

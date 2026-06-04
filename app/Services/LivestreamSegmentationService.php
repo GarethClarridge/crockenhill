@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Data\LivestreamProcessingResult;
+use App\Data\ProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Models\LivestreamSegment;

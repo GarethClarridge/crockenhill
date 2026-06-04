@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Security;
 
+use App\Data\ProcessingResult;
 use App\Models\User;
-use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Foundation\Testing\RefreshDatabase;

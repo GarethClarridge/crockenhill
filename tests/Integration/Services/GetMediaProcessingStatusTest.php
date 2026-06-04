@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Actions\GetMediaProcessingStatus;
 use App\Enums\ProcessingStatus;
 use App\Models\User;
-use App\Services\GetMediaProcessingStatus;
 use App\Services\ProcessingLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;

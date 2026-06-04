@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Data\ProcessingResult;
 use App\Models\User;
 use App\Services\LivestreamSegmentationService;
-use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Livewire;
 
+use App\Actions\GetMediaProcessingStatus;
 use App\Data\ProcessingLogEntry;
-use App\Services\GetMediaProcessingStatus;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;

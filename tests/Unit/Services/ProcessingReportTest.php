@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Data\ProcessingReport;
 use App\Enums\ProcessingStatus;
-use App\Services\ProcessingReport;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

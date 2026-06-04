@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Data\CalendarCategorizationResult;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\User;
-use App\Services\CalendarCategorizationResult;
 use App\Services\CalendarService;
 use App\Services\GoogleCalendarSyncService;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;

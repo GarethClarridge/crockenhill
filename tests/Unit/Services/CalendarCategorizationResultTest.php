@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Data\CalendarCategorizationResult;
 use App\Models\CalendarEvent;
-use App\Services\CalendarCategorizationResult;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

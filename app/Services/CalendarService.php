@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\CalendarCategorizationResult;
 use App\Models\CalendarEvent;
 use App\Traits\SanitizesLogData;
 use Carbon\Carbon;

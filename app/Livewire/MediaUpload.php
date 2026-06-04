@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire;
 
+use App\Data\VideoProcessingOptions;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
@@ -13,7 +14,6 @@ use App\Models\User;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\MediaValidationService;
 use App\Services\UnifiedMediaProcessor;
-use App\Services\VideoProcessingOptions;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;

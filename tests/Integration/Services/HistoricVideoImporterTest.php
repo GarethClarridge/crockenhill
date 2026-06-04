@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Data\ProcessingResult;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\HistoricVideoImporter;
-use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery\MockInterface;

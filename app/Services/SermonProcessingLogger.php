@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\ProcessingReport;
 use App\Enums\LivestreamSegmentClassification;
 use App\Enums\ProcessingStatus;
 use App\Models\LivestreamSegment;

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use App\Data\ProcessingResult;
 use App\Enums\ApiTokenAbility;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\ProcessingResult;
 use App\Services\ProcessingRunOrchestrator;
 use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;

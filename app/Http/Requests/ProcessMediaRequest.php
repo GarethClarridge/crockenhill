@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Data\VideoProcessingOptions;
 use App\Enums\MediaType;
 use App\Services\MediaValidationService;
-use App\Services\VideoProcessingOptions;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 

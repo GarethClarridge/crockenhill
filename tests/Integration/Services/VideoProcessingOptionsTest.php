@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Data\VideoProcessingOptions;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
-use App\Services\VideoProcessingOptions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Validator;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Data\LivestreamProcessingResult;
+use App\Data\ProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Jobs\CleanupTemporaryFiles;
@@ -12,7 +13,6 @@ use App\Models\MediaProcessingLog;
 use App\Services\LivestreamSegmentationService;
 use App\Services\ProcessingInitiator;
 use App\Services\ProcessingPipelineBuilder;
-use App\Services\ProcessingResult;
 use App\Services\ProcessingRunFailureHandler;
 use App\Services\ProcessingRunOrchestrator;
 use App\Services\VideoSegmentationService;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use App\Data\ProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\ApiTokenAbility;
 use App\Models\User;
-use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;

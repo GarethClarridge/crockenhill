@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Data\ProcessingReport;
 use App\Enums\ProcessingStatus;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
-use App\Services\ProcessingReport;
 use App\Services\SermonProcessingLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;

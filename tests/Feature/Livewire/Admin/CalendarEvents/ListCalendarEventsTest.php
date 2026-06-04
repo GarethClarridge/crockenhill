@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire\Admin\CalendarEvents;
 
+use App\Data\CalendarCategorizationResult;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\User;
-use App\Services\CalendarCategorizationResult;
 use App\Services\CalendarService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;

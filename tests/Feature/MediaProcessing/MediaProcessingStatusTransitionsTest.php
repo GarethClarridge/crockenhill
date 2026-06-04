@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\MediaProcessing;
 
+use App\Data\ProcessingResult;
 use App\Enums\ApiTokenAbility;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;

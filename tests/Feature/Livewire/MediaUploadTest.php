@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire;
 
+use App\Data\ProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
@@ -27,7 +28,6 @@ use App\Jobs\TranscribeSpeechSegments;
 use App\Livewire\MediaUpload;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoSegmentationService;
 use App\Services\VideoStorageService;

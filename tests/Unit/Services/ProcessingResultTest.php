@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\ProcessingResult;
+use App\Data\ProcessingResult;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

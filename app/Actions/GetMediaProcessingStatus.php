@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Actions;
 
 use App\Data\StandardProcessingResponse;
+use App\Services\ProcessingLogService;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
