@@ -8,7 +8,7 @@ use App\Data\ApiBiblePassageResult;
 use App\Jobs\FetchBibleTextForSermon;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
-use App\Services\ApiBibleClient;
+use App\Services\Scripture\ApiBibleClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Queue\Middleware\FailOnException;
 use Illuminate\Support\Facades\Config;

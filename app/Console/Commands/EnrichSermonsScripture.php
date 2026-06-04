@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\Sermon;
-use App\Services\ScriptureOperatorService;
+use App\Services\Scripture\ScriptureOperatorService;
 use Illuminate\Console\Command;
 
 class EnrichSermonsScripture extends Command

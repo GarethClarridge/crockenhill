@@ -6,7 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
-use App\Services\SermonScriptureFilterIndexService;
+use App\Services\Scripture\SermonScriptureFilterIndexService;
 use Illuminate\Console\Command;
 
 class SyncSermonScriptureFilters extends Command

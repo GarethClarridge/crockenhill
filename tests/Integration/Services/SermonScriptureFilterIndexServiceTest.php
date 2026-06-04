@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
-use App\Services\SermonScriptureFilterIndexService;
+use App\Services\Scripture\SermonScriptureFilterIndexService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

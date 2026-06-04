@@ -7,7 +7,7 @@ namespace App\Observers;
 use App\Enums\SermonContentType;
 use App\Jobs\MoveSermonToPrivateStorage;
 use App\Models\Sermon;
-use App\Services\SermonScriptureFilterIndexService;
+use App\Services\Scripture\SermonScriptureFilterIndexService;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class SermonObserver implements ShouldHandleEventsAfterCommit

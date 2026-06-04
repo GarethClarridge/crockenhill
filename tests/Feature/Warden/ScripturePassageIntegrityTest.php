@@ -6,9 +6,9 @@ namespace Tests\Feature\Warden;
 
 use App\Data\ApiBiblePassageResult;
 use App\Models\ScripturePassage;
-use App\Services\ApiBibleClient;
-use App\Services\ScriptureHtmlSanitizer;
-use App\Services\ScriptureOperatorService;
+use App\Services\Scripture\ApiBibleClient;
+use App\Services\Scripture\ScriptureHtmlSanitizer;
+use App\Services\Scripture\ScriptureOperatorService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;

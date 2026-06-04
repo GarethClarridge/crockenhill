@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\ScriptureHtmlSanitizer;
+use App\Services\Scripture\ScriptureHtmlSanitizer;
 use Tests\TestCase;
 
 class ScriptureHtmlSanitizerTest extends TestCase

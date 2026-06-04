@@ -6,7 +6,7 @@ namespace Tests\Feature\Console;
 
 use App\Data\ApiBiblePassageResult;
 use App\Models\ScripturePassage;
-use App\Services\ApiBibleClient;
+use App\Services\Scripture\ApiBibleClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;

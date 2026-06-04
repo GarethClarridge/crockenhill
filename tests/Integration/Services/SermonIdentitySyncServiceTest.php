@@ -8,7 +8,7 @@ use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
-use App\Services\ScriptureReferenceResolver;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\SermonIdentitySyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;

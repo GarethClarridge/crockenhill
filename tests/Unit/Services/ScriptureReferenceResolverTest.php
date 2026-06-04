@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\ScriptureReferenceResolver;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use TechWilk\BibleVerseParser\BiblePassageParser;
 use Tests\TestCase;
 

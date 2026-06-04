@@ -6,7 +6,7 @@ namespace Tests\Integration\Observers;
 
 use App\Models\Sermon;
 use App\Observers\SermonObserver;
-use App\Services\SermonScriptureFilterIndexService;
+use App\Services\Scripture\SermonScriptureFilterIndexService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

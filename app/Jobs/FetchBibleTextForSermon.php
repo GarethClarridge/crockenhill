@@ -6,7 +6,7 @@ namespace App\Jobs;
 
 use App\Exceptions\ApiBibleBudgetExhaustedException;
 use App\Models\Sermon;
-use App\Services\ScriptureOperatorService;
+use App\Services\Scripture\ScriptureOperatorService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;

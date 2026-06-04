@@ -9,6 +9,7 @@ use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use Illuminate\Support\Str;
 
 class SermonIdentitySyncService
