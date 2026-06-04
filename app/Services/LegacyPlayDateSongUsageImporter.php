@@ -393,7 +393,7 @@ class LegacyPlayDateSongUsageImporter
             'source' => self::LEGACY_SERVICE_SOURCE,
             'original_filename' => basename($path),
             'needs_review' => false,
-            'review_state' => ChurchServiceReviewState::REVIEWED->value,
+            'review_state' => ChurchServiceReviewState::Reviewed->value,
             'manual_reviewed_at' => now(),
             'manual_reviewed_by_user_id' => null,
             'manual_review_reopened_at' => null,

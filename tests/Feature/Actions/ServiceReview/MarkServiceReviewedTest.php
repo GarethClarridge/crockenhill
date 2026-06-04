@@ -75,7 +75,7 @@ class MarkServiceReviewedTest extends TestCase
         $metadata = $service->fresh()?->import_metadata?->toArray() ?? [];
         $this->assertArrayHasKey('manual_review', $metadata);
         $this->assertSame($this->admin->id, $metadata['manual_review']['reviewed_by_user_id'] ?? null);
-        $this->assertSame(ChurchServiceReviewState::REVIEWED, $service->fresh()?->review_state);
+        $this->assertSame(ChurchServiceReviewState::Reviewed, $service->fresh()?->review_state);
     }
 
     #[Test]

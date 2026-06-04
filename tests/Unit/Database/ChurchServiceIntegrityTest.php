@@ -24,7 +24,7 @@ class ChurchServiceIntegrityTest extends TestCase
         // 2. Create a church service reviewed by that user
         $service = ChurchService::factory()->create([
             'manual_reviewed_by_user_id' => $user->id,
-            'review_state' => ChurchServiceReviewState::REVIEWED,
+            'review_state' => ChurchServiceReviewState::Reviewed,
             'manual_reviewed_at' => now(),
         ]);
 
