@@ -33,12 +33,22 @@
         $author['image'] = $sermonView['preacher_image_url'];
     }
 
+    $articleBody = $transcript ?: ($sermon->show_summary ? trim(strip_tags((string) $sermon->summary)) : null);
+
     $schema = [
         '@' . 'context' => 'https://schema.org',
         '@type' => 'Article',
         '@id' => $sermonView['canonical_url'] . '#sermon',
         'headline' => $sermon->title,
         'description' => $metaDescription,
+        'articleBody' => $articleBody ?: $metaDescription,
+        'speakable' => [
+            '@type' => 'SpeakableSpecification',
+            'xpath' => [
+                '/html/head/title',
+                '/html/head/meta[@name="description"]/@content',
+            ],
+        ],
         'image' => $thumbnailUrl,
         'datePublished' => $datePublished,
         'dateModified' => $lastModified,

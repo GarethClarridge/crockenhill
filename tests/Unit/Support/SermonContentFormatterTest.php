@@ -112,13 +112,14 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: null,
         );
 
         $this->assertSame(
-            "Listen to 'The Prodigal Son' by John Smith preached on March 14, 2025",
+            "Listen to 'The Prodigal Son' by John Smith preached at Crockenhill Baptist Church on March 14, 2025",
             $description,
         );
     }
@@ -132,6 +133,7 @@ class SermonContentFormatterTest extends TestCase
             'humanDate' => 'March 14, 2025',
             'reference' => null,
             'series' => null,
+            'serviceLabel' => null,
             'summary' => null,
         ];
 
@@ -150,13 +152,116 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: 'Luke 15:11-32',
             series: 'Parables of Jesus',
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: null,
         );
 
         $this->assertStringContainsString(' - Luke 15:11-32', $description);
-        $this->assertStringContainsString('(Part of the Parables of Jesus series)', $description);
+        $this->assertStringContainsString('(Part of our Parables of Jesus series)', $description);
+    }
+
+    #[Test]
+    public function meta_description_includes_service_phrase_when_a_service_label_is_given(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: 'The Prodigal Son',
+            preacherName: 'John Smith',
+            humanDate: 'March 14, 2025',
+            reference: null,
+            series: null,
+            serviceLabel: 'Morning',
+            hasVideo: false,
+            hasAudio: false,
+            summary: null,
+        );
+
+        $this->assertStringContainsString('during our Morning service', $description);
+    }
+
+    #[Test]
+    public function meta_description_omits_service_phrase_when_no_service_label(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: 'The Prodigal Son',
+            preacherName: 'John Smith',
+            humanDate: 'March 14, 2025',
+            reference: null,
+            series: null,
+            serviceLabel: null,
+            hasVideo: false,
+            hasAudio: false,
+            summary: null,
+        );
+
+        $this->assertStringNotContainsString('during our', $description);
+    }
+
+    #[Test]
+    public function meta_description_drops_service_phrase_rather_than_truncating_the_series(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: 'The Prodigal Son',
+            preacherName: 'John Smith',
+            humanDate: 'March 14, 2025',
+            reference: 'Luke 15:11-32',
+            series: 'Parables of Jesus',
+            serviceLabel: 'Morning',
+            hasVideo: false,
+            hasAudio: false,
+            summary: null,
+        );
+
+        // The lower-priority service phrase is sacrificed so the scripture reference
+        // and full series text both survive within the limit.
+        $this->assertStringNotContainsString('during our Morning service', $description);
+        $this->assertStringContainsString(' - Luke 15:11-32', $description);
+        $this->assertStringContainsString('(Part of our Parables of Jesus series)', $description);
+    }
+
+    #[Test]
+    public function meta_description_drops_service_phrase_rather_than_shortening_the_summary(): void
+    {
+        // This summary fits within the limit alongside the base sentence, but only
+        // if the lower-priority service phrase is omitted. The service phrase must
+        // be dropped so the full summary survives untruncated.
+        $summary = 'God is good and faithful to us all every single day.';
+
+        $description = SermonContentFormatter::metaDescription(
+            title: 'Grace',
+            preacherName: 'John',
+            humanDate: 'March 14, 2025',
+            reference: null,
+            series: null,
+            serviceLabel: 'Morning',
+            hasVideo: false,
+            hasAudio: false,
+            summary: $summary,
+        );
+
+        $this->assertStringNotContainsString('during our Morning service', $description);
+        $this->assertStringContainsString($summary, $description);
+        $this->assertStringEndsWith($summary, $description);
+    }
+
+    #[Test]
+    public function meta_description_keeps_both_service_phrase_and_summary_when_they_fit(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: 'Grace',
+            preacherName: 'John',
+            humanDate: 'March 14, 2025',
+            reference: null,
+            series: null,
+            serviceLabel: 'Morning',
+            hasVideo: false,
+            hasAudio: false,
+            summary: 'Short summary.',
+        );
+
+        $this->assertStringContainsString('during our Morning service', $description);
+        $this->assertStringEndsWith('. Short summary.', $description);
     }
 
     #[Test]
@@ -168,6 +273,7 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: 'This is a great sermon summary.',
@@ -185,13 +291,14 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: '   ',
         );
 
         $this->assertSame(
-            "Listen to 'The Prodigal Son' by John Smith preached on March 14, 2025",
+            "Listen to 'The Prodigal Son' by John Smith preached at Crockenhill Baptist Church on March 14, 2025",
             $description,
         );
     }
@@ -205,12 +312,13 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: null,
         );
 
-        $this->assertLessThanOrEqual(158, strlen($description));
+        $this->assertLessThanOrEqual(163, strlen($description));
         $this->assertStringEndsWith('...', $description);
     }
 
@@ -223,12 +331,13 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: str_repeat('This is a very long summary that should definitely be truncated to ensure the total length remains within expected limits. ', 10),
         );
 
-        $this->assertLessThanOrEqual(158, strlen($description));
+        $this->assertLessThanOrEqual(163, strlen($description));
         $this->assertStringContainsString("Listen to 'The Prodigal Son' by John Smith", $description);
         $this->assertStringEndsWith('...', $description);
     }

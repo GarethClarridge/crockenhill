@@ -173,6 +173,8 @@ class SermonItemListPresenter
             ? $sermon->updated_at->toIso8601String()
             : $datePublished;
 
+        $articleBody = $sermon->show_summary ? trim(strip_tags((string) $sermon->summary)) : null;
+
         $article = [
             '@type' => 'Article',
             '@id' => $sermonView['canonical_url'].'#sermon',
@@ -180,6 +182,14 @@ class SermonItemListPresenter
             'name' => $sermon->title,
             'url' => $sermonView['canonical_url'],
             'description' => $metaDescription,
+            'articleBody' => $articleBody ?: $metaDescription,
+            'speakable' => [
+                '@type' => 'SpeakableSpecification',
+                'xpath' => [
+                    '/html/head/title',
+                    '/html/head/meta[@name="description"]/@content',
+                ],
+            ],
             'datePublished' => $datePublished,
             'dateModified' => $lastModified,
             'inLanguage' => 'en-GB',

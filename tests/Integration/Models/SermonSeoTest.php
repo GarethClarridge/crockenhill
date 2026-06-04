@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Models;
 
+use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,7 +63,7 @@ class SermonSeoTest extends TestCase
 
         $metaDescription = $this->presenter()->metaDescription($sermon);
 
-        $this->assertStringContainsString('preached on', $metaDescription);
+        $this->assertStringContainsString('preached at Crockenhill Baptist Church on', $metaDescription);
         // Should contain formatted date (F j, Y format = "January 15, 2024")
         $this->assertMatchesRegularExpression('/[A-Z][a-z]+ \d{1,2}, \d{4}/', $metaDescription);
     }
@@ -86,12 +87,13 @@ class SermonSeoTest extends TestCase
     public function it_includes_summary_excerpt_in_generated_meta_description(): void
     {
         $sermon = Sermon::factory()->create([
-            'title' => 'Test Sermon',
-            'preacher' => 'John Smith',
-            'summary' => 'This is a comprehensive summary about the grace of God and how it impacts our daily lives through faith and obedience.',
+            'title' => 'Test',
+            'preacher' => 'John',
+            'summary' => 'This is a comprehensive summary about the grace of God.',
             'meta_description' => null,
             'reference' => null,
             'series' => null,
+            'service' => SermonService::Morning->value,
         ]);
 
         $metaDescription = $this->presenter()->metaDescription($sermon);
@@ -127,6 +129,8 @@ class SermonSeoTest extends TestCase
             'preacher' => 'John Smith',
             'summary' => '<p>This summary has <strong>HTML tags</strong> that should be <em>removed</em>.</p>',
             'meta_description' => null,
+            'series' => null,
+            'reference' => null,
         ]);
 
         $metaDescription = $this->presenter()->metaDescription($sermon);
@@ -138,7 +142,7 @@ class SermonSeoTest extends TestCase
     }
 
     #[Test]
-    public function it_truncates_generated_meta_description_to_155_characters(): void
+    public function it_truncates_generated_meta_description_to_the_character_limit(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'A Very Long Sermon Title That Takes Up Many Characters',
@@ -151,7 +155,8 @@ class SermonSeoTest extends TestCase
 
         $metaDescription = $this->presenter()->metaDescription($sermon);
 
-        $this->assertLessThanOrEqual(158, strlen($metaDescription));
+        // 160-char limit plus the trailing "..." ellipsis appended by Str::limit.
+        $this->assertLessThanOrEqual(163, strlen($metaDescription));
     }
 
     #[Test]
@@ -172,12 +177,14 @@ class SermonSeoTest extends TestCase
         $this->assertStringContainsString('The Love of Christ', $metaDescription);
         // Should contain preacher
         $this->assertStringContainsString('Mark Johnson', $metaDescription);
+        // Should mention church name
+        $this->assertStringContainsString('Crockenhill Baptist Church', $metaDescription);
         // Should mention it was preached
-        $this->assertStringContainsString('preached on', $metaDescription);
+        $this->assertStringContainsString('preached at', $metaDescription);
         // Should contain reference
         $this->assertStringContainsString('Romans 8:35-39', $metaDescription);
-        // Should be within limit
-        $this->assertLessThanOrEqual(158, strlen($metaDescription));
+        // Should be within limit (160-char limit plus the trailing "..." ellipsis)
+        $this->assertLessThanOrEqual(163, strlen($metaDescription));
     }
 
     #[Test]
@@ -211,6 +218,6 @@ class SermonSeoTest extends TestCase
         $this->assertNotEmpty($metaDescription);
         $this->assertStringContainsString('Simple Sermon', $metaDescription);
         $this->assertStringContainsString('John Doe', $metaDescription);
-        $this->assertLessThanOrEqual(158, strlen($metaDescription));
+        $this->assertLessThanOrEqual(163, strlen($metaDescription));
     }
 }

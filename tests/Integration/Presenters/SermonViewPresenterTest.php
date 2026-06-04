@@ -396,7 +396,7 @@ class SermonViewPresenterTest extends TestCase
         $description = $this->presenter->metaDescription($sermon);
 
         $this->assertStringContainsString("Listen to 'The Prodigal Son' by John Smith", $description);
-        $this->assertStringContainsString('preached on March 14, 2025', $description);
+        $this->assertStringContainsString('preached at Crockenhill Baptist Church on March 14, 2025', $description);
     }
 
     #[Test]
@@ -413,7 +413,7 @@ class SermonViewPresenterTest extends TestCase
         $description = $this->presenter->metaDescription($sermon);
 
         $this->assertStringContainsString(' - Luke 15:11-32', $description);
-        $this->assertStringContainsString('(Part of the Parables of Jesus series)', $description);
+        $this->assertStringContainsString('(Part of our Parables of Jesus series)', $description);
     }
 
     #[Test]
@@ -467,8 +467,8 @@ class SermonViewPresenterTest extends TestCase
 
         $description = $this->presenter->metaDescription($sermon);
 
-        // Str::limit(s, 155) appends '...' making it 158 chars if limit is reached.
-        $this->assertLessThanOrEqual(158, strlen($description));
+        // Str::limit(s, 160) appends '...' making it 163 chars if limit is reached.
+        $this->assertLessThanOrEqual(163, strlen($description));
         $this->assertStringEndsWith('...', $description);
     }
 
@@ -487,7 +487,7 @@ class SermonViewPresenterTest extends TestCase
 
         $description = $this->presenter->metaDescription($sermon);
 
-        $this->assertLessThanOrEqual(158, strlen($description));
+        $this->assertLessThanOrEqual(163, strlen($description));
         $this->assertStringContainsString("Listen to 'The Prodigal Son' by John Smith", $description);
         $this->assertStringEndsWith('...', $description);
     }
