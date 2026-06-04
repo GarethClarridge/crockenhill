@@ -10,7 +10,7 @@ use App\Models\Page;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Public\SitemapService;
-use App\Services\SermonExposurePolicy;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;

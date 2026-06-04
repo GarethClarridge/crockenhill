@@ -11,7 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
-use App\Services\SermonExposurePolicy;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

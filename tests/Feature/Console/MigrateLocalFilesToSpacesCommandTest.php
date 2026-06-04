@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Models\Sermon;
-use App\Services\SermonStorageMaintenanceService;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageMaintenanceService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\UnableToCheckFileExistence;

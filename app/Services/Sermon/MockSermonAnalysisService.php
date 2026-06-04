@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Sermon;
 
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use Illuminate\Support\Facades\Log;
+use App\Services\BritishEnglishConverter;
 
 class MockSermonAnalysisService implements SermonAnalysisInterface
 {

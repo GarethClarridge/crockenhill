@@ -8,7 +8,7 @@ use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Public\PodcastFeedService;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;

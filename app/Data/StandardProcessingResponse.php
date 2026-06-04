@@ -8,7 +8,7 @@ use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\ProcessingPhaseRegistry;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Carbon\Carbon;
 
 /**

@@ -6,7 +6,6 @@ namespace App\Providers;
 
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Services\BritishEnglishConverter;
-use App\Services\LivestreamSegmentationService;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Preacher\NullSpeakerIdentificationService;
@@ -15,6 +14,7 @@ use App\Services\Processing\ProcessingInitiator;
 use App\Services\Processing\ProcessingLogService;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\UnifiedMediaProcessor;
+use App\Services\Sermon\LivestreamSegmentationService;
 use Illuminate\Support\ServiceProvider;
 
 class MediaProcessingServiceProvider extends ServiceProvider

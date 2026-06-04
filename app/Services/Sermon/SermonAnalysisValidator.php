@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Sermon;
 
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
+use App\Services\BritishEnglishConverter;
 
 class SermonAnalysisValidator
 {

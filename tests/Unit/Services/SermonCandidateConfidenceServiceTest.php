@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Models\LivestreamSegment;
-use App\Services\SermonCandidateConfidenceService;
+use App\Services\Sermon\SermonCandidateConfidenceService;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

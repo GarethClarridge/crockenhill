@@ -7,7 +7,7 @@ namespace Tests\Integration;
 use App\Data\ThumbnailMetadata;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;

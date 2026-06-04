@@ -11,7 +11,7 @@ use App\Services\Media\Thumbnail\ThumbnailForegroundExtractionService;
 use App\Services\Media\Thumbnail\ThumbnailGenerationService;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
-use App\Services\SermonExposurePolicy;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;

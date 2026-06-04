@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\LegacySermonImporter;
+use App\Services\Sermon\LegacySermonImporter;
 use Illuminate\Console\Command;
 use Throwable;
 

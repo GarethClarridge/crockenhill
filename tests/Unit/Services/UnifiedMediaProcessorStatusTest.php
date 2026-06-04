@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Models\MediaProcessingLog;
-use App\Services\LivestreamSegmentationService;
 use App\Services\Processing\UnifiedMediaProcessor;
+use App\Services\Sermon\LivestreamSegmentationService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

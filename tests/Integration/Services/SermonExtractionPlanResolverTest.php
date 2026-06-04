@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\SermonExtractionPlanResolver;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

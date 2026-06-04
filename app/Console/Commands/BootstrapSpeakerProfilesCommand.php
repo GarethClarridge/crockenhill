@@ -11,7 +11,7 @@ use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
 use App\Services\Preacher\NullSpeakerIdentificationService;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 

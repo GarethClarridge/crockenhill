@@ -8,7 +8,7 @@ use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\TranscriptionException;
 use App\Models\Sermon;
 use App\Services\Media\Audio\AudioTranscriptionService;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

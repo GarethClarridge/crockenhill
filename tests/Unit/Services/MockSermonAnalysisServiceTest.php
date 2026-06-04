@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Data\SermonAnalysis;
 use App\Services\BritishEnglishConverter;
-use App\Services\MockSermonAnalysisService;
+use App\Services\Sermon\MockSermonAnalysisService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

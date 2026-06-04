@@ -11,7 +11,7 @@ use App\Models\ChurchService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Services\Processing\MediaProcessingIdentityResolver;
-use App\Services\SermonCandidateConfidenceService;
+use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Support\Collection;
 

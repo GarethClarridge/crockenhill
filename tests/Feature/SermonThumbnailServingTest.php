@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use App\Models\User;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;

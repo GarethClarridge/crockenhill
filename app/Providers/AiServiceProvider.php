@@ -11,8 +11,8 @@ use App\Services\Email\OpenAiOosEmailItemExtractor;
 use App\Services\Media\Audio\AudioTranscriptionService;
 use App\Services\Media\Audio\LocalWhisperTranscriptionService;
 use App\Services\Media\Audio\MockTranscriptionService;
-use App\Services\MockSermonAnalysisService;
-use App\Services\SermonAnalysisService;
+use App\Services\Sermon\MockSermonAnalysisService;
+use App\Services\Sermon\SermonAnalysisService;
 use Illuminate\Support\ServiceProvider;
 
 class AiServiceProvider extends ServiceProvider

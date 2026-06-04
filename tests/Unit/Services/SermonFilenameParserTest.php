@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\SermonService;
-use App\Services\SermonFilenameParser;
+use App\Services\Sermon\SermonFilenameParser;
 use Carbon\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

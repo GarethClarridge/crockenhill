@@ -10,7 +10,7 @@ use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\MediaProcessingRunTransitionService;
-use App\Services\SermonCreationService;
+use App\Services\Sermon\SermonCreationService;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;

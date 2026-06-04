@@ -8,7 +8,7 @@ use App\Data\SermonCreationOptions;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\Processing\SermonProcessingLogger;
-use App\Services\SermonCreationService;
+use App\Services\Sermon\SermonCreationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\File;

@@ -16,7 +16,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
-use App\Services\SermonCreationService;
+use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

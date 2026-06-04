@@ -9,7 +9,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
-use App\Services\SermonExposurePolicy;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;

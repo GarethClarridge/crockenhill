@@ -8,7 +8,7 @@ use App\Data\StandardProcessingResponse;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\SermonStorageMaintenanceService;
+use App\Services\Sermon\SermonStorageMaintenanceService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Number;
 

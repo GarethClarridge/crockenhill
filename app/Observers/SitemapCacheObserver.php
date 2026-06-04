@@ -14,7 +14,7 @@ use App\Services\Public\PageListCache;
 use App\Services\Public\PodcastFeedService;
 use App\Services\Public\PublicMeetingReadModelCache;
 use App\Services\Public\PublicPageReadModelCache;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Illuminate\Support\Facades\Cache;
 

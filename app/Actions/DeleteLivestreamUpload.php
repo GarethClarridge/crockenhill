@@ -15,7 +15,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewStateService;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\Media\Audio\TranscriptStorageService;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use App\Support\Path;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;

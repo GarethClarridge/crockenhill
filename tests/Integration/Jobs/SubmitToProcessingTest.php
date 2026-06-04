@@ -9,7 +9,7 @@ use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\MediaProcessingRunTransitionService;
-use App\Services\SermonCreationService;
+use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;

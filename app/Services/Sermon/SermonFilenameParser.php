@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Sermon;
 
 use App\Enums\SermonService;
 use Carbon\Carbon;

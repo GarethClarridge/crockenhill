@@ -9,7 +9,7 @@ use App\Models\Sermon;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\FrameQualityScorer;
 use App\Services\Processing\StorageAdapterHelper;
-use App\Services\SermonExposurePolicy;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;

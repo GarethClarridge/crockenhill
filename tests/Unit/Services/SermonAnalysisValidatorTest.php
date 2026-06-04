@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\BritishEnglishConverter;
-use App\Services\SermonAnalysisValidator;
+use App\Services\Sermon\SermonAnalysisValidator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

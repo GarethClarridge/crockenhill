@@ -8,7 +8,7 @@ use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Media\Audio\SermonTranscriptReader;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Sermon;
 
 use App\Data\ProcessingId3Metadata;
 use App\Enums\MediaType;

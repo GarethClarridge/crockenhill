@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Sermon;
 
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
@@ -15,6 +15,7 @@ use OpenAI\Exceptions\ErrorException;
 use OpenAI\Exceptions\TransporterException;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
+use App\Services\OpenAIResponseLogger;
 
 class SermonAnalysisService implements SermonAnalysisInterface
 {

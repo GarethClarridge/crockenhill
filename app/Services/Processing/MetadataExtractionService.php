@@ -6,6 +6,7 @@ namespace App\Services\Processing;
 
 use App\Data\SermonMetadata;
 use App\Enums\SermonService;
+use App\Services\Sermon\SermonFilenameParser;
 use App\Traits\SanitizesLogData;
 use Carbon\Carbon;
 use FFMpeg\FFProbe;
@@ -13,7 +14,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Owenoj\LaravelGetId3\GetId3;
-use App\Services\SermonFilenameParser;
 
 /**
  * @see SermonFilenameParser for the pure date/service inference rules this service delegates to.

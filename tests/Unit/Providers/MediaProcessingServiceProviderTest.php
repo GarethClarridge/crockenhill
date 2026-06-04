@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Tests\Unit\Providers;
 
 use App\Contracts\SpeakerIdentificationInterface;
-use App\Services\LivestreamSegmentationService;
 use App\Services\Preacher\NullSpeakerIdentificationService;
 use App\Services\Preacher\ResemblyzerSpeakerIdentificationService;
 use App\Services\Processing\ProcessingLogService;
 use App\Services\Processing\UnifiedMediaProcessor;
+use App\Services\Sermon\LivestreamSegmentationService;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

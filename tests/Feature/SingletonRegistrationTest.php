@@ -8,8 +8,8 @@ use App\Presenters\SermonViewPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Media\Audio\TranscriptStorageService;
-use App\Services\SermonExposurePolicy;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonExposurePolicy;
+use App\Services\Sermon\SermonStorageService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

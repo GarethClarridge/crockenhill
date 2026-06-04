@@ -13,7 +13,7 @@ use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Preacher\ChildrensTalkSpeakerService;
 use App\Services\Processing\MediaProcessingIdentityResolver;
-use App\Services\SermonCreationService;
+use App\Services\Sermon\SermonCreationService;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;

@@ -8,7 +8,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Sermon;
 use App\Services\Media\Thumbnail\ThumbnailGenerationService;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\View\View;
 use Livewire\Component;
 

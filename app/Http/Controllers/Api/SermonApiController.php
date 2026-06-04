@@ -10,7 +10,7 @@ use App\Http\Requests\SermonIndexRequest;
 use App\Http\Resources\SermonResource;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use App\Services\SermonExposurePolicy;
+use App\Services\Sermon\SermonExposurePolicy;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 

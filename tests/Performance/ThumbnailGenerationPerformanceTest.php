@@ -12,7 +12,7 @@ use App\Services\Media\Thumbnail\ThumbnailTextHelper;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Processing\StorageAdapterHelper;
-use App\Services\SermonExposurePolicy;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

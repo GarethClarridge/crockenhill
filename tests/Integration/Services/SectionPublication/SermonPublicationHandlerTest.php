@@ -16,7 +16,7 @@ use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Preacher\ChildrensTalkSpeakerService;
 use App\Services\Processing\MediaProcessingIdentityResolver;
-use App\Services\SermonCreationService;
+use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

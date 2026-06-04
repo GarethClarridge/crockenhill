@@ -11,7 +11,7 @@ use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\Public\SitemapService;
-use App\Services\SermonExposurePolicy;
+use App\Services\Sermon\SermonExposurePolicy;
 use App\Sitemap\MeetingSitemapPresenter;
 use App\Sitemap\PageSitemapPresenter;
 use App\Sitemap\PreacherSitemapPresenter;

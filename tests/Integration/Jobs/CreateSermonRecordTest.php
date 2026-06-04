@@ -8,7 +8,7 @@ use App\Jobs\CreateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\SermonProcessingLogger;
-use App\Services\SermonCreationService;
+use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

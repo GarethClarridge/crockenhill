@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sermon;
-use App\Services\SermonStorageService;
+use App\Services\Sermon\SermonStorageService;
 use App\Support\Path;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;

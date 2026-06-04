@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\LivestreamCreateSermonService;
+use App\Services\Sermon\LivestreamCreateSermonService;
 use Illuminate\Console\Command;
 
 class ProcessVideoCommand extends Command

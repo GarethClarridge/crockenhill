@@ -9,7 +9,7 @@ use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Models\Sermon;
 use App\Models\User;
-use App\Services\SermonExposurePolicy;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
