@@ -544,11 +544,6 @@ class ThumbnailCanvasComposerTest extends TestCase
         return $bounds;
     }
 
-    private function countTitleLines(ImageInterface $image, int $minY, int $maxY): int
-    {
-        return count($this->titleLineBands($image, $minY, $maxY));
-    }
-
     /**
      * Detect each rendered title line as a contiguous band of teal ink rows.
      *

@@ -494,24 +494,6 @@ class ThumbnailGenerationServiceTest extends TestCase
     /**
      * @return array{x:int,y:int,red:int,green:int,blue:int}|null
      */
-    private function findBrightPixelInRegion(ImageInterface $image, int $startX, int $startY, int $endX, int $endY): ?array
-    {
-        for ($y = $startY; $y <= $endY; $y++) {
-            for ($x = $startX; $x <= $endX; $x++) {
-                $pixel = $this->getImagePixel($image, $x, $y);
-
-                if ($pixel['red'] > 200 && $pixel['green'] > 200 && $pixel['blue'] > 200) {
-                    return ['x' => $x, 'y' => $y] + $pixel;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @return array{x:int,y:int,red:int,green:int,blue:int}|null
-     */
     private function findDarkPixelInRegion(ImageInterface $image, int $startX, int $startY, int $endX, int $endY): ?array
     {
         for ($y = $startY; $y <= $endY; $y++) {

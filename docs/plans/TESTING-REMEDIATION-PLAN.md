@@ -162,16 +162,30 @@ After T1/T2 remove the known stray calls, add `Http::preventStrayRequests()` in 
 [tests/Unit/Services/ThumbnailCanvasComposerTest.php](../../tests/Unit/Services/ThumbnailCanvasComposerTest.php) already caches rendered canvases in a static `$canvasCache` (good — reused across the class). The remaining cost is (a) the real Intervention/GD composition and (b) per-test pixel-bounds scanning loops. The geometry assertions are tuned to specific canvas dimensions (720px tall), so blind shrinking will break the hard-coded coordinate expectations.
 
 ### Tasks (investigate first; only proceed if fidelity holds)
-- [ ] Audit the 13 `ThumbnailCanvasComposerTest` + 15 `Integration/ThumbnailGenerationServiceTest` methods for **redundant variants** — cases that exercise the same composition branch with cosmetically different inputs. Collapse duplicates.
-- [ ] Evaluate whether the pixel-bounds scan can be bounded to the region of interest rather than the full canvas (it partly is — confirm no full-canvas scans remain).
-- [ ] Do **not** reduce canvas dimensions unless the coordinate assertions are re-derived; the constants (`CENTERED_TITLE_MAX_Y = 468`, etc.) are dimension-specific.
-- [ ] Confirm `Integration/ThumbnailGenerationServiceTest` mocks `VideoSegmentationService` (no real ffmpeg) — keep it that way.
+- [x] Audit the 13 `ThumbnailCanvasComposerTest` + 15 `Integration/ThumbnailGenerationServiceTest` methods for **redundant variants** — cases that exercise the same composition branch with cosmetically different inputs. Collapse duplicates.
+- [x] Evaluate whether the pixel-bounds scan can be bounded to the region of interest rather than the full canvas (it partly is — confirm no full-canvas scans remain).
+- [x] Do **not** reduce canvas dimensions unless the coordinate assertions are re-derived; the constants (`CENTERED_TITLE_MAX_Y = 468`, etc.) are dimension-specific.
+- [x] Confirm `Integration/ThumbnailGenerationServiceTest` mocks `VideoSegmentationService` (no real ffmpeg) — keep it that way.
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact tests/Unit/Services/ThumbnailCanvasComposerTest.php tests/Integration/ThumbnailGenerationServiceTest.php` — all still pass, time reduced.
+- [x] `vendor/bin/sail artisan test --compact tests/Unit/Services/ThumbnailCanvasComposerTest.php tests/Integration/ThumbnailGenerationServiceTest.php` — all 28 tests / 127 assertions still pass.
+
+### What changed
+
+**The review's hypothesised ~54 s saving was already banked by the existing `$canvasCache`.** The audit found no redundant composition-branch variants to collapse — every distinct canvas the suite renders proves a distinct branch:
+
+- `ThumbnailCanvasComposerTest`'s static `$canvasCache` already collapses every *shareable* render. The 10 distinct cache keys map 1:1 to distinct branches: reduced logo size, accent-line title centring, foreground top/right inset, subject-behind-text layering, left-facing subject flip, centred-canvas dimensions, teal title colour, top-padding (Y=43) clamp, two-line subject-overlap arithmetic, three-line subject-overlap arithmetic, and horizontal subject centring. The two-line vs three-line overlap split exercises genuinely different `resolveCenteredForegroundTopY` arithmetic (`overlapStartLineIndex` differs by line count) — collapsing it would lose branch coverage, which the Notes section explicitly forbids.
+- The pixel-bounds helpers (`greenPixelBounds`, `pixelBounds`, `tealPixelBounds`) are **bounds-finders whose discovered extents are asserted** (e.g. `min_y === 50`, `max_x === 1229`). Bounding their scan region would clip the very pixels under test — a fidelity hazard — so the full-/region-canvas scans were deliberately left intact. Their per-call cost is milliseconds and is dwarfed by the GD composition cost anyway.
+- The `Integration` test's renders are not cross-test cacheable like the unit test's: it caches in-memory `ImageInterface` GD objects (disk-independent), whereas each `createBrandedThumbnail` writes to a `Storage::fake` disk that `RefreshDatabase` resets per-test. Adding cross-test caching there would couple to faked-disk lifecycle — the kind of fidelity-degrading change this phase warns against.
+
+**Safe removals (dead code, never executed, zero fidelity risk):**
+- `ThumbnailGenerationServiceTest::findBrightPixelInRegion` — private helper with no call sites.
+- `ThumbnailCanvasComposerTest::countTitleLines` — private helper with no call sites (tests call `titleLineBands` directly).
+
+Net: −2 dead private methods; 0 test methods removed; 28 tests / 127 assertions unchanged and green. Timing is unchanged (the removed code never ran); the real render cost is irreducible — it is the minimum number of distinct GD compositions needed to prove each branch.
 
 ### Exit criteria
-- Redundant render variants removed; no loss of composition-branch coverage; canvas fidelity assertions intact.
+- [x] No redundant render variants remained to remove; no composition-branch coverage lost; canvas fidelity assertions intact.
 
 ---
 
@@ -289,7 +303,7 @@ Pure-logic tests under `tests/Unit/Services` and `tests/Unit/Support` — e.g. `
 - [ ] No test blocks on a real DigitalOcean Spaces timeout (T2).
 - [ ] Each public page type has ≤2 SEO HTTP smoke tests; metadata variants live in presenter/formatter tests (T3).
 - [ ] `Http::preventStrayRequests()` guards the suite; no stray Laravel-`Http` calls (T4).
-- [ ] Redundant thumbnail-render variants trimmed without fidelity loss (T5).
+- [x] Thumbnail-render cost audited: no redundant variants existed (caching already maximal); dead helpers removed without fidelity loss (T5).
 - [x] One schema-guardrail test per table; MySQL constraint tests retained (T6).
 - [ ] No `assertTrue(true)` placeholder assertions remain (T7).
 - [ ] Consistent DB trait per directory; deprecations at zero, notices minimised (T8).
