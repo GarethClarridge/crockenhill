@@ -6,17 +6,25 @@ namespace Tests\Feature;
 
 use App\Models\Meeting;
 use App\Models\Preacher;
-use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
+/**
+ * Wiring smoke tests for page-type-specific Open Graph variations that have no
+ * presenter equivalent: the preacher profile (og:type=profile) and the meeting
+ * events page image metadata.
+ *
+ * The sermon image-alt text and twitter card-type derivation are covered at the
+ * presenter / component level (SermonViewPresenterTest::image_alt_*, and the
+ * x-meta-tags card-type logic exercised by SermonOpenGraphTest).
+ */
 class SeoMetadataImprovementTest extends TestCase
 {
     use RefreshDatabase;
 
     #[Test]
-    public function preacher_page_has_profile_metadata(): void
+    public function preacher_page_has_profile_open_graph_metadata(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'John Owen', 'slug' => 'john-owen']);
 
@@ -25,41 +33,6 @@ class SeoMetadataImprovementTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('<meta property="og:type" content="profile">', false);
         $response->assertSee('<meta property="profile:username" content="john-owen">', false);
-    }
-
-    #[Test]
-    public function twitter_card_type_is_dynamic(): void
-    {
-        // Page with image
-        $preacher = Preacher::factory()->create(['image_path' => 'preachers/john-owen.jpg']);
-        $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
-        $response->assertSee('<meta name="twitter:card" content="summary_large_image">', false);
-
-        // Page without image (if we can find one or mock it)
-        // For now, let's verify that sermons with thumbnails have summary_large_image
-        $sermon = Sermon::factory()->create([
-            'thumbnail_file_path' => 'thumbnails/test.jpg',
-            'date' => '2024-03-15',
-        ]);
-        $response = $this->followingRedirects()->get("/christ/sermons/2024/03/{$sermon->slug}");
-        $response->assertSee('<meta name="twitter:card" content="summary_large_image">', false);
-    }
-
-    #[Test]
-    public function sermon_page_has_improved_image_alt(): void
-    {
-        $preacher = Preacher::factory()->create(['name' => 'John Owen']);
-        $sermon = Sermon::factory()->create([
-            'title' => 'Improved Alt Sermon',
-            'preacher_id' => $preacher->id,
-            'preacher' => $preacher->name,
-            'date' => '2024-03-15',
-        ]);
-
-        $response = $this->followingRedirects()->get("/christ/sermons/2024/03/{$sermon->slug}");
-
-        $response->assertStatus(200);
-        $response->assertSee('content="Sermon: Improved Alt Sermon by John Owen"', false);
     }
 
     #[Test]

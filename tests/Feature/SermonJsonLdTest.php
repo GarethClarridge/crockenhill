@@ -4,19 +4,29 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
+/**
+ * Wiring smoke tests for the sermon-show JSON-LD (schema.org) block.
+ *
+ * Whether a VideoObject/AudioObject block appears is driven entirely by the
+ * presenter's video_url / audio_url outputs (the Blade is a bare @if on those
+ * values). Those variants — including the rejected-video and hidden-summary
+ * cases — are asserted in Tests\Integration\Presenters\SermonViewPresenterTest.
+ * This file only proves the schema component is wired in and emits the expected
+ * schema.org type blocks when the corresponding media is present, and none when
+ * it isn't.
+ */
 class SermonJsonLdTest extends TestCase
 {
     use RefreshDatabase;
 
     #[Test]
-    public function sermon_page_includes_enhanced_json_ld(): void
+    public function sermon_page_emits_full_json_ld_when_media_is_present(): void
     {
         Storage::fake('local');
         $transcriptPath = 'transcripts/test-transcript.md';
@@ -32,38 +42,24 @@ class SermonJsonLdTest extends TestCase
             'video_file_path' => 'video/test.mp4',
         ]);
 
-        // Clear cache if needed, but here we just want to ensure we hit the route
         $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}");
 
         $response->assertStatus(200);
+        $response->assertSee('<script type="application/ld+json">', false);
 
         $content = $response->getContent();
 
-        // Verify Article schema
+        // Article + publisher + mainEntityOfPage wiring.
         $this->assertStringContainsString('"@type": "Article"', $content);
         $this->assertStringContainsString('"headline": "Enhanced JSON-LD Sermon"', $content);
-
-        // Verify Publisher and mainEntityOfPage (added via x-schema.sermon)
         $this->assertStringContainsString('"publisher":', $content);
         $this->assertStringContainsString('"@type": "Organization"', $content);
         $this->assertStringContainsString('"name": "Crockenhill Baptist Church"', $content);
         $this->assertStringContainsString('"mainEntityOfPage":', $content);
         $this->assertStringContainsString('"@type": "WebPage"', $content);
 
-        // Assert the meta description is correctly present in JSON-LD.
-        // Description is composed by SermonViewPresenter and injected via x-schema.sermon.
-        // json_encode encodes quotes as \u0027 or \", so we check for a partial match if needed,
-        // but since we aren't using JSON_UNESCAPED_UNICODE (wait, we ARE using JSON_HEX_APOS etc)
-        // Let's just check the important parts of the description
-        $this->assertStringContainsString('"description":', $content);
-        $this->assertStringContainsString('Enhanced JSON-LD Sermon', $content);
-
-        // Verify VideoObject schema
+        // VideoObject + AudioObject blocks render when the presenter exposes media URLs.
         $this->assertStringContainsString('"@type": "VideoObject"', $content);
-        $this->assertStringContainsString('"duration": "PT1H1M1S"', $content);
-        $this->assertStringContainsString('"transcript": "This is a test transcript."', $content);
-
-        // Verify AudioObject schema
         $this->assertStringContainsString('"@type": "AudioObject"', $content);
         $this->assertStringContainsString('"duration": "PT1H1M1S"', $content);
         $this->assertStringContainsString('"transcript": "This is a test transcript."', $content);
@@ -71,7 +67,7 @@ class SermonJsonLdTest extends TestCase
     }
 
     #[Test]
-    public function sermon_page_handles_missing_optional_json_ld_fields(): void
+    public function sermon_page_omits_media_objects_when_no_media_is_present(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Minimal JSON-LD Sermon',
@@ -92,31 +88,10 @@ class SermonJsonLdTest extends TestCase
         $this->assertStringContainsString('"@type": "Article"', $content);
         $this->assertStringNotContainsString('"@type": "VideoObject"', $content);
         $this->assertStringNotContainsString('"@type": "AudioObject"', $content);
-        $this->assertStringNotContainsString('"duration"', $content);
-        $this->assertStringNotContainsString('"transcript"', $content);
     }
 
     #[Test]
-    public function rejected_sermon_video_is_omitted_from_json_ld(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'title' => 'Rejected Video JSON-LD Sermon',
-            'slug' => 'rejected-video-json-ld-sermon',
-            'date' => '2024-03-21',
-            'audio_file_path' => 'audio/test.mp3',
-            'video_file_path' => 'video/test.mp4',
-            'video_quality_status' => SermonVideoQualityStatus::Rejected,
-        ]);
-
-        $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}");
-
-        $response->assertStatus(200);
-        $this->assertStringNotContainsString('"@type": "VideoObject"', $response->getContent());
-        $this->assertStringContainsString('"@type": "AudioObject"', $response->getContent());
-    }
-
-    #[Test]
-    public function sermon_page_does_not_expose_hidden_summary_in_meta_or_json_ld(): void
+    public function sermon_page_never_leaks_a_hidden_summary_into_the_head(): void
     {
         $hiddenSummary = 'Hidden metadata leak summary should not be exposed.';
 
@@ -133,9 +108,6 @@ class SermonJsonLdTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('<meta name="description"', false);
         $response->assertSee('<script type="application/ld+json">', false);
-
-        $content = $response->getContent();
-
-        $this->assertStringNotContainsString($hiddenSummary, $content);
+        $this->assertStringNotContainsString($hiddenSummary, (string) $response->getContent());
     }
 }

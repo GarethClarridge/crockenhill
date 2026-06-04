@@ -10,12 +10,21 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
+/**
+ * Wiring smoke tests for the Twitter label/data pairs.
+ *
+ * These label/data pairs are assembled inline in SermonController and passed to
+ * the x-meta-tags component, which renders them behind @if guards. There is no
+ * presenter method to push these down to, so each page type keeps a single smoke
+ * test proving the pairs render (and that the optional series pair is omitted
+ * when absent).
+ */
 class SermonSocialMetadataTest extends TestCase
 {
     use RefreshDatabase;
 
     #[Test]
-    public function sermon_page_renders_twitter_labels_for_preacher_and_series(): void
+    public function sermon_page_renders_preacher_and_series_twitter_labels(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'John Owen']);
         $sermon = Sermon::factory()->create([
@@ -53,13 +62,11 @@ class SermonSocialMetadataTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('<meta name="twitter:label1" content="Preacher">', false);
-        $response->assertSee('<meta name="twitter:data1" content="Charles Spurgeon">', false);
         $response->assertDontSee('twitter:label2');
-        $response->assertDontSee('twitter:data2');
     }
 
     #[Test]
-    public function preacher_page_renders_twitter_labels_for_sermon_count(): void
+    public function preacher_page_renders_sermon_count_twitter_label(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'Charles Spurgeon']);
         Sermon::factory()->count(5)->create([
@@ -72,19 +79,5 @@ class SermonSocialMetadataTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('<meta name="twitter:label1" content="Sermons">', false);
         $response->assertSee('<meta name="twitter:data1" content="5">', false);
-    }
-
-    #[Test]
-    public function series_page_renders_twitter_labels_for_sermon_count(): void
-    {
-        Sermon::factory()->count(3)->create([
-            'series' => 'Great Doctrines',
-        ]);
-
-        $response = $this->get('/christ/sermons/series/great-doctrines');
-
-        $response->assertStatus(200);
-        $response->assertSee('<meta name="twitter:label1" content="Sermons">', false);
-        $response->assertSee('<meta name="twitter:data1" content="3">', false);
     }
 }

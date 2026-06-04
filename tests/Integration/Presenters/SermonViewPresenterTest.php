@@ -375,6 +375,48 @@ class SermonViewPresenterTest extends TestCase
     }
 
     #[Test]
+    public function image_alt_includes_title_and_preacher_name(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'title' => 'Test Sermon Title',
+            'preacher' => 'John Smith',
+            'preacher_id' => null,
+        ]);
+
+        $this->assertSame(
+            'Sermon: Test Sermon Title by John Smith',
+            $this->presenter->imageAlt($sermon),
+        );
+    }
+
+    #[Test]
+    public function image_alt_omits_preacher_suffix_when_preacher_is_missing(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'title' => 'Anonymous Sermon',
+            'preacher' => '',
+            'preacher_id' => null,
+        ]);
+
+        $this->assertSame('Sermon: Anonymous Sermon', $this->presenter->imageAlt($sermon));
+    }
+
+    #[Test]
+    public function childrens_talk_image_alt_uses_childrens_corner_prefix(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'title' => 'The Lost Sheep',
+            'preacher' => 'Jane Doe',
+            'preacher_id' => null,
+        ]);
+
+        $this->assertSame(
+            "Children's Corner: The Lost Sheep by Jane Doe",
+            $this->presenter->childrensTalkImageAlt($sermon),
+        );
+    }
+
+    #[Test]
     public function meta_description_returns_explicit_attribute_when_set(): void
     {
         $sermon = Sermon::factory()->make([

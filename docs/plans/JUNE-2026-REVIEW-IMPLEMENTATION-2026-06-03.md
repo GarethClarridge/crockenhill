@@ -191,6 +191,19 @@ Primary targets (largest / highest-churn first):
   coordinate with [SIMPLIFICATION-PLAN.md](SIMPLIFICATION-PLAN.md) Phase 25 (legacy importers).
 - [app/Models/Sermon.php](../../app/Models/Sermon.php) (864) — extract query scopes to a dedicated
   builder; push heavy presentation accessors toward `SermonViewPresenter`.
+- [app/Http/Controllers/SermonController.php](../../app/Http/Controllers/SermonController.php)
+  (~lines 180–250) — extract the inline preacher/series/service archive SEO strings into a presenter.
+  **Surfaced by the T3 SEO test re-levelling** (see
+  [docs/plans/TESTING-REMEDIATION-PLAN.md](TESTING-REMEDIATION-PLAN.md)). The main `index` action
+  already delegates archive title/description/canonical to
+  [SermonArchiveSeoPresenter](../../app/Seo/SermonArchiveSeoPresenter.php), but the `preacher`,
+  `series`/`seriesShow`, and `service` actions still build their `heading`/`description` strings inline
+  (e.g. `'Sermons by '.$preacher->name`, `'Browse all sermons in the "..."'`). Because those strings
+  have no producing layer below HTTP, T3 had to keep them as HTTP smoke tests rather than cheap
+  presenter unit tests. Extracting them (e.g. onto `SermonArchiveSeoPresenter` or a sibling presenter)
+  would make all four archive sub-types symmetric, thin the controller, and let the title/description
+  *variants* be unit-tested the way the filtered archive already is — at which point T3's smoke tests
+  for those pages can be thinned to one wiring check each.
 
 Tasks (per target, only when the file is next touched for other reasons):
 

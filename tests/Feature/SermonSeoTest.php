@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
-use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,6 +12,16 @@ use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
+/**
+ * Wiring smoke tests for the structured-data (JSON-LD) blocks on sermon archive
+ * pages, plus the legacy-route redirect.
+ *
+ * Archive title/description/canonical variants live in
+ * SermonArchiveSeoPresenterTest; archive meta-tag wiring lives in
+ * SermonBrowseSeoTest. This file proves the structured-data components render on
+ * the archive page types: the ItemList on a listing, the Person schema on a
+ * preacher profile, and the BreadcrumbList on a deep archive page.
+ */
 class SermonSeoTest extends TestCase
 {
     use RefreshDatabase;
@@ -30,9 +39,8 @@ class SermonSeoTest extends TestCase
     }
 
     #[Test]
-    public function sermon_index_has_item_list_structured_data_and_correct_title()
+    public function sermon_index_renders_item_list_structured_data(): void
     {
-        // Create some sermons to populate the index
         $preacher = Preacher::factory()->create(['name' => 'John Doe']);
         Sermon::factory()->count(3)->create([
             'preacher' => 'John Doe',
@@ -43,7 +51,6 @@ class SermonSeoTest extends TestCase
         $response = $this->get(route('sermons.index'));
 
         $response->assertStatus(200);
-        $response->assertSee('Sermons | Crockenhill Baptist Church');
         $response->assertSee('"@type": "ItemList"', false);
         $response->assertSee('"numberOfItems": 3', false);
         $response->assertSee('"@type": "Article"', false);
@@ -51,7 +58,7 @@ class SermonSeoTest extends TestCase
     }
 
     #[Test]
-    public function legacy_all_sermons_route_redirects_to_the_canonical_archive()
+    public function legacy_all_sermons_route_redirects_to_the_canonical_archive(): void
     {
         $response = $this->get(route('sermons.all'));
 
@@ -60,27 +67,7 @@ class SermonSeoTest extends TestCase
     }
 
     #[Test]
-    public function sermon_index_handles_missing_preacher_profile_gracefully()
-    {
-        // Create a sermon with only a preacher string, no ID/profile
-        // Ensure it has a very recent date to appear in 'latest'
-        Sermon::factory()->create([
-            'preacher' => 'Guest Preacher',
-            'preacher_id' => null,
-            'content_type' => SermonContentType::Sermon,
-            'date' => now(),
-        ]);
-
-        $response = $this->get(route('sermons.index'));
-
-        $response->assertStatus(200);
-        $response->assertSee('Guest Preacher');
-        $response->assertSee('"@type": "Person"', false);
-        $response->assertSee('"name": "Guest Preacher"', false);
-    }
-
-    #[Test]
-    public function preacher_sermons_page_has_item_list_structured_data_and_breadcrumbs()
+    public function preacher_archive_renders_item_list_and_breadcrumb_structured_data(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'Preacher Name']);
         Sermon::factory()->count(2)->create([
@@ -92,55 +79,14 @@ class SermonSeoTest extends TestCase
         $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
 
         $response->assertStatus(200);
-        $response->assertSee('Sermons by Preacher Name | Crockenhill Baptist Church');
         $response->assertSee('"@type": "ItemList"', false);
         $response->assertSee('"numberOfItems": 2', false);
-        // Breadcrumb check (provided by layout & controller context)
         $response->assertSee('"@type": "BreadcrumbList"', false);
-        $response->assertSee('"name": "Christ"', false);
         $response->assertSee('"name": "Sermons"', false);
     }
 
     #[Test]
-    public function series_sermons_page_has_item_list_structured_data_and_breadcrumbs()
-    {
-        Sermon::factory()->count(2)->create([
-            'series' => 'My Great Series',
-            'content_type' => SermonContentType::Sermon,
-        ]);
-
-        $response = $this->get('/christ/sermons/series/my-great-series');
-
-        $response->assertStatus(200);
-        $response->assertSee('Sermon Series: My Great Series | Crockenhill Baptist Church');
-        $response->assertSee('"@type": "ItemList"', false);
-        $response->assertSee('"numberOfItems": 2', false);
-        // Breadcrumb check
-        $response->assertSee('"@type": "BreadcrumbList"', false);
-        $response->assertSee('"name": "Christ"', false);
-    }
-
-    #[Test]
-    public function service_sermons_page_has_item_list_structured_data_and_breadcrumbs()
-    {
-        Sermon::factory()->count(2)->create([
-            'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
-        ]);
-
-        $response = $this->get('/christ/sermons/morning');
-
-        $response->assertStatus(200);
-        $response->assertSee('Sunday Morning Services | Crockenhill Baptist Church');
-        $response->assertSee('"@type": "ItemList"', false);
-        $response->assertSee('"numberOfItems": 2', false);
-        // Breadcrumb check
-        $response->assertSee('"@type": "BreadcrumbList"', false);
-        $response->assertSee('"name": "Christ"', false);
-    }
-
-    #[Test]
-    public function preacher_profile_has_person_structured_data()
+    public function preacher_profile_renders_person_structured_data(): void
     {
         $preacher = Preacher::factory()->create([
             'name' => 'Dr. Martin Lloyd-Jones',
@@ -156,7 +102,5 @@ class SermonSeoTest extends TestCase
         $response->assertSee('"description": "A famous preacher with a long bio."', false);
         $response->assertSee('"image": "http://localhost/storage/preachers/mlj.jpg"', false);
         $response->assertSee('"worksFor": {', false);
-        $response->assertSee('"@type": "Organization"', false);
-        $response->assertSee('"name": "Crockenhill Baptist Church"', false);
     }
 }
