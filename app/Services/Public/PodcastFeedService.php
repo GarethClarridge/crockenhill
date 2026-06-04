@@ -8,7 +8,6 @@ use App\Data\PodcastFeedItemReadModel;
 use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use App\Repositories\SermonRepository;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests;
 
-use App\Repositories\SermonRepository;
 use App\Services\Public\MeetingListCache;
 use App\Services\Public\PageListCache;
 use App\Services\Public\PreacherListCache;
+use App\Services\Public\SermonRepository;
 use Illuminate\Contracts\Validation\UncompromisedVerifier;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Foundation\Testing\WithCachedConfig;

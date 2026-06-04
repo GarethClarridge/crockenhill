@@ -9,7 +9,7 @@ use App\Data\SermonAnalysis;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Repositories\SermonRepository;
+use App\Services\Public\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

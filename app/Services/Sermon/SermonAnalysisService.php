@@ -6,8 +6,9 @@ namespace App\Services\Sermon;
 
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
-use App\Repositories\SermonRepository;
+use App\Services\OpenAIResponseLogger;
 use App\Services\Processing\SermonProcessingLogger;
+use App\Services\Public\SermonRepository;
 use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +16,6 @@ use OpenAI\Exceptions\ErrorException;
 use OpenAI\Exceptions\TransporterException;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
-use App\Services\OpenAIResponseLogger;
 
 class SermonAnalysisService implements SermonAnalysisInterface
 {

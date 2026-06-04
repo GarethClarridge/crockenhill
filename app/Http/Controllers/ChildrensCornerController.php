@@ -8,8 +8,8 @@ use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Presenters\RelatedPagePresenter;
 use App\Presenters\SermonViewPresenter;
-use App\Repositories\SermonRepository;
 use App\Seo\SermonItemListPresenter;
+use App\Services\Public\SermonRepository;
 use Illuminate\View\View;
 
 class ChildrensCornerController extends Controller

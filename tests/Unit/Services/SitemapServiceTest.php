@@ -9,7 +9,7 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use App\Repositories\SermonRepository;
+use App\Services\Public\SermonRepository;
 use App\Services\Public\SitemapService;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Sitemap\MeetingSitemapPresenter;

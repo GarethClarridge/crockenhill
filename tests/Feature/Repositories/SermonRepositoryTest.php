@@ -9,7 +9,7 @@ use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
-use App\Repositories\SermonRepository;
+use App\Services\Public\SermonRepository;
 use App\Support\BibleCanon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;

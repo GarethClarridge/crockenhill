@@ -10,7 +10,6 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
-use App\Repositories\SermonRepository;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Sitemap\MeetingSitemapPresenter;
 use App\Sitemap\PageSitemapPresenter;

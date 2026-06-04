@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Repositories\SermonRepository;
 use App\Services\BritishEnglishConverter;
 use App\Services\Processing\SermonProcessingLogger;
+use App\Services\Public\SermonRepository;
 use App\Services\Sermon\SermonAnalysisPromptBuilder;
 use App\Services\Sermon\SermonAnalysisService;
 use App\Services\Sermon\SermonAnalysisValidator;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Performance;
 
 use App\Models\Sermon;
-use App\Repositories\SermonRepository;
+use App\Services\Public\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

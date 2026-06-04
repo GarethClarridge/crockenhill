@@ -7,7 +7,7 @@ namespace Tests\Feature\Repositories;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Repositories\SermonRepository;
+use App\Services\Public\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;

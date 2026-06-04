@@ -9,7 +9,7 @@ use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Repositories\SermonRepository;
+use App\Services\Public\SermonRepository;
 use App\Traits\SanitizesLogData;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
