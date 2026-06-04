@@ -6,7 +6,7 @@ namespace Tests\Integration;
 
 use App\Models\Song;
 use App\Models\SongAuthor;
-use App\Presenters\SongItemListPresenter;
+use App\Seo\SongItemListPresenter;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

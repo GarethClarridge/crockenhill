@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Presenters;
+namespace App\Seo;
 
 use App\Models\Song;
 use Illuminate\Support\Collection;

@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Presenters;
+namespace App\Sitemap;
 
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Carbon\CarbonInterface;
 use Spatie\Sitemap\Tags\Url;
 

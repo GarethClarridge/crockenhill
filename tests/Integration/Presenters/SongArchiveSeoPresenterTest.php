@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Presenters;
 
-use App\Presenters\SongArchiveSeoPresenter;
+use App\Seo\SongArchiveSeoPresenter;
 use App\Services\PublicSongCatalogService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Presenters;
+namespace App\Sitemap;
 
 use App\Models\Page;
+use App\Presenters\PageImagePresenter;
 use Spatie\Sitemap\Tags\Url;
 
 class PageSitemapPresenter

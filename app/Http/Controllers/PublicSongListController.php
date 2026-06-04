@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Song;
-use App\Presenters\SongArchiveSeoPresenter;
+use App\Seo\SongArchiveSeoPresenter;
 use App\Services\PublicSongCatalogService;
 use App\Services\PublicSongUsageService;
 use App\Services\SongVideoService;

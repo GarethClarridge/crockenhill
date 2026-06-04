@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Performance;
 
 use App\Models\Sermon;
-use App\Presenters\SermonSitemapPresenter;
 use App\Presenters\SermonViewPresenter;
+use App\Sitemap\SermonSitemapPresenter;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

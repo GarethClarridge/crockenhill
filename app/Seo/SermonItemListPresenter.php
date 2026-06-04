@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Presenters;
+namespace App\Seo;
 
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 

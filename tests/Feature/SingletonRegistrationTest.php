@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonViewPresenter;
+use App\Seo\SermonItemListPresenter;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;

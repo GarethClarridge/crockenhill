@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Presenters;
 
 use App\Models\Preacher;
-use App\Presenters\SermonArchiveSeoPresenter;
+use App\Seo\SermonArchiveSeoPresenter;
 use App\Services\PreacherListCache;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;

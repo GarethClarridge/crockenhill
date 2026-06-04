@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Presenters\PreacherSitemapPresenter;
+use App\Sitemap\PreacherSitemapPresenter;
 use App\Support\Path;
 use Database\Factories\PreacherFactory;
 use Illuminate\Database\Eloquent\Builder;

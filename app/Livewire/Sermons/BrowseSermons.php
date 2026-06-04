@@ -6,10 +6,10 @@ namespace App\Livewire\Sermons;
 
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Presenters\SermonArchiveSeoPresenter;
-use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
+use App\Seo\SermonArchiveSeoPresenter;
+use App\Seo\SermonItemListPresenter;
 use App\Services\PreacherListCache;
 use App\Support\BibleCanon;
 use Illuminate\Pagination\LengthAwarePaginator;

@@ -6,8 +6,8 @@ namespace Tests\Unit\Presenters;
 
 use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
-use App\Presenters\SermonSitemapPresenter;
 use App\Presenters\SermonViewPresenter;
+use App\Sitemap\SermonSitemapPresenter;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

@@ -263,9 +263,11 @@ Exit criteria (met):
 
 Priority: **Low** — readability improvement, not behavior change.
 
-Status: **Investigate**.
+Status: **Complete** (2026-06-04). Target shape: **split into three directories** (the most-discoverable option, chosen with maintainer consensus). The four sitemap presenters moved to `app/Sitemap/` (`App\Sitemap`, adjacent to `SitemapService`), the six SEO/Schema.org builders moved to `app/Seo/` (`App\Seo`), and the nine view-data presenters stayed in `app/Presenters/` (`App\Presenters`). All moves used `git mv` so blame history follows each file. Net diff: 10 renamed presenters (one-line `namespace` change each) plus import-only edits to 19 consumers (`AppServiceProvider`, `SitemapService`, the four models, controllers, Livewire components, and tests). Test files were left in place — only their `use` imports changed; their `Tests\*\Presenters` namespaces are organizational and need not mirror the production split.
 
-The 20 files under [app/Presenters/](../../app/Presenters/) serve three different responsibilities:
+A subtle hazard surfaced and was caught by PHPStan: four moved files (`Sitemap\PageSitemapPresenter`, `Sitemap\PreacherSitemapPresenter`, `Sitemap\SermonSitemapPresenter`, `Seo\SermonItemListPresenter`) referenced a view-data presenter (`PageImagePresenter` / `SermonViewPresenter`) by its **unqualified** name, relying on same-namespace resolution that broke once the namespace changed. Each gained an explicit `use App\Presenters\…` import. Public APIs and container binding keys unchanged; PHPStan clean (0 errors), Pint clean, 39 focused presenter/sitemap/SEO/singleton-registration tests pass (110 assertions).
+
+The 20 files under [app/Presenters/](../../app/Presenters/) served three different responsibilities (pre-move snapshot):
 
 | Group | Files | Pattern |
 |-------|-------|---------|
@@ -277,13 +279,13 @@ The 20 files under [app/Presenters/](../../app/Presenters/) serve three differen
 
 Tasks:
 
-- [ ] Decide on a target shape — options include `app/Sitemap/`, `app/Seo/`, and a slimmer `app/Presenters/`.
+- [x] Decide on a target shape — `app/Sitemap/`, `app/Seo/`, and a slimmer `app/Presenters/` (the three-directory split).
 - [x] Verify that `SermonViewPresenter` (formerly the 995-line outlier) is on the Phase 14 decomposition list — it is, and Phase 14 has since reduced it to 736 lines.
-- [ ] Do not move without consensus — this is the largest-blast-radius item in this plan.
+- [x] Do not move without consensus — this is the largest-blast-radius item in this plan. (Maintainer chose the three-directory split before any files were touched.)
 
 Exit criteria:
 
-- The `Presenters/` directory contains files that share a single responsibility, or is split into directories that each do.
+- The `Presenters/` directory contains files that share a single responsibility, or is split into directories that each do. **Met** — `app/Presenters/` now holds only the nine Model→view-ready presenters; sitemap and SEO builders live in `app/Sitemap/` and `app/Seo/`.
 
 ### Phase 23: Correct Stale `PageController` Docblock
 
@@ -371,7 +373,7 @@ Exit criteria:
 - [x] Exactly one canonical implementation of path-safety checks.
 - [x] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.
 - [x] No action class is a pure single-call wrapper without guard logic.
-- [ ] `app/Presenters/` is split or scoped to a single responsibility.
+- [x] `app/Presenters/` is split or scoped to a single responsibility.
 - [x] No docblock or comment references the deleted `layouts/page` template.
 - [x] No commented-out destructive storage operation remains in the codebase.
 - [ ] Completed one-shot legacy importers are removed (or explicitly retained with a documented reason).

@@ -7,7 +7,7 @@ namespace App\Models;
 use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Enums\PageArea;
-use App\Presenters\MeetingSitemapPresenter;
+use App\Sitemap\MeetingSitemapPresenter;
 use Closure;
 use Database\Factories\MeetingFactory;
 use Illuminate\Contracts\Validation\ValidationRule;

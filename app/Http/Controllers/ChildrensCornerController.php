@@ -7,9 +7,9 @@ namespace App\Http\Controllers;
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Presenters\RelatedPagePresenter;
-use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
+use App\Seo\SermonItemListPresenter;
 use Illuminate\View\View;
 
 class ChildrensCornerController extends Controller

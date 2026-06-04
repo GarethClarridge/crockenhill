@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Livewire\Church\Songs;
 
 use App\Models\Song;
-use App\Presenters\SongArchiveSeoPresenter;
-use App\Presenters\SongItemListPresenter;
+use App\Seo\SongArchiveSeoPresenter;
+use App\Seo\SongItemListPresenter;
 use App\Services\PublicSongCatalogService;
 use App\Services\SongLyricSnippetBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
