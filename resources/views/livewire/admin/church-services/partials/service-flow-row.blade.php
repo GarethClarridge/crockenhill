@@ -158,7 +158,7 @@
         id="service-row-details-{{ $rowIndex }}"
         x-show="expanded"
         x-collapse
-        class="mt-3 ml-24 pl-1"
+        class="mt-3 ml-27 pl-1"
     >
         <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700 space-y-2">
             @if($item['transcript_excerpt'])
