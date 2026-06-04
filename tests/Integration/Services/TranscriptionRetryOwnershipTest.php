@@ -10,6 +10,7 @@ use App\Exceptions\TranscriptionException;
 use App\Jobs\TranscribeAudio;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\Media\Audio\AudioTranscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Log;

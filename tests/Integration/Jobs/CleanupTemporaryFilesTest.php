@@ -7,7 +7,7 @@ namespace Tests\Integration\Jobs;
 use App\Enums\ProcessingStatus;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Models\MediaProcessingLog;
-use App\Services\VideoStorageService;
+use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;

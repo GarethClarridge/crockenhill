@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Audio;
 
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Video\VisualAnalysisService;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\Song\SongClusteringService;
-use App\Services\VisualAnalysisService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;

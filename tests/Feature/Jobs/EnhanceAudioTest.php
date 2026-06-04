@@ -6,7 +6,7 @@ namespace Tests\Feature\Jobs;
 
 use App\Jobs\EnhanceAudio;
 use App\Models\MediaProcessingLog;
-use App\Services\AudioEnhancementService;
+use App\Services\Media\Audio\AudioEnhancementService;
 use App\Services\StorageAdapterHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;

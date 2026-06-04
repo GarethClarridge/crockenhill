@@ -6,7 +6,7 @@ namespace Tests\Integration\Models;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\SermonTranscriptReader;
+use App\Services\Media\Audio\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;

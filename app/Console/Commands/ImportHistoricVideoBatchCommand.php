@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\HistoricVideoImporter;
+use App\Services\Media\Video\HistoricVideoImporter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Throwable;

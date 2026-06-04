@@ -8,6 +8,7 @@ use App\Contracts\ProvidesSafeMessage;
 use App\Data\ProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Bus\Batch;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;

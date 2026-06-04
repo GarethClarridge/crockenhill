@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Models\Sermon;
-use App\Services\ThumbnailCanvasComposer;
+use App\Services\Media\Thumbnail\ThumbnailCanvasComposer;
+use App\Services\Media\Thumbnail\ThumbnailTextHelper;
 use Carbon\Carbon;
 use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;

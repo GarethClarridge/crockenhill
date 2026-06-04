@@ -9,7 +9,7 @@ use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\SendCompletionNotification;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\VideoStorageService;
+use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;

@@ -10,7 +10,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionSyncService;
-use App\Services\VideoStorageService;
+use App\Services\Media\Video\VideoStorageService;
 
 class MergeAdjacentServiceSections
 {

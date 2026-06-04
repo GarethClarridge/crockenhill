@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Contracts\TranscriptionServiceInterface;
-use App\Services\AudioTranscriptionService;
-use App\Services\LocalWhisperTranscriptionService;
-use App\Services\MockTranscriptionService;
+use App\Services\Media\Audio\AudioTranscriptionService;
+use App\Services\Media\Audio\LocalWhisperTranscriptionService;
+use App\Services\Media\Audio\MockTranscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;

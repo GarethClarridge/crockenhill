@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Exceptions\InvalidFileException;
-use App\Services\AudioExtractionService;
+use App\Services\Media\Audio\AudioExtractionService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;

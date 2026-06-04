@@ -6,7 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
-use App\Services\AudioEnhancementService;
+use App\Services\Media\Audio\AudioEnhancementService;
 use App\Services\StorageAdapterHelper;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;

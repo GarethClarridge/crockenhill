@@ -6,10 +6,10 @@ namespace Tests\Feature;
 
 use App\Presenters\SermonViewPresenter;
 use App\Seo\SermonItemListPresenter;
+use App\Services\Media\Audio\SermonTranscriptReader;
+use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
-use App\Services\SermonTranscriptReader;
-use App\Services\TranscriptStorageService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

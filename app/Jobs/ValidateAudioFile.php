@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
-use App\Services\AudioExtractionService;
+use App\Services\Media\Audio\AudioExtractionService;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\StorageAdapterHelper;
 use App\Traits\ChecksCancellation;

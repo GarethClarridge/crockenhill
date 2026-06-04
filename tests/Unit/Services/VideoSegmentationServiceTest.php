@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\VideoSegmentationService;
+use App\Services\Media\Video\VideoSegmentationService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\ThumbnailTextHelper;
+use App\Services\Media\Thumbnail\ThumbnailTextHelper;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

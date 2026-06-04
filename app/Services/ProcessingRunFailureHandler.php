@@ -8,6 +8,7 @@ use App\Contracts\ProvidesSafeMessage;
 use App\Enums\ProcessingStatus;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Video\VideoStorageService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;

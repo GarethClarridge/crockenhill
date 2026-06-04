@@ -6,11 +6,11 @@ namespace Tests\Unit\Services;
 
 use App\Exceptions\NonRetryableTranscriptionException;
 use App\Exceptions\TranscriptionException;
-use App\Services\AudioChunkingService;
-use App\Services\AudioTranscriptionService;
+use App\Services\Media\Audio\AudioChunkingService;
+use App\Services\Media\Audio\AudioTranscriptionService;
+use App\Services\Media\Audio\TranscriptFormatterService;
+use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\SermonProcessingLogger;
-use App\Services\TranscriptFormatterService;
-use App\Services\TranscriptStorageService;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;

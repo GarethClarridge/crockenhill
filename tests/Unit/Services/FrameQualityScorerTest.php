@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\FrameQualityScorer;
+use App\Services\Media\Video\FrameQualityScorer;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\PixianClient;
-use App\Services\ThumbnailForegroundExtractionService;
+use App\Services\Media\Thumbnail\PixianClient;
+use App\Services\Media\Thumbnail\ThumbnailForegroundExtractionService;
 use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;
 use PHPUnit\Framework\Attributes\Test;

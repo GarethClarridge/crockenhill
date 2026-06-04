@@ -6,9 +6,9 @@ namespace App\Presenters;
 
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
-use App\Services\SermonTranscriptReader;
 use App\Support\SermonContentFormatter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;

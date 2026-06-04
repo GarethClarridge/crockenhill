@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Exceptions\SegmentationException;
-use App\Services\RmsAnalysisService;
+use App\Services\Media\Audio\RmsAnalysisService;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

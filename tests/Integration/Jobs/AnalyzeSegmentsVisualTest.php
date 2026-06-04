@@ -9,7 +9,7 @@ use App\Enums\LivestreamSegmentClassification;
 use App\Jobs\AnalyzeSegments;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
-use App\Services\VideoSegmentationService;
+use App\Services\Media\Video\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

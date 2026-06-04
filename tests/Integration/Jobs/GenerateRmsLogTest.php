@@ -6,7 +6,7 @@ namespace Tests\Integration\Jobs;
 
 use App\Jobs\GenerateRmsLog;
 use App\Models\MediaProcessingLog;
-use App\Services\VideoSegmentationService;
+use App\Services\Media\Video\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

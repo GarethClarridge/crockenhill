@@ -6,7 +6,7 @@ namespace Tests\Integration\Jobs;
 
 use App\Jobs\ValidateAudioFile;
 use App\Models\MediaProcessingLog;
-use App\Services\AudioExtractionService;
+use App\Services\Media\Audio\AudioExtractionService;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\StorageAdapterHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;

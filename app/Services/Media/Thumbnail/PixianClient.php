@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Thumbnail;
 
 use App\Traits\SanitizesLogData;
 use Illuminate\Http\Client\ConnectionException;

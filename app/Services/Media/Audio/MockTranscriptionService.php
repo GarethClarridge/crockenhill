@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Audio;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Traits\HandlesTranscriptStorage;
 use Illuminate\Support\Facades\Log;
+use App\Services\SermonProcessingLogger;
 
 class MockTranscriptionService implements TranscriptionServiceInterface
 {

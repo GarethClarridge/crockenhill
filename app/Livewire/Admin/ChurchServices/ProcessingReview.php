@@ -9,7 +9,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\VideoStorageService;
+use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Component;

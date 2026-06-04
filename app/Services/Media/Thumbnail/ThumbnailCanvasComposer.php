@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Thumbnail;
 
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;

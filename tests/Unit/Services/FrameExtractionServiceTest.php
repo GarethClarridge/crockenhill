@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\FrameExtractionService;
+use App\Services\Media\Video\FrameExtractionService;
+use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\StorageAdapterHelper;
-use App\Services\VideoSegmentationService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Mockery;

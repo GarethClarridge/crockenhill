@@ -6,8 +6,8 @@ namespace Tests\Unit\Config;
 
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\TranscriptionServiceInterface;
+use App\Services\Media\Audio\MockTranscriptionService;
 use App\Services\MockSermonAnalysisService;
-use App\Services\MockTranscriptionService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

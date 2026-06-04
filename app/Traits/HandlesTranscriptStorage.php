@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
-use App\Services\TranscriptStorageService;
+use App\Services\Media\Audio\TranscriptStorageService;
 
 /**
  * Trait HandlesTranscriptStorage

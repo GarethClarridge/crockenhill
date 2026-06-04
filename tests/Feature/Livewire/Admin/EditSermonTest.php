@@ -16,7 +16,7 @@ use App\Livewire\Admin\Sermons\EditSermonThumbnails;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\User;
-use App\Services\ThumbnailGenerationService;
+use App\Services\Media\Thumbnail\ThumbnailGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;

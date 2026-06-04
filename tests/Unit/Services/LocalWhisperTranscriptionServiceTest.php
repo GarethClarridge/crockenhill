@@ -6,12 +6,12 @@ namespace Tests\Unit\Services;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\TranscriptionException;
-use App\Services\AudioChunkingService;
 use App\Services\BritishEnglishConverter;
-use App\Services\LocalWhisperTranscriptionService;
+use App\Services\Media\Audio\AudioChunkingService;
+use App\Services\Media\Audio\LocalWhisperTranscriptionService;
+use App\Services\Media\Audio\TranscriptFormatterService;
+use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\SermonProcessingLogger;
-use App\Services\TranscriptFormatterService;
-use App\Services\TranscriptStorageService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;

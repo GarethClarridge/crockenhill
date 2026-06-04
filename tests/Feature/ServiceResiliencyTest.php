@@ -7,7 +7,7 @@ namespace Tests\Feature;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\TranscriptionException;
 use App\Models\Sermon;
-use App\Services\AudioTranscriptionService;
+use App\Services\Media\Audio\AudioTranscriptionService;
 use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;

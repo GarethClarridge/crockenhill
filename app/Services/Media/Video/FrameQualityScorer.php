@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Video;
 
 /**
  * Scores how visually appealing a decoded video frame is, so the thumbnail

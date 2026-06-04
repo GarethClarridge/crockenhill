@@ -10,7 +10,7 @@ use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\HistoricVideoImporter;
+use App\Services\Media\Video\HistoricVideoImporter;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery\MockInterface;

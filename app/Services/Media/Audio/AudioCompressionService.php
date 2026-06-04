@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Audio;
 
 use App\Exceptions\VideoProcessingException;
 use App\Traits\DetectsStorageType;
@@ -14,6 +14,7 @@ use FFMpeg\Media\Video;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Services\StorageAdapterHelper;
 
 /**
  * AudioCompressionService

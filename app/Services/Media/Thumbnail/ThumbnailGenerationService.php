@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Thumbnail;
 
 use App\Data\ThumbnailResult;
 use App\Models\Sermon;
@@ -12,6 +12,10 @@ use Illuminate\Support\Str;
 use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;
+use App\Services\Media\Video\FrameExtractionService;
+use App\Services\Media\Video\FrameQualityScorer;
+use App\Services\SermonExposurePolicy;
+use App\Services\StorageAdapterHelper;
 
 /**
  * @phpstan-type ThumbnailCandidate array{

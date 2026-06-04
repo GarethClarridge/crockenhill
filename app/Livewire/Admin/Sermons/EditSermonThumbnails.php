@@ -7,8 +7,8 @@ namespace App\Livewire\Admin\Sermons;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Sermon;
+use App\Services\Media\Thumbnail\ThumbnailGenerationService;
 use App\Services\SermonStorageService;
-use App\Services\ThumbnailGenerationService;
 use Illuminate\View\View;
 use Livewire\Component;
 

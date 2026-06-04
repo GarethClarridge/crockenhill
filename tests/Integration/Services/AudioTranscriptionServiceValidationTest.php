@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Services\AudioChunkingService;
-use App\Services\AudioTranscriptionService;
 use App\Services\BritishEnglishConverter;
+use App\Services\Media\Audio\AudioChunkingService;
+use App\Services\Media\Audio\AudioTranscriptionService;
+use App\Services\Media\Audio\TranscriptFormatterService;
+use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\SermonProcessingLogger;
-use App\Services\TranscriptFormatterService;
-use App\Services\TranscriptStorageService;
 use Exception;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;

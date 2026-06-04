@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Audio;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\TranscriptionException;
@@ -14,6 +14,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Services\SermonProcessingLogger;
 
 class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
 {

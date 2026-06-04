@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Sermon;
-use App\Services\SermonTranscriptReader;
-use App\Services\TranscriptStorageService;
+use App\Services\Media\Audio\SermonTranscriptReader;
+use App\Services\Media\Audio\TranscriptStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;

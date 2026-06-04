@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Services\AudioCompressionService;
+use App\Services\Media\Audio\AudioCompressionService;
+use App\Services\Media\Video\VideoExtractionService;
+use App\Services\Media\Video\VideoStorageService;
 use App\Services\StorageAdapterHelper;
-use App\Services\VideoExtractionService;
-use App\Services\VideoStorageService;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Media\Video;

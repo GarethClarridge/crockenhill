@@ -6,12 +6,12 @@ namespace Tests\Integration\Services;
 
 use App\Data\ThumbnailResult;
 use App\Models\Sermon;
-use App\Services\FrameExtractionService;
+use App\Services\Media\Thumbnail\ThumbnailCanvasComposer;
+use App\Services\Media\Thumbnail\ThumbnailForegroundExtractionService;
+use App\Services\Media\Thumbnail\ThumbnailGenerationService;
+use App\Services\Media\Video\FrameExtractionService;
 use App\Services\SermonExposurePolicy;
 use App\Services\StorageAdapterHelper;
-use App\Services\ThumbnailCanvasComposer;
-use App\Services\ThumbnailForegroundExtractionService;
-use App\Services\ThumbnailGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;

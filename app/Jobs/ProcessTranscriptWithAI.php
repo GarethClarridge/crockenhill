@@ -10,7 +10,7 @@ use App\Data\SermonAnalysis;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
-use App\Services\TranscriptStorageService;
+use App\Services\Media\Audio\TranscriptStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;

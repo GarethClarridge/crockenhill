@@ -6,6 +6,8 @@ namespace App\Console\Commands;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Thumbnail\ThumbnailGenerationService;
+use App\Services\Media\Video\VideoExtractionService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;

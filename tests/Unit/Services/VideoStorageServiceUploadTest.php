@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Exceptions\VideoProcessingException;
-use App\Services\AudioCompressionService;
-use App\Services\VideoExtractionService;
-use App\Services\VideoStorageService;
+use App\Services\Media\Audio\AudioCompressionService;
+use App\Services\Media\Video\VideoExtractionService;
+use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 

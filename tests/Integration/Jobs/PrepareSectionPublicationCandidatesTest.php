@@ -23,8 +23,8 @@ use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFacto
 use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\Media\Video\VideoExtractionService;
 use App\Services\StorageAdapterHelper;
-use App\Services\VideoExtractionService;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;

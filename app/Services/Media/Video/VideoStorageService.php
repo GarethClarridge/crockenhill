@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Video;
 
 use App\Data\LivestreamSegment;
 use App\Traits\DetectsStorageType;
@@ -12,6 +12,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Services\Media\Audio\AudioCompressionService;
+use App\Services\StorageAdapterHelper;
 
 class VideoStorageService
 {

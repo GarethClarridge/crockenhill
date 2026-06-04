@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Media\Video;
 
 use App\Enums\LivestreamSegmentClassification;
 use Illuminate\Support\Facades\Log;
