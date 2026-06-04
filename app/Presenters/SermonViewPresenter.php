@@ -124,19 +124,9 @@ class SermonViewPresenter
 
     public function audioUrl(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'audio');
-
-        if (isset($this->computed[$key])) {
-            return $this->memoizedUrls[$key];
-        }
-
-        $url = filled($sermon->audio_file_path)
+        return $this->memoize($sermon, 'audio', 'memoizedUrls', fn (): ?string => filled($sermon->audio_file_path)
             ? $this->storageService->getAudioDeliveryUrl($sermon)
-            : null;
-
-        $this->computed[$key] = true;
-
-        return $this->memoizedUrls[$key] = $url;
+            : null);
     }
 
     /**
@@ -172,18 +162,7 @@ class SermonViewPresenter
 
     public function canonicalUrl(Sermon $sermon): string
     {
-        $key = $this->cacheKey($sermon, 'canonical');
-
-        if (isset($this->computed[$key])) {
-            /** @var string */
-            return $this->memoizedUrls[$key];
-        }
-
-        $url = $this->exposurePolicy->canonicalUrl($sermon);
-
-        $this->computed[$key] = true;
-
-        return $this->memoizedUrls[$key] = $url;
+        return $this->memoize($sermon, 'canonical', 'memoizedUrls', fn (): string => $this->exposurePolicy->canonicalUrl($sermon));
     }
 
     /**
@@ -195,15 +174,7 @@ class SermonViewPresenter
      */
     public function cardThumbnailUrl(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'card_thumb');
-
-        if (isset($this->computed[$key])) {
-            return $this->memoizedUrls[$key];
-        }
-
-        $this->computed[$key] = true;
-
-        $url = (function () use ($sermon) {
+        return $this->memoize($sermon, 'card_thumb', 'memoizedUrls', function () use ($sermon): ?string {
             if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
                 return null;
             }
@@ -217,9 +188,7 @@ class SermonViewPresenter
             }
 
             return $this->storageService->getCardThumbnailDeliveryUrl($sermon);
-        })();
-
-        return $this->memoizedUrls[$key] = $url;
+        });
     }
 
     /**
@@ -231,15 +200,7 @@ class SermonViewPresenter
      */
     public function plainThumbnailUrl(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'plain_thumb');
-
-        if (isset($this->computed[$key])) {
-            return $this->memoizedUrls[$key];
-        }
-
-        $this->computed[$key] = true;
-
-        $url = (function () use ($sermon) {
+        return $this->memoize($sermon, 'plain_thumb', 'memoizedUrls', function () use ($sermon): ?string {
             if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
                 return null;
             }
@@ -254,9 +215,7 @@ class SermonViewPresenter
             }
 
             return $this->storageService->getPlainThumbnailDeliveryUrl($sermon);
-        })();
-
-        return $this->memoizedUrls[$key] = $url;
+        });
     }
 
     /**
@@ -374,14 +333,7 @@ class SermonViewPresenter
      */
     public function presentForApi(Sermon $sermon): array
     {
-        $key = $this->cacheKey($sermon, 'api_present');
-
-        if (isset($this->computed[$key])) {
-            /** @var array{audio_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, series_url: ?string, thumbnail_url: ?string, video_url: ?string} */
-            return $this->memoizedPresents[$key];
-        }
-
-        $presented = [
+        return $this->memoize($sermon, 'api_present', 'memoizedPresents', fn (): array => [
             'audio_url' => $this->audioUrl($sermon),
             'display_reference' => $this->displayReference($sermon),
             'duration_iso8601' => $this->durationIso8601($sermon),
@@ -393,11 +345,7 @@ class SermonViewPresenter
             'series_url' => $this->seriesUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),
             'video_url' => $this->videoUrl($sermon),
-        ];
-
-        $this->computed[$key] = true;
-
-        return $this->memoizedPresents[$key] = $presented;
+        ]);
     }
 
     /**
@@ -484,42 +432,33 @@ class SermonViewPresenter
      */
     public function presentForList(Sermon $sermon): array
     {
-        $key = $this->cacheKey($sermon, 'list_present');
+        return $this->memoize($sermon, 'list_present', 'memoizedPresents', function () use ($sermon): array {
+            $hasTranscript = $sermon->hasTranscript();
+            $dates = $this->formattedDates($sermon);
 
-        if (isset($this->computed[$key])) {
-            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript_url: ?string, video_url: ?string} */
-            return $this->memoizedPresents[$key];
-        }
-
-        $hasTranscript = $sermon->hasTranscript();
-        $dates = $this->formattedDates($sermon);
-
-        $presented = [
-            'audio_url' => $this->audioUrl($sermon),
-            'canonical_url' => $this->canonicalUrl($sermon),
-            'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
-            'date_iso' => $dates['iso'],
-            'date_string' => $dates['short'],
-            'display_reference' => $this->displayReference($sermon),
-            'duration_iso8601' => $this->durationIso8601($sermon),
-            'formatted_duration' => $this->formattedDuration($sermon),
-            'has_transcript' => $hasTranscript,
-            'human_date' => $dates['human'],
-            'plain_thumbnail_url' => $this->plainThumbnailUrl($sermon),
-            'preacher_image_url' => $this->preacherImageUrl($sermon),
-            'preacher_name' => $this->displayPreacherName($sermon),
-            'preacher_url' => $this->preacherUrl($sermon),
-            'public_url' => $this->publicUrl($sermon),
-            'series_url' => $this->seriesUrl($sermon),
-            'service_label' => $this->serviceLabel($sermon),
-            'thumbnail_url' => $this->thumbnailUrl($sermon),
-            'transcript_url' => $hasTranscript ? route('sermons.transcript', ['sermon' => $sermon->slug]) : null,
-            'video_url' => $this->videoUrl($sermon),
-        ];
-
-        $this->computed[$key] = true;
-
-        return $this->memoizedPresents[$key] = $presented;
+            return [
+                'audio_url' => $this->audioUrl($sermon),
+                'canonical_url' => $this->canonicalUrl($sermon),
+                'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
+                'date_iso' => $dates['iso'],
+                'date_string' => $dates['short'],
+                'display_reference' => $this->displayReference($sermon),
+                'duration_iso8601' => $this->durationIso8601($sermon),
+                'formatted_duration' => $this->formattedDuration($sermon),
+                'has_transcript' => $hasTranscript,
+                'human_date' => $dates['human'],
+                'plain_thumbnail_url' => $this->plainThumbnailUrl($sermon),
+                'preacher_image_url' => $this->preacherImageUrl($sermon),
+                'preacher_name' => $this->displayPreacherName($sermon),
+                'preacher_url' => $this->preacherUrl($sermon),
+                'public_url' => $this->publicUrl($sermon),
+                'series_url' => $this->seriesUrl($sermon),
+                'service_label' => $this->serviceLabel($sermon),
+                'thumbnail_url' => $this->thumbnailUrl($sermon),
+                'transcript_url' => $hasTranscript ? route('sermons.transcript', ['sermon' => $sermon->slug]) : null,
+                'video_url' => $this->videoUrl($sermon),
+            ];
+        });
     }
 
     /**
@@ -550,51 +489,23 @@ class SermonViewPresenter
      */
     public function present(Sermon $sermon): array
     {
-        $key = $this->cacheKey($sermon, 'full_present');
-
-        if (isset($this->computed[$key])) {
-            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, plain_text_outline: ?string, video_url: ?string} */
-            return $this->memoizedPresents[$key];
-        }
-
-        $presented = array_merge(
+        return $this->memoize($sermon, 'full_present', 'memoizedPresents', fn (): array => array_merge(
             $this->presentForList($sermon),
             [
                 'transcript' => $this->transcriptReader->read($sermon),
                 'plain_text_outline' => $this->plainTextOutline($sermon),
             ]
-        );
-
-        $this->computed[$key] = true;
-
-        return $this->memoizedPresents[$key] = $presented;
+        ));
     }
 
     public function publicUrl(Sermon $sermon): string
     {
-        $key = $this->cacheKey($sermon, 'public');
-
-        if (isset($this->computed[$key])) {
-            /** @var string */
-            return $this->memoizedUrls[$key];
-        }
-
-        $url = $this->exposurePolicy->publicUrl($sermon);
-
-        $this->computed[$key] = true;
-
-        return $this->memoizedUrls[$key] = $url;
+        return $this->memoize($sermon, 'public', 'memoizedUrls', fn (): string => $this->exposurePolicy->publicUrl($sermon));
     }
 
     public function thumbnailUrl(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'thumb');
-
-        if (isset($this->computed[$key])) {
-            return $this->memoizedUrls[$key];
-        }
-
-        $url = (function () use ($sermon) {
+        return $this->memoize($sermon, 'thumb', 'memoizedUrls', function () use ($sermon): ?string {
             if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
                 return null;
             }
@@ -604,11 +515,7 @@ class SermonViewPresenter
             }
 
             return $this->storageService->getThumbnailDeliveryUrl($sermon);
-        })();
-
-        $this->computed[$key] = true;
-
-        return $this->memoizedUrls[$key] = $url;
+        });
     }
 
     public function transcript(Sermon $sermon): ?string
@@ -805,59 +712,38 @@ class SermonViewPresenter
 
     public function metaDescription(Sermon $sermon): string
     {
-        $key = $this->cacheKey($sermon, 'meta_desc');
+        return $this->memoize($sermon, 'meta_desc', 'memoized', function () use ($sermon): string {
+            $attributes = $sermon->getAttributes();
+            if (filled($attributes['meta_description'] ?? null)) {
+                return (string) $attributes['meta_description'];
+            }
 
-        if (isset($this->computed[$key])) {
-            /** @var string */
-            return $this->memoized[$key];
-        }
+            $summary = ($sermon->show_summary && filled($sermon->summary))
+                ? strip_tags((string) $sermon->summary)
+                : null;
 
-        $attributes = $sermon->getAttributes();
-        if (filled($attributes['meta_description'] ?? null)) {
-            $this->computed[$key] = true;
-
-            return $this->memoized[$key] = (string) $attributes['meta_description'];
-        }
-
-        $summary = ($sermon->show_summary && filled($sermon->summary))
-            ? strip_tags((string) $sermon->summary)
-            : null;
-
-        $description = SermonContentFormatter::metaDescription(
-            title: (string) $sermon->title,
-            preacherName: $this->displayPreacherName($sermon) ?? 'Unknown preacher',
-            humanDate: $this->humanDate($sermon),
-            reference: $this->displayReference($sermon),
-            series: filled($sermon->series) ? (string) $sermon->series : null,
-            hasVideo: $this->exposurePolicy->shouldExposeVideo($sermon),
-            hasAudio: filled($sermon->audio_file_path),
-            summary: $summary,
-        );
-
-        $this->computed[$key] = true;
-
-        return $this->memoized[$key] = $description;
+            return SermonContentFormatter::metaDescription(
+                title: (string) $sermon->title,
+                preacherName: $this->displayPreacherName($sermon) ?? 'Unknown preacher',
+                humanDate: $this->humanDate($sermon),
+                reference: $this->displayReference($sermon),
+                series: filled($sermon->series) ? (string) $sermon->series : null,
+                hasVideo: $this->exposurePolicy->shouldExposeVideo($sermon),
+                hasAudio: filled($sermon->audio_file_path),
+                summary: $summary,
+            );
+        });
     }
 
     public function videoUrl(Sermon $sermon): ?string
     {
-        $key = $this->cacheKey($sermon, 'video');
-
-        if (isset($this->computed[$key])) {
-            return $this->memoizedUrls[$key];
-        }
-
-        $url = (function () use ($sermon) {
+        return $this->memoize($sermon, 'video', 'memoizedUrls', function () use ($sermon): ?string {
             if (! $this->exposurePolicy->shouldExposeVideo($sermon)) {
                 return null;
             }
 
             return $this->storageService->getVideoDeliveryUrl($sermon);
-        })();
-
-        $this->computed[$key] = true;
-
-        return $this->memoizedUrls[$key] = $url;
+        });
     }
 
     /**
@@ -880,6 +766,35 @@ class SermonViewPresenter
         $this->computed[$key] = true;
 
         return $this->memoized[$key] = $slug;
+    }
+
+    /**
+     * Memoize a per-sermon computation keyed by the sermon's identity + timestamp.
+     *
+     * Wraps the cacheKey() → isset-check → compute → store dance that every
+     * sermon-id-keyed accessor shares. The computed flag is what makes a null
+     * result a legitimate cached value (rather than a perpetual cache miss), so
+     * the flag is set before the value is stored. `$store` names which memo array
+     * the result lives in; the literal-string union keeps the dynamic write
+     * type-safe.
+     *
+     * @template TValue
+     *
+     * @param  'memoized'|'memoizedUrls'|'memoizedPresents'  $store
+     * @param  callable(): TValue  $compute
+     * @return TValue
+     */
+    private function memoize(Sermon $sermon, string $type, string $store, callable $compute): mixed
+    {
+        $key = $this->cacheKey($sermon, $type);
+
+        if (isset($this->computed[$key])) {
+            return $this->{$store}[$key];
+        }
+
+        $this->computed[$key] = true;
+
+        return $this->{$store}[$key] = $compute();
     }
 
     /**
