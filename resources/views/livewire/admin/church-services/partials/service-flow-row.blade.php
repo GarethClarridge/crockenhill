@@ -31,8 +31,8 @@
         type="button"
         class="flex w-full items-start gap-3 text-left"
         x-on:click="expanded = !expanded"
-        aria-expanded="false"
         :aria-expanded="expanded.toString()"
+        aria-controls="service-row-details-{{ $rowIndex }}"
     >
         <div class="w-24 shrink-0 text-right">
             @if($item['start_time'] !== null && $item['end_time'] !== null)
@@ -154,7 +154,12 @@
         </div>
     </button>
 
-    <div x-show="expanded" x-collapse class="mt-3 ml-27 pl-1">
+    <div
+        id="service-row-details-{{ $rowIndex }}"
+        x-show="expanded"
+        x-collapse
+        class="mt-3 ml-27 pl-1"
+    >
         <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700 space-y-2">
             @if($item['transcript_excerpt'])
                 <div>
