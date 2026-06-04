@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\PreacherCutoverService;
+use App\Services\Preacher\PreacherCutoverService;
 use Illuminate\Console\Command;
 
 class PreacherCutoverCommand extends Command

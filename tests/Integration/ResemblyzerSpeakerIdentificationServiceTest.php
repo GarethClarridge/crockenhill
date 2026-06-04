@@ -7,7 +7,7 @@ namespace Tests\Integration;
 use App\Data\SpeakerMatchResult;
 use App\Models\Preacher;
 use App\Models\SpeakerProfile;
-use App\Services\ResemblyzerSpeakerIdentificationService;
+use App\Services\Preacher\ResemblyzerSpeakerIdentificationService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Process;

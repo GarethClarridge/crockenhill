@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Preacher;
 
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerEmbeddingResult;

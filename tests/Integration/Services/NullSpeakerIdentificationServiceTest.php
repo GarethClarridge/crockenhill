@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Models\SpeakerProfile;
-use App\Services\NullSpeakerIdentificationService;
+use App\Services\Preacher\NullSpeakerIdentificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\Attributes\Test;

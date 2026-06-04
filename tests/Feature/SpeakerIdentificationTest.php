@@ -15,7 +15,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
-use App\Services\NullSpeakerIdentificationService;
+use App\Services\Preacher\NullSpeakerIdentificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Collection;

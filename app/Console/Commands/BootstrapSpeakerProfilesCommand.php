@@ -10,7 +10,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
-use App\Services\NullSpeakerIdentificationService;
+use App\Services\Preacher\NullSpeakerIdentificationService;
 use App\Services\SermonStorageService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;

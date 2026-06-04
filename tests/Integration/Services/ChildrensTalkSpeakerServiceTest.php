@@ -11,7 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
-use App\Services\ChildrensTalkSpeakerService;
+use App\Services\Preacher\ChildrensTalkSpeakerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

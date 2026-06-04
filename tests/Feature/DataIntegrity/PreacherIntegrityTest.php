@@ -8,7 +8,7 @@ use App\Livewire\Admin\Preachers\CreatePreacher;
 use App\Livewire\Admin\Preachers\EditPreacher;
 use App\Models\Preacher;
 use App\Models\User;
-use App\Services\PreacherResolutionService;
+use App\Services\Preacher\PreacherResolutionService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;

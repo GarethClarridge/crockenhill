@@ -8,7 +8,7 @@ use App\Enums\PreacherSource;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\Sermon;
-use App\Services\PreacherCutoverService;
+use App\Services\Preacher\PreacherCutoverService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

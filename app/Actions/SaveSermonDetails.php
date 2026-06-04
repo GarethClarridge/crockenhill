@@ -7,7 +7,7 @@ namespace App\Actions;
 use App\Enums\PreacherSource;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Services\PreacherResolutionService;
+use App\Services\Preacher\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;

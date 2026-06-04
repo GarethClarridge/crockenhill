@@ -8,8 +8,8 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\ServiceSection;
-use App\Services\ChildrensTalkSpeakerService;
 use App\Services\ExtractedSectionMediaChecker;
+use App\Services\Preacher\ChildrensTalkSpeakerService;
 use App\Services\ServiceSectionPublicationTransitionService;
 
 class ApproveSectionForPublication

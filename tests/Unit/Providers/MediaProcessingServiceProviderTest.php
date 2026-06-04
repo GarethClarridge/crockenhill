@@ -6,9 +6,9 @@ namespace Tests\Unit\Providers;
 
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Services\LivestreamSegmentationService;
-use App\Services\NullSpeakerIdentificationService;
+use App\Services\Preacher\NullSpeakerIdentificationService;
+use App\Services\Preacher\ResemblyzerSpeakerIdentificationService;
 use App\Services\ProcessingLogService;
-use App\Services\ResemblyzerSpeakerIdentificationService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
