@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Models\Page;
-use App\Services\PageImageCacheService;
+use App\Services\Public\PageImageCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;

@@ -6,7 +6,7 @@ namespace Tests\Integration\Services;
 
 use App\Enums\PageArea;
 use App\Models\Page;
-use App\Services\PageListCache;
+use App\Services\Public\PageListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

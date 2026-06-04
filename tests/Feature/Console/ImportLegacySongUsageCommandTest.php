@@ -11,7 +11,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
-use App\Services\PublicSongUsageService;
+use App\Services\Public\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

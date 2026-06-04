@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Public;
 
 use App\Data\PodcastFeedItemReadModel;
 use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
+use App\Services\SermonStorageService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 

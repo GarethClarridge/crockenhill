@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\View\Presenters;
 
 use App\Models\Page;
-use App\Services\PageListCache;
+use App\Services\Public\PageListCache;
 use Illuminate\Support\Collection;
 
 class PageLinksRepository

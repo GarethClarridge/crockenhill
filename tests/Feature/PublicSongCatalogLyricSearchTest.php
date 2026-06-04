@@ -7,7 +7,7 @@ namespace Tests\Feature;
 use App\Livewire\Church\Songs\BrowseSongs;
 use App\Models\Song;
 use App\Models\User;
-use App\Services\PublicSongCatalogService;
+use App\Services\Public\PublicSongCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;

@@ -6,8 +6,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Meeting;
 use App\Presenters\RelatedPagePresenter;
-use App\Services\PublicMeetingReadModelCache;
-use App\Services\PublicPageVisibilityGuard;
+use App\Services\Public\PublicMeetingReadModelCache;
+use App\Services\Public\PublicPageVisibilityGuard;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Http\RedirectResponse;
 

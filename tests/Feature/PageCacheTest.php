@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Page;
-use App\Services\PageCardService;
-use App\Services\PageListCache;
+use App\Services\Public\PageCardService;
+use App\Services\Public\PageListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;

@@ -10,7 +10,7 @@ use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
-use App\Services\PodcastFeedService;
+use App\Services\Public\PodcastFeedService;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use App\Services\SermonTranscriptReader;

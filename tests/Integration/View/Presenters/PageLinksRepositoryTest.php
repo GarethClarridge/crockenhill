@@ -6,7 +6,7 @@ namespace Tests\Integration\View\Presenters;
 
 use App\Enums\PageArea;
 use App\Models\Page;
-use App\Services\PageListCache;
+use App\Services\Public\PageListCache;
 use App\View\Presenters\PageLinksRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;

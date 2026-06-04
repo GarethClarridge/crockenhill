@@ -13,7 +13,7 @@ use App\Jobs\ProcessInboundOosEmail;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\Song;
-use App\Services\PublicSongUsageService;
+use App\Services\Public\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\DataProvider;

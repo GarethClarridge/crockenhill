@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use App\Models\Page;
-use App\Services\PageImageCacheService;
+use App\Services\Public\PageImageCacheService;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PageImagePresenter

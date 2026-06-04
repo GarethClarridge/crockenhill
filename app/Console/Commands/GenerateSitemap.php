@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\SitemapService;
+use App\Services\Public\SitemapService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 

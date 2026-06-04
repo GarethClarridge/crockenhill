@@ -6,7 +6,7 @@ namespace Tests\Integration\Presenters;
 
 use App\Models\Page;
 use App\Presenters\PageImagePresenter;
-use App\Services\PageImageCacheService;
+use App\Services\Public\PageImageCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

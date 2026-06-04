@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Seo;
 
-use App\Services\PublicSongCatalogService;
+use App\Services\Public\PublicSongCatalogService;
 
 class SongArchiveSeoPresenter
 {

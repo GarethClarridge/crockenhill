@@ -10,7 +10,7 @@ use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
-use App\Services\PreacherListCache;
+use App\Services\Public\PreacherListCache;
 use App\Support\BibleCanon;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;

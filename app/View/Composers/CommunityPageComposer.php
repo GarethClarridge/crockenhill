@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\View\Composers;
 
-use App\Services\PageCardService;
+use App\Services\Public\PageCardService;
 use Illuminate\View\View;
 
 class CommunityPageComposer

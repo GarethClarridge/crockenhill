@@ -6,9 +6,9 @@ namespace App\Observers;
 
 use App\Models\Meeting;
 use App\Models\Page;
-use App\Services\PageImageCacheService;
-use App\Services\PublicMeetingReadModelCache;
-use App\Services\PublicPageReadModelCache;
+use App\Services\Public\PageImageCacheService;
+use App\Services\Public\PublicMeetingReadModelCache;
+use App\Services\Public\PublicPageReadModelCache;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 

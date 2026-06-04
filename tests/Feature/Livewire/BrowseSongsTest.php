@@ -10,7 +10,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Models\User;
-use App\Services\PublicSongCatalogService;
+use App\Services\Public\PublicSongCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;

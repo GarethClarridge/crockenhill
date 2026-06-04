@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Services\SitemapService;
+use App\Services\Public\SitemapService;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 

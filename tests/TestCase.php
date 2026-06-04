@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests;
 
 use App\Repositories\SermonRepository;
-use App\Services\MeetingListCache;
-use App\Services\PageListCache;
-use App\Services\PreacherListCache;
+use App\Services\Public\MeetingListCache;
+use App\Services\Public\PageListCache;
+use App\Services\Public\PreacherListCache;
 use Illuminate\Contracts\Validation\UncompromisedVerifier;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Foundation\Testing\WithCachedConfig;

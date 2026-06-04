@@ -12,7 +12,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
-use App\Services\PreacherListCache;
+use App\Services\Public\PreacherListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Public;
 
 use App\Enums\PageArea;
 use App\Models\Meeting;
@@ -11,6 +11,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
+use App\Services\SermonExposurePolicy;
 use App\Sitemap\MeetingSitemapPresenter;
 use App\Sitemap\PageSitemapPresenter;
 use App\Sitemap\PreacherSitemapPresenter;

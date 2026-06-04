@@ -7,8 +7,8 @@ namespace App\Http\Controllers;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\Presenters\RelatedPagePresenter;
-use App\Services\PublicPageReadModelCache;
-use App\Services\PublicPageVisibilityGuard;
+use App\Services\Public\PublicPageReadModelCache;
+use App\Services\Public\PublicPageVisibilityGuard;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 

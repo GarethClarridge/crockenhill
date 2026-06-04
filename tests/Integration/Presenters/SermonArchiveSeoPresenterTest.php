@@ -6,7 +6,7 @@ namespace Tests\Integration\Presenters;
 
 use App\Models\Preacher;
 use App\Seo\SermonArchiveSeoPresenter;
-use App\Services\PreacherListCache;
+use App\Services\Public\PreacherListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

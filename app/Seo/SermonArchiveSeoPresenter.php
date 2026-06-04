@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Seo;
 
 use App\Models\Preacher;
-use App\Services\PreacherListCache;
+use App\Services\Public\PreacherListCache;
 
 class SermonArchiveSeoPresenter
 {

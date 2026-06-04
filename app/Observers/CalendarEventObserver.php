@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Models\CalendarEvent;
-use App\Services\PublicMeetingReadModelCache;
+use App\Services\Public\PublicMeetingReadModelCache;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class CalendarEventObserver implements ShouldHandleEventsAfterCommit

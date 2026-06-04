@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Meeting;
 use App\Models\Page;
-use App\Services\MeetingListCache;
+use App\Services\Public\MeetingListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;

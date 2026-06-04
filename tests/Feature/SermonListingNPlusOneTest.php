@@ -7,7 +7,7 @@ namespace Tests\Feature;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
-use App\Services\SitemapService;
+use App\Services\Public\SitemapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

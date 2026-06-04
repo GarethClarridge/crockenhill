@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\Models\User;
-use App\Services\PublicPageVisibilityGuard;
+use App\Services\Public\PublicPageVisibilityGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\RedirectResponse;
 use PHPUnit\Framework\Attributes\Test;

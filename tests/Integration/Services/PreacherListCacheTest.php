@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\SermonContentType;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Services\PreacherListCache;
+use App\Services\Public\PreacherListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;

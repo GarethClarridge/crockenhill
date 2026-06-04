@@ -16,7 +16,7 @@ use App\Seo\PreacherItemListPresenter;
 use App\Seo\SeriesItemListPresenter;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
-use App\Services\PreacherListCache;
+use App\Services\Public\PreacherListCache;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
 use App\Support\BibleCanon;

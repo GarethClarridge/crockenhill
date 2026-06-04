@@ -24,32 +24,32 @@
         {{-- Range filter buttons --}}
         <div class="flex flex-wrap items-center justify-center gap-3">
             <button
-                wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_ALL }}')"
+                wire:click="$set('range', '{{ \App\Services\Public\PublicSongCatalogService::RANGE_ALL }}')"
                 wire:loading.attr="disabled"
                 wire:loading.class="opacity-50"
-                wire:target="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_ALL }}')"
+                wire:target="$set('range', '{{ \App\Services\Public\PublicSongCatalogService::RANGE_ALL }}')"
                 type="button"
                 @class([
                     'inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2',
-                    'bg-cbc-teal-dark text-white' => $selectedRange === \App\Services\PublicSongCatalogService::RANGE_ALL,
-                    'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50' => $selectedRange !== \App\Services\PublicSongCatalogService::RANGE_ALL,
+                    'bg-cbc-teal-dark text-white' => $selectedRange === \App\Services\Public\PublicSongCatalogService::RANGE_ALL,
+                    'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50' => $selectedRange !== \App\Services\Public\PublicSongCatalogService::RANGE_ALL,
                 ])
-                aria-pressed="{{ $selectedRange === \App\Services\PublicSongCatalogService::RANGE_ALL ? 'true' : 'false' }}"
+                aria-pressed="{{ $selectedRange === \App\Services\Public\PublicSongCatalogService::RANGE_ALL ? 'true' : 'false' }}"
             >
                 All time
             </button>
             <button
-                wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_RECENT }}')"
+                wire:click="$set('range', '{{ \App\Services\Public\PublicSongCatalogService::RANGE_RECENT }}')"
                 wire:loading.attr="disabled"
                 wire:loading.class="opacity-50"
-                wire:target="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_RECENT }}')"
+                wire:target="$set('range', '{{ \App\Services\Public\PublicSongCatalogService::RANGE_RECENT }}')"
                 type="button"
                 @class([
                     'inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2',
-                    'bg-cbc-teal-dark text-white' => $selectedRange === \App\Services\PublicSongCatalogService::RANGE_RECENT,
-                    'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50' => $selectedRange !== \App\Services\PublicSongCatalogService::RANGE_RECENT,
+                    'bg-cbc-teal-dark text-white' => $selectedRange === \App\Services\Public\PublicSongCatalogService::RANGE_RECENT,
+                    'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50' => $selectedRange !== \App\Services\Public\PublicSongCatalogService::RANGE_RECENT,
                 ])
-                aria-pressed="{{ $selectedRange === \App\Services\PublicSongCatalogService::RANGE_RECENT ? 'true' : 'false' }}"
+                aria-pressed="{{ $selectedRange === \App\Services\Public\PublicSongCatalogService::RANGE_RECENT ? 'true' : 'false' }}"
             >
                 Last 3 years
             </button>
@@ -78,7 +78,7 @@
                         title="No songs sung in the last 3 years"
                         description="We do not have any worship song usage to show for the last 3 years. Switch to All time to browse the full catalogue."
                     >
-                        <x-form-button type="button" variant="outline" size="sm" icon="clock" wire:click="$set('range', '{{ \App\Services\PublicSongCatalogService::RANGE_ALL }}')">
+                        <x-form-button type="button" variant="outline" size="sm" icon="clock" wire:click="$set('range', '{{ \App\Services\Public\PublicSongCatalogService::RANGE_ALL }}')">
                             Show all time
                         </x-form-button>
                     </x-empty-state>

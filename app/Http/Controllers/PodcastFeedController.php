@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\SermonService;
-use App\Services\PodcastFeedService;
+use App\Services\Public\PodcastFeedService;
 use Illuminate\Http\Response;
 
 class PodcastFeedController extends Controller

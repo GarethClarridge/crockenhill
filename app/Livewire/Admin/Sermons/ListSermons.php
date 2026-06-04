@@ -13,7 +13,7 @@ use App\Livewire\Traits\WithSortableListing;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
-use App\Services\PreacherListCache;
+use App\Services\Public\PreacherListCache;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;

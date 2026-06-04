@@ -14,7 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongAuthor;
-use App\Services\PublicSongCatalogService;
+use App\Services\Public\PublicSongCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

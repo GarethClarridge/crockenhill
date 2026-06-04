@@ -9,7 +9,7 @@ use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Services\CalendarService;
-use App\Services\MeetingListCache;
+use App\Services\Public\MeetingListCache;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;

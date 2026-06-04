@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Public;
 
 use App\Data\PublicPageReadModel;
 use App\Models\Page;
