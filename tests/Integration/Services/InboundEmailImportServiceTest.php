@@ -10,7 +10,7 @@ use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\User;
-use App\Services\InboundEmailImportService;
+use App\Services\Email\InboundEmailImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Test;

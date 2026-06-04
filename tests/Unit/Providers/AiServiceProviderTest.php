@@ -7,9 +7,9 @@ namespace Tests\Unit\Providers;
 use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\TranscriptionServiceInterface;
+use App\Services\Email\OpenAiOosEmailItemExtractor;
 use App\Services\MockSermonAnalysisService;
 use App\Services\MockTranscriptionService;
-use App\Services\OpenAiOosEmailItemExtractor;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

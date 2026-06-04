@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Models\CalendarEvent;
-use App\Services\GoogleCalendarSyncService;
+use App\Services\Calendar\GoogleCalendarSyncService;
 use Carbon\Carbon;
 use Google\Service\Calendar\EventExtendedProperties;
 use Illuminate\Foundation\Testing\RefreshDatabase;

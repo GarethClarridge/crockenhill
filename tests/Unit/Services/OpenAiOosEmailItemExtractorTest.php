@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Data\OosEmailItemExtractionResult;
-use App\Services\OpenAiOosEmailItemExtractor;
+use App\Services\Email\OpenAiOosEmailItemExtractor;
 use Illuminate\Support\Facades\Config;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;

@@ -8,7 +8,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
-use App\Services\CalendarService;
+use App\Services\Calendar\CalendarService;
 use App\Services\Public\MeetingListCache;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;

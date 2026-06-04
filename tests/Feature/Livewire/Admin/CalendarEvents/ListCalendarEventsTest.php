@@ -9,7 +9,7 @@ use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\User;
-use App\Services\CalendarService;
+use App\Services\Calendar\CalendarService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;

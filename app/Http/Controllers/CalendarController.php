@@ -6,7 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
-use App\Services\CalendarService;
+use App\Services\Calendar\CalendarService;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 

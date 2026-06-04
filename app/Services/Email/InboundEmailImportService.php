@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Email;
 
 use App\Data\OosEmailParseResult;
 use App\Enums\ChurchServiceItemSource;
@@ -10,6 +10,10 @@ use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Services\ChurchServiceCanonicalUpdateService;
+use App\Services\ChurchServiceItemSyncService;
+use App\Services\ChurchServiceSongLinker;
+use App\Services\ChurchServiceStructureMergeService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;

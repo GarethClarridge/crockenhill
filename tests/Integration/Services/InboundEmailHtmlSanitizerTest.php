@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Services\InboundEmailHtmlSanitizer;
+use App\Services\Email\InboundEmailHtmlSanitizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

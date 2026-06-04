@@ -9,7 +9,7 @@ use App\Data\OosEmailParseResult;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
 use App\Models\InboundEmail;
-use App\Services\OosEmailParserService;
+use App\Services\Email\OosEmailParserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

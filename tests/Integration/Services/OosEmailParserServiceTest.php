@@ -8,7 +8,7 @@ use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\SermonService;
 use App\Models\InboundEmail;
-use App\Services\OosEmailParserService;
+use App\Services\Email\OosEmailParserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

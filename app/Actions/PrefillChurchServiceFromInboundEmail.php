@@ -8,8 +8,8 @@ use App\Data\OosEmailParseResult;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
 use App\Models\InboundEmail;
-use App\Services\InboundEmailImportService;
-use App\Services\OosEmailParserService;
+use App\Services\Email\InboundEmailImportService;
+use App\Services\Email\OosEmailParserService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 

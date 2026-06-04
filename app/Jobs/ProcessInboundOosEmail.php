@@ -6,8 +6,8 @@ namespace App\Jobs;
 
 use App\Enums\InboundEmailStatus;
 use App\Models\InboundEmail;
-use App\Services\InboundEmailImportService;
-use App\Services\OosEmailParserService;
+use App\Services\Email\InboundEmailImportService;
+use App\Services\Email\OosEmailParserService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;

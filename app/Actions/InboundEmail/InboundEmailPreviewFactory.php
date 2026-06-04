@@ -6,7 +6,7 @@ namespace App\Actions\InboundEmail;
 
 use App\Enums\SermonService;
 use App\Models\InboundEmail;
-use App\Services\InboundEmailHtmlSanitizer;
+use App\Services\Email\InboundEmailHtmlSanitizer;
 
 class InboundEmailPreviewFactory
 {

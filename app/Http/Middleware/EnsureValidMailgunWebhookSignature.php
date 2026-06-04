@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Services\MailgunWebhookSignatureValidator;
+use App\Services\Email\MailgunWebhookSignatureValidator;
 use Closure;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Request;

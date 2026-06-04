@@ -11,7 +11,7 @@ use App\Services\ChurchServiceCanonicalStateService;
 use App\Services\ChurchServiceCanonicalUpdateService;
 use App\Services\ChurchServiceItemSyncService;
 use App\Services\ChurchServiceSongLinker;
-use App\Services\InboundEmailImportService;
+use App\Services\Email\InboundEmailImportService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;

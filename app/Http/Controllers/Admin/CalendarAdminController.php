@@ -7,8 +7,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CategorizeEventRequest;
 use App\Models\Meeting;
-use App\Services\CalendarService;
-use App\Services\GoogleCalendarSyncService;
+use App\Services\Calendar\CalendarService;
+use App\Services\Calendar\GoogleCalendarSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 

@@ -8,10 +8,10 @@ use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Services\AudioTranscriptionService;
+use App\Services\Email\OpenAiOosEmailItemExtractor;
 use App\Services\LocalWhisperTranscriptionService;
 use App\Services\MockSermonAnalysisService;
 use App\Services\MockTranscriptionService;
-use App\Services\OpenAiOosEmailItemExtractor;
 use App\Services\SermonAnalysisService;
 use Illuminate\Support\ServiceProvider;
 

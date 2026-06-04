@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\GoogleCalendarSyncService;
+use App\Services\Calendar\GoogleCalendarSyncService;
 use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Console\Command;
