@@ -77,11 +77,11 @@ Exit criteria:
 
 Priority: **Low-Medium** — incremental work, no urgency.
 
-Status: **In progress** — two increments landed 2026-06-03 (`SermonViewPresenter` pure-formatting extraction; `MetadataExtractionService` filename-parsing extraction). Remaining hotspots still oversized. Current line counts (2026-06-03, post-increment-2):
+Status: **In progress** — three increments landed (two on 2026-06-03, one on 2026-06-04). Remaining hotspots still oversized. Current line counts (2026-06-04, post-increment-3):
 
 | Service | Lines | Public Methods (prior count) |
 |---------|------:|---------------:|
-| [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 922 | — |
+| [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 896 | — |
 | [ThumbnailGenerationService](../../app/Services/ThumbnailGenerationService.php) | 848 | 7 |
 | [MetadataExtractionService](../../app/Services/MetadataExtractionService.php) | 734 | 12 |
 | [VideoExtractionService](../../app/Services/VideoExtractionService.php) | 579 | 8 |
@@ -93,6 +93,8 @@ Status: **In progress** — two increments landed 2026-06-03 (`SermonViewPresent
 Increment 1 (2026-06-03): extracted the dependency-free duration/outline formatting out of `SermonViewPresenter` into a stateless [SermonContentFormatter](../../app/Support/SermonContentFormatter.php) (`humanDuration`, `iso8601Duration`, `plainTextOutline`). The presenter's `formattedDuration` / `durationIso8601` / `plainTextOutline` now delegate; their per-method memoization was dropped (these are cheap pure functions of one column, so request-level caching bought nothing). Net: presenter 995 → 922 lines, plus a new 101-line collaborator covered directly by [tests/Unit/Support/SermonContentFormatterTest.php](../../tests/Unit/Support/SermonContentFormatterTest.php) — no DB or storage faking required. Public API unchanged; the 49 presenter/formatter tests and 55 downstream consumer tests pass.
 
 Increment 2 (2026-06-03): extracted the pure, IO-free date/service inference out of `MetadataExtractionService` into [SermonFilenameParser](../../app/Services/SermonFilenameParser.php) (`extractDateFromFilename`, `tryExtractDateFromFilename`, `determineServiceFromFilename`, `determineServiceFromTime`, `isValidDate`, plus the `MONTH_NAME_NUMBERS` table and the `parseExplicitDate`/`tryExtractNamedMonthDate` helpers). The parser is injected into `MetadataExtractionService` (constructor default `new SermonFilenameParser`, so no provider binding and every existing `new MetadataExtractionService()` call site keeps working); the matching public methods now delegate, and the FFprobe-based `extractDateFromVideo` orchestration stays in the service since it is genuinely IO. Net: service 952 → 734 lines, plus a new 290-line collaborator with its own fast unit test [tests/Unit/Services/SermonFilenameParserTest.php](../../tests/Unit/Services/SermonFilenameParserTest.php). The existing `MetadataExtractionServiceTest` now doubles as delegation-seam coverage. Public API unchanged; 32 parser/service tests and 63 downstream consumer tests pass, PHPStan clean.
+
+Increment 3 (2026-06-04): extracted the pure-string half of `SermonViewPresenter::metaDescription` into a new static [SermonContentFormatter::metaDescription](../../app/Support/SermonContentFormatter.php) — the SEO sentence assembly (verb selection from media availability, base sentence, reference/series appends, summary truncation to the 155-char limit). The presenter still resolves its inputs (explicit-attribute short-circuit, preacher name, display reference, `show_summary`/tag-stripping, `exposurePolicy->shouldExposeVideo`) but now passes primitives to the builder and assigns the result on a single memoized exit path — which incidentally closes a latent gap where the old truncation branches returned before writing `$this->memoized[$key]`. The truthiness checks on `series`/`summary` became `filled()`. Net: presenter 922 → 896 lines; formatter +73 lines covered by 8 new DB-free unit tests in [tests/Unit/Support/SermonContentFormatterTest.php](../../tests/Unit/Support/SermonContentFormatterTest.php). Public API unchanged; 56 formatter/presenter tests and 37 SEO/structured-data consumer tests pass, PHPStan clean.
 
 Tasks:
 

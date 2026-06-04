@@ -805,50 +805,24 @@ class SermonViewPresenter
             return $this->memoized[$key] = (string) $attributes['meta_description'];
         }
 
-        $preacherName = $this->displayPreacherName($sermon) ?? 'Unknown preacher';
+        $summary = ($sermon->show_summary && filled($sermon->summary))
+            ? strip_tags((string) $sermon->summary)
+            : null;
 
-        $hasVideo = $this->exposurePolicy->shouldExposeVideo($sermon);
-        $hasAudio = filled($sermon->audio_file_path);
-
-        $verb = match (true) {
-            $hasVideo && $hasAudio => 'Watch or listen to',
-            $hasVideo => 'Watch',
-            default => 'Listen to',
-        };
-
-        $base = "{$verb} '{$sermon->title}' by {$preacherName} preached on {$this->humanDate($sermon)}";
-
-        if ($reference = $this->displayReference($sermon)) {
-            $base .= " - {$reference}";
-        }
-
-        if ($sermon->series) {
-            $base .= " (Part of the {$sermon->series} series)";
-        }
-
-        if (! $sermon->show_summary || ! $sermon->summary) {
-            return Str::limit($base, 155);
-        }
-
-        $summary = trim(strip_tags((string) $sermon->summary));
-        if ($summary === '') {
-            return Str::limit($base, 155);
-        }
-
-        $full = "{$base}. {$summary}";
-        if (Str::length($full) <= 155) {
-            return $full;
-        }
-
-        $remaining = 155 - Str::length($base) - 2; // 2 for ". "
+        $description = SermonContentFormatter::metaDescription(
+            title: (string) $sermon->title,
+            preacherName: $this->displayPreacherName($sermon) ?? 'Unknown preacher',
+            humanDate: $this->humanDate($sermon),
+            reference: $this->displayReference($sermon),
+            series: filled($sermon->series) ? (string) $sermon->series : null,
+            hasVideo: $this->exposurePolicy->shouldExposeVideo($sermon),
+            hasAudio: filled($sermon->audio_file_path),
+            summary: $summary,
+        );
 
         $this->computed[$key] = true;
 
-        if ($remaining > 0) {
-            return $this->memoized[$key] = $base.'. '.Str::limit($summary, $remaining);
-        }
-
-        return $this->memoized[$key] = Str::limit($base, 155);
+        return $this->memoized[$key] = $description;
     }
 
     public function videoUrl(Sermon $sermon): ?string

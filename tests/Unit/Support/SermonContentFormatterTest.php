@@ -102,4 +102,134 @@ class SermonContentFormatterTest extends TestCase
 
         $this->assertSame('1. Real point', SermonContentFormatter::plainTextOutline($points));
     }
+
+    #[Test]
+    public function meta_description_builds_base_sentence_from_title_preacher_and_date(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: 'The Prodigal Son',
+            preacherName: 'John Smith',
+            humanDate: 'March 14, 2025',
+            reference: null,
+            series: null,
+            hasVideo: false,
+            hasAudio: false,
+            summary: null,
+        );
+
+        $this->assertSame(
+            "Listen to 'The Prodigal Son' by John Smith preached on March 14, 2025",
+            $description,
+        );
+    }
+
+    #[Test]
+    public function meta_description_chooses_verb_from_media_availability(): void
+    {
+        $args = [
+            'title' => 'The Prodigal Son',
+            'preacherName' => 'John Smith',
+            'humanDate' => 'March 14, 2025',
+            'reference' => null,
+            'series' => null,
+            'summary' => null,
+        ];
+
+        $this->assertStringStartsWith('Watch or listen to', SermonContentFormatter::metaDescription(...$args, hasVideo: true, hasAudio: true));
+        $this->assertStringStartsWith('Watch ', SermonContentFormatter::metaDescription(...$args, hasVideo: true, hasAudio: false));
+        $this->assertStringStartsWith('Listen to', SermonContentFormatter::metaDescription(...$args, hasVideo: false, hasAudio: true));
+        $this->assertStringStartsWith('Listen to', SermonContentFormatter::metaDescription(...$args, hasVideo: false, hasAudio: false));
+    }
+
+    #[Test]
+    public function meta_description_appends_reference_and_series(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: 'The Prodigal Son',
+            preacherName: 'John Smith',
+            humanDate: 'March 14, 2025',
+            reference: 'Luke 15:11-32',
+            series: 'Parables of Jesus',
+            hasVideo: false,
+            hasAudio: false,
+            summary: null,
+        );
+
+        $this->assertStringContainsString(' - Luke 15:11-32', $description);
+        $this->assertStringContainsString('(Part of the Parables of Jesus series)', $description);
+    }
+
+    #[Test]
+    public function meta_description_appends_summary_when_it_fits(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: 'The Prodigal Son',
+            preacherName: 'John Smith',
+            humanDate: 'March 14, 2025',
+            reference: null,
+            series: null,
+            hasVideo: false,
+            hasAudio: false,
+            summary: 'This is a great sermon summary.',
+        );
+
+        $this->assertStringEndsWith('. This is a great sermon summary.', $description);
+    }
+
+    #[Test]
+    public function meta_description_treats_blank_summary_as_omitted(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: 'The Prodigal Son',
+            preacherName: 'John Smith',
+            humanDate: 'March 14, 2025',
+            reference: null,
+            series: null,
+            hasVideo: false,
+            hasAudio: false,
+            summary: '   ',
+        );
+
+        $this->assertSame(
+            "Listen to 'The Prodigal Son' by John Smith preached on March 14, 2025",
+            $description,
+        );
+    }
+
+    #[Test]
+    public function meta_description_truncates_base_when_it_exceeds_the_limit(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: str_repeat('Very Long Sermon Title ', 10),
+            preacherName: 'John Smith',
+            humanDate: 'March 14, 2025',
+            reference: null,
+            series: null,
+            hasVideo: false,
+            hasAudio: false,
+            summary: null,
+        );
+
+        $this->assertLessThanOrEqual(158, strlen($description));
+        $this->assertStringEndsWith('...', $description);
+    }
+
+    #[Test]
+    public function meta_description_truncates_summary_to_fit_within_the_limit(): void
+    {
+        $description = SermonContentFormatter::metaDescription(
+            title: 'The Prodigal Son',
+            preacherName: 'John Smith',
+            humanDate: 'March 14, 2025',
+            reference: null,
+            series: null,
+            hasVideo: false,
+            hasAudio: false,
+            summary: str_repeat('This is a very long summary that should definitely be truncated to ensure the total length remains within expected limits. ', 10),
+        );
+
+        $this->assertLessThanOrEqual(158, strlen($description));
+        $this->assertStringContainsString("Listen to 'The Prodigal Son' by John Smith", $description);
+        $this->assertStringEndsWith('...', $description);
+    }
 }

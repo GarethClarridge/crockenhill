@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use Carbon\CarbonInterval;
+use Illuminate\Support\Str;
 
 /**
  * Pure, dependency-free formatting of sermon scalar content.
@@ -97,5 +98,77 @@ final class SermonContentFormatter
         }
 
         return trim($outline) ?: null;
+    }
+
+    /**
+     * The maximum length of a generated SEO meta description, before any
+     * truncation ellipsis is appended.
+     */
+    private const META_DESCRIPTION_LIMIT = 155;
+
+    /**
+     * Assemble an SEO meta description from already-resolved sermon facts.
+     *
+     * This is the pure-string half of the presenter's metaDescription(): every
+     * input is a primitive the caller has already resolved from the model, its
+     * relations, and the exposure policy. The verb is chosen from media
+     * availability, the base sentence is built from the title/preacher/date plus
+     * optional reference and series, and an optional summary is appended only if
+     * the whole thing still fits within META_DESCRIPTION_LIMIT (otherwise it is
+     * truncated to fit, or dropped entirely when there is no room).
+     *
+     * @param  string  $title  The sermon title.
+     * @param  string  $preacherName  The display preacher name (caller substitutes a fallback such as "Unknown preacher").
+     * @param  string  $humanDate  The human-friendly preached-on date (e.g. "March 14, 2025").
+     * @param  ?string  $reference  The scripture reference, or null.
+     * @param  ?string  $series  The series name, or null.
+     * @param  bool  $hasVideo  Whether a video is exposed for this sermon.
+     * @param  bool  $hasAudio  Whether audio is available for this sermon.
+     * @param  ?string  $summary  The plain-text summary to append, or null to omit it (caller strips tags and applies show_summary).
+     */
+    public static function metaDescription(
+        string $title,
+        string $preacherName,
+        string $humanDate,
+        ?string $reference,
+        ?string $series,
+        bool $hasVideo,
+        bool $hasAudio,
+        ?string $summary,
+    ): string {
+        $verb = match (true) {
+            $hasVideo && $hasAudio => 'Watch or listen to',
+            $hasVideo => 'Watch',
+            default => 'Listen to',
+        };
+
+        $base = "{$verb} '{$title}' by {$preacherName} preached on {$humanDate}";
+
+        if (filled($reference)) {
+            $base .= " - {$reference}";
+        }
+
+        if (filled($series)) {
+            $base .= " (Part of the {$series} series)";
+        }
+
+        $summary = $summary === null ? '' : trim($summary);
+
+        if ($summary === '') {
+            return Str::limit($base, self::META_DESCRIPTION_LIMIT);
+        }
+
+        $full = "{$base}. {$summary}";
+        if (Str::length($full) <= self::META_DESCRIPTION_LIMIT) {
+            return $full;
+        }
+
+        $remaining = self::META_DESCRIPTION_LIMIT - Str::length($base) - 2; // 2 for ". "
+
+        if ($remaining > 0) {
+            return $base.'. '.Str::limit($summary, $remaining);
+        }
+
+        return Str::limit($base, self::META_DESCRIPTION_LIMIT);
     }
 }
