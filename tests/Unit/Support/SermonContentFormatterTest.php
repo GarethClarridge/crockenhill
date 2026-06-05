@@ -112,13 +112,14 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: null,
         );
 
         $this->assertSame(
-            "Listen to 'The Prodigal Son' by John Smith preached on March 14, 2025",
+            "Listen to 'The Prodigal Son' by John Smith preached at Crockenhill Baptist Church on March 14, 2025",
             $description,
         );
     }
@@ -132,6 +133,7 @@ class SermonContentFormatterTest extends TestCase
             'humanDate' => 'March 14, 2025',
             'reference' => null,
             'series' => null,
+            'serviceLabel' => null,
             'summary' => null,
         ];
 
@@ -142,21 +144,23 @@ class SermonContentFormatterTest extends TestCase
     }
 
     #[Test]
-    public function meta_description_appends_reference_and_series(): void
+    public function meta_description_appends_service_label_reference_and_series(): void
     {
         $description = SermonContentFormatter::metaDescription(
-            title: 'The Prodigal Son',
-            preacherName: 'John Smith',
-            humanDate: 'March 14, 2025',
-            reference: 'Luke 15:11-32',
-            series: 'Parables of Jesus',
+            title: 'T',
+            preacherName: 'P',
+            humanDate: 'D',
+            reference: 'R',
+            series: 'S',
+            serviceLabel: 'Morning',
             hasVideo: false,
             hasAudio: false,
             summary: null,
         );
 
-        $this->assertStringContainsString(' - Luke 15:11-32', $description);
-        $this->assertStringContainsString('(Part of the Parables of Jesus series)', $description);
+        $this->assertStringContainsString(' during our Morning service', $description);
+        $this->assertStringContainsString(' - R', $description);
+        $this->assertStringContainsString('(Part of the S series)', $description);
     }
 
     #[Test]
@@ -168,6 +172,7 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: 'This is a great sermon summary.',
@@ -185,13 +190,14 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: '   ',
         );
 
         $this->assertSame(
-            "Listen to 'The Prodigal Son' by John Smith preached on March 14, 2025",
+            "Listen to 'The Prodigal Son' by John Smith preached at Crockenhill Baptist Church on March 14, 2025",
             $description,
         );
     }
@@ -205,6 +211,7 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: null,
@@ -223,6 +230,7 @@ class SermonContentFormatterTest extends TestCase
             humanDate: 'March 14, 2025',
             reference: null,
             series: null,
+            serviceLabel: null,
             hasVideo: false,
             hasAudio: false,
             summary: str_repeat('This is a very long summary that should definitely be truncated to ensure the total length remains within expected limits. ', 10),

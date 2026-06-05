@@ -639,6 +639,7 @@ class SermonViewPresenter
                 humanDate: $this->humanDate($sermon),
                 reference: $this->displayReference($sermon),
                 series: filled($sermon->series) ? (string) $sermon->series : null,
+                serviceLabel: $this->serviceLabel($sermon),
                 hasVideo: $this->exposurePolicy->shouldExposeVideo($sermon),
                 hasAudio: filled($sermon->audio_file_path),
                 summary: $summary,
