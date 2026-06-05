@@ -71,7 +71,7 @@ class CalendarController extends Controller
 
         return view('calendar.uncategorized', [
             'uncategorizedEvents' => $uncategorizedEvents,
-            'heading' => 'Uncategorized Events',
+            'heading' => 'Uncategorised Events',
             'description' => 'Calendar events that still need assigning to a meeting.',
             'content' => '',
             'links' => collect(),
