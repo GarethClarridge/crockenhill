@@ -66,7 +66,7 @@ class ChurchServiceSchemaTest extends TestCase
                 'manual_reviewed_by_user_id' => null,
                 'manual_review_reopened_at' => null,
                 'manual_review_reopened_by_source' => null,
-                'canonical_conflict_state' => ChurchServiceCanonicalConflictState::NONE->value,
+                'canonical_conflict_state' => ChurchServiceCanonicalConflictState::None->value,
                 'canonical_conflict_detected_at' => null,
                 'canonical_conflict_incoming_source' => null,
                 'canonical_conflict_reviewed_previously' => null,
@@ -82,11 +82,11 @@ class ChurchServiceSchemaTest extends TestCase
         $this->assertSame(ChurchServiceReviewState::Reopened, $service->review_state);
         $this->assertSame($reviewer->id, $service->manual_reviewed_by_user_id);
         $this->assertSame('openlp', $service->manual_review_reopened_by_source);
-        $this->assertSame(ChurchServiceCanonicalConflictState::REOPENED, $service->canonical_conflict_state);
+        $this->assertSame(ChurchServiceCanonicalConflictState::Reopened, $service->canonical_conflict_state);
         $this->assertTrue($service->canonical_conflict_reviewed_previously);
         $this->assertTrue($service->canonical_conflict_canonical_changed);
         $this->assertSame(
-            ChurchServiceCanonicalConflictReason::CANONICAL_CHANGED_WITH_CONFLICTS,
+            ChurchServiceCanonicalConflictReason::CanonicalChangedWithConflicts,
             $service->canonical_conflict_reason
         );
     }

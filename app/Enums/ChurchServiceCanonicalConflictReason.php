@@ -6,8 +6,8 @@ namespace App\Enums;
 
 enum ChurchServiceCanonicalConflictReason: string
 {
-    case UNSPECIFIED = 'unspecified';
-    case CONFLICTS_ONLY = 'conflicts_only';
-    case CANONICAL_CHANGED = 'canonical_changed';
-    case CANONICAL_CHANGED_WITH_CONFLICTS = 'canonical_changed_with_conflicts';
+    case Unspecified = 'unspecified';
+    case ConflictsOnly = 'conflicts_only';
+    case CanonicalChanged = 'canonical_changed';
+    case CanonicalChangedWithConflicts = 'canonical_changed_with_conflicts';
 }

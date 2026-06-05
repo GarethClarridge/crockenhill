@@ -6,7 +6,7 @@ namespace App\Enums;
 
 enum ChurchServiceCanonicalConflictState: string
 {
-    case NONE = 'none';
-    case DETECTED = 'detected';
-    case REOPENED = 'reopened';
+    case None = 'none';
+    case Detected = 'detected';
+    case Reopened = 'reopened';
 }
