@@ -45,6 +45,7 @@ class UpdateSermonRequest extends FormRequest
             'segment_start_time' => $modelRules['segment_start_time'],
             'segment_end_time' => $modelRules['segment_end_time'],
             'points' => $modelRules['points'],
+            'points.*' => $modelRules['points.*'],
             'summary' => $modelRules['summary'],
             'show_summary' => $modelRules['show_summary'],
             'show_points' => $modelRules['show_points'],
