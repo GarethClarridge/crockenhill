@@ -433,23 +433,25 @@ class SermonViewPresenterTest extends TestCase
             'title' => 'The Prodigal Son',
             'preacher' => 'John Smith',
             'date' => now()->subDay(),
+            'service' => null,
         ]);
 
         $description = $this->presenter->metaDescription($sermon);
 
         $this->assertStringContainsString("Listen to 'The Prodigal Son' by John Smith", $description);
-        $this->assertStringContainsString('preached on March 14, 2025', $description);
+        $this->assertStringContainsString('preached at Crockenhill Baptist Church on March 14, 2025', $description);
     }
 
     #[Test]
     public function meta_description_includes_scripture_reference_and_series(): void
     {
         $sermon = Sermon::factory()->make([
-            'title' => 'The Prodigal Son',
-            'preacher' => 'John Smith',
+            'title' => 'T',
+            'preacher' => 'P',
             'date' => now()->subDay(),
             'reference' => 'Luke 15:11-32',
             'series' => 'Parables of Jesus',
+            'service' => null,
         ]);
 
         $description = $this->presenter->metaDescription($sermon);
@@ -462,11 +464,12 @@ class SermonViewPresenterTest extends TestCase
     public function meta_description_includes_summary_when_enabled_and_strips_tags(): void
     {
         $sermon = Sermon::factory()->make([
-            'title' => 'The Prodigal Son',
-            'preacher' => 'John Smith',
+            'title' => 'T',
+            'preacher' => 'P',
             'date' => now()->subDay(),
             'reference' => null,
             'series' => null,
+            'service' => null,
             'show_summary' => true,
             'summary' => '<p>This is a <strong>great</strong> sermon summary.</p>',
         ]);

@@ -62,7 +62,7 @@ class SermonSeoTest extends TestCase
 
         $metaDescription = $this->presenter()->metaDescription($sermon);
 
-        $this->assertStringContainsString('preached on', $metaDescription);
+        $this->assertStringContainsString('preached at Crockenhill Baptist Church on', $metaDescription);
         // Should contain formatted date (F j, Y format = "January 15, 2024")
         $this->assertMatchesRegularExpression('/[A-Z][a-z]+ \d{1,2}, \d{4}/', $metaDescription);
     }
@@ -86,8 +86,8 @@ class SermonSeoTest extends TestCase
     public function it_includes_summary_excerpt_in_generated_meta_description(): void
     {
         $sermon = Sermon::factory()->create([
-            'title' => 'Test Sermon',
-            'preacher' => 'John Smith',
+            'title' => 'T',
+            'preacher' => 'P',
             'summary' => 'This is a comprehensive summary about the grace of God and how it impacts our daily lives through faith and obedience.',
             'meta_description' => null,
             'reference' => null,
@@ -123,8 +123,8 @@ class SermonSeoTest extends TestCase
     public function it_strips_html_from_summary_in_meta_description(): void
     {
         $sermon = Sermon::factory()->create([
-            'title' => 'Test Sermon',
-            'preacher' => 'John Smith',
+            'title' => 'T',
+            'preacher' => 'P',
             'summary' => '<p>This summary has <strong>HTML tags</strong> that should be <em>removed</em>.</p>',
             'meta_description' => null,
         ]);
@@ -173,7 +173,7 @@ class SermonSeoTest extends TestCase
         // Should contain preacher
         $this->assertStringContainsString('Mark Johnson', $metaDescription);
         // Should mention it was preached
-        $this->assertStringContainsString('preached on', $metaDescription);
+        $this->assertStringContainsString('preached at Crockenhill Baptist Church on', $metaDescription);
         // Should contain reference
         $this->assertStringContainsString('Romans 8:35-39', $metaDescription);
         // Should be within limit

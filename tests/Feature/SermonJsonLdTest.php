@@ -64,6 +64,12 @@ class SermonJsonLdTest extends TestCase
         $this->assertStringContainsString('"duration": "PT1H1M1S"', $content);
         $this->assertStringContainsString('"transcript": "This is a test transcript."', $content);
         $this->assertStringContainsString('"uploadDate": "2024-03-20T00:00:00+00:00"', $content);
+
+        // Speakable + articleBody.
+        $this->assertStringContainsString('"speakable":', $content);
+        $this->assertStringContainsString('"xpath":', $content);
+        $this->assertStringContainsString('"/html/head/title"', $content);
+        $this->assertStringContainsString('"articleBody": "This is a test transcript."', $content);
     }
 
     #[Test]
@@ -108,6 +114,8 @@ class SermonJsonLdTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('<meta name="description"', false);
         $response->assertSee('<script type="application/ld+json">', false);
+
+        // Verify it doesn't leak into meta description OR Article schema.
         $this->assertStringNotContainsString($hiddenSummary, (string) $response->getContent());
     }
 }

@@ -122,6 +122,7 @@ final class SermonContentFormatter
      * @param  string  $humanDate  The human-friendly preached-on date (e.g. "March 14, 2025").
      * @param  ?string  $reference  The scripture reference, or null.
      * @param  ?string  $series  The series name, or null.
+     * @param  ?string  $serviceLabel  The service type label, or null.
      * @param  bool  $hasVideo  Whether a video is exposed for this sermon.
      * @param  bool  $hasAudio  Whether audio is available for this sermon.
      * @param  ?string  $summary  The plain-text summary to append, or null to omit it (caller strips tags and applies show_summary).
@@ -132,6 +133,7 @@ final class SermonContentFormatter
         string $humanDate,
         ?string $reference,
         ?string $series,
+        ?string $serviceLabel,
         bool $hasVideo,
         bool $hasAudio,
         ?string $summary,
@@ -142,7 +144,11 @@ final class SermonContentFormatter
             default => 'Listen to',
         };
 
-        $base = "{$verb} '{$title}' by {$preacherName} preached on {$humanDate}";
+        $base = "{$verb} '{$title}' by {$preacherName} preached at Crockenhill Baptist Church on {$humanDate}";
+
+        if (filled($serviceLabel)) {
+            $base .= " during our {$serviceLabel} service";
+        }
 
         if (filled($reference)) {
             $base .= " - {$reference}";
