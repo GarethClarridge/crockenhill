@@ -62,7 +62,7 @@ class MarkServiceReviewedTest extends TestCase
         $metadata = $fresh?->import_metadata?->toArray() ?? [];
         $this->assertArrayNotHasKey('canonical_conflict', $metadata);
         $this->assertCount(1, $metadata['canonical_conflict_history'] ?? []);
-        $this->assertSame(ChurchServiceCanonicalConflictState::NONE, $fresh?->canonical_conflict_state);
+        $this->assertSame(ChurchServiceCanonicalConflictState::None, $fresh?->canonical_conflict_state);
     }
 
     #[Test]

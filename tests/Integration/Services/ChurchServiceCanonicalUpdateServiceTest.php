@@ -61,7 +61,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $this->assertFalse($result->needs_review);
         $this->assertNull($result->import_metadata['canonical_conflict'] ?? null);
         $this->assertNull($result->import_metadata['canonical_conflict_history'] ?? null);
-        $this->assertSame(ChurchServiceCanonicalConflictState::NONE, $result->canonical_conflict_state);
+        $this->assertSame(ChurchServiceCanonicalConflictState::None, $result->canonical_conflict_state);
         $this->assertSame(ChurchServiceReviewState::NotReviewed, $result->review_state);
 
         Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);
@@ -105,8 +105,8 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $this->assertFalse($result->import_metadata['canonical_conflict']['review_reopened']);
         $this->assertFalse($result->import_metadata['canonical_conflict']['reviewed_previously']);
         $this->assertCount(1, $result->import_metadata['canonical_conflict_history']);
-        $this->assertSame(ChurchServiceCanonicalConflictState::DETECTED, $result->canonical_conflict_state);
-        $this->assertSame(ChurchServiceCanonicalConflictReason::CANONICAL_CHANGED, $result->canonical_conflict_reason);
+        $this->assertSame(ChurchServiceCanonicalConflictState::Detected, $result->canonical_conflict_state);
+        $this->assertSame(ChurchServiceCanonicalConflictReason::CanonicalChanged, $result->canonical_conflict_reason);
 
         Event::assertDispatched(
             ChurchServiceCanonicalListChanged::class,
@@ -154,7 +154,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $this->assertSame('openlp', $result->import_metadata['manual_review']['reopened_by_source'] ?? null);
         $this->assertArrayHasKey('reopened_at', $result->import_metadata['manual_review']);
         $this->assertSame(ChurchServiceReviewState::Reopened, $result->review_state);
-        $this->assertSame(ChurchServiceCanonicalConflictState::REOPENED, $result->canonical_conflict_state);
+        $this->assertSame(ChurchServiceCanonicalConflictState::Reopened, $result->canonical_conflict_state);
     }
 
     #[Test]
@@ -191,7 +191,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
 
         $this->assertTrue($result->needs_review);
         $this->assertFalse($result->import_metadata['canonical_conflict']['canonical_changed']);
-        $this->assertSame(ChurchServiceCanonicalConflictReason::CONFLICTS_ONLY, $result->canonical_conflict_reason);
+        $this->assertSame(ChurchServiceCanonicalConflictReason::ConflictsOnly, $result->canonical_conflict_reason);
 
         // No canonical list change — event must not fire
         Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);

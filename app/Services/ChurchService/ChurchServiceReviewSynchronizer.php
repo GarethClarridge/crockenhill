@@ -45,7 +45,7 @@ class ChurchServiceReviewSynchronizer
             'needs_review' => $reviewTriggers !== []
                 || $needsSectionReview
                 || $this->hasImportReviewSignal($churchService, $importMetadata)
-                || $normalizedColumns['canonical_conflict_state'] === ChurchServiceCanonicalConflictState::REOPENED->value,
+                || $normalizedColumns['canonical_conflict_state'] === ChurchServiceCanonicalConflictState::Reopened->value,
             'import_metadata' => $importMetadata,
             ...$normalizedColumns,
         ])->saveQuietly();

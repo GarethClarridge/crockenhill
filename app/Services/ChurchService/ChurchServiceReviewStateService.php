@@ -20,11 +20,11 @@ class ChurchServiceReviewStateService
     public function hasOutstandingCanonicalConflict(ChurchService|array $source): bool
     {
         if ($source instanceof ChurchService) {
-            return $source->canonical_conflict_state === ChurchServiceCanonicalConflictState::REOPENED;
+            return $source->canonical_conflict_state === ChurchServiceCanonicalConflictState::Reopened;
         }
 
         return $this->normalizedColumns($source)['canonical_conflict_state']
-            === ChurchServiceCanonicalConflictState::REOPENED->value;
+            === ChurchServiceCanonicalConflictState::Reopened->value;
     }
 
     /**
@@ -60,19 +60,19 @@ class ChurchServiceReviewStateService
             ?? $this->normalizeOptionalString($fallbackIncomingSource)
             ?? 'unknown';
         $canonicalConflictState = match (true) {
-            ! $canonicalConflict instanceof ChurchServiceCanonicalConflictMetadata => ChurchServiceCanonicalConflictState::NONE,
-            ! $detectedAt instanceof CarbonImmutable => ChurchServiceCanonicalConflictState::NONE,
+            ! $canonicalConflict instanceof ChurchServiceCanonicalConflictMetadata => ChurchServiceCanonicalConflictState::None,
+            ! $detectedAt instanceof CarbonImmutable => ChurchServiceCanonicalConflictState::None,
             $canonicalConflict->reviewReopened === true
                 && $reviewedAt instanceof CarbonImmutable
-                && ! $reviewedAt->lt($detectedAt) => ChurchServiceCanonicalConflictState::NONE,
-            $canonicalConflict->reviewReopened === true => ChurchServiceCanonicalConflictState::REOPENED,
-            default => ChurchServiceCanonicalConflictState::DETECTED,
+                && ! $reviewedAt->lt($detectedAt) => ChurchServiceCanonicalConflictState::None,
+            $canonicalConflict->reviewReopened === true => ChurchServiceCanonicalConflictState::Reopened,
+            default => ChurchServiceCanonicalConflictState::Detected,
         };
 
-        $canonicalConflictDetectedAt = $canonicalConflictState === ChurchServiceCanonicalConflictState::NONE
+        $canonicalConflictDetectedAt = $canonicalConflictState === ChurchServiceCanonicalConflictState::None
             ? null
             : $detectedAt?->toIso8601String();
-        $canonicalConflictIncomingSource = $canonicalConflictState === ChurchServiceCanonicalConflictState::NONE
+        $canonicalConflictIncomingSource = $canonicalConflictState === ChurchServiceCanonicalConflictState::None
             ? null
             : $incomingSource;
         $canonicalConflictReviewedPreviously = null;
@@ -80,7 +80,7 @@ class ChurchServiceReviewStateService
         $canonicalConflictReason = null;
 
         if (
-            $canonicalConflictState !== ChurchServiceCanonicalConflictState::NONE
+            $canonicalConflictState !== ChurchServiceCanonicalConflictState::None
             && $canonicalConflict instanceof ChurchServiceCanonicalConflictMetadata
         ) {
             $canonicalConflictReviewedPreviously = $canonicalConflict->reviewedPreviously;
@@ -134,10 +134,10 @@ class ChurchServiceReviewStateService
         $hasConflicts = $conflicts !== [];
 
         return match (true) {
-            $hasChanges && $hasConflicts => ChurchServiceCanonicalConflictReason::CANONICAL_CHANGED_WITH_CONFLICTS,
-            $hasChanges => ChurchServiceCanonicalConflictReason::CANONICAL_CHANGED,
-            $hasConflicts => ChurchServiceCanonicalConflictReason::CONFLICTS_ONLY,
-            default => ChurchServiceCanonicalConflictReason::UNSPECIFIED,
+            $hasChanges && $hasConflicts => ChurchServiceCanonicalConflictReason::CanonicalChangedWithConflicts,
+            $hasChanges => ChurchServiceCanonicalConflictReason::CanonicalChanged,
+            $hasConflicts => ChurchServiceCanonicalConflictReason::ConflictsOnly,
+            default => ChurchServiceCanonicalConflictReason::Unspecified,
         };
     }
 

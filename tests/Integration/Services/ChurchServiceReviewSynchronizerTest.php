@@ -189,6 +189,6 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
 
         $churchService->refresh();
         $this->assertTrue($churchService->needs_review);
-        $this->assertSame(ChurchServiceCanonicalConflictState::REOPENED, $churchService->canonical_conflict_state);
+        $this->assertSame(ChurchServiceCanonicalConflictState::Reopened, $churchService->canonical_conflict_state);
     }
 }

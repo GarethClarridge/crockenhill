@@ -119,7 +119,7 @@ return new class extends Migration
                 $table->enum('canonical_conflict_state', array_map(
                     static fn (ChurchServiceCanonicalConflictState $state): string => $state->value,
                     ChurchServiceCanonicalConflictState::cases()
-                ))->default(ChurchServiceCanonicalConflictState::NONE->value)->after('manual_review_reopened_by_source');
+                ))->default(ChurchServiceCanonicalConflictState::None->value)->after('manual_review_reopened_by_source');
             }
 
             if (! Schema::hasColumn('church_services', 'canonical_conflict_detected_at')) {
@@ -454,14 +454,14 @@ return new class extends Migration
             ?? $this->normalizeOptionalString($fallbackIncomingSource)
             ?? 'unknown';
         $canonicalConflictState = match (true) {
-            $canonicalConflict === null => ChurchServiceCanonicalConflictState::NONE,
-            ! $detectedAt instanceof Carbon => ChurchServiceCanonicalConflictState::NONE,
+            $canonicalConflict === null => ChurchServiceCanonicalConflictState::None,
+            ! $detectedAt instanceof Carbon => ChurchServiceCanonicalConflictState::None,
             $canonicalConflict->reviewReopened === true
                 && $reviewedAt instanceof Carbon
                 && $detectedAt instanceof Carbon
-                && ! $reviewedAt->lt($detectedAt) => ChurchServiceCanonicalConflictState::NONE,
-            $canonicalConflict->reviewReopened === true => ChurchServiceCanonicalConflictState::REOPENED,
-            default => ChurchServiceCanonicalConflictState::DETECTED,
+                && ! $reviewedAt->lt($detectedAt) => ChurchServiceCanonicalConflictState::None,
+            $canonicalConflict->reviewReopened === true => ChurchServiceCanonicalConflictState::Reopened,
+            default => ChurchServiceCanonicalConflictState::Detected,
         };
 
         $canonicalConflictReason = $this->canonicalConflictReason(
@@ -469,10 +469,10 @@ return new class extends Migration
             $canonicalConflict?->conflicts ?? []
         );
 
-        $canonicalConflictDetectedAt = $canonicalConflictState === ChurchServiceCanonicalConflictState::NONE
+        $canonicalConflictDetectedAt = $canonicalConflictState === ChurchServiceCanonicalConflictState::None
             ? null
             : $detectedAt?->toIso8601String();
-        $canonicalConflictIncomingSource = $canonicalConflictState === ChurchServiceCanonicalConflictState::NONE
+        $canonicalConflictIncomingSource = $canonicalConflictState === ChurchServiceCanonicalConflictState::None
             ? null
             : $incomingSource;
 
@@ -485,13 +485,13 @@ return new class extends Migration
             'canonical_conflict_state' => $canonicalConflictState->value,
             'canonical_conflict_detected_at' => $canonicalConflictDetectedAt,
             'canonical_conflict_incoming_source' => $canonicalConflictIncomingSource,
-            'canonical_conflict_reviewed_previously' => $canonicalConflictState === ChurchServiceCanonicalConflictState::NONE
+            'canonical_conflict_reviewed_previously' => $canonicalConflictState === ChurchServiceCanonicalConflictState::None
                 ? null
                 : $canonicalConflict?->reviewedPreviously,
-            'canonical_conflict_canonical_changed' => $canonicalConflictState === ChurchServiceCanonicalConflictState::NONE
+            'canonical_conflict_canonical_changed' => $canonicalConflictState === ChurchServiceCanonicalConflictState::None
                 ? null
                 : $canonicalConflict?->canonicalChanged,
-            'canonical_conflict_reason' => $canonicalConflictState === ChurchServiceCanonicalConflictState::NONE
+            'canonical_conflict_reason' => $canonicalConflictState === ChurchServiceCanonicalConflictState::None
                 ? null
                 : $canonicalConflictReason->value,
         ];
@@ -507,10 +507,10 @@ return new class extends Migration
         $hasConflicts = $conflicts !== [];
 
         return match (true) {
-            $hasChanges && $hasConflicts => ChurchServiceCanonicalConflictReason::CANONICAL_CHANGED_WITH_CONFLICTS,
-            $hasChanges => ChurchServiceCanonicalConflictReason::CANONICAL_CHANGED,
-            $hasConflicts => ChurchServiceCanonicalConflictReason::CONFLICTS_ONLY,
-            default => ChurchServiceCanonicalConflictReason::UNSPECIFIED,
+            $hasChanges && $hasConflicts => ChurchServiceCanonicalConflictReason::CanonicalChangedWithConflicts,
+            $hasChanges => ChurchServiceCanonicalConflictReason::CanonicalChanged,
+            $hasConflicts => ChurchServiceCanonicalConflictReason::ConflictsOnly,
+            default => ChurchServiceCanonicalConflictReason::Unspecified,
         };
     }
 
