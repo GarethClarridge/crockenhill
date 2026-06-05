@@ -24,7 +24,7 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-admin.filter-bar>
+        <x-admin.filter-bar loading-target="search, serviceFilter, needsReviewFilter, resetFilters">
             <x-input
                 placeholder="Search by filename, date, or service..."
                 wire:model.live.debounce="search"
@@ -47,14 +47,6 @@
                     ['id' => '0', 'name' => 'Ready'],
                 ]"
                 class="w-44" />
-
-            <x-slot:actions>
-                <div x-show="$wire.hasFilters" x-transition x-cloak>
-                    <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                        Clear Filters
-                    </x-form-button>
-                </div>
-            </x-slot:actions>
         </x-admin.filter-bar>
     </x-slot:filters>
 

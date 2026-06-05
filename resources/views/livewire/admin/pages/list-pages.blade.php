@@ -9,7 +9,7 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-admin.filter-bar>
+        <x-admin.filter-bar loading-target="search, areaFilter, navigationFilter, resetFilters">
             <x-input placeholder="Search pages..." wire:model.live.debounce="search" icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
             <x-select

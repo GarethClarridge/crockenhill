@@ -11,7 +11,7 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-admin.filter-bar>
+        <x-admin.filter-bar loading-target="search, serviceFilter, preacherFilter, seriesFilter, hasVideoFilter, needsReviewFilter, last12Months, resetFilters">
             <x-input placeholder="Search..." wire:model.live.debounce="search"
                 icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
