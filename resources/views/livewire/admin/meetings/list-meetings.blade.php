@@ -9,7 +9,7 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-admin.filter-bar>
+        <x-admin.filter-bar loading-target="search, typeFilter, recurringFilter, resetFilters">
             <x-input placeholder="Search meetings..." wire:model.live.debounce="search" icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
             <x-select
@@ -25,14 +25,6 @@
                 :options="[['id' => '1', 'name' => 'Recurring'], ['id' => '0', 'name' => 'One-time']]"
                 class="w-40"
             />
-
-            <x-slot:actions>
-                <div x-show="$wire.hasFilters" x-transition x-cloak>
-                    <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                        Clear Filters
-                    </x-form-button>
-                </div>
-            </x-slot:actions>
         </x-admin.filter-bar>
     </x-slot:filters>
 

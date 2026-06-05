@@ -9,7 +9,7 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-admin.filter-bar>
+        <x-admin.filter-bar loading-target="search, meetingFilter, uncategorizedOnly, upcomingOnly, resetFilters">
             <x-input placeholder="Search events..." wire:model.live.debounce="search"
                 icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
@@ -19,14 +19,6 @@
 
             <x-toggle label="Uncategorised Only" wire:model.live="uncategorizedOnly" />
             <x-toggle label="Upcoming Only" wire:model.live="upcomingOnly" />
-
-            <x-slot:actions>
-                <div x-show="$wire.hasFilters" x-transition x-cloak>
-                    <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                        Clear Filters
-                    </x-form-button>
-                </div>
-            </x-slot:actions>
         </x-admin.filter-bar>
     </x-slot:filters>
 
