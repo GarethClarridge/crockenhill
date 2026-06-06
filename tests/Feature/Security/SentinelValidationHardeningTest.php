@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Security;
 
-use App\Http\Requests\ConfirmMediaSegmentRequest;
 use App\Models\Sermon;
+use App\Http\Requests\ConfirmMediaSegmentRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
@@ -38,7 +38,7 @@ class SentinelValidationHardeningTest extends TestCase
      */
     public function test_confirm_media_segment_id_is_bounded(): void
     {
-        $request = new ConfirmMediaSegmentRequest;
+        $request = new ConfirmMediaSegmentRequest();
         $rules = $request->rules();
 
         $this->assertArrayHasKey('segment_id', $rules);
@@ -53,8 +53,16 @@ class SentinelValidationHardeningTest extends TestCase
         // Functional test: max ID passes (if it exists, but here we just test validation rules)
         $validData = ['segment_id' => 2147483647];
         // We temporarily remove 'exists' rule for pure functional test of the 'max' rule
-        $rulesWithoutExists = array_filter($rules['segment_id'], fn ($rule) => ! is_string($rule) || ! str_starts_with($rule, 'exists'));
+        $rulesWithoutExists = array_filter($rules['segment_id'], function($rule) {
+            if (is_string($rule) && str_starts_with($rule, 'exists')) {
+                return false;
+            }
+            if (is_object($rule) && get_class($rule) === 'Illuminate\Validation\Rules\Exists') {
+                return false;
+            }
+            return true;
+        });
         $validator = Validator::make($validData, ['segment_id' => $rulesWithoutExists]);
-        $this->assertFalse($validator->fails());
+        $this->assertFalse($validator->fails(), print_r($validator->errors()->all(), true));
     }
 }
