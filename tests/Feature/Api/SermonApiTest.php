@@ -525,6 +525,11 @@ class SermonApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['preacher_id']);
 
+        // Test out of bounds preacher_id
+        $this->getJson('/api/sermons?preacher_id=2147483648')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['preacher_id']);
+
         // Test invalid with_thumbnail
         $this->getJson('/api/sermons?with_thumbnail=not_a_boolean')
             ->assertStatus(422)

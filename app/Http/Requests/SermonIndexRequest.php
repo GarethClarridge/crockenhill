@@ -34,7 +34,11 @@ class SermonIndexRequest extends FormRequest
             'search' => ['nullable', 'string', 'max:255'],
             'service' => ['nullable', 'string', Rule::enum(SermonService::class)],
             'preacher' => ['nullable', 'string', 'max:255'],
-            'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
+            /**
+             * Security: Integer bounding is enforced to prevent malformed input and
+             * potential integer overflow attacks.
+             */
+            'preacher_id' => ['nullable', 'integer', 'max:2147483647', 'exists:preachers,id'],
             'series' => ['nullable', 'string', 'max:255'],
             'sort' => ['nullable', 'string', 'in:date,title,preacher,series,service'],
             'order' => ['nullable', 'string', 'in:asc,desc'],

@@ -217,6 +217,20 @@ class CalendarAdminControllerTest extends TestCase
     }
 
     #[Test]
+    public function it_validates_event_id_is_bounded(): void
+    {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+
+        $this->actingAs($this->adminUser);
+        $response = $this->post('/admin/calendar/categorize', [
+            'event_id' => 2147483648, // out of bounds
+            'meeting_slug' => 'sunday-morning',
+        ]);
+
+        $response->assertSessionHasErrors('event_id');
+    }
+
+    #[Test]
     public function it_validates_meeting_slug_exists_in_database(): void
     {
         Meeting::factory()->create(['slug' => 'some-slug']);
