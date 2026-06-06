@@ -14,6 +14,7 @@ interface SermonAnalysisInterface
      * @param  string  $transcript  The sermon transcript text to analyze
      * @param  array<int, string>  $existingSeries  Existing sermon series for context
      * @param  string|null  $processingId  Processing run identifier used for log correlation
+     * @return SermonAnalysis The analyzed sermon data
      */
     public function analyzeSermon(string $transcript, array $existingSeries = [], ?string $processingId = null): SermonAnalysis;
 }

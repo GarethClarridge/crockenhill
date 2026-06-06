@@ -9,3 +9,7 @@
 ## 2026-06-03 - Centralizing Progress and Retry Documentation
 **Learning:** The `ProcessingPhaseRegistry` is a critical bottleneck for user experience (progress bars) and system reliability (retries). Documenting the exact array shapes for retry plans (actions, strategies, and scopes) is essential for maintaining the contract between the registry and the `ProcessingRunOrchestrator`.
 **Action:** When documenting registry-like services, prioritize documenting the return array shapes of mapping methods, as these define the "plans" executed by other services.
+
+## 2026-06-05 - Enhancing Type Safety and Business Context
+**Learning:** Added precise array shapes to `SermonAnalysis` DTO and its interface, and documented a magic number in `SermonCandidateConfidenceService`. Explicit array shapes are particularly useful for DTOs that interact with AI services or database attributes, as they clarify the expected keys and types which might otherwise be opaque. Documenting magic numbers like the 20-minute sermon threshold provides essential business context for why specific values were chosen.
+**Action:** Continue to prioritize array shape documentation for DTOs and services that return or consume complex associative arrays. Always look for magic numbers in business logic and provide a "why" comment explaining their calibration or rationale.
