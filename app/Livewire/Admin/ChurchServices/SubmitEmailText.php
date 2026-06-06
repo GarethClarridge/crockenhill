@@ -82,7 +82,7 @@ class SubmitEmailText extends Component
     public function render(): View
     {
         return view('livewire.admin.church-services.submit-email-text')
-            ->layout('layouts.admin', ['title' => 'Submit Email Text', 'heading' => 'Submit Email Text']);
+            ->layout('layouts.admin', ['title' => 'Import Email Text', 'heading' => 'Import Email Text']);
     }
 
     private function abortIfDisabled(): void

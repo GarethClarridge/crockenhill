@@ -10,7 +10,7 @@
             Song catalogue
         </x-button>
         <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
-            Submit email text
+            Import email text
         </x-button>
         <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray">
             Import
