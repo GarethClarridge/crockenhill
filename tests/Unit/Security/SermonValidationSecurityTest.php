@@ -15,7 +15,7 @@ use Tests\TestCase;
 class SermonValidationSecurityTest extends TestCase
 {
     #[Test]
-    public function update_sermon_request_rejects_oversized_points()
+    public function update_sermon_request_rejects_oversized_flat_points()
     {
         $request = new UpdateSermonRequest;
         $rules = $request->rules();
@@ -35,12 +35,12 @@ class SermonValidationSecurityTest extends TestCase
 
         $validator = Validator::make($data, $rules);
 
-        $this->assertFalse($validator->passes(), 'Validation should have failed for oversized sermon point.');
+        $this->assertFalse($validator->passes(), 'Validation should have failed for oversized flat sermon point.');
         $this->assertTrue($validator->errors()->has('points.0'));
     }
 
     #[Test]
-    public function update_sermon_request_accepts_valid_points()
+    public function update_sermon_request_rejects_oversized_nested_points()
     {
         $request = new UpdateSermonRequest;
         $rules = $request->rules();
@@ -54,18 +54,18 @@ class SermonValidationSecurityTest extends TestCase
             'service' => 'morning',
             'preacher' => 'Valid Preacher',
             'points' => [
-                str_repeat('a', 255), // Exactly 255
-                'Valid point',
+                ['point' => str_repeat('b', 256), 'sub_points' => []], // Main point too long
             ],
         ];
 
         $validator = Validator::make($data, $rules);
 
-        $this->assertTrue($validator->passes(), 'Validation should have passed for valid sermon points. Errors: '.print_r($validator->errors()->toArray(), true));
+        $this->assertFalse($validator->passes(), 'Validation should have failed for oversized nested main point.');
+        $this->assertTrue($validator->errors()->has('points.0.point'));
     }
 
     #[Test]
-    public function update_sermon_request_accepts_null_points_elements()
+    public function update_sermon_request_rejects_oversized_sub_points()
     {
         $request = new UpdateSermonRequest;
         $rules = $request->rules();
@@ -79,14 +79,40 @@ class SermonValidationSecurityTest extends TestCase
             'service' => 'morning',
             'preacher' => 'Valid Preacher',
             'points' => [
-                'Point 1',
+                ['point' => 'Valid point', 'sub_points' => [str_repeat('c', 256)]], // Sub-point too long
+            ],
+        ];
+
+        $validator = Validator::make($data, $rules);
+
+        $this->assertFalse($validator->passes(), 'Validation should have failed for oversized sub-point.');
+        $this->assertTrue($validator->errors()->has('points.0.sub_points.0'));
+    }
+
+    #[Test]
+    public function update_sermon_request_accepts_valid_mixed_points()
+    {
+        $request = new UpdateSermonRequest;
+        $rules = $request->rules();
+
+        // Remove DB dependent rules for unit test
+        unset($rules['slug'], $rules['preacher_id'], $rules['scripture_passage_id'], $rules['livestream_processing_id']);
+
+        $data = [
+            'title' => 'Valid Title',
+            'date' => '2024-01-01',
+            'service' => 'morning',
+            'preacher' => 'Valid Preacher',
+            'points' => [
+                'Flat point',
+                ['point' => 'Nested point', 'sub_points' => ['Sub 1', 'Sub 2']],
                 null,
             ],
         ];
 
         $validator = Validator::make($data, $rules);
 
-        $this->assertTrue($validator->passes(), 'Validation should have passed for null sermon points. Errors: '.print_r($validator->errors()->toArray(), true));
+        $this->assertTrue($validator->passes(), 'Validation should have passed for valid mixed sermon points. Errors: '.print_r($validator->errors()->toArray(), true));
     }
 
     #[Test]
@@ -123,5 +149,11 @@ class SermonValidationSecurityTest extends TestCase
         $this->assertArrayHasKey('points.*', $rules);
         $this->assertContains('max:255', $rules['points.*']);
         $this->assertContains('nullable', $rules['points.*']);
+
+        $this->assertArrayHasKey('points.*.point', $rules);
+        $this->assertContains('max:255', $rules['points.*.point']);
+
+        $this->assertArrayHasKey('points.*.sub_points.*', $rules);
+        $this->assertContains('max:255', $rules['points.*.sub_points.*']);
     }
 }
