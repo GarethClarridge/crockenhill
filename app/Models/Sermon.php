@@ -292,7 +292,7 @@ class Sermon extends Model implements Sitemapable
             'duration' => ['nullable', 'numeric', 'min:0'],
             'summary' => ['nullable', 'string', 'max:1000'],
             'points' => ['nullable', 'array', 'max:100'],
-            'points.*' => ['string', 'max:255'],
+            'points.*' => ['nullable', 'string', 'max:255'],
             'show_summary' => ['boolean'],
             'show_points' => ['boolean'],
             'needs_preacher_review' => ['boolean'],
