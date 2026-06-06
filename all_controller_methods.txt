@@ -1,0 +1,61 @@
+app/Http/Controllers/CalendarController.php:15:    public function __construct(private readonly CalendarService $calendarService) {}
+app/Http/Controllers/CalendarController.php:17:    public function index(): View
+app/Http/Controllers/CalendarController.php:40:    public function eventsForMeeting(Meeting $meeting): View
+app/Http/Controllers/CalendarController.php:66:    public function uncategorized(): View
+app/Http/Controllers/SermonAssetController.php:24:    public function __construct(
+app/Http/Controllers/SermonAssetController.php:35:    public function serveTranscript(Sermon $sermon): Response|RedirectResponse
+app/Http/Controllers/SermonAssetController.php:59:    public function serveAudio(Sermon $sermon): BinaryFileResponse|RedirectResponse
+app/Http/Controllers/SermonAssetController.php:95:    public function serveVideo(Sermon $sermon): BinaryFileResponse|RedirectResponse
+app/Http/Controllers/SermonAssetController.php:135:    public function serveThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
+app/Http/Controllers/SermonAssetController.php:168:    public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
+app/Http/Controllers/Auth/AuthenticatedSessionController.php:18:    public function verifyEmail(EmailVerificationRequest $request): RedirectResponse
+app/Http/Controllers/Auth/AuthenticatedSessionController.php:28:    public function destroy(Request $request): RedirectResponse
+app/Http/Controllers/MemberController.php:14:    public function __invoke(): View
+app/Http/Controllers/PublicSongListController.php:17:    public function index(
+app/Http/Controllers/PublicSongListController.php:37:    public function show(Song $song, PublicSongUsageService $songUsageService, SongVideoService $songVideoService): View
+app/Http/Controllers/Admin/ServiceSectionCandidateMediaController.php:17:    public function serveAudio(ServiceSection $serviceSection): BinaryFileResponse
+app/Http/Controllers/Admin/ServiceSectionCandidateMediaController.php:26:    public function serveVideo(ServiceSection $serviceSection): BinaryFileResponse
+app/Http/Controllers/Admin/SermonAdminController.php:23:    public function destroy(Sermon $sermon): RedirectResponse
+app/Http/Controllers/Admin/SermonAdminController.php:41:    public function upload(): View
+app/Http/Controllers/Admin/SermonThumbnailCandidateController.php:17:    public function __construct(
+app/Http/Controllers/Admin/SermonThumbnailCandidateController.php:21:    public function show(Sermon $sermon, string $candidateId, string $variant): BinaryFileResponse
+app/Http/Controllers/Admin/CalendarAdminController.php:17:    public function __construct(
+app/Http/Controllers/Admin/CalendarAdminController.php:28:    public function uncategorizedEvents(): View
+app/Http/Controllers/Admin/CalendarAdminController.php:46:    public function categorizeEvent(CategorizeEventRequest $request): RedirectResponse
+app/Http/Controllers/Admin/CalendarAdminController.php:68:    public function patternManagement(): View
+app/Http/Controllers/Admin/CalendarAdminController.php:86:    public function syncCalendar(): RedirectResponse
+app/Http/Controllers/SitemapController.php:13:    public function __invoke(SitemapService $sitemapService): Response
+app/Http/Controllers/PodcastFeedController.php:13:    public function __construct(
+app/Http/Controllers/PodcastFeedController.php:20:    public function show(string $service): Response
+app/Http/Controllers/PageController.php:20:    public function __construct(
+app/Http/Controllers/PageController.php:31:    public function showPage(string $area): Response
+app/Http/Controllers/PageController.php:71:    public function show(string $area, string $slug): Response
+app/Http/Controllers/SermonController.php:31:    public function __construct(
+app/Http/Controllers/SermonController.php:45:    public function index(Request $request, BibleCanon $bibleCanon): View
+app/Http/Controllers/SermonController.php:67:    public function all(Request $request): RedirectResponse
+app/Http/Controllers/SermonController.php:80:    public function show(
+app/Http/Controllers/SermonController.php:135:    public function preachers(PreacherItemListPresenter $itemListPresenter, PreacherListCache $preacherListRepository): View
+app/Http/Controllers/SermonController.php:167:    public function preacher(Preacher $preacher): View
+app/Http/Controllers/SermonController.php:194:    public function series(SeriesItemListPresenter $itemListPresenter): View
+app/Http/Controllers/SermonController.php:214:    public function seriesShow(string $series): View
+app/Http/Controllers/SermonController.php:242:    public function service(string $service): View
+app/Http/Controllers/SermonController.php:271:    public function showDated(
+app/Http/Controllers/MeetingController.php:16:    public function __construct(
+app/Http/Controllers/MeetingController.php:25:    public function show(Meeting $meeting): ViewContract|RedirectResponse
+app/Http/Controllers/ChildrensCornerController.php:17:    public function __construct(
+app/Http/Controllers/ChildrensCornerController.php:24:    public function index(): View
+app/Http/Controllers/ChildrensCornerController.php:52:    public function show(Sermon $sermon): View
+app/Http/Controllers/Api/ChurchServiceController.php:18:    public function __construct(
+app/Http/Controllers/Api/ChurchServiceController.php:22:    public function store(UploadChurchServiceRequest $request): JsonResponse
+app/Http/Controllers/Api/ChurchServiceController.php:40:    public function show(ChurchService $churchService): ChurchServiceResource
+app/Http/Controllers/Api/MailgunInboundWebhookController.php:16:    public function __invoke(StoreMailgunInboundEmailRequest $request): JsonResponse
+app/Http/Controllers/Api/MediaController.php:30:    public function __construct(
+app/Http/Controllers/Api/MediaController.php:40:    public function upload(ProcessMediaRequest $request, string $type): JsonResponse
+app/Http/Controllers/Api/MediaController.php:88:    public function status(MediaStatusRequest $request, string $processingId): JsonResponse
+app/Http/Controllers/Api/MediaController.php:126:    public function stream(string $processingId, GetMediaProcessingStatus $statusService): StreamedResponse
+app/Http/Controllers/Api/MediaController.php:162:    public function cancel(CancelMediaProcessingRequest $request, string $processingId): JsonResponse
+app/Http/Controllers/Api/MediaController.php:189:    public function confirmSegment(ConfirmMediaSegmentRequest $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
+app/Http/Controllers/Api/MediaController.php:224:    public function retry(RetryMediaProcessingRequest $request, string $processingId): JsonResponse
+app/Http/Controllers/Api/SermonApiController.php:21:    public function __construct(
+app/Http/Controllers/Api/SermonApiController.php:32:    public function index(SermonIndexRequest $request): AnonymousResourceCollection
+app/Http/Controllers/Api/SermonApiController.php:123:    public function show(Sermon $sermon, SermonExposurePolicy $exposurePolicy): SermonResource
