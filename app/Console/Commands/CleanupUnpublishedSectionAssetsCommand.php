@@ -47,8 +47,7 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
                             ->whereNotNull('extracted_at')
                             ->where('extracted_at', '<=', $cutoff);
                     });
-            })
-            ->orderBy('id');
+            });
 
         if (! $query->exists()) {
             $this->info('No unpublished section assets require cleanup.');
@@ -64,7 +63,13 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
         $cleanedCount = 0;
         $failedCount = 0;
 
-        foreach ($query->lazy() as $section) {
+        /**
+         * Performance Optimization: Use lazyById() instead of lazy() to ensure all sections
+         * are processed. Since the publication_status is updated within the loop,
+         * offset-based chunking (used by lazy()) would skip records as the
+         * result set shrinks.
+         */
+        foreach ($query->lazyById() as $section) {
             $totalCandidateCount++;
             $videoPath = $section->extracted_video_path;
             $audioPath = $section->extracted_audio_path;
