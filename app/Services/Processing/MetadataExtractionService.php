@@ -184,10 +184,12 @@ class MetadataExtractionService
             $rawInfo = $track->extractInfo();
             $info = is_array($rawInfo) ? $rawInfo : [];
 
+            $format = $this->extractFormat($info);
+
             return [
                 'duration' => $this->extractDuration($info),
                 'bitrate' => $this->extractBitrate($info),
-                'format' => $this->extractFormat($info),
+                'format' => $format ?? $this->guessFormatFromExtension($file->getClientOriginalExtension()),
                 'filesize' => $this->extractFilesize($info, $file),
             ];
         } catch (\Exception $e) {
@@ -214,10 +216,12 @@ class MetadataExtractionService
             $rawInfo = $track->extractInfo();
             $info = is_array($rawInfo) ? $rawInfo : [];
 
+            $format = $this->extractFormat($info);
+
             return [
                 'duration' => $this->extractDuration($info),
                 'bitrate' => $this->extractBitrate($info),
-                'format' => $this->extractFormat($info),
+                'format' => $format ?? $this->guessFormatFromExtension(pathinfo($filePath, PATHINFO_EXTENSION)),
                 'filesize' => $this->extractFilesizeFromPath($info, $filePath),
             ];
         } catch (\Exception $e) {

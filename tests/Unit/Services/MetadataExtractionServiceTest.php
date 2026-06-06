@@ -19,8 +19,15 @@ class MetadataExtractionServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Carbon::setTestNow('2026-05-27');
         $this->service = new MetadataExtractionService;
         Storage::fake('local');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     #[Test]
@@ -113,11 +120,9 @@ class MetadataExtractionServiceTest extends TestCase
             'no_date_here.mp3',
         ];
 
-        $today = Carbon::today();
-
         foreach ($testCases as $filename) {
             $result = $this->service->extractDateFromFilename($filename);
-            $this->assertEquals($today->format('Y-m-d'), $result->format('Y-m-d'), "Failed for filename: {$filename}");
+            $this->assertEquals('2026-05-27', $result->format('Y-m-d'), "Failed for filename: {$filename}");
         }
     }
 
@@ -188,11 +193,9 @@ class MetadataExtractionServiceTest extends TestCase
             '1800-01-01_sermon.mp3', // Too old
         ];
 
-        $today = Carbon::today();
-
         foreach ($testCases as $filename) {
             $result = $this->service->extractDateFromFilename($filename);
-            $this->assertEquals($today->format('Y-m-d'), $result->format('Y-m-d'), "Failed for filename: {$filename}");
+            $this->assertEquals('2026-05-27', $result->format('Y-m-d'), "Failed for filename: {$filename}");
         }
     }
 
@@ -459,11 +462,11 @@ class MetadataExtractionServiceTest extends TestCase
     {
         // Empty filename
         $result = $this->service->extractDateFromFilename('');
-        $this->assertEquals(Carbon::today()->format('Y-m-d'), $result->format('Y-m-d'));
+        $this->assertEquals('2026-05-27', $result->format('Y-m-d'));
 
         // Filename with only extension
         $result = $this->service->extractDateFromFilename('.mp3');
-        $this->assertEquals(Carbon::today()->format('Y-m-d'), $result->format('Y-m-d'));
+        $this->assertEquals('2026-05-27', $result->format('Y-m-d'));
 
         // Filename with multiple extensions
         $result = $this->service->extractDateFromFilename('2024-01-15.backup.mp3');

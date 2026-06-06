@@ -128,7 +128,8 @@ class VideoStorageServiceTest extends TestCase
                 file_put_contents($outputPath, 'audio content');
             }
         );
-        $this->injectFfmpeg($this->service, $ffmpeg);
+        $this->storageHelper->method('createFFMpeg')->willReturn($ffmpeg);
+        $this->service = $this->makeService();
 
         $result = $this->service->moveToSermonStorage($tempPath, 'test-sermon');
 
@@ -156,7 +157,8 @@ class VideoStorageServiceTest extends TestCase
                 file_put_contents($outputPath, 'audio content');
             }
         );
-        $this->injectFfmpeg($this->service, $ffmpeg);
+        $this->storageHelper->method('createFFMpeg')->willReturn($ffmpeg);
+        $this->service = $this->makeService();
 
         $result = $this->service->moveToSermonStorage($tempPath, 'test-sermon');
 
@@ -209,13 +211,6 @@ class VideoStorageServiceTest extends TestCase
         );
     }
 
-    private function injectFfmpeg(VideoStorageService $service, FFMpeg $ffmpeg): void
-    {
-        $reflection = new \ReflectionClass($service);
-        $property = $reflection->getProperty('ffmpeg');
-        $property->setAccessible(true);
-        $property->setValue($service, $ffmpeg);
-    }
 
     /**
      * @param  \Closure(string): void  $saveCallback
