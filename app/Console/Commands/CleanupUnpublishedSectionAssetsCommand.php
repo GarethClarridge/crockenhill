@@ -32,7 +32,11 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
             ServiceSectionPublicationStatus::Approved->value,
         ];
 
-        $sections = ServiceSection::query()
+        /**
+         * Performance Optimization: Use exists() for initial check and lazy() for processing
+         * to keep memory usage low even when cleaning up many thousands of sections.
+         */
+        $query = ServiceSection::query()
             ->whereIn('publication_status', $targetStatuses)
             ->whereNull('published_sermon_id')
             ->where(function ($query) use ($cutoff): void {
@@ -44,10 +48,9 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
                             ->where('extracted_at', '<=', $cutoff);
                     });
             })
-            ->orderBy('id')
-            ->get();
+            ->orderBy('id');
 
-        if ($sections->isEmpty()) {
+        if (! $query->exists()) {
             $this->info('No unpublished section assets require cleanup.');
 
             return self::SUCCESS;
@@ -57,10 +60,12 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
             $this->warn('DRY RUN enabled. No files or rows will be modified.');
         }
 
+        $totalCandidateCount = 0;
         $cleanedCount = 0;
         $failedCount = 0;
 
-        foreach ($sections as $section) {
+        foreach ($query->lazy() as $section) {
+            $totalCandidateCount++;
             $videoPath = $section->extracted_video_path;
             $audioPath = $section->extracted_audio_path;
 
@@ -94,7 +99,7 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
         }
 
         if ($dryRun) {
-            $this->info('Dry run complete: '.$sections->count().' sections would be cleaned.');
+            $this->info('Dry run complete: '.$totalCandidateCount.' sections would be cleaned.');
 
             return self::SUCCESS;
         }
