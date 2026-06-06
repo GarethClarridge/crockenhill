@@ -8,6 +8,7 @@ use App\Data\SermonMetadata;
 use App\Enums\SermonService;
 use App\Services\Processing\MetadataExtractionService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -19,9 +20,17 @@ class MetadataExtractionServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Carbon::setTestNow('2025-01-01 10:00:00');
+        // Freeze time to ensure deterministic date-fallback assertions.
+        // We use 2026 to ensure the 2026 dates in test fixtures are valid.
+        Carbon::setTestNow('2026-05-27 10:00:00');
         $this->service = new MetadataExtractionService;
         Storage::fake('local');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     #[Test]
@@ -116,7 +125,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($testCases as $filename) {
             $result = $this->service->extractDateFromFilename($filename);
-            $this->assertEquals('2025-01-01', $result->format('Y-m-d'), "Failed for filename: {$filename}");
+            $this->assertEquals('2026-05-27', $result->format('Y-m-d'), "Failed for filename: {$filename}");
         }
     }
 
@@ -189,7 +198,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($testCases as $filename) {
             $result = $this->service->extractDateFromFilename($filename);
-            $this->assertEquals('2025-01-01', $result->format('Y-m-d'), "Failed for filename: {$filename}");
+            $this->assertEquals('2026-05-27', $result->format('Y-m-d'), "Failed for filename: {$filename}");
         }
     }
 
@@ -365,16 +374,22 @@ class MetadataExtractionServiceTest extends TestCase
             'm4a' => 'M4A',
             'ogg' => 'OGG',
             'unknown' => 'UNKNOWN',
-            null => null,
+            '' => null,
         ];
 
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('guessFormatFromExtension');
-        $method->setAccessible(true);
-
         foreach ($testCases as $extension => $expected) {
-            $result = $method->invoke($this->service, $extension);
-            $this->assertEquals($expected, $result, "Failed for extension: {$extension}");
+            $file = $this->createMock(\Illuminate\Http\UploadedFile::class);
+            $file->method('getClientOriginalName')->willReturn('test'.($extension ? '.'.$extension : ''));
+            $file->method('hashName')->willReturn('hash.mp3');
+            $file->method('getClientOriginalExtension')->willReturn($extension);
+            $file->method('getSize')->willReturn(1024);
+
+            // Force the underlying library to fail so we hit the fallback code path.
+            $file->method('getPathname')->willThrowException(new \Exception('Forced fallback'));
+
+            $metadata = $this->service->extractFromUploadedFile($file);
+
+            $this->assertEquals($expected, $metadata->format, "Failed for extension: {$extension}");
         }
     }
 
@@ -456,11 +471,11 @@ class MetadataExtractionServiceTest extends TestCase
     {
         // Empty filename
         $result = $this->service->extractDateFromFilename('');
-        $this->assertEquals('2025-01-01', $result->format('Y-m-d'));
+        $this->assertEquals('2026-05-27', $result->format('Y-m-d'));
 
         // Filename with only extension
         $result = $this->service->extractDateFromFilename('.mp3');
-        $this->assertEquals('2025-01-01', $result->format('Y-m-d'));
+        $this->assertEquals('2026-05-27', $result->format('Y-m-d'));
 
         // Filename with multiple extensions
         $result = $this->service->extractDateFromFilename('2024-01-15.backup.mp3');
