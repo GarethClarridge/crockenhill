@@ -1,5 +1,5 @@
 <x-admin.list-shell
-    title="Inbound email review"
+    title="Inbound Email Review"
     description="Review low-confidence or failed order-of-service emails before they become canonical."
 >
     <x-slot:actions>
@@ -10,7 +10,7 @@
             Upload service
         </x-button>
         <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
-            Submit email text
+            Import email text
         </x-button>
     </x-slot:actions>
 
