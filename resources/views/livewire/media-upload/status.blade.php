@@ -18,6 +18,11 @@
                 <div
                     class="h-3 rounded-full transition-all duration-500 ease-out {{ $manualReviewMessage ? 'bg-amber-400' : ($status === 'failed' ? 'bg-red-500' : ($status === 'cancelled' ? 'bg-gray-400' : ($status === 'completed' ? 'bg-green-500' : 'bg-blue-500'))) }}"
                     style="width: {{ $progressPercentage }}%"
+                    role="progressbar"
+                    aria-valuenow="{{ $progressPercentage }}"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-label="Processing progress"
                 ></div>
             </div>
         </div>
