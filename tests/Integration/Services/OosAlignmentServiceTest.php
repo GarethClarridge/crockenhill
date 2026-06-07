@@ -51,7 +51,7 @@ class OosAlignmentServiceTest extends TestCase
         $firstDetected = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'Song Two',
             'confidence' => 0.9,
@@ -64,7 +64,7 @@ class OosAlignmentServiceTest extends TestCase
         $secondDetected = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'title' => 'Song One',
             'confidence' => 0.9,
@@ -85,8 +85,8 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertSame($firstSong->id, $secondDetected->church_service_item_id);
         $this->assertSame('Song Two', $firstDetected->title);
         $this->assertSame('Song One', $secondDetected->title);
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $firstDetected->song_match_type);
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $secondDetected->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $firstDetected->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $secondDetected->song_match_type);
         $this->assertArrayNotHasKey('song_match_type', $firstDetected->metadata['oos_alignment'] ?? []);
         $this->assertArrayNotHasKey('song_match_type', $secondDetected->metadata['oos_alignment'] ?? []);
         $this->assertSame('high', $firstDetected->metadata['confidence_level']);
@@ -122,7 +122,7 @@ class OosAlignmentServiceTest extends TestCase
         $prayerSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.9,
@@ -135,7 +135,7 @@ class OosAlignmentServiceTest extends TestCase
         $readingSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.9,
@@ -181,7 +181,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.1,
@@ -222,7 +222,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -244,7 +244,7 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertSame('song_alignment_inferred', $section->metadata['review_reason']);
         $this->assertContains('song_alignment_inferred', $section->metadata['review_flags']);
         $this->assertContains('unmatched_song_section', $section->metadata['review_flags']);
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         $this->assertNull($section->metadata['song_id'] ?? null);
         $this->assertTrue($churchService->needs_review);
@@ -272,7 +272,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'Completely Different Song',
             'confidence' => 0.5,
@@ -289,7 +289,7 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertContains('unmatched_song_sections', $result['review_triggers']);
         $this->assertTrue($section->needs_manual_review);
         $this->assertNull($section->church_service_item_id);
-        $this->assertSame(ServiceSectionSongMatchType::UNMATCHED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Unmatched, $section->song_match_type);
         $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
     }
 
@@ -315,7 +315,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_type' => ServiceSectionType::Notices->value,
             'section_order' => 1,
             'title' => 'Church Notices',
             'confidence' => 0.5,
@@ -363,7 +363,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -379,10 +379,10 @@ class OosAlignmentServiceTest extends TestCase
 
         $this->assertTrue($result['aligned']);
         $this->assertSame([], $result['review_triggers']);
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $section->section_type);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $section->section_type);
         $this->assertSame($item->id, $section->church_service_item_id);
         $this->assertSame("Children's Talk", $section->title);
-        $this->assertSame(ServiceSectionType::OTHER->value, $section->metadata['oos_alignment']['reclassified_from']);
+        $this->assertSame(ServiceSectionType::Other->value, $section->metadata['oos_alignment']['reclassified_from']);
         $this->assertSame('oos_alignment', $section->metadata['oos_alignment']['reclassified_by']);
     }
 
@@ -408,7 +408,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -422,7 +422,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionType::OTHER, $section->section_type);
+        $this->assertSame(ServiceSectionType::Other, $section->section_type);
         $this->assertSame($item->id, $section->church_service_item_id);
         $this->assertArrayNotHasKey('reclassified_from', $section->metadata['oos_alignment'] ?? []);
     }
@@ -449,7 +449,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -465,7 +465,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $this->assertSame([], $result['review_triggers']);
         $this->assertSame($item->id, $section->church_service_item_id);
-        $this->assertSame(ServiceSectionType::OTHER, $section->section_type);
+        $this->assertSame(ServiceSectionType::Other, $section->section_type);
     }
 
     #[Test]
@@ -482,7 +482,7 @@ class OosAlignmentServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'A Song',
             'confidence' => 0.5,
@@ -519,7 +519,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'Unlisted Hymn',
             'confidence' => 0.5,
@@ -563,7 +563,7 @@ class OosAlignmentServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'Known Song',
             'confidence' => 0.5,
@@ -609,7 +609,7 @@ class OosAlignmentServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -670,7 +670,7 @@ class OosAlignmentServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -718,7 +718,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -733,8 +733,8 @@ class OosAlignmentServiceTest extends TestCase
         $section->refresh();
 
         // Strong title match → CHILDRENS_TALK, but requires manual review (inferred, not explicit)
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK->value, $section->section_type->value);
-        $this->assertSame(ServiceSectionType::OTHER->value, $section->metadata['oos_alignment']['reclassified_from'] ?? null);
+        $this->assertSame(ServiceSectionType::ChildrensTalk->value, $section->section_type->value);
+        $this->assertSame(ServiceSectionType::Other->value, $section->metadata['oos_alignment']['reclassified_from'] ?? null);
         $this->assertSame('oos_alignment', $section->metadata['oos_alignment']['reclassified_by'] ?? null);
         $this->assertNotContains('ambiguous_childrens_talk', $section->metadata['review_flags'] ?? []);
         $this->assertContains('inferred_childrens_talk', $section->metadata['review_flags'] ?? []);
@@ -771,7 +771,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -786,8 +786,8 @@ class OosAlignmentServiceTest extends TestCase
         $section->refresh();
 
         // Strong notices title → NOTICES, no review required
-        $this->assertSame(ServiceSectionType::NOTICES->value, $section->section_type->value);
-        $this->assertNotSame(ServiceSectionType::CHILDRENS_TALK->value, $section->section_type->value);
+        $this->assertSame(ServiceSectionType::Notices->value, $section->section_type->value);
+        $this->assertNotSame(ServiceSectionType::ChildrensTalk->value, $section->section_type->value);
         $this->assertFalse($section->needs_manual_review);
         $this->assertNotContains('manual_review_sections', $result['review_triggers']);
     }
@@ -821,7 +821,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -836,7 +836,7 @@ class OosAlignmentServiceTest extends TestCase
         $section->refresh();
 
         // Weak position-only evidence: section stays OTHER, suspected_type hint written to metadata
-        $this->assertSame(ServiceSectionType::OTHER, $section->section_type);
+        $this->assertSame(ServiceSectionType::Other, $section->section_type);
         $this->assertFalse($section->needs_manual_review);
         $this->assertSame('other', $section->metadata['oos_alignment']['presentation_inference']['resolved_type'] ?? null);
         $this->assertSame('childrens_talk', $section->metadata['oos_alignment']['presentation_inference']['suspected_type'] ?? null);
@@ -872,7 +872,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -886,7 +886,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $section->section_type);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $section->section_type);
         $this->assertTrue($section->needs_manual_review);
         $this->assertContains('inferred_childrens_talk', $section->metadata['review_flags'] ?? []);
         $this->assertContains('manual_review_sections', $result['review_triggers']);
@@ -911,7 +911,7 @@ class OosAlignmentServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 2,
             'type' => 'presentations',
-            'section_type' => ServiceSectionType::CHILDRENS_TALK,
+            'section_type' => ServiceSectionType::ChildrensTalk,
             'title' => 'Slides',
             'metadata' => null,
         ]);
@@ -923,7 +923,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -938,7 +938,7 @@ class OosAlignmentServiceTest extends TestCase
         $section->refresh();
 
         // Explicit section_type column → trusted, no review flag
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $section->section_type);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $section->section_type);
         $this->assertFalse($section->needs_manual_review);
         $this->assertNotContains('inferred_childrens_talk', $section->metadata['review_flags'] ?? []);
         $this->assertNotContains('manual_review_sections', $result['review_triggers']);
@@ -973,7 +973,7 @@ class OosAlignmentServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -987,7 +987,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionType::OTHER, $section->section_type);
+        $this->assertSame(ServiceSectionType::Other, $section->section_type);
         $this->assertFalse($section->needs_manual_review);
         $inference = $section->metadata['oos_alignment']['presentation_inference'] ?? null;
         $this->assertIsArray($inference);
@@ -1032,7 +1032,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $songSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'To God Be The Glory',
             'confidence' => 0.85,
@@ -1041,7 +1041,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $talkSection1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -1050,7 +1050,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $talkSection2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 3,
             'title' => null,
             'confidence' => 0.5,
@@ -1108,7 +1108,7 @@ class OosAlignmentServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'How Great Thou Art',
             'confidence' => 0.85,
@@ -1117,7 +1117,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $talkSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -1133,7 +1133,7 @@ class OosAlignmentServiceTest extends TestCase
 
         // Update the OoS item to use explicit promoted state instead — now no review needed
         $talkItem->forceFill([
-            'section_type' => ServiceSectionType::CHILDRENS_TALK,
+            'section_type' => ServiceSectionType::ChildrensTalk,
             'metadata' => null,
         ])->saveQuietly();
 
@@ -1174,7 +1174,7 @@ class OosAlignmentServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'Amazing Grace',
             'confidence' => 0.85,
@@ -1183,7 +1183,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $talkSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -1237,7 +1237,7 @@ class OosAlignmentServiceTest extends TestCase
         $firstSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -1250,7 +1250,7 @@ class OosAlignmentServiceTest extends TestCase
         $secondSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 3,
             'title' => null,
             'confidence' => 0.5,
@@ -1265,8 +1265,8 @@ class OosAlignmentServiceTest extends TestCase
         $firstSection->refresh();
         $secondSection->refresh();
 
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK->value, $firstSection->section_type->value);
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK->value, $secondSection->section_type->value);
+        $this->assertSame(ServiceSectionType::ChildrensTalk->value, $firstSection->section_type->value);
+        $this->assertSame(ServiceSectionType::ChildrensTalk->value, $secondSection->section_type->value);
         $this->assertTrue($firstSection->needs_manual_review);
         $this->assertTrue($secondSection->needs_manual_review);
         $this->assertContains('ambiguous_childrens_talk', $firstSection->metadata['review_flags'] ?? []);
@@ -1306,7 +1306,7 @@ class OosAlignmentServiceTest extends TestCase
         // Long bible_reading section that actually contains a children's talk
         $longBibleReading = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 1,
             'start_time' => 606.0,
             'end_time' => 1469.0,
@@ -1321,7 +1321,7 @@ class OosAlignmentServiceTest extends TestCase
         // Following section whose transcript contains a dismissal marker
         $followingSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 1469.0,
             'end_time' => 1550.0,
@@ -1371,7 +1371,7 @@ class OosAlignmentServiceTest extends TestCase
         // Short section (< 5 min) — should not be flagged
         $shortSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 1,
             'start_time' => 100.0,
             'end_time' => 220.0, // 2 minutes
@@ -1385,7 +1385,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $followingSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 220.0,
             'end_time' => 300.0,
@@ -1432,7 +1432,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $longSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 1,
             'start_time' => 600.0,
             'end_time' => 1500.0,
@@ -1446,7 +1446,7 @@ class OosAlignmentServiceTest extends TestCase
 
         $dismissalSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 1500.0,
             'end_time' => 1560.0,

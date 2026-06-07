@@ -42,7 +42,7 @@ class ReportingStatePromotionSchemaTest extends TestCase
             'type' => 'custom',
             'section_type' => null,
             'title' => 'Welcome and Notices',
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]);
 
         $inferredItem = ChurchServiceItem::factory()->create([
@@ -58,7 +58,7 @@ class ReportingStatePromotionSchemaTest extends TestCase
             'expected_item_id' => null,
             'metadata' => [
                 'oos_alignment' => [
-                    'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+                    'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
                     'matched_item_id' => $manualItem->id,
                 ],
             ],
@@ -118,16 +118,16 @@ class ReportingStatePromotionSchemaTest extends TestCase
         $auditOutput = (string) ob_get_clean();
 
         $this->assertSame(
-            ServiceSectionType::WELCOME->value,
+            ServiceSectionType::Welcome->value,
             DB::table('church_service_items')->where('id', $manualItem->id)->value('section_type')
         );
         $this->assertSame(
-            ServiceSectionType::BIBLE_READING->value,
+            ServiceSectionType::BibleReading->value,
             DB::table('church_service_items')->where('id', $inferredItem->id)->value('section_type')
         );
 
         $this->assertSame(
-            ServiceSectionSongMatchType::CONFIRMED->value,
+            ServiceSectionSongMatchType::Confirmed->value,
             DB::table('service_sections')->where('id', $matchedSection->id)->value('song_match_type')
         );
         $this->assertSame(

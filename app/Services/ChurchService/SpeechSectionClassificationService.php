@@ -228,9 +228,9 @@ TEXT,
         $lowerTranscript = strtolower($transcript);
         $markers = [];
         $patterns = [
-            ServiceSectionType::WELCOME->value => ['welcome', 'good morning everyone'],
-            ServiceSectionType::PRAYER->value => ['let us pray', 'let\'s pray'],
-            ServiceSectionType::CHILDRENS_TALK->value => [
+            ServiceSectionType::Welcome->value => ['welcome', 'good morning everyone'],
+            ServiceSectionType::Prayer->value => ['let us pray', 'let\'s pray'],
+            ServiceSectionType::ChildrensTalk->value => [
                 'good morning children',
                 'children',
                 'can anybody tell me',
@@ -238,9 +238,9 @@ TEXT,
                 'let\'s have the next slide',
                 'boys and girls',
             ],
-            ServiceSectionType::BIBLE_READING->value => ['our reading today is from', 'bible reading', 'reading from'],
-            ServiceSectionType::NOTICES->value => ['notices', 'announcements'],
-            ServiceSectionType::SERMON->value => ['turn in your bibles', 'our passage', 'if you have your bibles'],
+            ServiceSectionType::BibleReading->value => ['our reading today is from', 'bible reading', 'reading from'],
+            ServiceSectionType::Notices->value => ['notices', 'announcements'],
+            ServiceSectionType::Sermon->value => ['turn in your bibles', 'our passage', 'if you have your bibles'],
         ];
 
         foreach ($patterns as $type => $needles) {
@@ -308,7 +308,7 @@ TEXT,
         array $anomalies
     ): array {
         if ($confidence < (float) config('service-tracking.confidence.review_below', 0.60)) {
-            return [ServiceSectionType::OTHER, 'none', true, 'low_ai_confidence'];
+            return [ServiceSectionType::Other, 'none', true, 'low_ai_confidence'];
         }
 
         if ($confidence < ServiceSectionConfidence::HIGH_THRESHOLD || $anomalies !== []) {
@@ -333,7 +333,7 @@ TEXT,
     private function fallbackSection(ServiceSection $section, string $transcript, string $reason): array
     {
         return [
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'title' => null,
             'start_time' => (float) $section->start_time,
             'end_time' => (float) $section->end_time,
@@ -452,8 +452,8 @@ TEXT,
     private function normaliseSectionType(mixed $value): ServiceSectionType
     {
         return is_string($value)
-            ? ServiceSectionType::tryFrom(trim($value)) ?? ServiceSectionType::OTHER
-            : ServiceSectionType::OTHER;
+            ? ServiceSectionType::tryFrom(trim($value)) ?? ServiceSectionType::Other
+            : ServiceSectionType::Other;
     }
 
     /**

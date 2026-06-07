@@ -485,7 +485,7 @@ class ChurchServiceControllerTest extends TestCase
 
     private function serviceTokenFor(User $user): string
     {
-        return $user->createToken('service-token', [ApiTokenAbility::SERVICE_UPLOAD->value])->plainTextToken;
+        return $user->createToken('service-token', [ApiTokenAbility::ServiceUpload->value])->plainTextToken;
     }
 
     private function validOpenLpUpload(): UploadedFile

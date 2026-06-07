@@ -40,12 +40,12 @@ class StructuralSectionAligner
 
         /** @var Collection<int, ServiceSection> $structuralSections */
         $structuralSections = $sections
-            ->filter(fn (ServiceSection $section): bool => $section->section_type !== ServiceSectionType::SONG)
+            ->filter(fn (ServiceSection $section): bool => $section->section_type !== ServiceSectionType::Song)
             ->values();
 
         /** @var Collection<int, ChurchServiceItem> $structuralItems */
         $structuralItems = $items
-            ->filter(fn (ChurchServiceItem $item): bool => $this->resolvedItemType($item, $presentationDecisions) !== ServiceSectionType::SONG)
+            ->filter(fn (ChurchServiceItem $item): bool => $this->resolvedItemType($item, $presentationDecisions) !== ServiceSectionType::Song)
             ->values();
 
         $sectionIndex = 0;
@@ -78,11 +78,11 @@ class StructuralSectionAligner
             if ($section->section_type === $expectedType) {
                 $this->applyMatchedItem($section, $item, 0.35);
 
-                if ($expectedType === ServiceSectionType::BIBLE_READING) {
+                if ($expectedType === ServiceSectionType::BibleReading) {
                     $metadata = $this->metadata($section);
                     $metadata['reading_reference'] = $item->title;
                     $section->metadata = ServiceSectionMetadata::fromArray($metadata);
-                } elseif (($section->title === null || trim($section->title) === '') && $expectedType !== ServiceSectionType::SERMON) {
+                } elseif (($section->title === null || trim($section->title) === '') && $expectedType !== ServiceSectionType::Sermon) {
                     $section->title = $item->title;
                 }
 
@@ -98,13 +98,13 @@ class StructuralSectionAligner
                 continue;
             }
 
-            if ($section->section_type === ServiceSectionType::OTHER && $this->isOosReclassifiableType($expectedType)) {
+            if ($section->section_type === ServiceSectionType::Other && $this->isOosReclassifiableType($expectedType)) {
                 $section->section_type = $expectedType;
                 $this->applyMatchedItem($section, $item, 0.35);
 
                 $metadata = $this->metadata($section);
                 $metadata['oos_alignment'] = array_merge($metadata['oos_alignment'] ?? [], [
-                    'reclassified_from' => ServiceSectionType::OTHER->value,
+                    'reclassified_from' => ServiceSectionType::Other->value,
                     'reclassified_by' => 'oos_alignment',
                 ]);
                 $section->metadata = ServiceSectionMetadata::fromArray($metadata);
@@ -196,7 +196,7 @@ class StructuralSectionAligner
             $reviewFlags = $this->reviewFlags($metadata);
             $reviewFlags[] = $decision['review_flag'];
 
-            if ($ambiguousChildrensTalk && $decision['resolved_type'] === ServiceSectionType::CHILDRENS_TALK) {
+            if ($ambiguousChildrensTalk && $decision['resolved_type'] === ServiceSectionType::ChildrensTalk) {
                 $reviewFlags[] = 'ambiguous_childrens_talk';
                 $metadata['review_flags'] = array_values(array_unique($reviewFlags));
                 $metadata['review_reason'] = 'ambiguous_childrens_talk';
@@ -208,7 +208,7 @@ class StructuralSectionAligner
             }
 
             $section->needs_manual_review = true;
-        } elseif ($ambiguousChildrensTalk && $decision['resolved_type'] === ServiceSectionType::CHILDRENS_TALK) {
+        } elseif ($ambiguousChildrensTalk && $decision['resolved_type'] === ServiceSectionType::ChildrensTalk) {
             $reviewFlags = $this->reviewFlags($metadata);
             $reviewFlags[] = 'ambiguous_childrens_talk';
             $metadata['review_flags'] = array_values(array_unique($reviewFlags));
@@ -308,11 +308,11 @@ class StructuralSectionAligner
                 return $decision['resolved_type'];
             }
 
-            return ServiceSectionType::OTHER;
+            return ServiceSectionType::Other;
         }
 
         if ($itemType !== 'custom') {
-            return ServiceSectionType::OTHER;
+            return ServiceSectionType::Other;
         }
 
         return $item->semanticSectionType();
@@ -325,11 +325,11 @@ class StructuralSectionAligner
     private function isOosReclassifiableType(ServiceSectionType $type): bool
     {
         return in_array($type, [
-            ServiceSectionType::CHILDRENS_TALK,
-            ServiceSectionType::BIBLE_READING,
-            ServiceSectionType::PRAYER,
-            ServiceSectionType::NOTICES,
-            ServiceSectionType::WELCOME,
+            ServiceSectionType::ChildrensTalk,
+            ServiceSectionType::BibleReading,
+            ServiceSectionType::Prayer,
+            ServiceSectionType::Notices,
+            ServiceSectionType::Welcome,
         ], true);
     }
 

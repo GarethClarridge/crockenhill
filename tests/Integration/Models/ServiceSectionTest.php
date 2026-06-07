@@ -23,13 +23,13 @@ class ServiceSectionTest extends TestCase
     public function it_casts_section_type_and_status_to_enums(): void
     {
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'status' => ServiceSectionStatus::Identified->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 
         $this->assertInstanceOf(ServiceSectionType::class, $section->section_type);
-        $this->assertSame(ServiceSectionType::SERMON, $section->section_type);
+        $this->assertSame(ServiceSectionType::Sermon, $section->section_type);
         $this->assertInstanceOf(ServiceSectionStatus::class, $section->status);
         $this->assertSame(ServiceSectionStatus::Identified, $section->status);
         $this->assertInstanceOf(ServiceSectionPublicationStatus::class, $section->publication_status);

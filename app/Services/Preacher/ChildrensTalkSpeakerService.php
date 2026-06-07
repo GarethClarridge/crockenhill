@@ -22,7 +22,7 @@ class ChildrensTalkSpeakerService
 
     public function detectAndStore(ServiceSection $section): void
     {
-        if ($section->section_type !== ServiceSectionType::CHILDRENS_TALK) {
+        if ($section->section_type !== ServiceSectionType::ChildrensTalk) {
             return;
         }
 
@@ -67,7 +67,7 @@ class ChildrensTalkSpeakerService
         ?string $speakerName,
         ?int $reviewedByUserId
     ): void {
-        if ($section->section_type !== ServiceSectionType::CHILDRENS_TALK) {
+        if ($section->section_type !== ServiceSectionType::ChildrensTalk) {
             return;
         }
 

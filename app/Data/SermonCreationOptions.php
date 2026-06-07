@@ -156,7 +156,7 @@ class SermonCreationOptions
             livestreamProcessingId: $log->processing_id,
             segmentStartTime: $section->start_time,
             segmentEndTime: $section->end_time,
-            contentType: $section->section_type === ServiceSectionType::CHILDRENS_TALK
+            contentType: $section->section_type === ServiceSectionType::ChildrensTalk
                 ? SermonContentType::ChildrensTalk
                 : SermonContentType::Sermon,
             titleStrategy: TitleGenerationStrategy::FilenameOnly,

@@ -41,12 +41,12 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
     {
         $churchService = $this->createLivestreamService([
             ['type' => 'songs', 'title' => 'Song A', 'confidence' => 'low'],
-            ['type' => 'custom', 'title' => 'Prayer', 'section_type' => ServiceSectionType::PRAYER, 'confidence' => 'low'],
+            ['type' => 'custom', 'title' => 'Prayer', 'section_type' => ServiceSectionType::Prayer, 'confidence' => 'low'],
         ]);
 
         $incomingItems = [
             ['position' => 1, 'type' => 'songs', 'title' => 'Song B', 'source_title' => null, 'openlp_search_title' => 'song b@', 'song_id' => null, 'metadata' => null],
-            ['position' => 2, 'type' => 'custom', 'title' => 'Reading', 'section_type' => ServiceSectionType::BIBLE_READING->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
+            ['position' => 2, 'type' => 'custom', 'title' => 'Reading', 'section_type' => ServiceSectionType::BibleReading->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
         $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
@@ -61,12 +61,12 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
     {
         $churchService = $this->createLivestreamService([
             ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high'],
-            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::SERMON, 'confidence' => 'high'],
+            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::Sermon, 'confidence' => 'high'],
         ]);
 
         $incomingItems = [
             ['position' => 1, 'type' => 'songs', 'title' => 'How Great Thou Art', 'source_title' => null, 'openlp_search_title' => 'how great@', 'song_id' => null, 'metadata' => null],
-            ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
+            ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::Prayer->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
         $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
@@ -136,12 +136,12 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
     {
         $churchService = $this->createLivestreamService([
             ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high'],
-            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::SERMON, 'confidence' => 'high'],
+            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::Sermon, 'confidence' => 'high'],
         ]);
 
         $incomingItems = [
             ['position' => 1, 'type' => 'songs', 'title' => 'Different Song', 'source_title' => null, 'openlp_search_title' => 'different@', 'song_id' => null, 'metadata' => null],
-            ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
+            ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::Prayer->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
         $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
@@ -173,14 +173,14 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
     {
         $churchService = $this->createLivestreamService([
             ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high'],
-            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::SERMON, 'confidence' => 'high'],
+            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::Sermon, 'confidence' => 'high'],
         ]);
 
         $originalItems = $churchService->items()->orderBy('position')->get();
 
         $incomingItems = [
             ['position' => 1, 'type' => 'songs', 'title' => 'Different Song', 'source_title' => null, 'openlp_search_title' => 'different@', 'song_id' => null, 'metadata' => null],
-            ['position' => 2, 'type' => 'custom', 'title' => 'Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
+            ['position' => 2, 'type' => 'custom', 'title' => 'Prayer', 'section_type' => ServiceSectionType::Prayer->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
         $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
@@ -244,12 +244,12 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
     {
         $churchService = $this->createLivestreamService([
             ['type' => 'songs', 'title' => 'Song A', 'confidence' => 'high'],
-            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::SERMON, 'confidence' => 'high'],
+            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::Sermon, 'confidence' => 'high'],
         ]);
 
         $incomingItems = [
             ['position' => 1, 'type' => 'songs', 'title' => 'Different Song', 'source_title' => null, 'openlp_search_title' => 'different@', 'song_id' => null, 'metadata' => null],
-            ['position' => 2, 'type' => 'custom', 'title' => 'Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
+            ['position' => 2, 'type' => 'custom', 'title' => 'Prayer', 'section_type' => ServiceSectionType::Prayer->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
         ];
 
         $result = $this->service->merge($churchService, $incomingItems, ChurchServiceItemSource::OpenLp);
@@ -287,8 +287,8 @@ class ChurchServiceStructureMergeServiceTest extends TestCase
 
             if ($sectionType === null) {
                 $sectionType = match ($item['type']) {
-                    'songs' => ServiceSectionType::SONG,
-                    'bibles' => ServiceSectionType::BIBLE_READING,
+                    'songs' => ServiceSectionType::Song,
+                    'bibles' => ServiceSectionType::BibleReading,
                     default => ServiceSectionType::inferFromTitle($item['title']),
                 };
             }

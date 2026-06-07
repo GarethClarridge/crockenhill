@@ -124,7 +124,7 @@ class ChurchServiceFormData extends Form
             return;
         }
 
-        $this->items[$index]['section_type'] = ServiceSectionType::SONG->value;
+        $this->items[$index]['section_type'] = ServiceSectionType::Song->value;
         $this->items[$index]['title'] = $song->title;
         $this->items[$index]['song_id'] = $song->id;
     }
@@ -139,7 +139,7 @@ class ChurchServiceFormData extends Form
             return;
         }
 
-        if ($field === 'section_type' && $this->items[$index]['section_type'] !== ServiceSectionType::SONG->value) {
+        if ($field === 'section_type' && $this->items[$index]['section_type'] !== ServiceSectionType::Song->value) {
             $this->items[$index]['song_id'] = null;
         }
 
@@ -178,8 +178,8 @@ class ChurchServiceFormData extends Form
         foreach (array_values($this->items) as $index => $item) {
             $sectionType = ServiceSectionType::from((string) $item['section_type']);
             $storageType = match ($sectionType) {
-                ServiceSectionType::SONG => 'songs',
-                ServiceSectionType::BIBLE_READING => 'bibles',
+                ServiceSectionType::Song => 'songs',
+                ServiceSectionType::BibleReading => 'bibles',
                 default => 'custom',
             };
             $songId = is_numeric($item['song_id'] ?? null) ? (int) $item['song_id'] : null;
@@ -215,7 +215,7 @@ class ChurchServiceFormData extends Form
             $title = trim($item['title']);
             $escapedTitle = $this->escapeLike($title);
 
-            if ($item['section_type'] !== ServiceSectionType::SONG->value || mb_strlen($title) < 2) {
+            if ($item['section_type'] !== ServiceSectionType::Song->value || mb_strlen($title) < 2) {
                 $suggestions[$index] = [];
 
                 continue;
@@ -313,7 +313,7 @@ class ChurchServiceFormData extends Form
     {
         return [
             'key' => (string) Str::uuid(),
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'title' => '',
             'song_id' => null,
         ];

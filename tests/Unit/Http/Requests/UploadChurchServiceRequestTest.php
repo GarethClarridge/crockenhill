@@ -88,7 +88,7 @@ class UploadChurchServiceRequestTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $token = $user->createToken('missing-ability', [ApiTokenAbility::MEDIA_PROCESS->value]);
+        $token = $user->createToken('missing-ability', [ApiTokenAbility::MediaProcess->value]);
         $requestUser = $user->withAccessToken($token->accessToken);
         $request = $this->makeRequest($requestUser, $token->plainTextToken);
 
@@ -103,7 +103,7 @@ class UploadChurchServiceRequestTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $token = $user->createToken('service-upload', [ApiTokenAbility::SERVICE_UPLOAD->value]);
+        $token = $user->createToken('service-upload', [ApiTokenAbility::ServiceUpload->value]);
         $requestUser = $user->withAccessToken($token->accessToken);
         $request = $this->makeRequest($requestUser, $token->plainTextToken);
 

@@ -98,13 +98,13 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         /** @var EloquentCollection<int, ServiceSection> $sections */
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $this->processingLog->id)
-            ->where('section_type', ServiceSectionType::SONG->value)
+            ->where('section_type', ServiceSectionType::Song->value)
             ->orderBy('section_order')
             ->orderBy('id')
             ->get();
 
         $unmatchedSongs = $sections->filter(
-            fn (ServiceSection $s): bool => ($s->song_match_type === ServiceSectionSongMatchType::UNMATCHED || $s->song_match_type === null)
+            fn (ServiceSection $s): bool => ($s->song_match_type === ServiceSectionSongMatchType::Unmatched || $s->song_match_type === null)
         );
 
         if ($unmatchedSongs->isEmpty()) {
@@ -395,7 +395,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 unset($metadataArray['review_reason']);
             }
 
-            $section->song_match_type = ServiceSectionSongMatchType::INFERRED;
+            $section->song_match_type = ServiceSectionSongMatchType::Inferred;
             $section->needs_manual_review = $reviewFlags !== [];
             $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
             $section->save();
@@ -440,8 +440,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         DB::transaction(function () use ($freshSections, $unmatchedSongApplicator, $reviewSynchronizer, $churchService): void {
             // Collect IDs of all song sections that now have a confirmed or inferred match.
             $matchedIds = $freshSections
-                ->filter(fn (ServiceSection $s): bool => $s->section_type === ServiceSectionType::SONG
-                    && in_array($s->song_match_type, [ServiceSectionSongMatchType::CONFIRMED, ServiceSectionSongMatchType::INFERRED], true)
+                ->filter(fn (ServiceSection $s): bool => $s->section_type === ServiceSectionType::Song
+                    && in_array($s->song_match_type, [ServiceSectionSongMatchType::Confirmed, ServiceSectionSongMatchType::Inferred], true)
                 )
                 ->pluck('id')
                 ->values()

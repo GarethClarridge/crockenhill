@@ -23,8 +23,8 @@ class MediaProcessingAccess
             return 'Unauthorized action.';
         }
 
-        if ($request->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::MEDIA_PROCESS->value)) {
-            return 'Missing required token ability: '.ApiTokenAbility::MEDIA_PROCESS->value;
+        if ($request->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::MediaProcess->value)) {
+            return 'Missing required token ability: '.ApiTokenAbility::MediaProcess->value;
         }
 
         return null;

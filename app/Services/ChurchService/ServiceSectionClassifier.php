@@ -139,7 +139,7 @@ class ServiceSectionClassifier
                 $sections[] = $this->makeAudioOnlySection(
                     $segment,
                     $sectionOrder,
-                    ServiceSectionType::SONG,
+                    ServiceSectionType::Song,
                     'low',
                     true,
                     'audio_only_song_segment'
@@ -152,7 +152,7 @@ class ServiceSectionClassifier
                 $sections[] = $this->makeAudioOnlySection(
                     $segment,
                     $sectionOrder,
-                    ServiceSectionType::SERMON,
+                    ServiceSectionType::Sermon,
                     'high',
                     false,
                     null,
@@ -165,7 +165,7 @@ class ServiceSectionClassifier
             $sections[] = $this->makeAudioOnlySection(
                 $segment,
                 $sectionOrder,
-                ServiceSectionType::OTHER,
+                ServiceSectionType::Other,
                 'low',
                 true,
                 $sermonSegmentId === null ? 'no_high_confidence_sermon_candidate' : 'audio_only_speech_segment'

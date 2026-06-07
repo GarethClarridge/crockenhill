@@ -71,7 +71,7 @@ class ServiceSectionClassifierTest extends TestCase
         $this->assertCount(3, $result['sections']);
 
         $this->assertNull($result['sections'][0]['church_service_item_id']);
-        $this->assertSame(ServiceSectionType::OTHER->value, $result['sections'][0]['section_type']);
+        $this->assertSame(ServiceSectionType::Other->value, $result['sections'][0]['section_type']);
         $this->assertSame([$introSpeech->id], $result['sections'][0]['source_segment_ids']);
         $this->assertTrue($result['sections'][0]['needs_manual_review']);
         $this->assertSame('low', $result['sections'][0]['metadata']['confidence_level']);
@@ -79,14 +79,14 @@ class ServiceSectionClassifierTest extends TestCase
         $this->assertSame('audio_only_speech_segment', $result['sections'][0]['metadata']['review_reason']);
 
         $this->assertNull($result['sections'][1]['church_service_item_id']);
-        $this->assertSame(ServiceSectionType::SONG->value, $result['sections'][1]['section_type']);
+        $this->assertSame(ServiceSectionType::Song->value, $result['sections'][1]['section_type']);
         $this->assertSame([$song->id], $result['sections'][1]['source_segment_ids']);
         $this->assertTrue($result['sections'][1]['needs_manual_review']);
         $this->assertSame('low', $result['sections'][1]['metadata']['confidence_level']);
         $this->assertSame('audio_only', $result['sections'][1]['metadata']['classification_mode']);
 
         $this->assertNull($result['sections'][2]['church_service_item_id']);
-        $this->assertSame(ServiceSectionType::SERMON->value, $result['sections'][2]['section_type']);
+        $this->assertSame(ServiceSectionType::Sermon->value, $result['sections'][2]['section_type']);
         $this->assertSame([$sermon->id], $result['sections'][2]['source_segment_ids']);
         $this->assertFalse($result['sections'][2]['needs_manual_review']);
         $this->assertSame('high', $result['sections'][2]['metadata']['confidence_level']);
@@ -163,19 +163,19 @@ class ServiceSectionClassifierTest extends TestCase
         $this->assertCount(3, $result['sections']);
 
         $this->assertNull($result['sections'][0]['church_service_item_id']);
-        $this->assertSame(ServiceSectionType::SONG->value, $result['sections'][0]['section_type']);
+        $this->assertSame(ServiceSectionType::Song->value, $result['sections'][0]['section_type']);
         $this->assertSame(ServiceSectionStatus::Identified->value, $result['sections'][0]['status']);
         $this->assertTrue($result['sections'][0]['needs_manual_review']);
         $this->assertSame([$segmentOne->id], $result['sections'][0]['source_segment_ids']);
         $this->assertSame('low', $result['sections'][0]['metadata']['confidence_level']);
 
         $this->assertNull($result['sections'][1]['church_service_item_id']);
-        $this->assertSame(ServiceSectionType::OTHER->value, $result['sections'][1]['section_type']);
+        $this->assertSame(ServiceSectionType::Other->value, $result['sections'][1]['section_type']);
         $this->assertSame([$segmentTwo->id], $result['sections'][1]['source_segment_ids']);
         $this->assertSame('low', $result['sections'][1]['metadata']['confidence_level']);
 
         $this->assertNull($result['sections'][2]['church_service_item_id']);
-        $this->assertSame(ServiceSectionType::SONG->value, $result['sections'][2]['section_type']);
+        $this->assertSame(ServiceSectionType::Song->value, $result['sections'][2]['section_type']);
         $this->assertSame([$segmentThree->id], $result['sections'][2]['source_segment_ids']);
         $this->assertSame('low', $result['sections'][2]['metadata']['confidence_level']);
     }
@@ -193,7 +193,7 @@ class ServiceSectionClassifierTest extends TestCase
             'position' => 1,
             'type' => 'custom',
             'title' => 'Ministry Moment',
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
@@ -213,7 +213,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $this->assertCount(1, $result['sections']);
         $this->assertNull($result['sections'][0]['church_service_item_id']);
-        $this->assertSame(ServiceSectionType::OTHER->value, $result['sections'][0]['section_type']);
+        $this->assertSame(ServiceSectionType::Other->value, $result['sections'][0]['section_type']);
         $this->assertSame([$segment->id], $result['sections'][0]['source_segment_ids']);
         $this->assertSame($churchService->id, $processingLog->fresh()->church_service_id);
     }
@@ -401,7 +401,7 @@ class ServiceSectionClassifierTest extends TestCase
         $this->assertCount(2, $result['sections']);
 
         foreach ($result['sections'] as $section) {
-            $this->assertSame(ServiceSectionType::OTHER->value, $section['section_type']);
+            $this->assertSame(ServiceSectionType::Other->value, $section['section_type']);
             $this->assertTrue($section['needs_manual_review']);
             $this->assertSame('low', $section['metadata']['confidence_level']);
             $this->assertSame('no_high_confidence_sermon_candidate', $section['metadata']['review_reason']);
@@ -438,7 +438,7 @@ class ServiceSectionClassifierTest extends TestCase
         $this->assertCount(2, $result['sections']);
 
         foreach ($result['sections'] as $section) {
-            $this->assertSame(ServiceSectionType::OTHER->value, $section['section_type']);
+            $this->assertSame(ServiceSectionType::Other->value, $section['section_type']);
             $this->assertTrue($section['needs_manual_review']);
             $this->assertSame('low', $section['metadata']['confidence_level']);
             $this->assertSame('no_high_confidence_sermon_candidate', $section['metadata']['review_reason']);
@@ -477,7 +477,7 @@ class ServiceSectionClassifierTest extends TestCase
         $this->assertCount(2, $result['sections']);
 
         foreach ($result['sections'] as $section) {
-            $this->assertSame(ServiceSectionType::OTHER->value, $section['section_type']);
+            $this->assertSame(ServiceSectionType::Other->value, $section['section_type']);
             $this->assertTrue($section['needs_manual_review']);
             $this->assertSame('low', $section['metadata']['confidence_level']);
             $this->assertSame('no_high_confidence_sermon_candidate', $section['metadata']['review_reason']);

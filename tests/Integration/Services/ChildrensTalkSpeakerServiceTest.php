@@ -33,7 +33,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
         ]);
 
         app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
@@ -58,7 +58,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'extracted_audio_path' => 'sections/talk.mp3',
             'duration' => 120,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
@@ -83,7 +83,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'extracted_audio_path' => null,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
@@ -127,7 +127,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'extracted_audio_path' => 'sections/talk.mp3',
             'duration' => 120,
             'needs_manual_review' => false,
@@ -166,7 +166,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'extracted_audio_path' => 'sections/talk.mp3',
             'duration' => 120,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
@@ -190,7 +190,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'needs_manual_review' => true,
             'metadata' => [
                 'confidence_level' => 'low',
@@ -217,7 +217,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'needs_manual_review' => true,
             'metadata' => ['confidence_level' => 'low', 'classification_mode' => 'audio_only'],
         ]);
@@ -241,7 +241,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'needs_manual_review' => true,
             'metadata' => ['confidence_level' => 'low', 'classification_mode' => 'audio_only'],
         ]);
@@ -261,7 +261,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'needs_manual_review' => false,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);

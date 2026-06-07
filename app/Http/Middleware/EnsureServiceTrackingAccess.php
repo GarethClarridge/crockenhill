@@ -26,8 +26,8 @@ class EnsureServiceTrackingAccess
             abort(403, 'Your email address is not verified.');
         }
 
-        if ($request->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::SERVICE_UPLOAD->value)) {
-            abort(403, 'Missing required token ability: '.ApiTokenAbility::SERVICE_UPLOAD->value);
+        if ($request->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::ServiceUpload->value)) {
+            abort(403, 'Missing required token ability: '.ApiTokenAbility::ServiceUpload->value);
         }
 
         return $next($request);

@@ -156,7 +156,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
             return false;
         }
 
-        if (in_array($section->section_type, [ServiceSectionType::SONG, ServiceSectionType::SERMON], true)) {
+        if (in_array($section->section_type, [ServiceSectionType::Song, ServiceSectionType::Sermon], true)) {
             return false;
         }
 
@@ -237,7 +237,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 
         $needsManualReview = $classifiedSection['needs_manual_review'];
 
-        if ($sectionType === ServiceSectionType::SERMON && $originalSection->section_type !== ServiceSectionType::SERMON) {
+        if ($sectionType === ServiceSectionType::Sermon && $originalSection->section_type !== ServiceSectionType::Sermon) {
             $needsManualReview = true;
             $metadata['review_reason'] = 'secondary_sermon_candidate';
         }
@@ -299,7 +299,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
     private function buildServiceContext(array $sections): array
     {
         foreach ($sections as $section) {
-            if ($section->section_type === ServiceSectionType::SERMON) {
+            if ($section->section_type === ServiceSectionType::Sermon) {
                 return [
                     'sermon_count' => 1,
                     'sermon_duration_seconds' => max(0.0, (float) $section->end_time - (float) $section->start_time),
@@ -329,7 +329,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         $sermonIndices = [];
 
         foreach ($sections as $index => $section) {
-            if ($section['section_type'] === ServiceSectionType::SERMON->value) {
+            if ($section['section_type'] === ServiceSectionType::Sermon->value) {
                 $sermonIndices[] = $index;
             }
         }
@@ -374,7 +374,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
     {
         return [
             'church_service_item_id' => $section['church_service_item_id'],
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'section_order' => $section['section_order'],
             'title' => $section['title'],
             'start_time' => $section['start_time'],
@@ -388,7 +388,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
                 'confidence_level' => 'high',
                 'review_reason' => 'demoted_secondary_sermon_to_childrens_talk',
                 'review_flags' => ['heuristic_demotion'],
-                'original_ai_classification' => ServiceSectionType::SERMON->value,
+                'original_ai_classification' => ServiceSectionType::Sermon->value,
             ]),
         ];
     }
@@ -457,7 +457,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         while ($index < $count) {
             $current = $sections[$index];
 
-            if ($current['section_type'] === ServiceSectionType::SERMON->value) {
+            if ($current['section_type'] === ServiceSectionType::Sermon->value) {
                 $merged = $current;
                 $scanIndex = $index + 1;
                 $foldedSongSections = is_array($merged['metadata']['folded_song_sections'] ?? null)
@@ -472,7 +472,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 
                     while (
                         $scanIndex < $count
-                        && $sections[$scanIndex]['section_type'] === ServiceSectionType::SONG->value
+                        && $sections[$scanIndex]['section_type'] === ServiceSectionType::Song->value
                         && (float) $sections[$scanIndex]['duration'] < $maxSongSeconds
                     ) {
                         $songCluster[] = $sections[$scanIndex];
@@ -486,7 +486,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 
                     $followingSermon = $sections[$scanIndex];
 
-                    if ($followingSermon['section_type'] !== ServiceSectionType::SERMON->value) {
+                    if ($followingSermon['section_type'] !== ServiceSectionType::Sermon->value) {
                         break;
                     }
 
@@ -494,7 +494,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
                     $foldedSongDuration += $songClusterDuration;
 
                     foreach ($songCluster as $songSection) {
-                        $foldedSongSections[] = $songSection['title'] ?? ServiceSectionType::SONG->label();
+                        $foldedSongSections[] = $songSection['title'] ?? ServiceSectionType::Song->label();
                     }
 
                     $merged['end_time'] = (float) $followingSermon['end_time'];
@@ -600,7 +600,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
                 $contiguous = $gap <= $maxGap;
 
                 if ($sameType && $contiguous) {
-                    $isChildrensTalk = $current['section_type'] === ServiceSectionType::CHILDRENS_TALK->value;
+                    $isChildrensTalk = $current['section_type'] === ServiceSectionType::ChildrensTalk->value;
                     $shortEnough = min((float) $current['duration'], (float) $next['duration']) < $minDuration;
 
                     if ($isChildrensTalk || $shortEnough) {

@@ -145,8 +145,8 @@ class OosAlignmentService
         ];
 
         $eligiblePrecedingTypes = [
-            ServiceSectionType::BIBLE_READING->value,
-            ServiceSectionType::OTHER->value,
+            ServiceSectionType::BibleReading->value,
+            ServiceSectionType::Other->value,
         ];
 
         foreach ($sections as $index => $section) {

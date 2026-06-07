@@ -163,7 +163,7 @@ class ServiceSection extends Model
             'end_time' => (float) $this->end_time,
         ];
 
-        if ($this->section_type === ServiceSectionType::CHILDRENS_TALK) {
+        if ($this->section_type === ServiceSectionType::ChildrensTalk) {
             $payload['publication_speaker'] = $this->publicationSpeakerSignaturePayload();
         }
 
@@ -182,17 +182,17 @@ class ServiceSection extends Model
 
     public function hasConfirmedSongMatch(): bool
     {
-        return $this->song_match_type === ServiceSectionSongMatchType::CONFIRMED;
+        return $this->song_match_type === ServiceSectionSongMatchType::Confirmed;
     }
 
     public function hasInferredSongMatch(): bool
     {
-        return $this->song_match_type === ServiceSectionSongMatchType::INFERRED;
+        return $this->song_match_type === ServiceSectionSongMatchType::Inferred;
     }
 
     public function hasUnmatchedSongMatch(): bool
     {
-        return $this->song_match_type === ServiceSectionSongMatchType::UNMATCHED;
+        return $this->song_match_type === ServiceSectionSongMatchType::Unmatched;
     }
 
     /**
@@ -231,7 +231,7 @@ class ServiceSection extends Model
 
     public function hasResolvedChildrensTalkSpeaker(): bool
     {
-        return $this->section_type !== ServiceSectionType::CHILDRENS_TALK
+        return $this->section_type !== ServiceSectionType::ChildrensTalk
             || $this->publicationChildrensTalkSpeaker() !== null;
     }
 

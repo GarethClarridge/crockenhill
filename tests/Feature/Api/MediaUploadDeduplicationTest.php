@@ -547,7 +547,7 @@ class MediaUploadDeduplicationTest extends TestCase
 
     private function tokenFor(User $user): string
     {
-        return $user->createToken('test', [ApiTokenAbility::MEDIA_PROCESS->value])
+        return $user->createToken('test', [ApiTokenAbility::MediaProcess->value])
             ->plainTextToken;
     }
 }

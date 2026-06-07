@@ -231,7 +231,7 @@ class ServiceReviewDashboardQuery
         }
 
         if (
-            $section->section_type === ServiceSectionType::CHILDRENS_TALK
+            $section->section_type === ServiceSectionType::ChildrensTalk
             && $section->publicationChildrensTalkSpeaker() === null
             && $section->predictedChildrensTalkSpeaker() !== null
         ) {
@@ -324,7 +324,7 @@ class ServiceReviewDashboardQuery
                     ->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
                     ->orWhere('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD)
                     ->orWhere(function (Builder $query): void {
-                        $query->where('section_type', ServiceSectionType::SONG->value)
+                        $query->where('section_type', ServiceSectionType::Song->value)
                             ->where(function (Builder $query): void {
                                 $query->whereNull('church_service_item_id')
                                     ->orWhereHas('churchServiceItem', fn (Builder $query): Builder => $query->whereNull('song_id'));

@@ -36,7 +36,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $introSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 103.0,
@@ -45,7 +45,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 300.0,
             'end_time' => 600.0,
@@ -56,10 +56,10 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $introSection->refresh();
 
-        $this->assertEquals(ServiceSectionType::OTHER->value, $introSection->section_type->value);
+        $this->assertEquals(ServiceSectionType::Other->value, $introSection->section_type->value);
         $this->assertTrue($introSection->needs_manual_review);
         $this->assertEquals('possible_musical_intro', $introSection->metadata['review_reason']);
-        $this->assertEquals(ServiceSectionType::SONG->value, $introSection->metadata['original_section_type']);
+        $this->assertEquals(ServiceSectionType::Song->value, $introSection->metadata['original_section_type']);
     }
 
     #[Test]
@@ -69,18 +69,18 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $matchedIntro = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 103.0,
-            'song_match_type' => ServiceSectionSongMatchType::INFERRED,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred,
         ]);
 
         (new ReclassifyIntroOutroSections($log))->handle();
 
         $matchedIntro->refresh();
 
-        $this->assertEquals(ServiceSectionType::SONG->value, $matchedIntro->section_type->value);
+        $this->assertEquals(ServiceSectionType::Song->value, $matchedIntro->section_type->value);
     }
 
     #[Test]
@@ -90,7 +90,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $openingSong = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'start_time' => 300.0,
             'end_time' => 600.0,
@@ -101,7 +101,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $openingSong->refresh();
 
-        $this->assertEquals(ServiceSectionType::SONG->value, $openingSong->section_type->value);
+        $this->assertEquals(ServiceSectionType::Song->value, $openingSong->section_type->value);
     }
 
     // ---- Outro detection ----
@@ -113,7 +113,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'start_time' => 300.0,
             'end_time' => 600.0,
@@ -122,7 +122,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $outroSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 4129.0,
             'end_time' => 4142.0,
@@ -133,10 +133,10 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $outroSection->refresh();
 
-        $this->assertEquals(ServiceSectionType::OTHER->value, $outroSection->section_type->value);
+        $this->assertEquals(ServiceSectionType::Other->value, $outroSection->section_type->value);
         $this->assertTrue($outroSection->needs_manual_review);
         $this->assertEquals('possible_musical_outro', $outroSection->metadata['review_reason']);
-        $this->assertEquals(ServiceSectionType::SONG->value, $outroSection->metadata['original_section_type']);
+        $this->assertEquals(ServiceSectionType::Song->value, $outroSection->metadata['original_section_type']);
     }
 
     #[Test]
@@ -146,7 +146,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $longOutro = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'start_time' => 4000.0,
             'end_time' => 4190.0,
@@ -157,7 +157,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $longOutro->refresh();
 
-        $this->assertEquals(ServiceSectionType::SONG->value, $longOutro->section_type->value);
+        $this->assertEquals(ServiceSectionType::Song->value, $longOutro->section_type->value);
     }
 
     #[Test]
@@ -167,7 +167,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $midSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'start_time' => 3500.0,
             'end_time' => 3550.0,
@@ -178,7 +178,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $midSection->refresh();
 
-        $this->assertEquals(ServiceSectionType::SONG->value, $midSection->section_type->value);
+        $this->assertEquals(ServiceSectionType::Song->value, $midSection->section_type->value);
     }
 
     #[Test]
@@ -188,18 +188,18 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $matchedOutro = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'start_time' => 4129.0,
             'end_time' => 4142.0,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
         ]);
 
         (new ReclassifyIntroOutroSections($log))->handle();
 
         $matchedOutro->refresh();
 
-        $this->assertEquals(ServiceSectionType::SONG->value, $matchedOutro->section_type->value);
+        $this->assertEquals(ServiceSectionType::Song->value, $matchedOutro->section_type->value);
     }
 
     // ---- Skip conditions ----
@@ -211,7 +211,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'start_time' => 0.0,
             'end_time' => 103.0,
             'song_match_type' => null,
@@ -221,7 +221,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $section->refresh();
 
-        $this->assertEquals(ServiceSectionType::SONG->value, $section->section_type->value);
+        $this->assertEquals(ServiceSectionType::Song->value, $section->section_type->value);
     }
 
     #[Test]
@@ -231,7 +231,7 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'start_time' => 0.0,
             'end_time' => 103.0,
             'song_match_type' => null,
@@ -241,6 +241,6 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
 
         $section->refresh();
 
-        $this->assertEquals(ServiceSectionType::SONG->value, $section->section_type->value);
+        $this->assertEquals(ServiceSectionType::Song->value, $section->section_type->value);
     }
 }

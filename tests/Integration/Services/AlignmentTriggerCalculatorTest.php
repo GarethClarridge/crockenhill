@@ -103,7 +103,7 @@ class AlignmentTriggerCalculatorTest extends TestCase
     public function it_triggers_unmatched_song_sections_when_the_passed_collection_is_non_empty(): void
     {
         $unmatchedSection = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
         ]);
 
         $triggers = $this->calculator->calculate(

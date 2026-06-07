@@ -28,13 +28,13 @@ class ServiceFlowBuilderTest extends TestCase
         $run = $this->createRun();
 
         $rows = [
-            $this->makeRow(['section_type' => ServiceSectionType::SONG]),
-            $this->makeRow(['section_type' => ServiceSectionType::SERMON]),
-            $this->makeRow(['section_type' => ServiceSectionType::CHILDRENS_TALK]),
-            $this->makeRow(['section_type' => ServiceSectionType::BIBLE_READING]),
-            $this->makeRow(['section_type' => ServiceSectionType::PRAYER]),
-            $this->makeRow(['section_type' => ServiceSectionType::WELCOME]),
-            $this->makeRow(['section_type' => ServiceSectionType::NOTICES]),
+            $this->makeRow(['section_type' => ServiceSectionType::Song]),
+            $this->makeRow(['section_type' => ServiceSectionType::Sermon]),
+            $this->makeRow(['section_type' => ServiceSectionType::ChildrensTalk]),
+            $this->makeRow(['section_type' => ServiceSectionType::BibleReading]),
+            $this->makeRow(['section_type' => ServiceSectionType::Prayer]),
+            $this->makeRow(['section_type' => ServiceSectionType::Welcome]),
+            $this->makeRow(['section_type' => ServiceSectionType::Notices]),
         ];
 
         $flow = ServiceFlowBuilder::build($rows, $run);
@@ -70,7 +70,7 @@ class ServiceFlowBuilderTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME,
+            'section_type' => ServiceSectionType::Welcome,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 60.0,
@@ -79,7 +79,7 @@ class ServiceFlowBuilderTest extends TestCase
 
         $run->load('serviceSections');
 
-        $row = $this->makeRow(['section_id' => $section->id, 'section_type' => ServiceSectionType::WELCOME]);
+        $row = $this->makeRow(['section_id' => $section->id, 'section_type' => ServiceSectionType::Welcome]);
         $flow = ServiceFlowBuilder::build([$row], $run);
 
         $this->assertSame('Welcomes congregation', $flow[0]['description']);
@@ -93,7 +93,7 @@ class ServiceFlowBuilderTest extends TestCase
         $longNote = str_repeat('A', 130);
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::PRAYER,
+            'section_type' => ServiceSectionType::Prayer,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 60.0,
@@ -102,7 +102,7 @@ class ServiceFlowBuilderTest extends TestCase
 
         $run->load('serviceSections');
 
-        $row = $this->makeRow(['section_id' => $section->id, 'section_type' => ServiceSectionType::PRAYER]);
+        $row = $this->makeRow(['section_id' => $section->id, 'section_type' => ServiceSectionType::Prayer]);
         $flow = ServiceFlowBuilder::build([$row], $run);
 
         $this->assertSame(120, mb_strlen($flow[0]['description']));
@@ -116,7 +116,7 @@ class ServiceFlowBuilderTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::PRAYER,
+            'section_type' => ServiceSectionType::Prayer,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 60.0,
@@ -125,7 +125,7 @@ class ServiceFlowBuilderTest extends TestCase
 
         $run->load('serviceSections');
 
-        $row = $this->makeRow(['section_id' => $section->id, 'section_type' => ServiceSectionType::PRAYER]);
+        $row = $this->makeRow(['section_id' => $section->id, 'section_type' => ServiceSectionType::Prayer]);
         $flow = ServiceFlowBuilder::build([$row], $run);
 
         $this->assertSame('Let us pray together', $flow[0]['description']);
@@ -153,8 +153,8 @@ class ServiceFlowBuilderTest extends TestCase
         $run = $this->createRun();
 
         $row = $this->makeRow([
-            'section_type' => ServiceSectionType::SONG,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched,
             'song_title' => null,
         ]);
 
@@ -190,8 +190,8 @@ class ServiceFlowBuilderTest extends TestCase
         $row = $this->makeRow([
             'row_type' => 'mismatched',
             'planned_title' => 'Prayer',
-            'expected_section_type' => ServiceSectionType::PRAYER,
-            'section_type' => ServiceSectionType::WELCOME,
+            'expected_section_type' => ServiceSectionType::Prayer,
+            'section_type' => ServiceSectionType::Welcome,
         ]);
 
         $flow = ServiceFlowBuilder::build([$row], $run);
@@ -270,7 +270,7 @@ class ServiceFlowBuilderTest extends TestCase
         $run = $this->createRun();
 
         $row = $this->makeRow([
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'song_title' => 'Though the Nations Rage',
         ]);
 
@@ -286,7 +286,7 @@ class ServiceFlowBuilderTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'start_time' => 60.0,
             'end_time' => 300.0,
@@ -297,7 +297,7 @@ class ServiceFlowBuilderTest extends TestCase
 
         $row = $this->makeRow([
             'section_id' => $section->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'song_title' => null,
         ]);
 
@@ -317,7 +317,7 @@ class ServiceFlowBuilderTest extends TestCase
             'ai_analysis' => ['title' => '2 Peter 1 — Stirred up by reminder'],
         ]);
 
-        $row = $this->makeRow(['section_type' => ServiceSectionType::SERMON]);
+        $row = $this->makeRow(['section_type' => ServiceSectionType::Sermon]);
         $flow = ServiceFlowBuilder::build([$row], $run);
 
         $this->assertSame('2 Peter 1 — Stirred up by reminder', $flow[0]['title_suffix']);
@@ -381,7 +381,7 @@ class ServiceFlowBuilderTest extends TestCase
         $run = $this->createRun();
 
         $row = $this->makeRow([
-            'section_type' => ServiceSectionType::SERMON,
+            'section_type' => ServiceSectionType::Sermon,
             'publication_status' => ServiceSectionPublicationStatus::Published,
         ]);
 
@@ -410,7 +410,7 @@ class ServiceFlowBuilderTest extends TestCase
         return array_merge([
             'row_type' => 'unplanned',
             'section_id' => null,
-            'section_type' => ServiceSectionType::PRAYER,
+            'section_type' => ServiceSectionType::Prayer,
             'item_type' => null,
             'start_time' => 60.0,
             'end_time' => 180.0,

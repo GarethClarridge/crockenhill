@@ -56,7 +56,7 @@ class SongSectionAlignerTest extends TestCase
 
         $firstSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'Amazing Grace',
             'confidence' => 0.5,
@@ -65,7 +65,7 @@ class SongSectionAlignerTest extends TestCase
 
         $secondSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'title' => 'Amazing Grace',
             'confidence' => 0.5,
@@ -111,7 +111,7 @@ class SongSectionAlignerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'Be Thou My Vision',
             'confidence' => 0.5,
@@ -122,7 +122,7 @@ class SongSectionAlignerTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         $this->assertSame($song->id, $section->metadata['song_id'] ?? null);
         $this->assertGreaterThanOrEqual(ServiceSectionConfidence::HIGH_THRESHOLD, $section->confidence);
@@ -159,7 +159,7 @@ class SongSectionAlignerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -170,7 +170,7 @@ class SongSectionAlignerTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         $this->assertNull($section->metadata['song_id'] ?? null);
         $this->assertLessThanOrEqual(0.84, $section->confidence);
@@ -207,7 +207,7 @@ class SongSectionAlignerTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.9,
@@ -252,7 +252,7 @@ class SongSectionAlignerTest extends TestCase
         // baseline restore, but the title will still produce a confirmed match.
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'O Praise the Name',
             'confidence' => 0.5,
@@ -268,7 +268,7 @@ class SongSectionAlignerTest extends TestCase
 
         $this->assertSame(1, $result['matched_song_sections']);
         $this->assertSame($item->id, $section->church_service_item_id);
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         // song_id is re-written from item.song_id after a confirmed match
         $this->assertSame($song->id, $section->metadata['song_id'] ?? null);
@@ -304,7 +304,7 @@ class SongSectionAlignerTest extends TestCase
         // Section has no title but carries a song_title_hint from SongTitleHintExtractor.
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -318,7 +318,7 @@ class SongSectionAlignerTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertSame($item->id, $section->church_service_item_id);
         $this->assertSame($song->id, $section->metadata['song_id'] ?? null);
         $this->assertGreaterThanOrEqual(ServiceSectionConfidence::HIGH_THRESHOLD, $section->confidence);

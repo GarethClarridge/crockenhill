@@ -132,8 +132,8 @@ class PrefillChurchServiceFromInboundEmail
         }
 
         return match ($item['type'] ?? null) {
-            'songs' => ServiceSectionType::SONG,
-            'bibles' => ServiceSectionType::BIBLE_READING,
+            'songs' => ServiceSectionType::Song,
+            'bibles' => ServiceSectionType::BibleReading,
             default => ServiceSectionType::inferFromTitle((string) ($item['title'] ?? '')),
         };
     }

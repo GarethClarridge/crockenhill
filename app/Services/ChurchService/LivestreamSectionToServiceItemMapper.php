@@ -21,7 +21,7 @@ class LivestreamSectionToServiceItemMapper
      * @var list<ServiceSectionType>
      */
     private const array EXCLUDED_SECTION_TYPES = [
-        ServiceSectionType::OTHER,
+        ServiceSectionType::Other,
     ];
 
     /**
@@ -75,8 +75,8 @@ class LivestreamSectionToServiceItemMapper
     private function resolveItemType(ServiceSectionType $sectionType): string
     {
         return match ($sectionType) {
-            ServiceSectionType::SONG => 'songs',
-            ServiceSectionType::BIBLE_READING => 'bibles',
+            ServiceSectionType::Song => 'songs',
+            ServiceSectionType::BibleReading => 'bibles',
             default => 'custom',
         };
     }
@@ -88,7 +88,7 @@ class LivestreamSectionToServiceItemMapper
         }
 
         $hint = $section->metadata['song_title_hint'] ?? null;
-        if ($section->section_type === ServiceSectionType::SONG && is_string($hint) && trim($hint) !== '') {
+        if ($section->section_type === ServiceSectionType::Song && is_string($hint) && trim($hint) !== '') {
             return trim($hint);
         }
 

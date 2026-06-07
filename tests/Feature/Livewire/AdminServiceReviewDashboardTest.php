@@ -65,7 +65,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $songItem->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'title' => 'Unknown Song',
             'needs_manual_review' => true,
             'confidence' => 0.72,
@@ -129,7 +129,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $confirmedItem->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'Confirmed Song',
             'confidence' => 0.72,
@@ -144,7 +144,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $inferredItem->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'title' => 'Inferred Song',
             'needs_manual_review' => true,
@@ -176,7 +176,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $existingSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 1,
             'title' => 'Existing review row',
             'needs_manual_review' => true,
@@ -189,7 +189,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $newSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 2,
             'title' => 'New review row',
             'needs_manual_review' => true,
@@ -218,7 +218,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $approveSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 1,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
@@ -227,7 +227,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $rejectSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
@@ -311,18 +311,18 @@ class AdminServiceReviewDashboardTest extends TestCase
             'needs_manual_review' => false,
             'confidence' => 0.98,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
         ]);
 
         Livewire::test(ServiceReviewDashboard::class)
-            ->set("sectionEdits.{$section->id}.section_type", ServiceSectionType::PRAYER->value)
+            ->set("sectionEdits.{$section->id}.section_type", ServiceSectionType::Prayer->value)
             ->set("sectionEdits.{$section->id}.title", 'Updated Title')
             ->call('saveSection', $section->id)
             ->assertDispatched('notify', type: 'error', message: 'Section is no longer awaiting review.');
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionType::WELCOME, $section->section_type);
+        $this->assertSame(ServiceSectionType::Welcome, $section->section_type);
         $this->assertNotSame('Updated Title', $section->title);
     }
 
@@ -367,7 +367,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'needs_manual_review' => true,
             'start_time' => 100.0,
@@ -378,7 +378,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'needs_manual_review' => true,
             'start_time' => 107.0,
@@ -403,7 +403,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'needs_manual_review' => true,
             'start_time' => 0.0,
@@ -414,7 +414,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 2,
             'needs_manual_review' => true,
             'start_time' => 15.0,
@@ -439,7 +439,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         $first = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'needs_manual_review' => true,
             'start_time' => 100.0,
@@ -450,7 +450,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         $second = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'needs_manual_review' => true,
             'start_time' => 107.0,
@@ -477,7 +477,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         $first = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'needs_manual_review' => true,
             'start_time' => 100.0,
@@ -488,7 +488,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         $second = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'needs_manual_review' => true,
             'start_time' => 107.0,
@@ -521,7 +521,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $first = ServiceSection::factory()->create([
             'media_processing_log_id' => $runA->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'needs_manual_review' => true,
             'start_time' => 100.0,
@@ -530,7 +530,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $second = ServiceSection::factory()->create([
             'media_processing_log_id' => $runB->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'needs_manual_review' => true,
             'start_time' => 107.0,
@@ -559,7 +559,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $first = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'needs_manual_review' => true,
             'start_time' => 100.0,
@@ -568,7 +568,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $second = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 2,
             'needs_manual_review' => true,
             'start_time' => 107.0,
@@ -594,7 +594,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $first = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'needs_manual_review' => true,
             'start_time' => 100.0,
@@ -604,7 +604,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $second = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'needs_manual_review' => true,
             'start_time' => 107.0,
@@ -631,7 +631,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $first = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 5,
             'needs_manual_review' => true,
             'start_time' => 100.0,
@@ -641,7 +641,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         // Un-flagged section at order 6 (between the merge candidates by section_order)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 6,
             'needs_manual_review' => false,
             'start_time' => 300.0,
@@ -652,7 +652,7 @@ class AdminServiceReviewDashboardTest extends TestCase
         // and the between-sections check (section_order 6 exists between 5 and 7) triggers
         $third = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 7,
             'needs_manual_review' => true,
             'start_time' => 108.5,
@@ -680,20 +680,20 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'title' => 'Original Title',
             'needs_manual_review' => true,
         ]);
 
         Livewire::test(ServiceReviewDashboard::class)
-            ->set("sectionEdits.{$section->id}.section_type", ServiceSectionType::PRAYER->value)
+            ->set("sectionEdits.{$section->id}.section_type", ServiceSectionType::Prayer->value)
             ->set("sectionEdits.{$section->id}.title", 'Updated Title')
             ->call('saveSection', $section->id)
             ->assertDispatched('notify', type: 'success', message: 'Section changes saved.');
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionType::PRAYER, $section->section_type);
+        $this->assertSame(ServiceSectionType::Prayer, $section->section_type);
         $this->assertSame('Updated Title', $section->title);
         $this->assertFalse($section->needs_manual_review);
     }
@@ -715,7 +715,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'title' => "Children's Talk",
             'needs_manual_review' => true,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
@@ -767,7 +767,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 1,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/batch-journey/video.mp4',

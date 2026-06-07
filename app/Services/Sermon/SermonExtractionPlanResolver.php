@@ -41,12 +41,12 @@ class SermonExtractionPlanResolver
             return $this->baselinePlan($processingLog, ['reason' => 'enhanced_sermon_disabled']);
         }
 
-        $sermonSection = $this->findPreferredSection($processingLog, ServiceSectionType::SERMON);
+        $sermonSection = $this->findPreferredSection($processingLog, ServiceSectionType::Sermon);
         if (! $sermonSection instanceof ServiceSection) {
             return $this->baselinePlan($processingLog, ['reason' => 'no_high_confidence_sermon_section']);
         }
 
-        $bibleSection = $this->findPreferredSection($processingLog, ServiceSectionType::BIBLE_READING);
+        $bibleSection = $this->findPreferredSection($processingLog, ServiceSectionType::BibleReading);
         if (! $bibleSection instanceof ServiceSection) {
             return [
                 'mode' => 'single_span',

@@ -70,7 +70,7 @@ class SaveServiceSection
         $validator->after(function (\Illuminate\Validation\Validator $validator) use ($payload, $section): void {
             $targetType = ServiceSectionType::tryFrom($payload['section_type']);
 
-            if ($targetType !== ServiceSectionType::CHILDRENS_TALK) {
+            if ($targetType !== ServiceSectionType::ChildrensTalk) {
                 return;
             }
 
@@ -91,7 +91,7 @@ class SaveServiceSection
 
         $metadata = $section->metadata?->toArray() ?? [];
 
-        if ($section->section_type === ServiceSectionType::CHILDRENS_TALK) {
+        if ($section->section_type === ServiceSectionType::ChildrensTalk) {
             $this->speakerService->storeManualReview(
                 $section,
                 $this->normalizeSpeakerPreacherId($validated['preacher_id']),

@@ -238,8 +238,8 @@ class OpenLpServiceParser
     private function semanticTypeForStorageType(string $type, string $title): string
     {
         return match ($type) {
-            'songs' => ServiceSectionType::SONG->value,
-            'bibles' => ServiceSectionType::BIBLE_READING->value,
+            'songs' => ServiceSectionType::Song->value,
+            'bibles' => ServiceSectionType::BibleReading->value,
             default => ServiceSectionType::inferFromTitle($title)->value,
         };
     }

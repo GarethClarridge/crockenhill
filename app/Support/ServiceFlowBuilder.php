@@ -124,10 +124,10 @@ final class ServiceFlowBuilder
         }
 
         return match ($type) {
-            ServiceSectionType::SONG => '♫',
-            ServiceSectionType::SERMON => '🎤',
-            ServiceSectionType::CHILDRENS_TALK => '📖',
-            ServiceSectionType::BIBLE_READING => '📕',
+            ServiceSectionType::Song => '♫',
+            ServiceSectionType::Sermon => '🎤',
+            ServiceSectionType::ChildrensTalk => '📖',
+            ServiceSectionType::BibleReading => '📕',
             default => '',
         };
     }
@@ -143,7 +143,7 @@ final class ServiceFlowBuilder
         array $metadata,
         ?string $sermonTitle,
     ): ?string {
-        if ($type === ServiceSectionType::SONG) {
+        if ($type === ServiceSectionType::Song) {
             // Use OoS-matched song title, then song_title_hint from metadata, then linked song
             if ($songTitle !== null) {
                 return $songTitle;
@@ -154,11 +154,11 @@ final class ServiceFlowBuilder
             return ($hint !== null && $hint !== '') ? $hint : null;
         }
 
-        if ($type === ServiceSectionType::SERMON) {
+        if ($type === ServiceSectionType::Sermon) {
             return $sermonTitle;
         }
 
-        if ($type === ServiceSectionType::BIBLE_READING) {
+        if ($type === ServiceSectionType::BibleReading) {
             // Check ai_notes or reading_reference for a Bible ref
             $ref = is_string($metadata['reading_reference'] ?? null) ? (string) $metadata['reading_reference'] : null;
             if ($ref !== null && $ref !== '') {
@@ -208,8 +208,8 @@ final class ServiceFlowBuilder
 
         // Contextual defaults by section type
         return match ($type) {
-            ServiceSectionType::SONG => self::songDescription($songTitle, $songMatchType),
-            ServiceSectionType::SERMON => $sermonTitle !== null ? $sermonTitle : 'No description available',
+            ServiceSectionType::Song => self::songDescription($songTitle, $songMatchType),
+            ServiceSectionType::Sermon => $sermonTitle !== null ? $sermonTitle : 'No description available',
             default => 'No description available',
         };
     }
@@ -220,7 +220,7 @@ final class ServiceFlowBuilder
 
         if ($songTitle !== null) {
             $parts[] = "— \"{$songTitle}\"";
-        } elseif ($matchType === ServiceSectionSongMatchType::UNMATCHED) {
+        } elseif ($matchType === ServiceSectionSongMatchType::Unmatched) {
             $parts[] = '· Unmatched';
         }
 

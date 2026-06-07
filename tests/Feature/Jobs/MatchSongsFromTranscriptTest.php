@@ -99,8 +99,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'metadata' => ['classification_mode' => 'audio_only'],
         ]);
 
@@ -118,7 +118,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         // No unmatched sections exist, so the job leaves the confirmed section as-is.
         $this->assertDatabaseHas('service_sections', [
             'media_processing_log_id' => $log->id,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
         ]);
     }
 
@@ -137,8 +137,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'needs_manual_review' => true,
             'metadata' => [
                 'classification_mode' => 'audio_only',
@@ -161,7 +161,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertFalse($section->needs_manual_review);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
@@ -190,8 +190,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'church_service_item_id' => $item->id,
             'needs_manual_review' => true,
             'metadata' => [
@@ -215,7 +215,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $section->refresh();
         $item->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertSame($song->id, $item->song_id);
         $this->assertSame('In Christ Alone', $item->title);
     }
@@ -235,8 +235,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'needs_manual_review' => true,
             'metadata' => [
                 'classification_mode' => 'audio_only',
@@ -260,7 +260,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $section->refresh();
 
         // Fuzzy match should have found the song via lyrics_plain.
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
         $this->assertIsArray($match);
@@ -290,8 +290,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'start_time' => 100.0,
             'end_time' => 280.0,
             'needs_manual_review' => true,
@@ -328,7 +328,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertNotNull($section->metadata['song_opening_transcript'] ?? null);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
@@ -364,8 +364,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'start_time' => 100.0,
             'end_time' => 280.0,
             'needs_manual_review' => true,
@@ -414,7 +414,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
     }
 
@@ -441,8 +441,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'start_time' => 100.0,
             'end_time' => 280.0,
             'needs_manual_review' => true,
@@ -481,7 +481,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id'] ?? null);
     }
 
@@ -503,8 +503,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $unmatchedSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'needs_manual_review' => true,
             'metadata' => [
                 'classification_mode' => 'audio_only',
@@ -527,7 +527,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $unmatchedSection->refresh();
 
         // The section should now be inferred and the unmatched review flag cleared.
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $unmatchedSection->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $unmatchedSection->song_match_type);
         $this->assertNotContains('unmatched_song_section', $unmatchedSection->metadata['review_flags'] ?? []);
 
         // The church service review state should have been refreshed.
@@ -550,8 +550,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'needs_manual_review' => true,
             'metadata' => [
                 'classification_mode' => 'audio_only',
@@ -574,7 +574,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $section->refresh();
 
         // Section remains unmatched.
-        $this->assertSame(ServiceSectionSongMatchType::UNMATCHED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Unmatched, $section->song_match_type);
         $this->assertNull($section->metadata['transcript_song_match'] ?? null);
     }
 
@@ -600,8 +600,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'start_time' => 200.0,
             'end_time' => 400.0,
             'needs_manual_review' => true,
@@ -632,7 +632,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertSame($ocrText, $section->metadata['song_ocr_text'] ?? null);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
@@ -663,8 +663,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'start_time' => 300.0,
             'end_time' => 500.0,
             'needs_manual_review' => true,
@@ -704,7 +704,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
 
         $match = $section->metadata['transcript_song_match'] ?? null;
         $this->assertIsArray($match);
@@ -721,8 +721,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'metadata' => ['classification_mode' => 'audio_only'],
         ]);
 
@@ -744,7 +744,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         // OCR was skipped (Mockery's shouldNotReceive guards the call), so the
         // section stays unmatched rather than gaining an OCR-derived match.
         $this->assertSame(
-            ServiceSectionSongMatchType::UNMATCHED,
+            ServiceSectionSongMatchType::Unmatched,
             $section->refresh()->song_match_type,
         );
     }
@@ -764,8 +764,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'needs_manual_review' => false,
             'metadata' => [
                 'classification_mode' => 'audio_only',
@@ -787,7 +787,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $section->refresh();
 
         // Should still be confirmed, not downgraded to inferred.
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertNull($section->metadata['transcript_song_match'] ?? null);
     }
 }

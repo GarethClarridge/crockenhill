@@ -78,7 +78,7 @@ class PublicSongUsageServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'metadata' => [
                 'oos_alignment' => [
                     'song_match_type' => 'confirmed',
@@ -109,8 +109,8 @@ class PublicSongUsageServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'metadata' => ['oos_alignment' => []],
         ]);
 
@@ -159,9 +159,9 @@ class PublicSongUsageServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'needs_manual_review' => true,
-            'song_match_type' => ServiceSectionSongMatchType::INFERRED->value,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred->value,
             'metadata' => ['oos_alignment' => []],
         ]);
 
@@ -188,7 +188,7 @@ class PublicSongUsageServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'needs_manual_review' => false,
             'metadata' => [
                 'oos_alignment' => [],

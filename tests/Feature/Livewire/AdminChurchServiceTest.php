@@ -214,15 +214,15 @@ class AdminChurchServiceTest extends TestCase
         $component = Livewire::test(ManageChurchService::class)
             ->set('form.date', '2026-05-03')
             ->set('form.service', SermonService::Morning->value)
-            ->set('form.items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->set('form.items.0.section_type', ServiceSectionType::Welcome->value)
             ->set('form.items.0.title', 'Welcome and Call to Worship')
             ->call('addItem')
-            ->set('form.items.1.section_type', ServiceSectionType::SONG->value)
+            ->set('form.items.1.section_type', ServiceSectionType::Song->value)
             ->set('form.items.1.title', 'Blessed')
             ->assertSee('Blessed Assurance')
             ->call('selectSong', 1, $song->id)
             ->call('addItem')
-            ->set('form.items.2.section_type', ServiceSectionType::BIBLE_READING->value)
+            ->set('form.items.2.section_type', ServiceSectionType::BibleReading->value)
             ->set('form.items.2.title', 'John 3:16-21')
             ->call('save');
 
@@ -239,13 +239,13 @@ class AdminChurchServiceTest extends TestCase
 
         $this->assertCount(3, $service->items);
         $this->assertSame('custom', $service->items[0]->type);
-        $this->assertSame(ServiceSectionType::WELCOME, $service->items[0]->section_type);
+        $this->assertSame(ServiceSectionType::Welcome, $service->items[0]->section_type);
         $this->assertArrayNotHasKey('section_type', $service->items[0]->metadata ?? []);
         $this->assertSame('songs', $service->items[1]->type);
         $this->assertSame($song->id, $service->items[1]->song_id);
         $this->assertSame('blessed assurance', $service->items[1]->metadata['linked_song_canonical_key'] ?? null);
         $this->assertSame('bibles', $service->items[2]->type);
-        $this->assertSame(ServiceSectionType::BIBLE_READING, $service->items[2]->section_type);
+        $this->assertSame(ServiceSectionType::BibleReading, $service->items[2]->section_type);
         $this->assertArrayNotHasKey('section_type', $service->items[2]->metadata ?? []);
     }
 
@@ -255,12 +255,12 @@ class AdminChurchServiceTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(ManageChurchService::class)
-            ->assertSet('form.items.0.section_type', ServiceSectionType::SONG->value)
+            ->assertSet('form.items.0.section_type', ServiceSectionType::Song->value)
             ->call('addItem')
-            ->set('form.items.1.section_type', ServiceSectionType::WELCOME->value)
+            ->set('form.items.1.section_type', ServiceSectionType::Welcome->value)
             ->set('form.items.1.title', 'Welcome')
             ->call('removeItem', 0)
-            ->assertSet('form.items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->assertSet('form.items.0.section_type', ServiceSectionType::Welcome->value)
             ->assertSet('form.items.0.title', 'Welcome');
 
         $this->assertFalse((new \ReflectionClass(ManageChurchService::class))->hasProperty('items'));
@@ -275,7 +275,7 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ManageChurchService::class)
             ->set('form.date', '2026-05-03')
             ->set('form.service', SermonService::Morning->value)
-            ->set('form.items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->set('form.items.0.section_type', ServiceSectionType::Welcome->value)
             ->set('form.items.0.title', 'Welcome and Call to Worship')
             ->call('save');
 
@@ -315,7 +315,7 @@ class AdminChurchServiceTest extends TestCase
             'title' => 'Welcome',
             'source_title' => 'Welcome',
             'openlp_search_title' => null,
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -323,7 +323,7 @@ class AdminChurchServiceTest extends TestCase
             'position' => 2,
             'type' => 'custom',
             'title' => 'Opening Prayer',
-            'metadata' => ['section_type' => ServiceSectionType::PRAYER->value],
+            'metadata' => ['section_type' => ServiceSectionType::Prayer->value],
         ]);
 
         ChurchServiceItem::factory()->create([
@@ -331,7 +331,7 @@ class AdminChurchServiceTest extends TestCase
             'position' => 3,
             'type' => 'custom',
             'title' => 'Sermon',
-            'metadata' => ['section_type' => ServiceSectionType::SERMON->value],
+            'metadata' => ['section_type' => ServiceSectionType::Sermon->value],
         ]);
 
         $song = Song::factory()->create([
@@ -340,13 +340,13 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         $component = Livewire::test(ManageChurchService::class, ['churchService' => $service])
-            ->assertSet('form.items.0.section_type', ServiceSectionType::WELCOME->value)
-            ->assertSet('form.items.1.section_type', ServiceSectionType::PRAYER->value)
+            ->assertSet('form.items.0.section_type', ServiceSectionType::Welcome->value)
+            ->assertSet('form.items.1.section_type', ServiceSectionType::Prayer->value)
             ->call('moveItemDown', 0)
             ->call('removeItem', 2)
             ->set('form.items.1.title', 'Welcome and Notices')
             ->call('addItem')
-            ->set('form.items.2.section_type', ServiceSectionType::SONG->value)
+            ->set('form.items.2.section_type', ServiceSectionType::Song->value)
             ->set('form.items.2.title', 'Closing')
             ->assertSee('Closing Song')
             ->call('selectSong', 2, $song->id)
@@ -362,10 +362,10 @@ class AdminChurchServiceTest extends TestCase
         $this->assertSame('2026-05-10 PM.osz', $service->original_filename);
         $this->assertSame(3, $service->items->count());
         $this->assertSame('Opening Prayer', $service->items[0]->title);
-        $this->assertSame(ServiceSectionType::PRAYER, $service->items[0]->section_type);
+        $this->assertSame(ServiceSectionType::Prayer, $service->items[0]->section_type);
         $this->assertArrayNotHasKey('section_type', $service->items[0]->metadata ?? []);
         $this->assertSame('Welcome and Notices', $service->items[1]->title);
-        $this->assertSame(ServiceSectionType::WELCOME, $service->items[1]->section_type);
+        $this->assertSame(ServiceSectionType::Welcome, $service->items[1]->section_type);
         $this->assertArrayNotHasKey('section_type', $service->items[1]->metadata ?? []);
         $this->assertSame('Closing Song', $service->items[2]->title);
         $this->assertSame($song->id, $service->items[2]->song_id);
@@ -396,7 +396,7 @@ class AdminChurchServiceTest extends TestCase
             'title' => 'Welcome',
             'source_title' => 'Welcome',
             'openlp_search_title' => null,
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
@@ -446,7 +446,7 @@ class AdminChurchServiceTest extends TestCase
             'title' => 'Welcome',
             'source_title' => 'Welcome',
             'openlp_search_title' => null,
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]);
 
         Livewire::test(ManageChurchService::class, ['churchService' => $service])
@@ -467,7 +467,7 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ManageChurchService::class)
-            ->set('form.items.0.section_type', ServiceSectionType::SONG->value)
+            ->set('form.items.0.section_type', ServiceSectionType::Song->value)
             ->set('form.items.0.title', 'Living')
             ->assertSee('Living Hope')
             ->call('selectSong', 0, $song->id)
@@ -486,7 +486,7 @@ class AdminChurchServiceTest extends TestCase
         ]);
 
         Livewire::test(ManageChurchService::class)
-            ->set('form.items.0.section_type', ServiceSectionType::SONG->value)
+            ->set('form.items.0.section_type', ServiceSectionType::Song->value)
             ->set('form.items.0.title', '%%')
             ->assertDontSee('Living Hope');
     }
@@ -504,7 +504,7 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ManageChurchService::class)
             ->set('form.date', '2026-05-17')
             ->set('form.service', SermonService::Morning->value)
-            ->set('form.items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->set('form.items.0.section_type', ServiceSectionType::Welcome->value)
             ->set('form.items.0.title', 'Welcome')
             ->call('save')
             ->assertHasErrors(['form.date' => ['unique']]);
@@ -592,7 +592,7 @@ class AdminChurchServiceTest extends TestCase
         $this->serviceSectionScenario()
             ->forProcessingLog($matchingRun)
             ->forChurchServiceItem($item)
-            ->type(ServiceSectionType::SONG)
+            ->type(ServiceSectionType::Song)
             ->needsManualReview()
             ->state([
                 'section_order' => 2,
@@ -613,7 +613,7 @@ class AdminChurchServiceTest extends TestCase
         $this->serviceSectionScenario()
             ->forProcessingLog($matchingRun)
             ->forChurchServiceItem($item)
-            ->type(ServiceSectionType::WELCOME)
+            ->type(ServiceSectionType::Welcome)
             ->state([
                 'section_order' => 1,
                 'title' => 'Welcome',
@@ -879,7 +879,7 @@ class AdminChurchServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_type' => ServiceSectionType::Notices->value,
             'section_order' => 1,
             'title' => 'Notices',
             'start_time' => 300.0,
@@ -921,7 +921,7 @@ class AdminChurchServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => 'Detected Song',
             'start_time' => 0.0,
@@ -931,7 +931,7 @@ class AdminChurchServiceTest extends TestCase
                     'mismatch_reason' => 'type_mismatch',
                     'expected_item_id' => $item->id,
                     'expected_item_title' => 'Planned Sermon',
-                    'expected_section_type' => ServiceSectionType::SERMON->value,
+                    'expected_section_type' => ServiceSectionType::Sermon->value,
                 ],
             ],
         ]);
@@ -961,7 +961,7 @@ class AdminChurchServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'title' => 'Unplanned Section',
             'start_time' => 0.0,
@@ -1000,7 +1000,7 @@ class AdminChurchServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 60.0,

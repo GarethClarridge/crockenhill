@@ -55,7 +55,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 30.0,
             'end_time' => 95.0,
@@ -128,7 +128,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'duration' => 5.0,
             'start_time' => 10.0,
@@ -170,7 +170,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'duration' => 60.0,
             'metadata' => [
@@ -206,7 +206,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'duration' => 90.0,
         ]);
@@ -214,7 +214,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'section_order' => 2,
             'duration' => 1800.0,
         ]);
@@ -244,7 +244,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         $firstSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 10.0,
             'end_time' => 80.0,
@@ -254,7 +254,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         $secondSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 90.0,
             'end_time' => 170.0,
@@ -322,7 +322,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 30.0,
             'end_time' => 60.0,
@@ -401,7 +401,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
             fn (ServiceSection $section): bool => $section->status === ServiceSectionStatus::Identified
         ));
 
-        $otherSection = $sections->firstWhere('section_type', ServiceSectionType::OTHER);
+        $otherSection = $sections->firstWhere('section_type', ServiceSectionType::Other);
         $this->assertInstanceOf(ServiceSection::class, $otherSection);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
@@ -454,7 +454,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'duration' => 60.0,
             'metadata' => [

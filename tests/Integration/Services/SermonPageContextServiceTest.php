@@ -28,7 +28,7 @@ class SermonPageContextServiceTest extends TestCase
         $publishedSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'published_sermon_id' => $sermon->id,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
         ]);
 
         $readingItem = ChurchServiceItem::factory()->create([
@@ -38,7 +38,7 @@ class SermonPageContextServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $readingItem->id,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => $publishedSection->section_order + 1,
             'metadata' => [
                 'reading_reference' => 'John 10:1-18',
@@ -87,7 +87,7 @@ class SermonPageContextServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $readingItem->id,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'metadata' => [
                 'classification_mode' => 'openlp_aligned',
             ],
@@ -115,7 +115,7 @@ class SermonPageContextServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $readingItem->id,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 1,
             'title' => null,
         ]);
@@ -124,7 +124,7 @@ class SermonPageContextServiceTest extends TestCase
         ServiceSection::factory()->count(5)->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
         ]);
 
         $sectionQueries = [];

@@ -17,7 +17,7 @@ class UploadChurchServiceRequest extends FormRequest
             return false;
         }
 
-        if ($this->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::SERVICE_UPLOAD->value)) {
+        if ($this->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::ServiceUpload->value)) {
             return false;
         }
 

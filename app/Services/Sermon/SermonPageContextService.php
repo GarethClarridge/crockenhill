@@ -73,7 +73,7 @@ class SermonPageContextService
         $section = ServiceSection::query()
             ->with('churchServiceItem')
             ->where('media_processing_log_id', $processingLogId)
-            ->where('section_type', ServiceSectionType::BIBLE_READING)
+            ->where('section_type', ServiceSectionType::BibleReading)
             ->orderBy('section_order')
             ->orderBy('start_time')
             ->first();

@@ -42,13 +42,13 @@ class ServiceSectionSyncServiceTest extends TestCase
             $this->sectionData(
                 churchServiceItemId: $itemOne->id,
                 sectionOrder: 1,
-                sectionType: ServiceSectionType::SONG->value,
+                sectionType: ServiceSectionType::Song->value,
                 title: 'Song One'
             ),
             $this->sectionData(
                 churchServiceItemId: $itemTwo->id,
                 sectionOrder: 2,
-                sectionType: ServiceSectionType::PRAYER->value,
+                sectionType: ServiceSectionType::Prayer->value,
                 title: 'Opening Prayer'
             ),
         ]);
@@ -57,13 +57,13 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertDatabaseHas('service_sections', [
             'media_processing_log_id' => $processingLog->id,
             'section_order' => 1,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'title' => 'Song One',
         ]);
         $this->assertDatabaseHas('service_sections', [
             'media_processing_log_id' => $processingLog->id,
             'section_order' => 2,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'title' => 'Opening Prayer',
         ]);
     }
@@ -81,13 +81,13 @@ class ServiceSectionSyncServiceTest extends TestCase
             $this->sectionData(
                 churchServiceItemId: $itemOne->id,
                 sectionOrder: 1,
-                sectionType: ServiceSectionType::SONG->value,
+                sectionType: ServiceSectionType::Song->value,
                 title: 'Song One'
             ),
             $this->sectionData(
                 churchServiceItemId: $itemTwo->id,
                 sectionOrder: 2,
-                sectionType: ServiceSectionType::NOTICES->value,
+                sectionType: ServiceSectionType::Notices->value,
                 title: 'Notices'
             ),
         ]);
@@ -106,7 +106,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             $this->sectionData(
                 churchServiceItemId: $itemOne->id,
                 sectionOrder: 1,
-                sectionType: ServiceSectionType::SONG->value,
+                sectionType: ServiceSectionType::Song->value,
                 title: 'Song One (Updated)',
                 startTime: 120.0,
                 endTime: 330.0,
@@ -115,7 +115,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             $this->sectionData(
                 churchServiceItemId: $itemThree->id,
                 sectionOrder: 3,
-                sectionType: ServiceSectionType::PRAYER->value,
+                sectionType: ServiceSectionType::Prayer->value,
                 title: 'Closing Prayer'
             ),
         ]);
@@ -158,7 +158,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $churchServiceItem->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'section_order' => 1,
             'title' => 'Children Talk',
             'start_time' => 120.0,
@@ -178,7 +178,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             $this->sectionData(
                 churchServiceItemId: $churchServiceItem->id,
                 sectionOrder: 1,
-                sectionType: ServiceSectionType::CHILDRENS_TALK->value,
+                sectionType: ServiceSectionType::ChildrensTalk->value,
                 title: 'Children Talk Updated',
                 startTime: 130.0,
                 endTime: 390.0,
@@ -221,7 +221,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $itemOne->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 1,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
@@ -229,7 +229,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         $stalePublished = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $itemTwo->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::Published->value,
             'published_sermon_id' => $publishedSermon->id,
@@ -244,7 +244,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             $this->sectionData(
                 churchServiceItemId: $itemOne->id,
                 sectionOrder: 1,
-                sectionType: ServiceSectionType::WELCOME->value,
+                sectionType: ServiceSectionType::Welcome->value,
                 title: 'Welcome'
             ),
         ]);
@@ -264,7 +264,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             $this->sectionData(
                 churchServiceItemId: null,
                 sectionOrder: 1,
-                sectionType: ServiceSectionType::SERMON->value,
+                sectionType: ServiceSectionType::Sermon->value,
                 startTime: 300.0,
                 endTime: 1800.0,
                 duration: 1500.0,
@@ -277,7 +277,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             'media_processing_log_id' => $processingLog->id,
             'section_order' => 1,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
         ]);
     }
 
@@ -290,7 +290,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => 'Opening Prayer',
             'start_time' => 60.0,
@@ -307,7 +307,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             $this->sectionData(
                 churchServiceItemId: $item->id,
                 sectionOrder: 1,
-                sectionType: ServiceSectionType::PRAYER->value,
+                sectionType: ServiceSectionType::Prayer->value,
                 title: 'Opening Prayer'
             ),
         ]);

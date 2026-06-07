@@ -38,7 +38,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -107,7 +107,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -169,7 +169,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -187,7 +187,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $this->assertTrue($result['aligned']);
         $this->assertSame($songItem->id, $section->church_service_item_id);
         $this->assertSame('Be Thou My Vision', $section->title);
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
     }
 
@@ -213,7 +213,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => 'Opening Prayer',
             'confidence' => 0.85,
@@ -271,7 +271,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $unexpectedSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_type' => ServiceSectionType::Notices->value,
             'section_order' => 1,
             'title' => 'Church Notices',
             'confidence' => 0.5,
@@ -284,7 +284,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $prayerSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -297,7 +297,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $readingSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 3,
             'title' => null,
             'confidence' => 0.5,
@@ -355,7 +355,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $noticesSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -368,7 +368,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $readingSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_type' => ServiceSectionType::Notices->value,
             'section_order' => 2,
             'title' => 'Notices',
             'confidence' => 0.5,
@@ -419,7 +419,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $mismatchSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_type' => ServiceSectionType::Notices->value,
             'section_order' => 1,
             'title' => 'Church Notices',
             'confidence' => 0.5,
@@ -432,7 +432,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $readingSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,

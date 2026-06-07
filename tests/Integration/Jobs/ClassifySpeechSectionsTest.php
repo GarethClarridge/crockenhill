@@ -48,7 +48,7 @@ class ClassifySpeechSectionsTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 60.0,
             'end_time' => 180.0,
@@ -64,7 +64,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::PRAYER->value,
+                    'section_type' => ServiceSectionType::Prayer->value,
                     'title' => null,
                     'start_time' => 60.0,
                     'end_time' => 180.0,
@@ -87,7 +87,7 @@ class ClassifySpeechSectionsTest extends TestCase
         $section->refresh();
         $processingLog->refresh();
 
-        $this->assertSame(ServiceSectionType::PRAYER, $section->section_type);
+        $this->assertSame(ServiceSectionType::Prayer, $section->section_type);
         $this->assertFalse($section->needs_manual_review);
         $this->assertSame('ai_transcript', $section->metadata['confidence_source'] ?? null);
         $this->assertSame('classify_speech_sections', $processingLog->current_step);
@@ -106,7 +106,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 60.0,
             'end_time' => 180.0,
@@ -123,7 +123,7 @@ class ClassifySpeechSectionsTest extends TestCase
             {
                 return [
                     [
-                        'section_type' => ServiceSectionType::WELCOME->value,
+                        'section_type' => ServiceSectionType::Welcome->value,
                         'title' => null,
                         'start_time' => 60.0,
                         'end_time' => 90.0,
@@ -138,7 +138,7 @@ class ClassifySpeechSectionsTest extends TestCase
                         ],
                     ],
                     [
-                        'section_type' => ServiceSectionType::PRAYER->value,
+                        'section_type' => ServiceSectionType::Prayer->value,
                         'title' => null,
                         'start_time' => 90.0,
                         'end_time' => 180.0,
@@ -165,8 +165,8 @@ class ClassifySpeechSectionsTest extends TestCase
             ->get();
 
         $this->assertCount(2, $sections);
-        $this->assertSame(ServiceSectionType::WELCOME, $sections[0]->section_type);
-        $this->assertSame(ServiceSectionType::PRAYER, $sections[1]->section_type);
+        $this->assertSame(ServiceSectionType::Welcome, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::Prayer, $sections[1]->section_type);
         $this->assertSame(1, $sections[0]->section_order);
         $this->assertSame(2, $sections[1]->section_order);
     }
@@ -179,7 +179,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 60.0,
             'end_time' => 300.0,
@@ -194,7 +194,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::SERMON->value,
+                    'section_type' => ServiceSectionType::Sermon->value,
                     'title' => null,
                     'start_time' => 60.0,
                     'end_time' => 300.0,
@@ -216,7 +216,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $section = ServiceSection::query()->firstOrFail();
 
-        $this->assertSame(ServiceSectionType::SERMON, $section->section_type);
+        $this->assertSame(ServiceSectionType::Sermon, $section->section_type);
         $this->assertTrue($section->needs_manual_review);
         $this->assertSame('secondary_sermon_candidate', $section->metadata['review_reason'] ?? null);
     }
@@ -229,7 +229,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'section_order' => 1,
             'start_time' => 600.0,
             'end_time' => 1200.0,
@@ -244,7 +244,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 1200.0,
             'end_time' => 1260.0,
@@ -258,7 +258,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 3,
             'start_time' => 1260.0,
             'end_time' => 1680.0,
@@ -274,7 +274,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::SERMON->value,
+                    'section_type' => ServiceSectionType::Sermon->value,
                     'title' => null,
                     'start_time' => 1260.0,
                     'end_time' => 1680.0,
@@ -300,7 +300,7 @@ class ClassifySpeechSectionsTest extends TestCase
             ->get();
 
         $this->assertCount(1, $sections);
-        $this->assertSame(ServiceSectionType::SERMON, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::Sermon, $sections[0]->section_type);
         $this->assertSame(600.0, $sections[0]->start_time);
         $this->assertSame(1680.0, $sections[0]->end_time);
         $this->assertFalse($sections[0]->needs_manual_review);
@@ -315,7 +315,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'section_order' => 1,
             'start_time' => 600.0,
             'end_time' => 1200.0,
@@ -330,7 +330,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 1200.0,
             'end_time' => 1260.0,
@@ -340,7 +340,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 3,
             'start_time' => 1260.0,
             'end_time' => 1500.0,
@@ -353,7 +353,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 4,
             'start_time' => 1500.0,
             'end_time' => 1560.0,
@@ -363,7 +363,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 5,
             'start_time' => 1560.0,
             'end_time' => 1800.0,
@@ -378,7 +378,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::SERMON->value,
+                    'section_type' => ServiceSectionType::Sermon->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -405,7 +405,7 @@ class ClassifySpeechSectionsTest extends TestCase
             ->get();
 
         $this->assertCount(1, $sections);
-        $this->assertSame(ServiceSectionType::SERMON, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::Sermon, $sections[0]->section_type);
         $this->assertSame(600.0, $sections[0]->start_time);
         $this->assertSame(1800.0, $sections[0]->end_time);
         $this->assertEquals(120.0, $sections[0]->metadata['folded_song_duration_seconds'] ?? null);
@@ -419,7 +419,7 @@ class ClassifySpeechSectionsTest extends TestCase
         $firstSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 60.0,
             'end_time' => 120.0,
@@ -432,7 +432,7 @@ class ClassifySpeechSectionsTest extends TestCase
         $secondSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 120.0,
             'end_time' => 240.0,
@@ -455,7 +455,7 @@ class ClassifySpeechSectionsTest extends TestCase
                 }
 
                 return [[
-                    'section_type' => ServiceSectionType::PRAYER->value,
+                    'section_type' => ServiceSectionType::Prayer->value,
                     'title' => null,
                     'start_time' => 120.0,
                     'end_time' => 240.0,
@@ -481,10 +481,10 @@ class ClassifySpeechSectionsTest extends TestCase
             ->get();
 
         $this->assertCount(2, $sections);
-        $this->assertSame(ServiceSectionType::OTHER, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::Other, $sections[0]->section_type);
         $this->assertTrue($sections[0]->needs_manual_review);
         $this->assertSame('speech_section_classification_failed', $sections[0]->metadata['review_reason'] ?? null);
-        $this->assertSame(ServiceSectionType::PRAYER, $sections[1]->section_type);
+        $this->assertSame(ServiceSectionType::Prayer, $sections[1]->section_type);
         $this->assertFalse($sections[1]->needs_manual_review);
     }
 
@@ -496,7 +496,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // RMS-detected main sermon (30 min) — skipped by shouldClassify()
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'section_order' => 1,
             'start_time' => 2500.0,
             'end_time' => 4300.0,
@@ -508,7 +508,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // Speech section classified by AI as sermon (8 min — short enough to be children's talk)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 860.0,
             'end_time' => 1340.0,
@@ -521,7 +521,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::SERMON->value,
+                    'section_type' => ServiceSectionType::Sermon->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -552,15 +552,15 @@ class ClassifySpeechSectionsTest extends TestCase
         $demoted = $sections->first(fn ($s) => $s->start_time == 860.0);
 
         $this->assertNotNull($mainSermon);
-        $this->assertSame(ServiceSectionType::SERMON, $mainSermon->section_type);
+        $this->assertSame(ServiceSectionType::Sermon, $mainSermon->section_type);
 
         $this->assertNotNull($demoted);
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $demoted->section_type);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $demoted->section_type);
         $this->assertFalse($demoted->needs_manual_review);
         $this->assertSame('high', $demoted->metadata['confidence_level'] ?? null);
         $this->assertSame('demoted_secondary_sermon_to_childrens_talk', $demoted->metadata['review_reason'] ?? null);
         $this->assertContains('heuristic_demotion', $demoted->metadata['review_flags'] ?? []);
-        $this->assertSame(ServiceSectionType::SERMON->value, $demoted->metadata['original_ai_classification'] ?? null);
+        $this->assertSame(ServiceSectionType::Sermon->value, $demoted->metadata['original_ai_classification'] ?? null);
     }
 
     #[Test]
@@ -573,7 +573,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // RMS-detected main sermon (45 min)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'section_order' => 1,
             'start_time' => 3000.0,
             'end_time' => 5700.0,
@@ -585,7 +585,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // Speech section classified by AI as sermon (20 min — above the 15-min threshold)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 600.0,
             'end_time' => 1800.0,
@@ -598,7 +598,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::SERMON->value,
+                    'section_type' => ServiceSectionType::Sermon->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -626,7 +626,7 @@ class ClassifySpeechSectionsTest extends TestCase
         $longSecondary = $sections->first(fn ($s) => $s->start_time == 600.0);
 
         $this->assertNotNull($longSecondary);
-        $this->assertSame(ServiceSectionType::SERMON, $longSecondary->section_type);
+        $this->assertSame(ServiceSectionType::Sermon, $longSecondary->section_type);
         $this->assertTrue($longSecondary->needs_manual_review);
         $this->assertSame('multiple_sermons_detected', $longSecondary->metadata['review_reason'] ?? null);
     }
@@ -641,7 +641,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // RMS-detected first sermon segment (20 min)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'section_order' => 1,
             'start_time' => 600.0,
             'end_time' => 1800.0,
@@ -653,7 +653,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // Short song mid-sermon (1 min) — should be folded into the sermon above
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 1800.0,
             'end_time' => 1860.0,
@@ -664,7 +664,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // Continuation of sermon after song — classified as SERMON by AI (7 min)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 3,
             'start_time' => 1860.0,
             'end_time' => 2280.0,
@@ -675,7 +675,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // Short separate children's talk — AI classifies as SERMON (8 min)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 4,
             'start_time' => 200.0,
             'end_time' => 680.0,
@@ -688,7 +688,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::SERMON->value,
+                    'section_type' => ServiceSectionType::Sermon->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -720,12 +720,12 @@ class ClassifySpeechSectionsTest extends TestCase
         $demoted = $sections->first(fn ($s) => $s->start_time == 200.0);
 
         $this->assertNotNull($mainSermon);
-        $this->assertSame(ServiceSectionType::SERMON, $mainSermon->section_type);
+        $this->assertSame(ServiceSectionType::Sermon, $mainSermon->section_type);
         $this->assertSame(2280.0, $mainSermon->end_time);
         $this->assertFalse($mainSermon->needs_manual_review);
 
         $this->assertNotNull($demoted);
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $demoted->section_type);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $demoted->section_type);
         $this->assertFalse($demoted->needs_manual_review);
         $this->assertSame('high', $demoted->metadata['confidence_level'] ?? null);
         $this->assertSame('demoted_secondary_sermon_to_childrens_talk', $demoted->metadata['review_reason'] ?? null);
@@ -740,7 +740,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // Speech section that will be classified as a song announcement.
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 60.0,
@@ -754,7 +754,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // RMS-detected audio-only song that follows the announcement.
         $audioSong = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 60.0,
             'end_time' => 270.0,
@@ -771,7 +771,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::SONG->value,
+                    'section_type' => ServiceSectionType::Song->value,
                     'title' => null,
                     'start_time' => 0.0,
                     'end_time' => 60.0,
@@ -808,7 +808,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $shortSong = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'start_time' => 100.0,
             'end_time' => 107.0,
@@ -818,7 +818,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 107.0,
             'end_time' => 231.0,
@@ -843,7 +843,7 @@ class ClassifySpeechSectionsTest extends TestCase
             ->get();
 
         $this->assertCount(1, $sections);
-        $this->assertSame(ServiceSectionType::SONG, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::Song, $sections[0]->section_type);
         $this->assertSame(100.0, $sections[0]->start_time);
         $this->assertSame(231.0, $sections[0]->end_time);
     }
@@ -861,7 +861,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // 15s Bible Reading (announcement classified as reading)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 200.0,
             'end_time' => 215.0,
@@ -872,7 +872,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // 2m 58s Bible Reading (actual reading)
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 215.0,
             'end_time' => 393.0,
@@ -889,7 +889,7 @@ class ClassifySpeechSectionsTest extends TestCase
                 $this->callCount++;
 
                 return [[
-                    'section_type' => ServiceSectionType::BIBLE_READING->value,
+                    'section_type' => ServiceSectionType::BibleReading->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -914,7 +914,7 @@ class ClassifySpeechSectionsTest extends TestCase
             ->get();
 
         $this->assertCount(1, $sections);
-        $this->assertSame(ServiceSectionType::BIBLE_READING, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::BibleReading, $sections[0]->section_type);
         $this->assertSame(200.0, $sections[0]->start_time);
         $this->assertSame(393.0, $sections[0]->end_time);
     }
@@ -932,7 +932,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // 5m 24s Children's Talk
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 300.0,
             'end_time' => 624.0,
@@ -943,7 +943,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // 3m 2s Children's Talk
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 624.0,
             'end_time' => 806.0,
@@ -956,7 +956,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+                    'section_type' => ServiceSectionType::ChildrensTalk->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -981,7 +981,7 @@ class ClassifySpeechSectionsTest extends TestCase
             ->get();
 
         $this->assertCount(1, $sections);
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $sections[0]->section_type);
         $this->assertSame(300.0, $sections[0]->start_time);
         $this->assertSame(806.0, $sections[0]->end_time);
     }
@@ -1003,7 +1003,7 @@ class ClassifySpeechSectionsTest extends TestCase
         ] as [$order, $start, $end, $dur]) {
             ServiceSection::factory()->create([
                 'media_processing_log_id' => $processingLog->id,
-                'section_type' => ServiceSectionType::OTHER->value,
+                'section_type' => ServiceSectionType::Other->value,
                 'section_order' => $order,
                 'start_time' => $start,
                 'end_time' => $end,
@@ -1017,7 +1017,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+                    'section_type' => ServiceSectionType::ChildrensTalk->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -1057,7 +1057,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 150.0,
@@ -1067,7 +1067,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 150.0,
             'end_time' => 360.0,
@@ -1105,7 +1105,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 15.0,
@@ -1115,7 +1115,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 15.0,
             'end_time' => 15.0 + 15.0,
@@ -1131,8 +1131,8 @@ class ClassifySpeechSectionsTest extends TestCase
             {
                 $this->call++;
                 $type = $this->call === 1
-                    ? ServiceSectionType::PRAYER->value
-                    : ServiceSectionType::BIBLE_READING->value;
+                    ? ServiceSectionType::Prayer->value
+                    : ServiceSectionType::BibleReading->value;
 
                 return [[
                     'section_type' => $type,
@@ -1160,8 +1160,8 @@ class ClassifySpeechSectionsTest extends TestCase
             ->get();
 
         $this->assertCount(2, $sections);
-        $this->assertSame(ServiceSectionType::PRAYER, $sections[0]->section_type);
-        $this->assertSame(ServiceSectionType::BIBLE_READING, $sections[1]->section_type);
+        $this->assertSame(ServiceSectionType::Prayer, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::BibleReading, $sections[1]->section_type);
     }
 
     #[Test]
@@ -1177,7 +1177,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // 10s short section — will be secondary after merge
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 10.0,
@@ -1188,7 +1188,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // 180s long section — will be primary after merge
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 10.0,
             'end_time' => 190.0,
@@ -1206,7 +1206,7 @@ class ClassifySpeechSectionsTest extends TestCase
                 $score = $this->call === 1 ? 0.95 : 0.55;
 
                 return [[
-                    'section_type' => ServiceSectionType::PRAYER->value,
+                    'section_type' => ServiceSectionType::Prayer->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -1248,7 +1248,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 180.0,
@@ -1258,7 +1258,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 180.0,
             'end_time' => 240.0,
@@ -1279,7 +1279,7 @@ class ClassifySpeechSectionsTest extends TestCase
                 $review = $this->call === 2;
 
                 return [[
-                    'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+                    'section_type' => ServiceSectionType::ChildrensTalk->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -1318,7 +1318,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 180.0,
@@ -1328,7 +1328,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 180.0,
             'end_time' => 240.0,
@@ -1349,7 +1349,7 @@ class ClassifySpeechSectionsTest extends TestCase
                 $hasReview = $this->call === 2;
 
                 return [[
-                    'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+                    'section_type' => ServiceSectionType::ChildrensTalk->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -1389,7 +1389,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 15.0,
@@ -1400,7 +1400,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // 5-second gap between sections
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 20.0,
             'end_time' => 198.0,
@@ -1413,7 +1413,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::BIBLE_READING->value,
+                    'section_type' => ServiceSectionType::BibleReading->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -1452,7 +1452,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 15.0,
@@ -1463,7 +1463,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // 1-second gap — within tolerance
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 2,
             'start_time' => 16.0,
             'end_time' => 196.0,
@@ -1476,7 +1476,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::BIBLE_READING->value,
+                    'section_type' => ServiceSectionType::BibleReading->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -1517,7 +1517,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // Short ai_transcript Song (announcement) — song title hint will be written into the audio-only section
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 20.0,
@@ -1528,7 +1528,7 @@ class ClassifySpeechSectionsTest extends TestCase
         // Longer audio-only Song — song_title_hint gets written here by SongTitleHintExtractor before merging
         $audioSong = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 20.0,
             'end_time' => 200.0,
@@ -1544,7 +1544,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::SONG->value,
+                    'section_type' => ServiceSectionType::Song->value,
                     'title' => null,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
@@ -1568,7 +1568,7 @@ class ClassifySpeechSectionsTest extends TestCase
             ->get();
 
         $this->assertCount(1, $sections);
-        $this->assertSame(ServiceSectionType::SONG, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::Song, $sections[0]->section_type);
         $this->assertSame(0.0, $sections[0]->start_time);
         $this->assertSame(200.0, $sections[0]->end_time);
         // The hint was written into the audio_only section before merging, and the
@@ -1583,7 +1583,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 60.0,
@@ -1596,7 +1596,7 @@ class ClassifySpeechSectionsTest extends TestCase
 
         $audioSong = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 2,
             'start_time' => 60.0,
             'end_time' => 270.0,
@@ -1612,7 +1612,7 @@ class ClassifySpeechSectionsTest extends TestCase
             public function classify(ServiceSection $section, array $serviceContext = []): array
             {
                 return [[
-                    'section_type' => ServiceSectionType::SONG->value,
+                    'section_type' => ServiceSectionType::Song->value,
                     'title' => null,
                     'start_time' => 0.0,
                     'end_time' => 60.0,

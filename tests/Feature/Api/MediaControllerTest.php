@@ -141,7 +141,7 @@ class MediaControllerTest extends TestCase
             'email_verified_at' => now(),
         ]);
         // Use SERVICE_UPLOAD which is NOT MEDIA_PROCESS
-        $token = $user->createToken('test-token', [ApiTokenAbility::SERVICE_UPLOAD->value])->plainTextToken;
+        $token = $user->createToken('test-token', [ApiTokenAbility::ServiceUpload->value])->plainTextToken;
 
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 

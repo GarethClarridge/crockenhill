@@ -56,7 +56,7 @@ class ServiceRecordTimelineTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 1,
             'start_time' => 0.0,
             'end_time' => 120.0,
@@ -72,7 +72,7 @@ class ServiceRecordTimelineTest extends TestCase
         $this->assertSame('matched', $rows[0]['row_type']);
         $this->assertSame($item->id, $rows[0]['item_id']);
         $this->assertSame('Welcome', $rows[0]['planned_title']);
-        $this->assertSame(ServiceSectionType::WELCOME, $rows[0]['section_type']);
+        $this->assertSame(ServiceSectionType::Welcome, $rows[0]['section_type']);
         $this->assertSame(0.0, $rows[0]['start_time']);
         $this->assertSame(120.0, $rows[0]['end_time']);
     }
@@ -92,7 +92,7 @@ class ServiceRecordTimelineTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 1,
             'start_time' => 10.0,
             'end_time' => 80.0,
@@ -102,7 +102,7 @@ class ServiceRecordTimelineTest extends TestCase
                     'mismatch_reason' => 'expected_type_mismatch',
                     'expected_item_id' => $item->id,
                     'expected_item_title' => 'Prayer',
-                    'expected_section_type' => ServiceSectionType::PRAYER->value,
+                    'expected_section_type' => ServiceSectionType::Prayer->value,
                 ],
             ],
         ]);
@@ -117,8 +117,8 @@ class ServiceRecordTimelineTest extends TestCase
         $this->assertSame($item->id, $rows[0]['item_id']);
         $this->assertSame('Prayer', $rows[0]['planned_title']);
         $this->assertSame('expected_type_mismatch', $rows[0]['mismatch_reason']);
-        $this->assertSame(ServiceSectionType::WELCOME, $rows[0]['section_type']);
-        $this->assertSame(ServiceSectionType::PRAYER, $rows[0]['expected_section_type']);
+        $this->assertSame(ServiceSectionType::Welcome, $rows[0]['section_type']);
+        $this->assertSame(ServiceSectionType::Prayer, $rows[0]['expected_section_type']);
         $this->assertSame(1, $rows[0]['section_order']);
     }
 
@@ -131,7 +131,7 @@ class ServiceRecordTimelineTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'expected_item_id' => $item->id,
             'metadata' => [
@@ -139,7 +139,7 @@ class ServiceRecordTimelineTest extends TestCase
                     'mismatch_reason' => 'type_mismatch',
                     'expected_item_id' => $item->id,
                     'expected_item_title' => 'Sermon',
-                    'expected_section_type' => ServiceSectionType::SERMON->value,
+                    'expected_section_type' => ServiceSectionType::Sermon->value,
                 ],
             ],
         ]);
@@ -165,7 +165,7 @@ class ServiceRecordTimelineTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 3,
             'expected_item_id' => $deletedId,
             'metadata' => [
@@ -173,7 +173,7 @@ class ServiceRecordTimelineTest extends TestCase
                     'mismatch_reason' => 'oos_type_mismatch',
                     'expected_item_id' => $deletedId,
                     'expected_item_title' => 'Deleted Sermon',
-                    'expected_section_type' => ServiceSectionType::SERMON->value,
+                    'expected_section_type' => ServiceSectionType::Sermon->value,
                 ],
             ],
         ]);
@@ -201,7 +201,7 @@ class ServiceRecordTimelineTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 4,
             'metadata' => [],
         ]);
@@ -225,7 +225,7 @@ class ServiceRecordTimelineTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'metadata' => [],
         ]);
@@ -320,7 +320,7 @@ class ServiceRecordTimelineTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'metadata' => [],
         ]);
@@ -345,7 +345,7 @@ class ServiceRecordTimelineTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'metadata' => [],
         ]);
@@ -396,10 +396,10 @@ class ServiceRecordTimelineTest extends TestCase
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
             'section_order' => 1,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'metadata' => [
                 'oos_alignment' => [
-                    'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+                    'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
                 ],
             ],
         ]);
@@ -408,7 +408,7 @@ class ServiceRecordTimelineTest extends TestCase
 
         $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
 
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $rows[0]['song_match_type']);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $rows[0]['song_match_type']);
     }
 
     #[Test]
@@ -421,7 +421,7 @@ class ServiceRecordTimelineTest extends TestCase
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $item->id,
             'section_order' => 1,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'metadata' => ['oos_alignment' => []],
         ]);
 
@@ -429,7 +429,7 @@ class ServiceRecordTimelineTest extends TestCase
 
         $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
 
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $rows[0]['song_match_type']);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $rows[0]['song_match_type']);
     }
 
     #[Test]
@@ -441,14 +441,14 @@ class ServiceRecordTimelineTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 1,
             'expected_item_id' => $item->id,
             'metadata' => [
                 'oos_alignment' => [
                     'mismatch_reason' => 'expected_type_mismatch',
                     'expected_item_title' => 'Prayer',
-                    'expected_section_type' => ServiceSectionType::PRAYER->value,
+                    'expected_section_type' => ServiceSectionType::Prayer->value,
                 ],
             ],
         ]);

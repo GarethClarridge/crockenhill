@@ -10,6 +10,6 @@ enum ApiTokenAbility: string
 {
     use HasValues;
 
-    case MEDIA_PROCESS = 'media:process';
-    case SERVICE_UPLOAD = 'service:upload';
+    case MediaProcess = 'media:process';
+    case ServiceUpload = 'service:upload';
 }

@@ -32,7 +32,7 @@ class SermonCreationOptionsTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK,
+            'section_type' => ServiceSectionType::ChildrensTalk,
             'title' => "Children's Talk",
             'extracted_video_path' => 'sermons/sections/55/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-55.mp3',

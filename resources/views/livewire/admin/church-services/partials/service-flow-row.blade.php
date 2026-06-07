@@ -113,8 +113,8 @@
                     </span>
                 @endif
 
-                @if($item['type'] === ServiceSectionType::SONG && $item['song_match_type'] instanceof ServiceSectionSongMatchType)
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $item['song_match_type'] === ServiceSectionSongMatchType::CONFIRMED ? 'bg-cbc-teal-light/15 text-cbc-teal-dark' : 'bg-amber-100 text-amber-700' }}">
+                @if($item['type'] === ServiceSectionType::Song && $item['song_match_type'] instanceof ServiceSectionSongMatchType)
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $item['song_match_type'] === ServiceSectionSongMatchType::Confirmed ? 'bg-cbc-teal-light/15 text-cbc-teal-dark' : 'bg-amber-100 text-amber-700' }}">
                         {{ $item['song_match_type']->label() }}
                     </span>
                 @endif

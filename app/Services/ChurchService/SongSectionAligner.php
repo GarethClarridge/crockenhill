@@ -45,7 +45,7 @@ class SongSectionAligner
 
         /** @var EloquentCollection<int, ServiceSection> $songSections */
         $songSections = $sections
-            ->filter(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::SONG)
+            ->filter(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Song)
             ->values();
 
         foreach ($songItems as $item) {
@@ -165,7 +165,7 @@ class SongSectionAligner
         $section->church_service_item_id = $item->id;
         $section->matched_item_id = $item->id;
         $section->expected_item_id = null;
-        $section->song_match_type = ServiceSectionSongMatchType::CONFIRMED;
+        $section->song_match_type = ServiceSectionSongMatchType::Confirmed;
         $section->needs_manual_review = $section->needs_manual_review || $this->hasBlockingReviewFlag($reviewFlags);
         // Apply the +0.25 item-match delta first, then floor at the high-confidence threshold.
         // This preserves the original two-step logic from OosAlignmentService: applyMatchedItem(+0.25)
@@ -199,7 +199,7 @@ class SongSectionAligner
         $section->church_service_item_id = $item->id;
         $section->matched_item_id = $item->id;
         $section->expected_item_id = null;
-        $section->song_match_type = ServiceSectionSongMatchType::INFERRED;
+        $section->song_match_type = ServiceSectionSongMatchType::Inferred;
         $section->title = $item->title;
         $section->needs_manual_review = true;
         $section->confidence = ServiceSectionConfidence::clamp(min(
@@ -303,6 +303,6 @@ class SongSectionAligner
      */
     private function isSongItem(ChurchServiceItem $item): bool
     {
-        return $item->semanticSectionType() === ServiceSectionType::SONG;
+        return $item->semanticSectionType() === ServiceSectionType::Song;
     }
 }

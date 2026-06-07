@@ -54,7 +54,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
                 'source_title' => 'Welcome',
                 'openlp_search_title' => null,
                 'song_id' => null,
-                'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+                'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
             ],
             [
                 'position' => 2,
@@ -63,7 +63,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
                 'source_title' => 'Blessed Assurance',
                 'openlp_search_title' => null,
                 'song_id' => $song->id,
-                'metadata' => ['section_type' => ServiceSectionType::SONG->value, 'linked_song_canonical_key' => 'blessed assurance'],
+                'metadata' => ['section_type' => ServiceSectionType::Song->value, 'linked_song_canonical_key' => 'blessed assurance'],
             ],
         ];
 
@@ -107,7 +107,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
             'title' => 'Old Welcome',
             'source_title' => 'Old Welcome',
             'openlp_search_title' => null,
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]);
 
         $payload = [
@@ -118,7 +118,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
                 'source_title' => 'New Welcome',
                 'openlp_search_title' => null,
                 'song_id' => null,
-                'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+                'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
             ],
         ];
 
@@ -153,7 +153,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
             'source_title' => 'Welcome',
             'openlp_search_title' => null,
             'song_id' => null,
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]];
 
         $result = $this->action->execute(
@@ -190,7 +190,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
             'title' => 'Welcome',
             'source_title' => 'Welcome',
             'openlp_search_title' => null,
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]);
 
         // Save the same item again — no change
@@ -201,7 +201,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
             'source_title' => 'Welcome',
             'openlp_search_title' => null,
             'song_id' => null,
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]];
 
         $this->action->execute(
@@ -228,7 +228,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
             'source_title' => 'Welcome',
             'openlp_search_title' => null,
             'song_id' => null,
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]];
 
         $this->action->execute(
@@ -253,7 +253,7 @@ class SaveChurchServiceFromAdminTest extends TestCase
             'source_title' => 'Welcome',
             'openlp_search_title' => null,
             'song_id' => null,
-            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
         ]];
 
         $result = $this->action->execute(

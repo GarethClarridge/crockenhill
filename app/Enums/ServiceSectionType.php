@@ -11,26 +11,26 @@ enum ServiceSectionType: string
 {
     use HasValues;
 
-    case WELCOME = 'welcome';
-    case PRAYER = 'prayer';
-    case NOTICES = 'notices';
-    case SONG = 'song';
-    case CHILDRENS_TALK = 'childrens_talk';
-    case BIBLE_READING = 'bible_reading';
-    case SERMON = 'sermon';
-    case OTHER = 'other';
+    case Welcome = 'welcome';
+    case Prayer = 'prayer';
+    case Notices = 'notices';
+    case Song = 'song';
+    case ChildrensTalk = 'childrens_talk';
+    case BibleReading = 'bible_reading';
+    case Sermon = 'sermon';
+    case Other = 'other';
 
     public function label(): string
     {
         return match ($this) {
-            self::WELCOME => 'Welcome',
-            self::PRAYER => 'Prayer',
-            self::NOTICES => 'Notices',
-            self::SONG => 'Song',
-            self::CHILDRENS_TALK => "Children's Talk",
-            self::BIBLE_READING => 'Bible Reading',
-            self::SERMON => 'Sermon',
-            self::OTHER => 'Other',
+            self::Welcome => 'Welcome',
+            self::Prayer => 'Prayer',
+            self::Notices => 'Notices',
+            self::Song => 'Song',
+            self::ChildrensTalk => "Children's Talk",
+            self::BibleReading => 'Bible Reading',
+            self::Sermon => 'Sermon',
+            self::Other => 'Other',
         };
     }
 
@@ -44,12 +44,12 @@ enum ServiceSectionType: string
         $lower = Str::lower($title);
 
         return match (true) {
-            str_contains($lower, 'children') => self::CHILDRENS_TALK,
-            str_contains($lower, 'prayer') => self::PRAYER,
-            str_contains($lower, 'notice'), str_contains($lower, 'announcement') => self::NOTICES,
-            str_contains($lower, 'welcome') => self::WELCOME,
-            str_contains($lower, 'sermon'), str_contains($lower, 'message') => self::SERMON,
-            default => self::OTHER,
+            str_contains($lower, 'children') => self::ChildrensTalk,
+            str_contains($lower, 'prayer') => self::Prayer,
+            str_contains($lower, 'notice'), str_contains($lower, 'announcement') => self::Notices,
+            str_contains($lower, 'welcome') => self::Welcome,
+            str_contains($lower, 'sermon'), str_contains($lower, 'message') => self::Sermon,
+            default => self::Other,
         };
     }
 }

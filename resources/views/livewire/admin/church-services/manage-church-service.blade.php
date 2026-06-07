@@ -98,13 +98,13 @@
 
                         <div class="md:col-span-3">
                             <x-input
-                                label="{{ $item['section_type'] === \App\Enums\ServiceSectionType::SONG->value ? 'Song title' : 'Title' }}"
+                                label="{{ $item['section_type'] === \App\Enums\ServiceSectionType::Song->value ? 'Song title' : 'Title' }}"
                                 wire:model.live.debounce.300ms="form.items.{{ $index }}.title"
                                 required />
                         </div>
                     </div>
 
-                    @if($item['section_type'] === \App\Enums\ServiceSectionType::SONG->value)
+                    @if($item['section_type'] === \App\Enums\ServiceSectionType::Song->value)
                         <div class="mt-4 space-y-3">
                             <p class="text-sm text-gray-500">Search the song catalogue to link this item to a canonical song.</p>
 

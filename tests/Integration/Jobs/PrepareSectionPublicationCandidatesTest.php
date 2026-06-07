@@ -76,7 +76,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
@@ -140,7 +140,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'status' => ServiceSectionStatus::Identified->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
@@ -174,7 +174,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::Approved->value,
@@ -235,7 +235,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
@@ -316,7 +316,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
@@ -324,7 +324,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
                 'confidence_level' => 'high',
                 'review_reason' => 'demoted_secondary_sermon_to_childrens_talk',
                 'review_flags' => ['heuristic_demotion'],
-                'original_ai_classification' => ServiceSectionType::SERMON->value,
+                'original_ai_classification' => ServiceSectionType::Sermon->value,
             ],
             'start_time' => 200.0,
             'end_time' => 680.0,
@@ -416,7 +416,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
@@ -505,11 +505,11 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'metadata' => ['confidence_level' => 'high'],
             'start_time' => 60.0,
             'end_time' => 300.0,
@@ -564,11 +564,11 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
         ]);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
@@ -617,11 +617,11 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'metadata' => ['confidence_level' => 'high'],
             'start_time' => 60.0,
             'end_time' => 300.0,

@@ -51,7 +51,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
                             'title' => 'Welcome',
                             'source_title' => 'Welcome',
                             'openlp_search_title' => null,
-                            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+                            'metadata' => ['section_type' => ServiceSectionType::Welcome->value],
                         ],
                         [
                             'position' => 2,
@@ -73,9 +73,9 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
         $this->assertSame('2026-06-01', $result['date']);
         $this->assertSame(SermonService::Morning->value, $result['service']);
         $this->assertCount(2, $result['items']);
-        $this->assertSame(ServiceSectionType::WELCOME->value, $result['items'][0]['section_type']);
+        $this->assertSame(ServiceSectionType::Welcome->value, $result['items'][0]['section_type']);
         $this->assertSame('Welcome', $result['items'][0]['title']);
-        $this->assertSame(ServiceSectionType::SONG->value, $result['items'][1]['section_type']);
+        $this->assertSame(ServiceSectionType::Song->value, $result['items'][1]['section_type']);
         $this->assertSame('Amazing Grace', $result['items'][1]['title']);
         $this->assertNull($result['items'][0]['song_id']);
     }
@@ -151,13 +151,13 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
 
         $result = $this->action->execute($inboundEmail->id);
 
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK->value, $result['items'][0]['section_type']);
-        $this->assertSame(ServiceSectionType::PRAYER->value, $result['items'][1]['section_type']);
-        $this->assertSame(ServiceSectionType::NOTICES->value, $result['items'][2]['section_type']);
-        $this->assertSame(ServiceSectionType::WELCOME->value, $result['items'][3]['section_type']);
-        $this->assertSame(ServiceSectionType::SERMON->value, $result['items'][4]['section_type']);
-        $this->assertSame(ServiceSectionType::NOTICES->value, $result['items'][5]['section_type']);
-        $this->assertSame(ServiceSectionType::OTHER->value, $result['items'][6]['section_type']);
+        $this->assertSame(ServiceSectionType::ChildrensTalk->value, $result['items'][0]['section_type']);
+        $this->assertSame(ServiceSectionType::Prayer->value, $result['items'][1]['section_type']);
+        $this->assertSame(ServiceSectionType::Notices->value, $result['items'][2]['section_type']);
+        $this->assertSame(ServiceSectionType::Welcome->value, $result['items'][3]['section_type']);
+        $this->assertSame(ServiceSectionType::Sermon->value, $result['items'][4]['section_type']);
+        $this->assertSame(ServiceSectionType::Notices->value, $result['items'][5]['section_type']);
+        $this->assertSame(ServiceSectionType::Other->value, $result['items'][6]['section_type']);
     }
 
     #[Test]
@@ -176,7 +176,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
                             'title' => 'Welcome',
                             'source_title' => null,
                             'openlp_search_title' => null,
-                            'metadata' => ['section_type' => ServiceSectionType::SERMON->value],
+                            'metadata' => ['section_type' => ServiceSectionType::Sermon->value],
                         ],
                     ],
                     'needs_review' => false,
@@ -188,7 +188,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
         $result = $this->action->execute($inboundEmail->id);
 
         // Metadata section_type (SERMON) should win over title inference (WELCOME)
-        $this->assertSame(ServiceSectionType::SERMON->value, $result['items'][0]['section_type']);
+        $this->assertSame(ServiceSectionType::Sermon->value, $result['items'][0]['section_type']);
     }
 
     #[Test]

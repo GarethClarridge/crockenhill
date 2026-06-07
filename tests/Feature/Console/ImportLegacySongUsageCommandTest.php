@@ -81,7 +81,7 @@ class ImportLegacySongUsageCommandTest extends TestCase
         $this->assertSame([29, 38], $morningItems->pluck('song_id')->all());
         $this->assertSame(1, data_get($morningItems[0]->metadata, 'legacy_play_date_id'));
         $this->assertSame(2, data_get($morningItems[1]->metadata, 'legacy_play_date_id'));
-        $this->assertSame(ServiceSectionType::SONG, $morningItems[0]->section_type);
+        $this->assertSame(ServiceSectionType::Song, $morningItems[0]->section_type);
         $this->assertSame(ChurchServiceItemSource::Manual, $morningItems[0]->source);
 
         $eveningService = ChurchService::query()
@@ -134,14 +134,14 @@ class ImportLegacySongUsageCommandTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'source' => ChurchServiceItemSource::Email->value,
             'title' => $songOne->title,
             'source_title' => $songOne->title,
             'openlp_search_title' => null,
             'song_id' => $songOne->id,
             'metadata' => [
-                'section_type' => ServiceSectionType::SONG->value,
+                'section_type' => ServiceSectionType::Song->value,
             ],
         ]);
 

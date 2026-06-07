@@ -37,7 +37,7 @@ class RateLimitingTest extends TestCase
         ]);
 
         $this->token = $this->admin
-            ->createToken('test', [ApiTokenAbility::MEDIA_PROCESS->value])
+            ->createToken('test', [ApiTokenAbility::MediaProcess->value])
             ->plainTextToken;
 
         // Rebind ThrottleRequests so it picks up the app's RateLimiter singleton.
@@ -119,7 +119,7 @@ class RateLimitingTest extends TestCase
         $file = UploadedFile::fake()->create('service.osz', 10, 'application/zip');
 
         $token = $this->admin
-            ->createToken('test-service', [ApiTokenAbility::SERVICE_UPLOAD->value])
+            ->createToken('test-service', [ApiTokenAbility::ServiceUpload->value])
             ->plainTextToken;
 
         $this->withToken($token)
@@ -211,7 +211,7 @@ class RateLimitingTest extends TestCase
 
         // A different admin should NOT be throttled
         $other = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
-        $otherToken = $other->createToken('other', [ApiTokenAbility::MEDIA_PROCESS->value])->plainTextToken;
+        $otherToken = $other->createToken('other', [ApiTokenAbility::MediaProcess->value])->plainTextToken;
 
         $response = $this->withToken($otherToken)
             ->postJson('/api/media/audio', ['file' => $file]);

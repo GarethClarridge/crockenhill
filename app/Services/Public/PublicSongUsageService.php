@@ -136,8 +136,8 @@ class PublicSongUsageService
                                     ->from('service_sections')
                                     ->whereColumn('service_sections.media_processing_log_id', 'media_processing_logs.id')
                                     ->whereColumn('service_sections.church_service_item_id', 'church_service_items.id')
-                                    ->where('service_sections.section_type', ServiceSectionType::SONG->value)
-                                    ->where('service_sections.song_match_type', ServiceSectionSongMatchType::CONFIRMED->value);
+                                    ->where('service_sections.section_type', ServiceSectionType::Song->value)
+                                    ->where('service_sections.song_match_type', ServiceSectionSongMatchType::Confirmed->value);
                             });
                     })
                     ->orWhereNotExists(function (QueryBuilder $logQuery): void {

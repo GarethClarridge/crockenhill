@@ -57,7 +57,7 @@ class RequestAuthorizationTest extends TestCase
         $request->shouldReceive('user')->andReturn($user);
         $request->shouldReceive('bearerToken')->andReturn('test-token');
         $request->shouldReceive('user->tokenCan')
-            ->with(ApiTokenAbility::MEDIA_PROCESS->value)
+            ->with(ApiTokenAbility::MediaProcess->value)
             ->andReturn(false);
 
         $this->assertFalse($request->authorize());
@@ -95,7 +95,7 @@ class RequestAuthorizationTest extends TestCase
         $request->shouldReceive('user')->andReturn($user);
         $request->shouldReceive('bearerToken')->andReturn('test-token');
         $request->shouldReceive('user->tokenCan')
-            ->with(ApiTokenAbility::MEDIA_PROCESS->value)
+            ->with(ApiTokenAbility::MediaProcess->value)
             ->andReturn(false);
 
         $this->assertFalse($request->authorize());
@@ -133,7 +133,7 @@ class RequestAuthorizationTest extends TestCase
         $request->shouldReceive('user')->andReturn($user);
         $request->shouldReceive('bearerToken')->andReturn('test-token');
         $request->shouldReceive('user->tokenCan')
-            ->with(ApiTokenAbility::MEDIA_PROCESS->value)
+            ->with(ApiTokenAbility::MediaProcess->value)
             ->andReturn(false);
 
         $this->assertFalse($request->authorize());
@@ -171,7 +171,7 @@ class RequestAuthorizationTest extends TestCase
         $request->shouldReceive('user')->andReturn($user);
         $request->shouldReceive('bearerToken')->andReturn('test-token');
         $request->shouldReceive('user->tokenCan')
-            ->with(ApiTokenAbility::MEDIA_PROCESS->value)
+            ->with(ApiTokenAbility::MediaProcess->value)
             ->andReturn(false);
 
         $this->assertFalse($request->authorize());

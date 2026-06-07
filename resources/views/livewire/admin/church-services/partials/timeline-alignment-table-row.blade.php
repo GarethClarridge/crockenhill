@@ -54,7 +54,7 @@
                 <p class="mt-0.5 text-xs text-gray-500">Song: {{ $row['song_title'] }}</p>
             @endif
             @if($row['song_match_type'] instanceof ServiceSectionSongMatchType)
-                <span class="mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $row['song_match_type'] === ServiceSectionSongMatchType::CONFIRMED ? 'bg-cbc-teal-light/15 text-cbc-teal-dark' : 'bg-amber-100 text-amber-700' }}">
+                <span class="mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $row['song_match_type'] === ServiceSectionSongMatchType::Confirmed ? 'bg-cbc-teal-light/15 text-cbc-teal-dark' : 'bg-amber-100 text-amber-700' }}">
                     {{ $row['song_match_type']->label() }}
                 </span>
             @endif

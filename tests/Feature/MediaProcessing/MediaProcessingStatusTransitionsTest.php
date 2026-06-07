@@ -44,7 +44,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
 
         $this->token = $this->admin->createToken(
             'test',
-            [ApiTokenAbility::MEDIA_PROCESS->value]
+            [ApiTokenAbility::MediaProcess->value]
         )->plainTextToken;
     }
 
@@ -343,7 +343,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
             'status' => ProcessingStatus::Processing,
         ]);
 
-        $token = $nonAdmin->createToken('test', [ApiTokenAbility::MEDIA_PROCESS->value])->plainTextToken;
+        $token = $nonAdmin->createToken('test', [ApiTokenAbility::MediaProcess->value])->plainTextToken;
 
         // EnsureMediaProcessingAccess aborts with 403 for non-admin users before
         // the visibility scope even runs.

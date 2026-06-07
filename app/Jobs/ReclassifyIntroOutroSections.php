@@ -59,7 +59,7 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
         /** @var EloquentCollection<int, ServiceSection> $songSections */
         $songSections = ServiceSection::query()
             ->where('media_processing_log_id', $this->processingLog->id)
-            ->where('section_type', ServiceSectionType::SONG->value)
+            ->where('section_type', ServiceSectionType::Song->value)
             ->orderBy('section_order')
             ->orderBy('id')
             ->get();
@@ -112,7 +112,7 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
             return 0;
         }
 
-        $this->reclassifySection($first, ServiceSectionType::OTHER, 'possible_musical_intro');
+        $this->reclassifySection($first, ServiceSectionType::Other, 'possible_musical_intro');
 
         Log::info('ReclassifyIntroOutroSections: reclassified intro section', [
             'processing_id' => $this->processingLog->processing_id,
@@ -152,7 +152,7 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
             return 0;
         }
 
-        $this->reclassifySection($last, ServiceSectionType::OTHER, 'possible_musical_outro');
+        $this->reclassifySection($last, ServiceSectionType::Other, 'possible_musical_outro');
 
         Log::info('ReclassifyIntroOutroSections: reclassified outro section', [
             'processing_id' => $this->processingLog->processing_id,
@@ -167,14 +167,14 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
     private function isMatched(ServiceSection $section): bool
     {
         return $section->song_match_type !== null
-            && $section->song_match_type !== ServiceSectionSongMatchType::UNMATCHED;
+            && $section->song_match_type !== ServiceSectionSongMatchType::Unmatched;
     }
 
     private function reclassifySection(ServiceSection $section, ServiceSectionType $newType, string $reviewReason): void
     {
         $metadata = $section->metadata?->toArray() ?? [];
         $metadata['review_reason'] = $reviewReason;
-        $metadata['original_section_type'] = ServiceSectionType::SONG->value;
+        $metadata['original_section_type'] = ServiceSectionType::Song->value;
 
         $section->section_type = $newType;
         $section->needs_manual_review = true;

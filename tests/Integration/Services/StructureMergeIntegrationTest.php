@@ -43,7 +43,7 @@ class StructureMergeIntegrationTest extends TestCase
     {
         $churchService = $this->createLivestreamService('2024-11-17', SermonService::Morning, [
             ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high'],
-            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::SERMON, 'confidence' => 'high'],
+            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::Sermon, 'confidence' => 'high'],
         ]);
 
         $upload = OpenLpArchiveFactory::makeUpload(
@@ -134,7 +134,7 @@ class StructureMergeIntegrationTest extends TestCase
     {
         $churchService = $this->createLivestreamService('2026-03-22', SermonService::Morning, [
             ['type' => 'songs', 'title' => 'Amazing Grace', 'confidence' => 'high'],
-            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::SERMON, 'confidence' => 'high'],
+            ['type' => 'custom', 'title' => 'Sermon', 'section_type' => ServiceSectionType::Sermon, 'confidence' => 'high'],
         ]);
 
         $inboundEmail = InboundEmail::factory()->create([
@@ -146,7 +146,7 @@ class StructureMergeIntegrationTest extends TestCase
             service: SermonService::Morning,
             items: [
                 ['position' => 1, 'type' => 'songs', 'title' => 'Different Song', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
-                ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::Prayer->value, 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
             ],
             confidenceScore: 0.9,
             needsReview: false,
@@ -228,7 +228,7 @@ class StructureMergeIntegrationTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'title' => 'Amazing Grace',
             'confidence' => 0.95,
@@ -291,7 +291,7 @@ class StructureMergeIntegrationTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'title' => 'Amazing Grace',
             'confidence' => 0.9,
@@ -382,7 +382,7 @@ class StructureMergeIntegrationTest extends TestCase
                         ['type' => 'title_conflict', 'incoming_item' => ['position' => 1, 'type' => 'songs', 'title' => 'New Song']],
                     ],
                     'proposed_items' => [
-                        ['position' => 1, 'type' => 'songs', 'title' => 'New Song', 'section_type' => ServiceSectionType::SONG->value, 'source_title' => null, 'openlp_search_title' => 'new song@', 'song_id' => null, 'metadata' => null],
+                        ['position' => 1, 'type' => 'songs', 'title' => 'New Song', 'section_type' => ServiceSectionType::Song->value, 'source_title' => null, 'openlp_search_title' => 'new song@', 'song_id' => null, 'metadata' => null],
                     ],
                     'classification' => ['auto_merge' => [], 'review_required' => [0], 'unmatched_incoming' => []],
                 ],
@@ -394,7 +394,7 @@ class StructureMergeIntegrationTest extends TestCase
             'position' => 1,
             'type' => 'songs',
             'title' => 'Old Song',
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'metadata' => ['livestream_projection' => ['source_segment_ids' => [], 'confidence_level' => 'high']],
         ]);
 
@@ -423,8 +423,8 @@ class StructureMergeIntegrationTest extends TestCase
 
         foreach ($items as $index => $item) {
             $sectionType = $item['section_type'] ?? match ($item['type']) {
-                'songs' => ServiceSectionType::SONG,
-                'bibles' => ServiceSectionType::BIBLE_READING,
+                'songs' => ServiceSectionType::Song,
+                'bibles' => ServiceSectionType::BibleReading,
                 default => ServiceSectionType::inferFromTitle($item['title']),
             };
 
