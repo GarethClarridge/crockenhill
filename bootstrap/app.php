@@ -38,6 +38,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->daily()
             ->withoutOverlapping(60)
             ->environments(['production']);
+        $schedule->command('monitoring:check-canaries')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->environments(['production']);
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);

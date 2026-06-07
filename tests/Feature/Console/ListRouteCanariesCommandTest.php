@@ -58,7 +58,11 @@ class ListRouteCanariesCommandTest extends TestCase
         // Cached read-model routes are hit twice to exercise the serialized read-back.
         $this->assertStringContainsString("/christ/{$page->slug}\t200\t2\tCrockenhill", $output);
         $this->assertStringContainsString("/community/{$meeting->slug}\t200\t2\tCrockenhill", $output);
-        $this->assertStringContainsString("/christ/sermons/{$sermon->slug}\t200\t2\tCrockenhill", $output);
+        // The slug-only sermon route 301-redirects to the canonical dated URL, so the
+        // render check targets the dated URL and a separate canary guards the redirect.
+        $datedPath = $sermon->date->format('Y/m')."/{$sermon->slug}";
+        $this->assertStringContainsString("/christ/sermons/{$datedPath}\t200\t2\tCrockenhill", $output);
+        $this->assertStringContainsString("/christ/sermons/{$sermon->slug}\t301\t1\t", $output);
         // The preacher is taken from the chosen sermon, guaranteeing a visible page.
         $this->assertStringContainsString("/christ/sermons/preachers/{$preacher->slug}\t200\t1\tCrockenhill", $output);
     }

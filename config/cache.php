@@ -7,6 +7,8 @@ use App\Enums\PageArea;
 use App\Models\CalendarEvent;
 use App\Models\Page;
 use App\Models\Preacher;
+use App\Models\ScripturePassage;
+use App\Models\Sermon;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -124,6 +126,12 @@ return [
         // Preacher models cached by PreacherListCache::forPublicList()
         // for the public sermons browse filter and preachers index.
         Preacher::class,
+
+        // Sermon collections cached by SermonRepository (preacher/service/series
+        // listings via Cache::flexible), with their eager-loaded ScripturePassage
+        // relation. Both must rehydrate or the public sermon pages 500 on read-back.
+        Sermon::class,
+        ScripturePassage::class,
 
         // CalendarEvent models live inside PublicMeetingReadModel::upcomingEvents
         // (see PublicMeetingReadModelCache). The CalendarEventStatus enum is a
