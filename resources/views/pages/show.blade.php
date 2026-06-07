@@ -2,6 +2,7 @@
 
 @section('content')
 <x-page.shell
+    :page="$page"
     :heading="$heading"
     :meta-description="$metaDescription ?? null"
     :description="$description ?? null"

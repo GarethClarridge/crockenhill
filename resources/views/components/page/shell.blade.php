@@ -1,4 +1,5 @@
 @props([
+    'page' => null,
     'heading',
     'title' => null,
     'description' => null,
@@ -37,7 +38,14 @@
     :image-alt="$headingpicture ? 'Crockenhill Baptist Church: ' . $heading : null"
     :canonical="$canonical"
 />
-<x-schema.webpage :$heading :description="$resolvedDescription" :image="$headingpicture ?? null" :canonical="$canonical" />
+<x-schema.webpage
+    :$heading
+    :description="$resolvedDescription"
+    :image="$headingpicture ?? null"
+    :canonical="$canonical"
+    :datePublished="isset($page) ? $page->created_at : null"
+    :dateModified="isset($page) ? $page->updated_at : null"
+/>
 @endpush
 @endif
 
