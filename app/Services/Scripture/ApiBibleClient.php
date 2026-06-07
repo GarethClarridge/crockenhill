@@ -93,6 +93,10 @@ class ApiBibleClient
      * Search for a passage by normalized reference text and return the resolved passage.
      * Uses a single search call which returns content in the response.
      * Returns null if not found or if the API call fails.
+     *
+     * @throws ApiBibleBudgetExhaustedException
+     * @throws \Illuminate\Http\Client\ConnectionException
+     * @throws \RuntimeException
      */
     public function searchPassage(string $normalizedReference): ?ApiBiblePassageResult
     {
@@ -184,6 +188,10 @@ class ApiBibleClient
      * Refresh an existing passage by its stored passage ID.
      * Used for scheduled cache refreshes to avoid re-searching by text.
      * Returns null if the passage is no longer available.
+     *
+     * @throws ApiBibleBudgetExhaustedException
+     * @throws \Illuminate\Http\Client\ConnectionException
+     * @throws \RuntimeException
      */
     public function fetchPassageById(string $passageId): ?ApiBiblePassageResult
     {
