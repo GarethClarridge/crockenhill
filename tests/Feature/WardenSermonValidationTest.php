@@ -103,4 +103,37 @@ class WardenSermonValidationTest extends TestCase
 
         $this->assertFalse($validator->fails());
     }
+
+    #[Test]
+    public function it_rejects_a_download_count_above_the_integer_bound(): void
+    {
+        $rules = Sermon::validationRules();
+
+        // download_count has no exists rule, so a failure here can only come from the max bound.
+        $validator = Validator::make([
+            'download_count' => 2147483648,
+        ], [
+            'download_count' => $rules['download_count'],
+        ]);
+
+        $this->assertTrue($validator->fails());
+        $this->assertEquals(
+            'The download count field must not be greater than 2147483647.',
+            $validator->errors()->first('download_count')
+        );
+    }
+
+    #[Test]
+    public function it_accepts_a_download_count_at_the_integer_bound(): void
+    {
+        $rules = Sermon::validationRules();
+
+        $validator = Validator::make([
+            'download_count' => 2147483647,
+        ], [
+            'download_count' => $rules['download_count'],
+        ]);
+
+        $this->assertFalse($validator->fails());
+    }
 }

@@ -282,10 +282,7 @@ class Sermon extends Model implements Sitemapable
             'series' => ['nullable', 'string', 'max:255'],
             'reference' => ['nullable', 'string', 'max:255', new NotEmptyString],
             'preacher' => ['required', 'string', 'max:255'], // Matches database varchar length and non-empty constraint
-            /**
-             * Security: Integer bounding is enforced on all ID and counter fields to provide
-             * Defense in Depth against malformed input and potential integer overflow attacks.
-             */
+            // Security: integer bounding on ID and counter fields adds defence in depth against malformed input and overflow.
             'preacher_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
             'preacher_source' => ['nullable', Rule::enum(PreacherSource::class)],
             'preacher_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],

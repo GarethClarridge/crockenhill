@@ -227,7 +227,11 @@ class CalendarAdminControllerTest extends TestCase
             'meeting_slug' => 'sunday-morning',
         ]);
 
-        $response->assertSessionHasErrors('event_id');
+        // Assert the max-bound message specifically so this proves the new max rule
+        // fired rather than the pre-existing exists rule.
+        $response->assertSessionHasErrors([
+            'event_id' => 'The event id field must not be greater than 2147483647.',
+        ]);
     }
 
     #[Test]

@@ -525,10 +525,13 @@ class SermonApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['preacher_id']);
 
-        // Test out of bounds preacher_id
+        // Test out of bounds preacher_id — assert the max-bound message specifically so this
+        // proves the new max rule fired rather than the pre-existing exists rule.
         $this->getJson('/api/sermons?preacher_id=2147483648')
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['preacher_id']);
+            ->assertJsonValidationErrors([
+                'preacher_id' => 'The preacher id field must not be greater than 2147483647.',
+            ]);
 
         // Test invalid with_thumbnail
         $this->getJson('/api/sermons?with_thumbnail=not_a_boolean')
