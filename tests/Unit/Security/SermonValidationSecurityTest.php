@@ -7,6 +7,7 @@ namespace Tests\Unit\Security;
 use App\Http\Requests\ConfirmMediaSegmentRequest;
 use App\Http\Requests\UpdateSermonRequest;
 use App\Livewire\Forms\SermonFormData;
+use App\Rules\SermonPointElement;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Component;
 use PHPUnit\Framework\Attributes\Test;
@@ -90,6 +91,31 @@ class SermonValidationSecurityTest extends TestCase
     }
 
     #[Test]
+    public function update_sermon_request_rejects_non_string_scalar_flat_points()
+    {
+        $request = new UpdateSermonRequest;
+        $rules = $request->rules();
+
+        // Remove DB dependent rules for unit test
+        unset($rules['slug'], $rules['preacher_id'], $rules['scripture_passage_id'], $rules['livestream_processing_id']);
+
+        $data = [
+            'title' => 'Valid Title',
+            'date' => '2024-01-01',
+            'service' => 'morning',
+            'preacher' => 'Valid Preacher',
+            'points' => [
+                999999, // A bare integer must not launder past the string guard.
+            ],
+        ];
+
+        $validator = Validator::make($data, $rules);
+
+        $this->assertFalse($validator->passes(), 'Validation should have failed for a non-string scalar flat point.');
+        $this->assertTrue($validator->errors()->has('points.0'));
+    }
+
+    #[Test]
     public function update_sermon_request_accepts_valid_mixed_points()
     {
         $request = new UpdateSermonRequest;
@@ -147,8 +173,11 @@ class SermonValidationSecurityTest extends TestCase
         $rules = $method->invoke($form);
 
         $this->assertArrayHasKey('points.*', $rules);
-        $this->assertContains('max:255', $rules['points.*']);
         $this->assertContains('nullable', $rules['points.*']);
+        $this->assertNotEmpty(array_filter(
+            $rules['points.*'],
+            fn ($rule): bool => $rule instanceof SermonPointElement
+        ), 'points.* should guard flat elements with the SermonPointElement rule.');
 
         $this->assertArrayHasKey('points.*.point', $rules);
         $this->assertContains('max:255', $rules['points.*.point']);
