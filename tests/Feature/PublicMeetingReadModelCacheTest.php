@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Data\PublicMeetingReadModel;
 use App\Enums\CalendarEventStatus;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\Page;
+use App\Services\Public\PublicMeetingReadModelCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
@@ -103,5 +105,70 @@ class PublicMeetingReadModelCacheTest extends TestCase
         $this->get('/community/old-events-meeting')
             ->assertOk()
             ->assertDontSee('Very Old Event');
+    }
+
+    #[Test]
+    public function page_less_meeting_read_model_survives_allow_listed_unserialization(): void
+    {
+        // Mirrors the live /community/sunday-mornings record: a meeting with no linked
+        // page and no photos. Production caches (Redis) serialise the read model and
+        // rehydrate it under the cache.serializable_classes allow-list, a path the
+        // array driver used in tests skips by default.
+        $meeting = Meeting::factory()->create([
+            'slug' => 'sunday-mornings',
+            'page_id' => null,
+        ]);
+
+        $this->assertReadModelSurvivesAllowListedUnserialization($meeting);
+    }
+
+    #[Test]
+    public function meeting_read_model_with_page_and_events_survives_allow_listed_unserialization(): void
+    {
+        // The richer graph: a linked Page (with PageArea enum + Carbon timestamps) and
+        // an upcoming CalendarEvent (with CalendarEventStatus enum). Every nested class
+        // must appear in cache.serializable_classes or it rehydrates as an incomplete
+        // class and the public page 500s on the next cache read.
+        $page = Page::factory()->create([
+            'slug' => 'serialised-meeting-page',
+            'area' => 'community',
+            'heading' => 'Serialised Meeting Page',
+            'admin' => 'no',
+        ]);
+
+        $meeting = Meeting::factory()->create([
+            'slug' => 'serialised-meeting',
+            'page_id' => $page->id,
+        ]);
+
+        CalendarEvent::factory()->forMeeting($meeting)->upcoming()->create([
+            'title' => 'Upcoming gathering',
+        ]);
+
+        $this->assertReadModelSurvivesAllowListedUnserialization($meeting);
+    }
+
+    /**
+     * Assert the cached read model round-trips through PHP serialization under the
+     * production cache.serializable_classes allow-list without any node degrading to
+     * __PHP_Incomplete_Class.
+     *
+     * Detection uses print_r() rather than re-serialising: re-serialising an incomplete
+     * object re-emits its original class name, so serialize() can never reveal the
+     * failure, whereas print_r() renders incomplete nodes literally as
+     * "__PHP_Incomplete_Class" and recurses through nested objects, arrays, and
+     * collections.
+     */
+    private function assertReadModelSurvivesAllowListedUnserialization(Meeting $meeting): void
+    {
+        $readModel = app(PublicMeetingReadModelCache::class)->get($meeting);
+
+        $restored = unserialize(
+            serialize($readModel),
+            ['allowed_classes' => config('cache.serializable_classes')],
+        );
+
+        $this->assertInstanceOf(PublicMeetingReadModel::class, $restored);
+        $this->assertStringNotContainsString('__PHP_Incomplete_Class', print_r($restored, true));
     }
 }
