@@ -6,7 +6,7 @@ Tool-specific addenda live alongside this file and stay short:
 
 - `CLAUDE.md` — Claude-Code-specific notes (auto-loaded by Claude Code).
 - `GEMINI.md` — Gemini-specific notes (auto-loaded by Gemini Code Assist).
-- `.Jules/agents/*.md` — Jules persona missions, domain checklists, and journals.
+- `.Jules/agents/*.md` — Jules persona missions, domain checklists, and journals. The directory is canonically `.Jules` (capital J), never lowercase `.jules` — on case-insensitive filesystems the two collapse to one file but git tracks them as duplicate paths, causing phantom diffs. Enforced by `scripts/check-no-case-collisions.sh` in the PR quality gate.
 - `.codex/config.toml` — Codex MCP wiring.
 
 None of those files duplicate project context that lives here. If you spot drift, fix it here and trim the duplicate.
