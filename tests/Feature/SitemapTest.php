@@ -450,4 +450,24 @@ class SitemapTest extends TestCase
         $content = $response->getContent();
         $this->assertStringContainsString('/community/meeting-without-date', $content);
     }
+
+    #[Test]
+    public function generate_command_writes_a_static_file_with_the_canary_marker(): void
+    {
+        // The deploy pre-builds the sitemap with `artisan sitemap:generate` so the
+        // post-deploy canary hits a ready static file instead of generating it
+        // synchronously inside the request. Guard the contract that command relies
+        // on: it writes a readable file containing the `<urlset` marker the canary
+        // greps for.
+        $sitemapService = app(SitemapService::class);
+        $filePath = $sitemapService->getFilePath();
+
+        $this->artisan('sitemap:generate')->assertSuccessful();
+
+        $this->assertFileExists($filePath);
+
+        $content = file_get_contents($filePath);
+        $this->assertNotFalse($content);
+        $this->assertStringContainsString('<urlset', $content);
+    }
 }

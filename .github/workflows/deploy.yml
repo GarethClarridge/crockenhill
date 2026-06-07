@@ -444,6 +444,15 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
               php artisan optimize --except=views
 
+            # Pre-build public/sitemap.xml inside the app container before the
+            # canaries run. public/ lives on the container's ephemeral layer (it is
+            # not a persisted volume), so a fresh image has no sitemap file. nginx
+            # serves public/sitemap.xml statically via try_files, so without this the
+            # canary's first /sitemap.xml hit must generate the whole sitemap
+            # synchronously within curl's 20s budget and intermittently times out.
+            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+              php artisan sitemap:generate
+
             # Canaries must hit the real public edge (Caddy vhost + TLS), so point
             # them at APP_URL — the same origin the continuous checker uses. Sourced
             # from .env.production above. The /up liveness probe stays on localhost.

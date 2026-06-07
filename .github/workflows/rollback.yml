@@ -82,6 +82,13 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
               php artisan optimize --except=views
 
+            # Pre-build public/sitemap.xml before the canaries run. public/ is on the
+            # container's ephemeral layer, so a rolled-back image starts with no
+            # sitemap file; nginx serves it statically, so the canary would otherwise
+            # have to generate it synchronously within curl's 20s budget.
+            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+              php artisan sitemap:generate
+
             if [ -f .env.production ]; then
               set -a
               . ./.env.production
