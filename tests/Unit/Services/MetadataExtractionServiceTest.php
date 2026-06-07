@@ -8,7 +8,7 @@ use App\Data\SermonMetadata;
 use App\Enums\SermonService;
 use App\Services\Processing\MetadataExtractionService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -378,7 +378,7 @@ class MetadataExtractionServiceTest extends TestCase
         ];
 
         foreach ($testCases as $extension => $expected) {
-            $file = $this->createMock(\Illuminate\Http\UploadedFile::class);
+            $file = $this->createMock(UploadedFile::class);
             $file->method('getClientOriginalName')->willReturn('test'.($extension ? '.'.$extension : ''));
             $file->method('hashName')->willReturn('hash.mp3');
             $file->method('getClientOriginalExtension')->willReturn($extension);

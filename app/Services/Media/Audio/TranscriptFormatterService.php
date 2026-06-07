@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace App\Services\Media\Audio;
+
 use App\Services\BritishEnglishConverter;
 
 class TranscriptFormatterService

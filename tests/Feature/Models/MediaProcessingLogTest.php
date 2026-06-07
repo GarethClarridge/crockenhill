@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Models;
 
-use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
