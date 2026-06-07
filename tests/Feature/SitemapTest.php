@@ -15,11 +15,13 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesSlugViolatingSermons;
 use Tests\TestCase;
 
 #[Group('dedicated')]
 class SitemapTest extends TestCase
 {
+    use CreatesSlugViolatingSermons;
     use RefreshDatabase;
 
     // Tests rely on seeded data (pages, sermons, meetings)
@@ -469,5 +471,27 @@ class SitemapTest extends TestCase
         $content = file_get_contents($filePath);
         $this->assertNotFalse($content);
         $this->assertStringContainsString('<urlset', $content);
+    }
+
+    #[Test]
+    public function generate_command_skips_a_sermon_without_a_slug(): void
+    {
+        // Production carries legacy sermons with a blank slug (the slug-format CHECK
+        // constraint was skipped when added against violating data). Such a sermon
+        // has no canonical dated URL; before the fix it reached the
+        // visible-in-sitemap scope and threw UrlGenerationException, failing the
+        // deploy's `sitemap:generate` step. It must now be skipped.
+        $this->createSermonWithBlankSlug(['content_type' => SermonContentType::Sermon]);
+        Sermon::factory()->create([
+            'slug' => 'has-a-slug',
+            'content_type' => SermonContentType::Sermon,
+            'date' => '2025-05-20',
+        ]);
+
+        $this->artisan('sitemap:generate')->assertSuccessful();
+
+        $content = file_get_contents(app(SitemapService::class)->getFilePath());
+        $this->assertNotFalse($content);
+        $this->assertStringContainsString('/2025/05/has-a-slug', $content);
     }
 }

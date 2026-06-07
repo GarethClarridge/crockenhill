@@ -137,6 +137,13 @@ class SermonExposurePolicy
             return $this->publicUrl($sermon);
         }
 
+        // The dated route is keyed on the slug; without one there is no canonical
+        // page, so return empty rather than throwing UrlGenerationException — the
+        // same contract publicUrl() already honours.
+        if (! filled($sermon->slug)) {
+            return '';
+        }
+
         return route('sermons.show.dated', [
             'year' => $sermon->date->format('Y'),
             'month' => $sermon->date->format('m'),

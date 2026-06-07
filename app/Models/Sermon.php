@@ -435,6 +435,11 @@ class Sermon extends Model implements Sitemapable
      */
     public function scopeWhereVisibleInSitemap(Builder $query): Builder
     {
+        // A sermon's canonical URL is keyed on its slug, so a record without one
+        // has no public page to point to and must never reach URL generation.
+        $query->whereNotNull($query->qualifyColumn('slug'))
+            ->where($query->qualifyColumn('slug'), '!=', '');
+
         if ((bool) config('sermons.childrens_talks.public', false)) {
             return $query;
         }

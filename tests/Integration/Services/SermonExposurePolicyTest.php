@@ -14,10 +14,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesSlugViolatingSermons;
 use Tests\TestCase;
 
 class SermonExposurePolicyTest extends TestCase
 {
+    use CreatesSlugViolatingSermons;
     use RefreshDatabase;
 
     private SermonExposurePolicy $policy;
@@ -149,6 +151,20 @@ class SermonExposurePolicyTest extends TestCase
         // Sermon canonical follows specific year/month/slug format
         $expectedSermonCanonical = url('/christ/sermons/2025/05/sermon-slug');
         $this->assertSame($expectedSermonCanonical, $this->policy->canonicalUrl($sermon));
+    }
+
+    #[Test]
+    public function canonical_url_is_empty_for_a_sermon_without_a_slug(): void
+    {
+        // Production carries legacy sermons with a blank slug: the slug-format CHECK
+        // constraint was added inside a try/catch that silently skips when existing
+        // data already violates it, so the bad row survives constraint-free. The
+        // dated route is keyed on the slug, so building it would throw
+        // UrlGenerationException; the policy returns empty instead, matching
+        // publicUrl()'s contract.
+        $sermon = $this->createSermonWithBlankSlug();
+
+        $this->assertSame('', $this->policy->canonicalUrl($sermon));
     }
 
     #[Test]
