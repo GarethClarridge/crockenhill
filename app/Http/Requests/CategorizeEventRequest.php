@@ -29,7 +29,7 @@ class CategorizeEventRequest extends FormRequest
              * Security: Integer bounding is enforced to prevent malformed input and
              * potential integer overflow attacks.
              */
-            'event_id' => ['required', 'integer', 'max:2147483647', 'exists:calendar_events,id'],
+            'event_id' => ['required', 'integer', 'min:1', 'max:2147483647', 'exists:calendar_events,id'],
             'meeting_slug' => ['required', 'string', 'max:255', 'exists:meetings,slug'],
         ];
     }

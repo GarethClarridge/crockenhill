@@ -38,7 +38,7 @@ class SermonIndexRequest extends FormRequest
              * Security: Integer bounding is enforced to prevent malformed input and
              * potential integer overflow attacks.
              */
-            'preacher_id' => ['nullable', 'integer', 'max:2147483647', 'exists:preachers,id'],
+            'preacher_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
             'series' => ['nullable', 'string', 'max:255'],
             'sort' => ['nullable', 'string', 'in:date,title,preacher,series,service'],
             'order' => ['nullable', 'string', 'in:asc,desc'],

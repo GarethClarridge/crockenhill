@@ -286,12 +286,12 @@ class Sermon extends Model implements Sitemapable
              * Security: Integer bounding is enforced on all ID and counter fields to provide
              * Defense in Depth against malformed input and potential integer overflow attacks.
              */
-            'preacher_id' => ['nullable', 'integer', 'max:2147483647', 'exists:preachers,id'],
+            'preacher_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
             'preacher_source' => ['nullable', Rule::enum(PreacherSource::class)],
             'preacher_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'segment_start_time' => ['nullable', 'numeric', 'min:0'],
             'segment_end_time' => ['nullable', 'numeric', 'min:0', 'gte:segment_start_time'],
-            'scripture_passage_id' => ['nullable', 'integer', 'max:2147483647', 'exists:scripture_passages,id'],
+            'scripture_passage_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:scripture_passages,id'],
             'download_count' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
             'duration' => ['nullable', 'numeric', 'min:0'],
             'summary' => ['nullable', 'string', 'max:1000'],
