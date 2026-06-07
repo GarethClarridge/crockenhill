@@ -26,9 +26,9 @@ use Throwable;
  */
 class CheckRouteCanariesCommand extends Command
 {
-    protected $signature = 'monitoring:check-canaries';
+    protected string $signature = 'monitoring:check-canaries';
 
-    protected $description = 'Hit each public route-type canary against the live site and alert on failure';
+    protected string $description = 'Hit each public route-type canary against the live site and alert on failure';
 
     public function handle(RouteCanaryRegistry $registry): int
     {

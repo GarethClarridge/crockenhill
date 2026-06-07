@@ -19,9 +19,9 @@ use Illuminate\Console\Command;
  */
 class ListRouteCanariesCommand extends Command
 {
-    protected $signature = 'monitoring:canaries';
+    protected string $signature = 'monitoring:canaries';
 
-    protected $description = 'Emit a post-deploy canary manifest (url, expected status, hits, body marker) covering each public route type';
+    protected string $description = 'Emit a post-deploy canary manifest (url, expected status, hits, body marker) covering each public route type';
 
     public function handle(RouteCanaryRegistry $registry): int
     {
