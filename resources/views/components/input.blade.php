@@ -1,7 +1,7 @@
 @props(['label' => null, 'hint' => null, 'required' => false, 'icon' => null, 'clearable' => false, 'maxlength' => null, 'shortcut' => null, 'autofocus' => false])
 
 @php
-$modelName = $attributes->wire('model')->value();
+$modelName = $attributes->wire('model')?->value();
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
 
@@ -27,8 +27,8 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
         count = $refs.input.value.length;
         @if($autofocus) $nextTick(() => $refs.input.focus()) @endif
         @if($modelName)
-            $watch('$wire.{{ $modelName }}', () => {
-                count = $refs.input.value.length;
+            $watch('$wire.{{ $modelName }}', value => {
+                count = (value ?? '').toString().length;
             });
         @endif
      "
