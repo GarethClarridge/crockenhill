@@ -7,6 +7,7 @@ namespace App\Presenters;
 use App\Models\Sermon;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class SermonItemListPresenter
 {
@@ -173,7 +174,8 @@ class SermonItemListPresenter
             ? $sermon->updated_at->toIso8601String()
             : $datePublished;
 
-        $articleBody = $sermon->show_summary ? trim(strip_tags((string) $sermon->summary)) : null;
+        $articleBody = $sermon->show_summary ? $sermon->summary : null;
+        $articleBody = $articleBody ? Str::squish(strip_tags((string) $articleBody)) : null;
 
         $article = [
             '@type' => 'Article',

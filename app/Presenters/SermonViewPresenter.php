@@ -54,7 +54,6 @@ class SermonViewPresenter
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
         private readonly SermonTranscriptReader $transcriptReader,
-        private readonly SermonPresentationAssembler $assembler = new SermonPresentationAssembler,
     ) {}
 
     /**
@@ -125,9 +124,19 @@ class SermonViewPresenter
 
     public function audioUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'audio', 'memoizedUrls', fn (): ?string => filled($sermon->audio_file_path)
+        $key = $this->cacheKey($sermon, 'audio');
+
+        if (isset($this->computed[$key])) {
+            return $this->memoizedUrls[$key];
+        }
+
+        $url = filled($sermon->audio_file_path)
             ? $this->storageService->getAudioDeliveryUrl($sermon)
-            : null);
+            : null;
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedUrls[$key] = $url;
     }
 
     /**
@@ -150,20 +159,51 @@ class SermonViewPresenter
      */
     public function preacherImageUrl(Sermon $sermon): ?string
     {
-        return $this->resolvePreacherAttribute(
-            $sermon,
-            'img',
-            store: 'memoized',
-            // The image URL resolves the moment the relation is loaded, even when
-            // the profile is null (it simply yields a null URL).
-            fromLoaded: static fn (Sermon $sermon): array => [true, $sermon->preacherProfile?->profile_image_url],
-            fromUnloaded: static fn (Sermon $sermon): ?string => null,
-        );
+        $identityKey = $sermon->preacher_id !== null
+            ? "id_{$sermon->preacher_id}"
+            : (string) $sermon->preacher;
+
+        if ($identityKey === '') {
+            return null;
+        }
+
+        $keyAuth = "img_auth_{$identityKey}";
+        if (isset($this->computed[$keyAuth])) {
+            return $this->memoized["img_{$identityKey}"];
+        }
+
+        // If the relation is explicitly loaded, use it as the source of truth and update memo
+        if ($sermon->relationLoaded('preacherProfile')) {
+            $url = $sermon->preacherProfile?->profile_image_url;
+            $this->computed[$keyAuth] = true;
+            $this->computed["img_{$identityKey}"] = true;
+            $this->memoized["img_{$identityKey}"] = $url;
+
+            return $url;
+        }
+
+        $key = "img_{$identityKey}";
+        if (isset($this->computed[$key])) {
+            return $this->memoized[$key];
+        }
+
+        return null;
     }
 
     public function canonicalUrl(Sermon $sermon): string
     {
-        return $this->memoize($sermon, 'canonical', 'memoizedUrls', fn (): string => $this->exposurePolicy->canonicalUrl($sermon));
+        $key = $this->cacheKey($sermon, 'canonical');
+
+        if (isset($this->computed[$key])) {
+            /** @var string */
+            return $this->memoizedUrls[$key];
+        }
+
+        $url = $this->exposurePolicy->canonicalUrl($sermon);
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedUrls[$key] = $url;
     }
 
     /**
@@ -175,7 +215,15 @@ class SermonViewPresenter
      */
     public function cardThumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'card_thumb', 'memoizedUrls', function () use ($sermon): ?string {
+        $key = $this->cacheKey($sermon, 'card_thumb');
+
+        if (isset($this->computed[$key])) {
+            return $this->memoizedUrls[$key];
+        }
+
+        $this->computed[$key] = true;
+
+        $url = (function () use ($sermon) {
             if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
                 return null;
             }
@@ -189,7 +237,9 @@ class SermonViewPresenter
             }
 
             return $this->storageService->getCardThumbnailDeliveryUrl($sermon);
-        });
+        })();
+
+        return $this->memoizedUrls[$key] = $url;
     }
 
     /**
@@ -201,7 +251,15 @@ class SermonViewPresenter
      */
     public function plainThumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'plain_thumb', 'memoizedUrls', function () use ($sermon): ?string {
+        $key = $this->cacheKey($sermon, 'plain_thumb');
+
+        if (isset($this->computed[$key])) {
+            return $this->memoizedUrls[$key];
+        }
+
+        $this->computed[$key] = true;
+
+        $url = (function () use ($sermon) {
             if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
                 return null;
             }
@@ -216,7 +274,9 @@ class SermonViewPresenter
             }
 
             return $this->storageService->getPlainThumbnailDeliveryUrl($sermon);
-        });
+        })();
+
+        return $this->memoizedUrls[$key] = $url;
     }
 
     /**
@@ -231,28 +291,45 @@ class SermonViewPresenter
      */
     public function preacherUrl(Sermon $sermon): ?string
     {
-        return $this->resolvePreacherAttribute(
-            $sermon,
-            'url',
-            store: 'memoizedUrls',
-            // Only a non-null loaded profile yields a slug-based URL; otherwise
-            // fall through to the name-derived fallback.
-            fromLoaded: function (Sermon $sermon): array {
-                if ($sermon->preacherProfile === null) {
-                    return [false, null];
-                }
+        $identityKey = $sermon->preacher_id !== null
+            ? "id_{$sermon->preacher_id}"
+            : (string) $sermon->preacher;
 
-                return [true, route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug])];
-            },
-            fromUnloaded: function (Sermon $sermon): ?string {
-                $preacherName = $this->displayPreacherName($sermon);
+        if ($identityKey === '') {
+            return null;
+        }
 
-                return filled($preacherName)
-                    ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
-                    : null;
-            },
-            valueKey: 'preacher',
-        );
+        $keyAuth = "url_auth_{$identityKey}";
+        if (isset($this->computed[$keyAuth])) {
+            return $this->memoizedUrls["preacher_{$identityKey}"];
+        }
+
+        // If the relation is explicitly loaded, use it as the source of truth and update memo
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            $url = route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug]);
+            $this->computed[$keyAuth] = true;
+            $this->computed["url_{$identityKey}"] = true;
+            $this->memoizedUrls["preacher_{$identityKey}"] = $url;
+
+            return $url;
+        }
+
+        $key = "url_{$identityKey}";
+        if (isset($this->computed[$key])) {
+            return $this->memoizedUrls["preacher_{$identityKey}"];
+        }
+
+        // Fall back to the unloaded path: derive URL from displayPreacherName
+        $preacherName = $this->displayPreacherName($sermon);
+
+        $url = filled($preacherName)
+            ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
+            : null;
+
+        $this->computed[$key] = true;
+        $this->memoizedUrls["preacher_{$identityKey}"] = $url;
+
+        return $url;
     }
 
     /**
@@ -314,14 +391,50 @@ class SermonViewPresenter
     /**
      * Present a lightweight subset of sermon view data for use in API resources.
      *
-     * The field shape lives on SermonPresentationAssembler::forApi(); this method
-     * adds only request-level memoization of the assembled result.
+     * Performance Optimization: Consolidates all required display fields into a
+     * single array to eliminate redundant presenter method calls and container
+     * lookups during API resource transformation.
      *
-     * @return array{audio_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, series_url: ?string, thumbnail_url: ?string, video_url: ?string}
+     * @return array{
+     *     audio_url: ?string,
+     *     display_reference: ?string,
+     *     duration_iso8601: ?string,
+     *     formatted_duration: ?string,
+     *     human_date: string,
+     *     preacher_image_url: ?string,
+     *     preacher_name: ?string,
+     *     preacher_url: ?string,
+     *     series_url: ?string,
+     *     thumbnail_url: ?string,
+     *     video_url: ?string
+     * }
      */
     public function presentForApi(Sermon $sermon): array
     {
-        return $this->memoize($sermon, 'api_present', 'memoizedPresents', fn (): array => $this->assembler->forApi($this, $sermon));
+        $key = $this->cacheKey($sermon, 'api_present');
+
+        if (isset($this->computed[$key])) {
+            /** @var array{audio_url: ?string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, human_date: string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, series_url: ?string, thumbnail_url: ?string, video_url: ?string} */
+            return $this->memoizedPresents[$key];
+        }
+
+        $presented = [
+            'audio_url' => $this->audioUrl($sermon),
+            'display_reference' => $this->displayReference($sermon),
+            'duration_iso8601' => $this->durationIso8601($sermon),
+            'formatted_duration' => $this->formattedDuration($sermon),
+            'human_date' => $this->humanDate($sermon),
+            'preacher_image_url' => $this->preacherImageUrl($sermon),
+            'preacher_name' => $this->displayPreacherName($sermon),
+            'preacher_url' => $this->preacherUrl($sermon),
+            'series_url' => $this->seriesUrl($sermon),
+            'thumbnail_url' => $this->thumbnailUrl($sermon),
+            'video_url' => $this->videoUrl($sermon),
+        ];
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedPresents[$key] = $presented;
     }
 
     /**
@@ -383,40 +496,142 @@ class SermonViewPresenter
     }
 
     /**
-     * Present the full field set for a sermon listing.
-     *
-     * The field shape lives on SermonPresentationAssembler::forList(); this method
-     * adds only request-level memoization of the assembled result.
-     *
-     * @return array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript_url: ?string, video_url: ?string}
+     * @return array{
+     *     audio_url: ?string,
+     *     canonical_url: string,
+     *     card_thumbnail_url: ?string,
+     *     date_iso: string,
+     *     date_string: string,
+     *     display_reference: ?string,
+     *     duration_iso8601: ?string,
+     *     formatted_duration: ?string,
+     *     has_transcript: bool,
+     *     human_date: string,
+     *     plain_thumbnail_url: ?string,
+     *     preacher_image_url: ?string,
+     *     preacher_name: ?string,
+     *     preacher_url: ?string,
+     *     public_url: string,
+     *     series_url: ?string,
+     *     service_label: ?string,
+     *     thumbnail_url: ?string,
+     *     transcript_url: ?string,
+     *     video_url: ?string
+     * }
      */
     public function presentForList(Sermon $sermon): array
     {
-        return $this->memoize($sermon, 'list_present', 'memoizedPresents', fn (): array => $this->assembler->forList($this, $sermon));
+        $key = $this->cacheKey($sermon, 'list_present');
+
+        if (isset($this->computed[$key])) {
+            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript_url: ?string, video_url: ?string} */
+            return $this->memoizedPresents[$key];
+        }
+
+        $hasTranscript = $sermon->hasTranscript();
+        $dates = $this->formattedDates($sermon);
+
+        $presented = [
+            'audio_url' => $this->audioUrl($sermon),
+            'canonical_url' => $this->canonicalUrl($sermon),
+            'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
+            'date_iso' => $dates['iso'],
+            'date_string' => $dates['short'],
+            'display_reference' => $this->displayReference($sermon),
+            'duration_iso8601' => $this->durationIso8601($sermon),
+            'formatted_duration' => $this->formattedDuration($sermon),
+            'has_transcript' => $hasTranscript,
+            'human_date' => $dates['human'],
+            'plain_thumbnail_url' => $this->plainThumbnailUrl($sermon),
+            'preacher_image_url' => $this->preacherImageUrl($sermon),
+            'preacher_name' => $this->displayPreacherName($sermon),
+            'preacher_url' => $this->preacherUrl($sermon),
+            'public_url' => $this->publicUrl($sermon),
+            'series_url' => $this->seriesUrl($sermon),
+            'service_label' => $this->serviceLabel($sermon),
+            'thumbnail_url' => $this->thumbnailUrl($sermon),
+            'transcript_url' => $hasTranscript ? route('sermons.transcript', ['sermon' => $sermon->slug]) : null,
+            'video_url' => $this->videoUrl($sermon),
+        ];
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedPresents[$key] = $presented;
     }
 
     /**
-     * Present the full single-sermon view payload (the listing fields plus the
-     * transcript and plain-text outline).
-     *
-     * The field shape lives on SermonPresentationAssembler::forFull(); this method
-     * adds only request-level memoization of the assembled result.
-     *
-     * @return array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, plain_text_outline: ?string, video_url: ?string}
+     * @return array{
+     *     audio_url: ?string,
+     *     canonical_url: string,
+     *     card_thumbnail_url: ?string,
+     *     date_iso: string,
+     *     date_string: string,
+     *     display_reference: ?string,
+     *     duration_iso8601: ?string,
+     *     formatted_duration: ?string,
+     *     has_transcript: bool,
+     *     human_date: string,
+     *     plain_thumbnail_url: ?string,
+     *     preacher_image_url: ?string,
+     *     preacher_name: ?string,
+     *     preacher_url: ?string,
+     *     public_url: string,
+     *     series_url: ?string,
+     *     service_label: ?string,
+     *     thumbnail_url: ?string,
+     *     transcript: ?string,
+     *     transcript_url: ?string,
+     *     plain_text_outline: ?string,
+     *     video_url: ?string
+     * }
      */
     public function present(Sermon $sermon): array
     {
-        return $this->memoize($sermon, 'full_present', 'memoizedPresents', fn (): array => $this->assembler->forFull($this, $sermon));
+        $key = $this->cacheKey($sermon, 'full_present');
+
+        if (isset($this->computed[$key])) {
+            /** @var array{audio_url: ?string, canonical_url: string, card_thumbnail_url: ?string, date_iso: string, date_string: string, display_reference: ?string, duration_iso8601: ?string, formatted_duration: ?string, has_transcript: bool, human_date: string, plain_thumbnail_url: ?string, preacher_image_url: ?string, preacher_name: ?string, preacher_url: ?string, public_url: string, series_url: ?string, service_label: ?string, thumbnail_url: ?string, transcript: ?string, transcript_url: ?string, plain_text_outline: ?string, video_url: ?string} */
+            return $this->memoizedPresents[$key];
+        }
+
+        $presented = array_merge(
+            $this->presentForList($sermon),
+            [
+                'transcript' => $this->transcriptReader->read($sermon),
+                'plain_text_outline' => $this->plainTextOutline($sermon),
+            ]
+        );
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedPresents[$key] = $presented;
     }
 
     public function publicUrl(Sermon $sermon): string
     {
-        return $this->memoize($sermon, 'public', 'memoizedUrls', fn (): string => $this->exposurePolicy->publicUrl($sermon));
+        $key = $this->cacheKey($sermon, 'public');
+
+        if (isset($this->computed[$key])) {
+            /** @var string */
+            return $this->memoizedUrls[$key];
+        }
+
+        $url = $this->exposurePolicy->publicUrl($sermon);
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedUrls[$key] = $url;
     }
 
     public function thumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'thumb', 'memoizedUrls', function () use ($sermon): ?string {
+        $key = $this->cacheKey($sermon, 'thumb');
+
+        if (isset($this->computed[$key])) {
+            return $this->memoizedUrls[$key];
+        }
+
+        $url = (function () use ($sermon) {
             if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
                 return null;
             }
@@ -426,7 +641,11 @@ class SermonViewPresenter
             }
 
             return $this->storageService->getThumbnailDeliveryUrl($sermon);
-        });
+        })();
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedUrls[$key] = $url;
     }
 
     public function transcript(Sermon $sermon): ?string
@@ -447,56 +666,6 @@ class SermonViewPresenter
      */
     public function displayPreacherName(Sermon $sermon): ?string
     {
-        return $this->resolvePreacherAttribute(
-            $sermon,
-            'name',
-            store: 'memoized',
-            // Only a non-null loaded profile is authoritative; otherwise fall
-            // through to the legacy `preacher` string column.
-            fromLoaded: static function (Sermon $sermon): array {
-                if ($sermon->preacherProfile === null) {
-                    return [false, null];
-                }
-
-                return [true, $sermon->preacherProfile->name ?: null];
-            },
-            fromUnloaded: static function (Sermon $sermon): ?string {
-                $preacherName = trim((string) $sermon->preacher);
-
-                return $preacherName === '' ? null : $preacherName;
-            },
-        );
-    }
-
-    /**
-     * Resolve a preacher-derived attribute (display name, profile URL, image URL)
-     * with the shared identity-keyed memoization the three lookups all need.
-     *
-     * The skeleton is identical across the three: derive an identity key (profile
-     * ID, else the legacy `preacher` string), short-circuit once an authoritative
-     * (relation-loaded) result has been computed for that identity, prefer the
-     * loaded relation over any previously-cached unloaded fallback, and otherwise
-     * cache the fallback. The three callers supply only how the value is computed
-     * from a loaded profile versus the unloaded fallback, plus which memo store
-     * the result lives in.
-     *
-     * `$fromLoaded` returns `[true, $value]` when the loaded relation is
-     * authoritative for this attribute, or `[false, null]` to skip the loaded
-     * branch and fall through to `$fromUnloaded` (e.g. when the profile is null
-     * but the attribute still has a string-column fallback).
-     *
-     * @param  'memoized'|'memoizedUrls'  $store
-     * @param  callable(Sermon): array{0: bool, 1: ?string}  $fromLoaded
-     * @param  callable(Sermon): ?string  $fromUnloaded
-     */
-    private function resolvePreacherAttribute(
-        Sermon $sermon,
-        string $prefix,
-        string $store,
-        callable $fromLoaded,
-        callable $fromUnloaded,
-        ?string $valueKey = null,
-    ): ?string {
         $identityKey = $sermon->preacher_id !== null
             ? "id_{$sermon->preacher_id}"
             : (string) $sermon->preacher;
@@ -505,36 +674,35 @@ class SermonViewPresenter
             return null;
         }
 
-        $valueKey ??= $prefix;
-        $memoKey = "{$valueKey}_{$identityKey}";
-        $authFlag = "{$prefix}_auth_{$identityKey}";
-        $computedFlag = "{$prefix}_{$identityKey}";
-
-        if (isset($this->computed[$authFlag])) {
-            return $this->{$store}[$memoKey];
+        $keyAuth = "name_auth_{$identityKey}";
+        if (isset($this->computed[$keyAuth])) {
+            return $this->memoized["name_{$identityKey}"];
         }
 
-        // If the relation is explicitly loaded and authoritative for this
-        // attribute, use it as the source of truth and update the memo.
-        if ($sermon->relationLoaded('preacherProfile')) {
-            [$applies, $value] = $fromLoaded($sermon);
+        // If the relation is explicitly loaded, use it as the source of truth and update memo
+        if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
+            $name = $sermon->preacherProfile->name ?: null;
+            $this->computed[$keyAuth] = true;
+            $this->computed["name_{$identityKey}"] = true;
 
-            if ($applies) {
-                $this->computed[$authFlag] = true;
-                $this->computed[$computedFlag] = true;
-
-                return $this->{$store}[$memoKey] = $value;
-            }
+            return $this->memoized["name_{$identityKey}"] = $name;
         }
 
-        if (isset($this->computed[$computedFlag])) {
-            return $this->{$store}[$memoKey];
+        $key = "name_{$identityKey}";
+        if (isset($this->computed[$key])) {
+            return $this->memoized[$key];
         }
 
-        // Fall back to the unloaded path and cache the result.
-        $this->computed[$computedFlag] = true;
+        // Fall back to the unloaded path: cache the string fallback
+        $preacherName = trim((string) $sermon->preacher);
 
-        return $this->{$store}[$memoKey] = $fromUnloaded($sermon);
+        $this->computed[$key] = true;
+
+        if ($preacherName === '') {
+            return $this->memoized[$key] = null;
+        }
+
+        return $this->memoized[$key] = $preacherName;
     }
 
     /**
@@ -623,39 +791,88 @@ class SermonViewPresenter
 
     public function metaDescription(Sermon $sermon): string
     {
-        return $this->memoize($sermon, 'meta_desc', 'memoized', function () use ($sermon): string {
-            $attributes = $sermon->getAttributes();
-            if (filled($attributes['meta_description'] ?? null)) {
-                return (string) $attributes['meta_description'];
-            }
+        $key = $this->cacheKey($sermon, 'meta_desc');
 
-            $summary = ($sermon->show_summary && filled($sermon->summary))
-                ? strip_tags((string) $sermon->summary)
-                : null;
+        if (isset($this->computed[$key])) {
+            /** @var string */
+            return $this->memoized[$key];
+        }
 
-            return SermonContentFormatter::metaDescription(
-                title: (string) $sermon->title,
-                preacherName: $this->displayPreacherName($sermon) ?? 'Unknown preacher',
-                humanDate: $this->humanDate($sermon),
-                reference: $this->displayReference($sermon),
-                series: filled($sermon->series) ? (string) $sermon->series : null,
-                serviceLabel: $this->serviceLabel($sermon),
-                hasVideo: $this->exposurePolicy->shouldExposeVideo($sermon),
-                hasAudio: filled($sermon->audio_file_path),
-                summary: $summary,
-            );
-        });
+        $attributes = $sermon->getAttributes();
+        if (filled($attributes['meta_description'] ?? null)) {
+            $this->computed[$key] = true;
+
+            return $this->memoized[$key] = (string) $attributes['meta_description'];
+        }
+
+        $preacherName = $this->displayPreacherName($sermon) ?? 'Unknown preacher';
+
+        $hasVideo = $this->exposurePolicy->shouldExposeVideo($sermon);
+        $hasAudio = filled($sermon->audio_file_path);
+
+        $verb = match (true) {
+            $hasVideo && $hasAudio => 'Watch or listen to',
+            $hasVideo => 'Watch',
+            default => 'Listen to',
+        };
+
+        $serviceLabel = $this->serviceLabel($sermon);
+        $servicePhrase = $serviceLabel ? " during our {$serviceLabel} service" : '';
+
+        $base = "{$verb} '{$sermon->title}' by {$preacherName} preached at Crockenhill Baptist Church on {$this->humanDate($sermon)}{$servicePhrase}";
+
+        if ($reference = $this->displayReference($sermon)) {
+            $base .= " - {$reference}";
+        }
+
+        if ($sermon->series) {
+            $base .= " (Part of our {$sermon->series} series)";
+        }
+
+        if (! $sermon->show_summary || ! $sermon->summary) {
+            return Str::limit($base, 155);
+        }
+
+        $summary = trim(strip_tags((string) $sermon->summary));
+        if ($summary === '') {
+            return Str::limit($base, 155);
+        }
+
+        $full = "{$base}. {$summary}";
+        if (Str::length($full) <= 155) {
+            return $full;
+        }
+
+        $remaining = 155 - Str::length($base) - 2; // 2 for ". "
+
+        $this->computed[$key] = true;
+
+        if ($remaining > 0) {
+            return $this->memoized[$key] = $base.'. '.Str::limit($summary, $remaining);
+        }
+
+        return $this->memoized[$key] = Str::limit($base, 155);
     }
 
     public function videoUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'video', 'memoizedUrls', function () use ($sermon): ?string {
+        $key = $this->cacheKey($sermon, 'video');
+
+        if (isset($this->computed[$key])) {
+            return $this->memoizedUrls[$key];
+        }
+
+        $url = (function () use ($sermon) {
             if (! $this->exposurePolicy->shouldExposeVideo($sermon)) {
                 return null;
             }
 
             return $this->storageService->getVideoDeliveryUrl($sermon);
-        });
+        })();
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedUrls[$key] = $url;
     }
 
     /**
@@ -678,35 +895,6 @@ class SermonViewPresenter
         $this->computed[$key] = true;
 
         return $this->memoized[$key] = $slug;
-    }
-
-    /**
-     * Memoize a per-sermon computation keyed by the sermon's identity + timestamp.
-     *
-     * Wraps the cacheKey() → isset-check → compute → store dance that every
-     * sermon-id-keyed accessor shares. The computed flag is what makes a null
-     * result a legitimate cached value (rather than a perpetual cache miss), so
-     * the flag is set before the value is stored. `$store` names which memo array
-     * the result lives in; the literal-string union keeps the dynamic write
-     * type-safe.
-     *
-     * @template TValue
-     *
-     * @param  'memoized'|'memoizedUrls'|'memoizedPresents'  $store
-     * @param  callable(): TValue  $compute
-     * @return TValue
-     */
-    private function memoize(Sermon $sermon, string $type, string $store, callable $compute): mixed
-    {
-        $key = $this->cacheKey($sermon, $type);
-
-        if (isset($this->computed[$key])) {
-            return $this->{$store}[$key];
-        }
-
-        $this->computed[$key] = true;
-
-        return $this->{$store}[$key] = $compute();
     }
 
     /**

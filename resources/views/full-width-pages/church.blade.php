@@ -51,7 +51,7 @@ Church
     </p>
     <p>
       There are about 50 of us on a Sunday in person, with more
-      following online. We're from different nationalities,
+      following on online. We're from different nationalities,
       backgrounds and ages from 5 to 85!
       The one thing that unites us is our love for Jesus Christ and
       our gratefulness for his amazing rescue.

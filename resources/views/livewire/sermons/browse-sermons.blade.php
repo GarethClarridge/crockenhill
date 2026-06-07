@@ -132,7 +132,7 @@
         Updating sermon results…
     </div>
 
-    <div id="sermon-results" tabindex="-1" wire:loading.class="pointer-events-none opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters">
+    <div id="sermon-results" tabindex="-1" class="data-loading:pointer-events-none data-loading:opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters">
         @php
             /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
         @endphp

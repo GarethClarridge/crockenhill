@@ -77,12 +77,12 @@ Exit criteria:
 
 Priority: **Low-Medium** — incremental work, no urgency.
 
-Status: **In progress** — six increments landed (two on 2026-06-03, four on 2026-06-04). Remaining hotspots still oversized. Current line counts (2026-06-04, post-increment-6):
+Status: **In progress** — two increments landed 2026-06-03 (`SermonViewPresenter` pure-formatting extraction; `MetadataExtractionService` filename-parsing extraction). Remaining hotspots still oversized. Current line counts (2026-06-03, post-increment-2):
 
 | Service | Lines | Public Methods (prior count) |
 |---------|------:|---------------:|
-| [ThumbnailGenerationService](../../app/Services/ThumbnailGenerationService.php) | 800 | 7 |
-| [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 736 | — |
+| [SermonViewPresenter](../../app/Presenters/SermonViewPresenter.php) | 922 | — |
+| [ThumbnailGenerationService](../../app/Services/ThumbnailGenerationService.php) | 848 | 7 |
 | [MetadataExtractionService](../../app/Services/MetadataExtractionService.php) | 734 | 12 |
 | [VideoExtractionService](../../app/Services/VideoExtractionService.php) | 579 | 8 |
 | [AudioTranscriptionService](../../app/Services/AudioTranscriptionService.php) | 558 | 8 |
@@ -93,14 +93,6 @@ Status: **In progress** — six increments landed (two on 2026-06-03, four on 20
 Increment 1 (2026-06-03): extracted the dependency-free duration/outline formatting out of `SermonViewPresenter` into a stateless [SermonContentFormatter](../../app/Support/SermonContentFormatter.php) (`humanDuration`, `iso8601Duration`, `plainTextOutline`). The presenter's `formattedDuration` / `durationIso8601` / `plainTextOutline` now delegate; their per-method memoization was dropped (these are cheap pure functions of one column, so request-level caching bought nothing). Net: presenter 995 → 922 lines, plus a new 101-line collaborator covered directly by [tests/Unit/Support/SermonContentFormatterTest.php](../../tests/Unit/Support/SermonContentFormatterTest.php) — no DB or storage faking required. Public API unchanged; the 49 presenter/formatter tests and 55 downstream consumer tests pass.
 
 Increment 2 (2026-06-03): extracted the pure, IO-free date/service inference out of `MetadataExtractionService` into [SermonFilenameParser](../../app/Services/SermonFilenameParser.php) (`extractDateFromFilename`, `tryExtractDateFromFilename`, `determineServiceFromFilename`, `determineServiceFromTime`, `isValidDate`, plus the `MONTH_NAME_NUMBERS` table and the `parseExplicitDate`/`tryExtractNamedMonthDate` helpers). The parser is injected into `MetadataExtractionService` (constructor default `new SermonFilenameParser`, so no provider binding and every existing `new MetadataExtractionService()` call site keeps working); the matching public methods now delegate, and the FFprobe-based `extractDateFromVideo` orchestration stays in the service since it is genuinely IO. Net: service 952 → 734 lines, plus a new 290-line collaborator with its own fast unit test [tests/Unit/Services/SermonFilenameParserTest.php](../../tests/Unit/Services/SermonFilenameParserTest.php). The existing `MetadataExtractionServiceTest` now doubles as delegation-seam coverage. Public API unchanged; 32 parser/service tests and 63 downstream consumer tests pass, PHPStan clean.
-
-Increment 3 (2026-06-04): extracted the pure-string half of `SermonViewPresenter::metaDescription` into a new static [SermonContentFormatter::metaDescription](../../app/Support/SermonContentFormatter.php) — the SEO sentence assembly (verb selection from media availability, base sentence, reference/series appends, summary truncation to the 155-char limit). The presenter still resolves its inputs (explicit-attribute short-circuit, preacher name, display reference, `show_summary`/tag-stripping, `exposurePolicy->shouldExposeVideo`) but now passes primitives to the builder and assigns the result on a single memoized exit path — which incidentally closes a latent gap where the old truncation branches returned before writing `$this->memoized[$key]`. The truthiness checks on `series`/`summary` became `filled()`. Net: presenter 922 → 896 lines; formatter +73 lines covered by 8 new DB-free unit tests in [tests/Unit/Support/SermonContentFormatterTest.php](../../tests/Unit/Support/SermonContentFormatterTest.php). Public API unchanged; 56 formatter/presenter tests and 37 SEO/structured-data consumer tests pass, PHPStan clean.
-
-Increment 4 (2026-06-04): extracted the pure frame-scoring algorithm out of `ThumbnailGenerationService::scoreFrameQuality` into a new injectable [FrameQualityScorer](../../app/Services/FrameQualityScorer.php) (`score(\GdImage): float`). The service keeps only the IO half — resolve temp-disk path, `file_get_contents`, `imagecreatefromstring`, and `imagedestroy` (now in a `finally`, so the GD resource is freed even on a scoring throw) — and delegates the luminance/contrast/detail math. The scorer is constructor-injected with a `new FrameQualityScorer` default, so no provider binding and existing instantiations are unaffected. The buried weight/normalizer/grid literals became named constants (values unchanged). This is the first focused coverage of the scoring algorithm, which previously ran only transitively through `generateThumbnail` against real frames; the 6 new unit tests in [tests/Unit/Services/FrameQualityScorerTest.php](../../tests/Unit/Services/FrameQualityScorerTest.php) assert exact scores for solid black/grey/white frames and the relative ranking of a high-contrast pattern. Net: service 848 → 800 lines, plus a 118-line collaborator. Public API unchanged; 6 scorer tests and 36 thumbnail integration tests pass, PHPStan clean.
-
-Increment 6 (2026-06-04, two commits): split `SermonViewPresenter`'s memoization from its array-shaping. **Commit A** collapsed the `cacheKey → isset-check → compute → store` dance that all 11 sermon-id-keyed accessors repeated (plus the duplicated `/** @var array{...} */` cast on every cached-array return) into one private generic `memoize(Sermon, type, store, Closure)`; each accessor now passes only its type tag, target memo store, and a typed compute closure, with the array shapes flowing through a `@template TValue`. The identity-keyed accessors (`serviceLabel`, `seriesUrl`, the preacher methods) and the collection-keyed `presentCollection` keep their distinct schemes. Net: 910 → 825 lines. **Commit B** extracted the four output shapes into a new [SermonPresentationAssembler](../../app/Presenters/SermonPresentationAssembler.php) (`forApi`, `forList`, `forFull`), injected with a `new` default; the presenter's `present*` methods became one-line `memoize(... fn => $this->assembler->forX($this, $sermon))` delegations, and each `array{...}` shape is now declared once on the assembler rather than restated at every memoized return. The assembler reads every value back through the presenter (so the presenter stays the single memoization layer and the assembler needs no dependencies of its own — it uses the public `transcript()` method rather than re-injecting the reader). A new [tests/Integration/Presenters/SermonPresentationAssemblerTest.php](../../tests/Integration/Presenters/SermonPresentationAssemblerTest.php) pins each shape's exact key set and asserts the assembler output equals the presenter's delegated `present*` output. Net: 825 → 736 lines, plus a 152-line collaborator. `SermonViewPresenter` (736) is no longer the codebase's largest class — `ThumbnailGenerationService` (800) now tops the table. Public API unchanged across both commits; 42 presenter/assembler tests and 35 downstream consumer tests pass, PHPStan clean.
-
-Increment 5 (2026-06-04): de-duplicated the triplicated preacher-attribute memoization in `SermonViewPresenter`. `displayPreacherName`, `preacherUrl`, and `preacherImageUrl` each carried the *same* ~22-line skeleton (derive an identity key from the profile ID or legacy `preacher` string, short-circuit on an `*_auth` flag once an authoritative loaded-relation result exists, prefer the loaded relation over a cached unloaded fallback, otherwise cache the fallback). That skeleton now lives once in a private `resolvePreacherAttribute()` template method; the three public methods became thin delegations supplying only their loaded-profile compute, their unloaded fallback, and their memo store. Unlike increments 1–4 this is an *in-place* de-duplication, not a file extraction, so line count nudged **up** (896 → 910): the shared helper carries a substantial docblock for the subtle memoization contract, and the closures add per-call boilerplate. The win is structural — one source of truth for the identity-key/auth-flag/precedence logic instead of three copies that could drift, and three declarative call sites that each state only their distinguishing behavior. The `$this->{$store}[...]` dynamic-property write is kept type-safe by a `'memoized'|'memoizedUrls'` literal-string union. Public API and all return values unchanged; 38 presenter tests (including the loaded-over-cached-null and reflects-after-first-call transitions) and 18 downstream consumer tests pass, PHPStan clean.
 
 Tasks:
 
@@ -135,15 +127,20 @@ Exit criteria:
 
 Priority: **Low** — small refactor, contained blast radius.
 
-Status: **Complete** (2026-06-03, commit `9e6c9a112` "Phase 16 + 17: Consolidate MediaUpload Livewire component"). Option 1 (rename + relocate, the recommended path) was taken.
+Status: **Pending**.
 
-The empty `MediaUpload extends Form {}` subclass was dropped. The real component was promoted from `MediaUpload/Form.php` up to [app/Livewire/MediaUpload.php](../../app/Livewire/MediaUpload.php), and the two child components were flattened out of the now-deleted `MediaUpload/` directory to [MediaUploadProgress.php](../../app/Livewire/MediaUploadProgress.php) / [MediaUploadStatus.php](../../app/Livewire/MediaUploadStatus.php) (aliases `media-upload-progress` / `media-upload-status`). The page-global `media-upload:*` event-name strings and the `livewire.media-upload.*` view paths were left unchanged (cross-component contract / blade paths).
+[app/Livewire/MediaUpload.php](../../app/Livewire/MediaUpload.php) is a 9-line empty `extends Form {}` whose only role is to expose the alias `media-upload` to Livewire's class-name inference. The sibling files ([Form.php](../../app/Livewire/MediaUpload/Form.php), [Progress.php](../../app/Livewire/MediaUpload/Progress.php), [Status.php](../../app/Livewire/MediaUpload/Status.php)) already nest under `MediaUpload/`, so future readers reasonably expect `MediaUpload` to be a directory, not a class.
+
+Options (pick one):
+
+1. **Rename + relocate (recommended).** Rename `App\Livewire\MediaUpload\Form` → `App\Livewire\MediaUpload`, move it up one directory. The two child components (`Progress`, `Status`) sit in a sibling `MediaUploadParts/` directory or are renamed `MediaUploadProgress` / `MediaUploadStatus`. Delete the empty subclass.
+2. **Explicit Livewire alias.** Keep `Form` where it is, register `Livewire::component('media-upload', Form::class)` in a service provider, delete the empty subclass.
 
 Tasks:
 
-- [x] Decide between option 1 and option 2. (Option 1 — rename + relocate.)
-- [x] Update [resources/views/sermons/upload.blade.php:15](../../resources/views/sermons/upload.blade.php#L15) (`@livewire('media-upload')` — unchanged alias) plus the two child-component references in [resources/views/livewire/media-upload/form.blade.php](../../resources/views/livewire/media-upload/form.blade.php) (now `<livewire:media-upload-progress>` / `<livewire:media-upload-status>`).
-- [x] Re-run the existing media-upload Dusk + feature tests. (41 focused tests + 41 Dusk tests pass.)
+- [ ] Decide between option 1 and option 2.
+- [ ] Update [resources/views/sermons/upload.blade.php:15](../../resources/views/sermons/upload.blade.php#L15) (`@livewire('media-upload')`) plus the two `<livewire:media-upload.progress>` / `<livewire:media-upload.status>` references in [resources/views/livewire/media-upload/form.blade.php](../../resources/views/livewire/media-upload/form.blade.php).
+- [ ] Re-run the existing media-upload Dusk + feature tests.
 
 Exit criteria:
 
@@ -153,15 +150,15 @@ Exit criteria:
 
 Priority: **Medium** — touches the largest Livewire component but the change is mechanical.
 
-Status: **Complete** (2026-06-03, same commit as Phase 16, `9e6c9a112`).
+Status: **Pending**.
 
-`app/Livewire/Traits/WithUploadLifecycle.php` was ~255 lines of stateful upload, validation, and progress-tracking logic used by exactly one class. As planned, it was inlined into the promoted [MediaUpload](../../app/Livewire/MediaUpload.php) component and deleted; the trait's `@property` bridge was replaced by real property declarations. `WithFileUploads` (the Livewire-provided trait) is retained; `HasConditionalLogging` had already been removed under Phase 18.
+[app/Livewire/Traits/WithUploadLifecycle.php](../../app/Livewire/Traits/WithUploadLifecycle.php) is ~270 lines of stateful upload, validation, and progress-tracking logic. It is used by exactly one class ([MediaUpload/Form.php](../../app/Livewire/MediaUpload/Form.php)). A single-consumer trait that carries this much state is just a chapter of the component placed in a different file. It cannot be tested in isolation and forces every reader to chase imports.
 
 Tasks:
 
-- [x] Combine with Phase 16: after the rename, inline the trait's contents into the (renamed) `MediaUpload` component.
-- [x] Keep `WithFileUploads` (Livewire-provided trait) — retained. (`HasConditionalLogging` was already gone via Phase 18.)
-- [x] Adjust PHPStan baseline if necessary. (PHPStan clean, 0 errors.)
+- [ ] Combine with Phase 16: after the rename, inline the trait's contents into the (renamed) `MediaUpload` component.
+- [ ] Keep `WithFileUploads` (Livewire-provided trait) and `HasConditionalLogging` for now (Phase 18 removes the latter).
+- [ ] Adjust PHPStan baseline if necessary.
 
 Exit criteria:
 
@@ -171,7 +168,7 @@ Exit criteria:
 
 Priority: **Low** — small surface, but eliminates a confusing pattern.
 
-Status: **Complete** — trait deleted; all `$this->log*()` calls in the upload component (then `MediaUpload/Form.php` + its `WithUploadLifecycle` trait, since merged into [MediaUpload.php](../../app/Livewire/MediaUpload.php) under Phases 16/17) and `ProcessingLogsViewer.php` replaced with direct `Log::` facade calls. Test logging is silenced via the existing `LOG_CHANNEL=testing` config in `phpunit.xml`.
+Status: **Complete** — trait deleted; all `$this->log*()` calls in `MediaUpload/Form.php`, `WithUploadLifecycle.php`, and `ProcessingLogsViewer.php` replaced with direct `Log::` facade calls. Test logging is silenced via the existing `LOG_CHANNEL=testing` config in `phpunit.xml`.
 
 [app/Livewire/Traits/HasConditionalLogging.php](../../app/Livewire/Traits/HasConditionalLogging.php) wraps every `Log::info|warning|error|debug` call in `if (! app()->runningUnitTests())`. Production code should not branch on test context. The trait is used in two files ([MediaUpload/Form.php](../../app/Livewire/MediaUpload/Form.php) and [ProcessingLogsViewer.php](../../app/Livewire/ProcessingLogsViewer.php)).
 
@@ -252,7 +249,7 @@ Several action classes were pure single-call delegations that served no test-sea
 Resolution per candidate:
 
 - [app/Actions/CategorizeCalendarEvent.php] — **Inlined and deleted.** The null/non-null branch was routing, not guard logic. Inlined `$calendarService->manuallyUnCategorizeEvent(...)` / `manuallyCategorizeEvent(...)` directly at the two call sites in [ListCalendarEvents.php](../../app/Livewire/Admin/CalendarEvents/ListCalendarEvents.php) and [EditCalendarEvent.php](../../app/Livewire/Admin/CalendarEvents/EditCalendarEvent.php). The seam in `ListCalendarEventsTest` was moved down one layer to mock `CalendarService::manuallyCategorizeEvent` instead.
-- [app/Actions/Meetings/CreateMeetingCalendarEvent.php] — **Deleted** (plus its test and the now-empty `Meetings/` directories). Confirmed zero production callers; its sole consumer was its own test. Note: its target method `GoogleCalendarSyncService::createEventForMeeting()` was then left unreferenced — that dead-method sweep was completed in commit `fd3e5f278` ("Remove orphaned GoogleCalendarSyncService::createEventForMeeting").
+- [app/Actions/Meetings/CreateMeetingCalendarEvent.php] — **Deleted** (plus its test and the now-empty `Meetings/` directories). Confirmed zero production callers; its sole consumer was its own test. Note: its target method `GoogleCalendarSyncService::createEventForMeeting()` is now unreferenced — flagged for a future dead-method sweep (out of scope for Phase 21, which is scoped to action classes).
 - [app/Actions/QueueScriptureEnrichment.php](../../app/Actions/QueueScriptureEnrichment.php) — **Kept.** It carries real guard logic (config `services.api_bible.enabled` check + empty-reference check), is injected into `SaveSermonDetails` and `ScriptureOperatorService`, and is mocked as a seam in two test files. A genuine collaborator, not a thin wrapper.
 
 Exit criteria (met):
@@ -265,20 +262,20 @@ Priority: **Low** — readability improvement, not behavior change.
 
 Status: **Investigate**.
 
-The 20 files under [app/Presenters/](../../app/Presenters/) serve three different responsibilities:
+The 18 files under [app/Presenters/](../../app/Presenters/) serve three different responsibilities:
 
 | Group | Files | Pattern |
 |-------|-------|---------|
 | Sitemap | MeetingSitemapPresenter, PageSitemapPresenter, PreacherSitemapPresenter, SermonSitemapPresenter | `Url::create(...)` builder |
 | SEO / Schema.org | SermonArchiveSeoPresenter, SeriesItemListPresenter, SongArchiveSeoPresenter, SongItemListPresenter, SermonItemListPresenter, PreacherItemListPresenter | JSON-LD shape builder |
-| View data | PageLayoutPresenter, PageCardPresenter, PageImagePresenter, RelatedPagePresenter, SermonViewPresenter (736 lines, down from 995 via Phase 14), SermonPresentationAssembler (new in Phase 14), ChurchServiceShowPresenter, MeetingShowPresenter, BreadcrumbPresenter | Model → view-ready array/object |
+| View data | PageLayoutPresenter, PageCardPresenter, PageImagePresenter, RelatedPagePresenter, SermonViewPresenter (995 lines!), ChurchServiceShowPresenter, MeetingShowPresenter, BreadcrumbPresenter | Model → view-ready array/object |
 
 "Presenter" is currently a junk-drawer label. The sitemap presenters are tightly coupled to [SitemapService.php](../../app/Services/SitemapService.php) and would be more discoverable adjacent to it. The SEO/Schema.org presenters share a more cohesive purpose than they share with the view-data presenters.
 
 Tasks:
 
 - [ ] Decide on a target shape — options include `app/Sitemap/`, `app/Seo/`, and a slimmer `app/Presenters/`.
-- [x] Verify that `SermonViewPresenter` (formerly the 995-line outlier) is on the Phase 14 decomposition list — it is, and Phase 14 has since reduced it to 736 lines.
+- [ ] Verify that `SermonViewPresenter` (the 995-line outlier) is on the Phase 14 decomposition list — it now is.
 - [ ] Do not move without consensus — this is the largest-blast-radius item in this plan.
 
 Exit criteria:
@@ -354,7 +351,7 @@ Exit criteria:
 4. **Phase 18** — Independent; removes a confusing pattern.
 5. **Phase 21** — File-count reduction; bundle the action deletions into one PR.
 6. **Phase 19** — Security-adjacent; consolidate before anything else touches `DeleteLivestreamUpload`.
-7. ~~**Phase 16 + Phase 17 together** — Both rework the same `MediaUpload` component; do as one PR with full Dusk run.~~ **Done** (commit `9e6c9a112`).
+7. **Phase 16 + Phase 17 together** — Both rework the same `MediaUpload` component; do as one PR with full Dusk run.
 8. **Phase 20** — Mechanical rename across a known caller set.
 9. **Phase 25** — Investigate-then-decide; needs maintainer sign-off that the historic imports are done before any deletion.
 10. **Phase 14** — Ongoing incremental decomposition of oversized services (including `SermonViewPresenter`).
@@ -366,7 +363,7 @@ Exit criteria:
 - [ ] Schema snapshot strategy is consistent and drift-free, with automatic guardrails.
 - [ ] Remaining hotspot services are decomposed with focused tests.
 - [x] No file in `app/Services/` is an exception class.
-- [x] No project-local trait is consumed by exactly one class for state-bearing behavior.
+- [ ] No project-local trait is consumed by exactly one class for state-bearing behavior.
 - [x] No project code branches on `app()->runningUnitTests()`.
 - [x] Exactly one canonical implementation of path-safety checks.
 - [x] `app/Repositories/` holds only genuine repositories; cache wrappers live in `app/Services/`.

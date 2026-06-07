@@ -33,7 +33,8 @@
         $author['image'] = $sermonView['preacher_image_url'];
     }
 
-    $articleBody = $transcript ?: ($sermon->show_summary ? trim(strip_tags((string) $sermon->summary)) : null);
+    $articleBody = $transcript ?: ($sermon->show_summary ? $sermon->summary : null);
+    $articleBody = $articleBody ? Str::squish(strip_tags((string) $articleBody)) : null;
 
     $schema = [
         '@' . 'context' => 'https://schema.org',

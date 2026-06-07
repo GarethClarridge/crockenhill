@@ -135,12 +135,15 @@ class ThumbnailGenerationServiceTest extends TestCase
     public function it_can_wrap_text_properly()
     {
         $composer = app(ThumbnailCanvasComposer::class);
+        $reflection = new \ReflectionClass($composer);
+        $method = $reflection->getMethod('wrapText');
+        $method->setAccessible(true);
 
         $longTitle = 'This is a very long sermon title that should be wrapped across multiple lines';
         $maxWidth = 400;
         $fontSize = 48;
 
-        $wrappedText = $composer->wrapText($longTitle, $maxWidth, $fontSize);
+        $wrappedText = $method->invoke($composer, $longTitle, $maxWidth, $fontSize);
 
         $this->assertStringContainsString("\n", $wrappedText);
         $lines = explode("\n", $wrappedText);
@@ -251,12 +254,15 @@ class ThumbnailGenerationServiceTest extends TestCase
     public function it_handles_long_sermon_titles_with_proper_wrapping()
     {
         $composer = app(ThumbnailCanvasComposer::class);
+        $reflection = new \ReflectionClass($composer);
+        $method = $reflection->getMethod('wrapText');
+        $method->setAccessible(true);
 
         $veryLongTitle = 'This is an extremely long sermon title that definitely needs to be wrapped across multiple lines to fit properly within the thumbnail image boundaries and maintain readability';
         $maxWidth = 400;
         $fontSize = 48;
 
-        $wrappedText = $composer->wrapText($veryLongTitle, $maxWidth, $fontSize);
+        $wrappedText = $method->invoke($composer, $veryLongTitle, $maxWidth, $fontSize);
 
         $lines = explode("\n", $wrappedText);
         $this->assertGreaterThan(3, count($lines)); // Should wrap to multiple lines
@@ -271,9 +277,12 @@ class ThumbnailGenerationServiceTest extends TestCase
     public function it_handles_empty_titles_gracefully()
     {
         $composer = app(ThumbnailCanvasComposer::class);
+        $reflection = new \ReflectionClass($composer);
+        $method = $reflection->getMethod('wrapText');
+        $method->setAccessible(true);
 
         // Test empty string
-        $wrappedText = $composer->wrapText('', 400, 48);
+        $wrappedText = $method->invoke($composer, '', 400, 48);
         $this->assertEquals('', $wrappedText);
 
         // Note: null cannot be tested as the method has string type hint

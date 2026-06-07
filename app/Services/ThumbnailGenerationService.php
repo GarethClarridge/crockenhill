@@ -82,7 +82,6 @@ class ThumbnailGenerationService
         private readonly ThumbnailForegroundExtractionService $foregroundExtractor,
         private readonly ThumbnailCanvasComposer $canvasComposer,
         private readonly SermonExposurePolicy $exposurePolicy,
-        private readonly FrameQualityScorer $frameQualityScorer = new FrameQualityScorer,
     ) {
         $this->storageDisk = (string) config('thumbnail-generation.storage.disk', 'public');
         $this->storagePath = (string) config('thumbnail-generation.storage.path', 'sermons/thumbnails');
@@ -717,11 +716,60 @@ class ThumbnailGenerationService
             return 0.0;
         }
 
-        try {
-            return $this->frameQualityScorer->score($image);
-        } finally {
-            imagedestroy($image);
+        $width = imagesx($image);
+        $height = imagesy($image);
+
+        $stepX = max(1, (int) floor($width / 48));
+        $stepY = max(1, (int) floor($height / 48));
+
+        $luminanceValues = [];
+        $detailAccumulator = 0.0;
+
+        for ($y = 0; $y < $height; $y += $stepY) {
+            $previousRowLuminance = null;
+
+            for ($x = 0; $x < $width; $x += $stepX) {
+                $rgb = imagecolorat($image, $x, $y);
+                $red = ($rgb >> 16) & 0xFF;
+                $green = ($rgb >> 8) & 0xFF;
+                $blue = $rgb & 0xFF;
+
+                $luminance = (0.2126 * $red) + (0.7152 * $green) + (0.0722 * $blue);
+                $luminanceValues[] = $luminance;
+
+                if ($x >= $stepX) {
+                    $previousRgb = imagecolorat($image, $x - $stepX, $y);
+                    $previousRed = ($previousRgb >> 16) & 0xFF;
+                    $previousGreen = ($previousRgb >> 8) & 0xFF;
+                    $previousBlue = $previousRgb & 0xFF;
+                    $previousLuminance = (0.2126 * $previousRed) + (0.7152 * $previousGreen) + (0.0722 * $previousBlue);
+                    $detailAccumulator += abs($luminance - $previousLuminance);
+                }
+
+                if ($previousRowLuminance !== null) {
+                    $detailAccumulator += abs($luminance - $previousRowLuminance);
+                }
+
+                $previousRowLuminance = $luminance;
+            }
         }
+
+        imagedestroy($image);
+
+        $sampleCount = count($luminanceValues);
+        $averageBrightness = array_sum($luminanceValues) / $sampleCount;
+        $variance = array_sum(array_map(
+            static fn (float $value): float => ($value - $averageBrightness) ** 2,
+            $luminanceValues
+        )) / $sampleCount;
+        $contrast = sqrt($variance);
+        $detail = $detailAccumulator / $sampleCount;
+
+        $brightnessScore = max(0.0, 1 - (abs($averageBrightness - 128.0) / 128.0));
+        $contrastScore = min(1.0, $contrast / 64.0);
+        $detailScore = min(1.0, $detail / 80.0);
+
+        return round(($brightnessScore * 0.25) + ($contrastScore * 0.35) + ($detailScore * 0.40), 4);
     }
 
     private function deleteExistingGeneratedThumbnails(Sermon $sermon): void

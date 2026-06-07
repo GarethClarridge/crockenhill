@@ -90,7 +90,7 @@ return new class extends Migration
                 $table->enum('review_state', array_map(
                     static fn (ChurchServiceReviewState $state): string => $state->value,
                     ChurchServiceReviewState::cases()
-                ))->default(ChurchServiceReviewState::NotReviewed->value)->after('needs_review');
+                ))->default(ChurchServiceReviewState::NOT_REVIEWED->value)->after('needs_review');
             }
 
             if (! Schema::hasColumn('church_services', 'manual_reviewed_at')) {
@@ -442,9 +442,9 @@ return new class extends Migration
         $metadata = ChurchServiceImportMetadata::fromArray($importMetadata);
 
         $reviewState = match (true) {
-            is_string($metadata->manualReview?->reopenedAt) => ChurchServiceReviewState::Reopened,
-            is_string($metadata->manualReview?->reviewedAt) => ChurchServiceReviewState::Reviewed,
-            default => ChurchServiceReviewState::NotReviewed,
+            is_string($metadata->manualReview?->reopenedAt) => ChurchServiceReviewState::REOPENED,
+            is_string($metadata->manualReview?->reviewedAt) => ChurchServiceReviewState::REVIEWED,
+            default => ChurchServiceReviewState::NOT_REVIEWED,
         };
 
         $canonicalConflict = $metadata->canonicalConflict;

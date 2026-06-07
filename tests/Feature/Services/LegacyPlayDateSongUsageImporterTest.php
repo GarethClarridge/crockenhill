@@ -59,7 +59,7 @@ INSERT INTO `play_date` VALUES (2,'102','2024-03-24','p','');
         $this->assertDatabaseHas('church_services', [
             'date' => '2024-03-24',
             'service' => SermonService::Morning->value,
-            'review_state' => ChurchServiceReviewState::Reviewed->value,
+            'review_state' => ChurchServiceReviewState::REVIEWED->value,
         ]);
 
         $this->assertDatabaseHas('church_service_items', [

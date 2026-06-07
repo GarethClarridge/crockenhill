@@ -142,7 +142,7 @@ class SermonSeoTest extends TestCase
     }
 
     #[Test]
-    public function it_truncates_generated_meta_description_to_the_character_limit(): void
+    public function it_truncates_generated_meta_description_to_155_characters(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'A Very Long Sermon Title That Takes Up Many Characters',
@@ -155,8 +155,7 @@ class SermonSeoTest extends TestCase
 
         $metaDescription = $this->presenter()->metaDescription($sermon);
 
-        // 160-char limit plus the trailing "..." ellipsis appended by Str::limit.
-        $this->assertLessThanOrEqual(163, strlen($metaDescription));
+        $this->assertLessThanOrEqual(158, strlen($metaDescription));
     }
 
     #[Test]
@@ -183,8 +182,8 @@ class SermonSeoTest extends TestCase
         $this->assertStringContainsString('preached at', $metaDescription);
         // Should contain reference
         $this->assertStringContainsString('Romans 8:35-39', $metaDescription);
-        // Should be within limit (160-char limit plus the trailing "..." ellipsis)
-        $this->assertLessThanOrEqual(163, strlen($metaDescription));
+        // Should be within limit
+        $this->assertLessThanOrEqual(158, strlen($metaDescription));
     }
 
     #[Test]
@@ -218,6 +217,6 @@ class SermonSeoTest extends TestCase
         $this->assertNotEmpty($metaDescription);
         $this->assertStringContainsString('Simple Sermon', $metaDescription);
         $this->assertStringContainsString('John Doe', $metaDescription);
-        $this->assertLessThanOrEqual(163, strlen($metaDescription));
+        $this->assertLessThanOrEqual(158, strlen($metaDescription));
     }
 }
