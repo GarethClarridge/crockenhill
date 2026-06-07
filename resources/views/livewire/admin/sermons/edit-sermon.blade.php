@@ -94,7 +94,7 @@
         <x-card heading="AI-Generated Content">
             <div class="space-y-4">
                 <x-textarea label="Summary" wire:model="form.summary" rows="5" maxlength="1000"
-                    hint="AI-generated sermon summary" autogrow />
+                    hint="AI-generated summary" autogrow />
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Points</label>
@@ -108,7 +108,7 @@
                                  x-transition:leave-start="opacity-100 translate-y-0"
                                  x-transition:leave-end="opacity-0 -translate-y-2"
                                  class="flex gap-2">
-                                <x-input wire:model="form.points.{{ $index }}" class="flex-1" />
+                                <x-input wire:model="form.points.{{ $index }}" class="flex-1" maxlength="255" />
                                 <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600"
                                     wire:click="removePoint({{ $index }})"
                                     wire:confirm="Remove this sermon point?"

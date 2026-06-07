@@ -13,8 +13,13 @@
             <x-select label="Page" wire:model="form.pageId" :options="$pages" placeholder="Select a page"
                 hint="Link this meeting to a page for content" />
 
-            <x-input label="Slug" wire:model="form.slug" required
-                hint="URL-friendly identifier" />
+            <div class="flex items-start gap-2">
+                <div class="flex-1">
+                    <x-input label="Slug" wire:model="form.slug" required
+                        hint="URL-friendly identifier" />
+                </div>
+                <x-clipboard-button js-content="$wire.form.slug" hideLabel label="Copy Slug" title="Copy slug to clipboard" class="mt-7" />
+            </div>
 
             <x-select label="Type" wire:model="form.type" :options="$types" required />
 

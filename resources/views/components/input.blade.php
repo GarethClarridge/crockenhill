@@ -1,7 +1,7 @@
 @props(['label' => null, 'hint' => null, 'required' => false, 'icon' => null, 'clearable' => false, 'maxlength' => null, 'shortcut' => null, 'autofocus' => false])
 
 @php
-$modelName = $attributes->wire('model')->value();
+$modelName = $attributes->wire('model')?->value();
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
 
@@ -23,7 +23,15 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
 @endphp
 
 <div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }}, focused: false, showPassword: false }"
-     x-init="count = $refs.input.value.length; @if($autofocus) $nextTick(() => $refs.input.focus()) @endif"
+     x-init="
+        count = $refs.input.value.length;
+        @if($autofocus) $nextTick(() => $refs.input.focus()) @endif
+        @if($modelName)
+            $watch('$wire.{{ $modelName }}', value => {
+                count = (value ?? '').toString().length;
+            });
+        @endif
+     "
      @if($shortcut === 'slash') @keydown.window.slash="if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) && !document.activeElement.isContentEditable) { $event.preventDefault(); $refs.input.focus(); }" @endif>
     @if($label)
         <label @if($id) for="{{ $id }}" @endif class="block text-sm font-medium text-gray-700 mb-1">
