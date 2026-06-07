@@ -6,6 +6,8 @@ ENV_FILE="${ENV_FILE:-.env.production}"
 APP_SERVICE="${APP_SERVICE:-app}"
 REDIS_SERVICE="${REDIS_SERVICE:-redis}"
 WEB_URL="${WEB_URL:-http://localhost/up}"
+CANARY_BASE_URL="${CANARY_BASE_URL:-${WEB_URL%/up}}"
+CANARY_MAX_TIME="${CANARY_MAX_TIME:-20}"
 CHECK_RETRIES="${CHECK_RETRIES:-15}"
 CHECK_DELAY_SECONDS="${CHECK_DELAY_SECONDS:-2}"
 SUPERVISOR_CONFIG="${SUPERVISOR_CONFIG:-/etc/supervisor/conf.d/supervisord.conf}"
@@ -41,6 +43,68 @@ run_check() {
 
 check_web() {
   curl -fsS "$WEB_URL" >/dev/null
+}
+
+# Request a single canary URL `hits` times against the live site, asserting the
+# HTTP status (no redirect-following) and, when given, a body marker. Cached
+# routes are hit twice so the second request rehydrates the read model through
+# unserialize() under cache.serializable_classes.
+check_one_canary() {
+  local url="$1" expected="$2" hits="$3" marker="$4"
+  local attempt code body_file
+  body_file="$(mktemp)"
+
+  for attempt in $(seq 1 "$hits"); do
+    code="$(curl -s -o "$body_file" -w '%{http_code}' --max-time "$CANARY_MAX_TIME" "${CANARY_BASE_URL}${url}")" || {
+      rm -f "$body_file"
+      return 1
+    }
+
+    if [ "$code" != "$expected" ]; then
+      rm -f "$body_file"
+      return 1
+    fi
+
+    if [ -n "$marker" ] && ! grep -qF "$marker" "$body_file"; then
+      rm -f "$body_file"
+      return 1
+    fi
+  done
+
+  rm -f "$body_file"
+
+  return 0
+}
+
+# Generate the canary manifest from the app container, then verify each public
+# route type against the live site. Runs after `cache:clear`, so the first hit
+# populates the cache and the second reads it back.
+check_route_canaries() {
+  local manifest url expected hits marker failed=0
+
+  manifest="$(compose exec -T "$APP_SERVICE" php artisan monitoring:canaries --no-ansi | tr -d '\r')" || {
+    printf '[FAIL] %s\n' 'Generate route canary manifest' >&2
+    return 1
+  }
+
+  if [ -z "$manifest" ]; then
+    printf '[FAIL] %s\n' 'Route canary manifest was empty' >&2
+    return 1
+  fi
+
+  while IFS=$'\t' read -r url expected hits marker; do
+    case "$url" in
+      /*) ;;          # only process manifest rows; skip any stray stdout
+      *) continue ;;
+    esac
+
+    run_check "Canary ${url} (x${hits}, expect ${expected})" \
+      check_one_canary "$url" "$expected" "$hits" "$marker" || failed=1
+  done <<MANIFEST
+$manifest
+MANIFEST
+
+  return "$failed"
 }
 
 check_db() {
@@ -119,6 +183,9 @@ main() {
   run_check 'Queue workers are running under Supervisor' check_queue_workers || failed=1
   run_check 'Scheduler is running under Supervisor' check_scheduler || failed=1
   run_check 'Expected scheduled commands are registered' check_schedule_registration || failed=1
+
+  # Reports per-canary PASS/FAIL itself, so it is not wrapped in run_check.
+  check_route_canaries || failed=1
 
   if [ "$failed" -ne 0 ]; then
     printf 'Production post-deploy smoke checks failed.\n' >&2
