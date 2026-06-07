@@ -168,8 +168,13 @@ function previousSignificantToken(array $tokens, int $index): mixed
 }
 
 /**
- * Properties inherited from Laravel's Model base class that cannot be re-typed
- * in child classes because PHP forbids redeclaring a parent's typed property.
+ * Properties inherited from Laravel base classes that cannot be re-typed in
+ * child classes: the parent declares them without a type, and PHP forbids a
+ * subclass adding (or changing) the type of an inherited property. Requiring a
+ * type on these would make the class fatal at load time.
+ *
+ * Sourced from Illuminate\Database\Eloquent\Model and
+ * Illuminate\Console\Command.
  *
  * @var list<string>
  */
@@ -179,6 +184,7 @@ const LARAVEL_INHERITED_PROPERTIES = [
     '$dateFormat', '$casts', '$dispatchesEvents', '$observables',
     '$relations', '$touches', '$table', '$primaryKey', '$keyType',
     '$connection', '$classCastCache', '$attributeCastCache',
+    '$signature', '$description',
 ];
 
 /**
