@@ -12,10 +12,15 @@
         <div class="space-y-4">
             <x-input label="Name" wire:model.live.debounce="name" required maxlength="255" autofocus />
 
-            <x-input label="Slug" wire:model="slug" required maxlength="255"
-                hint="URL-friendly identifier (auto-generated from name)" />
+            <div class="flex items-start gap-2">
+                <div class="flex-1">
+                    <x-input label="Slug" wire:model="slug" required maxlength="255"
+                        hint="URL-friendly identifier (auto-generated from name)" />
+                </div>
+                <x-clipboard-button js-content="$wire.slug" hideLabel label="Copy Slug" title="Copy slug to clipboard" class="mt-7" />
+            </div>
 
-            <x-textarea label="Bio" wire:model="bio" rows="4"
+            <x-textarea label="Bio" wire:model="bio" rows="4" autogrow
                 placeholder="Brief biography..." />
         </div>
     </x-card>
