@@ -49,6 +49,8 @@
             :description="$description ?? $metaDescription"
             :image="$sermonView['thumbnail_url']"
             :main-entity="$sermonView['canonical_url'] . '#sermon'"
+            :datePublished="$sermon->date"
+            :dateModified="$sermon->updated_at"
         />
     @endpush
 

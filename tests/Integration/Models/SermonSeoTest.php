@@ -127,6 +127,8 @@ class SermonSeoTest extends TestCase
             'preacher' => 'P',
             'summary' => '<p>This summary has <strong>HTML tags</strong> that should be <em>removed</em>.</p>',
             'meta_description' => null,
+            'reference' => null,
+            'series' => null,
         ]);
 
         $metaDescription = $this->presenter()->metaDescription($sermon);
