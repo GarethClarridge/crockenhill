@@ -27,7 +27,7 @@ return new class extends Migration
         $validTypes = ServiceSectionType::values();
         DB::table('service_sections')
             ->whereNotIn('section_type', $validTypes)
-            ->update(['section_type' => ServiceSectionType::OTHER->value]);
+            ->update(['section_type' => ServiceSectionType::Other->value]);
 
         // 2. Formalize section_type as ENUM (MySQL only)
         if ($isMysql) {
