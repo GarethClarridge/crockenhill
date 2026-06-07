@@ -45,7 +45,7 @@
                 <th class="w-10 px-4 py-3">
                     <input type="checkbox"
                         aria-label="Select all pages"
-                        class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal"
+                        class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                         wire:click="$set('selected', $event.target.checked ? {{ $pages->pluck('id')->toJson() }} : [])"
                         {{ count($selected) === $pages->count() && $pages->count() > 0 ? 'checked' : '' }} />
                 </th>
@@ -66,7 +66,8 @@
                 <tr wire:loading.class="opacity-50" wire:target="delete({{ $page->id }})" class="hover:bg-gray-50">
                     <td class="px-4 py-3">
                         <input type="checkbox" value="{{ $page->id }}" wire:model.live="selected"
-                            class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal" />
+                            aria-label="Select page: {{ $page->heading }}"
+                            class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2" />
                     </td>
                     {{-- Image --}}
                     <td class="px-4 py-3">
