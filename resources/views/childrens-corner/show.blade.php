@@ -28,6 +28,7 @@
             :audio="$sermonView['audio_url']"
             :video="$sermonView['video_url']"
             :canonical="$sermonView['public_url']"
+            section="Children's Corner"
         />
 
         <x-schema.sermon :$sermon :$sermonView :$metaDescription />
@@ -35,6 +36,8 @@
             :heading="$fullTitle"
             :description="$metaDescription ?: $sermon->title"
             :image="$sermonView['thumbnail_url']"
+            :datePublished="$sermon->date"
+            :dateModified="$sermon->updated_at"
         />
     @endpush
 

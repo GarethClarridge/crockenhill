@@ -34,6 +34,8 @@
             :heading="$heading"
             :description="$description ?? $heading"
             :image="$headingpicture"
+            :datePublished="$meeting->created_at"
+            :dateModified="$meeting->updated_at"
         />
 
         @if($meeting->is_recurring && $meeting->frequency)

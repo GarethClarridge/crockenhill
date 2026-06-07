@@ -30,7 +30,7 @@ class ForgotPasswordTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($user) {
             $browser->visit('/forgot-password')
                 ->type('input[type="email"]', $user->email)
-                ->press('Send Password Reset Link')
+                ->press('Send reset link')
                 ->waitForText('We have emailed your password reset link')
                 ->assertSee('We have emailed your password reset link');
         });

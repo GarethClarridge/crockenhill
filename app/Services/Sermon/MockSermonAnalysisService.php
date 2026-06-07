@@ -6,8 +6,8 @@ namespace App\Services\Sermon;
 
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
-use Illuminate\Support\Facades\Log;
 use App\Services\BritishEnglishConverter;
+use Illuminate\Support\Facades\Log;
 
 class MockSermonAnalysisService implements SermonAnalysisInterface
 {
