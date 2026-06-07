@@ -82,7 +82,17 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
               php artisan optimize --except=views
 
-            ./scripts/post-deploy-smoke.sh
+            if [ -f .env.production ]; then
+              set -a
+              . ./.env.production
+              set +a
+            fi
+
+            # Canaries hit the real public edge (Caddy vhost + TLS) via APP_URL —
+            # the same origin the continuous checker uses. The /up liveness probe
+            # stays on localhost.
+            : "${APP_URL:?Missing APP_URL in .env.production}"
+            CANARY_BASE_URL="${APP_URL}" ./scripts/post-deploy-smoke.sh
 
       - name: Summarise rollback
         if: always()

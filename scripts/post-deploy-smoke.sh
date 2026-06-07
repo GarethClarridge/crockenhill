@@ -5,8 +5,15 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-.env.production}"
 APP_SERVICE="${APP_SERVICE:-app}"
 REDIS_SERVICE="${REDIS_SERVICE:-redis}"
+# The cheap liveness probe hits the app container's plain-HTTP port directly, so
+# it works before TLS/DNS and without leaving the host.
 WEB_URL="${WEB_URL:-http://localhost/up}"
-CANARY_BASE_URL="${CANARY_BASE_URL:-${WEB_URL%/up}}"
+# Canaries must exercise the real public edge (Caddy vhost, TLS, redirects) — the
+# same origin the continuous checker uses (config('monitoring.base_url') => APP_URL).
+# Requesting http://localhost here never matches the crockenhill.org vhost, so Caddy
+# returns redirects instead of the app and every non-redirect canary fails. The
+# deploy workflow passes the real APP_URL; this default keeps a standalone run honest.
+CANARY_BASE_URL="${CANARY_BASE_URL:-https://crockenhill.org}"
 CANARY_MAX_TIME="${CANARY_MAX_TIME:-20}"
 CHECK_RETRIES="${CHECK_RETRIES:-15}"
 CHECK_DELAY_SECONDS="${CHECK_DELAY_SECONDS:-2}"
