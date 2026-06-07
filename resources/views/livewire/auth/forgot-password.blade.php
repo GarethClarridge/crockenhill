@@ -26,7 +26,7 @@
 
         <div class="mt-6">
             <x-form-button variant="primary" class="w-full text-xl py-3">
-                Send Password Reset Link
+                Send reset link
             </x-form-button>
         </div>
 

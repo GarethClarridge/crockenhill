@@ -5,6 +5,8 @@
     'image' => null,
     'canonical' => null,
     'mainEntity' => null,
+    'datePublished' => null,
+    'dateModified' => null,
 ])
 
 @php
@@ -16,6 +18,7 @@
         'url' => $pageUrl,
         'name' => $heading,
         'description' => $description ?? $heading,
+        'inLanguage' => 'en-GB',
         'isPartOf' => [
             '@type' => 'WebSite',
             '@id' => config('app.url').'/#website',
@@ -33,7 +36,26 @@
             '@type' => 'BreadcrumbList',
             '@id' => $pageUrl.'#breadcrumb',
         ],
+        'speakable' => [
+            '@type' => 'SpeakableSpecification',
+            'xpath' => [
+                '/html/head/title',
+                '/html/head/meta[@name="description"]/@content',
+            ],
+        ],
     ];
+
+    if ($datePublished) {
+        $schema['datePublished'] = $datePublished instanceof \DateTimeInterface
+            ? $datePublished->toIso8601String()
+            : $datePublished;
+    }
+
+    if ($dateModified) {
+        $schema['dateModified'] = $dateModified instanceof \DateTimeInterface
+            ? $dateModified->toIso8601String()
+            : $dateModified;
+    }
 
     if ($image) {
         $schema['image'] = $image;

@@ -29,7 +29,15 @@ class SermonCandidateConfidenceService
             ->sortByDesc(fn (LivestreamSegment $segment): float => (float) $segment->duration)
             ->values();
 
-        /** @var Collection<int, LivestreamSegment> $qualifyingSegments */
+        /**
+         * Filter segments that meet the minimum sermon duration threshold.
+         *
+         * Default threshold is 20 minutes (1200.0 seconds). This is calibrated to
+         * distinguish main sermons from other speech elements like notices,
+         * prayers, or readings, which are typically shorter in this context.
+         *
+         * @var Collection<int, LivestreamSegment> $qualifyingSegments
+         */
         $qualifyingSegments = $orderedByDuration
             ->filter(fn (LivestreamSegment $segment): bool => (float) $segment->duration >= 1200.0)
             ->values();
