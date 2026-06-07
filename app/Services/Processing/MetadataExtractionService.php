@@ -184,6 +184,16 @@ class MetadataExtractionService
             $rawInfo = $track->extractInfo();
             $info = is_array($rawInfo) ? $rawInfo : [];
 
+            // getID3 signals file-open failures via an 'error' key rather than throwing
+            if (! empty($info['error'])) {
+                Log::warning('Failed to extract audio info from uploaded file', [
+                    'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                    'error' => $this->sanitizeForLog(implode('; ', (array) $info['error'])),
+                ]);
+
+                return $this->getDefaultAudioInfo($file);
+            }
+
             return [
                 'duration' => $this->extractDuration($info),
                 'bitrate' => $this->extractBitrate($info),
