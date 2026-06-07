@@ -283,13 +283,14 @@ class Sermon extends Model implements Sitemapable
             'series' => ['nullable', 'string', 'max:255'],
             'reference' => ['nullable', 'string', 'max:255', new NotEmptyString],
             'preacher' => ['required', 'string', 'max:255'], // Matches database varchar length and non-empty constraint
-            'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
+            // Security: integer bounding on ID and counter fields adds defence in depth against malformed input and overflow.
+            'preacher_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
             'preacher_source' => ['nullable', Rule::enum(PreacherSource::class)],
             'preacher_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'segment_start_time' => ['nullable', 'numeric', 'min:0'],
             'segment_end_time' => ['nullable', 'numeric', 'min:0', 'gte:segment_start_time'],
-            'scripture_passage_id' => ['nullable', 'integer', 'exists:scripture_passages,id'],
-            'download_count' => ['nullable', 'integer', 'min:0'],
+            'scripture_passage_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:scripture_passages,id'],
+            'download_count' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
             'duration' => ['nullable', 'numeric', 'min:0'],
             'summary' => ['nullable', 'string', 'max:1000'],
             'points' => ['nullable', 'array', 'max:100'],

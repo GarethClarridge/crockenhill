@@ -217,6 +217,24 @@ class CalendarAdminControllerTest extends TestCase
     }
 
     #[Test]
+    public function it_validates_event_id_is_bounded(): void
+    {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+
+        $this->actingAs($this->adminUser);
+        $response = $this->post('/admin/calendar/categorize', [
+            'event_id' => 2147483648, // out of bounds
+            'meeting_slug' => 'sunday-morning',
+        ]);
+
+        // Assert the max-bound message specifically so this proves the new max rule
+        // fired rather than the pre-existing exists rule.
+        $response->assertSessionHasErrors([
+            'event_id' => 'The event id field must not be greater than 2147483647.',
+        ]);
+    }
+
+    #[Test]
     public function it_validates_meeting_slug_exists_in_database(): void
     {
         Meeting::factory()->create(['slug' => 'some-slug']);
