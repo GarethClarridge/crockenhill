@@ -90,12 +90,28 @@ class VideoStorageServiceCompressionTest extends TestCase
 
     public function test_container_resolves_video_storage_with_audio_compression_service(): void
     {
-        $resolvedService = app(VideoStorageService::class);
-        $reflection = new \ReflectionClass($resolvedService);
-        $property = $reflection->getProperty('audioCompressor');
-        $property->setAccessible(true);
+        $mockCompression = $this->createMock(AudioCompressionService::class);
+        $this->app->instance(AudioCompressionService::class, $mockCompression);
 
-        $this->assertInstanceOf(AudioCompressionService::class, $property->getValue($resolvedService));
+        $mockCompression->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->willReturn([
+                'audio_path' => 'sermons/audio/test_sermon.mp3',
+                'full_path' => '/path/to/full/audio.mp3',
+                'original_size' => 1024 * 1024,
+                'final_size' => 1024 * 1024,
+                'compression_applied' => false,
+                'compression_ratio' => 1.0,
+                'valid_for_transcription' => true,
+            ]);
+
+        $resolvedService = app(VideoStorageService::class);
+
+        $resolvedService->extractOptimizedAudioFromSegment(
+            $this->testVideoPath,
+            $this->testSegment,
+            'test_sermon.mp3'
+        );
     }
 
     public function test_video_segment_extraction_delegates_to_extraction_service(): void
