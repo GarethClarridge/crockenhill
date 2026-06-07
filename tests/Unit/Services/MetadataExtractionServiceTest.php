@@ -8,6 +8,7 @@ use App\Data\SermonMetadata;
 use App\Enums\SermonService;
 use App\Services\Processing\MetadataExtractionService;
 use Carbon\Carbon;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -19,7 +20,9 @@ class MetadataExtractionServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Carbon::setTestNow('2026-05-27');
+        // Freeze time to ensure deterministic date-fallback assertions.
+        // We use 2026 to ensure the 2026 dates in test fixtures are valid.
+        Carbon::setTestNow('2026-05-27 10:00:00');
         $this->service = new MetadataExtractionService;
         Storage::fake('local');
     }
@@ -363,10 +366,6 @@ class MetadataExtractionServiceTest extends TestCase
     #[Test]
     public function it_guesses_format_from_extension(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('guessFormatFromExtension');
-        $method->setAccessible(true);
-
         $testCases = [
             'mp3' => 'MP3',
             'wav' => 'WAV',
@@ -375,12 +374,22 @@ class MetadataExtractionServiceTest extends TestCase
             'm4a' => 'M4A',
             'ogg' => 'OGG',
             'unknown' => 'UNKNOWN',
-            null => null,
+            '' => null,
         ];
 
         foreach ($testCases as $extension => $expected) {
-            $result = $method->invoke($this->service, $extension);
-            $this->assertEquals($expected, $result, "Failed for extension: {$extension}");
+            $file = $this->createMock(UploadedFile::class);
+            $file->method('getClientOriginalName')->willReturn('test'.($extension ? '.'.$extension : ''));
+            $file->method('hashName')->willReturn('hash.mp3');
+            $file->method('getClientOriginalExtension')->willReturn($extension);
+            $file->method('getSize')->willReturn(1024);
+
+            // Force the underlying library to fail so we hit the fallback code path.
+            $file->method('getPathname')->willThrowException(new \Exception('Forced fallback'));
+
+            $metadata = $this->service->extractFromUploadedFile($file);
+
+            $this->assertEquals($expected, $metadata->format, "Failed for extension: {$extension}");
         }
     }
 

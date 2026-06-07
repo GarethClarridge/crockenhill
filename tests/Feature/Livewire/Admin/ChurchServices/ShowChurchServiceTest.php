@@ -135,7 +135,7 @@ class ShowChurchServiceTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(SubmitEmailText::class)
-            ->assertSee('Submit email text')
+            ->assertSee('Import Email Text')
             ->assertSeeHtml('wire:target="submit"');
     }
 

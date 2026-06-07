@@ -103,9 +103,16 @@ class SermonAnalysis extends Data implements ArrayAccess
     }
 
     /**
-     * Create from raw AI analysis data with validation
+     * Create from raw AI analysis data with validation.
      *
-     * @param  array<string, mixed>  $analysisData
+     * @param  array{
+     *     title?: string,
+     *     series?: string|null,
+     *     reference?: string|null,
+     *     points?: list<string>,
+     *     summary?: string|null,
+     *     transcript?: string,
+     * }  $analysisData
      */
     public static function fromAiAnalysis(array $analysisData): self
     {
@@ -120,9 +127,15 @@ class SermonAnalysis extends Data implements ArrayAccess
     }
 
     /**
-     * Transform the analysis for database insertion
+     * Transform the analysis for database insertion.
      *
-     * @return array<string, mixed>
+     * @return array{
+     *     title: string,
+     *     series: string|null,
+     *     reference: string|null,
+     *     points: string,
+     *     summary: string|null,
+     * }
      */
     public function toSermonAttributes(): array
     {
@@ -146,9 +159,17 @@ class SermonAnalysis extends Data implements ArrayAccess
     }
 
     /**
-     * Get a summary of the analysis for logging/debugging
+     * Get a summary of the analysis for logging/debugging.
      *
-     * @return array<string, mixed>
+     * @return array{
+     *     title: string,
+     *     title_word_count: int,
+     *     series: string,
+     *     reference: string,
+     *     points_count: int,
+     *     transcript_length: int,
+     *     has_valid_transcript: bool,
+     * }
      */
     public function getSummary(): array
     {

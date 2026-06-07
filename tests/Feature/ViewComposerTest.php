@@ -79,6 +79,7 @@ class ViewComposerTest extends TestCase
     public function it_keeps_explicit_data_when_rendering_the_page_show_view(): void
     {
         $view = View::make('pages.show', [
+            'page' => null,
             'heading' => 'Explicit heading',
             'description' => 'Explicit description',
             'content' => '<p>Explicit content</p>',

@@ -15,6 +15,7 @@ use App\Enums\SermonSourceType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Rules\NotEmptyString;
+use App\Rules\SermonPointElement;
 use App\Sitemap\SermonSitemapPresenter;
 use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -292,6 +293,10 @@ class Sermon extends Model implements Sitemapable
             'duration' => ['nullable', 'numeric', 'min:0'],
             'summary' => ['nullable', 'string', 'max:1000'],
             'points' => ['nullable', 'array', 'max:100'],
+            'points.*' => ['nullable', new SermonPointElement(255)],
+            'points.*.point' => ['nullable', 'string', 'max:255'],
+            'points.*.sub_points' => ['nullable', 'array', 'max:50'],
+            'points.*.sub_points.*' => ['nullable', 'string', 'max:255'],
             'show_summary' => ['boolean'],
             'show_points' => ['boolean'],
             'needs_preacher_review' => ['boolean'],

@@ -118,6 +118,10 @@ class SermonFormData extends Form
             'series' => $modelRules['series'],
             'summary' => $modelRules['summary'],
             'points' => $modelRules['points'],
+            'points.*' => $modelRules['points.*'],
+            'points.*.point' => $modelRules['points.*.point'],
+            'points.*.sub_points' => $modelRules['points.*.sub_points'],
+            'points.*.sub_points.*' => $modelRules['points.*.sub_points.*'],
             'showSummary' => $modelRules['show_summary'],
             'showPoints' => $modelRules['show_points'],
         ];

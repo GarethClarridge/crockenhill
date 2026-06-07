@@ -128,6 +128,7 @@ class VideoStorageServiceTest extends TestCase
                 file_put_contents($outputPath, 'audio content');
             }
         );
+
         $this->storageHelper->method('createFFMpeg')->willReturn($ffmpeg);
         $this->service = $this->makeService();
 
@@ -147,7 +148,6 @@ class VideoStorageServiceTest extends TestCase
         Config::set('filesystems.disks.s3_perm', ['driver' => 's3']);
         Storage::fake('s3_perm', ['driver' => 's3']);
         Config::set('media-processing.storage.sermon_disk', 's3_perm');
-        $this->service = $this->makeService();
 
         $tempPath = 'livestream/temp/test.mp4';
         Storage::disk('local_temp')->put($tempPath, 'video content');
@@ -157,6 +157,7 @@ class VideoStorageServiceTest extends TestCase
                 file_put_contents($outputPath, 'audio content');
             }
         );
+
         $this->storageHelper->method('createFFMpeg')->willReturn($ffmpeg);
         $this->service = $this->makeService();
 
@@ -210,7 +211,6 @@ class VideoStorageServiceTest extends TestCase
             $this->storageHelper
         );
     }
-
 
     /**
      * @param  \Closure(string): void  $saveCallback
