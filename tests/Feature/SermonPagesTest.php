@@ -313,7 +313,7 @@ class SermonPagesTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $readingItem->id,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 1,
             'metadata' => [
                 'reading_reference' => 'Luke 15:1-32',

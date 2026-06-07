@@ -236,7 +236,7 @@ class ResolvePendingStructureMergeTest extends TestCase
                     ],
                     'proposed_items' => [
                         ['position' => 1, 'type' => 'songs', 'title' => 'How Great Thou Art', 'source_title' => null, 'openlp_search_title' => 'how great@', 'song_id' => null, 'metadata' => null],
-                        ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::PRAYER->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
+                        ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'section_type' => ServiceSectionType::Prayer->value, 'source_title' => null, 'openlp_search_title' => null, 'song_id' => null, 'metadata' => null],
                     ],
                     'classification' => [
                         'auto_merge' => [],
@@ -252,7 +252,7 @@ class ResolvePendingStructureMergeTest extends TestCase
             'position' => 1,
             'type' => 'songs',
             'title' => 'Amazing Grace',
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'metadata' => [
                 'livestream_projection' => [
                     'source_segment_ids' => [],
@@ -266,7 +266,7 @@ class ResolvePendingStructureMergeTest extends TestCase
             'position' => 2,
             'type' => 'custom',
             'title' => 'Sermon',
-            'section_type' => ServiceSectionType::SERMON,
+            'section_type' => ServiceSectionType::Sermon,
             'metadata' => [
                 'livestream_projection' => [
                     'source_segment_ids' => [],

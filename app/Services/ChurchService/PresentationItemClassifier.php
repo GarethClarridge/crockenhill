@@ -48,7 +48,7 @@ class PresentationItemClassifier
             $decision = $this->makeDecision($item, $firstSongPosition);
             $decisions[$item->id] = $decision;
 
-            if ($decision['resolved_type'] === ServiceSectionType::CHILDRENS_TALK) {
+            if ($decision['resolved_type'] === ServiceSectionType::ChildrensTalk) {
                 $childrensTalkCount++;
             }
         }
@@ -86,7 +86,7 @@ class PresentationItemClassifier
         // Tier 2a: title clearly signals a childrens talk
         if (preg_match('/\b(children\'?s?\s+talk|children)\b/', $normalizedTitle) === 1) {
             return [
-                'resolved_type' => ServiceSectionType::CHILDRENS_TALK,
+                'resolved_type' => ServiceSectionType::ChildrensTalk,
                 'suspected_type' => null,
                 'evidence' => 'strong',
                 'requires_review' => true,
@@ -98,7 +98,7 @@ class PresentationItemClassifier
         // Tier 2b: title clearly signals notices
         if (preg_match('/\b(notices?|announcements?)\b/', $normalizedTitle) === 1) {
             return [
-                'resolved_type' => ServiceSectionType::NOTICES,
+                'resolved_type' => ServiceSectionType::Notices,
                 'suspected_type' => null,
                 'evidence' => 'strong',
                 'requires_review' => false,
@@ -110,8 +110,8 @@ class PresentationItemClassifier
         // Tier 3: position-only inference — weak, never reclassifies
         if ($item->position <= $firstSongPosition) {
             return [
-                'resolved_type' => ServiceSectionType::OTHER,
-                'suspected_type' => ServiceSectionType::NOTICES,
+                'resolved_type' => ServiceSectionType::Other,
+                'suspected_type' => ServiceSectionType::Notices,
                 'evidence' => 'weak',
                 'requires_review' => false,
                 'review_flag' => null,
@@ -120,8 +120,8 @@ class PresentationItemClassifier
         }
 
         return [
-            'resolved_type' => ServiceSectionType::OTHER,
-            'suspected_type' => ServiceSectionType::CHILDRENS_TALK,
+            'resolved_type' => ServiceSectionType::Other,
+            'suspected_type' => ServiceSectionType::ChildrensTalk,
             'evidence' => 'weak',
             'requires_review' => false,
             'review_flag' => null,

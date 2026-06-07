@@ -65,8 +65,8 @@ class ChurchServicePipelineAlignmentTest extends TestCase
 
         $this->assertNull($processingLog->church_service_id);
         $this->assertCount(2, $sections);
-        $this->assertSame(ServiceSectionType::SONG, $sections[0]->section_type);
-        $this->assertSame(ServiceSectionType::SERMON, $sections[1]->section_type);
+        $this->assertSame(ServiceSectionType::Song, $sections[0]->section_type);
+        $this->assertSame(ServiceSectionType::Sermon, $sections[1]->section_type);
     }
 
     #[Test]
@@ -111,7 +111,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
         $this->assertSame($churchService->id, $processingLog->church_service_id);
         $this->assertSame($song->id, $section->church_service_item_id);
         $this->assertSame('Opening Song', $section->title);
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         $this->assertSame('oos_order_inference', $section->metadata['oos_alignment']['song_match_strategy']);
         $this->assertTrue($churchService->fresh()->needs_review);
@@ -130,7 +130,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,

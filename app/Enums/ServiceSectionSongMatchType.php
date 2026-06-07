@@ -10,25 +10,25 @@ enum ServiceSectionSongMatchType: string
 {
     use HasValues;
 
-    case CONFIRMED = 'confirmed';
-    case INFERRED = 'inferred';
-    case UNMATCHED = 'unmatched';
+    case Confirmed = 'confirmed';
+    case Inferred = 'inferred';
+    case Unmatched = 'unmatched';
 
     public function label(): string
     {
         return match ($this) {
-            self::CONFIRMED => 'Confirmed song match',
-            self::INFERRED => 'Inferred song label',
-            self::UNMATCHED => 'Unmatched detected song',
+            self::Confirmed => 'Confirmed song match',
+            self::Inferred => 'Inferred song label',
+            self::Unmatched => 'Unmatched detected song',
         };
     }
 
     public function description(): string
     {
         return match ($this) {
-            self::CONFIRMED => 'This section is safe to count as a confirmed livestream match.',
-            self::INFERRED => 'This label came from OoS ordering and still needs review before it is trusted.',
-            self::UNMATCHED => 'No reliable OoS song match was found for this detected section.',
+            self::Confirmed => 'This section is safe to count as a confirmed livestream match.',
+            self::Inferred => 'This label came from OoS ordering and still needs review before it is trusted.',
+            self::Unmatched => 'No reliable OoS song match was found for this detected section.',
         };
     }
 }

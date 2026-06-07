@@ -47,7 +47,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'extracted_video_path' => 'private/section-publications/10/video.mp4',
             'extracted_audio_path' => 'private/section-publications/10/section-10.mp3',
@@ -114,7 +114,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/11/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-11.mp3',
@@ -157,7 +157,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'extracted_video_path' => 'sermons/sections/12/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-12.mp3',
@@ -243,7 +243,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK,
+            'section_type' => ServiceSectionType::ChildrensTalk,
             'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'extracted_video_path' => 'sermons/sections/13/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-13.mp3',
@@ -308,7 +308,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK,
+            'section_type' => ServiceSectionType::ChildrensTalk,
             'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'extracted_video_path' => 'sermons/sections/14/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-14.mp3',

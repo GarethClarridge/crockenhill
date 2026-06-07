@@ -112,7 +112,7 @@ class SongTitleHintExtractor
      */
     private function isTranscriptSongAnnouncement(array $section): bool
     {
-        if ($section['section_type'] !== ServiceSectionType::SONG->value) {
+        if ($section['section_type'] !== ServiceSectionType::Song->value) {
             return false;
         }
 
@@ -131,7 +131,7 @@ class SongTitleHintExtractor
      */
     private function isAudioOnlySong(array $section): bool
     {
-        if ($section['section_type'] !== ServiceSectionType::SONG->value) {
+        if ($section['section_type'] !== ServiceSectionType::Song->value) {
             return false;
         }
 

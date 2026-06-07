@@ -49,7 +49,7 @@ class SermonPageContextServiceTest extends TestCase
         // Create a non-reading section
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SERMON,
+            'section_type' => ServiceSectionType::Sermon,
         ]);
 
         $result = $this->service->build($sermon);
@@ -68,7 +68,7 @@ class SermonPageContextServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BIBLE_READING,
+            'section_type' => ServiceSectionType::BibleReading,
             'metadata' => $metadata,
             'title' => 'Other Title',
         ]);
@@ -89,7 +89,7 @@ class SermonPageContextServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BIBLE_READING,
+            'section_type' => ServiceSectionType::BibleReading,
             'church_service_item_id' => $item->id,
             'metadata' => null,
             'title' => 'Other Title',
@@ -108,7 +108,7 @@ class SermonPageContextServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BIBLE_READING,
+            'section_type' => ServiceSectionType::BibleReading,
             'church_service_item_id' => null,
             'metadata' => null,
             'title' => 'Psalm 23',
@@ -130,7 +130,7 @@ class SermonPageContextServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BIBLE_READING,
+            'section_type' => ServiceSectionType::BibleReading,
             'church_service_item_id' => $item->id,
             'metadata' => $metadata,
             'title' => 'Section Title',
@@ -149,7 +149,7 @@ class SermonPageContextServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BIBLE_READING,
+            'section_type' => ServiceSectionType::BibleReading,
             'title' => 'Isaiah 53',
             'metadata' => null,
             'church_service_item_id' => null,
@@ -157,7 +157,7 @@ class SermonPageContextServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SERMON,
+            'section_type' => ServiceSectionType::Sermon,
             'published_sermon_id' => $sermon->id,
             'metadata' => null,
             'church_service_item_id' => null,
@@ -181,7 +181,7 @@ class SermonPageContextServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BIBLE_READING,
+            'section_type' => ServiceSectionType::BibleReading,
             'title' => 'Romans 8',
             'metadata' => null,
             'church_service_item_id' => null,
@@ -200,7 +200,7 @@ class SermonPageContextServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BIBLE_READING,
+            'section_type' => ServiceSectionType::BibleReading,
             'title' => 'John 3:16-17',
             'metadata' => null,
             'church_service_item_id' => null,
@@ -220,7 +220,7 @@ class SermonPageContextServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BIBLE_READING,
+            'section_type' => ServiceSectionType::BibleReading,
             'title' => '  Psalm 119  ',
             'metadata' => null,
             'church_service_item_id' => null,

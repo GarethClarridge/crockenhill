@@ -26,10 +26,10 @@ class PresentationItemClassifierTest extends TestCase
     #[Test]
     public function it_returns_explicit_decision_when_section_type_column_is_set(): void
     {
-        $item = $this->makeItem(title: 'Anything', sectionType: ServiceSectionType::CHILDRENS_TALK);
+        $item = $this->makeItem(title: 'Anything', sectionType: ServiceSectionType::ChildrensTalk);
         $result = $this->classifyOne($item);
 
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $result['resolved_type']);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $result['resolved_type']);
         $this->assertSame('explicit', $result['evidence']);
         $this->assertFalse($result['requires_review']);
         $this->assertNull($result['review_flag']);
@@ -41,7 +41,7 @@ class PresentationItemClassifierTest extends TestCase
         $item = $this->makeItem(title: 'Children', metadata: ['section_type' => 'not_a_real_type']);
         $result = $this->classifyOne($item);
 
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $result['resolved_type']);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $result['resolved_type']);
         $this->assertSame('strong', $result['evidence']);
     }
 
@@ -53,7 +53,7 @@ class PresentationItemClassifierTest extends TestCase
         $item = $this->makeItem(title: "Children's Talk");
         $result = $this->classifyOne($item);
 
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $result['resolved_type']);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $result['resolved_type']);
         $this->assertSame('strong', $result['evidence']);
         $this->assertTrue($result['requires_review']);
         $this->assertSame('inferred_childrens_talk', $result['review_flag']);
@@ -66,7 +66,7 @@ class PresentationItemClassifierTest extends TestCase
         $item = $this->makeItem(title: 'Children');
         $result = $this->classifyOne($item);
 
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $result['resolved_type']);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $result['resolved_type']);
         $this->assertSame('strong', $result['evidence']);
     }
 
@@ -78,7 +78,7 @@ class PresentationItemClassifierTest extends TestCase
         $item = $this->makeItem(title: 'Church Notices');
         $result = $this->classifyOne($item);
 
-        $this->assertSame(ServiceSectionType::NOTICES, $result['resolved_type']);
+        $this->assertSame(ServiceSectionType::Notices, $result['resolved_type']);
         $this->assertSame('strong', $result['evidence']);
         $this->assertFalse($result['requires_review']);
         $this->assertNull($result['review_flag']);
@@ -91,7 +91,7 @@ class PresentationItemClassifierTest extends TestCase
         $item = $this->makeItem(title: 'Announcements');
         $result = $this->classifyOne($item);
 
-        $this->assertSame(ServiceSectionType::NOTICES, $result['resolved_type']);
+        $this->assertSame(ServiceSectionType::Notices, $result['resolved_type']);
         $this->assertSame('strong', $result['evidence']);
     }
 
@@ -104,8 +104,8 @@ class PresentationItemClassifierTest extends TestCase
         $presentation = $this->makeItem(title: 'Something', id: 20, position: 1);
         $result = $this->classifyOne($presentation, extraItems: [$song]);
 
-        $this->assertSame(ServiceSectionType::OTHER, $result['resolved_type']);
-        $this->assertSame(ServiceSectionType::NOTICES, $result['suspected_type']);
+        $this->assertSame(ServiceSectionType::Other, $result['resolved_type']);
+        $this->assertSame(ServiceSectionType::Notices, $result['suspected_type']);
         $this->assertSame('weak', $result['evidence']);
         $this->assertFalse($result['requires_review']);
         $this->assertSame('pre_first_song_presentation', $result['reason']);
@@ -118,8 +118,8 @@ class PresentationItemClassifierTest extends TestCase
         $presentation = $this->makeItem(title: 'Mid-service Slot', id: 20, position: 5);
         $result = $this->classifyOne($presentation, extraItems: [$song]);
 
-        $this->assertSame(ServiceSectionType::OTHER, $result['resolved_type']);
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $result['suspected_type']);
+        $this->assertSame(ServiceSectionType::Other, $result['resolved_type']);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $result['suspected_type']);
         $this->assertSame('weak', $result['evidence']);
         $this->assertSame('post_first_song_presentation', $result['reason']);
     }
@@ -132,7 +132,7 @@ class PresentationItemClassifierTest extends TestCase
 
         // With no song items, firstSongPosition = PHP_INT_MAX, so position <= INT_MAX → pre-song
         $this->assertSame('pre_first_song_presentation', $result['reason']);
-        $this->assertSame(ServiceSectionType::NOTICES, $result['suspected_type']);
+        $this->assertSame(ServiceSectionType::Notices, $result['suspected_type']);
     }
 
     // ── classify: aggregate behavior ────────────────────────────────────────

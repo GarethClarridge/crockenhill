@@ -47,7 +47,7 @@ class AdminSectionPublicationQueueTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'title' => "Children's Talk",
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'section_order' => 1,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
@@ -55,7 +55,7 @@ class AdminSectionPublicationQueueTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'title' => 'Rejected Section',
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::Rejected->value,
         ]);
@@ -84,7 +84,7 @@ class AdminSectionPublicationQueueTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'.mp3',
@@ -118,7 +118,7 @@ class AdminSectionPublicationQueueTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/missing-video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'-missing.mp3',
@@ -153,7 +153,7 @@ class AdminSectionPublicationQueueTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'.mp3',

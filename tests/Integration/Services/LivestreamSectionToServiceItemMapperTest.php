@@ -36,21 +36,21 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
             ->count(3)
             ->sequence(
                 [
-                    'section_type' => ServiceSectionType::SONG,
+                    'section_type' => ServiceSectionType::Song,
                     'section_order' => 1,
                     'title' => 'Amazing Grace',
                     'confidence' => 0.95,
                     'source_segment_ids' => [1, 2],
                 ],
                 [
-                    'section_type' => ServiceSectionType::SERMON,
+                    'section_type' => ServiceSectionType::Sermon,
                     'section_order' => 2,
                     'title' => 'Sermon',
                     'confidence' => 0.85,
                     'source_segment_ids' => [3],
                 ],
                 [
-                    'section_type' => ServiceSectionType::PRAYER,
+                    'section_type' => ServiceSectionType::Prayer,
                     'section_order' => 3,
                     'title' => 'Closing Prayer',
                     'confidence' => 0.7,
@@ -92,7 +92,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER,
+            'section_type' => ServiceSectionType::Other,
             'section_order' => 1,
             'confidence' => 0.9,
         ]);
@@ -115,7 +115,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER,
+            'section_type' => ServiceSectionType::Prayer,
             'section_order' => 1,
             'confidence' => 0.2,
         ]);
@@ -138,7 +138,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER,
+            'section_type' => ServiceSectionType::Prayer,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.9,
@@ -163,7 +163,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::BIBLE_READING,
+            'section_type' => ServiceSectionType::BibleReading,
             'section_order' => 1,
             'title' => 'Luke 15:1-32',
             'confidence' => 0.9,
@@ -189,9 +189,9 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         $sections = ServiceSection::factory()
             ->count(3)
             ->sequence(
-                ['section_type' => ServiceSectionType::SONG, 'section_order' => 1, 'confidence' => 0.9],
-                ['section_type' => ServiceSectionType::PRAYER, 'section_order' => 2, 'confidence' => 0.6],
-                ['section_type' => ServiceSectionType::SERMON, 'section_order' => 3, 'confidence' => 0.35],
+                ['section_type' => ServiceSectionType::Song, 'section_order' => 1, 'confidence' => 0.9],
+                ['section_type' => ServiceSectionType::Prayer, 'section_order' => 2, 'confidence' => 0.6],
+                ['section_type' => ServiceSectionType::Sermon, 'section_order' => 3, 'confidence' => 0.35],
             )
             ->create([
                 'media_processing_log_id' => $log->id,
@@ -213,7 +213,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'confidence' => 0.9,
             'source_segment_ids' => [5, 6, 7],
@@ -241,7 +241,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.9,
@@ -270,7 +270,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'title' => 'Amazing Grace',
             'confidence' => 0.9,
@@ -299,7 +299,7 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER,
+            'section_type' => ServiceSectionType::Prayer,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.9,
@@ -327,9 +327,9 @@ class LivestreamSectionToServiceItemMapperTest extends TestCase
         ServiceSection::factory()
             ->count(3)
             ->sequence(
-                ['section_type' => ServiceSectionType::SONG, 'section_order' => 1, 'confidence' => 0.9],
-                ['section_type' => ServiceSectionType::OTHER, 'section_order' => 2, 'confidence' => 0.9],
-                ['section_type' => ServiceSectionType::SERMON, 'section_order' => 3, 'confidence' => 0.9],
+                ['section_type' => ServiceSectionType::Song, 'section_order' => 1, 'confidence' => 0.9],
+                ['section_type' => ServiceSectionType::Other, 'section_order' => 2, 'confidence' => 0.9],
+                ['section_type' => ServiceSectionType::Sermon, 'section_order' => 3, 'confidence' => 0.9],
             )
             ->create([
                 'media_processing_log_id' => $log->id,

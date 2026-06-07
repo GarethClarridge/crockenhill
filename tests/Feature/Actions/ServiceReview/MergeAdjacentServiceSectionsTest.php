@@ -39,7 +39,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
 
         $section1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'start_time' => 100.0,
             'end_time' => 200.0,
@@ -49,7 +49,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
 
         $section2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 2,
             'start_time' => 201.0, // 1 second gap
             'end_time' => 300.0,
@@ -73,8 +73,8 @@ class MergeAdjacentServiceSectionsTest extends TestCase
     #[Test]
     public function it_fails_to_merge_sections_from_different_processing_runs(): void
     {
-        $section1 = ServiceSection::factory()->create(['section_type' => ServiceSectionType::SONG]);
-        $section2 = ServiceSection::factory()->create(['section_type' => ServiceSectionType::SONG]);
+        $section1 = ServiceSection::factory()->create(['section_type' => ServiceSectionType::Song]);
+        $section2 = ServiceSection::factory()->create(['section_type' => ServiceSectionType::Song]);
 
         $result = $this->action->execute($section1, $section2, $this->admin->id);
 
@@ -87,11 +87,11 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
         $section1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
         ]);
         $section2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SERMON,
+            'section_type' => ServiceSectionType::Sermon,
         ]);
 
         $result = $this->action->execute($section1, $section2, $this->admin->id);
@@ -105,12 +105,12 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
         $section1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'publication_status' => ServiceSectionPublicationStatus::Published,
         ]);
         $section2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
         ]);
 
         $result = $this->action->execute($section1, $section2, $this->admin->id);
@@ -124,14 +124,14 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
         $section1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'start_time' => 100,
             'end_time' => 200,
             'section_order' => 1,
         ]);
         $section2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'start_time' => 205, // gap of 5 seconds, default max is 2
             'end_time' => 300,
             'section_order' => 2,
@@ -148,7 +148,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
         $section1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'start_time' => 100,
             'end_time' => 200,
@@ -161,7 +161,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
 
         $section2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 3,
             'start_time' => 201,
             'end_time' => 300,
@@ -179,7 +179,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
 
         $shorter = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'duration' => 50,
             'start_time' => 100,
             'end_time' => 150,
@@ -188,7 +188,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
 
         $longer = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'duration' => 100,
             'start_time' => 151,
             'end_time' => 251,
@@ -214,14 +214,14 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
         $section1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'start_time' => 100,
             'end_time' => 200,
             'section_order' => 1,
         ]);
         $section2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'start_time' => 201,
             'end_time' => 300,
             'section_order' => 2,
@@ -255,14 +255,14 @@ class MergeAdjacentServiceSectionsTest extends TestCase
 
         $section1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'start_time' => 100,
             'end_time' => 200,
             'section_order' => 1,
         ]);
         $section2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'start_time' => 201,
             'end_time' => 300,
             'section_order' => 2,
@@ -282,7 +282,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
 
         $section1 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'start_time' => 100,
             'end_time' => 200,
             'section_order' => 1,
@@ -299,7 +299,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
 
         $section2 = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'start_time' => 201,
             'end_time' => 300,
             'section_order' => 2,

@@ -37,9 +37,9 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Amazing Grace', 'confidence' => 0.95],
-            ['type' => ServiceSectionType::SERMON, 'title' => 'The Prodigal Son', 'confidence' => 0.9],
-            ['type' => ServiceSectionType::PRAYER, 'title' => 'Closing Prayer', 'confidence' => 0.85],
+            ['type' => ServiceSectionType::Song, 'title' => 'Amazing Grace', 'confidence' => 0.95],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'The Prodigal Son', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Prayer, 'title' => 'Closing Prayer', 'confidence' => 0.85],
         ]);
 
         $result = $this->service->project($log);
@@ -74,8 +74,8 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $sections = $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Song A', 'confidence' => 0.9],
-            ['type' => ServiceSectionType::SERMON, 'title' => 'Sermon', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Song A', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'Sermon', 'confidence' => 0.9],
         ]);
 
         $result = $this->service->project($log);
@@ -113,8 +113,8 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'New Song', 'confidence' => 0.9],
-            ['type' => ServiceSectionType::SERMON, 'title' => 'New Sermon', 'confidence' => 0.85],
+            ['type' => ServiceSectionType::Song, 'title' => 'New Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'New Sermon', 'confidence' => 0.85],
         ]);
 
         $result = $this->service->project($log);
@@ -150,7 +150,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Livestream Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Livestream Song', 'confidence' => 0.9],
         ]);
 
         $result = $this->service->project($log);
@@ -176,7 +176,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'confidence' => 0.9,
         ]);
@@ -206,7 +206,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER,
+            'section_type' => ServiceSectionType::Other,
             'section_order' => 1,
             'confidence' => 0.9,
         ]);
@@ -223,8 +223,8 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Song', 'confidence' => 0.9],
-            ['type' => ServiceSectionType::SERMON, 'title' => 'Sermon', 'confidence' => 0.4],
+            ['type' => ServiceSectionType::Song, 'title' => 'Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'Sermon', 'confidence' => 0.4],
         ]);
 
         $result = $this->service->project($log);
@@ -243,7 +243,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'title' => 'Song',
             'confidence' => 0.9,
@@ -264,7 +264,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Song', 'confidence' => 0.9],
         ]);
 
         $result = $this->service->project($log);
@@ -284,7 +284,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Song', 'confidence' => 0.9],
         ]);
 
         $result = $this->service->project($log);
@@ -305,7 +305,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Song A', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Song A', 'confidence' => 0.9],
         ]);
 
         $firstResult = $this->service->project($log);
@@ -314,8 +314,8 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         ServiceSection::query()->where('media_processing_log_id', $log->id)->delete();
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Song B', 'confidence' => 0.9],
-            ['type' => ServiceSectionType::SERMON, 'title' => 'Sermon', 'confidence' => 0.85],
+            ['type' => ServiceSectionType::Song, 'title' => 'Song B', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'Sermon', 'confidence' => 0.85],
         ]);
 
         $secondResult = $this->service->project($log);
@@ -347,7 +347,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Song', 'confidence' => 0.9],
+            ['type' => ServiceSectionType::Song, 'title' => 'Song', 'confidence' => 0.9],
         ]);
 
         $result = $this->service->project($log);
@@ -368,7 +368,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'title' => 'Song',
             'confidence' => 0.9,
@@ -379,7 +379,7 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER,
+            'section_type' => ServiceSectionType::Other,
             'section_order' => 2,
             'title' => 'Unknown',
             'confidence' => 0.2,
@@ -401,9 +401,9 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $log = $this->createProcessingLog('2026-03-27', SermonService::Morning);
 
         $this->createSections($log, [
-            ['type' => ServiceSectionType::SONG, 'title' => 'Song A', 'confidence' => 0.95],
-            ['type' => ServiceSectionType::SERMON, 'title' => 'Sermon', 'confidence' => 0.6],
-            ['type' => ServiceSectionType::PRAYER, 'title' => 'Prayer', 'confidence' => 0.35],
+            ['type' => ServiceSectionType::Song, 'title' => 'Song A', 'confidence' => 0.95],
+            ['type' => ServiceSectionType::Sermon, 'title' => 'Sermon', 'confidence' => 0.6],
+            ['type' => ServiceSectionType::Prayer, 'title' => 'Prayer', 'confidence' => 0.35],
         ]);
 
         $result = $this->service->project($log);

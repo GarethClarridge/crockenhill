@@ -105,7 +105,7 @@ class EnsureServiceTrackingAccessTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $token = $admin->createToken('test-token', [ApiTokenAbility::SERVICE_UPLOAD->value]);
+        $token = $admin->createToken('test-token', [ApiTokenAbility::ServiceUpload->value]);
         $plainTextToken = $token->plainTextToken;
 
         $pat = PersonalAccessToken::findToken(explode('|', $plainTextToken, 2)[1] ?? $plainTextToken);
@@ -135,7 +135,7 @@ class EnsureServiceTrackingAccessTest extends TestCase
         $request = $this->makeRequest($admin, $plainTextToken);
 
         $this->expectException(HttpException::class);
-        $this->expectExceptionMessage('Missing required token ability: '.ApiTokenAbility::SERVICE_UPLOAD->value);
+        $this->expectExceptionMessage('Missing required token ability: '.ApiTokenAbility::ServiceUpload->value);
 
         $this->makeMiddleware()->handle($request, fn () => response('passed'));
     }

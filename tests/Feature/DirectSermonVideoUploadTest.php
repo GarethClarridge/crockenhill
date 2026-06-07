@@ -38,7 +38,7 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_successful_video_upload(): void
     {
-        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MediaProcess->value]);
 
         $videoFile = $this->fakeVideoUpload('test-sermon.mp4', 100 * 1024);
 
@@ -60,7 +60,7 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_with_invalid_format(): void
     {
-        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MediaProcess->value]);
 
         $invalidFile = UploadedFile::fake()->create('document.txt', 1024, 'text/plain');
 
@@ -74,7 +74,7 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_with_oversized_file(): void
     {
-        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MediaProcess->value]);
 
         // Create a fake video file larger than the limit (3GB, which exceeds 1GB limit)
         $largeFile = UploadedFile::fake()->create('large-sermon.mp4', 3 * 1024 * 1024, 'video/mp4');
@@ -100,7 +100,7 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_requires_file(): void
     {
-        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MediaProcess->value]);
 
         $response = $this->postJson('/api/media/video', []);
 
@@ -110,7 +110,7 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_supports_various_formats(): void
     {
-        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MediaProcess->value]);
 
         $formats = [
             ['mp4', 'video/mp4'],
@@ -145,7 +145,7 @@ class DirectSermonVideoUploadTest extends TestCase
             'email_verified_at' => now(),
             'is_admin' => true,
         ]);
-        Sanctum::actingAs($testUser, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($testUser, [ApiTokenAbility::MediaProcess->value]);
 
         $videoFile = UploadedFile::fake()->create('test-sermon.mp4', 100 * 1024, 'video/mp4');
 
@@ -174,7 +174,7 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_returns_correct_structure(): void
     {
-        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MediaProcess->value]);
 
         $videoFile = UploadedFile::fake()->create('test-sermon.mp4', 100 * 1024, 'video/mp4');
 
@@ -197,7 +197,7 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_accepts_auto_trim_requests(): void
     {
-        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MediaProcess->value]);
 
         $videoFile = $this->fakeVideoUpload('test-sermon.mp4', 100 * 1024);
 

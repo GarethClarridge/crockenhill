@@ -125,7 +125,7 @@ class SongVideoServiceTest extends TestCase
         Storage::disk('public')->put($videoPath, 'video-content');
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
@@ -154,7 +154,7 @@ class SongVideoServiceTest extends TestCase
         Storage::disk('public')->put($videoPath, 'video-content');
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -209,8 +209,8 @@ class SongVideoServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'start_time' => 100.0,
             'end_time' => 340.5,

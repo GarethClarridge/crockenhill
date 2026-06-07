@@ -127,15 +127,15 @@ class ChurchServiceItemSyncServiceTest extends TestCase
                 title: 'Welcome from explicit payload',
                 sourceTitle: 'Welcome from explicit payload',
                 openLpSearchTitle: null,
-                sectionType: ServiceSectionType::WELCOME->value,
+                sectionType: ServiceSectionType::Welcome->value,
             ),
         ], ChurchServiceItemSource::Manual);
 
         /** @var ChurchServiceItem $item */
         $item = $churchService->fresh('items')?->items->sole();
 
-        $this->assertSame(ServiceSectionType::WELCOME, $item->section_type);
-        $this->assertSame(ServiceSectionType::WELCOME, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Welcome, $item->section_type);
+        $this->assertSame(ServiceSectionType::Welcome, $item->semanticSectionType());
     }
 
     #[Test]
@@ -595,7 +595,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
                     'id' => $preservedSong->id,
                     'position' => 2,
                     'type' => 'songs',
-                    'section_type' => ServiceSectionType::SONG->value,
+                    'section_type' => ServiceSectionType::Song->value,
                     'source' => ChurchServiceItemSource::Manual->value,
                     'title' => 'Closing Song',
                     'source_title' => 'Closing Song',

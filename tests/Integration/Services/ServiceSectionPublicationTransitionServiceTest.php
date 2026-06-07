@@ -35,10 +35,10 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
         ]]);
 
         $publishable = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
         ]);
         $nonPublishable = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
         ]);
 
         $this->assertTrue($this->service->isPublishableType($publishable));

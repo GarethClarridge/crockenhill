@@ -171,8 +171,8 @@ class ChurchServiceItem extends Model
         }
 
         return match (strtolower($this->type)) {
-            'songs' => ServiceSectionType::SONG,
-            'bibles' => ServiceSectionType::BIBLE_READING,
+            'songs' => ServiceSectionType::Song,
+            'bibles' => ServiceSectionType::BibleReading,
             default => ServiceSectionType::inferFromTitle($this->title),
         };
     }

@@ -46,7 +46,7 @@ class UnmatchedSongReviewApplicatorTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
         ]);
 
         $sections = ServiceSection::where('media_processing_log_id', $log->id)->get();
@@ -63,7 +63,7 @@ class UnmatchedSongReviewApplicatorTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'needs_manual_review' => false,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
@@ -83,7 +83,7 @@ class UnmatchedSongReviewApplicatorTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
 
@@ -102,7 +102,7 @@ class UnmatchedSongReviewApplicatorTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'song_match_type' => null,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
@@ -111,7 +111,7 @@ class UnmatchedSongReviewApplicatorTest extends TestCase
         $unmatched = $this->applicator->apply($sections, []);
         $this->persistUnmatched($unmatched);
 
-        $this->assertSame(ServiceSectionSongMatchType::UNMATCHED, $section->fresh()->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Unmatched, $section->fresh()->song_match_type);
     }
 
     #[Test]
@@ -121,7 +121,7 @@ class UnmatchedSongReviewApplicatorTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'confidence' => 0.9,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
@@ -140,7 +140,7 @@ class UnmatchedSongReviewApplicatorTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'needs_manual_review' => false,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
@@ -159,7 +159,7 @@ class UnmatchedSongReviewApplicatorTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'metadata' => [
                 'confidence_level' => 'high',
                 'classification_mode' => 'audio_only',

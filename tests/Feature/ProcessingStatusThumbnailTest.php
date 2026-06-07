@@ -49,7 +49,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         // Create authenticated user
         $user = User::factory()->create(['is_admin' => true]);
 
-        Sanctum::actingAs($user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($user, [ApiTokenAbility::MediaProcess->value]);
 
         $response = $this->getJson("/api/media/processing/{$processingId}/status");
 
@@ -90,7 +90,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         // Create authenticated user
         $user = User::factory()->create(['is_admin' => true]);
 
-        Sanctum::actingAs($user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($user, [ApiTokenAbility::MediaProcess->value]);
 
         $response = $this->getJson("/api/media/processing/{$processingId}/status");
 
@@ -117,7 +117,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         // Create authenticated user
         $user = User::factory()->create(['is_admin' => true]);
 
-        Sanctum::actingAs($user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+        Sanctum::actingAs($user, [ApiTokenAbility::MediaProcess->value]);
 
         $response = $this->getJson("/api/media/processing/{$processingId}/status");
 

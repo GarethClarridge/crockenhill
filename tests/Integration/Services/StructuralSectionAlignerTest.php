@@ -49,7 +49,7 @@ class StructuralSectionAlignerTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'section_type' => ServiceSectionType::WELCOME,
+            'section_type' => ServiceSectionType::Welcome,
             'title' => 'Welcome',
             'metadata' => null,
         ]);
@@ -57,7 +57,7 @@ class StructuralSectionAlignerTest extends TestCase
         // Detected section with matching type
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'church_service_item_id' => null,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
@@ -83,7 +83,7 @@ class StructuralSectionAlignerTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'section_type' => ServiceSectionType::PRAYER,
+            'section_type' => ServiceSectionType::Prayer,
             'title' => 'Opening Prayer',
             'metadata' => null,
         ]);
@@ -91,7 +91,7 @@ class StructuralSectionAlignerTest extends TestCase
         // Detected section is a notices — type clash, no lookahead match
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_type' => ServiceSectionType::Notices->value,
             'church_service_item_id' => null,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
@@ -113,7 +113,7 @@ class StructuralSectionAlignerTest extends TestCase
         // No OoS items, but one detected structural section
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_type' => ServiceSectionType::Notices->value,
             'church_service_item_id' => null,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
@@ -145,7 +145,7 @@ class StructuralSectionAlignerTest extends TestCase
         // Detected song section — should be excluded from structural alignment
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'church_service_item_id' => null,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
@@ -178,7 +178,7 @@ class StructuralSectionAlignerTest extends TestCase
         // Detected section classified as OTHER (audio-only fallback)
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'church_service_item_id' => null,
             'metadata' => ['confidence_level' => 'medium', 'classification_mode' => 'audio_only'],
         ]);
@@ -191,7 +191,7 @@ class StructuralSectionAlignerTest extends TestCase
 
         // The section instance in the collection should be reclassified to BIBLE_READING
         $mutatedSection = $sections->first(fn (ServiceSection $s) => $s->id === $section->id);
-        $this->assertSame(ServiceSectionType::BIBLE_READING, $mutatedSection->section_type);
+        $this->assertSame(ServiceSectionType::BibleReading, $mutatedSection->section_type);
     }
 
     // ── Empty inputs ──────────────────────────────────────────────────────────

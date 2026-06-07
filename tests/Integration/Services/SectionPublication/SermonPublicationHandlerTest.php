@@ -140,7 +140,7 @@ class SermonPublicationHandlerTest extends TestCase
     public function after_extraction_runs_speaker_detection_for_childrens_talks(): void
     {
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -156,7 +156,7 @@ class SermonPublicationHandlerTest extends TestCase
     public function after_extraction_is_noop_for_non_childrens_talk_sections(): void
     {
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -172,7 +172,7 @@ class SermonPublicationHandlerTest extends TestCase
         Log::spy();
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
@@ -214,7 +214,7 @@ class SermonPublicationHandlerTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'extracted_video_path' => $videoPath,
             'extracted_audio_path' => $audioPath,
             'publication_status' => ServiceSectionPublicationStatus::Approved->value,
@@ -423,7 +423,7 @@ class SermonPublicationHandlerTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'extracted_video_path' => 'private/video.mp4',
             'extracted_audio_path' => 'private/audio.mp3',
         ]);
@@ -455,7 +455,7 @@ class SermonPublicationHandlerTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::SERMON->value,
+            'section_type' => ServiceSectionType::Sermon->value,
             'extracted_video_path' => 'private/video.mp4',
             'extracted_audio_path' => 'private/audio.mp3',
         ]);

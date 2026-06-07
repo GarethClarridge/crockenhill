@@ -108,7 +108,7 @@ class StableJsonMetadataWrappersTest extends TestCase
         ];
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'metadata' => $payload,
         ]);
 

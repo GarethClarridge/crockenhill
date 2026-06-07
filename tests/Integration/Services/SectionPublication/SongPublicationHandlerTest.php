@@ -65,8 +65,8 @@ class SongPublicationHandlerTest extends TestCase
         return ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => $videoPath,
             'extracted_audio_path' => 'private/section-publications/audio.mp3',
@@ -131,8 +131,8 @@ class SongPublicationHandlerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -150,8 +150,8 @@ class SongPublicationHandlerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::INFERRED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -169,8 +169,8 @@ class SongPublicationHandlerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::UNMATCHED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -186,8 +186,8 @@ class SongPublicationHandlerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -199,8 +199,8 @@ class SongPublicationHandlerTest extends TestCase
     {
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -256,8 +256,8 @@ class SongPublicationHandlerTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => 'private/section-publications/99/video.mp4',
             'extracted_audio_path' => null,
@@ -289,7 +289,7 @@ class SongPublicationHandlerTest extends TestCase
         Storage::disk('public')->put($videoPath, 'video-content');
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
@@ -314,7 +314,7 @@ class SongPublicationHandlerTest extends TestCase
         Log::spy();
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -327,7 +327,7 @@ class SongPublicationHandlerTest extends TestCase
     public function after_extraction_is_a_noop(): void
     {
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 

@@ -50,7 +50,7 @@ class SermonPublicationHandler implements SectionPublicationHandler
 
     public function afterExtraction(ServiceSection $section): void
     {
-        if ($section->section_type === ServiceSectionType::CHILDRENS_TALK) {
+        if ($section->section_type === ServiceSectionType::ChildrensTalk) {
             $this->childrensTalkSpeakerService->detectAndStore($section);
         }
     }

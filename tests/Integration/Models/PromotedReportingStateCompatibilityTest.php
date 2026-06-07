@@ -21,14 +21,14 @@ class PromotedReportingStateCompatibilityTest extends TestCase
     {
         $columnBacked = ChurchServiceItem::factory()->make([
             'type' => 'custom',
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'metadata' => null,
         ]);
 
         $legacyMetadata = ChurchServiceItem::factory()->make([
             'type' => 'custom',
             'section_type' => null,
-            'metadata' => ['section_type' => ServiceSectionType::SERMON->value],
+            'metadata' => ['section_type' => ServiceSectionType::Sermon->value],
             'title' => 'Welcome',
         ]);
 
@@ -39,22 +39,22 @@ class PromotedReportingStateCompatibilityTest extends TestCase
             'title' => 'Psalm 121',
         ]);
 
-        $this->assertSame(ServiceSectionType::WELCOME, $columnBacked->semanticSectionType());
-        $this->assertSame(ServiceSectionType::WELCOME, $legacyMetadata->semanticSectionType());
-        $this->assertSame(ServiceSectionType::BIBLE_READING, $legacyInference->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Welcome, $columnBacked->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Welcome, $legacyMetadata->semanticSectionType());
+        $this->assertSame(ServiceSectionType::BibleReading, $legacyInference->semanticSectionType());
     }
 
     #[Test]
     public function service_section_promoted_fields_read_from_columns_only(): void
     {
         $columnBacked = ServiceSection::factory()->make([
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'matched_item_id' => 12,
             'expected_item_id' => 21,
             'metadata' => ['oos_alignment' => []],
         ]);
 
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $columnBacked->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $columnBacked->song_match_type);
         $this->assertSame(12, $columnBacked->matched_item_id);
         $this->assertSame(21, $columnBacked->expected_item_id);
         $this->assertTrue($columnBacked->hasConfirmedSongMatch());

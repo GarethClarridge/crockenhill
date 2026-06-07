@@ -388,14 +388,14 @@ class AdminUrlStateTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'title' => 'Rejected Section',
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::Rejected->value,
         ]);
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'title' => 'Pending Section',
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
         ]);
 

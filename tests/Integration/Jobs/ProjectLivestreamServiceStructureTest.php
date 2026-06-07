@@ -43,7 +43,7 @@ class ProjectLivestreamServiceStructureTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'title' => 'Amazing Grace',
             'confidence' => 0.9,

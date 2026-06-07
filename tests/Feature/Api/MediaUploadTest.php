@@ -34,7 +34,7 @@ class MediaUploadTest extends TestCase
 
     private function tokenFor(User $user): string
     {
-        return $user->createToken('test', [ApiTokenAbility::MEDIA_PROCESS->value])
+        return $user->createToken('test', [ApiTokenAbility::MediaProcess->value])
             ->plainTextToken;
     }
 
@@ -55,7 +55,7 @@ class MediaUploadTest extends TestCase
     public function it_rejects_non_admin_users(): void
     {
         $user = User::factory()->create(['is_admin' => false, 'email_verified_at' => now()]);
-        $token = $user->createToken('test', [ApiTokenAbility::MEDIA_PROCESS->value])->plainTextToken;
+        $token = $user->createToken('test', [ApiTokenAbility::MediaProcess->value])->plainTextToken;
 
         $file = $this->fakeAudioUpload();
 

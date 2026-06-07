@@ -44,7 +44,7 @@ class UnmatchedSongReviewApplicator
             }
 
             $section->needs_manual_review = true;
-            $section->song_match_type = $section->song_match_type ?? ServiceSectionSongMatchType::UNMATCHED;
+            $section->song_match_type = $section->song_match_type ?? ServiceSectionSongMatchType::Unmatched;
             $section->confidence = ServiceSectionConfidence::decrease(
                 ServiceSectionConfidence::resolve($section->confidence, $metadata),
                 0.10
@@ -63,7 +63,7 @@ class UnmatchedSongReviewApplicator
     private function unmatchedSongSections(EloquentCollection $sections, array $matchedSongSectionIds): Collection
     {
         return $sections
-            ->filter(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::SONG)
+            ->filter(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Song)
             ->reject(fn (ServiceSection $section): bool => in_array($section->id, $matchedSongSectionIds, true))
             ->values();
     }

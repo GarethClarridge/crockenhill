@@ -56,7 +56,7 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sections/video.mp4',
             'extracted_audio_path' => 'sections/audio.mp3',
@@ -94,7 +94,7 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'needs_manual_review' => true,
             'extracted_video_path' => 'sections/review/video.mp4',
@@ -131,7 +131,7 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'needs_manual_review' => false,
             'extracted_video_path' => 'sections/missing/video.mp4',
@@ -175,7 +175,7 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $selectedSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $selectedRun->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sections/selected/video.mp4',
             'extracted_audio_path' => 'sections/selected/audio.mp3',
@@ -183,7 +183,7 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $otherSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $otherRun->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sections/other/video.mp4',
             'extracted_audio_path' => 'sections/other/audio.mp3',
@@ -221,7 +221,7 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $first = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 1,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sections/audit/first/video.mp4',
@@ -230,7 +230,7 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         $second = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'extracted_video_path' => 'sections/audit/second/video.mp4',
@@ -294,7 +294,7 @@ class BatchApproveServicePublicationsTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'needs_manual_review' => false,
             'extracted_video_path' => 'sections/default-error/video.mp4',

@@ -130,8 +130,8 @@ class PublicSongDetailTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $detectedItem->id,
-            'section_type' => ServiceSectionType::SONG,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'metadata' => ['oos_alignment' => []],
         ]);
 

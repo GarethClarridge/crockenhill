@@ -80,8 +80,8 @@ class TranscribeSpeechSegments extends ProcessingJob implements ShouldQueue
             ->where('media_processing_log_id', $this->processingLog->id)
             ->where('status', ServiceSectionStatus::Identified->value)
             ->whereNotIn('section_type', [
-                ServiceSectionType::SONG->value,
-                ServiceSectionType::SERMON->value,
+                ServiceSectionType::Song->value,
+                ServiceSectionType::Sermon->value,
             ])
             ->orderBy('section_order')
             ->orderBy('id')

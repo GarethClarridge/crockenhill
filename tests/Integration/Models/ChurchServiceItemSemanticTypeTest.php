@@ -18,12 +18,12 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
     public function it_returns_explicit_section_type_if_set(): void
     {
         $item = ChurchServiceItem::factory()->make([
-            'section_type' => ServiceSectionType::SERMON,
+            'section_type' => ServiceSectionType::Sermon,
             'type' => 'songs',
             'title' => 'Opening Prayer',
         ]);
 
-        $this->assertSame(ServiceSectionType::SERMON, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Sermon, $item->semanticSectionType());
     }
 
     #[Test]
@@ -36,7 +36,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Notices',
         ]);
 
-        $this->assertSame(ServiceSectionType::SONG, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Song, $item->semanticSectionType());
     }
 
     #[Test]
@@ -49,7 +49,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Random Title',
         ]);
 
-        $this->assertSame(ServiceSectionType::SONG, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Song, $item->semanticSectionType());
     }
 
     #[Test]
@@ -62,7 +62,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Random Title',
         ]);
 
-        $this->assertSame(ServiceSectionType::BIBLE_READING, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::BibleReading, $item->semanticSectionType());
     }
 
     #[Test]
@@ -75,7 +75,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Children\'s Address',
         ]);
 
-        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $item->semanticSectionType());
     }
 
     #[Test]
@@ -88,7 +88,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Intercessory Prayer',
         ]);
 
-        $this->assertSame(ServiceSectionType::PRAYER, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Prayer, $item->semanticSectionType());
     }
 
     #[Test]
@@ -101,10 +101,10 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Church Notices',
         ]);
 
-        $this->assertSame(ServiceSectionType::NOTICES, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Notices, $item->semanticSectionType());
 
         $item->title = 'Weekly Announcements';
-        $this->assertSame(ServiceSectionType::NOTICES, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Notices, $item->semanticSectionType());
     }
 
     #[Test]
@@ -117,7 +117,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Welcome and Introduction',
         ]);
 
-        $this->assertSame(ServiceSectionType::WELCOME, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Welcome, $item->semanticSectionType());
     }
 
     #[Test]
@@ -130,10 +130,10 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Morning Sermon',
         ]);
 
-        $this->assertSame(ServiceSectionType::SERMON, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Sermon, $item->semanticSectionType());
 
         $item->title = 'The Message';
-        $this->assertSame(ServiceSectionType::SERMON, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Sermon, $item->semanticSectionType());
     }
 
     #[Test]
@@ -146,7 +146,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Benediction',
         ]);
 
-        $this->assertSame(ServiceSectionType::OTHER, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Other, $item->semanticSectionType());
     }
 
     #[Test]
@@ -159,6 +159,6 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Random',
         ]);
 
-        $this->assertSame(ServiceSectionType::SONG, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::Song, $item->semanticSectionType());
     }
 }

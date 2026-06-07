@@ -259,8 +259,8 @@ return new class extends Migration
         }
 
         return match (strtolower($type)) {
-            'songs' => ServiceSectionType::SONG,
-            'bibles' => ServiceSectionType::BIBLE_READING,
+            'songs' => ServiceSectionType::Song,
+            'bibles' => ServiceSectionType::BibleReading,
             default => ServiceSectionType::inferFromTitle($title),
         };
     }

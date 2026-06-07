@@ -27,7 +27,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
             {
                 return [
                     'sections' => [[
-                        'section_type' => ServiceSectionType::PRAYER->value,
+                        'section_type' => ServiceSectionType::Prayer->value,
                         'start_offset_seconds' => 0,
                         'end_offset_seconds' => 120,
                         'confidence' => 0.92,
@@ -40,7 +40,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 60.0,
             'end_time' => 180.0,
             'duration' => 120.0,
@@ -52,7 +52,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
         $classified = $service->classify($section);
 
         $this->assertCount(1, $classified);
-        $this->assertSame(ServiceSectionType::PRAYER->value, $classified[0]['section_type']);
+        $this->assertSame(ServiceSectionType::Prayer->value, $classified[0]['section_type']);
         $this->assertFalse($classified[0]['needs_manual_review']);
         $this->assertSame('high', $classified[0]['metadata']['confidence_level']);
         $this->assertSame('ai_transcript', $classified[0]['metadata']['confidence_source']);
@@ -68,7 +68,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
                 return [
                     'sections' => [
                         [
-                            'section_type' => ServiceSectionType::WELCOME->value,
+                            'section_type' => ServiceSectionType::Welcome->value,
                             'start_offset_seconds' => 0,
                             'end_offset_seconds' => 45,
                             'confidence' => 0.9,
@@ -76,7 +76,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
                             'anomalies' => [],
                         ],
                         [
-                            'section_type' => ServiceSectionType::PRAYER->value,
+                            'section_type' => ServiceSectionType::Prayer->value,
                             'start_offset_seconds' => 45,
                             'end_offset_seconds' => 120,
                             'confidence' => 0.88,
@@ -90,7 +90,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 300.0,
             'end_time' => 420.0,
             'duration' => 120.0,
@@ -104,12 +104,12 @@ class SpeechSectionClassificationServiceTest extends TestCase
         $this->assertCount(2, $classified);
         $this->assertSame(300.0, $classified[0]['start_time']);
         $this->assertSame(345.0, $classified[0]['end_time']);
-        $this->assertSame(ServiceSectionType::WELCOME->value, $classified[0]['section_type']);
+        $this->assertSame(ServiceSectionType::Welcome->value, $classified[0]['section_type']);
         $this->assertNotSame('Welcome everyone. Let us pray.', $classified[0]['metadata']['transcript']);
         $this->assertSame('section_excerpt', $classified[0]['metadata']['transcript_scope']);
         $this->assertSame(345.0, $classified[1]['start_time']);
         $this->assertSame(420.0, $classified[1]['end_time']);
-        $this->assertSame(ServiceSectionType::PRAYER->value, $classified[1]['section_type']);
+        $this->assertSame(ServiceSectionType::Prayer->value, $classified[1]['section_type']);
         $this->assertNotSame('Welcome everyone. Let us pray.', $classified[1]['metadata']['transcript']);
         $this->assertSame('section_excerpt', $classified[1]['metadata']['transcript_scope']);
     }
@@ -123,7 +123,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
             {
                 return [
                     'sections' => [[
-                        'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+                        'section_type' => ServiceSectionType::ChildrensTalk->value,
                         'start_offset_seconds' => 0,
                         'end_offset_seconds' => 90,
                         'confidence' => 0.45,
@@ -136,7 +136,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 0.0,
             'end_time' => 90.0,
             'duration' => 90.0,
@@ -148,7 +148,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
         $classified = $service->classify($section);
 
         $this->assertCount(1, $classified);
-        $this->assertSame(ServiceSectionType::OTHER->value, $classified[0]['section_type']);
+        $this->assertSame(ServiceSectionType::Other->value, $classified[0]['section_type']);
         $this->assertTrue($classified[0]['needs_manual_review']);
         $this->assertSame('none', $classified[0]['metadata']['confidence_level']);
         $this->assertSame('low_ai_confidence', $classified[0]['metadata']['review_reason']);
@@ -171,7 +171,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 15.0,
             'end_time' => 75.0,
             'duration' => 5.0,
@@ -204,7 +204,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 100.0,
             'end_time' => 700.0,
             'duration' => 600.0,
@@ -243,7 +243,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 0.0,
             'end_time' => 120.0,
             'duration' => 120.0,
@@ -268,7 +268,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
                     'message' => [
                         'content' => json_encode([
                             'sections' => [[
-                                'section_type' => ServiceSectionType::WELCOME->value,
+                                'section_type' => ServiceSectionType::Welcome->value,
                                 'start_offset_seconds' => 0,
                                 'end_offset_seconds' => 60,
                                 'confidence' => 0.91,
@@ -285,7 +285,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 0.0,
             'end_time' => 60.0,
             'duration' => 60.0,
@@ -297,7 +297,7 @@ class SpeechSectionClassificationServiceTest extends TestCase
         $classified = $service->classify($section);
 
         $this->assertCount(1, $classified);
-        $this->assertSame(ServiceSectionType::WELCOME->value, $classified[0]['section_type']);
+        $this->assertSame(ServiceSectionType::Welcome->value, $classified[0]['section_type']);
         $this->assertFalse($classified[0]['needs_manual_review']);
     }
 
@@ -325,7 +325,7 @@ TEXT,
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 30.0,
             'end_time' => 120.0,
             'duration' => 90.0,
@@ -337,7 +337,7 @@ TEXT,
         $classified = $service->classify($section);
 
         $this->assertCount(1, $classified);
-        $this->assertSame(ServiceSectionType::PRAYER->value, $classified[0]['section_type']);
+        $this->assertSame(ServiceSectionType::Prayer->value, $classified[0]['section_type']);
         $this->assertSame(30.0, $classified[0]['start_time']);
         $this->assertSame(120.0, $classified[0]['end_time']);
     }
@@ -359,7 +359,7 @@ TEXT,
 
         $section = ServiceSection::factory()->create([
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 606.0,
             'end_time' => 1469.0,
             'metadata' => [
@@ -392,14 +392,14 @@ TEXT,
         };
 
         $longSection = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 600.0,
             'end_time' => 1500.0, // 15 minutes
             'metadata' => ['transcript' => 'A long section.'],
         ]);
 
         $shortSection = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'start_time' => 100.0,
             'end_time' => 220.0, // 2 minutes
             'metadata' => ['transcript' => 'A short section.'],

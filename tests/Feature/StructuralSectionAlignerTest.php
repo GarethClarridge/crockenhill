@@ -53,7 +53,7 @@ class StructuralSectionAlignerTest extends TestCase
         // Detected section order: NOTICES (unexpected), PRAYER (correct for first item)
         $noticesSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_type' => ServiceSectionType::Notices->value,
             'section_order' => 1,
             'title' => 'Notices',
             'confidence' => 0.5,
@@ -62,7 +62,7 @@ class StructuralSectionAlignerTest extends TestCase
 
         $prayerSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 2,
             'title' => null,
             'confidence' => 0.5,
@@ -118,7 +118,7 @@ class StructuralSectionAlignerTest extends TestCase
         // Detected: PRAYER first — PRAYER item is further along in remaining items, so item is skipped
         $prayerSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => 'Closing Prayer',
             'confidence' => 0.5,
@@ -162,7 +162,7 @@ class StructuralSectionAlignerTest extends TestCase
         // Section is NOTICES, item is BIBLE_READING — neither type appears in remaining
         $mismatchSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_type' => ServiceSectionType::Notices->value,
             'section_order' => 1,
             'title' => 'Notices',
             'confidence' => 0.5,
@@ -206,7 +206,7 @@ class StructuralSectionAlignerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::OTHER->value,
+            'section_type' => ServiceSectionType::Other->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -217,9 +217,9 @@ class StructuralSectionAlignerTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionType::BIBLE_READING, $section->section_type);
+        $this->assertSame(ServiceSectionType::BibleReading, $section->section_type);
         $this->assertSame($readingItem->id, $section->church_service_item_id);
-        $this->assertSame(ServiceSectionType::OTHER->value, $section->metadata['oos_alignment']['reclassified_from'] ?? null);
+        $this->assertSame(ServiceSectionType::Other->value, $section->metadata['oos_alignment']['reclassified_from'] ?? null);
         $this->assertSame('oos_alignment', $section->metadata['oos_alignment']['reclassified_by'] ?? null);
         $this->assertFalse($section->needs_manual_review);
     }
@@ -249,7 +249,7 @@ class StructuralSectionAlignerTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_type' => ServiceSectionType::BibleReading->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -292,7 +292,7 @@ class StructuralSectionAlignerTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => null,
             'confidence' => 0.5,
@@ -335,7 +335,7 @@ class StructuralSectionAlignerTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_type' => ServiceSectionType::Prayer->value,
             'section_order' => 1,
             'title' => 'Closing Prayer',
             'confidence' => 0.85,

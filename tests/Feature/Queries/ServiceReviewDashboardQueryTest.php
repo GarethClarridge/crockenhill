@@ -67,7 +67,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'title' => 'Flagged Song',
             'needs_manual_review' => true,
         ]);
@@ -89,7 +89,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'title' => 'Clean Section',
             'needs_manual_review' => false,
             'confidence' => 0.99,
@@ -162,7 +162,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 1,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'needs_manual_review' => false,
@@ -170,7 +170,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'needs_manual_review' => true,
@@ -343,7 +343,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => $inferredItem->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'needs_manual_review' => true,
             'confidence' => 0.99,
             'song_match_type' => 'inferred',
@@ -366,7 +366,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'church_service_item_id' => null,
             'needs_manual_review' => true,
             'confidence' => 0.99,

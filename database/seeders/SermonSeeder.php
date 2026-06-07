@@ -197,7 +197,7 @@ class SermonSeeder extends Seeder
             ServiceSection::create([
                 'media_processing_log_id' => $processingLog->id,
                 'church_service_item_id' => $readingItem->id,
-                'section_type' => ServiceSectionType::BIBLE_READING->value,
+                'section_type' => ServiceSectionType::BibleReading->value,
                 'section_order' => 2,
                 'title' => 'Luke 15:1-10',
                 'start_time' => 720.0,

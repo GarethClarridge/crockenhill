@@ -109,7 +109,7 @@ class EnsureMediaProcessingAccessTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $token = $admin->createToken('test-token', [ApiTokenAbility::MEDIA_PROCESS->value]);
+        $token = $admin->createToken('test-token', [ApiTokenAbility::MediaProcess->value]);
         $plaintext = $token->plainTextToken;
 
         // Resolve the token via Sanctum so tokenCan() works
@@ -142,7 +142,7 @@ class EnsureMediaProcessingAccessTest extends TestCase
         $middleware = $this->makeMiddleware();
 
         $this->expectException(HttpException::class);
-        $this->expectExceptionMessage('Missing required token ability: '.ApiTokenAbility::MEDIA_PROCESS->value);
+        $this->expectExceptionMessage('Missing required token ability: '.ApiTokenAbility::MediaProcess->value);
 
         $middleware->handle($request, fn () => response('passed'));
     }

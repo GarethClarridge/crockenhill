@@ -47,8 +47,8 @@ class AutoPublishServiceSectionTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => $videoPath,
             'extracted_audio_path' => null,
@@ -73,7 +73,7 @@ class AutoPublishServiceSectionTest extends TestCase
     public function it_skips_already_published_sections(): void
     {
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
@@ -92,7 +92,7 @@ class AutoPublishServiceSectionTest extends TestCase
         config(['media-processing.section_publishing.enabled' => false]);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -110,7 +110,7 @@ class AutoPublishServiceSectionTest extends TestCase
         config(['media-processing.section_publishing.handlers' => []]);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 

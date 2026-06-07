@@ -110,7 +110,7 @@ class SongTitleHintExtractorTest extends TestCase
         $sections = [
             $this->makeSpeechSongSection("Let's sing Your Word."),
             [
-                'section_type' => ServiceSectionType::SONG->value,
+                'section_type' => ServiceSectionType::Song->value,
                 'metadata' => ['classification_mode' => 'ai_transcript'],
             ],
         ];
@@ -138,7 +138,7 @@ class SongTitleHintExtractorTest extends TestCase
     {
         $sections = [
             [
-                'section_type' => ServiceSectionType::SERMON->value,
+                'section_type' => ServiceSectionType::Sermon->value,
                 'metadata' => [
                     'classification_mode' => 'ai_transcript',
                     'transcript' => "Let's sing Your Word.",
@@ -179,7 +179,7 @@ class SongTitleHintExtractorTest extends TestCase
         $sections = [
             $this->makeSpeechSongSection("Let's sing Your Word."),
             [
-                'section_type' => ServiceSectionType::PRAYER->value,
+                'section_type' => ServiceSectionType::Prayer->value,
                 'metadata' => ['classification_mode' => 'ai_transcript'],
             ],
             $this->makeAudioOnlySongSection(),
@@ -201,7 +201,7 @@ class SongTitleHintExtractorTest extends TestCase
     private function makeSpeechSongSection(string $transcript, array $aiNotes = []): array
     {
         return [
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'metadata' => [
                 'classification_mode' => 'ai_transcript',
                 'transcript' => $transcript,
@@ -216,7 +216,7 @@ class SongTitleHintExtractorTest extends TestCase
     private function makeAudioOnlySongSection(): array
     {
         return [
-            'section_type' => ServiceSectionType::SONG->value,
+            'section_type' => ServiceSectionType::Song->value,
             'metadata' => [
                 'classification_mode' => 'audio_only',
             ],

@@ -42,7 +42,7 @@ class ApiValidationSecurityTest extends TestCase
     public function media_processing_status_rejects_out_of_range_log_limit(): void
     {
         $user = User::factory()->admin()->create();
-        $token = $user->createToken('test', [ApiTokenAbility::MEDIA_PROCESS->value])->plainTextToken;
+        $token = $user->createToken('test', [ApiTokenAbility::MediaProcess->value])->plainTextToken;
 
         $processingId = '00000000-0000-4000-a000-000000000000';
 

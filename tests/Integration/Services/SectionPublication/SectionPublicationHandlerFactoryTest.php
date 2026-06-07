@@ -34,7 +34,7 @@ class SectionPublicationHandlerFactoryTest extends TestCase
         ]]);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -51,7 +51,7 @@ class SectionPublicationHandlerFactoryTest extends TestCase
         ]]);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_type' => ServiceSectionType::Welcome->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
@@ -64,7 +64,7 @@ class SectionPublicationHandlerFactoryTest extends TestCase
         config(['media-processing.section_publishing.handlers' => []]);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 

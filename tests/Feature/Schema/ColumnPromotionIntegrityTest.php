@@ -101,7 +101,7 @@ class ColumnPromotionIntegrityTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::SONG,
+            'section_type' => ServiceSectionType::Song,
             'section_order' => 1,
             'title' => 'Projected Song',
             'confidence' => 0.9,
