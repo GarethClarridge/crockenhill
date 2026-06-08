@@ -163,7 +163,7 @@ class SermonFilenameParser
             return SermonService::Morning;
         }
 
-        // Strategy 2: Common fixed service times
+        // Strategy 2: Common fixed service times (preserve original ambiguous patterns)
         if (
             preg_match('/6[:\-\s]?30/', $lowerFilename) ||
             preg_match('/7[:\-\s]?00/', $lowerFilename) ||
@@ -197,7 +197,7 @@ class SermonFilenameParser
     {
         $nameWithoutExtension = preg_replace('/\.[^.]+$/', '', $filename) ?? $filename;
 
-        // Strategy A: Match time with colon separator (safest as colons aren't used in dates)
+        // Strategy A: Match time with colon separator anywhere (very safe as colons aren't in dates)
         if (preg_match('/(?<!\d)(\d{1,2}):(\d{2})(?!\d)/', $nameWithoutExtension, $matches)) {
             $hour = (int) $matches[1];
             $minute = (int) $matches[2];
@@ -207,7 +207,18 @@ class SermonFilenameParser
             }
         }
 
-        // Strategy E: Match HH-MM or HH.MM as the standalone filename (common for segment recording)
+        // Strategy B: Match HHMM format after a date (common in automated filenames)
+        $datePattern = '(?:\d{4}[-_\s\.\/]\d{1,2}[-_\s\.\/]\d{1,2}|\d{1,2}[-_\s\.\/]\d{1,2}[-_\s\.\/]\d{4}|\d{8})';
+        if (preg_match('/'.$datePattern.'[-_\s\.](\d{2})(\d{2})(?!\d)/', $nameWithoutExtension, $matches)) {
+            $hour = (int) $matches[1];
+            $minute = (int) $matches[2];
+
+            if ($hour >= 0 && $hour <= 23 && $minute >= 0 && $minute <= 59) {
+                return $hour;
+            }
+        }
+
+        // Strategy C: Match standalone HH-MM or HH.MM (common for segment recording)
         if (preg_match('/^(\d{1,2})[\.\-](\d{2})$/', $nameWithoutExtension, $matches)) {
             $hour = (int) $matches[1];
             $minute = (int) $matches[2];
@@ -217,29 +228,8 @@ class SermonFilenameParser
             }
         }
 
-        // Strategy B: Match time with dot or dash separator AFTER a date (to avoid confusion with date parts)
-        $datePattern = '(?:\d{4}[-_\s\.\/]\d{1,2}[-_\s\.\/]\d{1,2}|\d{1,2}[-_\s\.\/]\d{1,2}[-_\s\.\/]\d{4}|\d{8})';
-        if (preg_match('/'.$datePattern.'[-_\s\.\/](\d{1,2})[\.\-](\d{2})(?!\d)/', $nameWithoutExtension, $matches)) {
-            $hour = (int) $matches[1];
-            $minute = (int) $matches[2];
-
-            if ($hour >= 0 && $hour <= 23 && $minute >= 0 && $minute <= 59) {
-                return $hour;
-            }
-        }
-
-        // Strategy C: Match HHMM format after a date
-        if (preg_match('/'.$datePattern.'[-_\s](\d{2})(\d{2})/', $nameWithoutExtension, $matches)) {
-            $hour = (int) $matches[1];
-            $minute = (int) $matches[2];
-
-            if ($hour >= 0 && $hour <= 23 && $minute >= 0 && $minute <= 59) {
-                return $hour;
-            }
-        }
-
         // Strategy D: Match standalone HHMM format at start of filename
-        if (preg_match('/^(\d{2})(\d{2})(?![-_]?\d)/', $nameWithoutExtension, $matches)) {
+        if (preg_match('/^(\d{2})(\d{2})(?![-\._]?\d)/', $nameWithoutExtension, $matches)) {
             $hour = (int) $matches[1];
             $minute = (int) $matches[2];
 
