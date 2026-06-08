@@ -47,8 +47,6 @@ class ApiBibleClient
     /**
      * Returns true if there is remaining quota in today's daily API budget.
      * Checked before every outbound call regardless of caller.
-     *
-     * @return bool
      */
     public function hasDailyBudget(): bool
     {
