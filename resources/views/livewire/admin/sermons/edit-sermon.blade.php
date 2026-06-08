@@ -1,7 +1,7 @@
 <x-admin.form-shell
     :title="'Edit ' . $contentTypeLabel"
     :description="$isChildrensTalk
-        ? 'Update the published children\'s-talk details. Sermon-only fields stay hidden on this form.'
+        ? 'Update the published children\'s talk details. Sermon-only fields stay hidden on this form.'
         : 'Update sermon details, metadata, and any AI-assisted content shown publicly.'"
     save-action="save"
 >
@@ -19,7 +19,7 @@
             Cancel
         </x-button>
         <x-form-button variant="primary" wire:click="save" icon="check">
-            Save
+            Save {{ strtolower($contentTypeLabel) }}
         </x-form-button>
     </x-slot:actions>
 
@@ -78,7 +78,7 @@
         <x-slot:footer>
             <div class="flex justify-end gap-2">
                 <x-form-button variant="primary" wire:click="save" icon="check">
-                    Save details
+                    Save {{ strtolower($contentTypeLabel) }} details
                 </x-form-button>
             </div>
         </x-slot:footer>
@@ -125,7 +125,7 @@
                         Add point
                     </x-form-button>
                     <x-form-button variant="primary" wire:click="save" icon="check">
-                        Save all
+                        Save all content
                     </x-form-button>
                 </div>
             </x-slot:footer>

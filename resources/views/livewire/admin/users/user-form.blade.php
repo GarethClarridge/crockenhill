@@ -4,7 +4,7 @@
             Cancel
         </x-button>
         <x-form-button variant="primary" wire:click="save" icon="check">
-            Save
+            Save user
         </x-form-button>
     </x-slot:actions>
 
