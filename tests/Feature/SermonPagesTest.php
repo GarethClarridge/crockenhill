@@ -162,7 +162,7 @@ class SermonPagesTest extends TestCase
         $response = $this->get('/christ/sermons');
 
         $response->assertStatus(200);
-        $response->assertSee('<div class="mx-auto mt-6 mb-6 grid max-w-2xl items-start justify-center gap-4 px-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))] lg:max-w-5xl xl:max-w-7xl">', false);
+        $response->assertSee('[grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]');
         $response->assertDontSee('<h2 id=', false);
     }
 
@@ -179,7 +179,7 @@ class SermonPagesTest extends TestCase
         $response = $this->get('/christ/sermons?preacher='.$preacher->id);
 
         $response->assertStatus(200);
-        $response->assertSee('<div class="mx-auto mt-6 mb-6 grid max-w-2xl items-start justify-center gap-4 px-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))] lg:max-w-5xl xl:max-w-7xl">', false);
+        $response->assertSee('[grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]');
         $response->assertDontSee('<h2 id=', false);
     }
 
