@@ -54,7 +54,7 @@ class PreacherAlias extends Model
         }
 
         return [
-            'preacher_id' => ['required', 'integer', 'exists:preachers,id'],
+            'preacher_id' => ['required', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
             'alias' => ['required', 'string', 'max:255', $uniqueAlias],
         ];
     }
