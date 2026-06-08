@@ -236,6 +236,18 @@ class SermonCreationServiceTest extends TestCase
 
         $service = $this->service->extractServiceType($log, '19-10-2024.mp3');
         $this->assertEquals(SermonService::Morning, $service);
+
+        // A June 30 date must not be read as a "6-30" evening time.
+        $service = $this->service->extractServiceType($log, '2024-06-30-sermon.mp3');
+        $this->assertEquals(SermonService::Morning, $service);
+
+        // A dash-separated time after a date is the real hour, not a date fragment.
+        $service = $this->service->extractServiceType($log, '2024-10-19-14-30.mp3');
+        $this->assertEquals(SermonService::Evening, $service);
+
+        // A zero-padded morning time stays morning under the 14:00 cutoff.
+        $service = $this->service->extractServiceType($log, '2024-10-19-06:30.mp3');
+        $this->assertEquals(SermonService::Morning, $service);
     }
 
     #[Test]
