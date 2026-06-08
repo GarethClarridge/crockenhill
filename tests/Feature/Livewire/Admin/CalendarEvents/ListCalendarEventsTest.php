@@ -28,6 +28,21 @@ class ListCalendarEventsTest extends TestCase
     }
 
     #[Test]
+    public function it_has_aria_label_on_categorize_select(): void
+    {
+        $this->actingAs($this->admin);
+
+        CalendarEvent::factory()->create([
+            'title' => 'Specific Event',
+            'meeting_slug' => null,
+            'start_datetime' => now()->addDay()
+        ]);
+
+        Livewire::test(ListCalendarEvents::class)
+            ->assertSeeHtml('aria-label="Categorise event: Specific Event"');
+    }
+
+    #[Test]
     public function it_renders_successfully_for_admin(): void
     {
         $this->actingAs($this->admin);
