@@ -108,9 +108,25 @@ class SermonFilenameParserTest extends TestCase
     {
         $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('morning_service.mp3'));
         $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('evening_worship.mp3'));
-        // Embedded HH-MM time wins over keywords.
+
+        // Explicit keywords take priority
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('service_10-30_evening.mp3'));
+        $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('service_18-30_morning.mp3'));
+
+        // Embedded HH-MM time
         $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('service_18-30.mkv'));
         $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('service_10-30.mp3'));
+
+        // HH:MM time
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('2024-10-19-18:00.mp3'));
+
+        // HHMM after date
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('2024-10-19-1830.mp3'));
+        $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('2024-10-19-1030.mp3'));
+
+        // HHMM at start
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('1830_recording.mp3'));
+
         // No recognisable pattern defaults to Morning.
         $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('untitled.mp3'));
     }
