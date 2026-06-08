@@ -134,8 +134,9 @@ class SermonFilenameParser
     /**
      * Determine the sermon service based on filename keywords and patterns.
      *
-     * Scans for time patterns (HH-MM), service names ("morning", "evening"),
-     * and time indicators ("AM", "PM", "18:30").
+     * Precedence: service keywords ("morning"/"evening"/"AM"/"PM") first, then
+     * date-aware time extraction (HH:MM, HHMM/HH-MM after date), then fixed-time
+     * presets for bare numbers without a date. Defaults to Morning.
      *
      * @param  string  $filename  The filename to scan
      * @return SermonService The identified service (defaults to Morning)
@@ -144,50 +145,128 @@ class SermonFilenameParser
     {
         $lowerFilename = strtolower($filename);
 
-        // Try to extract time in HH-MM or HH:MM format (e.g., "18-07.mkv" or "10:30.mp3")
-        // Look for patterns like: 18-07, 18:07, 1807 (two digits, separator optional, two digits)
-        if (preg_match('/(\d{1,2})[-:\.](\d{2})/', $filename, $matches)) {
-            $hour = (int) $matches[1];
-            $minute = (int) $matches[2];
-
-            // Validate it's a reasonable time (hour 0-23, minute 0-59)
-            if ($hour >= 0 && $hour <= 23 && $minute >= 0 && $minute <= 59) {
-                // Use the same 2 PM (14:00) cutoff
-                if ($hour < 14) {
-                    return SermonService::Morning;
-                }
-
-                return SermonService::Evening;
-            }
-        }
-
-        // Morning patterns
+        // Strategy 1: Keywords take highest precedence
         if (
-            preg_match('/morning/', $lowerFilename) ||
-            preg_match('/[^a-z]am[^a-z]/', $lowerFilename) ||
-            preg_match('/^am[^a-z]/', $lowerFilename) ||
-            preg_match('/[^a-z]am$/', $lowerFilename) ||
-            preg_match('/10[:\-\s]?30/', $lowerFilename) ||
-            preg_match('/11[:\-\s]?00/', $lowerFilename)
-        ) {
-            return SermonService::Morning;
-        }
-
-        // Evening patterns
-        if (
-            preg_match('/evening/', $lowerFilename) ||
+            str_contains($lowerFilename, 'evening') ||
             preg_match('/[^a-z]pm[^a-z]/', $lowerFilename) ||
             preg_match('/^pm[^a-z]/', $lowerFilename) ||
-            preg_match('/[^a-z]pm$/', $lowerFilename) ||
-            preg_match('/6[:\-\s]?30/', $lowerFilename) ||
-            preg_match('/7[:\-\s]?00/', $lowerFilename) ||
-            preg_match('/18[:\-\s]?30/', $lowerFilename) ||
-            preg_match('/19[:\-\s]?00/', $lowerFilename)
+            preg_match('/[^a-z]pm$/', $lowerFilename)
         ) {
             return SermonService::Evening;
         }
 
+        if (
+            str_contains($lowerFilename, 'morning') ||
+            preg_match('/[^a-z]am[^a-z]/', $lowerFilename) ||
+            preg_match('/^am[^a-z]/', $lowerFilename) ||
+            preg_match('/[^a-z]am$/', $lowerFilename)
+        ) {
+            return SermonService::Morning;
+        }
+
+        // Strategy 2: Robust, date-aware time extraction. Runs before the loose
+        // fixed-time presets below so date fragments (e.g. "2024-06-30") are never
+        // misread as a service time.
+        $hour = $this->extractHourFromFilename($filename);
+        if ($hour !== null) {
+            // Use 2 PM (14:00) cutoff for church service classification
+            return $hour < 14 ? SermonService::Morning : SermonService::Evening;
+        }
+
+        // Strategy 3: Fixed service-time presets for bare numbers the robust
+        // extractor cannot anchor (e.g. "service-630"). Only consulted when the
+        // filename has no recognisable date, otherwise a date such as "2024-06-30"
+        // would falsely trip the "6-30" evening pattern.
+        if (! $this->containsDate($lowerFilename)) {
+            if (
+                preg_match('/6[:\-\s]?30/', $lowerFilename) ||
+                preg_match('/7[:\-\s]?00/', $lowerFilename) ||
+                preg_match('/18[:\-\s]?30/', $lowerFilename) ||
+                preg_match('/19[:\-\s]?00/', $lowerFilename)
+            ) {
+                return SermonService::Evening;
+            }
+
+            if (
+                preg_match('/10[:\-\s]?30/', $lowerFilename) ||
+                preg_match('/11[:\-\s]?00/', $lowerFilename)
+            ) {
+                return SermonService::Morning;
+            }
+        }
+
         return SermonService::Morning;
+    }
+
+    /**
+     * Extract hour from filename using multiple strategies.
+     *
+     * Strategies are ordered from least to most ambiguous so that explicit
+     * time formats are read before date fragments could be misread as times.
+     */
+    private function extractHourFromFilename(string $filename): ?int
+    {
+        $nameWithoutExtension = preg_replace('/\.[^.]+$/', '', $filename) ?? $filename;
+
+        $datePattern = '(?:\d{4}[-_\s\.\/]\d{1,2}[-_\s\.\/]\d{1,2}|\d{1,2}[-_\s\.\/]\d{1,2}[-_\s\.\/]\d{4}|\d{8})';
+
+        // Strategy A: Time with colon separator anywhere (very safe as colons aren't in dates)
+        if (preg_match('/(?<!\d)(\d{1,2}):(\d{2})(?!\d)/', $nameWithoutExtension, $matches)) {
+            if ($this->isValidTime((int) $matches[1], (int) $matches[2])) {
+                return (int) $matches[1];
+            }
+        }
+
+        // Strategy B: Glued HHMM after a date (e.g. "2024-10-19-1830")
+        if (preg_match('/'.$datePattern.'[-_\s\.](\d{2})(\d{2})(?!\d)/', $nameWithoutExtension, $matches)) {
+            if ($this->isValidTime((int) $matches[1], (int) $matches[2])) {
+                return (int) $matches[1];
+            }
+        }
+
+        // Strategy C: Separator-delimited HH-MM after a date (e.g. "2024-10-19-14-30")
+        if (preg_match('/'.$datePattern.'[-_\s\.](\d{1,2})[-_\s\.](\d{2})(?!\d)/', $nameWithoutExtension, $matches)) {
+            if ($this->isValidTime((int) $matches[1], (int) $matches[2])) {
+                return (int) $matches[1];
+            }
+        }
+
+        // Strategy D: Standalone HH-MM or HH.MM occupying the whole basename
+        if (preg_match('/^(\d{1,2})[\.\-](\d{2})$/', $nameWithoutExtension, $matches)) {
+            if ($this->isValidTime((int) $matches[1], (int) $matches[2])) {
+                return (int) $matches[1];
+            }
+        }
+
+        // Strategy E: Standalone HHMM at the start of the filename
+        if (preg_match('/^(\d{2})(\d{2})(?![-\._]?\d)/', $nameWithoutExtension, $matches)) {
+            if ($this->isValidTime((int) $matches[1], (int) $matches[2])) {
+                return (int) $matches[1];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Determine whether the given hour and minute form a valid 24-hour time.
+     */
+    private function isValidTime(int $hour, int $minute): bool
+    {
+        return $hour >= 0 && $hour <= 23 && $minute >= 0 && $minute <= 59;
+    }
+
+    /**
+     * Determine whether the filename contains a recognisable date pattern.
+     *
+     * Used to suppress the ambiguous fixed-time presets when a date is present,
+     * so date fragments are not mistaken for service times.
+     */
+    private function containsDate(string $filename): bool
+    {
+        $datePattern = '(?:\d{4}[-_\s\.\/]\d{1,2}[-_\s\.\/]\d{1,2}|\d{1,2}[-_\s\.\/]\d{1,2}[-_\s\.\/]\d{4}|\d{8})';
+
+        return preg_match('/'.$datePattern.'/', $filename) === 1;
     }
 
     /**

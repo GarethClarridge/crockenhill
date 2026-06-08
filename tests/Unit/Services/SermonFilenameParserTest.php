@@ -108,11 +108,46 @@ class SermonFilenameParserTest extends TestCase
     {
         $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('morning_service.mp3'));
         $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('evening_worship.mp3'));
-        // Embedded HH-MM time wins over keywords.
+
+        // Explicit keywords take priority
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('service_10-30_evening.mp3'));
+        $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('service_18-30_morning.mp3'));
+
+        // Embedded HH-MM time
         $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('service_18-30.mkv'));
         $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('service_10-30.mp3'));
+
+        // HH:MM time
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('2024-10-19-18:00.mp3'));
+
+        // HHMM after date
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('2024-10-19-1830.mp3'));
+        $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('2024-10-19-1030.mp3'));
+
+        // HHMM at start
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('1830_recording.mp3'));
+
         // No recognisable pattern defaults to Morning.
         $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('untitled.mp3'));
+    }
+
+    #[Test]
+    public function it_does_not_mistake_date_fragments_for_service_times(): void
+    {
+        // A date such as "2024-06-30" must not trip the "6-30" evening preset.
+        $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('2024-06-30-sermon.mp3'));
+        $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('2024-06-30.mp3'));
+
+        // A dash-separated time after a date must be read as the actual hour.
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('2024-10-19-14-30.mp3'));
+
+        // Zero-padded morning times must stay Morning under the 14:00 cutoff.
+        $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('2024-10-19-06:30.mp3'));
+        $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('07:00.mp3'));
+
+        // The fixed-time presets still classify bare service times with no date.
+        $this->assertSame(SermonService::Evening, $this->parser->determineServiceFromFilename('service-630.mp3'));
+        $this->assertSame(SermonService::Morning, $this->parser->determineServiceFromFilename('worship-1100.mp3'));
     }
 
     #[Test]
