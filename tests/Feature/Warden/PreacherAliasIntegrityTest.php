@@ -9,12 +9,51 @@ use App\Models\PreacherAlias;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PreacherAliasIntegrityTest extends TestCase
 {
     use RefreshDatabase;
+
+    #[Test]
+    public function it_rejects_out_of_bounds_preacher_id(): void
+    {
+        $rules = PreacherAlias::validationRules();
+
+        // Below the minimum bound.
+        $validator = Validator::make([
+            'preacher_id' => 0,
+            'alias' => 'Test Alias',
+        ], $rules);
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('preacher_id', $validator->errors()->toArray());
+
+        // Above the 32-bit signed integer maximum.
+        $validator = Validator::make([
+            'preacher_id' => 2147483648,
+            'alias' => 'Test Alias',
+        ], $rules);
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('preacher_id', $validator->errors()->toArray());
+    }
+
+    #[Test]
+    public function it_accepts_valid_preacher_id(): void
+    {
+        $preacher = Preacher::factory()->create();
+        $rules = PreacherAlias::validationRules();
+
+        $validator = Validator::make([
+            'preacher_id' => $preacher->id,
+            'alias' => 'Valid Alias',
+        ], $rules);
+
+        $this->assertFalse($validator->fails());
+    }
 
     #[Test]
     public function it_normalizes_alias_on_save(): void
@@ -56,8 +95,7 @@ class PreacherAliasIntegrityTest extends TestCase
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('preacher_aliases_alias_format_check');
 
-        // We use raw DB insert to bypass model mutators if we want to test the constraint directly
-        // But here we test that even if the model tries to save an empty string, the DB rejects it.
+        // Raw insert bypasses the model mutator so the DB constraint is exercised directly.
         DB::table('preacher_aliases')->insert([
             'preacher_id' => $preacher->id,
             'alias' => '',
@@ -78,7 +116,7 @@ class PreacherAliasIntegrityTest extends TestCase
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('preacher_aliases_alias_format_check');
 
-        // Using raw DB to bypass mutator
+        // Raw insert bypasses the model mutator so the DB constraint is exercised directly.
         DB::table('preacher_aliases')->insert([
             'preacher_id' => $preacher->id,
             'alias' => ' untrimmed ',
