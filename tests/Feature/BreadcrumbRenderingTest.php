@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Preacher;
 use App\Presenters\BreadcrumbPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
@@ -238,5 +239,82 @@ class BreadcrumbRenderingTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('BreadcrumbList', false);
+    }
+
+    #[Test]
+    public function presenter_builds_deep_hierarchy_for_book_filtered_archive(): void
+    {
+        $this->get('/christ/sermons?book=Genesis');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('christ', 'Genesis | Sermons');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Home', $names);
+        $this->assertContains('Christ', $names);
+        $this->assertContains('Sermons', $names);
+        $this->assertContains('Genesis', $names);
+
+        $genesisItem = collect($items)->firstWhere('name', 'Genesis');
+        $this->assertStringContainsString('book=Genesis', $genesisItem['item']);
+    }
+
+    #[Test]
+    public function presenter_builds_deeper_hierarchy_for_book_and_chapter_filtered_archive(): void
+    {
+        $this->get('/christ/sermons?book=Genesis&chapter=1');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('christ', 'Genesis 1 | Sermons');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Sermons', $names);
+        $this->assertContains('Genesis', $names);
+        $this->assertContains('Chapter 1', $names);
+
+        $genesisItem = collect($items)->firstWhere('name', 'Genesis');
+        $this->assertStringContainsString('book=Genesis', $genesisItem['item']);
+        $this->assertStringNotContainsString('chapter=1', $genesisItem['item']);
+
+        $chapterItem = collect($items)->firstWhere('name', 'Chapter 1');
+        $this->assertStringContainsString('book=Genesis', $chapterItem['item']);
+        $this->assertStringContainsString('chapter=1', $chapterItem['item']);
+    }
+
+    #[Test]
+    public function presenter_builds_hierarchy_for_preacher_filtered_archive(): void
+    {
+        // Mock a preacher for resolution
+        Preacher::factory()->create(['id' => 1, 'name' => 'Mark Davies', 'slug' => 'mark-davies']);
+
+        $this->get('/christ/sermons?preacher=1');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('christ', 'Mark Davies | Sermons');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Sermons', $names);
+        $this->assertContains('Mark Davies', $names);
+
+        $preacherItem = collect($items)->firstWhere('name', 'Mark Davies');
+        $this->assertStringContainsString('preacher=1', $preacherItem['item']);
+    }
+
+    #[Test]
+    public function presenter_builds_hierarchy_for_series_filtered_archive(): void
+    {
+        $this->get('/christ/sermons?series=The+Gospel+of+Mark');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('christ', 'The Gospel of Mark | Sermons');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Sermons', $names);
+        $this->assertContains('The Gospel of Mark', $names);
+
+        $seriesItem = collect($items)->firstWhere('name', 'The Gospel of Mark');
+        $this->assertStringContainsString('series=The', $seriesItem['item']);
+        $this->assertStringContainsString('Gospel', $seriesItem['item']);
+        $this->assertStringContainsString('Mark', $seriesItem['item']);
     }
 }

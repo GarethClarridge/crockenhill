@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presenters;
 
+use App\Models\Preacher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -26,8 +27,8 @@ class BreadcrumbPresenter
             $items = array_merge($items, $this->buildPublicItems($area));
         }
 
-        if (end($items)['item'] !== url()->current()) {
-            $items[] = ['name' => $heading, 'item' => url()->current()];
+        if (end($items)['item'] !== $this->request->fullUrl()) {
+            $items[] = ['name' => $heading, 'item' => $this->request->fullUrl()];
         }
 
         return $items;
@@ -107,6 +108,11 @@ class BreadcrumbPresenter
             } elseif ($segment3 === 'series' && $this->request->segment(4) !== null) {
                 $items[] = ['name' => 'Series', 'item' => url('christ/sermons/series')];
             }
+
+            // Enhanced deep hierarchy for filtered archives
+            if ($this->request->routeIs('sermons.index')) {
+                $items = array_merge($items, $this->buildSermonFilterItems());
+            }
         } elseif ($segment2 === 'members') {
             $items[] = ['name' => 'Members', 'item' => url('church/members')];
         } elseif ($segment2 === 'childrens-corner') {
@@ -116,6 +122,50 @@ class BreadcrumbPresenter
         } elseif ($this->request->segment(1) === 'meetings' && $this->request->segment(3) === 'events') {
             $meetingSlug = (string) $segment2;
             $items[] = ['name' => Str::title(str_replace('-', ' ', $meetingSlug)), 'item' => url('community/'.$meetingSlug)];
+        }
+
+        return $items;
+    }
+
+    /**
+     * Build breadcrumb items for filtered sermon archive.
+     *
+     * @return list<array{name: string, item: string}>
+     */
+    private function buildSermonFilterItems(): array
+    {
+        $items = [];
+
+        if ($book = $this->request->query('book')) {
+            $items[] = [
+                'name' => (string) $book,
+                'item' => route('sermons.index', ['book' => $book]),
+            ];
+
+            if ($chapter = $this->request->query('chapter')) {
+                $items[] = [
+                    'name' => "Chapter {$chapter}",
+                    'item' => route('sermons.index', ['book' => $book, 'chapter' => $chapter]),
+                ];
+            }
+        }
+
+        if ($preacherId = $this->request->query('preacher')) {
+            $preacher = Preacher::query()->find($preacherId);
+            $preacherName = ($preacher instanceof Preacher) ? $preacher->name : null;
+            if ($preacherName) {
+                $items[] = [
+                    'name' => $preacherName,
+                    'item' => route('sermons.index', ['preacher' => $preacherId]),
+                ];
+            }
+        }
+
+        if ($series = $this->request->query('series')) {
+            $items[] = [
+                'name' => (string) $series,
+                'item' => route('sermons.index', ['series' => $series]),
+            ];
         }
 
         return $items;
