@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace App\Presenters;
 
+use App\Seo\SermonArchiveSeoPresenter;
+use App\Services\Public\SermonRepository;
+use App\Support\BibleCanon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class BreadcrumbPresenter
 {
-    public function __construct(private readonly Request $request) {}
+    public function __construct(
+        private readonly Request $request,
+        private readonly SermonRepository $sermonRepository,
+        private readonly BibleCanon $bibleCanon,
+        private readonly SermonArchiveSeoPresenter $seoPresenter,
+    ) {}
 
     /**
      * Build the ordered breadcrumb items for the current request.
@@ -26,8 +34,8 @@ class BreadcrumbPresenter
             $items = array_merge($items, $this->buildPublicItems($area));
         }
 
-        if (end($items)['item'] !== url()->current()) {
-            $items[] = ['name' => $heading, 'item' => url()->current()];
+        if (end($items)['item'] !== $this->request->fullUrl()) {
+            $items[] = ['name' => $heading, 'item' => $this->request->fullUrl()];
         }
 
         return $items;
@@ -107,6 +115,10 @@ class BreadcrumbPresenter
             } elseif ($segment3 === 'series' && $this->request->segment(4) !== null) {
                 $items[] = ['name' => 'Series', 'item' => url('christ/sermons/series')];
             }
+
+            if ($this->request->routeIs('sermons.index')) {
+                $items = array_merge($items, $this->buildSermonFilterItems());
+            }
         } elseif ($segment2 === 'members') {
             $items[] = ['name' => 'Members', 'item' => url('church/members')];
         } elseif ($segment2 === 'childrens-corner') {
@@ -116,6 +128,63 @@ class BreadcrumbPresenter
         } elseif ($this->request->segment(1) === 'meetings' && $this->request->segment(3) === 'events') {
             $meetingSlug = (string) $segment2;
             $items[] = ['name' => Str::title(str_replace('-', ' ', $meetingSlug)), 'item' => url('community/'.$meetingSlug)];
+        }
+
+        return $items;
+    }
+
+    /**
+     * Build breadcrumb items for a filtered sermon archive.
+     *
+     * Filters are normalized through the same repository method the controller
+     * uses, so the trail can never assert a book, chapter, or preacher the page
+     * itself rejected. The preacher name resolves via the SEO presenter's cached,
+     * memoized lookup, keeping the leaf in step with the page title.
+     *
+     * @return list<array{name: string, item: string}>
+     */
+    private function buildSermonFilterItems(): array
+    {
+        $filters = $this->sermonRepository->normalizeArchiveFilters(
+            $this->bibleCanon,
+            $this->request->query('book'),
+            $this->request->query('chapter'),
+            $this->request->query('preacher'),
+            $this->request->query('series'),
+        );
+
+        $items = [];
+
+        if ($filters['book'] !== null) {
+            $items[] = [
+                'name' => $filters['book'],
+                'item' => route('sermons.index', ['book' => $filters['book']]),
+            ];
+
+            if ($filters['chapter'] !== null) {
+                $items[] = [
+                    'name' => "Chapter {$filters['chapter']}",
+                    'item' => route('sermons.index', ['book' => $filters['book'], 'chapter' => $filters['chapter']]),
+                ];
+            }
+        }
+
+        if ($filters['preacherId'] !== null) {
+            $preacherName = $this->seoPresenter->preacherName($filters['preacherId']);
+
+            if ($preacherName !== null) {
+                $items[] = [
+                    'name' => $preacherName,
+                    'item' => route('sermons.index', ['preacher' => $filters['preacherId']]),
+                ];
+            }
+        }
+
+        if ($filters['series'] !== null) {
+            $items[] = [
+                'name' => $filters['series'],
+                'item' => route('sermons.index', ['series' => $filters['series']]),
+            ];
         }
 
         return $items;
@@ -132,7 +201,7 @@ class BreadcrumbPresenter
         return [
             '@context' => 'https://schema.org',
             '@type' => 'BreadcrumbList',
-            '@id' => url()->current().'#breadcrumb',
+            '@id' => $this->request->fullUrl().'#breadcrumb',
             'itemListElement' => array_map(
                 static fn (array $item, int $index): array => [
                     '@type' => 'ListItem',

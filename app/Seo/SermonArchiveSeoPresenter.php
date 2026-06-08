@@ -112,6 +112,17 @@ class SermonArchiveSeoPresenter
     }
 
     /**
+     * Resolve a preacher's display name from their ID, or null if not found.
+     *
+     * Shared with the breadcrumb presenter so the filtered-archive trail and the
+     * page title resolve the same name through one cached, memoized lookup.
+     */
+    public function preacherName(int $preacherId): ?string
+    {
+        return $this->resolvePreacherName($preacherId);
+    }
+
+    /**
      * Resolve a preacher name from ID, utilizing identity-based request-level memoization
      * and the cached public preacher collection to avoid redundant DB queries.
      *
