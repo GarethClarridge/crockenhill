@@ -18,7 +18,7 @@ return [
     'whats-on/adventurers' => '/community/adventurers',
     'whats-on/babytalk' => '/community/baby-talk',
     'whats-on/biblestudy' => '/community/bible-study',
-    'whats-on/carolsatthechequers' => '/community/carols-at-the-chequers',
+    'whats-on/carolsatthechequers' => '/community/carols-in-the-chequers',
     'whats-on/christianityexplored' => '/community/christianity-explored',
     'whats-on/coffeecup' => '/community/coffee-cup',
     'whats-on/sunday' => '/community/sunday-mornings',
@@ -38,7 +38,7 @@ return [
     'whatson/babytalk' => '/community/baby-talk',
     'whatson/biblestudy' => '/community/bible-study',
     'whatson/buzzclub' => '/community/buzz-club',
-    'whatson/carolsatthechequers' => '/community/carols-at-the-chequers',
+    'whatson/carolsatthechequers' => '/community/carols-in-the-chequers',
     'whatson/christianityexplored' => '/community/christianity-explored',
     'whatson/coffeecup' => '/community/coffee-cup',
     'whatson/sunday' => '/community/sunday-mornings',
@@ -54,7 +54,6 @@ return [
 
     'buzz-club' => '/community/buzz-club',
     'messy-church' => '/community/messy-church',
-    'reopening' => '/attending-in-person',
     'christianity-explored' => '/community/christianity-explored',
 
     'online' => '/',

@@ -33,7 +33,7 @@ Several redirect targets point to non-existent or incorrectly named slugs.
 Medium — Broken redirects result in 404s for users coming from legacy URLs.
 
 **Recommendation:**
-Update `config/redirects.php` to point to valid slugs or remove if no longer relevant.
+Update `config/redirects.php` to point to valid slugs or remove if no longer relevant. (Applied fixes in this PR).
 
 ---
 
