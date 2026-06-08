@@ -47,6 +47,8 @@ class ApiBibleClient
     /**
      * Returns true if there is remaining quota in today's daily API budget.
      * Checked before every outbound call regardless of caller.
+     *
+     * @return bool
      */
     public function hasDailyBudget(): bool
     {
@@ -94,9 +96,12 @@ class ApiBibleClient
      * Uses a single search call which returns content in the response.
      * Returns null if not found or if the API call fails.
      *
-     * @throws ApiBibleBudgetExhaustedException
-     * @throws \Illuminate\Http\Client\ConnectionException
-     * @throws \RuntimeException
+     * @param  string  $normalizedReference  Normalized Bible reference
+     * @return ApiBiblePassageResult|null The resolved passage or null if not found
+     *
+     * @throws ApiBibleBudgetExhaustedException If the daily API budget is exhausted
+     * @throws \RuntimeException If the API call fails due to rate-limiting or server errors
+     * @throws ConnectionException If a network connection error occurs
      */
     public function searchPassage(string $normalizedReference): ?ApiBiblePassageResult
     {
@@ -189,9 +194,12 @@ class ApiBibleClient
      * Used for scheduled cache refreshes to avoid re-searching by text.
      * Returns null if the passage is no longer available.
      *
-     * @throws ApiBibleBudgetExhaustedException
-     * @throws \Illuminate\Http\Client\ConnectionException
-     * @throws \RuntimeException
+     * @param  string  $passageId  The unique API.Bible passage ID
+     * @return ApiBiblePassageResult|null The resolved passage or null if not found
+     *
+     * @throws ApiBibleBudgetExhaustedException If the daily API budget is exhausted
+     * @throws \RuntimeException If the API call fails due to rate-limiting or server errors
+     * @throws ConnectionException If a network connection error occurs
      */
     public function fetchPassageById(string $passageId): ?ApiBiblePassageResult
     {
