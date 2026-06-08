@@ -284,10 +284,9 @@ class BreadcrumbRenderingTest extends TestCase
     #[Test]
     public function presenter_builds_hierarchy_for_preacher_filtered_archive(): void
     {
-        // Mock a preacher for resolution
-        Preacher::factory()->create(['id' => 1, 'name' => 'Mark Davies', 'slug' => 'mark-davies']);
+        $preacher = Preacher::factory()->create(['name' => 'Mark Davies', 'slug' => 'mark-davies']);
 
-        $this->get('/christ/sermons?preacher=1');
+        $this->get('/christ/sermons?preacher='.$preacher->id);
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'Mark Davies | Sermons');
@@ -297,7 +296,7 @@ class BreadcrumbRenderingTest extends TestCase
         $this->assertContains('Mark Davies', $names);
 
         $preacherItem = collect($items)->firstWhere('name', 'Mark Davies');
-        $this->assertStringContainsString('preacher=1', $preacherItem['item']);
+        $this->assertStringContainsString('preacher='.$preacher->id, $preacherItem['item']);
     }
 
     #[Test]
@@ -313,8 +312,22 @@ class BreadcrumbRenderingTest extends TestCase
         $this->assertContains('The Gospel of Mark', $names);
 
         $seriesItem = collect($items)->firstWhere('name', 'The Gospel of Mark');
-        $this->assertStringContainsString('series=The', $seriesItem['item']);
-        $this->assertStringContainsString('Gospel', $seriesItem['item']);
-        $this->assertStringContainsString('Mark', $seriesItem['item']);
+        $this->assertSame(route('sermons.index', ['series' => 'The Gospel of Mark']), $seriesItem['item']);
+    }
+
+    #[Test]
+    public function presenter_drops_invalid_filters_so_trail_matches_the_page(): void
+    {
+        // A book outside the Bible canon and an unknown preacher are rejected by
+        // the archive controller; the breadcrumb must not assert them either.
+        $this->get('/christ/sermons?book=Narnia&chapter=99&preacher=999999');
+
+        $presenter = app(BreadcrumbPresenter::class);
+        $items = $presenter->items('christ', 'Sermons');
+
+        $names = array_column($items, 'name');
+        $this->assertContains('Sermons', $names);
+        $this->assertNotContains('Narnia', $names);
+        $this->assertNotContains('Chapter 99', $names);
     }
 }
