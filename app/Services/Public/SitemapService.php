@@ -16,6 +16,7 @@ use App\Sitemap\PageSitemapPresenter;
 use App\Sitemap\PreacherSitemapPresenter;
 use App\Sitemap\SermonSitemapPresenter;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -219,10 +220,17 @@ class SitemapService
             })
             ->where(function ($query): void {
                 // Only exclude community pages whose slug matches a meeting slug,
-                // since meeting URLs are always /community/{meeting-slug}.
-                // Pages in other areas linked to a meeting have different URLs and must stay.
+                // since meeting URLs are always /community/{meeting-slug} and would
+                // otherwise emit a duplicate <loc> for the same URL. The match is on
+                // slug — not the meeting() FK — because production meetings are not
+                // reliably linked back to their page via page_id. Pages in other
+                // areas share no URL space with meetings and must stay.
                 $query->where('area', '!=', PageArea::Community->value)
-                    ->orWhereDoesntHave('meeting');
+                    ->orWhereNotExists(function ($meetingQuery): void {
+                        $meetingQuery->select(DB::raw(1))
+                            ->from('meetings')
+                            ->whereColumn('meetings.slug', 'pages.slug');
+                    });
             })
             ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
             /**

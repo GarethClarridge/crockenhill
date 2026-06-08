@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\PageArea;
 use App\Enums\SermonContentType;
 use App\Models\Meeting;
 use App\Models\Page;
@@ -216,6 +217,35 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString(
             '<loc>http://localhost/community/test-meeting</loc>',
             $content
+        );
+    }
+
+    #[Test]
+    public function sitemap_does_not_duplicate_a_community_page_that_shares_a_meeting_slug(): void
+    {
+        // Production meetings are not reliably linked to their page via page_id, so
+        // a community Page and a Meeting can share a slug while the meeting() FK is
+        // null. Both resolve to the same /community/{slug} URL; the page entry must
+        // be suppressed so the sitemap emits that URL exactly once (the meeting).
+        Page::factory()->create([
+            'slug' => 'shared-slug-club',
+            'area' => PageArea::Community->value,
+            'admin' => 'no',
+        ]);
+        Meeting::factory()->create([
+            'slug' => 'shared-slug-club',
+            'page_id' => null,
+        ]);
+
+        Cache::forget('sitemap');
+
+        $response = $this->get('/sitemap.xml');
+        $content = $response->getContent();
+
+        $this->assertSame(
+            1,
+            substr_count($content, '<loc>http://localhost/community/shared-slug-club</loc>'),
+            'The shared /community/{slug} URL should appear exactly once in the sitemap.'
         );
     }
 
