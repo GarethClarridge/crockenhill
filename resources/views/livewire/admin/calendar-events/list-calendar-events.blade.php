@@ -71,6 +71,7 @@
                                     Uncategorised
                                 </span>
                                 <select wire:change="categorize({{ $event->id }}, $event.target.value)"
+                                    aria-label="Categorise event: {{ $event->title }}"
                                     class="text-xs rounded-md border-gray-300 shadow-sm focus:border-cbc-teal focus:ring-cbc-teal w-40">
                                     <option value="">Categorise...</option>
                                     @foreach($meetings as $slug => $name)
