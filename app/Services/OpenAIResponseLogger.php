@@ -26,7 +26,7 @@ class OpenAIResponseLogger
     ): void {
         $dataType = gettype($responseData);
         $logData = [
-            'processing_id' => self::sanitizeForLog($processingId),
+            'processing_id' => $processingId,
             'attempt' => $attempt,
             'response_data_type' => $dataType,
             'response_type_hint' => $responseType,
@@ -34,7 +34,7 @@ class OpenAIResponseLogger
 
         if (is_string($responseData)) {
             // Log first 500 chars of string response (could be HTML error)
-            $logData['response_content_preview'] = self::sanitizeForLog(substr($responseData, 0, 500));
+            $logData['response_content_preview'] = substr($responseData, 0, 500);
             $logData['response_length'] = strlen($responseData);
             $logData['is_json'] = json_decode($responseData) !== null ? 'yes' : 'no';
 
@@ -53,7 +53,7 @@ class OpenAIResponseLogger
             $logData['response_structure_valid'] = true;
         }
 
-        Log::warning('OpenAI API response type analysis', $logData);
+        Log::warning('OpenAI API response type analysis', self::sanitizeArray($logData));
     }
 
     /**
@@ -67,14 +67,14 @@ class OpenAIResponseLogger
         ?string $responseBody = null
     ): void {
         $logData = [
-            'processing_id' => self::sanitizeForLog($processingId),
+            'processing_id' => $processingId,
             'attempt' => $attempt,
-            'error_message' => self::sanitizeForLog($errorMessage),
+            'error_message' => $errorMessage,
             'status_code' => $statusCode,
         ];
 
         if ($responseBody) {
-            $logData['response_body_preview'] = self::sanitizeForLog(substr($responseBody, 0, 500));
+            $logData['response_body_preview'] = substr($responseBody, 0, 500);
             $logData['response_body_length'] = strlen($responseBody);
 
             // Try to parse as JSON to understand error structure
@@ -86,6 +86,25 @@ class OpenAIResponseLogger
             }
         }
 
-        Log::error('OpenAI API transport layer error', $logData);
+        Log::error('OpenAI API transport layer error', self::sanitizeArray($logData));
+    }
+
+    /**
+     * Recursively sanitize all string values in an array for logging.
+     *
+     * @param  array<mixed>  $data
+     * @return array<mixed>
+     */
+    private static function sanitizeArray(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = self::sanitizeArray($value);
+            } elseif (is_string($value)) {
+                $data[$key] = self::sanitizeForLog($value);
+            }
+        }
+
+        return $data;
     }
 }

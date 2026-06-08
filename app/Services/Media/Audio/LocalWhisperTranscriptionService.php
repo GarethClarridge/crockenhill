@@ -110,6 +110,8 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
      *     model?: string,
      *     timeout?: int,
      * }  $configuration
+     *
+     * @throws TranscriptionException
      */
     public function transcribeWithConfiguration(
         string $audioFilePath,
