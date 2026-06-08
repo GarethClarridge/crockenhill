@@ -35,7 +35,7 @@ class ListCalendarEventsTest extends TestCase
         CalendarEvent::factory()->create([
             'title' => 'Specific Event',
             'meeting_slug' => null,
-            'start_datetime' => now()->addDay()
+            'start_datetime' => now()->addDay(),
         ]);
 
         Livewire::test(ListCalendarEvents::class)
