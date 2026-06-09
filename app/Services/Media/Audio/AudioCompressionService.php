@@ -135,7 +135,7 @@ class AudioCompressionService
                     'compressed_path' => $this->sanitizeForLog($compressionResult['relative_path']),
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
-                    'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
+                    'compression_ratio' => $finalValidation['file_size'] > 0 ? $validation['file_size'] / $finalValidation['file_size'] : 0,
                     'valid_for_transcription' => $finalValidation['valid'],
                 ]);
 
@@ -155,7 +155,7 @@ class AudioCompressionService
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
                     'compression_applied' => true,
-                    'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
+                    'compression_ratio' => $finalValidation['file_size'] > 0 ? $validation['file_size'] / $finalValidation['file_size'] : 0,
                     'valid_for_transcription' => $finalValidation['valid'],
                 ];
             }
