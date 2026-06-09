@@ -13,7 +13,7 @@
             </x-button>
         @endif
         <x-form-button variant="primary" wire:click="save" icon="check">
-            {{ $isEditing ? 'Save changes' : 'Create service' }}
+            {{ $isEditing ? 'Save service' : 'Create service' }}
         </x-form-button>
     </x-slot:actions>
 
