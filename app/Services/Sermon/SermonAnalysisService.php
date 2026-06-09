@@ -45,7 +45,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      * @param  string|null  $processingId  Processing ID for log correlation
      * @return SermonAnalysis The analyzed sermon data
      *
-     * @throws Exception When validation fails, AI analysis fails, or response is malformed
+     * @throws ErrorException|TransporterException|Exception When AI analysis fails or response is malformed
      */
     public function analyzeSermon(string $transcript, array $existingSeries = [], ?string $processingId = null): SermonAnalysis
     {
@@ -183,12 +183,12 @@ class SermonAnalysisService implements SermonAnalysisInterface
         $validatedData = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
 
         if ($this->validator->isTitleTooLong($validatedData['title'])) {
-            Log::info('AI-generated title exceeds character limit, retrying', [
-                'title' => $this->sanitizeForLog($validatedData['title']),
+            Log::info('AI-generated title exceeds character limit, retrying', $this->sanitizeArrayForLog([
+                'title' => $validatedData['title'],
                 'length' => strlen($validatedData['title']),
                 'max' => SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
                 'attempt' => $attempt,
-            ]);
+            ]));
 
             throw new Exception(sprintf(
                 'AI title exceeds %d characters (%d chars).',
@@ -222,15 +222,15 @@ class SermonAnalysisService implements SermonAnalysisInterface
         $apiTime = microtime(true) - $apiStartTime;
 
         if ($e instanceof ErrorException) {
-            Log::error('OpenAI API ErrorException details', [
-                'processing_id' => $this->sanitizeForLog($processingId),
+            Log::error('OpenAI API ErrorException details', $this->sanitizeArrayForLog([
+                'processing_id' => $processingId,
                 'attempt' => $attempt,
                 'error_code' => $e->getCode(),
-                'error_message' => $this->sanitizeForLog($e->getMessage()),
+                'error_message' => $e->getMessage(),
                 'api_time_ms' => round($apiTime * 1000, 2),
                 'exception_class' => get_class($e),
                 'status_code' => $e->getStatusCode(),
-            ]);
+            ]));
 
             $this->logger->logApiCall(
                 $processingId,
@@ -293,10 +293,10 @@ class SermonAnalysisService implements SermonAnalysisInterface
     {
         // Validate response structure
         if (empty($response->choices)) {
-            Log::error('Invalid OpenAI response structure', [
-                'processing_id' => $this->sanitizeForLog($processingId),
+            Log::error('Invalid OpenAI response structure', $this->sanitizeArrayForLog([
+                'processing_id' => $processingId,
                 'response_type' => gettype($response),
-            ]);
+            ]));
 
             throw new Exception('Invalid response structure from OpenAI API');
         }
@@ -344,14 +344,14 @@ class SermonAnalysisService implements SermonAnalysisInterface
             throw $e;
         } catch (\TypeError $e) {
             // Handle malformed API response (e.g., non-JSON response body)
-            Log::error('OpenAI API response parsing failed (malformed response)', [
-                'processing_id' => $this->sanitizeForLog($processingId),
+            Log::error('OpenAI API response parsing failed (malformed response)', $this->sanitizeArrayForLog([
+                'processing_id' => $processingId,
                 'attempt' => $attempt,
-                'error' => $this->sanitizeForLog($e->getMessage()),
-                'model' => $this->sanitizeForLog($model),
-                'exception_file' => $this->sanitizeForLog($e->getFile()),
+                'error' => $e->getMessage(),
+                'model' => $model,
+                'exception_file' => $e->getFile(),
                 'exception_line' => $e->getLine(),
-            ]);
+            ]));
 
             // Log details about response body (from stack context)
             $trace = $e->getTrace();
@@ -366,12 +366,12 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
             throw new Exception('OpenAI API response malformed.');
         } catch (Exception $e) {
-            Log::error('OpenAI API call failed', [
-                'processing_id' => $this->sanitizeForLog($processingId),
+            Log::error('OpenAI API call failed', $this->sanitizeArrayForLog([
+                'processing_id' => $processingId,
                 'attempt' => $attempt,
-                'error' => $this->sanitizeForLog($e->getMessage()),
-                'model' => $this->sanitizeForLog($model),
-            ]);
+                'error' => $e->getMessage(),
+                'model' => $model,
+            ]));
             throw new Exception('OpenAI API call failed.');
         }
     }
@@ -385,10 +385,10 @@ class SermonAnalysisService implements SermonAnalysisInterface
     {
         $series = $this->sermonRepository->getExistingSeries();
 
-        Log::info('Retrieved existing series from database', [
+        Log::info('Retrieved existing series from database', $this->sanitizeArrayForLog([
             'count' => count($series),
-            'series' => array_map(fn (string $s) => $this->sanitizeForLog($s), $series),
-        ]);
+            'series' => $series,
+        ]));
 
         return $series;
     }
@@ -412,9 +412,9 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
             return $analysis->title;
         } catch (Exception $e) {
-            Log::warning('Failed to generate title via full analysis, using fallback', [
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to generate title via full analysis, using fallback', $this->sanitizeArrayForLog([
+                'error' => $e->getMessage(),
+            ]));
 
             return $this->promptBuilder->generateFallbackTitle($transcript);
         }
@@ -440,9 +440,9 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
             return $analysis->series;
         } catch (Exception $e) {
-            Log::warning('Failed to identify series via full analysis', [
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to identify series via full analysis', $this->sanitizeArrayForLog([
+                'error' => $e->getMessage(),
+            ]));
 
             return null;
         }
@@ -467,9 +467,9 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
             return $analysis->reference;
         } catch (Exception $e) {
-            Log::warning('Failed to extract Bible passage via full analysis', [
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to extract Bible passage via full analysis', $this->sanitizeArrayForLog([
+                'error' => $e->getMessage(),
+            ]));
 
             return null;
         }
@@ -494,9 +494,9 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
             return $analysis->points;
         } catch (Exception $e) {
-            Log::warning('Failed to extract sermon points via full analysis, using fallback', [
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to extract sermon points via full analysis, using fallback', $this->sanitizeArrayForLog([
+                'error' => $e->getMessage(),
+            ]));
 
             return ['Main Message'];
         }

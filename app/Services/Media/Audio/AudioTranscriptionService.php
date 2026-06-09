@@ -64,7 +64,9 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
      * @param  string|null  $disk  Disk to use for file operations (defaults to sermon disk)
      * @return string The transcribed text
      *
-     * @throws Exception When transcription fails
+     * @throws NonRetryableTranscriptionException When the error is deterministic (bad key, oversized file)
+     * @throws TranscriptionException When the error is transient (rate limit, network, etc.)
+     * @throws Exception For underlying file or storage failures
      */
     public function transcribe(string $audioFilePath, string $processingId = 'unknown', ?string $disk = null): string
     {
