@@ -18,7 +18,7 @@
         <x-button link="{{ route('admin.sermons.index') }}" variant="outline" inline>
             Cancel
         </x-button>
-        <x-form-button variant="primary" wire:click="save" icon="check">
+        <x-form-button variant="primary" wire:click="save" icon="check" loading-label="Saving {{ strtolower($contentTypeLabel) }}...">
             Save {{ strtolower($contentTypeLabel) }}
         </x-form-button>
     </x-slot:actions>
@@ -77,7 +77,7 @@
 
         <x-slot:footer>
             <div class="flex justify-end gap-2">
-                <x-form-button variant="primary" wire:click="save" icon="check">
+                <x-form-button variant="primary" wire:click="save" icon="check" loading-label="Saving details...">
                     Save {{ strtolower($contentTypeLabel) }} details
                 </x-form-button>
             </div>
@@ -124,7 +124,7 @@
                     <x-form-button variant="ghost" size="sm" icon="plus" wire:click="addPoint" aria-label="Add sermon point">
                         Add point
                     </x-form-button>
-                    <x-form-button variant="primary" wire:click="save" icon="check">
+                    <x-form-button variant="primary" wire:click="save" icon="check" loading-label="Saving content...">
                         Save all content
                     </x-form-button>
                 </div>
