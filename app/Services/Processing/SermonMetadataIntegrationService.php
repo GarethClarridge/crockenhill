@@ -8,6 +8,7 @@ use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Number;
@@ -28,6 +29,8 @@ class SermonMetadataIntegrationService
      * @param  string  $processingId  The livestream processing ID
      * @param  int  $sermonId  The sermon ID from automated processing
      * @param  string  $finalVideoPath  The path to the organized video file
+     *
+     * @throws ModelNotFoundException
      */
     public function linkVideoToSermon(string $processingId, int $sermonId, string $finalVideoPath): void
     {
@@ -63,6 +66,9 @@ class SermonMetadataIntegrationService
      * @param  string  $processingId  The livestream processing ID
      * @param  int  $sermonId  The sermon ID from processing
      * @return string The final video path
+     *
+     * @throws \Exception
+     * @throws \RuntimeException
      */
     public function storeVideoForSermon(string $processingId, int $sermonId): string
     {
@@ -261,7 +267,16 @@ class SermonMetadataIntegrationService
     /**
      * Get livestream metadata for a sermon
      *
-     * @return array<string, mixed>
+     * @return array{
+     *     processing_id: string|null,
+     *     original_filename: string|null,
+     *     segment_start_time: float|null,
+     *     segment_end_time: float|null,
+     *     segment_duration: float|null,
+     *     segment_duration_formatted: string|null,
+     *     has_video: bool,
+     *     video_url: string|null
+     * }|array<empty, empty>
      */
     public function getLivestreamInfo(Sermon $sermon): array
     {
@@ -285,7 +300,22 @@ class SermonMetadataIntegrationService
      * Get video information for a sermon
      *
      * @param  int  $sermonId  The sermon ID
-     * @return array<string, mixed> Video information
+     * @return array{
+     *     has_video: bool,
+     *     source_type?: SermonSourceType|null,
+     *     video_url?: string|null,
+     *     video_path?: string|null,
+     *     livestream_info?: array{
+     *         processing_id: string|null,
+     *         original_filename: string|null,
+     *         segment_start_time: float|null,
+     *         segment_end_time: float|null,
+     *         segment_duration: float|null,
+     *         segment_duration_formatted: string|null,
+     *         has_video: bool,
+     *         video_url: string|null
+     *     }|array<empty, empty>
+     * } Video information
      */
     public function getVideoInfo(int $sermonId): array
     {
@@ -319,7 +349,15 @@ class SermonMetadataIntegrationService
      * Get video preview data for administrative interface
      *
      * @param  int  $sermonId  The sermon ID
-     * @return array<string, mixed> Preview data
+     * @return array{
+     *     has_video: bool,
+     *     video_url?: string|null,
+     *     format?: string,
+     *     file_size?: int,
+     *     file_size_formatted?: string,
+     *     duration?: float,
+     *     duration_formatted?: string|null
+     * } Preview data
      */
     public function getVideoPreviewData(int $sermonId): array
     {
