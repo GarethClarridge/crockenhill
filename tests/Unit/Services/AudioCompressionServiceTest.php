@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Exceptions\VideoProcessingException;
 use App\Services\Media\Audio\AudioCompressionService;
 use App\Services\Processing\StorageAdapterHelper;
 use FFMpeg\FFMpeg;
@@ -216,17 +217,16 @@ class AudioCompressionServiceTest extends TestCase
         file_put_contents($inputVideo, 'dummy content');
 
         try {
-            $result = $this->service->extractOptimizedAudio($inputVideo, $segment, $outputFilename);
+            $this->expectException(VideoProcessingException::class);
 
-            $this->assertFalse($result['valid_for_transcription']);
-            $this->assertEquals(200, $result['final_size']);
+            $this->service->extractOptimizedAudio($inputVideo, $segment, $outputFilename);
         } finally {
             @unlink($inputVideo);
         }
     }
 
     #[Test]
-    public function it_rejects_zero_byte_audio_file(): void
+    public function it_throws_when_extraction_produces_a_zero_byte_audio_file(): void
     {
         Storage::disk('local')->makeDirectory('temp');
 
@@ -268,10 +268,9 @@ class AudioCompressionServiceTest extends TestCase
         file_put_contents($inputVideo, 'dummy content');
 
         try {
-            $result = $this->service->extractOptimizedAudio($inputVideo, $segment, $outputFilename);
+            $this->expectException(VideoProcessingException::class);
 
-            $this->assertFalse($result['valid_for_transcription']);
-            $this->assertEquals(0, $result['final_size']);
+            $this->service->extractOptimizedAudio($inputVideo, $segment, $outputFilename);
         } finally {
             @unlink($inputVideo);
         }
