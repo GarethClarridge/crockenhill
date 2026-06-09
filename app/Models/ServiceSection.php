@@ -241,15 +241,25 @@ class ServiceSection extends Model
     public static function validationRules(): array
     {
         return [
+            'media_processing_log_id' => ['required', 'integer', 'min:1', 'exists:media_processing_logs,id'],
+            'church_service_item_id' => ['nullable', 'integer', 'min:1', 'exists:church_service_items,id'],
             'section_type' => ['required', Rule::enum(ServiceSectionType::class)],
-            'section_order' => ['required', 'integer', 'min:0'],
-            'start_time' => ['required', 'numeric', 'min:0'],
-            'end_time' => ['required', 'numeric', 'min:0', 'gt:start_time'],
-            'duration' => ['required', 'numeric', 'min:0'],
+            'section_order' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'start_time' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
+            'end_time' => ['required', 'numeric', 'min:0', 'max:9999999.999', 'gt:start_time'],
+            'duration' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
             'status' => ['required', Rule::enum(ServiceSectionStatus::class)],
+            'needs_manual_review' => ['boolean'],
+            'source_segment_ids' => ['required', 'array'],
             'confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'song_match_type' => ['nullable', Rule::enum(ServiceSectionSongMatchType::class)],
+            'matched_item_id' => ['nullable', 'integer', 'min:1', 'exists:church_service_items,id'],
+            'expected_item_id' => ['nullable', 'integer', 'min:1', 'exists:church_service_items,id'],
             'publication_status' => ['required', Rule::enum(ServiceSectionPublicationStatus::class)],
+            'published_sermon_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:sermons,id'],
+            'extracted_video_path' => ['nullable', 'string', 'max:255'],
+            'extracted_audio_path' => ['nullable', 'string', 'max:255'],
         ];
     }
 
