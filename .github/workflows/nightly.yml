@@ -53,7 +53,7 @@ jobs:
             head_sha="${{ github.event.pull_request.head.sha }}"
             changed_files="$(git diff --name-only "$base_sha...$head_sha")"
 
-            if grep -Eq '^(app/Http/Controllers/|app/Livewire/|resources/|routes/web.php|public/|tests/Browser/|playwright\.config\.ts|lighthouserc\.json|package(-lock)?\.json|vite\.config\.mjs)' <<<"$changed_files"; then
+            if grep -Eq '^(app/Http/Controllers/|app/Livewire/|resources/|routes/web.php|public/|tests/Browser/|tests/Playwright/|database/seeders/|database/factories/|playwright\.config\.ts|lighthouserc\.json|package(-lock)?\.json|vite\.config\.mjs)' <<<"$changed_files"; then
               frontend_changed=true
             fi
           fi
