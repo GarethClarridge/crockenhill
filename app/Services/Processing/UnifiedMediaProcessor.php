@@ -51,6 +51,7 @@ class UnifiedMediaProcessor
      * @return ProcessingResult The result of the initiation attempt
      *
      * @throws UniqueConstraintViolationException If a duplicate race occurs
+     * @throws \App\Exceptions\InvalidFileException If the file fails initial validation
      * @throws \Exception For underlying service or storage failures
      */
     public function process(
@@ -211,6 +212,7 @@ class UnifiedMediaProcessor
      * Uses ProcessingInitiator for shared log-creation boundary (same as video/livestream).
      *
      * @throws UniqueConstraintViolationException If a duplicate race occurs
+     * @throws \App\Exceptions\InvalidFileException If the file fails initial validation
      * @throws \Exception For underlying service or storage failures
      */
     private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash, ?string $dedupKey): ProcessingResult
@@ -394,6 +396,7 @@ class UnifiedMediaProcessor
      * @param  array<string, mixed>  $options
      *
      * @throws UniqueConstraintViolationException If a duplicate race occurs
+     * @throws \App\Exceptions\InvalidFileException If the file fails initial validation
      * @throws \Exception For underlying service or storage failures
      */
     private function processDirectVideo(
