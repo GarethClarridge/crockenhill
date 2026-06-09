@@ -86,8 +86,6 @@ class CalendarService
      * Performance Optimization: Limits retrieved records to the requested count
      * and filters by date in the database to reduce memory usage and DB I/O.
      *
-     * @param  Carbon|null  $from
-     * @param  int|null  $limit
      * @return Collection<int, CalendarEvent>
      */
     public function getUncategorizedEvents(?Carbon $from = null, ?int $limit = null): Collection
@@ -98,7 +96,7 @@ class CalendarService
             ->confirmed()
             ->when($from, fn (Builder $q) => $q->where('start_datetime', '>=', $from))
             ->orderBy('start_datetime')
-            ->when($limit, fn (Builder $q) => $q->limit($limit))
+            ->when($limit, fn (Builder $q, int $limit) => $q->limit($limit))
             ->get();
     }
 
