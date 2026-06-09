@@ -131,11 +131,21 @@ class AudioCompressionService
                 $fallbackPath = $compressionResult['compressed_path'];
                 $finalValidation = $this->validateAudioFileSize($fallbackPath);
 
+                if (! $finalValidation['valid']) {
+                    $this->cleanupTemporaryFile($fallbackPath);
+
+                    throw new VideoProcessingException(
+                        "Fallback compression failed to produce a transcribable audio file (size: {$finalValidation['file_size']} bytes, max: {$finalValidation['max_size']} bytes)."
+                    );
+                }
+
+                $compressionRatio = round($validation['file_size'] / $finalValidation['file_size'], 2);
+
                 Log::info('Fallback compression completed', [
                     'compressed_path' => $this->sanitizeForLog($compressionResult['relative_path']),
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
-                    'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
+                    'compression_ratio' => $compressionRatio,
                     'valid_for_transcription' => $finalValidation['valid'],
                 ]);
 
@@ -155,7 +165,7 @@ class AudioCompressionService
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
                     'compression_applied' => true,
-                    'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
+                    'compression_ratio' => $compressionRatio,
                     'valid_for_transcription' => $finalValidation['valid'],
                 ];
             }
