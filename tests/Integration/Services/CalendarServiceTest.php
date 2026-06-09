@@ -329,6 +329,42 @@ class CalendarServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_filters_uncategorized_events_by_from_date_and_limit(): void
+    {
+        $now = Carbon::create(2026, 5, 12, 12, 0, 0);
+        Carbon::setTestNow($now);
+
+        // Past uncategorized event
+        CalendarEvent::factory()->create([
+            'meeting_slug' => null,
+            'start_datetime' => $now->copy()->subDay(),
+            'title' => 'Past Event',
+            'status' => 'confirmed',
+        ]);
+
+        // Future uncategorized events
+        CalendarEvent::factory()->create([
+            'meeting_slug' => null,
+            'start_datetime' => $now->copy()->addDay(),
+            'title' => 'Future Event 1',
+            'status' => 'confirmed',
+        ]);
+        CalendarEvent::factory()->create([
+            'meeting_slug' => null,
+            'start_datetime' => $now->copy()->addDays(2),
+            'title' => 'Future Event 2',
+            'status' => 'confirmed',
+        ]);
+
+        $events = $this->service->getUncategorizedEvents(from: $now, limit: 1);
+
+        $this->assertCount(1, $events);
+        $this->assertSame('Future Event 1', $events->first()->title);
+
+        Carbon::setTestNow();
+    }
+
+    #[Test]
     public function it_manually_categorizes_an_event(): void
     {
         Meeting::factory()->create(['slug' => 'sunday-morning']);

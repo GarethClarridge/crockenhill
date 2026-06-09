@@ -65,9 +65,10 @@ class CalendarController extends Controller
 
     public function uncategorized(): View
     {
-        $uncategorizedEvents = $this->calendarService->getUncategorizedEvents()
-            ->where('start_datetime', '>=', now())
-            ->take(20);
+        $uncategorizedEvents = $this->calendarService->getUncategorizedEvents(
+            from: now(),
+            limit: 20
+        );
 
         return view('calendar.uncategorized', [
             'uncategorizedEvents' => $uncategorizedEvents,
