@@ -253,6 +253,52 @@ class SermonRepositoryTest extends TestCase
         $this->assertEquals('Main Sermon', $result->first()->first()->title);
     }
 
+    #[Test]
+    public function it_can_find_a_sermon_by_date_service_and_content_type(): void
+    {
+        $date = '2024-03-15';
+        $sermon = Sermon::factory()->create([
+            'date' => $date,
+            'service' => SermonService::Morning,
+            'content_type' => SermonContentType::Sermon,
+            'reference' => null,
+        ]);
+
+        $childrensTalk = Sermon::factory()->create([
+            'date' => $date,
+            'service' => SermonService::Morning,
+            'content_type' => SermonContentType::ChildrensTalk,
+            'reference' => null,
+        ]);
+
+        $foundSermon = $this->repository->findByDateAndServiceAndContentType(
+            $date,
+            SermonService::Morning,
+            SermonContentType::Sermon
+        );
+
+        $foundTalk = $this->repository->findByDateAndServiceAndContentType(
+            $date,
+            SermonService::Morning,
+            SermonContentType::ChildrensTalk
+        );
+
+        $this->assertEquals($sermon->id, $foundSermon->id);
+        $this->assertEquals($childrensTalk->id, $foundTalk->id);
+
+        $this->assertNull($this->repository->findByDateAndServiceAndContentType(
+            $date,
+            SermonService::Evening,
+            SermonContentType::Sermon
+        ));
+
+        $this->assertNull($this->repository->findByDateAndServiceAndContentType(
+            '2024-03-16',
+            SermonService::Morning,
+            SermonContentType::Sermon
+        ));
+    }
+
     // ── Slug Generation ──────────────────────────────────────────────────────
 
     #[Test]
@@ -412,6 +458,60 @@ class SermonRepositoryTest extends TestCase
 
         $fresh = $this->repository->getSermonsByPreacher($preacher);
         $this->assertEquals('After Clear', $fresh->first()->title, 'Cache should return fresh data after clearListingCaches()');
+    }
+
+    #[Test]
+    public function it_invalidates_service_cache_when_sermon_service_changes(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'service' => SermonService::Morning,
+            'title' => 'Original Morning Sermon',
+            'reference' => null,
+        ]);
+
+        $this->repository->getSermonsByService(SermonService::Morning);
+
+        // Change service and title directly in DB
+        Sermon::query()->where('id', $sermon->id)->update([
+            'service' => SermonService::Evening,
+            'title' => 'Moved to Evening',
+        ]);
+
+        // Manually trigger invalidation as if via observer
+        $this->repository->clearListingCaches($sermon);
+
+        $morningSermons = $this->repository->getSermonsByService(SermonService::Morning);
+        $eveningSermons = $this->repository->getSermonsByService(SermonService::Evening);
+
+        $this->assertEmpty($morningSermons);
+        $this->assertCount(1, $eveningSermons);
+        $this->assertEquals('Moved to Evening', $eveningSermons->first()->title);
+    }
+
+    #[Test]
+    public function it_invalidates_series_cache_when_sermon_series_changes(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'series' => 'Old Series',
+            'title' => 'Sermon 1',
+            'reference' => null,
+        ]);
+
+        $this->repository->getSermonsBySeries('Old Series');
+
+        // Change series directly in DB
+        Sermon::query()->where('id', $sermon->id)->update([
+            'series' => 'New Series',
+        ]);
+
+        // Manually trigger invalidation
+        $this->repository->clearListingCaches($sermon);
+
+        $oldSeriesSermons = $this->repository->getSermonsBySeries('Old Series');
+        $newSeriesSermons = $this->repository->getSermonsBySeries('New Series');
+
+        $this->assertEmpty($oldSeriesSermons);
+        $this->assertCount(1, $newSeriesSermons);
     }
 
     #[Test]
