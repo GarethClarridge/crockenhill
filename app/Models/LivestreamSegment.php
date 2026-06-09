@@ -269,20 +269,20 @@ class LivestreamSegment extends Model
     public static function validationRules(): array
     {
         return [
-            'media_processing_log_id' => ['required', 'integer', 'exists:media_processing_logs,id'],
+            'media_processing_log_id' => ['required', 'integer', 'min:1', 'max:2147483647', 'exists:media_processing_logs,id'],
             'segment_index' => ['required', 'integer', 'min:0', 'max:65535'],
-            'start_time' => ['required', 'numeric', 'min:0'],
-            'end_time' => ['required', 'numeric', 'min:0', 'gte:start_time'],
-            'duration' => ['required', 'numeric', 'min:0'],
+            'start_time' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
+            'end_time' => ['required', 'numeric', 'min:0', 'max:9999999.999', 'gte:start_time'],
+            'duration' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
             'classification' => ['required', Rule::enum(LivestreamSegmentClassification::class)],
             'is_sermon_segment' => ['sometimes', 'boolean'],
             'is_sermon_candidate' => ['sometimes', 'boolean'],
             'avg_rms' => ['nullable', 'numeric'],
             'peak_rms' => ['nullable', 'numeric'],
-            'visual_sample_count' => ['nullable', 'integer', 'min:0'],
-            'visual_confidence' => ['nullable', 'numeric', 'between:0,1'],
+            'visual_sample_count' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
+            'visual_confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'calibration_method' => ['nullable', 'string', 'max:255'],
-            'segment_order' => ['nullable', 'integer', 'min:0'],
+            'segment_order' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
         ];
     }
 
