@@ -128,14 +128,7 @@ class SermonRepository
      */
     public function getLatestSermons(): Collection
     {
-        $cacheKey = 'latest_sermons';
-
-        if (isset($this->computed[$cacheKey])) {
-            /** @var Collection<string, Collection<int, Sermon>> */
-            return $this->memoizedPresents[$cacheKey];
-        }
-
-        $sermons = Cache::flexible($cacheKey, [86400, 172800], function (): Collection {
+        return $this->rememberFlexible('latest_sermons', [86400, 172800], function (): Collection {
             $distinct_dates = Sermon::query()
                 ->whereSermon()
                 ->select('date')
@@ -155,10 +148,6 @@ class SermonRepository
                 ->get()
                 ->groupBy(fn ($sermon) => $sermon->date->format('Y-m-d'));
         });
-
-        $this->computed[$cacheKey] = true;
-
-        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
@@ -171,14 +160,7 @@ class SermonRepository
      */
     public function getAllSermons(): Collection
     {
-        $cacheKey = 'all_sermons';
-
-        if (isset($this->computed[$cacheKey])) {
-            /** @var Collection<string, Collection<int, Sermon>> */
-            return $this->memoizedPresents[$cacheKey];
-        }
-
-        $sermons = Cache::flexible($cacheKey, [86400, 172800], function (): Collection {
+        return $this->rememberFlexible('all_sermons', [86400, 172800], function (): Collection {
             /** @var Collection<string, Collection<int, Sermon>> $grouped */
             $grouped = $this->publicSermonQuery()
                 ->orderBy('date', 'desc')
@@ -191,10 +173,6 @@ class SermonRepository
 
             return $grouped;
         });
-
-        $this->computed[$cacheKey] = true;
-
-        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
@@ -207,23 +185,12 @@ class SermonRepository
      */
     public function getSermonsBySeries(string $seriesName): Collection
     {
-        $cacheKey = 'sermons_series_'.Str::slug($seriesName);
-
-        if (isset($this->computed[$cacheKey])) {
-            /** @var Collection<int, Sermon> */
-            return $this->memoizedPresents[$cacheKey];
-        }
-
-        $sermons = Cache::flexible($cacheKey, [86400, 172800], function () use ($seriesName): Collection {
+        return $this->rememberFlexible('sermons_series_'.Str::slug($seriesName), [86400, 172800], function () use ($seriesName): Collection {
             return $this->publicSermonQuery()
                 ->where('series', $seriesName)
                 ->orderBy('date', 'desc')
                 ->get();
         });
-
-        $this->computed[$cacheKey] = true;
-
-        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
@@ -237,23 +204,12 @@ class SermonRepository
      */
     public function getSermonsByPreacher(Preacher $preacher): Collection
     {
-        $cacheKey = $this->preacherCacheKey($preacher);
-
-        if (isset($this->computed[$cacheKey])) {
-            /** @var Collection<int, Sermon> */
-            return $this->memoizedPresents[$cacheKey];
-        }
-
-        $sermons = Cache::flexible($cacheKey, [86400, 172800], function () use ($preacher): Collection {
+        return $this->rememberFlexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher): Collection {
             return $this->publicSermonQuery()
                 ->where('preacher_id', $preacher->id)
                 ->orderBy('date', 'desc')
                 ->get();
         });
-
-        $this->computed[$cacheKey] = true;
-
-        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
@@ -266,23 +222,12 @@ class SermonRepository
      */
     public function getSermonsByService(SermonService $service): Collection
     {
-        $cacheKey = "sermons_service_{$service->value}";
-
-        if (isset($this->computed[$cacheKey])) {
-            /** @var Collection<int, Sermon> */
-            return $this->memoizedPresents[$cacheKey];
-        }
-
-        $sermons = Cache::flexible($cacheKey, [86400, 172800], function () use ($service): Collection {
+        return $this->rememberFlexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service): Collection {
             return $this->publicSermonQuery()
                 ->where('service', $service)
                 ->orderBy('date', 'desc')
                 ->get();
         });
-
-        $this->computed[$cacheKey] = true;
-
-        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
@@ -330,22 +275,11 @@ class SermonRepository
      */
     public function getRecentSermonsForJsonLd(int $limit = 100): Collection
     {
-        $cacheKey = "sermons_jsonld_recent_{$limit}";
-
-        if (isset($this->computed[$cacheKey])) {
-            /** @var Collection<int, Sermon> */
-            return $this->memoizedPresents[$cacheKey];
-        }
-
-        $sermons = Cache::flexible($cacheKey, [86400, 172800], function () use ($limit): Collection {
+        return $this->rememberFlexible("sermons_jsonld_recent_{$limit}", [86400, 172800], function () use ($limit): Collection {
             return $this->publicBrowseQuery()
                 ->limit($limit)
                 ->get();
         });
-
-        $this->computed[$cacheKey] = true;
-
-        return $this->memoizedPresents[$cacheKey] = $sermons;
     }
 
     /**
@@ -441,18 +375,9 @@ class SermonRepository
      */
     public function getSeriesForDisplay(): array
     {
-        if (isset($this->computed['series'])) {
-            /** @var array<int, string> */
-            return $this->memoizedPresents['series'];
-        }
-
-        $series = Cache::flexible('sermon_series', [86400, 172800], function (): array {
+        return $this->rememberFlexible('sermon_series', [86400, 172800], function (): array {
             return $this->getExistingSeries();
         });
-
-        $this->computed['series'] = true;
-
-        return $this->memoizedPresents['series'] = $series;
     }
 
     /**
@@ -470,12 +395,7 @@ class SermonRepository
 
         $cacheKey = 'sermon_scripture_books_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
-        if (isset($this->computed[$cacheKey])) {
-            /** @var Collection<int, string> */
-            return $this->memoizedPresents[$cacheKey];
-        }
-
-        $books = Cache::flexible($cacheKey, [86400, 172800], function () use ($preacherId, $series): Collection {
+        return $this->rememberFlexible($cacheKey, [86400, 172800], function () use ($preacherId, $series): Collection {
             $query = SermonScriptureFilter::query();
 
             if ($preacherId === null && $series === null) {
@@ -493,10 +413,6 @@ class SermonRepository
                 ->distinct()
                 ->pluck('bible_book');
         });
-
-        $this->computed[$cacheKey] = true;
-
-        return $this->memoizedPresents[$cacheKey] = $books;
     }
 
     /**
@@ -514,12 +430,7 @@ class SermonRepository
 
         $cacheKey = 'sermon_scripture_chapters_'.Str::slug($book).'_'.($preacherId ?? 'all').'_'.($series ? Str::slug($series) : 'all');
 
-        if (isset($this->computed[$cacheKey])) {
-            /** @var Collection<int, int> */
-            return $this->memoizedPresents[$cacheKey];
-        }
-
-        $chapters = Cache::flexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
+        return $this->rememberFlexible($cacheKey, [86400, 172800], function () use ($book, $preacherId, $series): Collection {
             $query = SermonScriptureFilter::query()->where('bible_book', $book);
 
             if ($preacherId === null && $series === null) {
@@ -538,10 +449,6 @@ class SermonRepository
                 ->orderBy('bible_chapter')
                 ->pluck('bible_chapter');
         });
-
-        $this->computed[$cacheKey] = true;
-
-        return $this->memoizedPresents[$cacheKey] = $chapters;
     }
 
     /**
@@ -692,5 +599,31 @@ class SermonRepository
     {
         Cache::forget($key);
         Cache::forget("illuminate:cache:flexible:created:{$key}");
+    }
+
+    /**
+     * Get a value from the request-level memoization cache, or resolve it
+     * through a flexible cache.
+     *
+     * @template T
+     *
+     * @param  array{int, int}  $ttl  Array of [flexible_seconds, stale_seconds]
+     * @param  \Closure(): T  $callback
+     * @return T
+     */
+    private function rememberFlexible(string $cacheKey, array $ttl, \Closure $callback): mixed
+    {
+        if (isset($this->computed[$cacheKey])) {
+            /** @var T */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        /** @var T $value */
+        $value = Cache::flexible($cacheKey, $ttl, $callback);
+
+        $this->computed[$cacheKey] = true;
+        $this->memoizedPresents[$cacheKey] = $value;
+
+        return $value;
     }
 }
