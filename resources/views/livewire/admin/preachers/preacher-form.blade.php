@@ -3,7 +3,7 @@
         <x-button link="{{ route('admin.preachers.index') }}" variant="outline" inline>
             Cancel
         </x-button>
-        <x-form-button variant="primary" wire:click="save" icon="check">
+        <x-form-button variant="primary" wire:click="save" icon="check" loading-label="Saving preacher...">
             Save preacher
         </x-form-button>
     </x-slot:actions>
