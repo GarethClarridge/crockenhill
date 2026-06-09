@@ -45,6 +45,7 @@
     :canonical="$canonical"
     :datePublished="isset($page) ? $page->created_at : null"
     :dateModified="isset($page) ? $page->updated_at : null"
+    :include-breadcrumb="isset($area) && isset($heading)"
 />
 @endpush
 @endif
