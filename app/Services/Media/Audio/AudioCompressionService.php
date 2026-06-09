@@ -131,11 +131,13 @@ class AudioCompressionService
                 $fallbackPath = $compressionResult['compressed_path'];
                 $finalValidation = $this->validateAudioFileSize($fallbackPath);
 
+                $compressionRatio = $finalValidation['file_size'] > 0 ? round($validation['file_size'] / $finalValidation['file_size'], 2) : 0;
+
                 Log::info('Fallback compression completed', [
                     'compressed_path' => $this->sanitizeForLog($compressionResult['relative_path']),
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
-                    'compression_ratio' => $finalValidation['file_size'] > 0 ? $validation['file_size'] / $finalValidation['file_size'] : 0,
+                    'compression_ratio' => $compressionRatio,
                     'valid_for_transcription' => $finalValidation['valid'],
                 ]);
 
@@ -155,7 +157,7 @@ class AudioCompressionService
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
                     'compression_applied' => true,
-                    'compression_ratio' => $finalValidation['file_size'] > 0 ? $validation['file_size'] / $finalValidation['file_size'] : 0,
+                    'compression_ratio' => (float) $compressionRatio,
                     'valid_for_transcription' => $finalValidation['valid'],
                 ];
             }

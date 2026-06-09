@@ -166,7 +166,7 @@ class AudioCompressionServiceTest extends TestCase
             $this->assertTrue($result['valid_for_transcription']);
             $this->assertEquals(400, $result['final_size']);
             $this->assertTrue($result['compression_applied']);
-            $this->assertEquals(1000 / 400, $result['compression_ratio']);
+            $this->assertEquals(round(1000 / 400, 2), $result['compression_ratio']);
         } finally {
             @unlink($inputVideo);
         }
