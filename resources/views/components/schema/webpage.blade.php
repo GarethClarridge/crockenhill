@@ -7,6 +7,7 @@
     'mainEntity' => null,
     'datePublished' => null,
     'dateModified' => null,
+    'includeBreadcrumb' => true,
 ])
 
 @php
@@ -30,11 +31,9 @@
             'logo' => [
                 '@type' => 'ImageObject',
                 'url' => asset('images/Primary.png'),
+                'width' => '512',
+                'height' => '512',
             ],
-        ],
-        'breadcrumb' => [
-            '@type' => 'BreadcrumbList',
-            '@id' => $pageUrl.'#breadcrumb',
         ],
         'speakable' => [
             '@type' => 'SpeakableSpecification',
@@ -44,6 +43,13 @@
             ],
         ],
     ];
+
+    if ($includeBreadcrumb) {
+        $schema['breadcrumb'] = [
+            '@type' => 'BreadcrumbList',
+            '@id' => $pageUrl.'#breadcrumb',
+        ];
+    }
 
     if ($datePublished) {
         $schema['datePublished'] = $datePublished instanceof \DateTimeInterface

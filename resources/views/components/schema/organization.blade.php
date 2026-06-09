@@ -42,6 +42,12 @@
         ],
         'telephone' => config('organization.phone'),
         'email' => config('organization.email_admin'),
+        'contactPoint' => [
+            '@type' => 'ContactPoint',
+            'telephone' => config('organization.phone'),
+            'contactType' => 'administrative',
+            'email' => config('organization.email_admin'),
+        ],
         'sameAs' => array_values(config('organization.social')),
     ];
 

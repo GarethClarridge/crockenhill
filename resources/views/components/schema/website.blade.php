@@ -4,6 +4,7 @@
         '@' . 'context' => 'https://schema.org',
         '@type' => 'WebSite',
         'name' => config('organization.name'),
+        'alternateName' => 'Crockenhill Baptist',
         '@id' => config('app.url').'/#website',
         'url' => config('app.url'),
         'publisher' => [
