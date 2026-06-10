@@ -79,13 +79,13 @@ class SongCatalogSyncServiceTest extends TestCase
         $path = $this->createSqliteWithOneSong('Amazing Grace', 'amazing grace how sweet the sound');
         $songCountBeforeSync = Song::query()->count();
 
-        $metrics = $this->service->sync($path, dryRun: true);
+        $report = $this->service->sync($path, dryRun: true);
 
-        $this->assertTrue($metrics['dry_run']);
-        $this->assertSame(1, $metrics['source_songs']);
-        $this->assertSame(1, $metrics['canonical_groups']);
-        $this->assertSame(1, $metrics['songs_upserted']);
-        $this->assertSame(1, $metrics['songs_created']);
+        $this->assertTrue($report->dryRun);
+        $this->assertSame(1, $report->sourceSongs);
+        $this->assertSame(1, $report->canonicalGroups);
+        $this->assertSame(1, $report->songsUpserted);
+        $this->assertSame(1, $report->songsCreated);
 
         // No actual DB writes
         $this->assertSame($songCountBeforeSync, Song::query()->count());
@@ -99,11 +99,11 @@ class SongCatalogSyncServiceTest extends TestCase
     {
         $path = $this->createSqliteWithOneSong('How Great Thou Art', 'how great thou art');
 
-        $metrics = $this->service->sync($path, dryRun: false);
+        $report = $this->service->sync($path, dryRun: false);
 
-        $this->assertFalse($metrics['dry_run']);
-        $this->assertSame(1, $metrics['songs_created']);
-        $this->assertSame(0, $metrics['songs_updated']);
+        $this->assertFalse($report->dryRun);
+        $this->assertSame(1, $report->songsCreated);
+        $this->assertSame(0, $report->songsUpdated);
 
         $this->assertDatabaseHas('songs', ['title' => 'How Great Thou Art']);
     }
@@ -116,11 +116,11 @@ class SongCatalogSyncServiceTest extends TestCase
         $this->service->sync($path, dryRun: false);
 
         // Sync again — same canonical key, should update
-        $metrics = $this->service->sync($path, dryRun: false);
+        $report = $this->service->sync($path, dryRun: false);
 
-        $this->assertSame(0, $metrics['songs_created']);
-        $this->assertSame(1, $metrics['songs_updated']);
-        $this->assertSame(1, $metrics['songs_upserted']);
+        $this->assertSame(0, $report->songsCreated);
+        $this->assertSame(1, $report->songsUpdated);
+        $this->assertSame(1, $report->songsUpserted);
     }
 
     #[Test]
@@ -131,13 +131,13 @@ class SongCatalogSyncServiceTest extends TestCase
             ['title' => 'To God Be the Glory (alt)', 'search_title' => 'to god be the glory'],
         );
 
-        $metrics = $this->service->sync($path, dryRun: true);
+        $report = $this->service->sync($path, dryRun: true);
 
-        $this->assertSame(2, $metrics['source_songs']);
-        $this->assertSame(1, $metrics['canonical_groups']);
-        $this->assertSame(1, $metrics['duplicate_groups']);
-        $this->assertSame(1, $metrics['duplicate_rows']);
-        $this->assertSame(1, $metrics['songs_upserted']);
+        $this->assertSame(2, $report->sourceSongs);
+        $this->assertSame(1, $report->canonicalGroups);
+        $this->assertSame(1, $report->duplicateGroups);
+        $this->assertSame(1, $report->duplicateRows);
+        $this->assertSame(1, $report->songsUpserted);
     }
 
     #[Test]
@@ -150,9 +150,9 @@ class SongCatalogSyncServiceTest extends TestCase
         Song::query()->where('title', 'Great Is Thy Faithfulness')->delete();
         $this->assertSoftDeleted('songs', ['title' => 'Great Is Thy Faithfulness']);
 
-        $metrics = $this->service->sync($path, dryRun: false);
+        $report = $this->service->sync($path, dryRun: false);
 
-        $this->assertSame(1, $metrics['songs_restored']);
+        $this->assertSame(1, $report->songsRestored);
         $this->assertDatabaseHas('songs', ['title' => 'Great Is Thy Faithfulness', 'deleted_at' => null]);
     }
 
@@ -161,9 +161,9 @@ class SongCatalogSyncServiceTest extends TestCase
     {
         $path = $this->createSqliteWithMultiRoleAuthor('In Christ Alone', 'in christ alone');
 
-        $metrics = $this->service->sync($path, dryRun: false);
+        $report = $this->service->sync($path, dryRun: false);
 
-        $this->assertSame(2, $metrics['song_author_links_synced']);
+        $this->assertSame(2, $report->songAuthorLinksSynced);
 
         $song = Song::query()->where('title', 'In Christ Alone')->firstOrFail();
         $this->assertCount(2, $song->authors);

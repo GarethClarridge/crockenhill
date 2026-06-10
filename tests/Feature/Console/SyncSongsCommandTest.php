@@ -268,17 +268,17 @@ class SyncSongsCommandTest extends TestCase
             'canonical_key' => 'stand up stand up for jesus',
         ]);
 
-        $metrics = app(SongCatalogSyncService::class)->sync(path: $path, dryRun: true);
+        $report = app(SongCatalogSyncService::class)->sync(path: $path, dryRun: true);
 
-        $this->assertSame(3, $metrics['songs_upserted']);
-        $this->assertSame(2, $metrics['songs_created']);
-        $this->assertSame(1, $metrics['songs_updated']);
-        $this->assertSame(0, $metrics['songs_restored']);
-        $this->assertSame(1, $metrics['groups_with_parse_warnings']);
-        $this->assertSame(3, $metrics['song_authors_upserted']);
-        $this->assertSame(2, $metrics['song_books_upserted']);
-        $this->assertSame(3, $metrics['song_author_links_synced']);
-        $this->assertSame(3, $metrics['song_book_links_synced']);
+        $this->assertSame(3, $report->songsUpserted);
+        $this->assertSame(2, $report->songsCreated);
+        $this->assertSame(1, $report->songsUpdated);
+        $this->assertSame(0, $report->songsRestored);
+        $this->assertSame(1, $report->groupsWithParseWarnings);
+        $this->assertSame(3, $report->songAuthorsUpserted);
+        $this->assertSame(2, $report->songBooksUpserted);
+        $this->assertSame(3, $report->songAuthorLinksSynced);
+        $this->assertSame(3, $report->songBookLinksSynced);
 
         $this->assertDatabaseCount('songs', 1);
         $this->assertDatabaseCount('song_authors', 0);
@@ -295,9 +295,9 @@ class SyncSongsCommandTest extends TestCase
         ]);
         $trashedSong->delete();
 
-        $metrics = app(SongCatalogSyncService::class)->sync(path: $path, dryRun: true);
+        $report = app(SongCatalogSyncService::class)->sync(path: $path, dryRun: true);
 
-        $this->assertSame(1, $metrics['songs_restored']);
+        $this->assertSame(1, $report->songsRestored);
         $this->assertTrue($trashedSong->fresh()?->trashed() ?? false);
     }
 

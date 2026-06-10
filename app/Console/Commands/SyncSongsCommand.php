@@ -19,7 +19,7 @@ class SyncSongsCommand extends Command
     public function handle(SongCatalogSyncService $syncService): int
     {
         try {
-            $metrics = $syncService->sync(
+            $report = $syncService->sync(
                 path: $this->option('path'),
                 dryRun: (bool) $this->option('dry-run')
             );
@@ -30,28 +30,28 @@ class SyncSongsCommand extends Command
         }
 
         $this->info('Song catalogue sync completed.');
-        $this->line('Path: '.$metrics['path']);
+        $this->line('Path: '.$report->path);
 
-        if ($metrics['dry_run']) {
+        if ($report->dryRun) {
             $this->warn('Dry run enabled. No database changes were written.');
         }
 
         $this->table(
             ['Metric', 'Value'],
             [
-                ['Source songs', (string) $metrics['source_songs']],
-                ['Canonical groups', (string) $metrics['canonical_groups']],
-                ['Duplicate groups', (string) $metrics['duplicate_groups']],
-                ['Duplicate rows merged', (string) $metrics['duplicate_rows']],
-                ['Songs upserted', (string) $metrics['songs_upserted']],
-                ['Songs created', (string) $metrics['songs_created']],
-                ['Songs updated', (string) $metrics['songs_updated']],
-                ['Songs restored', (string) $metrics['songs_restored']],
-                ['Song authors upserted', (string) $metrics['song_authors_upserted']],
-                ['Song books upserted', (string) $metrics['song_books_upserted']],
-                ['Song-author links synced', (string) $metrics['song_author_links_synced']],
-                ['Song-book links synced', (string) $metrics['song_book_links_synced']],
-                ['Groups with parse warnings', (string) $metrics['groups_with_parse_warnings']],
+                ['Source songs', (string) $report->sourceSongs],
+                ['Canonical groups', (string) $report->canonicalGroups],
+                ['Duplicate groups', (string) $report->duplicateGroups],
+                ['Duplicate rows merged', (string) $report->duplicateRows],
+                ['Songs upserted', (string) $report->songsUpserted],
+                ['Songs created', (string) $report->songsCreated],
+                ['Songs updated', (string) $report->songsUpdated],
+                ['Songs restored', (string) $report->songsRestored],
+                ['Song authors upserted', (string) $report->songAuthorsUpserted],
+                ['Song books upserted', (string) $report->songBooksUpserted],
+                ['Song-author links synced', (string) $report->songAuthorLinksSynced],
+                ['Song-book links synced', (string) $report->songBookLinksSynced],
+                ['Groups with parse warnings', (string) $report->groupsWithParseWarnings],
             ]
         );
 
