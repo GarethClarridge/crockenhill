@@ -26,17 +26,35 @@ class QueueWorkerCoverageTest extends TestCase
     }
 
     #[Test]
-    public function production_supervisor_worker_consumes_all_required_processing_queues(): void
+    public function production_horizon_supervisors_consume_all_required_processing_queues(): void
     {
-        $queues = $this->extractQueuesFromFile(base_path('docker/production/supervisord.conf'));
+        $queues = $this->productionHorizonQueues();
 
         foreach ($this->requiredQueues() as $requiredQueue) {
             $this->assertContains(
                 $requiredQueue,
                 $queues,
-                "production supervisor worker is missing required queue [{$requiredQueue}]"
+                "production Horizon supervisors are missing required queue [{$requiredQueue}]"
             );
         }
+    }
+
+    #[Test]
+    public function production_supervisord_runs_horizon(): void
+    {
+        $supervisord = file_get_contents(base_path('docker/production/supervisord.conf'));
+
+        $this->assertNotFalse($supervisord);
+        $this->assertStringContainsString(
+            'artisan horizon',
+            $supervisord,
+            'Production supervisord must run Horizon — otherwise the queues guarded by this test are never consumed.'
+        );
+        $this->assertStringNotContainsString(
+            'queue:work',
+            $supervisord,
+            'Raw queue:work workers must not run alongside Horizon in production.'
+        );
     }
 
     #[Test]
@@ -62,6 +80,30 @@ class QueueWorkerCoverageTest extends TestCase
         ];
 
         return array_values(array_unique(array_filter($required)));
+    }
+
+    /**
+     * Queues consumed in production: each supervisor listed for the production
+     * environment, with its options merged over the Horizon defaults.
+     *
+     * @return array<int, string>
+     */
+    private function productionHorizonQueues(): array
+    {
+        $defaults = (array) config('horizon.defaults');
+        $production = (array) config('horizon.environments.production');
+
+        $this->assertNotEmpty($production, 'No Horizon supervisors are configured for production.');
+
+        $queues = [];
+
+        foreach ($production as $supervisor => $overrides) {
+            $options = array_merge((array) ($defaults[$supervisor] ?? []), (array) $overrides);
+
+            $queues = array_merge($queues, (array) ($options['queue'] ?? []));
+        }
+
+        return array_values(array_unique($queues));
     }
 
     /**
