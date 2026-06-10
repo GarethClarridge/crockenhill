@@ -135,22 +135,25 @@ check_storage() {
   ' >/dev/null
 }
 
-check_queue_workers() {
-  local output
-
-  output="$(supervisorctl_in_app status all)"
-
-  printf '%s\n' "$output" | awk '
-    /^queue-worker:/ {
+# Horizon replaced the per-queue `queue-worker:*` supervisor programs (June 2026
+# review, Phase P1). Supervisor only proves the master process exists, so also
+# ask Horizon itself — `horizon:status` reports "running" only once the master
+# supervisor loop is processing, and catches a paused or inactive Horizon that
+# supervisorctl would still show as RUNNING.
+check_horizon() {
+  supervisorctl_in_app status horizon | awk '
+    /^horizon/ {
       found = 1
-      if ($2 != "RUNNING") {
-        failed = 1
+      if ($2 == "RUNNING") {
+        healthy = 1
       }
     }
     END {
-      exit(found && ! failed ? 0 : 1)
+      exit(found && healthy ? 0 : 1)
     }
-  '
+  ' || return 1
+
+  compose exec -T "$APP_SERVICE" php artisan horizon:status --no-ansi | grep -qiF 'is running'
 }
 
 check_scheduler() {
@@ -176,7 +179,11 @@ check_schedule_registration() {
     grep -Fq 'media:cleanup-temp-files --hours=24' <<<"$output" &&
     grep -Fq 'media:cleanup-unpublished-section-assets --hours=48' <<<"$output" &&
     grep -Fq 'scripture:refresh-passages' <<<"$output" &&
-    grep -Fq 'monitoring:check-canaries' <<<"$output"
+    grep -Fq 'monitoring:check-canaries' <<<"$output" &&
+    grep -Fq 'horizon:snapshot' <<<"$output" &&
+    grep -Fq 'backup:clean' <<<"$output" &&
+    grep -Fq 'backup:run' <<<"$output" &&
+    grep -Fq 'backup:monitor' <<<"$output"
 }
 
 main() {
@@ -188,7 +195,7 @@ main() {
   run_check 'Application can reach the database' check_db || failed=1
   run_check 'Redis queue backend responds' check_redis || failed=1
   run_check 'Writable storage volumes are writable' check_storage || failed=1
-  run_check 'Queue workers are running under Supervisor' check_queue_workers || failed=1
+  run_check 'Horizon is running under Supervisor' check_horizon || failed=1
   run_check 'Scheduler is running under Supervisor' check_scheduler || failed=1
   run_check 'Expected scheduled commands are registered' check_schedule_registration || failed=1
 
