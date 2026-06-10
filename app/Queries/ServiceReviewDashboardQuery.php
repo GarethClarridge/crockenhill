@@ -181,6 +181,17 @@ class ServiceReviewDashboardQuery
         ];
     }
 
+    /**
+     * Count of review-candidate sections, derived from the same seven-reason
+     * predicate that builds reviewGroups() — never a cheaper SQL approximation,
+     * so the hub strip, review inbox, and members-home badge cannot disagree.
+     */
+    public function reviewCandidateSectionCount(): int
+    {
+        return collect($this->reviewGroups())
+            ->sum(fn (array $group): int => count($group['sections']));
+    }
+
     public function pendingMergeCount(): int
     {
         return ChurchService::query()
