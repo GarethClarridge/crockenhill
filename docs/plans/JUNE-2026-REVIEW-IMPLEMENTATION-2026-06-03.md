@@ -142,9 +142,19 @@ Finding 10. **Status: Deferred — do not schedule.**
 mostly import churn for a cosmetic win. **Revised stance:** group DTOs into a domain subdirectory
 only when a domain already being changed for other reasons would benefit — never as standalone work.
 
-### Phase R5: Route-name standardisation — Pending (inventory refreshed)
+### Phase R5: Route-name standardisation — ✅ Done
 
-Finding 5. **Priority: Medium** (breaking for `route()` callers — do as a deliberate sweep).
+Finding 5. **Status: Complete** (implemented 2026-06-10).
+
+Execution note: the six outliers were renamed to lowercase dot-notation — `Home`→`home`,
+`christmas`→`pages.christmas`, `christ`→`pages.christ`, `church`→`pages.church`,
+`community`→`pages.community`, `memberHome`→`members.home`. Callers were updated in the only two
+production files that referenced them by name ([SitemapService.php](../../app/Services/Public/SitemapService.php),
+[AuthenticatedSessionController.php](../../app/Http/Controllers/Auth/AuthenticatedSessionController.php))
+plus six test files. Nav links are hardcoded paths (`href="/christ"`) and route canaries probe by URL
+path, so neither was affected. `verify-email` was converted from a view closure to `Route::view`;
+`reset-password/{token}` stays a closure (it needs the token param), matching the other auth routes.
+Pint clean, PHPStan 0 errors, 69 feature tests + 41 Dusk tests green.
 
 Refreshed inventory (verified against [routes/web.php](../../routes/web.php), 2026-06-10):
 

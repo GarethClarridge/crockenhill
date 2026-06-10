@@ -77,7 +77,7 @@ class JsonLdConsistencyTest extends TestCase
     #[Test]
     public function christmas_page_json_ld_is_secure_and_pretty_printed(): void
     {
-        $response = $this->get(route('christmas'));
+        $response = $this->get(route('pages.christmas'));
 
         $response->assertStatus(200);
         $this->assertJsonLdIsSecureAndPretty($response);

@@ -47,7 +47,7 @@ class MemberControllerTest extends TestCase
         ]);
 
         $this->actingAs($user);
-        $response = $this->get(route('memberHome'));
+        $response = $this->get(route('members.home'));
 
         $response->assertStatus(200);
     }
@@ -91,7 +91,7 @@ class MemberControllerTest extends TestCase
         ]);
 
         $this->actingAs($admin);
-        $response = $this->get(route('memberHome'));
+        $response = $this->get(route('members.home'));
 
         $response->assertOk();
         $response->assertSee(route('admin.services.inbound-emails'));
@@ -114,7 +114,7 @@ class MemberControllerTest extends TestCase
         ]);
 
         $this->actingAs($admin);
-        $response = $this->get(route('memberHome'));
+        $response = $this->get(route('members.home'));
 
         $response->assertOk();
         $response->assertSeeText('Sermon review');
