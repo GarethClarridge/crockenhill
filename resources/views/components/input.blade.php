@@ -25,7 +25,7 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
 <div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }}, focused: false, showPassword: false }"
      x-init="
         count = $refs.input.value.length;
-        @if($autofocus) $nextTick(() => $refs.input.focus()) @endif
+        @if($autofocus) $nextTick(() => $refs.input.focus()); @endif
         @if($modelName)
             $watch('$wire.{{ $modelName }}', value => {
                 count = (value ?? '').toString().length;
