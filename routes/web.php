@@ -44,6 +44,7 @@ use App\Livewire\Admin\Users\CreateUser;
 use App\Livewire\Admin\Users\EditUser;
 use App\Livewire\Admin\Users\ListUsers;
 use Illuminate\Support\Facades\Route;
+use Spatie\Health\Http\Controllers\HealthCheckResultsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -149,6 +150,12 @@ Route::middleware('guest')->group(function () {
 });
 Route::view('verify-email', 'auth.verify-email', ['heading' => 'Verify Email'])
     ->middleware('auth')->name('verification.notice');
+
+// Health dashboard (spatie/laravel-health) — admin-only monitoring surface.
+// `/up` stays the unauthenticated boot-only probe for the load balancer.
+Route::get('health', HealthCheckResultsController::class)
+    ->middleware(['auth', 'verified', 'admin'])
+    ->name('health');
 
 // Admin routes (Livewire)
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {

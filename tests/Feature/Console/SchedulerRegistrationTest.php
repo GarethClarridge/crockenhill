@@ -95,6 +95,36 @@ class SchedulerRegistrationTest extends TestCase
     }
 
     #[Test]
+    public function health_check_is_scheduled_with_overlap_protection_and_gated_to_production(): void
+    {
+        $event = $this->findEvent('health:check');
+
+        $this->assertNotNull($event, 'health:check should be registered in the scheduler');
+        $this->assertTrue($event->withoutOverlapping, 'health:check should have withoutOverlapping enabled');
+        $this->assertContains('production', $event->environments);
+    }
+
+    #[Test]
+    public function monitoring_history_pruning_is_scheduled_and_gated_to_production(): void
+    {
+        $event = $this->findEvent('model:prune');
+
+        $this->assertNotNull($event, 'model:prune should be registered in the scheduler');
+        $this->assertStringContainsString('HealthCheckResultHistoryItem', $event->command);
+        $this->assertStringContainsString('MonitoredScheduledTaskLogItem', $event->command);
+        $this->assertContains('production', $event->environments);
+    }
+
+    #[Test]
+    public function the_retired_canary_checker_is_no_longer_scheduled(): void
+    {
+        $this->assertNull(
+            $this->findEvent('monitoring:check-canaries'),
+            'monitoring:check-canaries was folded into health:check (RouteCanariesCheck) and must not be scheduled'
+        );
+    }
+
+    #[Test]
     public function backup_commands_are_scheduled_with_overlap_protection_on_one_server_and_gated_to_production(): void
     {
         foreach (['backup:clean', 'backup:run', 'backup:monitor'] as $command) {

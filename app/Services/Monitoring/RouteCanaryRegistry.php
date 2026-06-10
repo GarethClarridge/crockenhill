@@ -13,7 +13,7 @@ use App\Models\Sermon;
 /**
  * Builds the canary set — one representative URL per public route type — used
  * by both the deploy-time manifest (`monitoring:canaries`) and the continuous
- * checker (`monitoring:check-canaries`), so the two never drift apart.
+ * checker (the laravel-health RouteCanariesCheck), so the two never drift apart.
  *
  * Slugs for the cached detail routes are resolved from real records so the set
  * stays valid as content changes, and those routes request two hits: the second

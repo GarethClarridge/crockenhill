@@ -14,6 +14,8 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Spatie\Health\Models\HealthCheckResultHistoryItem;
+use Spatie\ScheduleMonitor\Models\MonitoredScheduledTaskLogItem;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -38,9 +40,19 @@ return Application::configure(basePath: dirname(__DIR__))
             ->daily()
             ->withoutOverlapping(60)
             ->environments(['production']);
-        $schedule->command('monitoring:check-canaries')
+        // Runs every registered health check, including the route canaries the
+        // retired monitoring:check-canaries command used to probe at this cadence.
+        $schedule->command('health:check')
             ->everyFiveMinutes()
             ->withoutOverlapping()
+            ->environments(['production']);
+        $schedule->command('model:prune', [
+            '--model' => [
+                HealthCheckResultHistoryItem::class,
+                MonitoredScheduledTaskLogItem::class,
+            ],
+        ])
+            ->daily()
             ->environments(['production']);
         $schedule->command('horizon:snapshot')
             ->everyFiveMinutes()

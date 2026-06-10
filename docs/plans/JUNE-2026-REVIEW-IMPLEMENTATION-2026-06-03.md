@@ -290,7 +290,7 @@ and do not wait for any approval):
 |-------|---------|---------|--------------------|
 | **P2** | `spatie/laravel-backup` | ✅ **Done** (2026-06-10) | Lowest risk, purely additive. `mysqldump` is already in the image — prerequisite resolved. |
 | **P1** | `laravel/horizon` | ✅ **Adopt** | Queue observability; its boot check also enforces the Phase 0.1 invariant permanently. |
-| **P3** | `spatie/laravel-health` (+ `schedule-monitor`) | ✅ **Adopt — re-premised** | Now must also decide how it relates to the bespoke route-canary system added since 2026-06-03. |
+| **P3** | `spatie/laravel-health` (+ `schedule-monitor`) | ✅ **Done** (2026-06-10) | Canaries folded in as a custom check (option a); `/health` is the single monitoring surface. |
 | **P4** | `spatie/laravel-model-states` | ⏸️ **Defer** | Unchanged verdict; references updated to post-R3 paths. |
 | **P5** | `laravel/ai` | ⏸️ **Defer** | Reaffirmed 2026-06-10: Packagist shows v0.8.0 (2026-06-08), still pre-1.0. |
 
@@ -410,9 +410,33 @@ Tests / verification:
 Exit criteria: encrypted DB + local-files backups land in Spaces on a schedule with retention and
 failure alerts; manual `.sql` dump workflow retired.
 
-### Phase P3 — `spatie/laravel-health` (+ `laravel-schedule-monitor`) · ✅ Adopt (re-premised)
+### Phase P3 — `spatie/laravel-health` (+ `laravel-schedule-monitor`) · ✅ Done
 
-**Status: Pending approval.** The premise has shifted twice since 2026-06-03:
+**Status: ✅ Done** (approved and implemented 2026-06-10).
+
+Execution note: `spatie/laravel-health` v1.40 + `spatie/laravel-schedule-monitor` v4.3 installed,
+with both packages' migrations (health result history + monitored-task tables). **Canary decision:
+(a) taken** — the probes moved to `app/Services/Monitoring/RouteCanaryProber.php` and are wrapped by
+`RouteCanariesCheck`, so `/health` is the single surface; `CheckRouteCanariesCommand`, the
+`RouteCanaryFailure` mailable, and the per-URL cooldown logic are deleted (health throttles
+notifications at 60 min), while `monitoring:canaries` (the deploy-time manifest) and the registry
+stay. Checks live in `app/Services/Monitoring/Checks/` and are registered in
+`HealthCheckServiceProvider`: Database, Redis, RedisMemoryUsage, Cache, **Horizon — a deliberate
+deviation from the planned QueueCheck**, whose default-queue heartbeat would false-alarm whenever
+two long video jobs occupy both strict-priority workers; `TempDiskSpaceCheck` (reads the shared
+`TempDiskSpace` helper — fails at the floor where uploads are rejected, warns at twice it); a custom
+`ScheduledTasksCheck` (schedule-monitor ships no health check — reports failed-last-run and
+overdue-past-grace tasks, so a dead scheduler alerts); and `RouteCanariesCheck` (skipped in local
+dev, where its self-directed probes would deadlock `artisan serve`). `health:check` is scheduled
+**every five minutes** — the canaries' old cadence — rather than per-check frequencies, because
+not-due checks store an explicit `skipped` result instead of carrying their last status.
+`model:prune` runs daily for both history models. Failure-only mail goes to `HEALTH_TO_ADDRESS`
+(defaults to `LIVESTREAM_ADMIN_EMAIL`); `/health` sits behind `auth`+`verified`+`admin`; `/up` is
+untouched. The deploy hook runs `schedule-monitor:sync` after `up -d`, and the post-deploy smoke
+script now greps for `health:check`/`model:prune` instead of the retired command. The dead
+`DiskSpaceWarning` trio is deleted as approved. All four quality gates green (5,455 tests + 41 Dusk).
+
+The premise had shifted twice since 2026-06-03:
 
 1. The **temp-disk validation bug fix is no longer part of this phase** — it is Phase 0.2 and ships
    without any package. What remains here is consolidation of *monitoring*, not the bug fix.
@@ -531,8 +555,9 @@ thumbnail pipeline, voice fingerprinting, or vector search (MySQL, no pgvector).
 4. **Phase R6** (hotspot decomposition + DTOs) — opportunistic, whenever those files are next touched.
 5. **Track 3**: P2 → P1 → P3 after approval. P4/P5 deferred with named triggers; P6 is decisions-only.
 
-R1–R3, R5, R6, D1, D2, and P2 are done (R6's importer target deferred behind SIMPLIFICATION-PLAN
-Phase 25); R4 is deferred indefinitely. Of Track 3, only P1 and P3 (approval-gated) remain active.
+R1–R3, R5, R6, D1, D2, P1, P2, and P3 are done (R6's importer target deferred behind
+SIMPLIFICATION-PLAN Phase 25); R4 is deferred indefinitely. The only open item in Track 3 is P1's
+outstanding staging smoke test; P4/P5 stay deferred with named triggers.
 
 ## Definition of Done
 
