@@ -14,11 +14,12 @@ use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Models\Builders\SermonBuilder;
 use App\Rules\NotEmptyString;
 use App\Rules\SermonPointElement;
 use App\Sitemap\SermonSitemapPresenter;
 use Database\Factories\SermonFactory;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -97,26 +98,13 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read Collection<int, SermonScriptureFilter> $scriptureFilters
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
- * @method static Builder|Sermon newModelQuery()
- * @method static Builder|Sermon newQuery()
- * @method static Builder|Sermon query()
- * @method static Builder|Sermon last12Months()
- * @method static Builder|Sermon forService(\App\Enums\SermonService $serviceType)
- * @method static Builder|Sermon inSeries(string $seriesTitle)
- * @method static Builder|Sermon byPreacher(string $preacherName)
- * @method static Builder|Sermon automated()
- * @method static Builder|Sermon manual()
- * @method static Builder|Sermon processingCompleted()
- * @method static Builder|Sermon processingFailed()
- * @method static Builder|Sermon processingInProgress()
- * @method static Builder|Sermon withThumbnail()
- * @method static Builder|Sermon forPodcast()
- * @method static Builder|Sermon needsPreacherReview()
- * @method static Builder|Sermon whereSermon()
- * @method static Builder|Sermon whereChildrensTalk()
+ * @method static SermonBuilder newModelQuery()
+ * @method static SermonBuilder newQuery()
+ * @method static SermonBuilder query()
  *
  * @mixin \Eloquent
  */
+#[UseEloquentBuilder(SermonBuilder::class)]
 class Sermon extends Model implements Sitemapable
 {
     /** @use HasFactory<SermonFactory> */
@@ -362,92 +350,6 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeLast12Months(Builder $query): Builder
-    {
-        return $query->where('date', '>=', now()->subMonths(12)->startOfDay());
-    }
-
-    /**
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeForService(Builder $query, SermonService $serviceType): Builder
-    {
-        return $query->where('service', $serviceType);
-    }
-
-    /**
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeInSeries(Builder $query, string $seriesTitle): Builder
-    {
-        return $query->where('series', $seriesTitle);
-    }
-
-    /**
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeByPreacher(Builder $query, string $preacherName): Builder
-    {
-        return $query->where(function (Builder $builder) use ($preacherName): void {
-            $builder->where('preacher', $preacherName)
-                ->orWhereHas('preacherProfile', fn (Builder $preacherQuery): Builder => $preacherQuery->where('name', $preacherName));
-        });
-    }
-
-    /**
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeNeedsPreacherReview(Builder $query): Builder
-    {
-        return $query->where('needs_preacher_review', true);
-    }
-
-    /**
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeWhereSermon(Builder $query): Builder
-    {
-        return $query->where($query->qualifyColumn('content_type'), SermonContentType::Sermon);
-    }
-
-    /**
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeWhereChildrensTalk(Builder $query): Builder
-    {
-        return $query->where($query->qualifyColumn('content_type'), SermonContentType::ChildrensTalk);
-    }
-
-    /**
-     * Scope to filter sermons visible in the public sitemap.
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeWhereVisibleInSitemap(Builder $query): Builder
-    {
-        // A sermon's canonical URL is keyed on its slug, so a record without one
-        // has no public page to point to and must never reach URL generation.
-        $query->whereNotNull($query->qualifyColumn('slug'))
-            ->where($query->qualifyColumn('slug'), '!=', '');
-
-        if ((bool) config('sermons.childrens_talks.public', false)) {
-            return $query;
-        }
-
-        return $query->whereSermon();
-    }
-
-    /**
      * @return BelongsTo<ScripturePassage, $this>
      */
     public function scripturePassage(): BelongsTo
@@ -487,73 +389,6 @@ class Sermon extends Model implements Sitemapable
     public function latestProcessingLog(): HasOne
     {
         return $this->hasOne(MediaProcessingLog::class, 'sermon_id')->latestOfMany();
-    }
-
-    /**
-     * Scope to get only automated sermons
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeAutomated(Builder $query): Builder
-    {
-        return $query->where(function (Builder $q): void {
-            $q->whereNotNull('transcript_file_path')
-                ->orWhereHas('processingLogs');
-        });
-    }
-
-    /**
-     * Scope to get only manually created sermons
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeManual(Builder $query): Builder
-    {
-        return $query->where(function (Builder $q): void {
-            $q->whereNull('transcript_file_path')
-                ->whereDoesntHave('processingLogs');
-        });
-    }
-
-    /**
-     * Scope to get sermons with completed processing
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeProcessingCompleted(Builder $query): Builder
-    {
-        return $query->whereHas('processingLogs', function (Builder $q): void {
-            $q->where('status', ProcessingStatus::Completed);
-        });
-    }
-
-    /**
-     * Scope to get sermons with failed processing
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeProcessingFailed(Builder $query): Builder
-    {
-        return $query->whereHas('processingLogs', function (Builder $q): void {
-            $q->where('status', ProcessingStatus::Failed);
-        });
-    }
-
-    /**
-     * Scope to get sermons currently being processed
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeProcessingInProgress(Builder $query): Builder
-    {
-        return $query->whereHas('processingLogs', function (Builder $q): void {
-            $q->where('status', ProcessingStatus::Processing);
-        });
     }
 
     /**
@@ -662,7 +497,7 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Check if this sermon was created through automated processing.
-     * Logic aligned with scopeAutomated() criteria.
+     * Logic aligned with SermonBuilder::automated() criteria.
      *
      * @return bool True if sermon was automatically processed
      */
@@ -788,69 +623,6 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * Scope to get only livestream sermons
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeFromLivestream(Builder $query): Builder
-    {
-        return $query->where('source_type', SermonSourceType::Livestream);
-    }
-
-    /**
-     * Scope to get sermons with video files
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeWithVideo(Builder $query): Builder
-    {
-        return $query->whereNotNull('video_file_path');
-    }
-
-    /**
-     * Scope to get sermons by source type
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeBySourceType(Builder $query, SermonSourceType $sourceType): Builder
-    {
-        return $query->where('source_type', $sourceType);
-    }
-
-    /**
-     * Scope to get sermons with thumbnails
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeWithThumbnail(Builder $query): Builder
-    {
-        return $query->whereNotNull('thumbnail_file_path');
-    }
-
-    /**
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeOrderByPreacherName(Builder $query, string $direction = 'asc'): Builder
-    {
-        $direction = $direction === 'desc' ? 'desc' : 'asc';
-
-        return $query
-            ->orderBy(
-                Preacher::query()
-                    ->select('name')
-                    ->whereColumn('preachers.id', 'sermons.preacher_id')
-                    ->limit(1),
-                $direction
-            )
-            ->orderBy('preacher', $direction);
-    }
-
-    /**
      * Convert the sermon to a sitemap tag.
      *
      * @return Url|string|array<string, mixed>
@@ -858,18 +630,5 @@ class Sermon extends Model implements Sitemapable
     public function toSitemapTag(): Url|string|array
     {
         return app(SermonSitemapPresenter::class)->toSitemapTag($this);
-    }
-
-    /**
-     * Scope for podcast-ready sermons (must have audio file)
-     *
-     * @param  Builder<Sermon>  $query
-     * @return Builder<Sermon>
-     */
-    public function scopeForPodcast(Builder $query): Builder
-    {
-        return $query->whereNotNull('audio_file_path')
-            ->where('audio_file_path', '!=', '')
-            ->orderBy('date', 'desc');
     }
 }

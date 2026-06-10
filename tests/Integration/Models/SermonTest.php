@@ -6,6 +6,7 @@ namespace Tests\Integration\Models;
 
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Models\Builders\SermonBuilder;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
@@ -21,6 +22,13 @@ use Tests\TestCase;
 class SermonTest extends TestCase
 {
     use RefreshDatabase;
+
+    #[Test]
+    public function sermon_queries_use_the_dedicated_builder(): void
+    {
+        $this->assertInstanceOf(SermonBuilder::class, Sermon::query());
+        $this->assertInstanceOf(SermonBuilder::class, Sermon::forPodcast());
+    }
 
     #[Test]
     public function sermon_relationships()
