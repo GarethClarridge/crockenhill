@@ -9,3 +9,8 @@
 **Pattern:** `config/redirects.php` entry pointing to a non-existent slug.
 **Cause:** `about-us/privacy-policy` redirects to `/church/privacy-policy`, but the page slug in the database is `privacy-notice`.
 **Action:** Cross-reference redirect targets against the `pages` table and `route:list`.
+
+## 2026-06-10 - Redirect typo causing 404
+**Pattern:** Typo in redirect configuration key (e.g. `'contacttus'` instead of `'contactus'`).
+**Cause:** Manual entry error in `config/redirects.php`.
+**Action:** Verify redirect keys by hitting both the intended and spelled-in-config URLs with `curl -I`.
