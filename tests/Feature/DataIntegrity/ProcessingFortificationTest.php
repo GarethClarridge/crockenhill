@@ -18,18 +18,18 @@ class ProcessingFortificationTest extends TestCase
     {
         $rules = ServiceSection::validationRules();
 
-        $this->assertNotContains('max:2147483647', $rules['media_processing_log_id']);
-        $this->assertNotContains('max:2147483647', $rules['church_service_item_id']);
-        $this->assertNotContains('max:2147483647', $rules['matched_item_id']);
-        $this->assertNotContains('max:2147483647', $rules['expected_item_id']);
+        $this->assertContains('max:2147483647', $rules['media_processing_log_id']);
+        $this->assertContains('max:2147483647', $rules['church_service_item_id']);
+        $this->assertContains('max:2147483647', $rules['matched_item_id']);
+        $this->assertContains('max:2147483647', $rules['expected_item_id']);
 
-        $this->assertContains('max:4294967295', $rules['section_order']);
-        $this->assertValidationPasses($rules['section_order'], 'section_order', 4294967295);
-        $this->assertValidationFails($rules['section_order'], 'section_order', 4294967296);
+        $this->assertContains('max:2147483647', $rules['section_order']);
+        $this->assertValidationPasses($rules['section_order'], 'section_order', 2147483647);
+        $this->assertValidationFails($rules['section_order'], 'section_order', 2147483648);
 
-        $this->assertContains('max:4294967295', $rules['published_sermon_id']);
-        $this->assertValidationPasses($rules['published_sermon_id'], 'published_sermon_id', 4294967295);
-        $this->assertValidationFails($rules['published_sermon_id'], 'published_sermon_id', 4294967296);
+        $this->assertContains('max:2147483647', $rules['published_sermon_id']);
+        $this->assertValidationPasses($rules['published_sermon_id'], 'published_sermon_id', 2147483647);
+        $this->assertValidationFails($rules['published_sermon_id'], 'published_sermon_id', 2147483648);
     }
 
     #[Test]
@@ -64,7 +64,7 @@ class ProcessingFortificationTest extends TestCase
     {
         $rules = LivestreamSegment::validationRules();
 
-        $this->assertNotContains('max:2147483647', $rules['media_processing_log_id']);
+        $this->assertContains('max:2147483647', $rules['media_processing_log_id']);
 
         $this->assertValidationPasses($rules['segment_index'], 'segment_index', 65535);
         $this->assertValidationFails($rules['segment_index'], 'segment_index', 65536);
@@ -84,16 +84,16 @@ class ProcessingFortificationTest extends TestCase
     {
         $rules = MediaProcessingLog::validationRules();
 
-        $this->assertContains('max:4294967295', $rules['sermon_id']);
-        $this->assertValidationPasses($rules['sermon_id'], 'sermon_id', 4294967295);
-        $this->assertValidationFails($rules['sermon_id'], 'sermon_id', 4294967296);
+        $this->assertContains('max:2147483647', $rules['sermon_id']);
+        $this->assertValidationPasses($rules['sermon_id'], 'sermon_id', 2147483647);
+        $this->assertValidationFails($rules['sermon_id'], 'sermon_id', 2147483648);
 
-        $this->assertContains('max:4294967295', $rules['owner_user_id']);
-        $this->assertValidationPasses($rules['owner_user_id'], 'owner_user_id', 4294967295);
-        $this->assertValidationFails($rules['owner_user_id'], 'owner_user_id', 4294967296);
+        $this->assertContains('max:2147483647', $rules['owner_user_id']);
+        $this->assertValidationPasses($rules['owner_user_id'], 'owner_user_id', 2147483647);
+        $this->assertValidationFails($rules['owner_user_id'], 'owner_user_id', 2147483648);
 
-        $this->assertNotContains('max:2147483647', $rules['church_service_id']);
-        $this->assertValidationPasses($rules['church_service_id'], 'church_service_id', 4294967295);
+        $this->assertContains('max:2147483647', $rules['church_service_id']);
+        $this->assertValidationPasses($rules['church_service_id'], 'church_service_id', 2147483647);
 
         $validator = Validator::make(['duration' => 10000000], ['duration' => $rules['duration']]);
         $this->assertTrue($validator->fails());

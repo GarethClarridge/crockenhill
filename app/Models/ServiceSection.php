@@ -241,10 +241,12 @@ class ServiceSection extends Model
     public static function validationRules(): array
     {
         return [
-            'media_processing_log_id' => ['required', 'integer', 'min:1', 'exists:media_processing_logs,id'],
-            'church_service_item_id' => ['nullable', 'integer', 'min:1', 'exists:church_service_items,id'],
+            // Security: integer bounding on ID fields adds defence in depth against malformed input and overflow.
+            'media_processing_log_id' => ['required', 'integer', 'min:1', 'max:2147483647', 'exists:media_processing_logs,id'],
+            'church_service_item_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:church_service_items,id'],
             'section_type' => ['required', Rule::enum(ServiceSectionType::class)],
-            'section_order' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            // Security: integer bounding on counter fields adds defence in depth against malformed input and overflow.
+            'section_order' => ['required', 'integer', 'min:0', 'max:2147483647'],
             'title' => ['nullable', 'string', 'max:255'],
             'start_time' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
             'end_time' => ['required', 'numeric', 'min:0', 'max:9999999.999', 'gt:start_time'],
@@ -254,10 +256,10 @@ class ServiceSection extends Model
             'source_segment_ids' => ['required', 'array'],
             'confidence' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'song_match_type' => ['nullable', Rule::enum(ServiceSectionSongMatchType::class)],
-            'matched_item_id' => ['nullable', 'integer', 'min:1', 'exists:church_service_items,id'],
-            'expected_item_id' => ['nullable', 'integer', 'min:1', 'exists:church_service_items,id'],
+            'matched_item_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:church_service_items,id'],
+            'expected_item_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:church_service_items,id'],
             'publication_status' => ['required', Rule::enum(ServiceSectionPublicationStatus::class)],
-            'published_sermon_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:sermons,id'],
+            'published_sermon_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:sermons,id'],
             'extracted_video_path' => ['nullable', 'string', 'max:255'],
             'extracted_audio_path' => ['nullable', 'string', 'max:255'],
         ];

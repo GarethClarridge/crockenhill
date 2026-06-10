@@ -129,7 +129,8 @@ class ChurchService extends Model
             'date' => ['required', 'date'],
             'service' => ['required', Rule::enum(SermonService::class)],
             'source' => ['required', 'string', 'max:255'],
-            'manual_reviewed_by_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            // Security: integer bounding on ID fields adds defence in depth against malformed input and overflow.
+            'manual_reviewed_by_user_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:users,id'],
         ];
     }
 

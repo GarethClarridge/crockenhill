@@ -269,7 +269,8 @@ class LivestreamSegment extends Model
     public static function validationRules(): array
     {
         return [
-            'media_processing_log_id' => ['required', 'integer', 'min:1', 'exists:media_processing_logs,id'],
+            // Security: integer bounding on ID fields adds defence in depth against malformed input and overflow.
+            'media_processing_log_id' => ['required', 'integer', 'min:1', 'max:2147483647', 'exists:media_processing_logs,id'],
             'segment_index' => ['required', 'integer', 'min:0', 'max:65535'],
             'start_time' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
             'end_time' => ['required', 'numeric', 'min:0', 'max:9999999.999', 'gte:start_time'],
