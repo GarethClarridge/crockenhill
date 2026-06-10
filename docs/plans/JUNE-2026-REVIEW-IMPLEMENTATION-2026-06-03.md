@@ -239,13 +239,20 @@ shapes are typed DTOs; 0 PHPStan errors; full suite green.
 
 ## Track 2 — Tooling & decision-only items
 
-### Phase D1: E2E framework strategy — mostly decided; one residual task
+### Phase D1: E2E framework strategy — ✅ Done
 
-Finding 6. **Status: Decided in practice — needs writing up.**
+Finding 6. **Status: Complete** (implemented 2026-06-10).
 
 The division of labour already exists in
 [tests/Playwright/README.md](../../tests/Playwright/README.md): *"Dusk verifies interaction,
 Playwright verifies visual output"* — option (a) from the original plan, chosen.
+
+Execution note: the stance is now a "Browser-test division of labour: Dusk vs Playwright"
+subsection under Testing Rules in `AGENTS.md`. **Trim audit result: nothing to trim.** All five
+Playwright specs were reviewed against the Dusk suite; their only non-screenshot assertions are
+navigation preconditions (finding a seeded link to capture) and the `aria-expanded` check in
+`mobile-nav.spec.ts`, which doubles as the synchronisation wait before the screenshot — removing
+it would just mean replacing it with an equivalent wait. No maintenance-costing duplication exists.
 
 - [x] Copy that stance into `AGENTS.md` (testing section) so future UI tests have one obvious home
       without reading the Playwright README.
@@ -254,9 +261,14 @@ Playwright verifies visual output"* — option (a) from the original plan, chose
 
 Exit criteria: the stance is in `AGENTS.md`; no duplicated functional coverage that hurts.
 
-### Phase D2: Livewire SFC stance — Pending (decision-only, unchanged)
+### Phase D2: Livewire SFC stance — ✅ Done
 
-Finding 13. **Priority: Low.** Verified 2026-06-10: no SFC stance exists in `AGENTS.md` yet.
+Finding 13. **Status: Complete** (implemented 2026-06-10).
+
+Execution note: the stance is now a "Livewire component format (deliberate stance)" subsection
+under Frontend Conventions in `AGENTS.md` — existing components stay class + view; SFCs only for
+new small leaf components; admin components default to class + view because of the
+`WithAdminAuthorization` requirement.
 
 - [x] Record an explicit stance in `AGENTS.md`: keep the existing class+view components as-is; adopt
       Livewire 4 single-file components only for **new small leaf components** if desired.
@@ -487,8 +499,8 @@ thumbnail pipeline, voice fingerprinting, or vector search (MySQL, no pgvector).
 4. **Phase R6** (hotspot decomposition + DTOs) — opportunistic, whenever those files are next touched.
 5. **Track 3**: P2 → P1 → P3 after approval. P4/P5 deferred with named triggers; P6 is decisions-only.
 
-R1–R3, R5, and R6 are done (R6's importer target deferred behind SIMPLIFICATION-PLAN Phase 25);
-R4 is deferred indefinitely.
+R1–R3, R5, R6, D1, and D2 are done (R6's importer target deferred behind SIMPLIFICATION-PLAN
+Phase 25); R4 is deferred indefinitely. Only Track 3 (approval-gated package adoptions) remains.
 
 ## Definition of Done
 

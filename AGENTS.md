@@ -161,6 +161,12 @@ vendor/bin/sail bin pint --dirty       # Auto-fix formatting on changed files
 - Cover happy path, failure paths, and edge cases.
 - You must not remove existing tests without approval.
 
+### Browser-test division of labour: Dusk vs Playwright
+- **Dusk verifies interaction; Playwright verifies visual output.** This is a deliberate boundary, not an accident of history.
+- New browser tests that assert *behaviour* — clicks, navigation, form flows, Livewire actions, auth journeys — belong in `tests/Browser/` (Dusk).
+- Playwright specs (`tests/Playwright/`) exist solely for pixel-level visual regression against committed baselines. Do not add functional assertions there beyond the minimal preconditions/waits a stable screenshot needs (e.g. waiting for a menu to be open before capturing it).
+- If a check could live in either suite, it goes in Dusk; Playwright only gets a spec when the thing being protected is *how the page looks*.
+
 ### Diagnosing test failures without re-running
 The parallel suite output is often truncated before the failure summary. Pipe through `tee` so the full output is on disk:
 ```bash
@@ -200,6 +206,10 @@ Never re-run the full suite just to discover which test failed.
 - Livewire components keep server-side state and validate/authorise actions.
 - Use `wire:navigate` for in-app SPA navigation; verify behaviour on link changes.
 - Use `@once` for scripts/styles included in repeated components.
+
+### Livewire component format (deliberate stance)
+- Existing components stay in the **class + Blade view** format (`app/Livewire/` + `resources/views/livewire/`). Do **not** migrate them to Livewire 4 single-file components — mass conversion is high churn for no behavioural payoff.
+- Livewire 4 single-file components are permitted only for **new, small leaf components** where the format genuinely simplifies things. Anything with non-trivial logic, or any admin component (which must `use WithAdminAuthorization` — see below), defaults to the class + view format.
 
 ### Image Processing
 - This project uses `intervention/image-laravel` (v4.x) via the `Image` facade — use `Image::read()`, not `Image::make()` (the legacy `intervention/image` v2 API).
