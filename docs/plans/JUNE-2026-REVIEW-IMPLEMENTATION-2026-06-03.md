@@ -182,10 +182,33 @@ Tasks:
 Exit criteria: the six outliers follow the convention; no avoidable logic closures remain; full
 suite + Dusk green.
 
-### Phase R6: Complexity hotspot decomposition + typed DTOs — Pending (paths refreshed)
+### Phase R6: Complexity hotspot decomposition + typed DTOs — ✅ Done (importer target deferred)
 
 Findings 2 and 3. **Priority: Medium** (high value, high effort — do opportunistically when each file
 is next touched, not as a big bang). Extends SIMPLIFICATION-PLAN Phase 14.
+
+Execution note (2026-06-10, three independent PRs):
+
+- **SermonController** (PR #784) — the inline archive SEO strings (preacher, series, service) moved
+  onto `SermonArchiveSeoPresenter`, including the service-label `match`; all four archive sub-types
+  are now presenter-sourced and the strings have presenter-level tests.
+- **Sermon model** (PR #785) — all 19 query scopes extracted to
+  [app/Models/Builders/SermonBuilder.php](../../app/Models/Builders/SermonBuilder.php) (the
+  project's first dedicated Eloquent builder, attached via `#[UseEloquentBuilder]`); the model
+  dropped 875 → 634 lines. No heavy presentation accessors remained to push to the presenter —
+  earlier phases had already moved them.
+- **SongCatalogSyncService** (PR #786) — decomposed 1,436 → 410 lines plus three collaborators in
+  `app/Services/Song/Sync/` (`OpenLpSongSourceReader`, `LegacySongReconciler`,
+  `SongAuthorBookSyncer`). The dry-run/real duplication collapsed onto one pivot-row path (preview
+  mode passes identity ID maps, preserving the historical dry-run counts exactly). **Finding 3:**
+  the 15-key metrics array became the `SongCatalogSyncReport` spatie/laravel-data object; the
+  five-table source shape became `OpenLpSongSourceData`.
+- **HistoricVideoImporter — deferred, documented reason:** its fate is tied to
+  SIMPLIFICATION-PLAN Phase 25 (legacy one-shot importers), which is awaiting the maintainer
+  decision on whether the historic imports are complete. Decomposing a file that may be deleted
+  outright is wasted effort; revisit only if Phase 25 resolves to *keep* it.
+
+Each PR ran the four quality gates (Pint, PHPStan 0 errors, full parallel suite, Dusk) green.
 
 Refreshed targets (post-R3 paths, sizes verified 2026-06-10):
 
@@ -464,7 +487,8 @@ thumbnail pipeline, voice fingerprinting, or vector search (MySQL, no pgvector).
 4. **Phase R6** (hotspot decomposition + DTOs) — opportunistic, whenever those files are next touched.
 5. **Track 3**: P2 → P1 → P3 after approval. P4/P5 deferred with named triggers; P6 is decisions-only.
 
-R1–R3 are done; R4 is deferred indefinitely.
+R1–R3, R5, and R6 are done (R6's importer target deferred behind SIMPLIFICATION-PLAN Phase 25);
+R4 is deferred indefinitely.
 
 ## Definition of Done
 
