@@ -182,8 +182,8 @@ class SermonController extends Controller
             'sermons' => $sermons,
             'presentedSermons' => $presented,
             'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
-            'heading' => 'Sermons by '.$preacher->name,
-            'description' => 'Browse all sermons preached by '.$preacher->name.' at Crockenhill Baptist Church.',
+            'heading' => $this->seoPresenter->preacherTitle($preacher),
+            'description' => $this->seoPresenter->preacherDescription($preacher),
             'area' => 'christ',
             'links' => $this->sermonLinks('preachers'),
             'slug' => 'preachers',
@@ -230,8 +230,8 @@ class SermonController extends Controller
             'sermons' => $sermons,
             'presentedSermons' => $presented,
             'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
-            'heading' => 'Sermon Series: '.$series_name,
-            'description' => 'Browse all sermons in the "'.$series_name.'" series from Crockenhill Baptist Church.',
+            'heading' => $this->seoPresenter->seriesTitle($series_name),
+            'description' => $this->seoPresenter->seriesDescription($series_name),
             'area' => 'christ',
             'links' => $this->sermonLinks('series'),
             'slug' => 'series',
@@ -249,19 +249,13 @@ class SermonController extends Controller
         $sermons = $this->sermonRepository->getSermonsByService($serviceEnum);
         $presented = $this->sermonViewPresenter->presentCollection($sermons);
 
-        $serviceLabel = match ($serviceEnum) {
-            SermonService::Morning => 'Sunday Morning',
-            SermonService::Evening => 'Sunday Evening',
-            SermonService::Other => Str::title($service),
-        };
-
         return view('sermons.service', [
             'sermons' => $sermons,
             'presentedSermons' => $presented,
             'service' => $service,
             'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
-            'heading' => $serviceLabel.' Services',
-            'description' => "Listen to recent {$serviceLabel} sermons from Crockenhill Baptist Church.",
+            'heading' => $this->seoPresenter->serviceTitle($serviceEnum, $service),
+            'description' => $this->seoPresenter->serviceDescription($serviceEnum, $service),
             'area' => 'christ',
             'links' => $this->sermonLinks($service),
             'slug' => $service,

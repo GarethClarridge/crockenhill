@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Presenters;
 
+use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Services\Public\PreacherListCache;
@@ -253,5 +254,48 @@ class SermonArchiveSeoPresenterTest extends TestCase
 
         // Inactive preacher won't be in forPublicList(), so it falls back to DB find()
         $this->assertStringContainsString('Inactive Preacher', $this->presenter->title($filters));
+    }
+
+    #[Test]
+    public function preacher_archive_title_and_description_use_preacher_name(): void
+    {
+        $preacher = Preacher::factory()->make(['name' => 'John Smith']);
+
+        $this->assertSame('Sermons by John Smith', $this->presenter->preacherTitle($preacher));
+        $this->assertSame(
+            'Browse all sermons preached by John Smith at Crockenhill Baptist Church.',
+            $this->presenter->preacherDescription($preacher)
+        );
+    }
+
+    #[Test]
+    public function series_archive_title_and_description_use_series_name(): void
+    {
+        $this->assertSame("Sermon Series: The Lord's Prayer", $this->presenter->seriesTitle("The Lord's Prayer"));
+        $this->assertSame(
+            'Browse all sermons in the "The Lord\'s Prayer" series from Crockenhill Baptist Church.',
+            $this->presenter->seriesDescription("The Lord's Prayer")
+        );
+    }
+
+    #[Test]
+    public function service_archive_title_and_description_use_sunday_labels(): void
+    {
+        $this->assertSame('Sunday Morning Services', $this->presenter->serviceTitle(SermonService::Morning, 'morning'));
+        $this->assertSame('Sunday Evening Services', $this->presenter->serviceTitle(SermonService::Evening, 'evening'));
+        $this->assertSame(
+            'Listen to recent Sunday Morning sermons from Crockenhill Baptist Church.',
+            $this->presenter->serviceDescription(SermonService::Morning, 'morning')
+        );
+    }
+
+    #[Test]
+    public function other_service_archive_label_titlecases_the_route_slug(): void
+    {
+        $this->assertSame('Other Services', $this->presenter->serviceTitle(SermonService::Other, 'other'));
+        $this->assertSame(
+            'Listen to recent Other sermons from Crockenhill Baptist Church.',
+            $this->presenter->serviceDescription(SermonService::Other, 'other')
+        );
     }
 }
