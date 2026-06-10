@@ -28,6 +28,8 @@ class AdminLivewireAuthorizationTest extends TestCase
 
     protected User $unverifiedAdmin;
 
+    protected User $verifiedAdmin;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -45,6 +47,11 @@ class AdminLivewireAuthorizationTest extends TestCase
         $this->unverifiedAdmin = User::factory()->create([
             'is_admin' => true,
             'email_verified_at' => null,
+        ]);
+
+        $this->verifiedAdmin = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => now(),
         ]);
     }
 
@@ -126,6 +133,27 @@ class AdminLivewireAuthorizationTest extends TestCase
         foreach ($this->adminLivewireRouteScenarios() as [$routeName, $parameters]) {
             $this->get(route($routeName, $parameters))
                 ->assertRedirect(route('verification.notice'));
+        }
+    }
+
+    #[Test]
+    public function verified_admin_users_can_render_routed_admin_livewire_components(): void
+    {
+        $this->actingAs($this->verifiedAdmin);
+
+        foreach ($this->adminLivewireRouteScenarios() as [$routeName, $parameters]) {
+            $response = $this->get(route($routeName, $parameters));
+
+            $this->assertSame(
+                200,
+                $response->getStatusCode(),
+                sprintf(
+                    '[%s] expected to render for a verified admin but returned %d: %s',
+                    $routeName,
+                    $response->getStatusCode(),
+                    $response->exception?->getMessage() ?? 'no exception',
+                ),
+            );
         }
     }
 
