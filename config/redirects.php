@@ -25,6 +25,7 @@ return [
 
     'aboutus' => '/church',
     'contactus' => '/',
+    'contacttus' => '/',
     'links' => '/church/links',
     'whatson' => '/community',
     'whats-on' => '/community',
