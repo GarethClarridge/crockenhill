@@ -14,8 +14,8 @@
             'logo' => [
                 '@type' => 'ImageObject',
                 'url' => asset('images/Primary.png'),
-                'width' => '512',
-                'height' => '512',
+                'width' => 512,
+                'height' => 512,
             ],
         ],
     ];

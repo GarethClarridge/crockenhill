@@ -42,7 +42,7 @@ class SongItemListPresenterTest extends TestCase
         // Check for publisher logo metadata
         $this->assertArrayHasKey('publisher', $item);
         $this->assertArrayHasKey('logo', $item['publisher']);
-        $this->assertEquals('512', $item['publisher']['logo']['width']);
-        $this->assertEquals('512', $item['publisher']['logo']['height']);
+        $this->assertEquals(512, $item['publisher']['logo']['width']);
+        $this->assertEquals(512, $item['publisher']['logo']['height']);
     }
 }
