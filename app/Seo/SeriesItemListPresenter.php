@@ -20,12 +20,13 @@ class SeriesItemListPresenter
         $appUrl = (string) config('app.url');
         $orgId = $appUrl.'/#organization';
         $orgName = (string) config('organization.name');
+        $logoUrl = asset('images/Primary.png');
 
         return [
             '@context' => 'https://schema.org',
             '@type' => 'ItemList',
             'numberOfItems' => $series->count(),
-            'itemListElement' => $series->map(function ($seriesName, $index) use ($orgId, $orgName) {
+            'itemListElement' => $series->map(function ($seriesName, $index) use ($orgId, $orgName, $logoUrl) {
                 $seriesUrl = route('sermons.series.show', ['series' => Str::slug($seriesName)]);
 
                 return [
@@ -41,6 +42,12 @@ class SeriesItemListPresenter
                             '@type' => 'Organization',
                             'name' => $orgName,
                             '@id' => $orgId,
+                            'logo' => [
+                                '@type' => 'ImageObject',
+                                'url' => $logoUrl,
+                                'width' => 444,
+                                'height' => 481,
+                            ],
                         ],
                     ],
                 ];

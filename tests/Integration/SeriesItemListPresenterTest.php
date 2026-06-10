@@ -4,40 +4,31 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
-use App\Models\Song;
-use App\Models\SongAuthor;
-use App\Seo\SongItemListPresenter;
+use App\Seo\SeriesItemListPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class SongItemListPresenterTest extends TestCase
+class SeriesItemListPresenterTest extends TestCase
 {
     use RefreshDatabase;
 
     #[Test]
-    public function it_generates_item_list_json_ld_for_songs_with_id(): void
+    public function it_generates_item_list_json_ld_for_series_with_rich_metadata(): void
     {
-        $song = Song::factory()->create([
-            'title' => 'Test Song',
-            'slug' => 'test-song',
-        ]);
+        $series = collect(['Test Series']);
 
-        $author = SongAuthor::factory()->create(['display_name' => 'Test Author']);
-        $song->authors()->attach($author);
-
-        $presenter = app(SongItemListPresenter::class);
-        $result = $presenter->toItemList(collect([$song]));
+        $presenter = app(SeriesItemListPresenter::class);
+        $result = $presenter->toItemList($series);
 
         $this->assertEquals('https://schema.org', $result['@context']);
         $this->assertEquals('ItemList', $result['@type']);
         $this->assertEquals(1, $result['numberOfItems']);
 
         $item = $result['itemListElement'][0]['item'];
-        $this->assertEquals('MusicComposition', $item['@type']);
-        $this->assertStringEndsWith('/church/songs/test-song#song', $item['@id']);
-        $this->assertEquals('Test Song', $item['name']);
-        $this->assertEquals('Test Author', $item['author'][0]['name']);
+        $this->assertEquals('CreativeWorkSeries', $item['@type']);
+        $this->assertStringEndsWith('/christ/sermons/series/test-series#series', $item['@id']);
+        $this->assertEquals('Test Series', $item['name']);
 
         $logoSize = getimagesize(public_path('images/Primary.png'));
         if ($logoSize === false) {

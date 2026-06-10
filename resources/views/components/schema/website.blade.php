@@ -11,6 +11,12 @@
             '@type' => 'Organization',
             'name' => config('organization.name'),
             '@id' => config('app.url').'/#organization',
+            'logo' => [
+                '@type' => 'ImageObject',
+                'url' => asset('images/Primary.png'),
+                'width' => 444,
+                'height' => 481,
+            ],
         ],
     ];
 @endphp
