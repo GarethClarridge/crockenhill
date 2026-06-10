@@ -180,6 +180,8 @@ class SermonRepositoryCacheInvalidationTest extends TestCase
         $this->assertCount(1, $this->repository->getSermonsByPreacher($newPreacher));
         $this->assertEquals('Target Sermon', $this->repository->getSermonsBySeries('Old Series')->first()->title);
         $this->assertEquals('Other Sermon', $this->repository->getSermonsBySeries('New Series')->where('id', '!=', $sermonToUpdate->id)->first()->title);
+        $this->assertEquals('Target Sermon', $this->repository->getSermonsByService(SermonService::Morning)->first()->title);
+        $this->assertEquals('Other Sermon', $this->repository->getSermonsByService(SermonService::Evening)->first()->title);
 
         $this->repository->clearListingCaches($sermon);
         $this->repository->clearInternalCaches();
@@ -189,6 +191,8 @@ class SermonRepositoryCacheInvalidationTest extends TestCase
         $this->assertEquals('Cleared Target', $this->repository->getSermonsByPreacher($newPreacher)->where('id', $sermonToUpdate->id)->first()->title);
         $this->assertEmpty($this->repository->getSermonsBySeries('Old Series'));
         $this->assertEquals('Cleared Target', $this->repository->getSermonsBySeries('New Series')->where('id', $sermonToUpdate->id)->first()->title);
+        $this->assertEmpty($this->repository->getSermonsByService(SermonService::Morning));
+        $this->assertEquals('Cleared Target', $this->repository->getSermonsByService(SermonService::Evening)->where('id', $sermonToUpdate->id)->first()->title);
     }
 
     #[Test]
@@ -259,6 +263,10 @@ class SermonRepositoryCacheInvalidationTest extends TestCase
 
         // Verify stale
         $this->assertContains('John', $this->repository->getScriptureBooks($preacher->id, null));
+        $this->assertContains('John', $this->repository->getScriptureBooks(null, $series));
+        $this->assertContains('John', $this->repository->getScriptureBooks($preacher->id, $series));
+        $this->assertContains(3, $this->repository->getScriptureChapters('John', $preacher->id, null));
+        $this->assertContains(3, $this->repository->getScriptureChapters('John', null, $series));
         $this->assertContains(3, $this->repository->getScriptureChapters('John', $preacher->id, $series));
 
         $this->repository->clearListingCaches($sermon);
@@ -268,6 +276,8 @@ class SermonRepositoryCacheInvalidationTest extends TestCase
         $this->assertEmpty($this->repository->getScriptureBooks($preacher->id, null));
         $this->assertEmpty($this->repository->getScriptureBooks(null, $series));
         $this->assertEmpty($this->repository->getScriptureBooks($preacher->id, $series));
+        $this->assertEmpty($this->repository->getScriptureChapters('John', $preacher->id, null));
+        $this->assertEmpty($this->repository->getScriptureChapters('John', null, $series));
         $this->assertEmpty($this->repository->getScriptureChapters('John', $preacher->id, $series));
     }
 }
