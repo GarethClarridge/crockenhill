@@ -21,7 +21,7 @@ class ImportHistoricVideoBatchCommand extends Command
                             {--no-concat : Disable multi-segment concatenation; process each segment separately}
                             {--reencode-mismatched : Re-encode segments with mismatched codecs before concatenation}
                             {--allow-local-storage : Allow running with SERMON_STORAGE_DISK=local}
-                            {--temp-disk-min-free-gb=20 : Minimum free space on the pipeline temp disk before dispatch}
+                            {--temp-disk-min-free-gb= : Minimum free space (GB) on the pipeline temp disk before dispatch (default: media-processing.storage.temp_disk_min_free_gb)}
                             {--parallel=1 : Max concurrent in-flight dispatches}
                             {--poll-interval=30 : Seconds between status polls when serial-dispatching}
                             {--per-file-timeout=7200 : Max seconds to wait for a single file\'s pipeline to finish}
@@ -56,7 +56,8 @@ class ImportHistoricVideoBatchCommand extends Command
         $reEncodeMismatched = (bool) $this->option('reencode-mismatched');
         $delay = max(0, (int) $this->option('delay'));
         $minSizeMb = max(1, (int) $this->option('min-size-mb'));
-        $tempDiskMinFreeGb = max(1, (int) $this->option('temp-disk-min-free-gb'));
+        $tempDiskMinFreeGbOption = $this->option('temp-disk-min-free-gb');
+        $tempDiskMinFreeGb = max(1, (int) ($tempDiskMinFreeGbOption ?? config('media-processing.storage.temp_disk_min_free_gb', 20)));
         $parallel = max(1, (int) $this->option('parallel'));
         $pollInterval = max(5, (int) $this->option('poll-interval'));
         $perFileTimeout = max(60, (int) $this->option('per-file-timeout'));

@@ -10,6 +10,7 @@ use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\Media\TempDiskSpace;
 use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -943,7 +944,7 @@ class HistoricVideoImporter
 
     private function tempDiskPath(): string
     {
-        return storage_path('app');
+        return TempDiskSpace::path();
     }
 
     /**

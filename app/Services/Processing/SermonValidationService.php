@@ -9,6 +9,7 @@ use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\Media\TempDiskSpace;
 use App\Services\Public\SermonRepository;
 use App\Traits\SanitizesLogData;
 use Illuminate\Http\UploadedFile;
@@ -181,19 +182,21 @@ class SermonValidationService
     {
         $errors = [];
 
-        // Check available disk space
-        $disk = config('media-processing.storage.sermon_disk', 'public');
+        // Check available space on the LOCAL temp disk — that is the disk uploads and
+        // intermediate processing artefacts actually consume. The sermon disk is the
+        // Spaces (S3) disk in production with no `root`, so the old check there silently
+        // passed (disk_free_space(null)). TempDiskSpace reads the same threshold the
+        // historic importer guard uses, so the two never disagree.
         $requiredSpace = $file->getSize() * 2; // File + processing overhead
 
         try {
-            $diskPath = config("filesystems.disks.{$disk}.root");
-            if ($diskPath && disk_free_space($diskPath) < $requiredSpace) {
+            if (! TempDiskSpace::hasSpaceFor($requiredSpace)) {
                 $errors[] = 'Insufficient disk space for processing';
             }
         } catch (\Exception $e) {
             // If we can't check disk space, log but don't fail
             Log::warning('Could not check disk space', [
-                'disk' => $this->sanitizeForLog($disk),
+                'disk' => $this->sanitizeForLog(config('media-processing.storage.temp_disk', 'local')),
                 'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
         }

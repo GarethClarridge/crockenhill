@@ -361,11 +361,30 @@ class SermonValidationServiceTest extends TestCase
     #[Test]
     public function it_passes_storage_constraints_with_enough_space(): void
     {
+        // Floor of 0 isolates the "enough space" path from the host's actual free
+        // space, so the assertion stays deterministic on small CI runner disks.
+        config(['media-processing.storage.temp_disk_min_free_gb' => 0]);
+
         $file = UploadedFile::fake()->create('sermon.mp3', 1000);
 
         $errors = $this->service->validateStorageConstraints($file);
 
         $this->assertEmpty($errors);
+    }
+
+    #[Test]
+    public function it_rejects_an_upload_when_the_temp_disk_is_full(): void
+    {
+        // A free-space floor larger than any real disk forces the check to fail. The
+        // old code read the sermon (Spaces) disk's missing `root`, so disk_free_space(null)
+        // made this a silent no-op in production — a full temp disk was never caught.
+        config(['media-processing.storage.temp_disk_min_free_gb' => 10_000_000]); // 10 PB
+
+        $file = UploadedFile::fake()->create('sermon.mp3', 1000);
+
+        $errors = $this->service->validateStorageConstraints($file);
+
+        $this->assertContains('Insufficient disk space for processing', $errors);
     }
 
     #[Test]
