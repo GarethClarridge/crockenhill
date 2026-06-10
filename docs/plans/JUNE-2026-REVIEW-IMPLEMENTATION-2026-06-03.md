@@ -298,9 +298,20 @@ and do not wait for any approval):
 
 ### Phase P1 — `laravel/horizon` (queue observability) · ✅ Adopt
 
-**Status: Pending approval.** Reversible (Horizon stores metrics in Redis only — no schema).
+**Status: Implemented 2026-06-10** (Horizon 5.47); the staging smoke test below is still
+outstanding. Reversible (Horizon stores metrics in Redis only — no schema).
 **Precondition: Phase 0.1 (`retry_after`) must land first** — Horizon refuses to boot when
 `retry_after` ≤ `timeout`, so doing 0.1 independently keeps the deploy of this phase boring.
+
+> **Execution note (2026-06-10):** the supervisor uses `balance => false` with
+> `minProcesses = maxProcesses`, **not** `balance => 'simple'` as originally sketched. Current
+> Horizon docs/source confirm `simple` splits the fixed process count evenly across queues
+> (one pool per queue — `floor(2/6) = 0` workers each), while `false` passes the full queue
+> list to every worker in strict priority order, exactly like the old
+> `queue:work --queue=a,b,…`. Pinning min = max disables autoscaling. Also added
+> `horizon:snapshot` every five minutes (production-only) so the metrics graphs populate, and
+> re-pointed the `QueueWorkerCoverageTest` / `QueueRetryAfterInvariantTest` guards at
+> `config/horizon.php` instead of parsing `queue:work` flags out of `supervisord.conf`.
 
 The production worker is the `[program:queue-worker]` block in
 [docker/production/supervisord.conf](../../docker/production/supervisord.conf):
@@ -312,7 +323,8 @@ Tasks:
 - [x] **Approval gate.**
 - [x] `composer require laravel/horizon`; `php artisan horizon:install`; commit `config/horizon.php`.
 - [x] Define **one supervisor** mirroring the current worker exactly (connection `redis`, the six
-      queues in priority order, `balance => 'simple'`, `processes => 2`, `tries => 3`,
+      queues in priority order, `balance => false` + `minProcesses = maxProcesses = 2` — see
+      execution note above, `tries => 3`,
       `timeout => 7200`, `memory => 512`, `sleep => 3`, `maxTime => 86400`, `maxJobs => 500`) so
       runtime behaviour does not change. Local dev currently splits video/livestream onto a second
       worker in `docker-compose.yml`; mirror that with a second supervisor later if wanted — start
@@ -329,7 +341,7 @@ Tasks:
 Tests / verification:
 
 - [x] Feature test: `/horizon` is 403 for guest/non-admin, 200 for admin.
-- [x] Staging smoke test: one media-processing job end to end — appears in the dashboard, completes
+- [ ] Staging smoke test: one media-processing job end to end — appears in the dashboard, completes
       **once**, and a deliberately-failed job lands in Failed Jobs and is retryable from the UI.
 
 Rollback: revert the supervisord block to `queue:work`, remove the package. No data/schema changes.

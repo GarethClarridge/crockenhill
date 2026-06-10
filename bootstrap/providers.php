@@ -4,6 +4,7 @@ use App\Providers\AiServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\AuthServiceProvider;
 use App\Providers\ChurchServiceDomainServiceProvider;
+use App\Providers\HorizonServiceProvider;
 use App\Providers\MediaProcessingServiceProvider;
 use App\Providers\ModelObserverServiceProvider;
 use App\Providers\RateLimitServiceProvider;
@@ -20,4 +21,5 @@ return [
     ModelObserverServiceProvider::class,
     RateLimitServiceProvider::class,
     MediaProcessingServiceProvider::class,
+    HorizonServiceProvider::class,
 ];

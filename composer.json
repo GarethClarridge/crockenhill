@@ -16,6 +16,7 @@
         "blade-ui-kit/blade-heroicons": "^2.6",
         "intervention/image-laravel": "^4.0",
         "laravel/framework": "^13.0",
+        "laravel/horizon": "^5.47",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "league/commonmark": "^2.2",

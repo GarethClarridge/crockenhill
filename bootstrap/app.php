@@ -42,6 +42,9 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyFiveMinutes()
             ->withoutOverlapping()
             ->environments(['production']);
+        $schedule->command('horizon:snapshot')
+            ->everyFiveMinutes()
+            ->environments(['production']);
         $schedule->command('backup:clean')
             ->dailyAt('01:00')
             ->withoutOverlapping(60)
