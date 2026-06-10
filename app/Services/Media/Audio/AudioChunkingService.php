@@ -27,14 +27,7 @@ class AudioChunkingService
     ) {}
 
     /**
-     * Determine if an audio file needs chunking based on duration.
-     *
-     * Chunking is required for files exceeding the Whisper API's 25MB limit.
-     * While this check is duration-based, it targets files that would likely
-     * exceed the size limit even after standard compression.
-     *
-     * @param  float  $duration  Audio duration in seconds
-     * @return bool True if the file should be chunked
+     * Determine if an audio file needs chunking based on duration
      */
     public function needsChunking(float $duration): bool
     {
@@ -42,12 +35,9 @@ class AudioChunkingService
     }
 
     /**
-     * Get audio duration in seconds using FFprobe.
+     * Get audio duration in seconds using FFprobe
      *
-     * @param  string  $filePath  Full path to the audio file
-     * @return float Duration in seconds
-     *
-     * @throws TranscriptionException When duration cannot be determined or FFprobe fails
+     * @throws TranscriptionException When duration cannot be determined
      */
     public function getAudioDuration(string $filePath): float
     {
@@ -74,18 +64,14 @@ class AudioChunkingService
     }
 
     /**
-     * Create audio chunks from the original file.
-     *
-     * Splits a long audio file into smaller segments of approximately 6 minutes,
-     * with a 15-second overlap to ensure no content is lost at the boundaries.
-     * Chunks are saved as low-bitrate mono MP3s to minimize transcription costs.
+     * Create audio chunks from the original file
      *
      * @param  string  $filePath  Full path to the original audio file
      * @param  string  $processingId  Processing ID for logging
      * @param  float  $duration  Total duration in seconds
-     * @return list<string> Array of absolute paths to the created chunk files
+     * @return array<int, string> Array of chunk file paths
      *
-     * @throws TranscriptionException When FFmpeg fails to create a chunk or directory
+     * @throws TranscriptionException When chunk creation fails
      */
     public function createAudioChunks(string $filePath, string $processingId, float $duration): array
     {
@@ -159,15 +145,11 @@ class AudioChunkingService
     }
 
     /**
-     * Reassemble individual chunk transcripts into a single coherent text.
+     * Reassemble transcripts from chunks with overlap deduplication
      *
-     * Orders chunks by their original index and removes overlapping content
-     * at the boundaries using fuzzy sentence matching to handle transcription
-     * variations between chunks.
-     *
-     * @param  list<array{index: int, transcript: string, start_time: float}>  $transcripts  Ordered transcript segments
+     * @param  array<int, array<string, mixed>>  $transcripts  Array of transcript data with indices and content
      * @param  string  $processingId  Processing ID for logging
-     * @return string The complete reassembled and deduplicated transcript
+     * @return string The reassembled transcript
      */
     public function reassembleTranscripts(array $transcripts, string $processingId): string
     {
@@ -207,15 +189,7 @@ class AudioChunkingService
     }
 
     /**
-     * Remove overlapping content from the start of a transcript segment.
-     *
-     * Compares the end of the previous segment with the start of the current
-     * segment. If matching sentences are found (up to 3), they are stripped
-     * from the current segment to prevent repetition in the final output.
-     *
-     * @param  string  $currentTranscript  The new transcript segment to be appended
-     * @param  string  $previousTranscript  The transcript segment immediately preceding it
-     * @return string The current transcript with leading overlap removed
+     * Remove overlapping content from the beginning of a transcript
      */
     public function removeOverlapFromTranscript(string $currentTranscript, string $previousTranscript): string
     {
@@ -252,15 +226,10 @@ class AudioChunkingService
     }
 
     /**
-     * Check if two sequences of sentences match with a defined similarity tolerance.
+     * Check if two arrays of sentences match with some tolerance
      *
-     * Uses a similarity threshold of 85% to account for slight variations in
-     * Whisper's output across chunk boundaries (e.g., minor punctuation or
-     * word confidence differences).
-     *
-     * @param  list<string>  $sentences1  First sequence of sentences (typically the end of a chunk)
-     * @param  list<string>  $sentences2  Second sequence of sentences (typically the start of the next chunk)
-     * @return bool True if the sequences are considered equivalent
+     * @param  array<int, string>  $sentences1
+     * @param  array<int, string>  $sentences2
      */
     public function sentencesMatch(array $sentences1, array $sentences2): bool
     {
@@ -286,13 +255,7 @@ class AudioChunkingService
     }
 
     /**
-     * Normalize a sentence to its canonical form for fuzzy comparison.
-     *
-     * Converts to lowercase, strips all non-alphanumeric characters, and
-     * collapses multiple spaces into one.
-     *
-     * @param  string  $sentence  The raw sentence text
-     * @return string The normalized alphanumeric string
+     * Normalize sentence for comparison by removing punctuation and extra spaces
      */
     public function normalizeSentenceForComparison(string $sentence): string
     {
@@ -303,10 +266,9 @@ class AudioChunkingService
     }
 
     /**
-     * Clean up temporary chunk files from the filesystem.
+     * Clean up temporary chunk files
      *
-     * @param  list<string>  $chunkPaths  Array of absolute paths to delete
-     * @param  string  $processingId  Processing ID for logging
+     * @param  array<int, string>  $chunkPaths
      */
     public function cleanupChunkFiles(array $chunkPaths, string $processingId): void
     {
@@ -325,17 +287,9 @@ class AudioChunkingService
     }
 
     /**
-     * Compress an audio file to satisfy Whisper API's size constraints.
+     * Compress audio file for transcription service
      *
-     * Produces a mono MP3 at the configured bitrate (default 32kbps) which
-     * significantly reduces file size while maintaining enough quality for
-     * speech-to-text accuracy.
-     *
-     * @param  string  $inputPath  Absolute path to the source audio file
-     * @param  string  $processingId  Processing ID for logging
-     * @return string Absolute path to the compressed file
-     *
-     * @throws TranscriptionException When FFmpeg fails or produced file is empty
+     * @throws TranscriptionException When compression fails
      */
     public function compressAudioForTranscription(string $inputPath, string $processingId): string
     {
@@ -396,9 +350,7 @@ class AudioChunkingService
     }
 
     /**
-     * Get the configured chunk duration in minutes.
-     *
-     * Used by transcription services to calculate expected segment offsets.
+     * Get the chunk duration in minutes
      */
     public function getChunkDurationMinutes(): int
     {
@@ -406,9 +358,7 @@ class AudioChunkingService
     }
 
     /**
-     * Get the configured chunk overlap in seconds.
-     *
-     * Used to ensure overlapping regions are correctly handled during reassembly.
+     * Get the chunk overlap in seconds
      */
     public function getChunkOverlapSeconds(): int
     {

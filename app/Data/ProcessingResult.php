@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-readonly class ProcessingResult
+class ProcessingResult
 {
     /**
      * @param  array<string, mixed>|null  $details
      */
     public function __construct(
-        public bool $success,
-        public string $processingId,
-        public string $message,
-        public ?string $statusUrl = null,
-        public ?string $errorCode = null,
-        public ?array $details = null
+        public readonly bool $success,
+        public readonly string $processingId,
+        public readonly string $message,
+        public readonly ?string $statusUrl = null,
+        public readonly ?string $errorCode = null,
+        public readonly ?array $details = null
     ) {}
 
     /**

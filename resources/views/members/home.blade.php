@@ -14,7 +14,7 @@
         {{-- Welcome Header --}}
         <div class="bg-cbc-teal/10 border border-cbc-teal/25 rounded-lg p-4">
           <div class="flex items-center gap-3">
-            <x-heroicon-s-user-circle class="h-7 w-7 text-cbc-teal flex-shrink-0" aria-hidden="true" />
+            <x-heroicon-s-user-circle class="h-7 w-7 text-cbc-teal flex-shrink-0" />
             <div>
               <h2 class="font-display text-xl text-cbc-teal">
                 Welcome back, {{ auth()->user()->name }}
@@ -29,7 +29,7 @@
         <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
             <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
-              <x-heroicon-o-microphone class="h-5 w-5 text-gray-500" aria-hidden="true" />
+              <x-heroicon-o-microphone class="h-5 w-5 text-gray-500" />
               Services, sermons and songs
             </h3>
           </div>
@@ -80,7 +80,7 @@
         <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
             <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
-              <x-heroicon-o-calendar-days class="h-5 w-5 text-gray-500" aria-hidden="true" />
+              <x-heroicon-o-calendar-days class="h-5 w-5 text-gray-500" />
               Meetings and events
             </h3>
           </div>
@@ -112,7 +112,7 @@
         <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
             <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
-              <x-heroicon-o-document-text class="h-5 w-5 text-gray-500" aria-hidden="true" />
+              <x-heroicon-o-document-text class="h-5 w-5 text-gray-500" />
               Content
             </h3>
           </div>

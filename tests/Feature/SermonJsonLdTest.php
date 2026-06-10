@@ -58,14 +58,6 @@ class SermonJsonLdTest extends TestCase
         $this->assertStringContainsString('"mainEntityOfPage":', $content);
         $this->assertStringContainsString('"@type": "WebPage"', $content);
 
-        $logoSize = getimagesize(public_path('images/Primary.png'));
-        if ($logoSize === false) {
-            $this->fail('Primary logo image dimensions could not be read.');
-        }
-
-        $this->assertStringContainsString('"width": '.$logoSize[0], $content);
-        $this->assertStringContainsString('"height": '.$logoSize[1], $content);
-
         // VideoObject + AudioObject blocks render when the presenter exposes media URLs.
         $this->assertStringContainsString('"@type": "VideoObject"', $content);
         $this->assertStringContainsString('"@type": "AudioObject"', $content);

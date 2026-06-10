@@ -107,7 +107,7 @@ Church
     <x-button link="/community" wire:navigate>
       <div class="flex items-center justify-center">
         See our other activities
-        <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" aria-hidden="true" />
+        <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
       </div>
     </x-button>
   </div>
@@ -194,7 +194,7 @@ Church
     <x-button link="/christ" wire:navigate>
       <div class="flex items-center justify-center">
         Find out more about the good news of Jesus Christ
-        <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" aria-hidden="true" />
+        <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
       </div>
     </x-button>
   </x-text>

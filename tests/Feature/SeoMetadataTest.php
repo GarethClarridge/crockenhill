@@ -45,14 +45,6 @@ class SeoMetadataTest extends TestCase
         $response->assertSee('"@type": "WebPage"', false);
         $response->assertSee('"name": "Crockenhill Baptist Church"', false);
 
-        $logoSize = getimagesize(public_path('images/Primary.png'));
-        if ($logoSize === false) {
-            $this->fail('Primary logo image dimensions could not be read.');
-        }
-
-        $response->assertSee('"width": '.$logoSize[0], false);
-        $response->assertSee('"height": '.$logoSize[1], false);
-
         $response = $this->get('/christ');
         $response->assertStatus(200);
         $response->assertSee('"@type": "WebPage"', false);

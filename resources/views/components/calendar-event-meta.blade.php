@@ -60,7 +60,7 @@ $meetingLabel = $event->meeting_slug ?? 'Uncategorised';
         @else
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $isUncategorized ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' }}">
                 @if($isUncategorized)
-                    <x-heroicon-s-question-mark-circle class="h-3 w-3 mr-1" aria-hidden="true" />
+                    <x-heroicon-s-question-mark-circle class="h-3 w-3 mr-1" />
                 @endif
                 {{ $meetingLabel }}
             </span>

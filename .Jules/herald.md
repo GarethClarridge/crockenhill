@@ -13,7 +13,3 @@
 ## 2026-06-05 - Enhancing Type Safety and Business Context
 **Learning:** Added precise array shapes to `SermonAnalysis` DTO and its interface, and documented a magic number in `SermonCandidateConfidenceService`. Explicit array shapes are particularly useful for DTOs that interact with AI services or database attributes, as they clarify the expected keys and types which might otherwise be opaque. Documenting magic numbers like the 20-minute sermon threshold provides essential business context for why specific values were chosen.
 **Action:** Continue to prioritize array shape documentation for DTOs and services that return or consume complex associative arrays. Always look for magic numbers in business logic and provide a "why" comment explaining their calibration or rationale.
-
-## 2026-06-08 - Documenting Fuzzy Reassembly Logic
-**Learning:** Documentation for reassembly and deduplication logic (like in `AudioChunkingService`) must explicitly bridge the gap between technical implementation (85% similarity threshold) and domain impact (Whisper transcription variations across chunk boundaries). Precise `list<array{...}>` shapes for multi-segment data are essential for ensuring callers provide the necessary metadata (indices, timestamps) for correct ordering and overlap handling.
-**Action:** When documenting fuzzy matching or deduplication, always explain the calibration rationale for similarity thresholds to prevent arbitrary adjustments that might break edge-case handling.

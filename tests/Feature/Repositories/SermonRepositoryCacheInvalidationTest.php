@@ -7,9 +7,9 @@ namespace Tests\Feature\Repositories;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Models\SermonScriptureFilter;
 use App\Services\Public\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -23,176 +23,102 @@ class SermonRepositoryCacheInvalidationTest extends TestCase
     {
         parent::setUp();
         $this->repository = app(SermonRepository::class);
-        $this->repository->clearInternalCaches();
     }
 
     #[Test]
     public function it_clears_global_listing_caches(): void
     {
-        Sermon::query()->delete();
-        Sermon::factory()->create([
-            'title' => 'Original Title',
-            'series' => 'Original Series',
-        ]);
-
-        // Warm global caches
-        $this->repository->getLatestSermons();
-        $this->repository->getAllSermons();
-        $this->repository->getSeriesForDisplay();
-        $this->repository->getRecentSermonsForJsonLd(100);
-
-        // Update DB directly to bypass observers
-        $updatedTitle = 'Updated Title';
-        $updatedSeries = 'Updated Series';
-        Sermon::query()->update([
-            'title' => $updatedTitle,
-            'series' => $updatedSeries,
-        ]);
-        $this->repository->clearInternalCaches();
-
-        // Verify stale data is returned from cache
-        $this->assertEquals('Original Title', $this->repository->getLatestSermons()->flatten()->first()->title);
-        $this->assertEquals('Original Title', $this->repository->getAllSermons()->flatten()->first()->title);
-        $this->assertContains('Original Series', $this->repository->getSeriesForDisplay());
-        $this->assertEquals('Original Title', $this->repository->getRecentSermonsForJsonLd(100)->first()->title);
+        Cache::spy();
 
         $this->repository->clearListingCaches();
-        $this->repository->clearInternalCaches();
 
-        // Verify fresh data is returned after cache clear
-        $this->assertEquals($updatedTitle, $this->repository->getLatestSermons()->flatten()->first()->title);
-        $this->assertEquals($updatedTitle, $this->repository->getAllSermons()->flatten()->first()->title);
-        $this->assertContains($updatedSeries, $this->repository->getSeriesForDisplay());
-        $this->assertEquals($updatedTitle, $this->repository->getRecentSermonsForJsonLd(100)->first()->title);
-        $this->assertNotContains('Original Series', $this->repository->getSeriesForDisplay());
+        $keys = [
+            'latest_sermons',
+            'all_sermons',
+            'sermon_series',
+            'sermon_scripture_books_all_all',
+            'sermons_jsonld_recent_100',
+        ];
+
+        foreach ($keys as $key) {
+            Cache::shouldHaveReceived('forget')->with($key)->atLeast()->once();
+            Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:{$key}")->atLeast()->once();
+        }
     }
 
     #[Test]
     public function it_clears_model_specific_caches_for_a_sermon(): void
     {
-        Sermon::query()->delete();
         $preacher = Preacher::factory()->create(['slug' => 'john-doe']);
         $sermon = Sermon::factory()->create([
-            'title' => 'Original Title',
             'preacher_id' => $preacher->id,
             'series' => 'My Great Series',
             'service' => SermonService::Morning,
         ]);
 
-        // Warm specific caches
-        $this->repository->getSermonsBySeries('My Great Series');
-        $this->repository->getSermonsByService(SermonService::Morning);
-        $this->repository->getSermonsByPreacher($preacher);
-
-        // Update DB directly
-        Sermon::query()->update(['title' => 'Updated Title']);
-        $this->repository->clearInternalCaches();
-
-        // Verify stale
-        $this->assertEquals('Original Title', $this->repository->getSermonsBySeries('My Great Series')->first()->title);
-        $this->assertEquals('Original Title', $this->repository->getSermonsByService(SermonService::Morning)->first()->title);
-        $this->assertEquals('Original Title', $this->repository->getSermonsByPreacher($preacher)->first()->title);
+        Cache::spy();
 
         $this->repository->clearListingCaches($sermon);
-        $this->repository->clearInternalCaches();
 
-        // Verify fresh
-        $this->assertEquals('Updated Title', $this->repository->getSermonsBySeries('My Great Series')->first()->title);
-        $this->assertEquals('Updated Title', $this->repository->getSermonsByService(SermonService::Morning)->first()->title);
-        $this->assertEquals('Updated Title', $this->repository->getSermonsByPreacher($preacher)->first()->title);
+        $modelKeys = [
+            'sermons_series_my-great-series',
+            'sermons_service_morning',
+            'sermons_preacher_john-doe',
+        ];
+
+        foreach ($modelKeys as $key) {
+            Cache::shouldHaveReceived('forget')->with($key)->once();
+            Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:{$key}")->once();
+        }
     }
 
     #[Test]
     public function it_clears_preacher_specific_cache(): void
     {
-        Sermon::query()->delete();
         $preacher = Preacher::factory()->create(['slug' => 'jane-smith']);
-        Sermon::factory()->create([
-            'title' => 'Original Title',
-            'preacher_id' => $preacher->id,
-        ]);
 
-        // Warm cache
-        $this->repository->getSermonsByPreacher($preacher);
-
-        // Update DB directly
-        Sermon::query()->update(['title' => 'Updated Title']);
-        $this->repository->clearInternalCaches();
-
-        // Verify stale
-        $this->assertEquals('Original Title', $this->repository->getSermonsByPreacher($preacher)->first()->title);
+        Cache::spy();
 
         $this->repository->clearListingCaches($preacher);
-        $this->repository->clearInternalCaches();
 
-        // Verify fresh
-        $this->assertEquals('Updated Title', $this->repository->getSermonsByPreacher($preacher)->first()->title);
+        Cache::shouldHaveReceived('forget')->with('sermons_preacher_jane-smith')->once();
+        Cache::shouldHaveReceived('forget')->with('illuminate:cache:flexible:created:sermons_preacher_jane-smith')->once();
     }
 
     #[Test]
     public function it_invalidates_caches_for_both_original_and_new_preacher_and_series(): void
     {
-        Sermon::query()->delete();
         $oldPreacher = Preacher::factory()->create(['slug' => 'old-preacher']);
         $newPreacher = Preacher::factory()->create(['slug' => 'new-preacher']);
 
-        $sermonToUpdate = Sermon::factory()->create([
-            'title' => 'Target Sermon',
+        $sermon = Sermon::factory()->create([
             'preacher_id' => $oldPreacher->id,
             'series' => 'Old Series',
             'service' => SermonService::Morning,
         ]);
 
-        // Create another sermon to ensure "New Series" cache is not empty
-        Sermon::factory()->create([
-            'title' => 'Other Sermon',
-            'preacher_id' => $newPreacher->id,
-            'series' => 'New Series',
-            'service' => SermonService::Evening,
-        ]);
-
-        // Warm caches for both identities
-        $this->repository->getSermonsByPreacher($oldPreacher);
-        $this->repository->getSermonsByPreacher($newPreacher);
-        $this->repository->getSermonsBySeries('Old Series');
-        $this->repository->getSermonsBySeries('New Series');
-        $this->repository->getSermonsByService(SermonService::Morning);
-        $this->repository->getSermonsByService(SermonService::Evening);
-
-        // Prepare a "dirty" model that reflects a change from Old to New
-        $sermon = $sermonToUpdate->fresh();
+        // Manually set new values without saving yet, so we have "original" vs "current"
         $sermon->preacher_id = $newPreacher->id;
         $sermon->series = 'New Series';
         $sermon->service = SermonService::Evening;
 
-        // Update DB directly to bypass observers, setting everything to 'Cleared'
-        Sermon::query()->where('id', $sermonToUpdate->id)->update([
-            'title' => 'Cleared Target',
-            'preacher_id' => $newPreacher->id,
-            'series' => 'New Series',
-            'service' => SermonService::Evening,
-        ]);
-        Sermon::query()->where('id', '!=', $sermonToUpdate->id)->update(['title' => 'Cleared Other']);
-        $this->repository->clearInternalCaches();
-
-        // Verify all are still stale
-        $this->assertEquals('Target Sermon', $this->repository->getSermonsByPreacher($oldPreacher)->first()->title);
-        $this->assertCount(1, $this->repository->getSermonsByPreacher($newPreacher));
-        $this->assertEquals('Target Sermon', $this->repository->getSermonsBySeries('Old Series')->first()->title);
-        $this->assertEquals('Other Sermon', $this->repository->getSermonsBySeries('New Series')->where('id', '!=', $sermonToUpdate->id)->first()->title);
-        $this->assertEquals('Target Sermon', $this->repository->getSermonsByService(SermonService::Morning)->first()->title);
-        $this->assertEquals('Other Sermon', $this->repository->getSermonsByService(SermonService::Evening)->first()->title);
+        Cache::spy();
 
         $this->repository->clearListingCaches($sermon);
-        $this->repository->clearInternalCaches();
 
-        // Verify both old and new keys are cleared
-        $this->assertEmpty($this->repository->getSermonsByPreacher($oldPreacher));
-        $this->assertEquals('Cleared Target', $this->repository->getSermonsByPreacher($newPreacher)->where('id', $sermonToUpdate->id)->first()->title);
-        $this->assertEmpty($this->repository->getSermonsBySeries('Old Series'));
-        $this->assertEquals('Cleared Target', $this->repository->getSermonsBySeries('New Series')->where('id', $sermonToUpdate->id)->first()->title);
-        $this->assertEmpty($this->repository->getSermonsByService(SermonService::Morning));
-        $this->assertEquals('Cleared Target', $this->repository->getSermonsByService(SermonService::Evening)->where('id', $sermonToUpdate->id)->first()->title);
+        $expectedKeys = [
+            'sermons_preacher_old-preacher',
+            'sermons_preacher_new-preacher',
+            'sermons_series_old-series',
+            'sermons_series_new-series',
+            'sermons_service_morning',
+            'sermons_service_evening',
+        ];
+
+        foreach ($expectedKeys as $key) {
+            Cache::shouldHaveReceived('forget')->with($key)->once();
+            Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:{$key}")->once();
+        }
     }
 
     #[Test]
@@ -204,80 +130,56 @@ class SermonRepositoryCacheInvalidationTest extends TestCase
             'series' => null,
         ]);
 
-        // Clean up filters if any were created by observers, and create manually
-        SermonScriptureFilter::query()->delete();
-        SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John', 'bible_chapter' => 3]);
-        SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'Romans', 'bible_chapter' => 8]);
-
-        // Warm caches
-        $this->repository->getScriptureBooks();
-        $this->repository->getScriptureChapters('John');
-        $this->repository->getScriptureChapters('Romans');
-
-        // Update DB directly
-        SermonScriptureFilter::query()->delete();
-        SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'Genesis', 'bible_chapter' => 1]);
-        $this->repository->clearInternalCaches();
-
-        // Verify stale
-        $this->assertContains('John', $this->repository->getScriptureBooks());
-        $this->assertContains(3, $this->repository->getScriptureChapters('John'));
-        $this->assertContains(8, $this->repository->getScriptureChapters('Romans'));
+        Cache::spy();
 
         $this->repository->clearListingCaches($sermon);
-        $this->repository->clearInternalCaches();
 
-        // Verify fresh
-        $books = $this->repository->getScriptureBooks();
-        $this->assertContains('Genesis', $books);
-        $this->assertNotContains('John', $books);
-        $this->assertEmpty($this->repository->getScriptureChapters('John'));
-        $this->assertEmpty($this->repository->getScriptureChapters('Romans'));
+        // Global books list
+        Cache::shouldHaveReceived('forget')->with('sermon_scripture_books_all_all')->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with('illuminate:cache:flexible:created:sermon_scripture_books_all_all')->atLeast()->once();
+
+        // John chapters
+        Cache::shouldHaveReceived('forget')->with('sermon_scripture_chapters_john_all_all')->once();
+        Cache::shouldHaveReceived('forget')->with('illuminate:cache:flexible:created:sermon_scripture_chapters_john_all_all')->once();
+        // Romans chapters
+        Cache::shouldHaveReceived('forget')->with('sermon_scripture_chapters_romans_all_all')->once();
+        Cache::shouldHaveReceived('forget')->with('illuminate:cache:flexible:created:sermon_scripture_chapters_romans_all_all')->once();
     }
 
     #[Test]
     public function it_invalidates_scripture_chapter_caches_across_preacher_and_series_combinations(): void
     {
-        $preacher = Preacher::factory()->create();
-        $series = 'The Gospel';
+        $preacher = Preacher::factory()->create(['id' => 123]);
         $sermon = Sermon::factory()->create([
             'reference' => 'John 3',
             'preacher_id' => $preacher->id,
-            'series' => $series,
+            'series' => 'The Gospel',
         ]);
 
-        SermonScriptureFilter::query()->delete();
-        SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John', 'bible_chapter' => 3]);
+        $pId = 123;
+        $sSlug = 'the-gospel';
+        $bSlug = 'john';
 
-        // Warm various combinations
-        $this->repository->getScriptureBooks($preacher->id, null);
-        $this->repository->getScriptureBooks(null, $series);
-        $this->repository->getScriptureBooks($preacher->id, $series);
-        $this->repository->getScriptureChapters('John', $preacher->id, null);
-        $this->repository->getScriptureChapters('John', null, $series);
-        $this->repository->getScriptureChapters('John', $preacher->id, $series);
-
-        // Update DB directly
-        SermonScriptureFilter::query()->delete();
-        $this->repository->clearInternalCaches();
-
-        // Verify stale
-        $this->assertContains('John', $this->repository->getScriptureBooks($preacher->id, null));
-        $this->assertContains('John', $this->repository->getScriptureBooks(null, $series));
-        $this->assertContains('John', $this->repository->getScriptureBooks($preacher->id, $series));
-        $this->assertContains(3, $this->repository->getScriptureChapters('John', $preacher->id, null));
-        $this->assertContains(3, $this->repository->getScriptureChapters('John', null, $series));
-        $this->assertContains(3, $this->repository->getScriptureChapters('John', $preacher->id, $series));
+        Cache::spy();
 
         $this->repository->clearListingCaches($sermon);
-        $this->repository->clearInternalCaches();
 
-        // Verify fresh
-        $this->assertEmpty($this->repository->getScriptureBooks($preacher->id, null));
-        $this->assertEmpty($this->repository->getScriptureBooks(null, $series));
-        $this->assertEmpty($this->repository->getScriptureBooks($preacher->id, $series));
-        $this->assertEmpty($this->repository->getScriptureChapters('John', $preacher->id, null));
-        $this->assertEmpty($this->repository->getScriptureChapters('John', null, $series));
-        $this->assertEmpty($this->repository->getScriptureChapters('John', $preacher->id, $series));
+        // Book list combinations
+        Cache::shouldHaveReceived('forget')->with("sermon_scripture_books_{$pId}_all")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:sermon_scripture_books_{$pId}_all")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("sermon_scripture_books_all_{$sSlug}")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:sermon_scripture_books_all_{$sSlug}")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("sermon_scripture_books_{$pId}_{$sSlug}")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:sermon_scripture_books_{$pId}_{$sSlug}")->atLeast()->once();
+
+        // Chapter list combinations
+        Cache::shouldHaveReceived('forget')->with("sermon_scripture_chapters_{$bSlug}_all_all")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:sermon_scripture_chapters_{$bSlug}_all_all")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("sermon_scripture_chapters_{$bSlug}_{$pId}_all")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:sermon_scripture_chapters_{$bSlug}_{$pId}_all")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("sermon_scripture_chapters_{$bSlug}_all_{$sSlug}")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:sermon_scripture_chapters_{$bSlug}_all_{$sSlug}")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("sermon_scripture_chapters_{$bSlug}_{$pId}_{$sSlug}")->atLeast()->once();
+        Cache::shouldHaveReceived('forget')->with("illuminate:cache:flexible:created:sermon_scripture_chapters_{$bSlug}_{$pId}_{$sSlug}")->atLeast()->once();
     }
 }

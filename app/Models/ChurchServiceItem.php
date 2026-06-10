@@ -150,17 +150,17 @@ class ChurchServiceItem extends Model
     public static function validationRules(?self $item = null, ?int $churchServiceId = null): array
     {
         return [
-            'church_service_id' => ['required', 'integer', 'min:1', 'exists:church_services,id'],
-            'position' => ['required', 'integer', 'min:1', 'max:4294967295'],
+            'church_service_id' => ['required', 'integer', 'exists:church_services,id'],
+            'position' => ['required', 'integer', 'min:1'],
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'max:50'],
             'section_type' => ['nullable', Rule::enum(ServiceSectionType::class)],
             'source' => ['nullable', Rule::enum(ChurchServiceItemSource::class)],
             'source_title' => ['nullable', 'string', 'max:255'],
             'openlp_search_title' => ['nullable', 'string', 'max:255'],
-            'song_id' => ['nullable', 'integer', 'min:1', 'exists:songs,id'],
+            'song_id' => ['nullable', 'integer', 'exists:songs,id'],
             'livestream_processing_id' => ['nullable', 'string', 'max:36'],
-            'livestream_service_section_id' => ['nullable', 'integer', 'min:1', 'exists:service_sections,id'],
+            'livestream_service_section_id' => ['nullable', 'integer', 'exists:service_sections,id'],
         ];
     }
 

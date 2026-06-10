@@ -317,7 +317,6 @@ CREATE TABLE `media_processing_logs` (
   KEY `media_processing_logs_extracted_identity_index` (`extracted_date`,`extracted_service`),
   KEY `media_processing_logs_church_service_id_foreign` (`church_service_id`),
   KEY `media_processing_logs_file_hash_index` (`file_hash`),
-  KEY `media_processing_logs_job_id_index` (`job_id`),
   KEY `media_processing_logs_review_queue_index` (`processing_type`,`status`,`current_step`,`updated_at`),
   KEY `media_processing_logs_original_filename_index` (`original_filename`),
   CONSTRAINT `media_processing_logs_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE SET NULL,
@@ -1150,4 +1149,3 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_23_053404_add_c
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_26_165514_fortify_song_identity_columns',72);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_01_065205_add_timing_index_to_livestream_segments_table',73);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_02_203631_add_indexes_to_song_author_song_table',74);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_10_072047_add_job_id_index_to_media_processing_logs_table',75);
