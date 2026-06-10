@@ -12,6 +12,7 @@ final readonly class ChurchServiceShowReadModel
      * @param  array<string, mixed>  $importMetadata
      * @param  list<string>  $warnings
      * @param  list<ChurchServiceProcessingRunView>  $processingRunViews
+     * @param  list<array{label: string, state: string}>  $pipelineSteps
      */
     public function __construct(
         public ChurchService $churchService,
@@ -21,6 +22,7 @@ final readonly class ChurchServiceShowReadModel
         public array $processingRunViews,
         public ?PendingStructureMergeMetadata $pendingMerge,
         public ?string $pendingMergeSource,
+        public array $pipelineSteps,
     ) {}
 
     /**
@@ -31,7 +33,8 @@ final readonly class ChurchServiceShowReadModel
      *     confidenceScore: ?float,
      *     processingRunViews: list<ChurchServiceProcessingRunView>,
      *     pendingMerge: ?PendingStructureMergeMetadata,
-     *     pendingMergeSource: ?string
+     *     pendingMergeSource: ?string,
+     *     pipelineSteps: list<array{label: string, state: string}>
      * }
      */
     public function toViewData(): array
@@ -44,6 +47,7 @@ final readonly class ChurchServiceShowReadModel
             'processingRunViews' => $this->processingRunViews,
             'pendingMerge' => $this->pendingMerge,
             'pendingMergeSource' => $this->pendingMergeSource,
+            'pipelineSteps' => $this->pipelineSteps,
         ];
     }
 }

@@ -11,6 +11,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Queries\ChurchServiceProcessingRunQuery;
+use App\Queries\ChurchServiceRollupQuery;
 use App\Support\ProcessingRunTimelineBuilder;
 use App\Support\ServiceTimelineBuilder;
 use Illuminate\Database\Eloquent\Collection;
@@ -19,6 +20,7 @@ class ChurchServiceShowPresenter
 {
     public function __construct(
         private readonly ChurchServiceProcessingRunQuery $processingRunQuery,
+        private readonly ChurchServiceRollupQuery $rollupQuery,
     ) {}
 
     public function present(ChurchService $churchService): ChurchServiceShowReadModel
@@ -56,6 +58,7 @@ class ChurchServiceShowPresenter
             processingRunViews: $this->runViews($processingRuns, $processingTimelines, $serviceTimelines, $serviceFlows),
             pendingMerge: $hasPendingMerge ? $pendingMerge : null,
             pendingMergeSource: $hasPendingMerge ? $pendingMergeSource : null,
+            pipelineSteps: $this->rollupQuery->rollupFor($churchService, $processingRuns)['steps'],
         );
     }
 

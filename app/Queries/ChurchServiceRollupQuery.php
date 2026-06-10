@@ -84,10 +84,28 @@ class ChurchServiceRollupQuery
                 fn (MediaProcessingLog $run): bool => $this->runMatcher->matches($run, $service, $fallbackProcessingIds[$service->id])
             )->values();
 
-            $rollups[$service->id] = $this->rollup($service, $serviceRuns);
+            $rollups[$service->id] = $this->rollupFor($service, $serviceRuns);
         }
 
         return $rollups;
+    }
+
+    /**
+     * Roll up one service from its already-matched runs (with serviceSections
+     * loaded). Used by the bulk path above and by ChurchServiceShowPresenter,
+     * so the hub chip and the workbench stepper cannot drift apart.
+     *
+     * @param  Collection<int, MediaProcessingLog>  $serviceRuns
+     * @return array{
+     *     status: ChurchServiceRollupStatus,
+     *     attention_count: int,
+     *     run_count: int,
+     *     steps: list<array{label: string, state: string}>
+     * }
+     */
+    public function rollupFor(ChurchService $service, Collection $serviceRuns): array
+    {
+        return $this->rollup($service, $serviceRuns);
     }
 
     /**

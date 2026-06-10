@@ -17,6 +17,10 @@
         </x-button>
     </x-slot:actions>
 
+    <x-card class="py-3">
+        <x-admin.pipeline-steps :steps="$pipelineSteps" />
+    </x-card>
+
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div class="lg:col-span-3 space-y-6">
             @if($pendingMerge)
