@@ -15,8 +15,25 @@ class SongItemListPresenter
      */
     public function toItemList(Collection $songs): array
     {
+        $orgName = (string) config('organization.name');
+        $logoUrl = asset('images/Primary.png');
+        $appUrl = (string) config('app.url');
+        $orgId = $appUrl.'/#organization';
+
+        $publisher = [
+            '@type' => 'Organization',
+            'name' => $orgName,
+            '@id' => $orgId,
+            'logo' => [
+                '@type' => 'ImageObject',
+                'url' => $logoUrl,
+                'width' => '512',
+                'height' => '512',
+            ],
+        ];
+
         /** @var list<array<string, mixed>> $itemListElements */
-        $itemListElements = $songs->values()->map(function (Song $song, int $index): array {
+        $itemListElements = $songs->values()->map(function (Song $song, int $index) use ($publisher): array {
             /** @var list<array<string, string>> $authors */
             $authors = $song->authors->map(fn ($author): array => [
                 '@type' => 'Person',
@@ -34,6 +51,7 @@ class SongItemListPresenter
                     'name' => $song->title,
                     'url' => $songUrl,
                     'author' => $authors,
+                    'publisher' => $publisher,
                 ],
             ];
         })->values()->all();

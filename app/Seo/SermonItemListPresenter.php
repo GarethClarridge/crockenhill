@@ -90,6 +90,8 @@ class SermonItemListPresenter
             'logo' => [
                 '@type' => 'ImageObject',
                 'url' => $logoUrl,
+                'width' => '512',
+                'height' => '512',
             ],
         ];
     }

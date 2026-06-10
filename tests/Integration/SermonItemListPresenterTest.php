@@ -60,5 +60,11 @@ class SermonItemListPresenterTest extends TestCase
         $this->assertEquals('Preacher', $item['author']['jobTitle']);
         $this->assertArrayHasKey('worksFor', $item['author']);
         $this->assertEquals(config('organization.name'), $item['author']['worksFor']['name']);
+
+        // Check for publisher logo metadata
+        $this->assertArrayHasKey('publisher', $item);
+        $this->assertArrayHasKey('logo', $item['publisher']);
+        $this->assertEquals('512', $item['publisher']['logo']['width']);
+        $this->assertEquals('512', $item['publisher']['logo']['height']);
     }
 }

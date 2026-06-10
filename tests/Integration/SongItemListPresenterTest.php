@@ -38,5 +38,11 @@ class SongItemListPresenterTest extends TestCase
         $this->assertStringEndsWith('/church/songs/test-song#song', $item['@id']);
         $this->assertEquals('Test Song', $item['name']);
         $this->assertEquals('Test Author', $item['author'][0]['name']);
+
+        // Check for publisher logo metadata
+        $this->assertArrayHasKey('publisher', $item);
+        $this->assertArrayHasKey('logo', $item['publisher']);
+        $this->assertEquals('512', $item['publisher']['logo']['width']);
+        $this->assertEquals('512', $item['publisher']['logo']['height']);
     }
 }
