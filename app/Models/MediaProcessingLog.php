@@ -637,10 +637,9 @@ class MediaProcessingLog extends Model
             'sermon_end_time' => ['nullable', 'numeric', 'min:0', 'max:9999999.999', 'gte:sermon_start_time'],
             'visual_sample_count' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
             'visual_processing_time' => ['nullable', 'numeric', 'min:0', 'max:9999999.999'],
-            // Security: integer bounding on ID fields adds defence in depth against malformed input and overflow.
-            'sermon_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:sermons,id'],
-            'owner_user_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:users,id'],
-            'church_service_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:church_services,id'],
+            'sermon_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:sermons,id'],
+            'owner_user_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:users,id'],
+            'church_service_id' => ['nullable', 'integer', 'min:1', 'exists:church_services,id'],
             'error_message' => ['nullable', 'string'],
             'current_step' => ['nullable', 'string', 'max:255'],
             'source_file_path' => ['nullable', 'string', 'max:255'],
