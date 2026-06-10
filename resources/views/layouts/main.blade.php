@@ -52,7 +52,7 @@
   @endif
 
   {{-- Preload hints for critical resources --}}
-  <link rel="preload" as="image" href="/svg/pattern.svg">
+  <link rel="preload" as="image" href="{{ Vite::asset('resources/svg/pattern.svg') }}">
   @yield('preload')
 
   <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png?v=GvJNbAA7Wv">

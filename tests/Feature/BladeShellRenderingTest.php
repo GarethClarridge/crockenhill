@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Page;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Vite;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -131,6 +132,21 @@ class BladeShellRenderingTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('<title>Calendar Patterns | Crockenhill Baptist Church</title>', false);
+    }
+
+    #[Test]
+    public function layout_preloads_the_vite_built_pattern_asset(): void
+    {
+        $response = $this->get('/login');
+
+        $response->assertOk();
+        $response->assertSee(
+            '<link rel="preload" as="image" href="'.Vite::asset('resources/svg/pattern.svg').'">',
+            false
+        );
+        // The unhashed public copy is never referenced by the built CSS; preloading
+        // it downloads the pattern twice and logs an unused-preload warning.
+        $response->assertDontSee('href="/svg/pattern.svg"', false);
     }
 
     #[Test]
