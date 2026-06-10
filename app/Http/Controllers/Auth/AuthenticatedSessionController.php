@@ -19,7 +19,7 @@ class AuthenticatedSessionController extends Controller
     {
         $request->fulfill();
 
-        return redirect()->intended(route('memberHome', [], false).'?verified=1'); // Changed to memberHome
+        return redirect()->intended(route('members.home', [], false).'?verified=1');
     }
 
     /**

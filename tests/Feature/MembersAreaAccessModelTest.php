@@ -60,7 +60,7 @@ class MembersAreaAccessModelTest extends TestCase
 
         Notification::assertSentTo($user, VerifyEmailNotification::class);
 
-        $this->get(route('memberHome'))->assertRedirect(route('verification.notice'));
+        $this->get(route('members.home'))->assertRedirect(route('verification.notice'));
         $this->get(route('church.songs.index'))->assertRedirect(route('verification.notice'));
         $this->get(route('church.songs.show', $song))->assertRedirect(route('verification.notice'));
         $this->get(route('childrens-corner.index'))->assertRedirect(route('login'));
@@ -82,7 +82,7 @@ class MembersAreaAccessModelTest extends TestCase
 
         $this->actingAs($user);
 
-        $this->get(route('memberHome'))->assertOk();
+        $this->get(route('members.home'))->assertOk();
         $this->get(route('church.songs.index'))->assertOk();
         $this->get(route('church.songs.show', $song))->assertOk();
     }
@@ -102,7 +102,7 @@ class MembersAreaAccessModelTest extends TestCase
 
         $this->actingAs($user);
 
-        $this->get(route('memberHome'))->assertRedirect(route('verification.notice'));
+        $this->get(route('members.home'))->assertRedirect(route('verification.notice'));
         $this->get(route('church.songs.index'))->assertRedirect(route('verification.notice'));
         $this->get(route('church.songs.show', $song))->assertRedirect(route('verification.notice'));
     }
@@ -123,7 +123,7 @@ class MembersAreaAccessModelTest extends TestCase
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
 
-        $this->get(route('memberHome'))->assertRedirect('/login');
+        $this->get(route('members.home'))->assertRedirect('/login');
         $this->get(route('church.songs.index'))->assertRedirect('/login');
         $this->get(route('church.songs.show', $song))->assertRedirect('/login');
         $this->get(route('childrens-corner.index'))->assertRedirect('/login');

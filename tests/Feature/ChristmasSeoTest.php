@@ -15,7 +15,7 @@ class ChristmasSeoTest extends TestCase
     #[Test]
     public function christmas_page_has_correct_metadata_and_structured_data(): void
     {
-        $response = $this->get(route('christmas'));
+        $response = $this->get(route('pages.christmas'));
 
         $response->assertStatus(200);
 

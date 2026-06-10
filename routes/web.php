@@ -56,17 +56,17 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::view('/', 'full-width-pages.home')->name('Home');
+Route::view('/', 'full-width-pages.home')->name('home');
 
 // Special pages route
-Route::view('/christmas', 'full-width-pages.christmas')->name('christmas');
+Route::view('/christmas', 'full-width-pages.christmas')->name('pages.christmas');
 
 // Full width pages
-Route::view('/christ', 'full-width-pages.christ')->name('christ');
+Route::view('/christ', 'full-width-pages.christ')->name('pages.christ');
 Route::get('/christ/childrens-corner', [ChildrensCornerController::class, 'index'])->middleware('childrens-corner.access')->name('childrens-corner.index');
 Route::get('/christ/childrens-corner/{sermon:slug}', [ChildrensCornerController::class, 'show'])->middleware('childrens-corner.access')->name('childrens-corner.show');
-Route::view('/church', 'full-width-pages.church')->name('church');
-Route::view('/community', 'full-width-pages.community')->name('community');
+Route::view('/church', 'full-width-pages.church')->name('pages.church');
+Route::view('/community', 'full-width-pages.community')->name('pages.community');
 
 // High priority redirect that needs to be processed early
 Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
@@ -147,9 +147,8 @@ Route::middleware('guest')->group(function () {
         return view('auth.reset-password', ['token' => $token, 'heading' => 'Reset Password']);
     })->name('password.reset');
 });
-Route::get('verify-email', function () {
-    return view('auth.verify-email', ['heading' => 'Verify Email']);
-})->middleware('auth')->name('verification.notice');
+Route::view('verify-email', 'auth.verify-email', ['heading' => 'Verify Email'])
+    ->middleware('auth')->name('verification.notice');
 
 // Admin routes (Livewire)
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -219,7 +218,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
 // "Members only" = authenticated + verified email.
 Route::middleware(['auth', 'verified'])->prefix('church/members')->group(function () {
-    Route::get('', MemberController::class)->name('memberHome');
+    Route::get('', MemberController::class)->name('members.home');
 });
 
 Route::middleware(['auth', 'verified'])->prefix('church/songs')->name('church.songs.')->group(function () {
