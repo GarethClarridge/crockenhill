@@ -3,14 +3,11 @@
     description="Review low-confidence or failed order-of-service emails before they become canonical."
 >
     <x-slot:actions>
+        <x-button link="{{ route('admin.services.inbox') }}" variant="outline" icon="inbox" inline>
+            Review inbox
+        </x-button>
         <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
             Back to services
-        </x-button>
-        <x-button link="{{ route('admin.services.upload') }}" variant="outline" icon="arrow-up-tray" inline>
-            Upload service
-        </x-button>
-        <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
-            Import email text
         </x-button>
     </x-slot:actions>
 

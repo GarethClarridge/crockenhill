@@ -182,6 +182,7 @@ class AdminLivewireAuthorizationTest extends TestCase
             ['admin.sermons.index', []],
             ['admin.sermons.edit', ['sermon' => $sermon]],
             ['admin.services.index', []],
+            ['admin.services.inbox', []],
             ['admin.services.create', []],
             ['admin.services.upload', []],
             ['admin.services.inbound-emails', []],

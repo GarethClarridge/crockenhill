@@ -13,12 +13,10 @@ class MemberController extends Controller
     {
         $isAdmin = auth()->user()?->canAccessAdmin() === true;
 
-        $counts = $isAdmin ? $attentionCounts->cached() : null;
-
         return view('members.home', [
             'heading' => 'Members',
-            'pendingInboundEmailCount' => $counts['pending_emails'] ?? 0,
-            'pendingSermonReviewCount' => $counts['awaiting_segment_runs'] ?? 0,
+            'reviewInboxCount' => $isAdmin ? $attentionCounts->total($attentionCounts->cached()) : 0,
+            'serviceTrackingEnabled' => (bool) config('service-tracking.enabled', true),
         ]);
     }
 }

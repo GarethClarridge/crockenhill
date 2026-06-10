@@ -1,7 +1,7 @@
 <x-admin.page title="Service review dashboard" description="Review flagged services and classified sections in one queue">
     <x-slot:actions>
-        <x-button link="{{ route('admin.services.section-publications') }}" variant="outline" inline>
-            Section queue
+        <x-button link="{{ route('admin.services.inbox') }}" variant="outline" icon="inbox" inline>
+            Review inbox
         </x-button>
         <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
             Back to services
