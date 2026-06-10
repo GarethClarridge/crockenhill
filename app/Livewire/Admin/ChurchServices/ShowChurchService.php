@@ -43,7 +43,13 @@ class ShowChurchService extends Component
     {
         $readModel = app(ChurchServiceShowPresenter::class)->present($this->churchService);
 
-        return view('livewire.admin.church-services.show-church-service', $readModel->toViewData());
+        $label = $this->churchService->date->format('j M Y').' '.$this->churchService->service->label();
+
+        return view('livewire.admin.church-services.show-church-service', $readModel->toViewData())
+            ->layout('layouts.admin', [
+                'title' => $label,
+                'heading' => $label,
+            ]);
     }
 
     public function reclassify(int $processingLogId): void

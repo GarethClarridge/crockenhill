@@ -30,15 +30,17 @@ return [
 
     /*
     |---------------------------------------------------------------------------
-    | Layout
+    | Page Layout
     |---------------------------------------------------------------------------
     | The view that will be used as the layout when rendering a single component
     | as an entire page via `Route::get('/post/create', CreatePost::class);`.
     | In this case, the view returned by CreatePost will render into $slot.
+    | All current full-page components are admin pages, so the admin layout is
+    | the safe fallback when a component omits an explicit ->layout() call.
     |
     */
 
-    'layout' => 'components.layouts.app',
+    'component_layout' => 'layouts.admin',
 
     /*
     |---------------------------------------------------------------------------
