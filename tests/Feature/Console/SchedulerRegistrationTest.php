@@ -93,4 +93,17 @@ class SchedulerRegistrationTest extends TestCase
         $this->assertTrue($event->withoutOverlapping);
         $this->assertContains('production', $event->environments);
     }
+
+    #[Test]
+    public function backup_commands_are_scheduled_with_overlap_protection_on_one_server_and_gated_to_production(): void
+    {
+        foreach (['backup:clean', 'backup:run', 'backup:monitor'] as $command) {
+            $event = $this->findEvent($command);
+
+            $this->assertNotNull($event, "{$command} should be registered in the scheduler");
+            $this->assertTrue($event->withoutOverlapping, "{$command} should have withoutOverlapping enabled");
+            $this->assertTrue($event->onOneServer, "{$command} should run on one server only");
+            $this->assertContains('production', $event->environments);
+        }
+    }
 }

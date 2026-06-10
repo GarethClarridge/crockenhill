@@ -88,6 +88,25 @@ return [
             'cdn_endpoint' => env('DO_SPACES_CDN_ENDPOINT'),
         ],
 
+        // Same Spaces bucket/credentials as do_spaces, but private visibility and
+        // a dedicated prefix. Backup archives must never inherit the public-read
+        // visibility (or CDN exposure) the sermon-serving disk requires, and
+        // throw=true lets a failed upload surface as a BackupHasFailed alert
+        // instead of a silent false return.
+        'do_spaces_backups' => [
+            'driver' => 's3',
+            'key' => env('DO_SPACES_KEY', env('DO_SPACES_ACCESS_KEY_ID')),
+            'secret' => env('DO_SPACES_SECRET', env('DO_SPACES_SECRET_ACCESS_KEY')),
+            'region' => env('DO_SPACES_REGION', env('DO_SPACES_DEFAULT_REGION', 'nyc3')),
+            'bucket' => env('DO_SPACES_BUCKET'),
+            'endpoint' => env('DO_SPACES_ENDPOINT', 'https://nyc3.digitaloceanspaces.com'),
+            'root' => 'backups',
+            'use_path_style_endpoint' => false,
+            'throw' => true,
+            'visibility' => 'private',
+            'bucket_endpoint' => true,
+        ],
+
     ],
 
 ];
