@@ -24,7 +24,7 @@ return [
     'whats-on/sunday' => '/community/sunday-mornings',
 
     'aboutus' => '/church',
-    'contacttus' => '/',
+    'contactus' => '/',
     'links' => '/church/links',
     'whatson' => '/community',
     'whats-on' => '/community',
