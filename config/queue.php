@@ -77,7 +77,12 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 3600),
+            // INVARIANT: retry_after MUST exceed the production worker's --timeout
+            // (docker/production/supervisord.conf, currently 7200s) so a long job
+            // (FFmpeg, transcription) is never released and re-delivered while it is
+            // still running. 7260 = 7200 + 60s grace. Enforced by
+            // tests/Feature/Config/QueueRetryAfterInvariantTest.php.
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 7260),
             'block_for' => null,
             'after_commit' => false,
         ],
