@@ -6,6 +6,7 @@ namespace App\Services\Public;
 
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Models\Builders\SermonBuilder;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
@@ -36,10 +37,8 @@ class SermonRepository
      * Performance Optimization: Limits retrieved columns to the set required by
      * SermonViewPresenter and SermonExposurePolicy to minimize memory usage and
      * prevent N+1 lazy-loading of media metadata or related profile images.
-     *
-     * @return Builder<Sermon>
      */
-    public function basePublicSermonQuery(?SermonContentType $contentType = null): Builder
+    public function basePublicSermonQuery(?SermonContentType $contentType = null): SermonBuilder
     {
         return Sermon::query()
             ->when($contentType, fn (Builder $q) => $q->where('content_type', $contentType))
@@ -79,25 +78,21 @@ class SermonRepository
 
     /**
      * Build the base query for public sermon listings (ContentType::Sermon).
-     *
-     * @return Builder<Sermon>
      */
-    public function publicSermonQuery(): Builder
+    public function publicSermonQuery(): SermonBuilder
     {
         return $this->basePublicSermonQuery(SermonContentType::Sermon);
     }
 
     /**
      * Build the ordered public sermon query for the canonical archive page.
-     *
-     * @return Builder<Sermon>
      */
     public function publicBrowseQuery(
         ?string $book = null,
         ?int $chapter = null,
         ?int $preacherId = null,
         ?string $series = null,
-    ): Builder {
+    ): SermonBuilder {
         $query = $this->publicSermonQuery()
             ->when($preacherId, fn (Builder $builder): Builder => $builder->where('preacher_id', $preacherId))
             ->when($series, fn (Builder $builder): Builder => $builder->where('series', $series));
