@@ -153,7 +153,7 @@ class Page extends Model implements HasMedia, Sitemapable
             'slug' => $slugRule,
             'area' => ['required', Rule::enum(PageArea::class)],
             'description' => ['required', 'string', 'max:155'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
         ];
     }
 

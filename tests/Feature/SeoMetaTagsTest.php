@@ -61,6 +61,14 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('"openingHoursSpecification":', false);
         $response->assertSee('"@type": "WebSite"', false);
         $response->assertSee('"@id": "'.config('app.url').'/#website"', false);
+
+        $logoSize = getimagesize(public_path('images/Primary.png'));
+        if ($logoSize === false) {
+            $this->fail('Primary logo image dimensions could not be read.');
+        }
+
+        $response->assertSee('"width": '.$logoSize[0], false);
+        $response->assertSee('"height": '.$logoSize[1], false);
     }
 
     /**

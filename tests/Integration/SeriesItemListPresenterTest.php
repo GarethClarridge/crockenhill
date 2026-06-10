@@ -30,10 +30,14 @@ class SeriesItemListPresenterTest extends TestCase
         $this->assertStringEndsWith('/christ/sermons/series/test-series#series', $item['@id']);
         $this->assertEquals('Test Series', $item['name']);
 
-        // Check for publisher logo metadata
+        $logoSize = getimagesize(public_path('images/Primary.png'));
+        if ($logoSize === false) {
+            $this->fail('Primary logo image dimensions could not be read.');
+        }
+
         $this->assertArrayHasKey('publisher', $item);
         $this->assertArrayHasKey('logo', $item['publisher']);
-        $this->assertEquals(444, $item['publisher']['logo']['width']);
-        $this->assertEquals(481, $item["publisher"]["logo"]["height"]);
+        $this->assertSame($logoSize[0], $item['publisher']['logo']['width']);
+        $this->assertSame($logoSize[1], $item['publisher']['logo']['height']);
     }
 }
