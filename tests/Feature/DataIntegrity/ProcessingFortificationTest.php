@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Models\Meeting;
+use App\Models\Page;
 use App\Models\ServiceSection;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
@@ -13,23 +17,27 @@ use Tests\TestCase;
 
 class ProcessingFortificationTest extends TestCase
 {
+    private const UNSIGNED_INTEGER_MAX = 4294967295;
+
+    private const SIGNED_INTEGER_MAX = 2147483647;
+
     #[Test]
     public function service_section_validation_rules_match_column_bounds(): void
     {
         $rules = ServiceSection::validationRules();
 
-        $this->assertNotContains('max:2147483647', $rules['media_processing_log_id']);
-        $this->assertNotContains('max:2147483647', $rules['church_service_item_id']);
-        $this->assertNotContains('max:2147483647', $rules['matched_item_id']);
-        $this->assertNotContains('max:2147483647', $rules['expected_item_id']);
+        $this->assertRuleHasNoMaximum($rules['media_processing_log_id']);
+        $this->assertRuleHasNoMaximum($rules['church_service_item_id']);
+        $this->assertRuleHasNoMaximum($rules['matched_item_id']);
+        $this->assertRuleHasNoMaximum($rules['expected_item_id']);
 
-        $this->assertContains('max:4294967295', $rules['section_order']);
-        $this->assertValidationPasses($rules['section_order'], 'section_order', 4294967295);
-        $this->assertValidationFails($rules['section_order'], 'section_order', 4294967296);
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['section_order']);
+        $this->assertValidationPasses($rules['section_order'], 'section_order', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['section_order'], 'section_order', self::UNSIGNED_INTEGER_MAX + 1);
 
-        $this->assertContains('max:4294967295', $rules['published_sermon_id']);
-        $this->assertValidationPasses($rules['published_sermon_id'], 'published_sermon_id', 4294967295);
-        $this->assertValidationFails($rules['published_sermon_id'], 'published_sermon_id', 4294967296);
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['published_sermon_id']);
+        $this->assertValidationPasses($rules['published_sermon_id'], 'published_sermon_id', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['published_sermon_id'], 'published_sermon_id', self::UNSIGNED_INTEGER_MAX + 1);
     }
 
     #[Test]
@@ -64,15 +72,15 @@ class ProcessingFortificationTest extends TestCase
     {
         $rules = LivestreamSegment::validationRules();
 
-        $this->assertNotContains('max:2147483647', $rules['media_processing_log_id']);
+        $this->assertRuleHasNoMaximum($rules['media_processing_log_id']);
 
         $this->assertValidationPasses($rules['segment_index'], 'segment_index', 65535);
         $this->assertValidationFails($rules['segment_index'], 'segment_index', 65536);
 
-        $validator = Validator::make(['visual_sample_count' => 2147483648], ['visual_sample_count' => $rules['visual_sample_count']]);
+        $validator = Validator::make(['visual_sample_count' => self::SIGNED_INTEGER_MAX + 1], ['visual_sample_count' => $rules['visual_sample_count']]);
         $this->assertTrue($validator->fails());
 
-        $validator = Validator::make(['segment_order' => 2147483648], ['segment_order' => $rules['segment_order']]);
+        $validator = Validator::make(['segment_order' => self::SIGNED_INTEGER_MAX + 1], ['segment_order' => $rules['segment_order']]);
         $this->assertTrue($validator->fails());
 
         $validator = Validator::make(['start_time' => 10000000], ['start_time' => $rules['start_time']]);
@@ -84,22 +92,48 @@ class ProcessingFortificationTest extends TestCase
     {
         $rules = MediaProcessingLog::validationRules();
 
-        $this->assertContains('max:4294967295', $rules['sermon_id']);
-        $this->assertValidationPasses($rules['sermon_id'], 'sermon_id', 4294967295);
-        $this->assertValidationFails($rules['sermon_id'], 'sermon_id', 4294967296);
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['sermon_id']);
+        $this->assertValidationPasses($rules['sermon_id'], 'sermon_id', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['sermon_id'], 'sermon_id', self::UNSIGNED_INTEGER_MAX + 1);
 
-        $this->assertContains('max:4294967295', $rules['owner_user_id']);
-        $this->assertValidationPasses($rules['owner_user_id'], 'owner_user_id', 4294967295);
-        $this->assertValidationFails($rules['owner_user_id'], 'owner_user_id', 4294967296);
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['owner_user_id']);
+        $this->assertValidationPasses($rules['owner_user_id'], 'owner_user_id', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['owner_user_id'], 'owner_user_id', self::UNSIGNED_INTEGER_MAX + 1);
 
-        $this->assertNotContains('max:2147483647', $rules['church_service_id']);
-        $this->assertValidationPasses($rules['church_service_id'], 'church_service_id', 4294967295);
+        $this->assertRuleHasNoMaximum($rules['church_service_id']);
 
         $validator = Validator::make(['duration' => 10000000], ['duration' => $rules['duration']]);
         $this->assertTrue($validator->fails());
 
-        $validator = Validator::make(['visual_sample_count' => 2147483648], ['visual_sample_count' => $rules['visual_sample_count']]);
+        $validator = Validator::make(['visual_sample_count' => self::SIGNED_INTEGER_MAX + 1], ['visual_sample_count' => $rules['visual_sample_count']]);
         $this->assertTrue($validator->fails());
+    }
+
+    #[Test]
+    public function related_model_validation_rules_match_column_bounds(): void
+    {
+        $churchServiceRules = ChurchService::validationRules();
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $churchServiceRules['manual_reviewed_by_user_id']);
+        $this->assertValidationPasses($churchServiceRules['manual_reviewed_by_user_id'], 'manual_reviewed_by_user_id', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($churchServiceRules['manual_reviewed_by_user_id'], 'manual_reviewed_by_user_id', self::UNSIGNED_INTEGER_MAX + 1);
+
+        $churchServiceItemRules = ChurchServiceItem::validationRules();
+        $this->assertRuleHasNoMaximum($churchServiceItemRules['church_service_id']);
+        $this->assertRuleHasNoMaximum($churchServiceItemRules['song_id']);
+        $this->assertRuleHasNoMaximum($churchServiceItemRules['livestream_service_section_id']);
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $churchServiceItemRules['position']);
+        $this->assertValidationPasses($churchServiceItemRules['position'], 'position', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($churchServiceItemRules['position'], 'position', self::UNSIGNED_INTEGER_MAX + 1);
+
+        $meetingRules = Meeting::validationRules();
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $meetingRules['page_id']);
+        $this->assertValidationPasses($meetingRules['page_id'], 'page_id', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($meetingRules['page_id'], 'page_id', self::UNSIGNED_INTEGER_MAX + 1);
+
+        $pageRules = Page::validationRules();
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $pageRules['sort_order']);
+        $this->assertValidationPasses($pageRules['sort_order'], 'sort_order', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($pageRules['sort_order'], 'sort_order', self::UNSIGNED_INTEGER_MAX + 1);
     }
 
     #[Test]
@@ -145,5 +179,15 @@ class ProcessingFortificationTest extends TestCase
             $rules,
             static fn (mixed $rule): bool => ! is_string($rule) || ! str_starts_with($rule, 'exists:')
         ));
+    }
+
+    /**
+     * @param  list<mixed>  $rules
+     */
+    private function assertRuleHasNoMaximum(array $rules): void
+    {
+        $this->assertFalse(
+            collect($rules)->contains(static fn (mixed $rule): bool => is_string($rule) && str_starts_with($rule, 'max:'))
+        );
     }
 }
