@@ -65,4 +65,4 @@ Safe to remove after verifying migration is complete in production.
 Low — Fixing typos improves SEO/UX. Removing redundancy simplifies the configuration.
 
 **Recommendation:**
-Correct the typo and consolidate redundant entries.
+Correct the typo and consolidate redundant entries. (Note: Typo fixed in PR #771)
