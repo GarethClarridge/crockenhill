@@ -50,6 +50,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Writes the cache timestamp ScheduleCheck verifies. Excluded from
         // schedule-monitor (doNotMonitor): ScheduleCheck is its monitor, and
         // per-minute runs would write ~3k task-log rows a day for nothing.
+        // Long foreground tasks (backup:run, 120 min) cannot starve this:
+        // production's schedule:work starts each minute's schedule:run as a
+        // concurrent subprocess, so only same-tick tasks queue behind one
+        // another — and the heartbeat is registered ahead of them anyway.
         $schedule->command('health:schedule-check-heartbeat')
             ->everyMinute()
             ->doNotMonitor()
