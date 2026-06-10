@@ -15,7 +15,7 @@
                 class="w-full no-underline mx-auto block max-w-md p-4 text-center text-white rounded-bl-md bg-cbc-pattern bg-size-cover focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 transition-all"
             >
                 <div class="flex items-center justify-center">
-                    <x-heroicon-s-pencil-square class="h-6 w-6 mr-2" />
+                    <x-heroicon-s-pencil-square class="h-6 w-6 mr-2" aria-hidden="true" />
                     Edit
                 </div>
             </a>
@@ -25,7 +25,7 @@
                 class="w-full no-underline mx-auto block max-w-md p-4 text-center text-white rounded-br-md bg-gradient-to-r from-rose-600 to-rose-700 focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 transition-all"
             >
                 <div class="flex items-center justify-center">
-                    <x-heroicon-s-trash class="h-6 w-6 mr-2" />
+                    <x-heroicon-s-trash class="h-6 w-6 mr-2" aria-hidden="true" />
                     Delete
                 </div>
             </button>

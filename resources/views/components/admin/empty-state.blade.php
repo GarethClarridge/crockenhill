@@ -17,12 +17,12 @@
 
 <tr>
     <td colspan="{{ $colspan }}" class="px-4 py-12 text-center">
-        <div class="flex flex-col items-center justify-center space-y-3">
-            <div class="rounded-full bg-gray-100 p-3">
-                <x-dynamic-component :component="'heroicon-o-' . $icon" class="h-8 w-8 text-gray-400" aria-hidden="true" />
+        <div class="flex flex-col items-center justify-center space-y-3 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 p-8 transition-colors hover:border-gray-300">
+            <div class="rounded-full bg-white shadow-sm ring-1 ring-gray-200 p-3">
+                <x-dynamic-component :component="'heroicon-o-' . $icon" class="h-8 w-8 text-cbc-teal/60" aria-hidden="true" />
             </div>
-            <h3 class="text-sm font-medium text-gray-900">{{ $title }}</h3>
-            <p class="text-sm text-gray-500 max-w-xs mx-auto">
+            <h3 class="text-base font-semibold text-gray-900">{{ $title }}</h3>
+            <p class="text-sm text-gray-500 max-w-sm mx-auto">
                 {{ $description }}
             </p>
 

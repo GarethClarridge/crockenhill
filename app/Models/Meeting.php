@@ -173,7 +173,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
         }
         $slugRule[] = $uniqueSlug;
 
-        $pageIdRule = ['nullable', 'integer', 'exists:pages,id'];
+        $pageIdRule = ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:pages,id'];
         $uniquePageId = Rule::unique('meetings', 'page_id');
         if ($meeting) {
             $uniquePageId->ignore($meeting->id);
