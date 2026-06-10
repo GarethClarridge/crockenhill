@@ -288,7 +288,7 @@ and do not wait for any approval):
 
 | Phase | Package | Verdict | One-line rationale |
 |-------|---------|---------|--------------------|
-| **P2** | `spatie/laravel-backup` | ✅ **Adopt — do first** | Lowest risk, purely additive. `mysqldump` is already in the image — prerequisite resolved. |
+| **P2** | `spatie/laravel-backup` | ✅ **Done** (2026-06-10) | Lowest risk, purely additive. `mysqldump` is already in the image — prerequisite resolved. |
 | **P1** | `laravel/horizon` | ✅ **Adopt** | Queue observability; its boot check also enforces the Phase 0.1 invariant permanently. |
 | **P3** | `spatie/laravel-health` (+ `schedule-monitor`) | ✅ **Adopt — re-premised** | Now must also decide how it relates to the bespoke route-canary system added since 2026-06-03. |
 | **P4** | `spatie/laravel-model-states` | ⏸️ **Defer** | Unchanged verdict; references updated to post-R3 paths. |
@@ -349,9 +349,29 @@ Rollback: revert the supervisord block to `queue:work`, remove the package. No d
 Exit criteria: Redis queues run under Horizon with an admin-gated dashboard; no raw `queue:work`
 worker remains in production; admin-gate test green.
 
-### Phase P2 — `spatie/laravel-backup` (automated DB + file backups) · ✅ Adopt (do first)
+### Phase P2 — `spatie/laravel-backup` (automated DB + file backups) · ✅ Done
 
-**Status: Pending approval.** Lowest-risk option in Track 3 — purely additive, fully reversible.
+**Status: ✅ Done** (approved and implemented 2026-06-10).
+
+Execution note: `spatie/laravel-backup` v10.3 is installed with `config/backup.php` committed
+(`mysqldump` 8.0.45 verified in the container). **One deliberate deviation from the plan:** backups
+land on a new `do_spaces_backups` disk in [config/filesystems.php](../../config/filesystems.php) —
+same bucket/credentials as `do_spaces`, but `private` visibility, a `backups/` root prefix, and
+`throw => true` — because the sermon-serving disk is public-visibility/CDN-fronted and backup
+archives must not inherit that. Scope: `storage/app/public`, `storage/app/private` (the *only*
+copy of member-only sermon assets once `MoveSermonToPrivateStorage` pulls them off Spaces),
+`google-calendar` credentials, and the spelling word list; `public/temp` and
+`private/section-publications` (48 h-transient) excluded; DB dump gzipped with
+`useSingleTransaction` so the nightly run does not lock live tables. Retention 7 all / 7 daily /
+4 weekly / 3 monthly; AES encryption via `BACKUP_ARCHIVE_PASSWORD` (declared in `.env.example`);
+failure-only mail to `LIVESTREAM_ADMIN_EMAIL`. Scheduled production-only with `onOneServer()`:
+`backup:clean` 01:00, `backup:run` 01:30 `withoutOverlapping(120)`, `backup:monitor` 08:00.
+Tests: [tests/Feature/Console/BackupRunCommandTest.php](../../tests/Feature/Console/BackupRunCommandTest.php)
+(a real `backup:run --only-db` lands an **encrypted** zip on the backups disk; a failed run sends
+`BackupHasFailedNotification`) plus a `SchedulerRegistrationTest` case for the three commands.
+`GenerateProdSermonPatchCommand` untouched. **Remaining manual steps:** set
+`BACKUP_ARCHIVE_PASSWORD` in production (and store a copy outside the backups), then restore-test
+one dump from Spaces before trusting the schedule.
 
 Refresh notes: the original "add default-mysql-client to the Dockerfile" task is **already done** —
 [docker/8.4/Dockerfile](../../docker/8.4/Dockerfile) declares `ARG MYSQL_CLIENT="mysql-client"` (l.7)
@@ -511,8 +531,8 @@ thumbnail pipeline, voice fingerprinting, or vector search (MySQL, no pgvector).
 4. **Phase R6** (hotspot decomposition + DTOs) — opportunistic, whenever those files are next touched.
 5. **Track 3**: P2 → P1 → P3 after approval. P4/P5 deferred with named triggers; P6 is decisions-only.
 
-R1–R3, R5, R6, D1, and D2 are done (R6's importer target deferred behind SIMPLIFICATION-PLAN
-Phase 25); R4 is deferred indefinitely. Only Track 3 (approval-gated package adoptions) remains.
+R1–R3, R5, R6, D1, D2, and P2 are done (R6's importer target deferred behind SIMPLIFICATION-PLAN
+Phase 25); R4 is deferred indefinitely. Of Track 3, only P1 and P3 (approval-gated) remain active.
 
 ## Definition of Done
 

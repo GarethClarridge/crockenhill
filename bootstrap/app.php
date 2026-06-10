@@ -45,6 +45,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('horizon:snapshot')
             ->everyFiveMinutes()
             ->environments(['production']);
+        $schedule->command('backup:clean')
+            ->dailyAt('01:00')
+            ->withoutOverlapping(60)
+            ->onOneServer()
+            ->environments(['production']);
+        $schedule->command('backup:run')
+            ->dailyAt('01:30')
+            ->withoutOverlapping(120)
+            ->onOneServer()
+            ->environments(['production']);
+        $schedule->command('backup:monitor')
+            ->dailyAt('08:00')
+            ->withoutOverlapping(30)
+            ->onOneServer()
+            ->environments(['production']);
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);

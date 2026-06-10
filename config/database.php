@@ -51,6 +51,12 @@ return [
             'prefix' => '',
             'strict' => true,
             'engine' => null,
+            // Read by spatie/laravel-backup's db-dumper: all tables are InnoDB,
+            // so a single-transaction dump avoids locking the live site's tables
+            // during the nightly backup:run.
+            'dump' => [
+                'useSingleTransaction' => true,
+            ],
         ],
 
         'pgsql' => [
