@@ -139,6 +139,21 @@ class SchedulerRegistrationTest extends TestCase
     }
 
     #[Test]
+    public function the_schedule_heartbeat_runs_every_minute_unmonitored_and_gated_to_production(): void
+    {
+        $event = $this->findEvent('health:schedule-check-heartbeat');
+
+        $this->assertNotNull($event, 'health:schedule-check-heartbeat should be registered: ScheduleCheck verifies its cache timestamp');
+        $this->assertSame('* * * * *', $event->expression, 'the heartbeat must run every minute');
+        $this->assertContains('production', $event->environments);
+
+        $this->assertTrue(
+            (bool) $this->app->make(MonitoredScheduledTasks::class)->getDoNotMonitor($event),
+            'the heartbeat should be excluded from schedule-monitor — ScheduleCheck is its monitor, and per-minute runs would flood the task log'
+        );
+    }
+
+    #[Test]
     public function long_running_tasks_have_grace_times_matching_their_overlap_lock_windows(): void
     {
         $expectedGraceTimes = [

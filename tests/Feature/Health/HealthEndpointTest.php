@@ -66,10 +66,39 @@ class HealthEndpointTest extends TestCase
             'Horizon',
             'Temp Disk Space',
             'Scheduled Tasks',
+            'Schedule',
             'Route Canaries',
         ] as $label) {
             $response->assertSeeText($label);
         }
+    }
+
+    #[Test]
+    public function the_schedule_check_reports_ok_when_the_heartbeat_is_fresh(): void
+    {
+        cache()->put('health:checks:schedule:latestHeartbeatAt', now()->getTimestamp());
+
+        $this->runHealthChecks();
+
+        $results = app(ResultStore::class)->latestResults();
+        $scheduleResult = collect($results?->storedCheckResults ?? [])->firstWhere('name', 'Schedule');
+
+        $this->assertNotNull($scheduleResult, 'The schedule check should be registered and stored');
+        $this->assertSame('ok', $scheduleResult->status);
+    }
+
+    #[Test]
+    public function the_schedule_check_fails_when_the_heartbeat_is_stale(): void
+    {
+        cache()->put('health:checks:schedule:latestHeartbeatAt', now()->subMinutes(10)->getTimestamp());
+
+        $this->runHealthChecks();
+
+        $results = app(ResultStore::class)->latestResults();
+        $scheduleResult = collect($results?->storedCheckResults ?? [])->firstWhere('name', 'Schedule');
+
+        $this->assertNotNull($scheduleResult, 'The schedule check should be registered and stored');
+        $this->assertSame('failed', $scheduleResult->status);
     }
 
     #[Test]

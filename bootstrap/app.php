@@ -47,6 +47,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping(60)
             ->graceTimeInMinutes(60)
             ->environments(['production']);
+        // Writes the cache timestamp ScheduleCheck verifies. Excluded from
+        // schedule-monitor (doNotMonitor): ScheduleCheck is its monitor, and
+        // per-minute runs would write ~3k task-log rows a day for nothing.
+        $schedule->command('health:schedule-check-heartbeat')
+            ->everyMinute()
+            ->doNotMonitor()
+            ->environments(['production']);
         // Runs every registered health check, including the route canaries the
         // retired monitoring:check-canaries command used to probe at this cadence.
         $schedule->command('health:check')

@@ -13,6 +13,7 @@ use Spatie\Health\Checks\Checks\DatabaseCheck;
 use Spatie\Health\Checks\Checks\HorizonCheck;
 use Spatie\Health\Checks\Checks\RedisCheck;
 use Spatie\Health\Checks\Checks\RedisMemoryUsageCheck;
+use Spatie\Health\Checks\Checks\ScheduleCheck;
 use Spatie\Health\Facades\Health;
 
 /**
@@ -41,6 +42,11 @@ class HealthCheckServiceProvider extends ServiceProvider
             HorizonCheck::new(),
             TempDiskSpaceCheck::new(),
             ScheduledTasksCheck::new(),
+            // Verifies the per-minute health:schedule-check-heartbeat cache
+            // timestamp, and on success pings SCHEDULE_HEARTBEAT_URL so an
+            // external service alerts when the scheduler itself dies — the
+            // one failure mode the scheduled health:check cannot report.
+            ScheduleCheck::new()->heartbeatMaxAgeInMinutes(5),
             // Local dev serves through `artisan serve`, where the canaries'
             // self-directed HTTP probes would deadlock the single PHP process.
             RouteCanariesCheck::new()->if(fn (): bool => ! app()->isLocal()),
