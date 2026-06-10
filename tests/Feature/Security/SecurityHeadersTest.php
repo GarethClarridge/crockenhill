@@ -18,7 +18,7 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->assertHeader('X-XSS-Protection', '0');
-        $response->assertHeader('Permissions-Policy', 'accelerometer=(), ambient-light-sensor=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
+        $response->assertHeader('Permissions-Policy', 'accelerometer=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
         $response->assertHeader('Content-Security-Policy');
     }
 
@@ -31,7 +31,7 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->assertHeader('X-XSS-Protection', '0');
-        $response->assertHeader('Permissions-Policy', 'accelerometer=(), ambient-light-sensor=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
+        $response->assertHeader('Permissions-Policy', 'accelerometer=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
         $response->assertHeader('Content-Security-Policy');
     }
 
