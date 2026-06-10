@@ -6,6 +6,8 @@ namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Livewire\Admin\ChurchServices\ListSectionPublications;
 use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
@@ -15,11 +17,13 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
 use App\Services\Processing\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -284,5 +288,194 @@ class ShowChurchServiceTest extends TestCase
             ->assertSee($log->processing_id)
             ->assertSee('Reclassify')
             ->assertSee('Delete upload');
+    }
+
+    // -------------------------------------------------------------------------
+    // Inline section review (P3.2)
+    // -------------------------------------------------------------------------
+
+    /**
+     * @return array{0: ChurchService, 1: MediaProcessingLog}
+     */
+    private function workbenchServiceWithRun(): array
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'sermon_id' => null,
+        ]);
+
+        return [$service, $run];
+    }
+
+    #[Test]
+    public function it_renders_inline_review_panels_for_flagged_sections(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'title' => 'Flagged Song',
+            'needs_manual_review' => true,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Manual review')
+            ->assertSee('Section type')
+            ->assertSee('Section title')
+            ->assertSeeHtml('id="section-'.$section->id.'"')
+            ->assertSeeHtml('wire:click="saveSection('.$section->id.')"')
+            ->assertSet('sectionEdits.'.$section->id.'.title', 'Flagged Song');
+    }
+
+    #[Test]
+    public function it_does_not_seed_edit_state_for_clean_sections(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $clean = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => false,
+            'confidence' => 1.0,
+        ]);
+
+        $component = Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service]);
+
+        $this->assertArrayNotHasKey($clean->id, $component->get('sectionEdits'));
+    }
+
+    #[Test]
+    public function it_saves_section_edits_inline_on_the_workbench(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'title' => 'Original Title',
+            'needs_manual_review' => true,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->set("sectionEdits.{$section->id}.section_type", ServiceSectionType::Prayer->value)
+            ->set("sectionEdits.{$section->id}.title", 'Updated Title')
+            ->call('saveSection', $section->id)
+            ->assertDispatched('notify', type: 'success', message: 'Section changes saved.');
+
+        $section->refresh();
+        $this->assertSame(ServiceSectionType::Prayer, $section->section_type);
+        $this->assertSame('Updated Title', $section->title);
+    }
+
+    #[Test]
+    public function it_merges_adjacent_sections_inline_on_the_workbench(): void
+    {
+        Queue::fake();
+
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $first = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 100.0,
+            'end_time' => 107.0,
+        ]);
+
+        $second = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'start_time' => 107.0,
+            'end_time' => 231.0,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Merge with the next Song section')
+            ->call('initiateMerge', $first->id, $second->id)
+            ->assertSee('Merge these two Song sections into one?')
+            ->call('confirmMerge')
+            ->assertDispatched('notify', type: 'success', message: 'Sections merged successfully.');
+
+        // The action keeps the longer section and absorbs the shorter one.
+        $second->refresh();
+        $this->assertSame(100.0, $second->start_time);
+        $this->assertSame(231.0, $second->end_time);
+        $this->assertDatabaseMissing('service_sections', ['id' => $first->id]);
+    }
+
+    #[Test]
+    public function workbench_mutating_actions_require_admin(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+        ]);
+
+        $member = User::factory()->create(['is_admin' => false]);
+
+        foreach ([
+            fn ($component) => $component->call('saveSection', $section->id),
+            fn ($component) => $component->call('approvePendingPublications', $service->id),
+            // The confirmMerge() authorization gap from the dashboard must not be copied (C4).
+            fn ($component) => $component->call('initiateMerge', $section->id, $section->id)->call('confirmMerge'),
+            fn ($component) => $component->call('markServiceReviewed', $service->id),
+        ] as $invoke) {
+            $invoke(
+                Livewire::actingAs($member)->test(ShowChurchService::class, ['churchService' => $service])
+            )->assertForbidden();
+        }
+    }
+
+    #[Test]
+    public function it_offers_batch_approval_when_publications_are_pending(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('1 pending publication')
+            ->assertSee('Approve all pending publications')
+            ->call('approvePendingPublications', $service->id)
+            ->assertDispatched('notify');
+    }
+
+    #[Test]
+    public function it_hides_publication_affordances_when_section_publishing_is_disabled(): void
+    {
+        config(['media-processing.section_publishing.enabled' => false]);
+
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'needs_manual_review' => true,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertDontSee('Approve all pending publications')
+            ->assertDontSeeHtml('wire:click="approve('.$section->id.')"');
     }
 }

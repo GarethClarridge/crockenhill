@@ -303,6 +303,33 @@ class ServiceReviewDashboardQuery
         return $this->reviewReasons($section) !== [];
     }
 
+    /**
+     * Per-section review entry for surfaces that already hold the section
+     * (workbench timeline rows, inbox): the same reasons and guarded preview
+     * URLs that reviewGroups() builds, or null when nothing flags the section.
+     *
+     * @return array{
+     *     reasons: array<int, array{key: string, label: string, classes: string}>,
+     *     review_reason: string|null,
+     *     audio_url: string|null,
+     *     video_url: string|null
+     * }|null
+     */
+    public function reviewEntryFor(ServiceSection $section): ?array
+    {
+        $reasons = $this->reviewReasons($section);
+        if ($reasons === []) {
+            return null;
+        }
+
+        return [
+            'reasons' => $reasons,
+            'review_reason' => $this->reviewReasonLabel($section),
+            'audio_url' => $this->assetUrl($section, 'audio', $section->extracted_audio_path),
+            'video_url' => $this->assetUrl($section, 'video', $section->extracted_video_path),
+        ];
+    }
+
     public function batchApprovalSkipReason(ServiceSection $section): ?string
     {
         $additionalReviewFlags = collect($this->reviewReasons($section))

@@ -335,9 +335,9 @@
                             </div>
 
                             @if($isMergeCandidate)
-                                @if($pendingMerge
-                                    && $pendingMerge['primary_id'] === $section->id
-                                    && $pendingMerge['secondary_id'] === $nextSection->id)
+                                @if($pendingSectionMerge
+                                    && $pendingSectionMerge['primary_id'] === $section->id
+                                    && $pendingSectionMerge['secondary_id'] === $nextSection->id)
                                     <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
                                         <p class="font-medium text-amber-900">Merge these two {{ $section->section_type->label() }} sections into one?</p>
                                         <p class="mt-1 text-amber-700">
