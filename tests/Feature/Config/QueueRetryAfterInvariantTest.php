@@ -9,45 +9,44 @@ use Tests\TestCase;
 
 /**
  * Guards the cross-file invariant that the redis queue's `retry_after` always
- * exceeds the production worker's `--timeout`. The two values live in files no
- * single runtime reads together (config/queue.php and the supervisord config),
- * so only a test makes the relationship visible. If TRANSCRIPTION_JOB_TIMEOUT
- * (or any other long job) forces the worker `--timeout` up, this fails the build
- * until `retry_after` is raised with it — which is the point.
+ * exceeds every production Horizon supervisor's job `timeout`. Horizon also
+ * enforces this at boot (it refuses to start when violated), but that only
+ * surfaces at deploy time — this test fails the build instead. If
+ * TRANSCRIPTION_JOB_TIMEOUT (or any other long job) forces a supervisor
+ * timeout up, this fails until `retry_after` is raised with it — which is the
+ * point.
  */
 class QueueRetryAfterInvariantTest extends TestCase
 {
     #[Test]
-    public function redis_retry_after_exceeds_the_production_worker_timeout(): void
+    public function redis_retry_after_exceeds_every_production_horizon_supervisor_timeout(): void
     {
-        $supervisordPath = base_path('docker/production/supervisord.conf');
+        $defaults = (array) config('horizon.defaults');
+        $production = (array) config('horizon.environments.production');
 
-        $this->assertFileExists(
-            $supervisordPath,
-            'Expected the production supervisord config to exist so the invariant can be checked.',
-        );
+        $this->assertNotEmpty($production, 'No Horizon supervisors are configured for production.');
 
-        $supervisord = (string) file_get_contents($supervisordPath);
-
-        $this->assertSame(
-            1,
-            preg_match('/--timeout=(\d+)/', $supervisord, $matches),
-            'Could not find the queue worker --timeout value in supervisord.conf.',
-        );
-
-        $workerTimeout = (int) $matches[1];
         $retryAfter = (int) config('queue.connections.redis.retry_after');
 
-        $this->assertGreaterThan(
-            $workerTimeout,
-            $retryAfter,
-            sprintf(
-                'queue.connections.redis.retry_after (%d) must exceed the worker --timeout (%d), '
-                .'or a long-running job can be released and re-delivered while still running. '
-                .'Raise REDIS_QUEUE_RETRY_AFTER (and its default in config/queue.php) above the worker timeout.',
+        foreach ($production as $supervisor => $overrides) {
+            $options = array_merge((array) ($defaults[$supervisor] ?? []), (array) $overrides);
+
+            $this->assertArrayHasKey('timeout', $options, "Horizon supervisor [{$supervisor}] does not define a timeout.");
+
+            $timeout = (int) $options['timeout'];
+
+            $this->assertGreaterThan(
+                $timeout,
                 $retryAfter,
-                $workerTimeout,
-            ),
-        );
+                sprintf(
+                    'queue.connections.redis.retry_after (%d) must exceed the [%s] supervisor timeout (%d), '
+                    .'or a long-running job can be released and re-delivered while still running. '
+                    .'Raise REDIS_QUEUE_RETRY_AFTER (and its default in config/queue.php) above the supervisor timeout.',
+                    $retryAfter,
+                    $supervisor,
+                    $timeout,
+                ),
+            );
+        }
     }
 }

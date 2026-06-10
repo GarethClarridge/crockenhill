@@ -428,6 +428,14 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \
               php artisan migrate --force
 
+            # Ask the outgoing release's Horizon to finish in-flight jobs and
+            # stop consuming before the container swap below kills it. The swap
+            # itself picks up the new code (fresh image), so this only narrows
+            # the window where a mid-flight job dies and waits out retry_after.
+            # `|| true`: tolerate an old image that predates Horizon.
+            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+              php artisan horizon:terminate || true
+
             docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 
             # Flush the application data cache so values written by the previous
