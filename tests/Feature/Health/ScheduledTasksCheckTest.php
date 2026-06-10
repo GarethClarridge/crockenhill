@@ -76,6 +76,23 @@ class ScheduledTasksCheckTest extends TestCase
     }
 
     #[Test]
+    public function it_fails_when_a_task_started_on_time_but_has_not_finished_within_its_grace_period(): void
+    {
+        MonitoredScheduledTask::create([
+            'name' => 'backup:run',
+            'cron_expression' => '* * * * *',
+            'grace_time_in_minutes' => 5,
+            'last_started_at' => now()->subMinutes(2),
+            'last_finished_at' => now()->subHours(2),
+        ]);
+
+        $result = ScheduledTasksCheck::new()->run();
+
+        $this->assertSame(Status::failed(), $result->status);
+        $this->assertStringContainsString('backup:run is overdue', $result->notificationMessage);
+    }
+
+    #[Test]
     public function a_recovered_task_no_longer_reports_its_old_failure(): void
     {
         MonitoredScheduledTask::create([

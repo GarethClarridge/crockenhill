@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Monitoring\Checks;
 
+use Carbon\CarbonInterface;
 use Cron\CronExpression;
 use Illuminate\Support\Carbon;
 use Spatie\Health\Checks\Check;
@@ -14,7 +15,10 @@ use Spatie\ScheduleMonitor\Models\MonitoredScheduledTask;
  * Surfaces schedule-monitor's records through /health: a monitored scheduled
  * task is reported when its last run failed (last_failed_at newer than
  * last_finished_at — the package updates exactly one of the two per run) or
- * when it has not started within its grace period of the expected cron time.
+ * when it has not completed within its grace period of the expected cron
+ * time. Overdue is measured from the last completion (finished or failed),
+ * not the last start, so a task that starts on time but hangs is flagged as
+ * soon as its grace period lapses rather than a full cron interval later.
  * A dead scheduler shows up as every task going overdue at once. The task
  * table is populated by `schedule-monitor:sync` in the deploy hook, so an
  * empty table (local, tests) reports healthy.
@@ -51,8 +55,8 @@ class ScheduledTasksCheck extends Check
         }
 
         if ($this->isOverdue($task)) {
-            $reference = $task->last_started_at ?? $task->created_at;
-            $problems[] = "{$task->name} is overdue (last started {$reference?->diffForHumans()})";
+            $lastCompletedAt = $this->lastCompletedAt($task);
+            $problems[] = "{$task->name} is overdue (last completed ".($lastCompletedAt?->diffForHumans() ?? 'never').')';
         }
 
         return $problems;
@@ -69,7 +73,7 @@ class ScheduledTasksCheck extends Check
 
     private function isOverdue(MonitoredScheduledTask $task): bool
     {
-        $reference = $task->last_started_at ?? $task->created_at;
+        $reference = $this->lastCompletedAt($task) ?? $task->created_at;
 
         if ($reference === null) {
             return false;
@@ -85,5 +89,16 @@ class ScheduledTasksCheck extends Check
         );
 
         return now()->gt($expectedNextStart->addMinutes($task->grace_time_in_minutes));
+    }
+
+    private function lastCompletedAt(MonitoredScheduledTask $task): ?CarbonInterface
+    {
+        $completions = array_filter([$task->last_finished_at, $task->last_failed_at]);
+
+        if ($completions === []) {
+            return null;
+        }
+
+        return max($completions);
     }
 }
