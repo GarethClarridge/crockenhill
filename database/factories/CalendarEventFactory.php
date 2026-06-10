@@ -19,7 +19,11 @@ class CalendarEventFactory extends Factory
      */
     public function definition(): array
     {
-        $start = $this->faker->dateTimeBetween('+1 day', '+30 days');
+        // Date windows are anchored to now() (not faker's string offsets, which
+        // resolve against the real system clock) so the frozen Playwright clock
+        // and the pinned faker seed together make seeded events byte-identical
+        // across runs. rand() is unseeded, so durations draw from faker too.
+        $start = $this->faker->dateTimeBetween(now()->addDay(), now()->addDays(30));
 
         return [
             'google_event_id' => $this->faker->uuid(),
@@ -29,7 +33,7 @@ class CalendarEventFactory extends Factory
             'speaker' => $this->faker->name(),
             'location' => $this->faker->city(),
             'start_datetime' => $start,
-            'end_datetime' => (clone $start)->modify('+'.rand(0, 180).' minutes'),
+            'end_datetime' => (clone $start)->modify('+'.$this->faker->numberBetween(0, 180).' minutes'),
             'status' => CalendarEventStatus::Confirmed,
             'is_categorized_automatically' => false,
         ];
@@ -70,7 +74,7 @@ class CalendarEventFactory extends Factory
     public function upcoming(): static
     {
         return $this->state(function (array $attributes) {
-            $start = $this->faker->dateTimeBetween('+1 day', '+30 days');
+            $start = $this->faker->dateTimeBetween(now()->addDay(), now()->addDays(30));
             $end = (clone $start)->modify('+1 hour');
 
             return [
@@ -86,7 +90,7 @@ class CalendarEventFactory extends Factory
     public function past(): static
     {
         return $this->state(function (array $attributes) {
-            $start = $this->faker->dateTimeBetween('-30 days', '-1 day');
+            $start = $this->faker->dateTimeBetween(now()->subDays(30), now()->subDay());
             $end = (clone $start)->modify('+1 hour');
 
             return [
