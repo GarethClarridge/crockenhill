@@ -5,7 +5,7 @@
   <input type="hidden" name="_token" value="{{ csrf_token() }}">
   <x-button link="/church/members/pages/{{$slug}}/edit">
     <div class="flex items-center justify-center">
-      <x-heroicon-s-pencil-square class="h-6 w-6 mr-2" />
+      <x-heroicon-s-pencil-square class="h-6 w-6 mr-2" aria-hidden="true" />
 
 
 
