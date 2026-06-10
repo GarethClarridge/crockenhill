@@ -56,4 +56,37 @@ class LivewireHydrationTest extends DuskTestCase
             }, 'Livewire update roundtrip failed — the component could not re-render via the update endpoint.');
         });
     }
+
+    /**
+     * Alpine evaluates x-init/x-data expressions at boot; a malformed expression
+     * (e.g. Blade conditionals concatenating two statements without a separator)
+     * logs a SEVERE console error but leaves hydration intact, so the roundtrip
+     * test above stays green. This catches that failure mode.
+     */
+    public function test_login_page_boots_without_severe_javascript_console_errors(): void
+    {
+        $this->browse(function (Browser $browser) {
+            $browser->driver->manage()->getLog('browser');
+
+            $browser->visit('/login');
+
+            $browser->waitUsing(10, 100, function () use ($browser) {
+                return $browser->script(
+                    'return typeof window.Livewire !== "undefined" && window.Livewire.all().length > 0'
+                )[0];
+            }, 'Livewire JS runtime never booted on the login page.');
+
+            $severeEntries = array_values(array_filter(
+                $browser->driver->manage()->getLog('browser'),
+                fn (array $entry): bool => $entry['level'] === 'SEVERE'
+                    && in_array($entry['source'], ['javascript', 'console-api'], true)
+            ));
+
+            $this->assertSame(
+                [],
+                array_column($severeEntries, 'message'),
+                'JavaScript errors were logged while booting the login page.'
+            );
+        });
+    }
 }
