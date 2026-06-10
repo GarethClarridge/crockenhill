@@ -7,6 +7,7 @@ namespace Tests\Feature\Console;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\ScheduleMonitor\Support\ScheduledTasks\MonitoredScheduledTasks;
 use Tests\TestCase;
 
 class SchedulerRegistrationTest extends TestCase
@@ -134,6 +135,32 @@ class SchedulerRegistrationTest extends TestCase
             $this->assertTrue($event->withoutOverlapping, "{$command} should have withoutOverlapping enabled");
             $this->assertTrue($event->onOneServer, "{$command} should run on one server only");
             $this->assertContains('production', $event->environments);
+        }
+    }
+
+    #[Test]
+    public function long_running_tasks_have_grace_times_matching_their_overlap_lock_windows(): void
+    {
+        $expectedGraceTimes = [
+            'media:cleanup-temp-files' => 60,
+            'media:cleanup-unpublished-section-assets' => 30,
+            'scripture:refresh-passages' => 60,
+            'backup:clean' => 60,
+            'backup:run' => 120,
+            'backup:monitor' => 30,
+        ];
+
+        $registry = $this->app->make(MonitoredScheduledTasks::class);
+
+        foreach ($expectedGraceTimes as $command => $minutes) {
+            $event = $this->findEvent($command);
+
+            $this->assertNotNull($event, "{$command} should be registered in the scheduler");
+            $this->assertSame(
+                $minutes,
+                $registry->getGraceTimeInMinutes($event),
+                "{$command} should have a grace time matching its withoutOverlapping lock window, so ScheduledTasksCheck does not report a normal run as overdue"
+            );
         }
     }
 }

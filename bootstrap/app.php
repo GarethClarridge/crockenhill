@@ -25,20 +25,27 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule) {
+        // graceTimeInMinutes mirrors each task's withoutOverlapping lock window:
+        // the runtime a task is allowed before ScheduledTasksCheck reports it
+        // overdue. Tasks without one accept the 5-minute default from
+        // config/schedule-monitor.php.
         $schedule->command('calendar:sync')
             ->cron('0 */4 * * *')
             ->environments(['production']);
         $schedule->command('media:cleanup-temp-files --hours=24')
             ->everySixHours()
             ->withoutOverlapping(60)
+            ->graceTimeInMinutes(60)
             ->environments(['production']);
         $schedule->command('media:cleanup-unpublished-section-assets --hours=48')
             ->everySixHours()
             ->withoutOverlapping(30)
+            ->graceTimeInMinutes(30)
             ->environments(['production']);
         $schedule->command('scripture:refresh-passages')
             ->daily()
             ->withoutOverlapping(60)
+            ->graceTimeInMinutes(60)
             ->environments(['production']);
         // Runs every registered health check, including the route canaries the
         // retired monitoring:check-canaries command used to probe at this cadence.
@@ -60,16 +67,19 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('backup:clean')
             ->dailyAt('01:00')
             ->withoutOverlapping(60)
+            ->graceTimeInMinutes(60)
             ->onOneServer()
             ->environments(['production']);
         $schedule->command('backup:run')
             ->dailyAt('01:30')
             ->withoutOverlapping(120)
+            ->graceTimeInMinutes(120)
             ->onOneServer()
             ->environments(['production']);
         $schedule->command('backup:monitor')
             ->dailyAt('08:00')
             ->withoutOverlapping(30)
+            ->graceTimeInMinutes(30)
             ->onOneServer()
             ->environments(['production']);
     })
