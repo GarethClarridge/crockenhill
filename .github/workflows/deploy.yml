@@ -452,6 +452,13 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
               php artisan optimize --except=views
 
+            # Register the new release's schedule with schedule-monitor so the
+            # /health scheduled-tasks check tracks exactly what is now scheduled
+            # (stale tasks are removed, new ones added). Runs after `up -d` so it
+            # reads the new code's schedule.
+            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+              php artisan schedule-monitor:sync
+
             # Pre-build public/sitemap.xml inside the app container before the
             # canaries run. public/ lives on the container's ephemeral layer (it is
             # not a persisted volume), so a fresh image has no sitemap file. nginx

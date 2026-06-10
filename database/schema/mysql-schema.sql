@@ -141,6 +141,26 @@ CREATE TABLE `failed_jobs` (
   UNIQUE KEY `failed_jobs_uuid_unique` (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `health_check_result_history_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `health_check_result_history_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `check_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `check_label` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `notification_message` text COLLATE utf8mb4_unicode_ci,
+  `short_summary` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `meta` json NOT NULL,
+  `ended_at` timestamp NOT NULL,
+  `batch` char(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `health_check_result_history_items_created_at_index` (`created_at`),
+  KEY `health_check_result_history_items_batch_index` (`batch`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `inbound_emails`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -317,9 +337,9 @@ CREATE TABLE `media_processing_logs` (
   KEY `media_processing_logs_extracted_identity_index` (`extracted_date`,`extracted_service`),
   KEY `media_processing_logs_church_service_id_foreign` (`church_service_id`),
   KEY `media_processing_logs_file_hash_index` (`file_hash`),
-  KEY `media_processing_logs_job_id_index` (`job_id`),
   KEY `media_processing_logs_review_queue_index` (`processing_type`,`status`,`current_step`,`updated_at`),
   KEY `media_processing_logs_original_filename_index` (`original_filename`),
+  KEY `media_processing_logs_job_id_index` (`job_id`),
   CONSTRAINT `media_processing_logs_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE SET NULL,
   CONSTRAINT `media_processing_logs_owner_user_id_foreign` FOREIGN KEY (`owner_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `media_processing_logs_sermon_id_foreign` FOREIGN KEY (`sermon_id`) REFERENCES `sermons` (`id`) ON DELETE SET NULL,
@@ -376,6 +396,43 @@ CREATE TABLE `migrations` (
   `migration` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `batch` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `monitored_scheduled_task_log_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `monitored_scheduled_task_log_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `monitored_scheduled_task_id` bigint unsigned NOT NULL,
+  `type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `meta` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_scheduled_task_id` (`monitored_scheduled_task_id`),
+  CONSTRAINT `fk_scheduled_task_id` FOREIGN KEY (`monitored_scheduled_task_id`) REFERENCES `monitored_scheduled_tasks` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `monitored_scheduled_tasks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `monitored_scheduled_tasks` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cron_expression` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `timezone` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ping_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_started_at` datetime DEFAULT NULL,
+  `last_finished_at` datetime DEFAULT NULL,
+  `last_failed_at` datetime DEFAULT NULL,
+  `last_skipped_at` datetime DEFAULT NULL,
+  `registered_on_oh_dear_at` datetime DEFAULT NULL,
+  `last_pinged_at` datetime DEFAULT NULL,
+  `grace_time_in_minutes` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `pages`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1151,3 +1208,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_05_26_165514_forti
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_01_065205_add_timing_index_to_livestream_segments_table',73);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_02_203631_add_indexes_to_song_author_song_table',74);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_10_072047_add_job_id_index_to_media_processing_logs_table',75);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_10_165337_create_schedule_monitor_tables',75);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_10_165517_create_health_tables',75);

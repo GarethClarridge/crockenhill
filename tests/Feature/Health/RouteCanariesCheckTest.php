@@ -2,19 +2,24 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Console;
+namespace Tests\Feature\Health;
 
-use App\Mail\RouteCanaryFailure;
 use App\Models\Meeting;
+use App\Services\Monitoring\Checks\RouteCanariesCheck;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Health\Enums\Status;
 use Tests\TestCase;
 
-class CheckRouteCanariesCommandTest extends TestCase
+/**
+ * Probe behaviour ported from the retired monitoring:check-canaries command
+ * test; alert throttling and recipients now live in the laravel-health
+ * notification pipeline, so only probing and result mapping are covered here.
+ */
+class RouteCanariesCheckTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -25,11 +30,7 @@ class CheckRouteCanariesCommandTest extends TestCase
         config([
             'monitoring.enabled' => true,
             'monitoring.base_url' => 'http://canary.test',
-            'monitoring.alert_email' => 'oncall@example.com',
-            'monitoring.alert_cooldown_minutes' => 30,
         ]);
-
-        Mail::fake();
     }
 
     /**
@@ -55,26 +56,28 @@ class CheckRouteCanariesCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_returns_success_when_all_canaries_pass(): void
+    public function it_reports_ok_when_all_canaries_pass(): void
     {
         $this->fakeHealthyCanaries();
 
-        $this->artisan('monitoring:check-canaries')->assertExitCode(0);
+        $result = RouteCanariesCheck::new()->run();
 
-        Mail::assertNothingSent();
+        $this->assertSame(Status::ok(), $result->status);
+        $this->assertStringContainsString('passed', $result->shortSummary);
     }
 
     #[Test]
-    public function it_fails_logs_and_emails_when_a_canary_returns_the_wrong_status(): void
+    public function it_fails_and_logs_when_a_canary_returns_the_wrong_status(): void
     {
         Log::spy();
         $this->fakeHealthyCanaries(['*/sitemap.xml' => Http::response('boom', 500)]);
 
-        $this->artisan('monitoring:check-canaries')->assertExitCode(1);
+        $result = RouteCanariesCheck::new()->run();
 
+        $this->assertSame(Status::failed(), $result->status);
+        $this->assertStringContainsString('/sitemap.xml — expected 200, got 500', $result->notificationMessage);
+        $this->assertArrayHasKey('/sitemap.xml', $result->meta);
         Log::shouldHaveReceived('error')->once();
-        Mail::assertSent(RouteCanaryFailure::class, fn (RouteCanaryFailure $mail): bool => $mail->hasTo('oncall@example.com')
-            && array_key_exists('/sitemap.xml', $mail->failures));
     }
 
     #[Test]
@@ -83,44 +86,22 @@ class CheckRouteCanariesCommandTest extends TestCase
         // 200, but the body is not the real page — a soft error the status misses.
         $this->fakeHealthyCanaries(['*' => Http::response('<html>maintenance</html>', 200)]);
 
-        $this->artisan('monitoring:check-canaries')->assertExitCode(1);
+        $result = RouteCanariesCheck::new()->run();
 
-        Mail::assertSent(RouteCanaryFailure::class);
+        $this->assertSame(Status::failed(), $result->status);
+        $this->assertStringContainsString('body marker', $result->notificationMessage);
     }
 
     #[Test]
-    public function it_throttles_alert_emails_per_url_within_the_cooldown(): void
-    {
-        $this->fakeHealthyCanaries(['*/sitemap.xml' => Http::response('boom', 500)]);
-
-        $this->artisan('monitoring:check-canaries')->assertExitCode(1);
-        $this->artisan('monitoring:check-canaries')->assertExitCode(1);
-
-        // Both runs fail, but the alert is sent only once inside the cooldown.
-        Mail::assertSent(RouteCanaryFailure::class, 1);
-    }
-
-    #[Test]
-    public function it_logs_but_does_not_email_when_no_alert_address_is_configured(): void
-    {
-        config(['monitoring.alert_email' => null]);
-        Log::spy();
-        $this->fakeHealthyCanaries(['*/sitemap.xml' => Http::response('boom', 500)]);
-
-        $this->artisan('monitoring:check-canaries')->assertExitCode(1);
-
-        Log::shouldHaveReceived('error')->once();
-        Mail::assertNothingSent();
-    }
-
-    #[Test]
-    public function it_does_nothing_when_monitoring_is_disabled(): void
+    public function it_reports_ok_without_probing_when_monitoring_is_disabled(): void
     {
         config(['monitoring.enabled' => false]);
         Http::fake();
 
-        $this->artisan('monitoring:check-canaries')->assertExitCode(0);
+        $result = RouteCanariesCheck::new()->run();
 
+        $this->assertSame(Status::ok(), $result->status);
+        $this->assertSame('Disabled', $result->shortSummary);
         Http::assertNothingSent();
     }
 
@@ -130,7 +111,7 @@ class CheckRouteCanariesCommandTest extends TestCase
         Meeting::factory()->create(['slug' => 'sunday-mornings', 'page_id' => null]);
         $this->fakeHealthyCanaries();
 
-        $this->artisan('monitoring:check-canaries')->assertExitCode(0);
+        RouteCanariesCheck::new()->run();
 
         $meetingRequests = Http::recorded(
             fn ($request): bool => str_contains($request->url(), '/community/sunday-mornings')

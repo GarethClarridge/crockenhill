@@ -179,7 +179,8 @@ check_schedule_registration() {
     grep -Fq 'media:cleanup-temp-files --hours=24' <<<"$output" &&
     grep -Fq 'media:cleanup-unpublished-section-assets --hours=48' <<<"$output" &&
     grep -Fq 'scripture:refresh-passages' <<<"$output" &&
-    grep -Fq 'monitoring:check-canaries' <<<"$output" &&
+    grep -Fq 'health:check' <<<"$output" &&
+    grep -Fq 'model:prune' <<<"$output" &&
     grep -Fq 'horizon:snapshot' <<<"$output" &&
     grep -Fq 'backup:clean' <<<"$output" &&
     grep -Fq 'backup:run' <<<"$output" &&

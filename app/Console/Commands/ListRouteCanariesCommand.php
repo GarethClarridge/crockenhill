@@ -15,7 +15,7 @@ use Illuminate\Console\Command;
  * Output is one tab-separated record per line: `url`, expected HTTP status,
  * number of hits, and a body marker to grep for (empty marker = status only).
  * The canary set itself lives in {@see RouteCanaryRegistry}, shared with the
- * continuous checker (`monitoring:check-canaries`).
+ * continuous checker (the laravel-health RouteCanariesCheck).
  */
 class ListRouteCanariesCommand extends Command
 {

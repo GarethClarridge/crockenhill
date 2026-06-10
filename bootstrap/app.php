@@ -14,6 +14,8 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Spatie\Health\Models\HealthCheckResultHistoryItem;
+use Spatie\ScheduleMonitor\Models\MonitoredScheduledTaskLogItem;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,24 +25,52 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule) {
+        // graceTimeInMinutes mirrors each task's withoutOverlapping lock window:
+        // the runtime a task is allowed before ScheduledTasksCheck reports it
+        // overdue. Tasks without one accept the 5-minute default from
+        // config/schedule-monitor.php.
         $schedule->command('calendar:sync')
             ->cron('0 */4 * * *')
             ->environments(['production']);
         $schedule->command('media:cleanup-temp-files --hours=24')
             ->everySixHours()
             ->withoutOverlapping(60)
+            ->graceTimeInMinutes(60)
             ->environments(['production']);
         $schedule->command('media:cleanup-unpublished-section-assets --hours=48')
             ->everySixHours()
             ->withoutOverlapping(30)
+            ->graceTimeInMinutes(30)
             ->environments(['production']);
         $schedule->command('scripture:refresh-passages')
             ->daily()
             ->withoutOverlapping(60)
+            ->graceTimeInMinutes(60)
             ->environments(['production']);
-        $schedule->command('monitoring:check-canaries')
+        // Writes the cache timestamp ScheduleCheck verifies. Excluded from
+        // schedule-monitor (doNotMonitor): ScheduleCheck is its monitor, and
+        // per-minute runs would write ~3k task-log rows a day for nothing.
+        // Long foreground tasks (backup:run, 120 min) cannot starve this:
+        // production's schedule:work starts each minute's schedule:run as a
+        // concurrent subprocess, so only same-tick tasks queue behind one
+        // another — and the heartbeat is registered ahead of them anyway.
+        $schedule->command('health:schedule-check-heartbeat')
+            ->everyMinute()
+            ->doNotMonitor()
+            ->environments(['production']);
+        // Runs every registered health check, including the route canaries the
+        // retired monitoring:check-canaries command used to probe at this cadence.
+        $schedule->command('health:check')
             ->everyFiveMinutes()
             ->withoutOverlapping()
+            ->environments(['production']);
+        $schedule->command('model:prune', [
+            '--model' => [
+                HealthCheckResultHistoryItem::class,
+                MonitoredScheduledTaskLogItem::class,
+            ],
+        ])
+            ->daily()
             ->environments(['production']);
         $schedule->command('horizon:snapshot')
             ->everyFiveMinutes()
@@ -48,16 +78,19 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('backup:clean')
             ->dailyAt('01:00')
             ->withoutOverlapping(60)
+            ->graceTimeInMinutes(60)
             ->onOneServer()
             ->environments(['production']);
         $schedule->command('backup:run')
             ->dailyAt('01:30')
             ->withoutOverlapping(120)
+            ->graceTimeInMinutes(120)
             ->onOneServer()
             ->environments(['production']);
         $schedule->command('backup:monitor')
             ->dailyAt('08:00')
             ->withoutOverlapping(30)
+            ->graceTimeInMinutes(30)
             ->onOneServer()
             ->environments(['production']);
     })
