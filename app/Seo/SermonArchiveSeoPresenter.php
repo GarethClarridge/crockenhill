@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Seo;
 
+use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Services\Public\PreacherListCache;
+use Illuminate\Support\Str;
 
 class SermonArchiveSeoPresenter
 {
@@ -109,6 +111,69 @@ class SermonArchiveSeoPresenter
         ]);
 
         return route('sermons.index', $params);
+    }
+
+    /**
+     * Title for a single preacher's archive page.
+     */
+    public function preacherTitle(Preacher $preacher): string
+    {
+        return 'Sermons by '.$preacher->name;
+    }
+
+    /**
+     * Description for a single preacher's archive page.
+     */
+    public function preacherDescription(Preacher $preacher): string
+    {
+        return 'Browse all sermons preached by '.$preacher->name.' at Crockenhill Baptist Church.';
+    }
+
+    /**
+     * Title for a single series' archive page.
+     */
+    public function seriesTitle(string $seriesName): string
+    {
+        return 'Sermon Series: '.$seriesName;
+    }
+
+    /**
+     * Description for a single series' archive page.
+     */
+    public function seriesDescription(string $seriesName): string
+    {
+        return 'Browse all sermons in the "'.$seriesName.'" series from Crockenhill Baptist Church.';
+    }
+
+    /**
+     * Title for a service-type archive page.
+     */
+    public function serviceTitle(SermonService $service, string $serviceSlug): string
+    {
+        return $this->serviceLabel($service, $serviceSlug).' Services';
+    }
+
+    /**
+     * Description for a service-type archive page.
+     */
+    public function serviceDescription(SermonService $service, string $serviceSlug): string
+    {
+        $serviceLabel = $this->serviceLabel($service, $serviceSlug);
+
+        return "Listen to recent {$serviceLabel} sermons from Crockenhill Baptist Church.";
+    }
+
+    /**
+     * Human-readable label for a service type, distinct from SermonService::label()
+     * (these are public page headings, so 'Sunday Morning' rather than 'Morning').
+     */
+    private function serviceLabel(SermonService $service, string $serviceSlug): string
+    {
+        return match ($service) {
+            SermonService::Morning => 'Sunday Morning',
+            SermonService::Evening => 'Sunday Evening',
+            SermonService::Other => Str::title($serviceSlug),
+        };
     }
 
     /**
