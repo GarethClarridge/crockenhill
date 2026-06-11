@@ -65,7 +65,7 @@ class PageFormData extends Form
             'admin' => 'boolean',
             'navigation' => 'boolean',
             'description' => 'required|string|max:500',
-            'markdown' => 'nullable|string',
+            'markdown' => 'nullable|string|max:100000',
             'sortOrder' => $modelRules['sort_order'],
         ];
     }

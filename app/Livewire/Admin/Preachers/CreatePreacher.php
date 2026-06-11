@@ -33,7 +33,7 @@ class CreatePreacher extends Component
         return [
             'name' => $modelRules['name'],
             'slug' => $modelRules['slug'],
-            'bio' => 'nullable|string',
+            'bio' => $modelRules['bio'],
             'isActive' => 'boolean',
         ];
     }

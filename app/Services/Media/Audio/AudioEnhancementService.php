@@ -18,6 +18,8 @@ class AudioEnhancementService
      *
      * Returns the path to the enhanced file, or null if enhancement is disabled or fails.
      * Failure is always non-fatal — callers should fall back to the original file.
+     *
+     * @throws \Throwable
      */
     public function enhance(string $inputPath, string $processingId): ?string
     {
@@ -251,6 +253,8 @@ class AudioEnhancementService
      *
      * Returns the path to the enhanced MP4 file, or null if enhancement is disabled or fails.
      * Failure is always non-fatal — callers should fall back to the original file.
+     *
+     * @throws \Throwable
      */
     public function enhanceVideo(string $inputPath, string $processingId): ?string
     {

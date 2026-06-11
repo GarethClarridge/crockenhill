@@ -31,6 +31,9 @@ class SermonVideoQualityAssessmentService
         $this->tempDisk = (string) config('thumbnail-generation.processing.temp_disk', 'local');
     }
 
+    /**
+     * @throws \Throwable
+     */
     public function assess(Sermon $sermon, ?string $videoPath = null, ?string $disk = null): SermonVideoQualityAssessmentResult
     {
         $videoPath ??= $sermon->video_file_path;
@@ -77,6 +80,8 @@ class SermonVideoQualityAssessmentService
      * FrameExtractionService::cleanupDownloadedVideo().
      *
      * @return array{result: SermonVideoQualityAssessmentResult, localVideoPath: string|null}
+     *
+     * @throws \Throwable
      */
     public function assessAndRetainLocalPath(Sermon $sermon, ?string $videoPath = null, ?string $disk = null): array
     {
@@ -114,6 +119,9 @@ class SermonVideoQualityAssessmentService
         }
     }
 
+    /**
+     * @throws \Exception
+     */
     public function assessLocalVideo(string $localVideoPath): SermonVideoQualityAssessmentResult
     {
         $metadata = $this->frameExtractionService->getVideoMetadata($localVideoPath);
