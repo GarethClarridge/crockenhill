@@ -153,9 +153,11 @@
                                             @endif
                                         </p>
                                     </div>
-                                    {{-- Prefer the workbench when the run matched a service; the standalone page stays for orphan runs --}}
+                                    {{-- Prefer the workbench when a livestream run matched a service; the standalone
+                                         page stays for orphan runs and for auto-trim video runs, which the workbench
+                                         run query (livestream-only) never renders --}}
                                     <x-button
-                                        link="{{ $group['service'] instanceof \App\Models\ChurchService
+                                        link="{{ $group['service'] instanceof \App\Models\ChurchService && $run->processing_type === \App\Enums\MediaType::Livestream
                                             ? route('admin.services.show', $group['service']).'#processing-run-'.$run->id
                                             : route('admin.services.processing.review', $run) }}"
                                         variant="primary"

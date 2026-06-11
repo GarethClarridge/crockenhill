@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Enums\InboundEmailStatus;
+use App\Enums\MediaType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Livewire\Admin\ChurchServices\ReviewInbox;
@@ -361,6 +362,38 @@ class ReviewInboxTest extends TestCase
 
         Livewire::test(ReviewInbox::class)
             ->assertSeeHtml(route('admin.services.processing.review', $run));
+    }
+
+    #[Test]
+    public function segment_links_for_auto_trim_video_runs_keep_the_standalone_page(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        // Auto-trim video runs support manual sermon review but the workbench
+        // run query only renders livestream runs — the inbox must not link to
+        // a workbench anchor that will never exist.
+        $run = MediaProcessingLog::factory()->manualReviewRequired()->create([
+            'processing_type' => MediaType::Video,
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'manual_review' => [
+                    'status' => 'required',
+                    'reason_code' => 'no_qualifying_speech_block',
+                    'reason_message' => 'No speech block met the 20-minute sermon threshold.',
+                    'flagged_at' => now()->toIso8601String(),
+                    'speech_segments' => [],
+                ],
+            ],
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSeeHtml(route('admin.services.processing.review', $run))
+            ->assertDontSeeHtml('#processing-run-'.$run->id);
     }
 
     #[Test]
