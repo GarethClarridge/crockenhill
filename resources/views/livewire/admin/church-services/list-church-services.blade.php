@@ -1,53 +1,60 @@
 <x-admin.list-shell
     title="Services"
-    description="View imported order-of-service records"
+    description="Plan, recording, and review status for every service"
 >
     <x-slot:actions>
-        <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
-            Review dashboard
-        </x-button>
-        <x-button link="{{ route('admin.services.processing.review.index') }}" variant="outline" icon="video-camera" inline>
-            Livestream review
-        </x-button>
-        <x-button link="{{ route('admin.services.inbound-emails') }}" variant="outline" icon="envelope" inline>
-            Review emails
-        </x-button>
         <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
             Song catalogue
         </x-button>
-        <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
-            Create service
-        </x-button>
-        <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
-            Upload service
-        </x-button>
+        <x-admin.action-menu label="Add">
+            <x-admin.action-menu-item link="{{ route('admin.sermon-upload.create') }}" icon="film">
+                Upload recording
+            </x-admin.action-menu-item>
+            <x-admin.action-menu-item link="{{ route('admin.services.upload') }}" icon="arrow-up-tray">
+                Upload order of service
+            </x-admin.action-menu-item>
+            <x-admin.action-menu-item link="{{ route('admin.services.submit-email') }}" icon="envelope">
+                Paste email text
+            </x-admin.action-menu-item>
+            <x-admin.action-menu-item link="{{ route('admin.services.create') }}" icon="pencil-square">
+                Create manually
+            </x-admin.action-menu-item>
+        </x-admin.action-menu>
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-admin.filter-bar loading-target="search, serviceFilter, needsReviewFilter, resetFilters">
-            <x-input
-                placeholder="Search by filename, date, or service..."
-                wire:model.live.debounce="search"
-                icon="magnifying-glass"
-                clearable
-                class="w-72"
-                shortcut="slash" />
+        <div class="space-y-4">
+            <x-admin.attention-strip :chips="$attentionChips" />
 
-            <x-select
-                placeholder="Service"
-                wire:model.live="serviceFilter"
-                :options="collect($services)->map(fn($service) => ['id' => $service->value, 'name' => $service->label()])->toArray()"
-                class="w-40" />
+            @if($heroService !== null)
+                @include('livewire.admin.church-services.partials.services-hub-hero')
+            @endif
 
-            <x-select
-                placeholder="Review"
-                wire:model.live="needsReviewFilter"
-                :options="[
-                    ['id' => '1', 'name' => 'Needs review'],
-                    ['id' => '0', 'name' => 'Ready'],
-                ]"
-                class="w-44" />
-        </x-admin.filter-bar>
+            <x-admin.filter-bar loading-target="search, serviceFilter, needsReviewFilter, resetFilters">
+                <x-input
+                    placeholder="Search by filename, date, or service..."
+                    wire:model.live.debounce="search"
+                    icon="magnifying-glass"
+                    clearable
+                    class="w-72"
+                    shortcut="slash" />
+
+                <x-select
+                    placeholder="Service"
+                    wire:model.live="serviceFilter"
+                    :options="collect($services)->map(fn($service) => ['id' => $service->value, 'name' => $service->label()])->toArray()"
+                    class="w-40" />
+
+                <x-select
+                    placeholder="Review"
+                    wire:model.live="needsReviewFilter"
+                    :options="[
+                        ['id' => '1', 'name' => 'Needs review'],
+                        ['id' => '0', 'name' => 'Ready'],
+                    ]"
+                    class="w-44" />
+            </x-admin.filter-bar>
+        </div>
     </x-slot:filters>
 
     <x-slot:pagination>
@@ -71,14 +78,11 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($churchServices as $churchService)
-                <tr class="hover:bg-gray-50" wire:loading.class.delay.200ms="opacity-50">
+                @php $rollup = $rollups[$churchService->id] ?? null; @endphp
+                <tr class="hover:bg-gray-50" wire:loading.class.delay.200ms="opacity-50" wire:key="service-row-{{ $churchService->id }}">
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $churchService->date->format('j M Y') }}</p>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ match($churchService->service) {
-                            \App\Enums\SermonService::Morning => 'bg-green-100 text-green-800',
-                            \App\Enums\SermonService::Evening => 'bg-amber-100 text-amber-800',
-                            default => 'bg-gray-100 text-gray-800',
-                        } }}">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                             {{ $churchService->service->label() }}
                         </span>
                     </td>
@@ -89,22 +93,11 @@
                         <span class="text-sm uppercase">{{ $churchService->source }}</span>
                     </td>
                     <td class="px-4 py-3">
-                        <div class="flex flex-wrap gap-1">
-                            @if($churchService->needs_review)
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
-                                    Needs review
-                                </span>
-                            @else
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cbc-teal-light/15 text-cbc-teal-dark">
-                                    Ready
-                                </span>
-                            @endif
-                            @if($churchService->pending_structure_merge_source !== null)
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                                    Pending merge
-                                </span>
-                            @endif
-                        </div>
+                        @if($rollup !== null)
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $rollup['status']->badgeClasses() }}">
+                                {{ $rollup['status']->label() . ($rollup['status'] === \App\Enums\ChurchServiceRollupStatus::NeedsReview ? " ({$rollup['attention_count']})" : '') }}
+                            </span>
+                        @endif
                     </td>
                     <td class="px-4 py-3">
                         <p class="text-sm font-medium">{{ $churchService->original_filename ?: '-' }}</p>

@@ -35,6 +35,7 @@ use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\UploadChurchService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
 use App\Models\ServiceSection;
@@ -1093,7 +1094,7 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function list_component_shows_pending_merge_badge(): void
+    public function list_component_rolls_pending_merge_into_the_needs_review_chip(): void
     {
         $this->actingAs($this->admin);
 
@@ -1116,7 +1117,163 @@ class AdminChurchServiceTest extends TestCase
             ])
             ->create();
 
+        // needs_review flag + pending merge = 2 attention items rolled up
         Livewire::test(ListChurchServices::class)
-            ->assertSee('Pending merge');
+            ->assertSee('Needs review (2)')
+            ->assertSee('Pending merges');
+    }
+
+    #[Test]
+    public function hub_shows_rollup_status_chips_for_services_without_runs(): void
+    {
+        $this->actingAs($this->admin);
+
+        ChurchService::factory()->create([
+            'date' => now()->subDays(10)->toDateString(),
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        ChurchService::factory()->create([
+            'date' => now()->addDays(10)->toDateString(),
+            'service' => SermonService::Evening,
+            'needs_review' => false,
+        ]);
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSee('Awaiting recording')
+            ->assertSee('Plan only');
+    }
+
+    #[Test]
+    public function hub_shows_an_all_caught_up_attention_strip_when_nothing_is_pending(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSee('All caught up');
+    }
+
+    #[Test]
+    public function hub_attention_strip_links_to_the_existing_queue_pages(): void
+    {
+        $this->actingAs($this->admin);
+
+        InboundEmail::factory()->create();
+
+        $this->churchServiceScenario()
+            ->needsReview()
+            ->state(['date' => '2026-01-19', 'service' => SermonService::Evening])
+            ->create();
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSee('Inbound emails')
+            ->assertSee('Services needing review')
+            ->assertSeeHtml(route('admin.services.inbound-emails'))
+            ->assertDontSee('All caught up');
+    }
+
+    #[Test]
+    public function hub_header_offers_a_single_add_menu(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSee('Upload recording')
+            ->assertSee('Upload order of service')
+            ->assertSee('Paste email text')
+            ->assertSee('Create manually')
+            ->assertSee('Song catalogue')
+            ->assertSeeHtml(route('admin.sermon-upload.create'));
+    }
+
+    #[Test]
+    public function hub_hero_picks_the_service_closest_to_today(): void
+    {
+        $this->actingAs($this->admin);
+
+        $near = ChurchService::factory()->create([
+            'date' => now()->addDays(2)->toDateString(),
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        ChurchService::factory()->create([
+            'date' => now()->addDays(6)->toDateString(),
+            'service' => SermonService::Evening,
+            'needs_review' => false,
+        ]);
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSee('This Sunday')
+            ->assertSee($near->date->format('j M Y').' — Morning')
+            ->assertSee('Open service');
+    }
+
+    #[Test]
+    public function hub_hero_tie_breaks_equidistant_services_on_attention(): void
+    {
+        $this->actingAs($this->admin);
+
+        $flaggedPast = ChurchService::factory()->create([
+            'date' => now()->subDays(3)->toDateString(),
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+
+        ChurchService::factory()->create([
+            'date' => now()->addDays(3)->toDateString(),
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSee($flaggedPast->date->format('j M Y').' — Morning');
+    }
+
+    #[Test]
+    public function hub_hero_falls_back_to_the_most_recent_past_service(): void
+    {
+        $this->actingAs($this->admin);
+
+        $old = ChurchService::factory()->create([
+            'date' => now()->subDays(30)->toDateString(),
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        ChurchService::factory()->create([
+            'date' => now()->subDays(60)->toDateString(),
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSee('Most recent service')
+            ->assertSee($old->date->format('j M Y').' — Morning');
+    }
+
+    #[Test]
+    public function hub_returns_404_when_service_tracking_is_disabled(): void
+    {
+        config(['service-tracking.enabled' => false]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.services.index'))
+            ->assertNotFound();
+    }
+
+    #[Test]
+    public function hub_service_type_chips_are_neutral(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->churchServiceScenario()
+            ->state(['date' => '2026-01-12', 'service' => SermonService::Morning])
+            ->create();
+
+        Livewire::test(ListChurchServices::class)
+            ->assertSeeHtml('bg-gray-100 text-gray-700')
+            ->assertDontSeeHtml('bg-green-100 text-green-800');
     }
 }
