@@ -104,36 +104,25 @@
 
   <div class="mx-auto max-w-screen-xl text-center pt-24 pb-12">
     <h2 class="sr-only">Events</h2>
-    <h3 class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
-      Preparing Room
-    </h3>
-    <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Saturday 30th November, 3-6pm
-    </p>
-    <h3 class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
-      Coffee Cup Carols
-    </h3>
-    <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Thursday 12th, 10:30am
-    </p>
-    <h3 class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
-      Carols in the Chequers
-    </h3>
-    <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Wednesday 18th, 7:30pm
-    </p>
-    <h3 class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
-      Carols by Candlelight
-    </h3>
-    <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Sunday 22nd, 6:00pm
-    </p>
-    <h3 class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
-      Christmas Morning Service
-    </h3>
-    <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Wednesday 25th, 10:30am
-    </p>
+    @foreach ($events as $event)
+        <h3 id="event-{{ \Illuminate\Support\Str::slug($event['name']) }}" class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
+          {{ $event['name'] }}
+        </h3>
+        <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
+          {{-- Note: Static display strings below match the hardcoded design requirements while linking to dynamic schema data above --}}
+          @if ($event['name'] === 'Preparing Room')
+            Saturday 30th November, 3-6pm
+          @elseif ($event['name'] === 'Coffee Cup Carols')
+            Thursday 12th, 10:30am
+          @elseif ($event['name'] === 'Carols in the Chequers')
+            Wednesday 18th, 7:30pm
+          @elseif ($event['name'] === 'Carols by Candlelight')
+            Sunday 22nd, 6:00pm
+          @elseif ($event['name'] === 'Christmas Morning Service')
+            Wednesday 25th, 10:30am
+          @endif
+        </p>
+    @endforeach
   </div>
 
 </main>
