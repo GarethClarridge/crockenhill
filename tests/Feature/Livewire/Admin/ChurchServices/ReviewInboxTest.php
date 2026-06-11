@@ -13,7 +13,9 @@ use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\User;
+use App\Queries\ReviewInboxQuery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -316,6 +318,47 @@ class ReviewInboxTest extends TestCase
             ->assertDontSee('Hidden Section')
             ->assertDontSee('Sections')
             ->assertSee('All caught up');
+    }
+
+    #[Test]
+    public function a_pending_merge_is_never_displaced_by_newer_review_flags(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2025-01-05',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+            'pending_structure_merge_source' => 'openlp',
+        ]);
+
+        // A full cap of newer review-flagged services must not push the
+        // older pending merge out of the queue (the hub chip counts it).
+        foreach (range(1, ReviewInboxQuery::SOURCE_CAP) as $week) {
+            ChurchService::factory()->create([
+                'date' => Carbon::parse('2025-02-01')->addWeeks($week)->toDateString(),
+                'service' => SermonService::Morning,
+                'needs_review' => true,
+            ]);
+        }
+
+        Livewire::test(ReviewInbox::class)
+            ->set('filter', 'services')
+            ->assertSee('Pending structure merge');
+    }
+
+    #[Test]
+    public function an_overflow_notice_reports_the_true_backlog_when_a_source_is_capped(): void
+    {
+        InboundEmail::factory()->count(ReviewInboxQuery::SOURCE_CAP + 1)->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => null,
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSee(sprintf(
+                'Showing the newest %d of %d emails.',
+                ReviewInboxQuery::SOURCE_CAP,
+                ReviewInboxQuery::SOURCE_CAP + 1,
+            ));
     }
 
     #[Test]
