@@ -102,6 +102,37 @@ class ServiceReviewDashboardQueryTest extends TestCase
     }
 
     #[Test]
+    public function review_groups_section_limit_caps_collection_and_still_resolves_group_services(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        // No church_service_id FK — the group's service must resolve via the
+        // extracted-identity lookup, which the capped path performs lazily.
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-24',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        ServiceSection::factory()->count(3)->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'needs_manual_review' => true,
+        ]);
+
+        $unlimited = $this->query->reviewGroups();
+        $this->assertSame(3, collect($unlimited)->sum(fn (array $group): int => count($group['sections'])));
+
+        $limited = $this->query->reviewGroups(2);
+        $this->assertCount(1, $limited);
+        $this->assertCount(2, $limited[0]['sections']);
+        $this->assertTrue($service->is($limited[0]['service']));
+    }
+
+    #[Test]
     public function review_groups_sorts_by_date_descending_then_service_ascending(): void
     {
         $olderService = ChurchService::factory()->create([
