@@ -8,10 +8,26 @@ use App\Data\ProcessingManualReviewMetadata;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 
+/**
+ * Service for managing state transitions of media processing runs.
+ *
+ * This service provides a centralized and consistent API for updating the
+ * status and metadata of MediaProcessingLog records as they move through
+ * the processing pipeline. It handles side effects such as timestamp
+ * management and deduplication key lifecycle.
+ */
 class MediaProcessingRunTransitionService
 {
     /**
-     * @param  array<string, mixed>  $attributes
+     * Update arbitrary fields on a processing run, respecting cancellation state.
+     *
+     * Prevents updates to runs that have been cancelled, ensuring that
+     * background jobs dispatched before cancellation do not overwrite the
+     * cancelled status or associated error messages.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to update
+     * @param  array<string, mixed>  $attributes  Key-value pairs to update
+     * @return bool True if the update was successful
      */
     public function updateRunFields(MediaProcessingLog $processingLog, array $attributes): bool
     {
@@ -22,6 +38,15 @@ class MediaProcessingRunTransitionService
         return $processingLog->update($attributes);
     }
 
+    /**
+     * Transition a run to the 'processing' state.
+     *
+     * Records the start time if not already set and updates the current step.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to update
+     * @param  string|null  $step  The name of the processing step being entered
+     * @return bool True if the transition was successful
+     */
     public function markAsProcessing(MediaProcessingLog $processingLog, ?string $step = null): bool
     {
         return $this->updateRunFields($processingLog, [
@@ -31,6 +56,17 @@ class MediaProcessingRunTransitionService
         ]);
     }
 
+    /**
+     * Transition a run to the 'completed' state.
+     *
+     * Marks the run as successful, records completion time, and clears the
+     * deduplication key to allow the same file to be processed again if needed.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to update
+     * @param  string|null  $step  The final step name (defaults to 'completed')
+     * @param  string|null  $errorMessage  Optional message or notes about completion
+     * @return bool True if the transition was successful
+     */
     public function markAsCompleted(
         MediaProcessingLog $processingLog,
         ?string $step = null,
@@ -45,6 +81,17 @@ class MediaProcessingRunTransitionService
         ]);
     }
 
+    /**
+     * Transition a run to the 'failed' state.
+     *
+     * Records the error message and completion time, and clears the
+     * deduplication key so that a fresh upload attempt can be made.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to update
+     * @param  string  $errorMessage  Descriptive error message for the failure
+     * @param  string|null  $step  The step where the failure occurred
+     * @return bool True if the transition was successful
+     */
     public function markAsFailed(MediaProcessingLog $processingLog, string $errorMessage, ?string $step = null): bool
     {
         return $this->updateRunFields($processingLog, [
@@ -56,6 +103,17 @@ class MediaProcessingRunTransitionService
         ]);
     }
 
+    /**
+     * Transition a run to the 'cancelled' state.
+     *
+     * This terminal transition is allowed even if the run is already cancelled,
+     * to ensure consistent state after user intervention. Clears the
+     * deduplication key to allow re-uploading.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to update
+     * @param  string|null  $message  Optional cancellation reason
+     * @return bool True if the update was successful
+     */
     public function markAsCancelled(MediaProcessingLog $processingLog, ?string $message = null): bool
     {
         // Cancellation is the terminal transition that is allowed to override any
@@ -70,7 +128,17 @@ class MediaProcessingRunTransitionService
     }
 
     /**
-     * @param  array<int, array{segment_id: int, start_time: float, end_time: float, duration: float}>  $speechSegments
+     * Flag a run as requiring manual administrative review.
+     *
+     * Used when the automated pipeline (e.g. livestream segmentation) cannot
+     * confidently identify the sermon boundaries. Sets the state to 'failed'
+     * with a specific step and reason metadata.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to flag
+     * @param  string  $reasonCode  Machine-readable code for the review reason
+     * @param  string  $reasonMessage  Human-readable explanation of why review is needed
+     * @param  array<int, array{segment_id: int, start_time: float, end_time: float, duration: float}>  $speechSegments  Candidate segments for review
+     * @return bool True if the transition was successful
      */
     public function markForManualReview(
         MediaProcessingLog $processingLog,
@@ -100,6 +168,17 @@ class MediaProcessingRunTransitionService
         ]);
     }
 
+    /**
+     * Confirm a specific sermon segment for a run awaiting manual review.
+     *
+     * Transitions the run back to 'pending' state with the confirmed segment
+     * ID stored in metadata, allowing the orchestrator to resume processing.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to confirm
+     * @param  int  $segmentId  The ID of the confirmed LivestreamSegment
+     * @param  int|null  $userId  The ID of the user who performed the confirmation
+     * @return bool True if the transition was successful
+     */
     public function confirmSermonSegment(MediaProcessingLog $processingLog, int $segmentId, ?int $userId): bool
     {
         $metadata = $processingLog->processing_metadata?->toArray() ?? [];
@@ -127,11 +206,27 @@ class MediaProcessingRunTransitionService
         ]);
     }
 
+    /**
+     * Update the current processing step without changing the overall status.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to update
+     * @param  string  $step  The new step identifier
+     * @return bool True if the update was successful
+     */
     public function updateStep(MediaProcessingLog $processingLog, string $step): bool
     {
         return $this->updateRunFields($processingLog, ['current_step' => $step]);
     }
 
+    /**
+     * Reset a run's status and timestamps for a retry attempt.
+     *
+     * Clears error messages and completion times, transitions status to 'pending',
+     * and regenerates the deduplication key to prevent concurrent duplicate uploads.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to reset
+     * @return bool True if the reset was successful
+     */
     public function resetForRetry(MediaProcessingLog $processingLog): bool
     {
         return $processingLog->update([
