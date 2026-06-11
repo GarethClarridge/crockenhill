@@ -124,7 +124,10 @@ class SermonApiController extends Controller
     {
         abort_unless($exposurePolicy->shouldExposeOnSermonApi($sermon), 404);
 
-        $sermon->load('preacherProfile', 'scripturePassage');
+        $sermon->load([
+            'preacherProfile:id,name,slug,image_path',
+            'scripturePassage:id,display_reference,normalized_reference',
+        ]);
 
         return new SermonResource($this->withSermonViewForApi($sermon));
     }

@@ -104,11 +104,13 @@ class SermonController extends Controller
         abort_unless($sermon->content_type === SermonContentType::Sermon, 404);
 
         $sermon->loadMissing([
-            'scripturePassage',
-            'preacherProfile',
-            'publishedServiceSection',
+            'scripturePassage:id,display_reference,normalized_reference',
+            'preacherProfile:id,name,slug,image_path',
+            'publishedServiceSection:id,published_sermon_id,media_processing_log_id',
             'latestProcessingLog',
-            'livestreamProcessing',
+            'livestreamProcessing' => fn ($query) => $query
+                ->select(['id', 'processing_id', 'sermon_id', 'original_filename', 'created_at', 'status', 'duration'])
+                ->with('segments:id,media_processing_log_id'),
         ]);
 
         $heading = $sermon->title;
