@@ -25,7 +25,6 @@ use App\Livewire\Admin\ChurchServices\ProcessingReview;
 use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
 use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
 use App\Livewire\Admin\ChurchServices\ReviewInbox;
-use App\Livewire\Admin\ChurchServices\ServiceReviewDashboard;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\ShowSong;
 use App\Livewire\Admin\ChurchServices\SubmitEmailText;
@@ -197,7 +196,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
     Route::get('/services/inbound-emails', ReviewInboundEmails::class)->name('services.inbound-emails');
     Route::get('/services/submit-email', SubmitEmailText::class)->name('services.submit-email');
-    Route::get('/services/review', ServiceReviewDashboard::class)->name('services.review');
+    // Retired (P3.4): triage moved to the review inbox, editing to the service workbench.
+    Route::redirect('/services/review', '/admin/services/inbox')->name('services.review');
     Route::get('/services/songs', ListSongs::class)->name('services.songs.index');
     Route::get('/services/songs/{song}', ShowSong::class)->name('services.songs.show');
     Route::get('/services/section-publications', ListSectionPublications::class)->name('services.section-publications');

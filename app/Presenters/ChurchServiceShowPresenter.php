@@ -9,11 +9,13 @@ use App\Data\ChurchServiceShowReadModel;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Queries\ChurchServiceProcessingRunQuery;
 use App\Queries\ChurchServiceRollupQuery;
 use App\Queries\ServiceReviewDashboardQuery;
+use App\Services\Media\Video\VideoStorageService;
 use App\Support\ProcessingRunTimelineBuilder;
 use App\Support\ServiceTimelineBuilder;
 use Illuminate\Database\Eloquent\Collection;
@@ -64,6 +66,7 @@ class ChurchServiceShowPresenter
             pipelineSteps: $this->rollupQuery->rollupFor($churchService, $processingRuns)['steps'],
             sectionReviewPanels: $this->sectionReviewPanels($processingRuns),
             mergeCandidatePairs: $this->mergeCandidatePairs($processingRuns),
+            segmentConfirmations: $this->segmentConfirmations($processingRuns),
             pendingApprovalCount: $processingRuns
                 ->flatMap(fn (MediaProcessingLog $run) => $run->serviceSections)
                 ->filter(fn (ServiceSection $section): bool => $section->publication_status === ServiceSectionPublicationStatus::PendingApproval)
@@ -101,6 +104,48 @@ class ChurchServiceShowPresenter
         }
 
         return $panels;
+    }
+
+    /**
+     * Embedded sermon-segment confirmation data, keyed by run id, for runs
+     * paused on manual sermon review. Segments are loaded only for those runs.
+     *
+     * @param  Collection<int, MediaProcessingLog>  $processingRuns
+     * @return array<int, array{
+     *     segments: Collection<int, LivestreamSegment>,
+     *     confirmed_segment_id: int|null,
+     *     source_available: bool
+     * }>
+     */
+    private function segmentConfirmations(Collection $processingRuns): array
+    {
+        $pausedRuns = $processingRuns->filter(
+            fn (MediaProcessingLog $run): bool => $run->requiresManualSermonReview()
+        );
+
+        if ($pausedRuns->isEmpty()) {
+            return [];
+        }
+
+        // Resolved on demand: the video storage binding is only needed when a
+        // run is actually paused for review.
+        $videoStorage = app(VideoStorageService::class);
+
+        $confirmations = [];
+
+        foreach ($pausedRuns as $run) {
+            $run->loadMissing('segments');
+
+            $confirmations[$run->id] = [
+                'segments' => $run->segments->sortBy('start_time')->values(),
+                'confirmed_segment_id' => $run->manuallyConfirmedSegmentId(),
+                'source_available' => is_string($run->source_file_path)
+                    && $run->source_file_path !== ''
+                    && $videoStorage->sourceVideoExistsForPath($run->source_file_path),
+            ];
+        }
+
+        return $confirmations;
     }
 
     /**

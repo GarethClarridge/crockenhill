@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Enums\InboundEmailStatus;
+use App\Enums\MediaType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Livewire\Admin\ChurchServices\ReviewInbox;
@@ -321,6 +322,13 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
+    public function the_retired_review_dashboard_url_redirects_to_the_inbox(): void
+    {
+        $this->get(route('admin.services.review'))
+            ->assertRedirect(route('admin.services.inbox'));
+    }
+
+    #[Test]
     public function a_pending_merge_is_never_displaced_by_newer_review_flags(): void
     {
         ChurchService::factory()->create([
@@ -362,11 +370,106 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
+    public function orphan_groups_offer_a_create_service_link_with_the_resolved_slot(): void
+    {
+        // A flagged section whose run resolves a date/slot that matches no
+        // ChurchService: the group offers to create the missing Sunday so
+        // its sections gain a workbench to be edited on.
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'sermon_id' => null,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'title' => 'Orphan Flagged Section',
+            'needs_manual_review' => true,
+        ]);
+
+        // A truly unattributed item (no resolved slot) must not offer one.
+        InboundEmail::factory()->create([
+            'subject' => 'Mystery email',
+            'status' => InboundEmailStatus::Failed->value,
+            'processing_metadata' => null,
+        ]);
+
+        $createUrl = str_replace('&', '&amp;', route('admin.services.create', ['date' => '2026-06-07', 'service' => 'morning']));
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSee('Orphan Flagged Section')
+            ->assertSeeHtml($createUrl)
+            ->assertSee('Create this service');
+    }
+
+    #[Test]
     public function it_shows_the_empty_state_when_nothing_needs_review(): void
     {
         Livewire::test(ReviewInbox::class)
             ->assertSee('All caught up — nothing needs review.')
             ->assertSeeHtml(route('admin.services.index'));
+    }
+
+    #[Test]
+    public function segment_links_prefer_the_workbench_when_the_run_matches_a_service(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSeeHtml(route('admin.services.show', $service).'#processing-run-'.$run->id)
+            ->assertDontSeeHtml(route('admin.services.processing.review', $run));
+    }
+
+    #[Test]
+    public function segment_links_fall_back_to_the_standalone_page_for_orphan_runs(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSeeHtml(route('admin.services.processing.review', $run));
+    }
+
+    #[Test]
+    public function segment_links_for_auto_trim_video_runs_prefer_the_workbench(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        // The workbench renders every segmentation-pipeline run, so matched
+        // auto-trim video runs anchor there just like livestream runs.
+        $run = MediaProcessingLog::factory()->manualReviewRequired()->create([
+            'processing_type' => MediaType::Video,
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'manual_review' => [
+                    'status' => 'required',
+                    'reason_code' => 'no_qualifying_speech_block',
+                    'reason_message' => 'No speech block met the 20-minute sermon threshold.',
+                    'flagged_at' => now()->toIso8601String(),
+                    'speech_segments' => [],
+                ],
+            ],
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSeeHtml(route('admin.services.show', $service).'#processing-run-'.$run->id)
+            ->assertDontSeeHtml(route('admin.services.processing.review', $run));
     }
 
     #[Test]

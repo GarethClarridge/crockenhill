@@ -265,6 +265,30 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * Runs that produce service sections: livestreams and auto-trim video
+     * runs — the SQL mirror of usesSegmentationPipeline().
+     *
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
+    public function scopeSegmentationPipeline(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->where('processing_type', MediaType::Livestream->value)
+                ->orWhere(function (Builder $query): void {
+                    $query
+                        ->where('processing_type', MediaType::Video->value)
+                        ->where(function (Builder $query): void {
+                            $query
+                                ->where('processing_metadata->video_processing_mode', self::VIDEO_PROCESSING_MODE_AUTO_TRIM)
+                                ->orWhere('processing_metadata->trim_requested', true);
+                        });
+                });
+        });
+    }
+
+    /**
      * @param  Builder<MediaProcessingLog>  $query
      * @return Builder<MediaProcessingLog>
      */

@@ -46,6 +46,12 @@
                         <x-button link="{{ route('admin.services.show', $group['service']) }}" variant="ghost" size="xs" icon="arrow-right" iconPosition="trailing" inline>
                             Open service
                         </x-button>
+                    @elseif($group['date'] !== null && $group['service_value'] !== null)
+                        {{-- Orphan group: a resolved date/slot with no service record yet.
+                             Creating the Sunday gives its sections a workbench to be edited on --}}
+                        <x-button :link="route('admin.services.create', ['date' => $group['date'], 'service' => $group['service_value']])" variant="ghost" size="xs" icon="plus" inline>
+                            Create this service
+                        </x-button>
                     @endif
                 </div>
 
@@ -140,9 +146,11 @@
                                                 Requeue
                                             </x-form-button>
                                         @endif
-                                        <x-button link="{{ route('admin.services.review') }}" variant="ghost" size="xs" icon="arrow-top-right-on-square" inline aria-label="Edit this section on the review dashboard">
-                                            Edit
-                                        </x-button>
+                                        @if($group['service'] instanceof \App\Models\ChurchService)
+                                            <x-button link="{{ route('admin.services.show', $group['service']).'#section-'.$section->id }}" variant="ghost" size="xs" icon="arrow-top-right-on-square" inline aria-label="Edit this section on the service workbench">
+                                                Edit
+                                            </x-button>
+                                        @endif
                                     </div>
                                 </div>
                             @elseif($item['kind'] === 'segment')
@@ -160,7 +168,18 @@
                                             @endif
                                         </p>
                                     </div>
-                                    <x-button link="{{ route('admin.services.processing.review', $run) }}" variant="primary" size="xs" icon="arrow-right" iconPosition="trailing" inline>
+                                    {{-- Prefer the workbench when the run matched a service (it renders every
+                                         segmentation-pipeline run); the standalone page stays for orphan runs --}}
+                                    <x-button
+                                        link="{{ $group['service'] instanceof \App\Models\ChurchService
+                                            ? route('admin.services.show', $group['service']).'#processing-run-'.$run->id
+                                            : route('admin.services.processing.review', $run) }}"
+                                        variant="primary"
+                                        size="xs"
+                                        icon="arrow-right"
+                                        iconPosition="trailing"
+                                        inline
+                                    >
                                         Choose segment
                                     </x-button>
                                 </div>
