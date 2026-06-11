@@ -133,6 +133,21 @@ class ServiceReviewDashboardQueryTest extends TestCase
     }
 
     #[Test]
+    public function capped_review_groups_omit_section_less_flagged_services(): void
+    {
+        // The capped inbox path only reads section entries, so it must not
+        // hydrate (or emit groups for) every needs_review service.
+        ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+
+        $this->assertCount(1, $this->query->reviewGroups());
+        $this->assertSame([], $this->query->reviewGroups(10));
+    }
+
+    #[Test]
     public function review_groups_sorts_by_date_descending_then_service_ascending(): void
     {
         $olderService = ChurchService::factory()->create([
