@@ -2,6 +2,8 @@
 
 @php
 $modelName = $attributes->wire('model')?->value();
+// Numeric segments (form.items.0.title) are invalid JS property access; bracketise for $wire expressions.
+$jsModelPath = $modelName ? preg_replace('/\.(\d+)(?=\.|$)/', '[$1]', $modelName) : null;
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
 
@@ -27,7 +29,7 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
         count = $refs.input.value.length;
         @if($autofocus) $nextTick(() => $refs.input.focus()); @endif
         @if($modelName)
-            $watch('$wire.{{ $modelName }}', value => {
+            $watch('$wire.{{ $jsModelPath }}', value => {
                 count = (value ?? '').toString().length;
             });
         @endif
@@ -88,7 +90,7 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
                 wire:click="$set('{{ $modelName }}', '')"
                 @click="count = 0; $nextTick(() => $refs.input.focus())"
                 class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded"
-                x-show="$wire.{{ $modelName }}"
+                x-show="$wire.{{ $jsModelPath }}"
                 x-transition
                 wire:loading.remove wire:target="{{ $modelName }}">
                 <x-heroicon-o-x-mark class="h-4 w-4" aria-hidden="true" />
