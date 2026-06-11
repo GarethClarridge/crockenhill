@@ -4,8 +4,8 @@
     save-action="submit"
 >
     <x-slot:actions>
-        <x-button link="{{ route('admin.services.inbound-emails') }}" variant="outline" inline>
-            Review emails
+        <x-button link="{{ route('admin.services.inbox', ['filter' => 'emails']) }}" variant="outline" inline>
+            Review inbox
         </x-button>
         <x-button link="{{ route('admin.services.upload') }}" variant="outline" icon="arrow-up-tray" inline>
             Upload service
@@ -30,11 +30,11 @@
                 </div>
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">Email imported for review</h2>
-                    <p class="mt-1 text-sm text-gray-600">The email has been queued for processing. Check the review list to see the parsed result.</p>
+                    <p class="mt-1 text-sm text-gray-600">The email has been queued for processing. Check the review inbox to see the parsed result.</p>
                 </div>
                 <div class="flex justify-center gap-3">
-                    <x-button link="{{ route('admin.services.inbound-emails') }}" variant="primary" inline>
-                        View in review list
+                    <x-button link="{{ route('admin.services.inbox', ['filter' => 'emails']) }}" variant="primary" inline>
+                        View in review inbox
                     </x-button>
                     <x-form-button type="button" variant="outline" wire:click="$set('submitted', false)">
                         Import another email
@@ -63,7 +63,7 @@
         <x-slot:sidebar>
             <x-card heading="Optional fields">
                 <div class="space-y-4">
-                    <p class="text-sm text-gray-600">These fields are optional and only used for display in the review list. Leave blank if not applicable.</p>
+                    <p class="text-sm text-gray-600">These fields are optional and only used for display in the review inbox. Leave blank if not applicable.</p>
 
                     <x-input
                         label="From"

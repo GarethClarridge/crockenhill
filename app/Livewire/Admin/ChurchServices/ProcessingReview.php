@@ -65,7 +65,7 @@ class ProcessingReview extends Component
 
         $this->success(
             'Sermon segment confirmed. Processing will resume shortly.',
-            route('admin.services.processing.review.index')
+            route('admin.services.inbox', ['filter' => 'segments'])
         );
     }
 

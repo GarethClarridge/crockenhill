@@ -102,6 +102,52 @@ class ServiceReviewDashboardQueryTest extends TestCase
     }
 
     #[Test]
+    public function review_groups_section_limit_caps_collection_and_still_resolves_group_services(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        // No church_service_id FK — the group's service must resolve via the
+        // extracted-identity lookup, which the capped path performs lazily.
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-24',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        ServiceSection::factory()->count(3)->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'needs_manual_review' => true,
+        ]);
+
+        $unlimited = $this->query->reviewGroups();
+        $this->assertSame(3, collect($unlimited)->sum(fn (array $group): int => count($group['sections'])));
+
+        $limited = $this->query->reviewGroups(2);
+        $this->assertCount(1, $limited);
+        $this->assertCount(2, $limited[0]['sections']);
+        $this->assertTrue($service->is($limited[0]['service']));
+    }
+
+    #[Test]
+    public function capped_review_groups_omit_section_less_flagged_services(): void
+    {
+        // The capped inbox path only reads section entries, so it must not
+        // hydrate (or emit groups for) every needs_review service.
+        ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::Morning,
+            'needs_review' => true,
+        ]);
+
+        $this->assertCount(1, $this->query->reviewGroups());
+        $this->assertSame([], $this->query->reviewGroups(10));
+    }
+
+    #[Test]
     public function review_groups_sorts_by_date_descending_then_service_ascending(): void
     {
         $olderService = ChurchService::factory()->create([
@@ -496,5 +542,73 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         $this->assertCount(1, $result);
         $this->assertSame($matchedSection->id, $result->first()->id);
+    }
+
+    #[Test]
+    public function pending_publication_sections_for_service_includes_fallback_matched_repaired_runs(): void
+    {
+        $processingId = '55555555-5555-5555-5555-555555555555';
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Sermon',
+            'livestream_processing_id' => $processingId,
+        ]);
+
+        $repairedRun = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => $processingId,
+            'church_service_id' => null,
+            'extracted_date' => '2026-01-01',
+            'extracted_service' => SermonService::Evening->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $repairedRun->id,
+            'church_service_item_id' => null,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+        ]);
+
+        $result = $this->query->pendingPublicationSectionsForService($service);
+
+        $this->assertCount(1, $result);
+        $this->assertSame($section->id, $result->first()->id);
+    }
+
+    #[Test]
+    public function review_groups_includes_sections_flagged_only_by_heuristic_demotion(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-31',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'title' => 'Demoted Talk',
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => ['heuristic_demotion'],
+            ],
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertCount(1, $groups);
+        $this->assertCount(1, $groups[0]['sections']);
+        $this->assertSame('Demoted Talk', $groups[0]['sections'][0]['section']->title);
+        $this->assertContains(
+            'heuristic_demotion',
+            array_column($groups[0]['sections'][0]['reasons'], 'key')
+        );
     }
 }

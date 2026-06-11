@@ -8,14 +8,10 @@ use App\Enums\InboundEmailStatus;
 use App\Enums\MeetingType;
 use App\Enums\PageArea;
 use App\Enums\SermonService;
-use App\Enums\ServiceSectionPublicationStatus;
-use App\Enums\ServiceSectionType;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
-use App\Livewire\Admin\ChurchServices\ListSectionPublications;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
-use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
 use App\Livewire\Admin\Meetings\ListMeetings;
 use App\Livewire\Admin\Pages\ListPages;
 use App\Livewire\Admin\Preachers\ListPreachers;
@@ -25,12 +21,10 @@ use App\Models\CalendarEvent;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
-use App\Models\MediaProcessingLog;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\User;
@@ -376,62 +370,6 @@ class AdminUrlStateTest extends TestCase
                 return (int) $collection[$songB->id]->usage_count === 1
                     && (int) $collection[$songB->id]->services_count === 1;
             });
-    }
-
-    #[Test]
-    public function section_publication_list_hydrates_url_filters_and_preserves_filtered_results(): void
-    {
-        $this->actingAs($this->admin);
-
-        $run = MediaProcessingLog::factory()->livestream()->create();
-
-        ServiceSection::factory()->create([
-            'media_processing_log_id' => $run->id,
-            'title' => 'Rejected Section',
-            'section_type' => ServiceSectionType::Welcome->value,
-            'publication_status' => ServiceSectionPublicationStatus::Rejected->value,
-        ]);
-
-        ServiceSection::factory()->create([
-            'media_processing_log_id' => $run->id,
-            'title' => 'Pending Section',
-            'section_type' => ServiceSectionType::Welcome->value,
-            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
-        ]);
-
-        Livewire::withQueryParams([
-            'search' => 'Rejected',
-            'publicationStatus' => ServiceSectionPublicationStatus::Rejected->value,
-        ])->test(ListSectionPublications::class)
-            ->assertSet('search', 'Rejected')
-            ->assertSet('publicationStatus', ServiceSectionPublicationStatus::Rejected->value)
-            ->assertSee('Rejected Section')
-            ->assertDontSee('Pending Section');
-    }
-
-    #[Test]
-    public function inbound_email_review_list_hydrates_url_filters_and_preserves_filtered_results(): void
-    {
-        $this->actingAs($this->admin);
-
-        InboundEmail::factory()->create([
-            'subject' => 'Pending service plan',
-            'status' => InboundEmailStatus::Pending->value,
-        ]);
-
-        InboundEmail::factory()->create([
-            'subject' => 'Failed service plan',
-            'status' => InboundEmailStatus::Failed->value,
-        ]);
-
-        Livewire::withQueryParams([
-            'search' => 'Pending',
-            'statusFilter' => InboundEmailStatus::Pending->value,
-        ])->test(ReviewInboundEmails::class)
-            ->assertSet('search', 'Pending')
-            ->assertSet('statusFilter', InboundEmailStatus::Pending->value)
-            ->assertSee('Pending service plan')
-            ->assertDontSee('Failed service plan');
     }
 
     #[Test]

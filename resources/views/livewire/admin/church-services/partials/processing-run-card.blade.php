@@ -4,7 +4,7 @@
     $run = $processingRunView->run;
 @endphp
 
-<div class="rounded-lg border border-gray-200 p-4" wire:key="processing-run-{{ $run->id }}">
+<div class="rounded-lg border border-gray-200 p-4" id="processing-run-{{ $run->id }}" wire:key="processing-run-{{ $run->id }}">
     @include('livewire.admin.church-services.partials.processing-run-header', [
         'processingRunView' => $processingRunView,
     ])
@@ -13,6 +13,24 @@
         @include('livewire.admin.church-services.partials.processing-step-timeline', [
             'processingTimeline' => $processingRunView->processingTimeline,
         ])
+    @endif
+
+    @if($processingRunView->needsSermonReview && isset($segmentConfirmations[$run->id]))
+        <div class="mt-3">
+            <p class="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-900">
+                <x-heroicon-o-check-circle class="h-4 w-4 text-amber-500" aria-hidden="true" />
+                Confirm the sermon segment
+            </p>
+            @include('livewire.admin.church-services.partials.segment-confirmation', [
+                'segments' => $segmentConfirmations[$run->id]['segments'],
+                'confirmedSegmentId' => $segmentConfirmations[$run->id]['confirmed_segment_id'],
+                'requiresReview' => true,
+                'sourceAvailable' => $segmentConfirmations[$run->id]['source_available'],
+                'confirming' => false,
+                'confirmCall' => fn ($segment): string => "confirmRunSegment({$run->id}, {$segment->id})",
+                'returnLink' => null,
+            ])
+        </div>
     @endif
 
     @if($processingRunView->isWaitingForSections())

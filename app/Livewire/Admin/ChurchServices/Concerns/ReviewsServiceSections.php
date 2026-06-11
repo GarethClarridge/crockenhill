@@ -2,59 +2,57 @@
 
 declare(strict_types=1);
 
-namespace App\Livewire\Admin\ChurchServices;
+namespace App\Livewire\Admin\ChurchServices\Concerns;
 
 use App\Actions\ServiceReview\BatchApproveServicePublications;
 use App\Actions\ServiceReview\MarkServiceReviewed;
 use App\Actions\ServiceReview\MergeAdjacentServiceSections;
 use App\Actions\ServiceReview\SaveServiceSection;
 use App\Enums\ServiceSectionType;
-use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
-use App\Livewire\Traits\WithAdminAuthorization;
-use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Queries\ServiceReviewDashboardQuery;
-use App\Support\ServiceSectionConfidence;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
-use Illuminate\View\View;
 use Livewire\Attributes\Computed;
-use Livewire\Component;
 
-class ServiceReviewDashboard extends Component
+/**
+ * Section review editing shared by the service workbench and (until it
+ * retires) the review dashboard: inline type/title edits, children's-talk
+ * speaker picks, batch approval, and adjacent-section merging.
+ *
+ * Edit state is seeded for review-candidate sections only — seeding every
+ * section of every run would balloon the Livewire payload.
+ */
+trait ReviewsServiceSections
 {
-    use ManagesSectionPublication;
-    use WithAdminAuthorization;
-    use WithNotifications;
-
     /**
-     * @var array<int, array{section_type:string,title:string}>
+     * @var array<int, array{section_type: string, title: string}>
      */
     public array $sectionEdits = [];
 
     /**
-     * @var array<int, array{preacher_id:string,speaker_name:string}>
+     * @var array<int, array{preacher_id: string, speaker_name: string}>
      */
     public array $speakerEdits = [];
 
     /**
      * @var array{primary_id: int, secondary_id: int}|null
      */
-    public ?array $pendingMerge = null;
+    public ?array $pendingSectionMerge = null;
 
-    private ServiceReviewDashboardQuery $dashboardQuery;
+    protected ServiceReviewDashboardQuery $dashboardQuery;
 
-    private SaveServiceSection $saveSectionAction;
+    protected SaveServiceSection $saveSectionAction;
 
-    private MarkServiceReviewed $markReviewedAction;
+    protected MarkServiceReviewed $markReviewedAction;
 
-    private BatchApproveServicePublications $batchApproveAction;
+    protected BatchApproveServicePublications $batchApproveAction;
 
-    private MergeAdjacentServiceSections $mergeAction;
+    protected MergeAdjacentServiceSections $mergeAction;
 
-    public function boot(
+    public function bootReviewsServiceSections(
         ServiceReviewDashboardQuery $dashboardQuery,
         SaveServiceSection $saveSectionAction,
         MarkServiceReviewed $markReviewedAction,
@@ -68,17 +66,8 @@ class ServiceReviewDashboard extends Component
         $this->mergeAction = $mergeAction;
     }
 
-    public function mount(): void
-    {
-        $this->abortIfDisabled();
-
-        $groups = $this->dashboardQuery->reviewGroups();
-        $this->seedSectionEdits($groups);
-    }
-
     public function saveSection(int $sectionId): void
     {
-
         $this->authorizeAdmin();
 
         $section = ServiceSection::query()->find($sectionId);
@@ -94,13 +83,11 @@ class ServiceReviewDashboard extends Component
             return;
         }
 
-        $userId = is_numeric(Auth::id()) ? (int) Auth::id() : 0;
-
         $this->saveSectionAction->execute(
             section: $section,
             sectionEdits: $this->sectionEdits,
             speakerEdits: $this->speakerEdits,
-            userId: $userId,
+            userId: $this->reviewingUserId(),
         );
 
         $this->sectionEdits[$section->id] = [
@@ -120,7 +107,6 @@ class ServiceReviewDashboard extends Component
 
     public function markServiceReviewed(int $serviceId): void
     {
-
         $this->authorizeAdmin();
 
         $service = ChurchService::query()->find($serviceId);
@@ -130,16 +116,13 @@ class ServiceReviewDashboard extends Component
             return;
         }
 
-        $userId = is_numeric(Auth::id()) ? (int) Auth::id() : 0;
-
-        $this->markReviewedAction->execute($service, $userId);
+        $this->markReviewedAction->execute($service, $this->reviewingUserId());
 
         $this->success('Service marked as reviewed.');
     }
 
     public function approvePendingPublications(int $serviceId): void
     {
-
         $this->authorizeAdmin();
 
         $service = ChurchService::query()->find($serviceId);
@@ -149,9 +132,7 @@ class ServiceReviewDashboard extends Component
             return;
         }
 
-        $userId = is_numeric(Auth::id()) ? (int) Auth::id() : 0;
-
-        $result = $this->batchApproveAction->execute($service, $userId);
+        $result = $this->batchApproveAction->execute($service, $this->reviewingUserId());
 
         $approvedCount = $result['approved_count'];
         $skippedReasons = $result['skipped_reasons'];
@@ -185,30 +166,32 @@ class ServiceReviewDashboard extends Component
 
     public function initiateMerge(int $sectionIdA, int $sectionIdB): void
     {
-        $this->pendingMerge = ['primary_id' => $sectionIdA, 'secondary_id' => $sectionIdB];
+        $this->authorizeAdmin();
+
+        $this->pendingSectionMerge = ['primary_id' => $sectionIdA, 'secondary_id' => $sectionIdB];
     }
 
     public function confirmMerge(): void
     {
-        if ($this->pendingMerge === null) {
+        $this->authorizeAdmin();
+
+        if ($this->pendingSectionMerge === null) {
             return;
         }
 
-        $primary = ServiceSection::query()->find($this->pendingMerge['primary_id']);
-        $secondary = ServiceSection::query()->find($this->pendingMerge['secondary_id']);
+        $primary = ServiceSection::query()->find($this->pendingSectionMerge['primary_id']);
+        $secondary = ServiceSection::query()->find($this->pendingSectionMerge['secondary_id']);
 
         if (! $primary instanceof ServiceSection || ! $secondary instanceof ServiceSection) {
-            $this->pendingMerge = null;
+            $this->pendingSectionMerge = null;
             $this->error('One or both sections could not be found.');
 
             return;
         }
 
-        $userId = is_numeric(Auth::id()) ? (int) Auth::id() : 0;
+        $error = $this->mergeAction->execute($primary, $secondary, $this->reviewingUserId());
 
-        $error = $this->mergeAction->execute($primary, $secondary, $userId);
-
-        $this->pendingMerge = null;
+        $this->pendingSectionMerge = null;
 
         if ($error !== null) {
             $this->error($error);
@@ -221,27 +204,13 @@ class ServiceReviewDashboard extends Component
 
     public function cancelMerge(): void
     {
-        $this->pendingMerge = null;
-    }
+        $this->authorizeAdmin();
 
-    public function render(): View
-    {
-        $groups = $this->dashboardQuery->reviewGroups();
-
-        return view('livewire.admin.church-services.service-review-dashboard', [
-            'groups' => $groups,
-            'sectionTypeOptions' => $this->sectionTypeOptions(),
-            'preacherOptions' => $this->preacherOptions(),
-            'summary' => $this->dashboardQuery->summary($groups),
-            'lowConfidenceThreshold' => ServiceSectionConfidence::HIGH_THRESHOLD,
-        ])->layout('layouts.admin', [
-            'title' => 'Service Review Dashboard',
-            'heading' => 'Service Review Dashboard',
-        ]);
+        $this->pendingSectionMerge = null;
     }
 
     /**
-     * @return array<int, array{id:string,name:string}>
+     * @return array<int, array{id: string, name: string}>
      */
     #[Computed]
     public function sectionTypeOptions(): array
@@ -255,7 +224,7 @@ class ServiceReviewDashboard extends Component
     }
 
     /**
-     * @return array<int, array{id:string,name:string}>
+     * @return array<int, array{id: string, name: string}>
      */
     #[Computed]
     public function preacherOptions(): array
@@ -271,34 +240,28 @@ class ServiceReviewDashboard extends Component
     }
 
     /**
-     * @param  array<int, array{
-     *     sections:array<int, array{section:ServiceSection}>
-     * }>  $groups
+     * @param  iterable<int, ServiceSection>  $sections
      */
-    private function seedSectionEdits(array $groups): void
+    protected function seedSectionEditsForSections(iterable $sections): void
     {
-        foreach ($groups as $group) {
-            foreach ($group['sections'] as $entry) {
-                $section = $entry['section'];
+        foreach ($sections as $section) {
+            if (! array_key_exists($section->id, $this->sectionEdits)) {
+                $this->sectionEdits[$section->id] = [
+                    'section_type' => $section->section_type->value,
+                    'title' => (string) ($section->title ?? ''),
+                ];
+            }
 
-                if (! array_key_exists($section->id, $this->sectionEdits)) {
-                    $this->sectionEdits[$section->id] = [
-                        'section_type' => $section->section_type->value,
-                        'title' => (string) ($section->title ?? ''),
-                    ];
-                }
-
-                if (! array_key_exists($section->id, $this->speakerEdits)) {
-                    $speaker = $section->publicationChildrensTalkSpeaker();
-                    $this->speakerEdits[$section->id] = [
-                        'preacher_id' => is_array($speaker) && is_numeric($speaker['preacher_id'] ?? null)
-                            ? (string) $speaker['preacher_id']
-                            : '',
-                        'speaker_name' => is_string($speaker['preacher_name'] ?? null)
-                            ? (string) $speaker['preacher_name']
-                            : '',
-                    ];
-                }
+            if (! array_key_exists($section->id, $this->speakerEdits)) {
+                $speaker = $section->publicationChildrensTalkSpeaker();
+                $this->speakerEdits[$section->id] = [
+                    'preacher_id' => is_array($speaker) && is_numeric($speaker['preacher_id'] ?? null)
+                        ? (string) $speaker['preacher_id']
+                        : '',
+                    'speaker_name' => is_string($speaker['preacher_name'] ?? null)
+                        ? (string) $speaker['preacher_name']
+                        : '',
+                ];
             }
         }
     }
@@ -306,7 +269,7 @@ class ServiceReviewDashboard extends Component
     /**
      * @param  array<string, int>  $skippedReasons
      */
-    private function formatBatchApprovalSkipSummary(array $skippedReasons): string
+    protected function formatBatchApprovalSkipSummary(array $skippedReasons): string
     {
         $totalSkipped = array_sum($skippedReasons);
         if ($totalSkipped === 0) {
@@ -325,10 +288,8 @@ class ServiceReviewDashboard extends Component
         );
     }
 
-    private function abortIfDisabled(): void
+    protected function reviewingUserId(): int
     {
-        if (! (bool) config('service-tracking.enabled', true)) {
-            abort(404);
-        }
+        return is_numeric(Auth::id()) ? (int) Auth::id() : 0;
     }
 }

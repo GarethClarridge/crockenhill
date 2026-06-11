@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
+use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Actions\DeleteLivestreamUpload;
 use App\Actions\ServiceReview\ResolvePendingStructureMerge;
 use App\Enums\MediaType;
+use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
+use App\Livewire\Admin\ChurchServices\Concerns\ReviewsServiceSections;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
+use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
 use App\Queries\ChurchServiceProcessingRunQuery;
 use App\Services\Processing\ProcessingRunOrchestrator;
@@ -23,7 +28,10 @@ use Livewire\Features\SupportRedirects\Redirector;
 
 class ShowChurchService extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use ManagesSectionPublication;
+    use ReviewsServiceSections;
+    use WithAdminAuthorization;
+    use WithNotifications;
 
     public ChurchService $churchService;
 
@@ -37,6 +45,15 @@ class ShowChurchService extends Component
                 ->orderBy('position')
                 ->orderBy('id'),
         ]);
+
+        // Seed edit state for review candidates only — seeding every section
+        // of every run would balloon the Livewire payload.
+        $this->seedSectionEditsForSections(
+            app(ChurchServiceProcessingRunQuery::class)
+                ->forService($this->churchService)
+                ->flatMap(fn (MediaProcessingLog $run) => $run->serviceSections)
+                ->filter(fn (ServiceSection $section): bool => $this->dashboardQuery->isReviewCandidate($section))
+        );
     }
 
     public function render(): View
@@ -45,7 +62,11 @@ class ShowChurchService extends Component
 
         $label = $this->churchService->date->format('j M Y').' '.$this->churchService->service->label();
 
-        return view('livewire.admin.church-services.show-church-service', $readModel->toViewData())
+        return view('livewire.admin.church-services.show-church-service', [
+            ...$readModel->toViewData(),
+            'sectionTypeOptions' => $this->sectionTypeOptions(),
+            'preacherOptions' => $this->preacherOptions(),
+        ])
             ->layout('layouts.admin', [
                 'title' => $label,
                 'heading' => $label,
@@ -85,6 +106,47 @@ class ShowChurchService extends Component
         app(ProcessingRunOrchestrator::class)->reclassify($processingLog);
 
         $this->success('Section reclassification queued');
+    }
+
+    public function confirmRunSegment(int $processingLogId, int $segmentId): void
+    {
+        $this->authorizeAdmin();
+
+        $processingLog = MediaProcessingLog::query()->find($processingLogId);
+        if (! $processingLog instanceof MediaProcessingLog) {
+            $this->error('Processing run not found.');
+
+            return;
+        }
+
+        if (! $this->processingLogMatchesService($processingLog)) {
+            $this->error('Selected run does not belong to this service.');
+
+            return;
+        }
+
+        if (! $processingLog->requiresManualSermonReview()) {
+            $this->error('This run is not awaiting sermon-segment confirmation.');
+
+            return;
+        }
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        try {
+            app(ConfirmLivestreamSermonSegment::class)->execute(
+                $processingLog->processing_id,
+                $segmentId,
+                $user
+            );
+        } catch (\InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
+
+            return;
+        }
+
+        $this->success('Sermon segment confirmed. Processing will resume shortly.');
     }
 
     public function acceptIncomingMerge(): void

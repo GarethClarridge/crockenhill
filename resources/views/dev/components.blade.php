@@ -737,6 +737,83 @@
         </div>
     </section>
 
+    {{-- ─────────────────────────────────────── --}}
+    {{-- ADMIN PIPELINE STEPS — x-admin.pipeline-steps --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Pipeline Steps — <code class="text-lg font-mono">x-admin.pipeline-steps</code></h2>
+
+        <div class="space-y-4">
+            <p class="text-xs uppercase tracking-widest text-gray-400">Props: steps (list of [label, state: done|active|blocked|todo]). Used on the services hub hero and the service workbench header.</p>
+
+            <x-card heading="Run in progress">
+                <x-admin.pipeline-steps :steps="[
+                    ['label' => 'Plan', 'state' => 'done'],
+                    ['label' => 'Recording', 'state' => 'done'],
+                    ['label' => 'Processed', 'state' => 'active'],
+                    ['label' => 'Review', 'state' => 'todo'],
+                    ['label' => 'Published', 'state' => 'todo'],
+                ]" />
+            </x-card>
+
+            <x-card heading="Paused on a human (amber = needs review)">
+                <x-admin.pipeline-steps :steps="[
+                    ['label' => 'Plan', 'state' => 'done'],
+                    ['label' => 'Recording', 'state' => 'done'],
+                    ['label' => 'Processed', 'state' => 'done'],
+                    ['label' => 'Review', 'state' => 'blocked'],
+                    ['label' => 'Published', 'state' => 'todo'],
+                ]" />
+            </x-card>
+        </div>
+    </section>
+
+    {{-- ─────────────────────────────────────── --}}
+    {{-- ADMIN ATTENTION STRIP — x-admin.attention-strip --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Attention Strip — <code class="text-lg font-mono">x-admin.attention-strip</code></h2>
+
+        <div class="space-y-4">
+            <p class="text-xs uppercase tracking-widest text-gray-400">Props: chips (list of [label, count, href]) — zero-count chips are omitted; an empty set renders the quiet all-caught-up line.</p>
+
+            <x-card heading="Work waiting">
+                <x-admin.attention-strip :chips="[
+                    ['label' => 'Emails', 'count' => 2, 'href' => '#'],
+                    ['label' => 'Sections', 'count' => 5, 'href' => '#'],
+                    ['label' => 'Segments', 'count' => 0, 'href' => '#'],
+                    ['label' => 'Services', 'count' => 1, 'href' => '#'],
+                ]" />
+            </x-card>
+
+            <x-card heading="All caught up">
+                <x-admin.attention-strip :chips="[
+                    ['label' => 'Emails', 'count' => 0, 'href' => '#'],
+                ]" />
+            </x-card>
+        </div>
+    </section>
+
+    {{-- ─────────────────────────────────────── --}}
+    {{-- ADMIN ACTION MENU — x-admin.action-menu --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Action Menu — <code class="text-lg font-mono">x-admin.action-menu</code></h2>
+
+        <div class="space-y-4">
+            <p class="text-xs uppercase tracking-widest text-gray-400">Props: label (default "Add"), icon (default "plus"); items via x-admin.action-menu-item (link, icon). Keyboard-operable Alpine dropdown — the hub's single + Add entry point.</p>
+
+            <x-card>
+                <x-admin.action-menu label="Add">
+                    <x-admin.action-menu-item link="#" icon="film">Upload recording</x-admin.action-menu-item>
+                    <x-admin.action-menu-item link="#" icon="arrow-up-tray">Upload order of service</x-admin.action-menu-item>
+                    <x-admin.action-menu-item link="#" icon="envelope">Paste email text</x-admin.action-menu-item>
+                    <x-admin.action-menu-item link="#" icon="pencil-square">Create manually</x-admin.action-menu-item>
+                </x-admin.action-menu>
+            </x-card>
+        </div>
+    </section>
+
     {{-- Footer --}}
     <div class="border-t border-gray-300 pt-6 text-center text-xs text-gray-400">
         Component gallery — local environment only — <code>/dev/components</code>

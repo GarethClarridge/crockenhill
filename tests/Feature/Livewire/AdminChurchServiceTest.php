@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\InboundEmailStatus;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
@@ -52,11 +53,13 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
 use Tests\TestCase;
 use Tests\Traits\BuildsTestScenarios;
+use Tests\Traits\WithInboundEmailTestHelpers;
 
 class AdminChurchServiceTest extends TestCase
 {
     use BuildsTestScenarios;
     use RefreshDatabase;
+    use WithInboundEmailTestHelpers;
 
     private User $admin;
 
@@ -265,6 +268,24 @@ class AdminChurchServiceTest extends TestCase
             ->assertSet('form.items.0.title', 'Welcome');
 
         $this->assertFalse((new \ReflectionClass(ManageChurchService::class))->hasProperty('items'));
+    }
+
+    #[Test]
+    public function the_create_form_prefills_date_and_service_from_query_params(): void
+    {
+        $this->actingAs($this->admin);
+
+        // Orphan inbox groups link here with their resolved date/slot so the
+        // missing Sunday can be created and the workbench takes over.
+        Livewire::withQueryParams(['date' => '2026-06-07', 'service' => 'morning'])
+            ->test(ManageChurchService::class)
+            ->assertSet('form.date', '2026-06-07')
+            ->assertSet('form.service', SermonService::Morning->value);
+
+        Livewire::withQueryParams(['date' => 'not-a-date', 'service' => 'bogus'])
+            ->test(ManageChurchService::class)
+            ->assertSet('form.date', '')
+            ->assertSet('form.service', '');
     }
 
     #[Test]
@@ -1155,7 +1176,7 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function hub_attention_strip_links_to_the_existing_queue_pages(): void
+    public function hub_attention_strip_links_to_the_review_inbox_filters(): void
     {
         $this->actingAs($this->admin);
 
@@ -1169,7 +1190,8 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ListChurchServices::class)
             ->assertSee('Inbound emails')
             ->assertSee('Services needing review')
-            ->assertSeeHtml(route('admin.services.inbound-emails'))
+            ->assertSeeHtml(route('admin.services.inbox', ['filter' => 'emails']))
+            ->assertSeeHtml(route('admin.services.inbox', ['filter' => 'services']))
             ->assertDontSee('All caught up');
     }
 
@@ -1184,7 +1206,7 @@ class AdminChurchServiceTest extends TestCase
             ->assertSee('Paste email text')
             ->assertSee('Create manually')
             ->assertSee('Song catalogue')
-            ->assertSeeHtml(route('admin.sermon-upload.create'));
+            ->assertSeeHtml(route('admin.services.upload-recording'));
     }
 
     #[Test]
@@ -1264,6 +1286,62 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function show_component_renders_the_pipeline_stepper(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-08',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Welcome',
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-05-08',
+            'extracted_service' => SermonService::Morning,
+            'sermon_id' => null,
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSeeHtml('aria-label="Pipeline progress"')
+            ->assertSeeInOrder(['Plan', 'Recording', 'Processed', 'Review', 'Published']);
+    }
+
+    #[Test]
+    public function show_component_stepper_marks_review_blocked_when_a_section_is_flagged(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-08',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-05-08',
+            'extracted_service' => SermonService::Morning,
+            'sermon_id' => null,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+        ]);
+
+        // Review dot rendered in the blocked (amber) state
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSeeHtml('bg-amber-400');
+    }
+
+    #[Test]
     public function hub_service_type_chips_are_neutral(): void
     {
         $this->actingAs($this->admin);
@@ -1275,5 +1353,47 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ListChurchServices::class)
             ->assertSeeHtml('bg-gray-100 text-gray-700')
             ->assertDontSeeHtml('bg-green-100 text-green-800');
+    }
+
+    // Migrated from AdminInboundEmailReviewTest (P5) — the standalone email
+    // review page is retired; this pins the ManageChurchService prefill path
+    // used by the inbox's "Edit & approve" action.
+    #[Test]
+    public function manual_service_form_prefills_from_an_inbound_email_and_marks_it_processed_on_save(): void
+    {
+        $this->actingAs($this->admin);
+
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $this->processingMetadata(
+                resolvedDate: '2026-07-06',
+                resolvedService: SermonService::Morning->value,
+                items: [
+                    ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
+                    ['type' => 'custom', 'title' => 'Opening Prayer', 'metadata' => ['email_type' => 'prayer']],
+                ],
+            ),
+        ]);
+
+        $component = Livewire::test(ManageChurchService::class, ['inboundEmailId' => $email->id])
+            ->assertSet('form.date', '2026-07-06')
+            ->assertSet('form.service', SermonService::Morning->value)
+            ->assertSet('form.items.0.title', 'Welcome')
+            ->assertSet('form.items.1.title', 'Opening Prayer')
+            ->call('save');
+
+        $service = ChurchService::query()
+            ->where('date', '2026-07-06')
+            ->where('service', SermonService::Morning->value)
+            ->sole();
+
+        $component->assertRedirect(route('admin.services.show', $service));
+
+        $this->assertSame('manual', $service->source);
+
+        $email->refresh();
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
+        $this->assertSame('manual_edit', $email->processing_metadata['review']['mode'] ?? null);
+        $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id'] ?? null);
     }
 }

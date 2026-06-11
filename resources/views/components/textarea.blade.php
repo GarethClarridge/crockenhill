@@ -2,6 +2,8 @@
 
 @php
 $modelName = $attributes->wire('model')?->value();
+// Numeric segments (form.items.0.title) are invalid JS property access; bracketise for $wire expressions.
+$jsModelPath = $modelName ? preg_replace('/\.(\d+)(?=\.|$)/', '[$1]', $modelName) : null;
 $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
 $textareaClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 disabled:opacity-50 disabled:bg-gray-50 disabled:cursor-not-allowed'
@@ -37,7 +39,7 @@ $describedBy = implode(' ', $describedBy);
         }
     }
     @if($modelName)
-        $watch('$wire.{{ $modelName }}', () => {
+        $watch('$wire.{{ $jsModelPath }}', () => {
             count = $refs.textarea.value.length;
             if (autogrow) resize($refs.textarea);
         });

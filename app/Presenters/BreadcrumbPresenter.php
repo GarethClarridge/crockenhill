@@ -83,7 +83,6 @@ class BreadcrumbPresenter
             'sermons' => 'Sermons',
             'meetings' => 'Meetings',
             'calendar-events' => 'Calendar Events',
-            'sermon-upload' => 'Upload Sermon',
             default => Str::title(str_replace('-', ' ', $section)),
         };
     }

@@ -80,7 +80,7 @@ class MemberControllerTest extends TestCase
     }
 
     #[Test]
-    public function members_home_shows_the_inbound_email_review_link_for_admins(): void
+    public function members_home_shows_the_review_inbox_link_with_an_attention_badge(): void
     {
         $admin = User::factory()->admin()->create([
             'email_verified_at' => now(),
@@ -94,13 +94,13 @@ class MemberControllerTest extends TestCase
         $response = $this->get(route('members.home'));
 
         $response->assertOk();
-        $response->assertSee(route('admin.services.inbound-emails'));
-        $response->assertSeeText('Review inbound emails');
+        $response->assertSee(route('admin.services.inbox'));
+        $response->assertSeeText('Review inbox');
         $response->assertSeeText('2');
     }
 
     #[Test]
-    public function members_home_counts_legacy_livestream_manual_review_runs_for_admins(): void
+    public function review_inbox_badge_counts_legacy_livestream_manual_review_runs(): void
     {
         $admin = User::factory()->admin()->create([
             'email_verified_at' => now(),
@@ -117,8 +117,32 @@ class MemberControllerTest extends TestCase
         $response = $this->get(route('members.home'));
 
         $response->assertOk();
-        $response->assertSeeText('Sermon review');
+        $response->assertSeeText('Review inbox');
         $response->assertSeeText('1');
+    }
+
+    #[Test]
+    public function members_home_hides_service_buttons_but_keeps_uploads_when_service_tracking_is_disabled(): void
+    {
+        config(['service-tracking.enabled' => false]);
+
+        $admin = User::factory()->admin()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        $this->actingAs($admin);
+        $response = $this->get(route('members.home'));
+
+        $response->assertOk();
+        $response->assertDontSeeText('Review inbox');
+        // Exact-URL check: the upload button's /admin/services/upload-recording
+        // URL shares this prefix but is gated by the Sermon create Gate, not
+        // service tracking, so it must stay.
+        $response->assertDontSee(route('admin.services.index').'"', false);
+        $response->assertDontSee(route('admin.services.inbox'));
+        $response->assertSeeText('Upload sermon');
+        $response->assertSee(route('admin.services.upload-recording'));
+        $response->assertSeeText('Manage sermons');
     }
 
     #[Test]

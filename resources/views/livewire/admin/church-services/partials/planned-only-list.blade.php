@@ -21,12 +21,8 @@
                             </span>
 
                             @if($item->source)
-                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ match($item->source->value) {
-                                    'email' => 'bg-blue-100 text-blue-700',
-                                    'openlp' => 'bg-green-100 text-green-700',
-                                    'manual' => 'bg-purple-100 text-purple-700',
-                                    default => 'bg-gray-100 text-gray-600',
-                                } }}">
+                                {{-- Source is inert provenance metadata — neutral, so colour keeps its meaning --}}
+                                <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                                     {{ strtoupper($item->source->value) }}
                                 </span>
                             @endif

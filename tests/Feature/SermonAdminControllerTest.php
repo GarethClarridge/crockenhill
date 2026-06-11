@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Livewire\MediaUpload;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -88,12 +89,16 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
-    public function admin_can_access_upload_page(): void
+    public function legacy_upload_url_redirects_to_the_services_upload_recording_page(): void
     {
-        $response = $this->actingAs($this->admin)->get('/admin/sermon-upload');
+        $this->actingAs($this->admin)
+            ->get('/admin/sermon-upload')
+            ->assertRedirect('/admin/services/upload-recording');
 
-        $response->assertStatus(200);
-        $response->assertViewIs('sermons.upload');
+        $this->actingAs($this->admin)
+            ->get(route('admin.services.upload-recording'))
+            ->assertStatus(200)
+            ->assertSeeLivewire(MediaUpload::class);
     }
 
     #[Test]

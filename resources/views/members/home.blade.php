@@ -34,43 +34,36 @@
             </h3>
           </div>
           <div class="p-4 grid grid-cols-2 gap-2">
-            <x-button link="{{ route('admin.sermon-upload.create') }}" icon="arrow-up-tray" iconStyle="solid">
+            @if($serviceTrackingEnabled ?? true)
+            <x-button link="{{ route('admin.services.index') }}" icon="queue-list" iconStyle="solid">
+              Services
+            </x-button>
+
+            <x-button link="{{ route('admin.services.inbox') }}" icon="inbox" iconStyle="solid">
+              Review inbox
+              @if(($reviewInboxCount ?? 0) > 0)
+              <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
+                {{ $reviewInboxCount }}
+              </span>
+              @endif
+            </x-button>
+            @else
+            {{-- Recording upload is gated only by the Sermon create Gate, so it
+                 stays reachable when service tracking is switched off. --}}
+            <x-button link="{{ route('admin.services.upload-recording') }}" icon="arrow-up-tray" iconStyle="solid">
               Upload sermon
             </x-button>
+            @endif
 
             <x-button link="{{ route('admin.sermons.index') }}" icon="pencil-square" iconStyle="solid">
               Manage sermons
             </x-button>
 
-            <x-button link="{{ route('admin.services.upload') }}" icon="arrow-up-tray" iconStyle="solid">
-              Upload service order
-            </x-button>
-
-            <x-button link="{{ route('admin.services.index') }}" icon="queue-list" iconStyle="solid">
-              View services
-            </x-button>
-
-            <x-button link="{{ route('admin.services.inbound-emails') }}" icon="envelope" iconStyle="solid">
-              Review inbound emails
-              @if(($pendingInboundEmailCount ?? 0) > 0)
-              <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
-                {{ $pendingInboundEmailCount }}
-              </span>
-              @endif
-            </x-button>
-
-            <x-button link="{{ route('admin.services.processing.review.index') }}" icon="video-camera" iconStyle="solid">
-              Sermon review
-              @if(($pendingSermonReviewCount ?? 0) > 0)
-              <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
-                {{ $pendingSermonReviewCount }}
-              </span>
-              @endif
-            </x-button>
-
+            @if($serviceTrackingEnabled ?? true)
             <x-button link="{{ route('admin.services.songs.index') }}" icon="musical-note" iconStyle="solid">
               Song catalogue
             </x-button>
+            @endif
           </div>
         </div>
         @endif

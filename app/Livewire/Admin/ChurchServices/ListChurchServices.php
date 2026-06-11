@@ -168,11 +168,11 @@ class ListChurchServices extends Component
     private function attentionChips(array $counts): array
     {
         return [
-            ['label' => 'Inbound emails', 'count' => $counts['pending_emails'], 'href' => route('admin.services.inbound-emails')],
-            ['label' => 'Sermon segments', 'count' => $counts['awaiting_segment_runs'], 'href' => route('admin.services.processing.review.index')],
-            ['label' => 'Flagged sections', 'count' => $counts['flagged_sections'], 'href' => route('admin.services.review')],
-            ['label' => 'Pending merges', 'count' => $counts['pending_merges'], 'href' => route('admin.services.review')],
-            ['label' => 'Services needing review', 'count' => $counts['services_needing_review'], 'href' => route('admin.services.index', ['needsReviewFilter' => 1])],
+            ['label' => 'Inbound emails', 'count' => $counts['pending_emails'], 'href' => route('admin.services.inbox', ['filter' => 'emails'])],
+            ['label' => 'Sermon segments', 'count' => $counts['awaiting_segment_runs'], 'href' => route('admin.services.inbox', ['filter' => 'segments'])],
+            ['label' => 'Flagged sections', 'count' => $counts['flagged_sections'], 'href' => route('admin.services.inbox', ['filter' => 'sections'])],
+            ['label' => 'Pending merges', 'count' => $counts['pending_merges'], 'href' => route('admin.services.inbox', ['filter' => 'services'])],
+            ['label' => 'Services needing review', 'count' => $counts['services_needing_review'], 'href' => route('admin.services.inbox', ['filter' => 'services'])],
         ];
     }
 
