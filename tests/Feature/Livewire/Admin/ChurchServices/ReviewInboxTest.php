@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Enums\InboundEmailStatus;
+use App\Enums\MediaType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
@@ -14,7 +15,9 @@ use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\User;
+use App\Queries\ReviewInboxQuery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -415,6 +418,47 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
+    public function a_pending_merge_is_never_displaced_by_newer_review_flags(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2025-01-05',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+            'pending_structure_merge_source' => 'openlp',
+        ]);
+
+        // A full cap of newer review-flagged services must not push the
+        // older pending merge out of the queue (the hub chip counts it).
+        foreach (range(1, ReviewInboxQuery::SOURCE_CAP) as $week) {
+            ChurchService::factory()->create([
+                'date' => Carbon::parse('2025-02-01')->addWeeks($week)->toDateString(),
+                'service' => SermonService::Morning,
+                'needs_review' => true,
+            ]);
+        }
+
+        Livewire::test(ReviewInbox::class)
+            ->set('filter', 'services')
+            ->assertSee('Pending structure merge');
+    }
+
+    #[Test]
+    public function an_overflow_notice_reports_the_true_backlog_when_a_source_is_capped(): void
+    {
+        InboundEmail::factory()->count(ReviewInboxQuery::SOURCE_CAP + 1)->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => null,
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSee(sprintf(
+                'Showing the newest %d of %d emails.',
+                ReviewInboxQuery::SOURCE_CAP,
+                ReviewInboxQuery::SOURCE_CAP + 1,
+            ));
+    }
+
+    #[Test]
     public function it_shows_the_empty_state_when_nothing_needs_review(): void
     {
         Livewire::test(ReviewInbox::class)
@@ -450,6 +494,38 @@ class ReviewInboxTest extends TestCase
 
         Livewire::test(ReviewInbox::class)
             ->assertSeeHtml(route('admin.services.processing.review', $run));
+    }
+
+    #[Test]
+    public function segment_links_for_auto_trim_video_runs_keep_the_standalone_page(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        // Auto-trim video runs support manual sermon review but the workbench
+        // run query only renders livestream runs — the inbox must not link to
+        // a workbench anchor that will never exist.
+        $run = MediaProcessingLog::factory()->manualReviewRequired()->create([
+            'processing_type' => MediaType::Video,
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+                'manual_review' => [
+                    'status' => 'required',
+                    'reason_code' => 'no_qualifying_speech_block',
+                    'reason_message' => 'No speech block met the 20-minute sermon threshold.',
+                    'flagged_at' => now()->toIso8601String(),
+                    'speech_segments' => [],
+                ],
+            ],
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSeeHtml(route('admin.services.processing.review', $run))
+            ->assertDontSeeHtml('#processing-run-'.$run->id);
     }
 
     #[Test]
