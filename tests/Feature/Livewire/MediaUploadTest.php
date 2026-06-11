@@ -64,14 +64,17 @@ class MediaUploadTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->assertStatus(200)
-            ->assertSee('Upload Media');
+            ->assertSee('Upload recording');
     }
 
     #[Test]
     public function it_requires_authentication_and_admin_permissions()
     {
-        // Unauthenticated
+        // Unauthenticated — both the legacy redirect and the new page bounce to login
         $this->get(route('admin.sermon-upload.create'))
+            ->assertRedirect(route('login'));
+
+        $this->get(route('admin.services.upload-recording'))
             ->assertRedirect(route('login'));
     }
 

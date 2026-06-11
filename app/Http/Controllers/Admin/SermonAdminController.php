@@ -9,7 +9,6 @@ use App\Models\Sermon;
 use App\Traits\SanitizesLogData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
-use Illuminate\View\View;
 
 class SermonAdminController extends Controller
 {
@@ -33,20 +32,5 @@ class SermonAdminController extends Controller
         $sermon->delete();
 
         return redirect()->route('sermons.index')->with('message', 'Sermon successfully deleted!');
-    }
-
-    /**
-     * Show the simple upload for creating a new resource.
-     */
-    public function upload(): View
-    {
-        $this->authorize('create', Sermon::class);
-
-        return view('sermons.upload', [
-            'heading' => 'Upload sermon',
-            'description' => 'Upload sermon media for processing.',
-            'content' => '',
-            'links' => collect(),
-        ]);
     }
 }

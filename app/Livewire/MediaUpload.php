@@ -645,6 +645,9 @@ class MediaUpload extends Component
             'allowedExtensions' => $mediaType ? $this->validation->allowedExtensionsForDisplay($mediaType) : null,
             'maxFileSizeBytes' => $mediaType ? $this->validation->maxFileSizeBytes($mediaType) : null,
             'acceptAttribute' => $mediaType ? $this->validation->acceptAttribute($mediaType) : '',
+        ])->layout('layouts.admin', [
+            'title' => 'Upload recording',
+            'heading' => 'Upload recording',
         ]);
     }
 }

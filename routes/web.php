@@ -43,6 +43,7 @@ use App\Livewire\Admin\Sermons\ListSermons;
 use App\Livewire\Admin\Users\CreateUser;
 use App\Livewire\Admin\Users\EditUser;
 use App\Livewire\Admin\Users\ListUsers;
+use App\Livewire\MediaUpload;
 use Illuminate\Support\Facades\Route;
 use Spatie\Health\Http\Controllers\HealthCheckResultsController;
 
@@ -170,7 +171,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
     // Sermon upload (form renders the media-upload Livewire component; submission
     // is handled by the component / the /api/media/{type} API, not a POST route here)
-    Route::get('/sermon-upload', [SermonAdminController::class, 'upload'])->name('sermon-upload.create');
+    // Retired (P4): the recording upload moved under the services prefix.
+    Route::redirect('/sermon-upload', '/admin/services/upload-recording')->name('sermon-upload.create');
 
     // Pages
     Route::get('/pages', ListPages::class)->name('pages.index');
@@ -194,6 +196,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/services/inbox', ReviewInbox::class)->name('services.inbox');
     Route::get('/services/create', ManageChurchService::class)->name('services.create');
     Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
+    Route::get('/services/upload-recording', MediaUpload::class)->name('services.upload-recording');
     Route::get('/services/inbound-emails', ReviewInboundEmails::class)->name('services.inbound-emails');
     Route::get('/services/submit-email', SubmitEmailText::class)->name('services.submit-email');
     // Retired (P3.4): triage moved to the review inbox, editing to the service workbench.

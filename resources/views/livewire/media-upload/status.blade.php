@@ -109,9 +109,16 @@
             @endif
 
             @if($status === 'completed')
-                <a href="/christ/sermons" wire:navigate class="rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700">
-                    Browse Sermons
-                </a>
+                <div class="flex items-center gap-2">
+                    @if($matchedServiceUrl)
+                        <a href="{{ $matchedServiceUrl }}" wire:navigate class="rounded-md bg-cbc-teal px-4 py-2 text-white transition-colors hover:bg-cbc-teal-dark">
+                            Open service
+                        </a>
+                    @endif
+                    <a href="/christ/sermons" wire:navigate class="rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700">
+                        Browse Sermons
+                    </a>
+                </div>
             @endif
         </div>
     </div>
