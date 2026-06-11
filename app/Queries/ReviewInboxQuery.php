@@ -126,7 +126,7 @@ class ReviewInboxQuery
 
         $count = 0;
 
-        foreach ($this->dashboardQuery->reviewGroups() as $reviewGroup) {
+        foreach ($this->dashboardQuery->reviewGroups(self::SOURCE_CAP) as $reviewGroup) {
             foreach ($reviewGroup['sections'] as $entry) {
                 if ($count >= self::SOURCE_CAP) {
                     return $count;
@@ -198,41 +198,42 @@ class ReviewInboxQuery
     }
 
     /**
-     * Pending structure merges and service-level review flags. A service with
-     * both produces two entries in the same group.
+     * Pending structure merges and service-level review flags. Each source is
+     * capped independently so a backlog of review flags can never push a
+     * pending merge out of the queue (the hub's merge chip counts them all);
+     * a service with both produces two entries in the same group.
      *
      * @param  array<string, InboxGroup>  $groups
      */
     private function collectServiceItems(array &$groups): int
     {
-        $services = ChurchService::query()
-            ->where('needs_review', true)
-            ->orWhereNotNull('pending_structure_merge_source')
+        $merges = ChurchService::query()
+            ->whereNotNull('pending_structure_merge_source')
             ->orderByDesc('date')
             ->limit(self::SOURCE_CAP)
             ->get();
 
-        $count = 0;
+        $flagged = ChurchService::query()
+            ->where('needs_review', true)
+            ->orderByDesc('date')
+            ->limit(self::SOURCE_CAP)
+            ->get();
 
-        foreach ($services as $service) {
-            if ($service->pending_structure_merge_source !== null) {
-                $this->push($groups, $service->date->toDateString(), $service->service, [
-                    'kind' => 'merge',
-                    'service' => $service,
-                ], $service);
-                $count++;
-            }
-
-            if ($service->needs_review) {
-                $this->push($groups, $service->date->toDateString(), $service->service, [
-                    'kind' => 'service_flag',
-                    'service' => $service,
-                ], $service);
-                $count++;
-            }
+        foreach ($merges as $service) {
+            $this->push($groups, $service->date->toDateString(), $service->service, [
+                'kind' => 'merge',
+                'service' => $service,
+            ], $service);
         }
 
-        return $count;
+        foreach ($flagged as $service) {
+            $this->push($groups, $service->date->toDateString(), $service->service, [
+                'kind' => 'service_flag',
+                'service' => $service,
+            ], $service);
+        }
+
+        return $merges->count() + $flagged->count();
     }
 
     /**
