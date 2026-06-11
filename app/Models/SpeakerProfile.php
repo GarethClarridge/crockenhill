@@ -59,6 +59,7 @@ class SpeakerProfile extends Model
     protected function casts(): array
     {
         return [
+            'preacher_id' => 'integer',
             'centroid_embedding' => 'array',
             'sample_count' => 'integer',
             'quality_score' => 'float',
@@ -106,14 +107,20 @@ class SpeakerProfile extends Model
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<string|mixed>>
      */
     public static function validationRules(): array
     {
         return [
+            'preacher_id' => ['required', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
+            'provider' => ['required', 'string', 'max:50'],
+            'model_version' => ['required', 'string', 'max:50'],
+            'centroid_embedding' => ['required', 'array'],
+            'sample_count' => ['required', 'integer', 'min:0', 'max:4294967295'],
             'quality_score' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'accept_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'margin_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'is_active' => ['boolean'],
         ];
     }
 }

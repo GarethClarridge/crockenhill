@@ -156,11 +156,11 @@ class SpeakerIntegrityTest extends TestCase
     {
         $rules = SpeakerProfile::validationRules();
 
-        $this->assertTrue(Validator::make(['quality_score' => 0.5], $rules)->passes());
-        $this->assertTrue(Validator::make(['quality_score' => null], $rules)->passes());
-        $this->assertFalse(Validator::make(['quality_score' => 1.1], $rules)->passes());
-        $this->assertFalse(Validator::make(['accept_threshold' => -0.1], $rules)->passes());
-        $this->assertFalse(Validator::make(['margin_threshold' => 1.01], $rules)->passes());
+        $this->assertTrue(Validator::make(['quality_score' => 0.5], ['quality_score' => $rules['quality_score']])->passes());
+        $this->assertTrue(Validator::make(['quality_score' => null], ['quality_score' => $rules['quality_score']])->passes());
+        $this->assertFalse(Validator::make(['quality_score' => 1.1], ['quality_score' => $rules['quality_score']])->passes());
+        $this->assertFalse(Validator::make(['accept_threshold' => -0.1], ['accept_threshold' => $rules['accept_threshold']])->passes());
+        $this->assertFalse(Validator::make(['margin_threshold' => 1.01], ['margin_threshold' => $rules['margin_threshold']])->passes());
     }
 
     #[Test]
@@ -168,9 +168,10 @@ class SpeakerIntegrityTest extends TestCase
     {
         $rules = SpeakerSample::validationRules();
 
-        $this->assertTrue(Validator::make(['duration_seconds' => 60, 'quality_score' => 0.9], $rules)->passes());
-        $this->assertFalse(Validator::make(['duration_seconds' => -1], $rules)->passes());
-        $this->assertFalse(Validator::make(['quality_score' => 1.5], $rules)->passes());
+        $this->assertTrue(Validator::make(['duration_seconds' => 60], ['duration_seconds' => $rules['duration_seconds']])->passes());
+        $this->assertTrue(Validator::make(['quality_score' => 0.9], ['quality_score' => $rules['quality_score']])->passes());
+        $this->assertFalse(Validator::make(['duration_seconds' => -1], ['duration_seconds' => $rules['duration_seconds']])->passes());
+        $this->assertFalse(Validator::make(['quality_score' => 1.5], ['quality_score' => $rules['quality_score']])->passes());
     }
 
     #[Test]

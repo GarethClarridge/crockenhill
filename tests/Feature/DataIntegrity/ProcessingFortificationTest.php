@@ -110,6 +110,63 @@ class ProcessingFortificationTest extends TestCase
     }
 
     #[Test]
+    public function speaker_profile_validation_rules_match_column_bounds(): void
+    {
+        $rules = \App\Models\SpeakerProfile::validationRules();
+
+        $this->assertContains('max:'.self::SIGNED_INTEGER_MAX, $rules['preacher_id']);
+        $this->assertValidationPasses($rules['preacher_id'], 'preacher_id', self::SIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['preacher_id'], 'preacher_id', self::SIGNED_INTEGER_MAX + 1);
+
+        $validator = Validator::make(['provider' => str_repeat('a', 51)], ['provider' => $rules['provider']]);
+        $this->assertTrue($validator->fails());
+
+        $validator = Validator::make(['model_version' => str_repeat('a', 51)], ['model_version' => $rules['model_version']]);
+        $this->assertTrue($validator->fails());
+
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['sample_count']);
+        $this->assertValidationPasses($rules['sample_count'], 'sample_count', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['sample_count'], 'sample_count', self::UNSIGNED_INTEGER_MAX + 1);
+    }
+
+    #[Test]
+    public function speaker_sample_validation_rules_match_column_bounds(): void
+    {
+        $rules = \App\Models\SpeakerSample::validationRules();
+
+        $this->assertContains('max:'.self::SIGNED_INTEGER_MAX, $rules['speaker_profile_id']);
+        $this->assertValidationPasses($rules['speaker_profile_id'], 'speaker_profile_id', self::SIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['speaker_profile_id'], 'speaker_profile_id', self::SIGNED_INTEGER_MAX + 1);
+
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['sermon_id']);
+        $this->assertValidationPasses($rules['sermon_id'], 'sermon_id', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['sermon_id'], 'sermon_id', self::UNSIGNED_INTEGER_MAX + 1);
+
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['media_processing_log_id']);
+        $this->assertValidationPasses($rules['media_processing_log_id'], 'media_processing_log_id', self::UNSIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['media_processing_log_id'], 'media_processing_log_id', self::UNSIGNED_INTEGER_MAX + 1);
+
+        $validator = Validator::make(['duration_seconds' => 10000000], ['duration_seconds' => $rules['duration_seconds']]);
+        $this->assertTrue($validator->fails());
+    }
+
+    #[Test]
+    public function speaker_model_casts_are_correct(): void
+    {
+        $profile = new \App\Models\SpeakerProfile;
+        $profile->preacher_id = '123';
+        $this->assertSame(123, $profile->preacher_id);
+
+        $sample = new \App\Models\SpeakerSample;
+        $sample->speaker_profile_id = '123';
+        $sample->sermon_id = '456';
+        $sample->media_processing_log_id = '789';
+        $this->assertSame(123, $sample->speaker_profile_id);
+        $this->assertSame(456, $sample->sermon_id);
+        $this->assertSame(789, $sample->media_processing_log_id);
+    }
+
+    #[Test]
     public function related_model_validation_rules_match_column_bounds(): void
     {
         $churchServiceRules = ChurchService::validationRules();
