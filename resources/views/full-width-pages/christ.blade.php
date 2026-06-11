@@ -52,7 +52,7 @@
     </p>
     <p>
       Christ has saved us from death and judgement, and brought us
-      in to life and joy. We worship him, want to lead lives that
+      into life and joy. We worship him, want to lead lives that
       honour him, and long to tell others about him so they too may
       receive life in him.
     </p>
@@ -220,7 +220,7 @@
     </p>
     <p>
       A great place to start is to read through one of the accounts
-      of Jesus' life in the Bible with you so you can decide for
+      of Jesus' life in the Bible so you can decide for
       yourself what you think. We'd recommend starting with
       <a href="https://www.biblegateway.com/passage/?search=Mark+1&version=NIVUK">
         Mark's gospel on BibleGateway
