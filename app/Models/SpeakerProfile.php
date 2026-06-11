@@ -112,11 +112,11 @@ class SpeakerProfile extends Model
     public static function validationRules(): array
     {
         return [
-            'preacher_id' => ['required', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
-            'provider' => ['required', 'string', 'max:50'],
-            'model_version' => ['required', 'string', 'max:50'],
-            'centroid_embedding' => ['required', 'array'],
-            'sample_count' => ['required', 'integer', 'min:0', 'max:4294967295'],
+            'preacher_id' => ['sometimes', 'required', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
+            'provider' => ['sometimes', 'required', 'string', 'max:50'],
+            'model_version' => ['sometimes', 'required', 'string', 'max:50'],
+            'centroid_embedding' => ['sometimes', 'required', 'array'],
+            'sample_count' => ['sometimes', 'required', 'integer', 'min:0', 'max:2147483647'],
             'quality_score' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'accept_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'margin_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],

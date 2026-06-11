@@ -124,9 +124,9 @@ class ProcessingFortificationTest extends TestCase
         $validator = Validator::make(['model_version' => str_repeat('a', 51)], ['model_version' => $rules['model_version']]);
         $this->assertTrue($validator->fails());
 
-        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['sample_count']);
-        $this->assertValidationPasses($rules['sample_count'], 'sample_count', self::UNSIGNED_INTEGER_MAX);
-        $this->assertValidationFails($rules['sample_count'], 'sample_count', self::UNSIGNED_INTEGER_MAX + 1);
+        $this->assertContains('max:'.self::SIGNED_INTEGER_MAX, $rules['sample_count']);
+        $this->assertValidationPasses($rules['sample_count'], 'sample_count', self::SIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['sample_count'], 'sample_count', self::SIGNED_INTEGER_MAX + 1);
     }
 
     #[Test]
@@ -138,13 +138,13 @@ class ProcessingFortificationTest extends TestCase
         $this->assertValidationPasses($rules['speaker_profile_id'], 'speaker_profile_id', self::SIGNED_INTEGER_MAX);
         $this->assertValidationFails($rules['speaker_profile_id'], 'speaker_profile_id', self::SIGNED_INTEGER_MAX + 1);
 
-        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['sermon_id']);
-        $this->assertValidationPasses($rules['sermon_id'], 'sermon_id', self::UNSIGNED_INTEGER_MAX);
-        $this->assertValidationFails($rules['sermon_id'], 'sermon_id', self::UNSIGNED_INTEGER_MAX + 1);
+        $this->assertContains('max:'.self::SIGNED_INTEGER_MAX, $rules['sermon_id']);
+        $this->assertValidationPasses($rules['sermon_id'], 'sermon_id', self::SIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['sermon_id'], 'sermon_id', self::SIGNED_INTEGER_MAX + 1);
 
-        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['media_processing_log_id']);
-        $this->assertValidationPasses($rules['media_processing_log_id'], 'media_processing_log_id', self::UNSIGNED_INTEGER_MAX);
-        $this->assertValidationFails($rules['media_processing_log_id'], 'media_processing_log_id', self::UNSIGNED_INTEGER_MAX + 1);
+        $this->assertContains('max:'.self::SIGNED_INTEGER_MAX, $rules['media_processing_log_id']);
+        $this->assertValidationPasses($rules['media_processing_log_id'], 'media_processing_log_id', self::SIGNED_INTEGER_MAX);
+        $this->assertValidationFails($rules['media_processing_log_id'], 'media_processing_log_id', self::SIGNED_INTEGER_MAX + 1);
 
         $validator = Validator::make(['duration_seconds' => 10000000], ['duration_seconds' => $rules['duration_seconds']]);
         $this->assertTrue($validator->fails());
