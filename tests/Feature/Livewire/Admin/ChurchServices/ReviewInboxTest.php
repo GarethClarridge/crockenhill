@@ -459,6 +459,30 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
+    public function email_rows_expose_the_original_email_diagnostics(): void
+    {
+        // The retired inbound-emails page showed the sanitised original email
+        // and raw parser data; the inbox keeps that for diagnosing failures.
+        InboundEmail::factory()->create([
+            'subject' => 'Broken email',
+            'status' => InboundEmailStatus::Failed->value,
+            'body_plain' => 'Sunday 7 June order of service body text',
+            'body_html' => '<p>Sunday 7 June order of service rich text</p>',
+            'processing_metadata' => [
+                'failure' => ['message' => 'Could not parse this email'],
+                'parsing' => ['warnings' => ['Unrecognised heading format']],
+            ],
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSee('Original email')
+            ->assertSee('Sunday 7 June order of service body text')
+            ->assertSee('Sunday 7 June order of service rich text')
+            ->assertSee('Unrecognised heading format')
+            ->assertSee('Could not parse this email');
+    }
+
+    #[Test]
     public function it_shows_the_empty_state_when_nothing_needs_review(): void
     {
         Livewire::test(ReviewInbox::class)
