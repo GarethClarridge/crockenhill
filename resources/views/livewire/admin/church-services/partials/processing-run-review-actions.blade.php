@@ -19,15 +19,10 @@
         @endif
 
         @if($processingRunView->needsSectionReview)
-            <x-button
-                link="{{ route('admin.services.review') }}"
-                variant="outline"
-                size="xs"
-                icon="exclamation-triangle"
-                inline
-            >
-                Review sections
-            </x-button>
+            <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                <x-heroicon-o-exclamation-triangle class="h-3.5 w-3.5" aria-hidden="true" />
+                Flagged sections are expanded in the timeline below
+            </span>
         @endif
 
         @if($processingRunView->hasPendingPublications)

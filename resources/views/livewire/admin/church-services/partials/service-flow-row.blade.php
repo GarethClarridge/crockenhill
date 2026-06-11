@@ -20,11 +20,18 @@
         'planned_only' => 'bg-slate-50/70',
         default        => '',
     };
+
+    $reviewPanel = ($item['section_id'] ?? null) !== null
+        ? (($sectionReviewPanels ?? [])[$item['section_id']] ?? null)
+        : null;
+    $mergeSecondaryId = ($item['section_id'] ?? null) !== null
+        ? (($mergeCandidatePairs ?? [])[$item['section_id']] ?? null)
+        : null;
 @endphp
 
 <li
     class="py-3 px-1 {{ $rowBorder }} {{ $rowBg }}"
-    x-data="{ expanded: false }"
+    x-data="{ expanded: {{ $reviewPanel !== null ? 'true' : 'false' }} }"
     wire:key="flow-item-{{ $rowIndex }}"
 >
     <button
@@ -203,5 +210,46 @@
                 </div>
             @endif
         </div>
+
+        @if($reviewPanel !== null)
+            <div class="mt-3">
+                @include('livewire.admin.church-services.partials.section-review-panel', [
+                    'panel' => $reviewPanel,
+                ])
+            </div>
+        @endif
     </div>
+
+    @if($mergeSecondaryId !== null)
+        @php $pendingSectionMergePair = $pendingSectionMerge ?? null; @endphp
+        @if($pendingSectionMergePair !== null
+            && $pendingSectionMergePair['primary_id'] === $item['section_id']
+            && $pendingSectionMergePair['secondary_id'] === $mergeSecondaryId)
+            <div class="mt-3 ml-27 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                <p class="font-medium text-amber-900">Merge these two {{ $item['type_label'] }} sections into one?</p>
+                <p class="mt-1 text-amber-700">
+                    Any extracted media will be cleared and re-extracted automatically if the source recording is still available.
+                </p>
+                <div class="mt-3 flex gap-2">
+                    <x-form-button variant="primary" size="sm" wire:click="confirmMerge"
+                        wire:target="confirmMerge" wire:loading.attr="disabled">
+                        Confirm merge
+                    </x-form-button>
+                    <x-form-button variant="outline" size="sm" wire:click="cancelMerge">
+                        Cancel
+                    </x-form-button>
+                </div>
+            </div>
+        @else
+            <div class="mt-2 ml-27 flex">
+                <x-form-button
+                    variant="ghost"
+                    size="xs"
+                    wire:click="initiateMerge({{ $item['section_id'] }}, {{ $mergeSecondaryId }})"
+                >
+                    ⇕ Merge with the next {{ $item['type_label'] }} section
+                </x-form-button>
+            </div>
+        @endif
+    @endif
 </li>

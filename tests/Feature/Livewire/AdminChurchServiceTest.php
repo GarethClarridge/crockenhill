@@ -1265,6 +1265,62 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function show_component_renders_the_pipeline_stepper(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-08',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Welcome',
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-05-08',
+            'extracted_service' => SermonService::Morning,
+            'sermon_id' => null,
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSeeHtml('aria-label="Pipeline progress"')
+            ->assertSeeInOrder(['Plan', 'Recording', 'Processed', 'Review', 'Published']);
+    }
+
+    #[Test]
+    public function show_component_stepper_marks_review_blocked_when_a_section_is_flagged(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-08',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-05-08',
+            'extracted_service' => SermonService::Morning,
+            'sermon_id' => null,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+        ]);
+
+        // Review dot rendered in the blocked (amber) state
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSeeHtml('bg-amber-400');
+    }
+
+    #[Test]
     public function hub_service_type_chips_are_neutral(): void
     {
         $this->actingAs($this->admin);
