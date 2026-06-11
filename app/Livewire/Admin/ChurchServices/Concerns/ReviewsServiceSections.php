@@ -166,6 +166,8 @@ trait ReviewsServiceSections
 
     public function initiateMerge(int $sectionIdA, int $sectionIdB): void
     {
+        $this->authorizeAdmin();
+
         $this->pendingSectionMerge = ['primary_id' => $sectionIdA, 'secondary_id' => $sectionIdB];
     }
 
@@ -202,6 +204,8 @@ trait ReviewsServiceSections
 
     public function cancelMerge(): void
     {
+        $this->authorizeAdmin();
+
         $this->pendingSectionMerge = null;
     }
 

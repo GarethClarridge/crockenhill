@@ -475,8 +475,11 @@ class ShowChurchServiceTest extends TestCase
         foreach ([
             fn ($component) => $component->call('saveSection', $section->id),
             fn ($component) => $component->call('approvePendingPublications', $service->id),
-            // The confirmMerge() authorization gap from the dashboard must not be copied (C4).
-            fn ($component) => $component->call('initiateMerge', $section->id, $section->id)->call('confirmMerge'),
+            // The confirmMerge() authorization gap from the dashboard must not be copied (C4),
+            // and the pending-merge state setters are guarded too.
+            fn ($component) => $component->call('initiateMerge', $section->id, $section->id),
+            fn ($component) => $component->call('confirmMerge'),
+            fn ($component) => $component->call('cancelMerge'),
             fn ($component) => $component->call('markServiceReviewed', $service->id),
         ] as $invoke) {
             $invoke(
