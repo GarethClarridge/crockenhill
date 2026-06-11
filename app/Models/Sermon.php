@@ -202,15 +202,7 @@ class Sermon extends Model implements Sitemapable
     protected function reference(): Attribute
     {
         return Attribute::make(
-            set: function (?string $value): ?string {
-                if ($value === null) {
-                    return null;
-                }
-
-                $trimmed = trim($value);
-
-                return $trimmed === '' ? null : $trimmed;
-            },
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 
@@ -235,15 +227,7 @@ class Sermon extends Model implements Sitemapable
     protected function series(): Attribute
     {
         return Attribute::make(
-            set: function (?string $value): ?string {
-                if ($value === null) {
-                    return null;
-                }
-
-                $trimmed = trim($value);
-
-                return $trimmed === '' ? null : $trimmed;
-            },
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 

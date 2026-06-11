@@ -15,6 +15,10 @@ use Spatie\LaravelData\Data;
  */
 class SermonAnalysis extends Data implements ArrayAccess
 {
+    public const MAX_TITLE_WORDS = 12;
+
+    public const MAX_TITLE_CHARACTERS = 60;
+
     /**
      * @param  array<int, string>  $points
      */
@@ -49,8 +53,8 @@ class SermonAnalysis extends Data implements ArrayAccess
         ?string $summary,
         string $transcript
     ): self {
-        // Validate and truncate title to max 12 words
-        $validatedTitle = self::validateAndTruncateTitle($title);
+        // Validate and truncate title to max words
+        $validatedTitle = self::truncateTitle($title);
 
         return new self(
             title: $validatedTitle,
@@ -63,14 +67,14 @@ class SermonAnalysis extends Data implements ArrayAccess
     }
 
     /**
-     * Validate title length and truncate to max 12 words if necessary
+     * Validate title length and truncate to max words if necessary
      */
-    private static function validateAndTruncateTitle(string $title): string
+    public static function truncateTitle(string $title): string
     {
         $words = explode(' ', trim($title));
 
-        if (count($words) > 12) {
-            $words = array_slice($words, 0, 12);
+        if (count($words) > self::MAX_TITLE_WORDS) {
+            $words = array_slice($words, 0, self::MAX_TITLE_WORDS);
         }
 
         return implode(' ', $words);
@@ -89,7 +93,7 @@ class SermonAnalysis extends Data implements ArrayAccess
      */
     public function isTitleValid(): bool
     {
-        return $this->getTitleWordCount() <= 12;
+        return $this->getTitleWordCount() <= self::MAX_TITLE_WORDS;
     }
 
     /**
