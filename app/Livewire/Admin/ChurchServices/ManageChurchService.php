@@ -6,10 +6,12 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Actions\PrefillChurchServiceFromInboundEmail;
 use App\Actions\SaveChurchServiceFromAdmin;
+use App\Enums\SermonService;
 use App\Livewire\Forms\ChurchServiceFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
+use App\Services\Processing\MediaProcessingIdentityResolver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Url;
@@ -27,8 +29,16 @@ class ManageChurchService extends Component
     #[Url(except: null)]
     public ?int $inboundEmailId = null;
 
-    public function mount(PrefillChurchServiceFromInboundEmail $prefillAction): void
-    {
+    #[Url(except: null)]
+    public ?string $date = null;
+
+    #[Url(except: null)]
+    public ?string $service = null;
+
+    public function mount(
+        PrefillChurchServiceFromInboundEmail $prefillAction,
+        MediaProcessingIdentityResolver $identityResolver,
+    ): void {
         $this->abortIfDisabled();
 
         if ($this->churchService instanceof ChurchService && $this->churchService->exists) {
@@ -40,6 +50,18 @@ class ManageChurchService extends Component
             $this->form->setChurchService($churchService);
         } elseif (is_int($this->inboundEmailId)) {
             $this->form->applyPrefillData($prefillAction->execute($this->inboundEmailId));
+        } else {
+            // Orphan inbox groups link here with their resolved date/slot so
+            // the missing Sunday can be created and the workbench takes over.
+            $prefillDate = $identityResolver->parseDate($this->date);
+            if ($prefillDate !== null) {
+                $this->form->date = $prefillDate;
+            }
+
+            $prefillService = $identityResolver->parseService($this->service);
+            if ($prefillService instanceof SermonService) {
+                $this->form->service = $prefillService->value;
+            }
         }
 
         $this->form->ensureHasItems();

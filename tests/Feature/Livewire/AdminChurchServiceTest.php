@@ -268,6 +268,24 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function the_create_form_prefills_date_and_service_from_query_params(): void
+    {
+        $this->actingAs($this->admin);
+
+        // Orphan inbox groups link here with their resolved date/slot so the
+        // missing Sunday can be created and the workbench takes over.
+        Livewire::withQueryParams(['date' => '2026-06-07', 'service' => 'morning'])
+            ->test(ManageChurchService::class)
+            ->assertSet('form.date', '2026-06-07')
+            ->assertSet('form.service', SermonService::Morning->value);
+
+        Livewire::withQueryParams(['date' => 'not-a-date', 'service' => 'bogus'])
+            ->test(ManageChurchService::class)
+            ->assertSet('form.date', '')
+            ->assertSet('form.service', '');
+    }
+
+    #[Test]
     public function manual_save_emits_one_canonical_list_changed_event(): void
     {
         Event::fake([ChurchServiceCanonicalListChanged::class]);

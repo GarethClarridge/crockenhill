@@ -30,9 +30,11 @@ class ServiceReviewDashboardQuery
 
     /**
      * @param  int|null  $sectionLimit  When set, at most this many flagged sections are
-     *                                  collected (newest first) and the backlog is iterated
-     *                                  lazily — the capped inbox path. Null keeps the full,
-     *                                  exact result the dashboard summary and counts rely on.
+     *                                  collected (newest first), the backlog is iterated
+     *                                  lazily, and section-less needs_review service groups
+     *                                  are omitted — the capped inbox path, which only reads
+     *                                  section entries. Null keeps the full, exact result the
+     *                                  dashboard summary and counts rely on.
      * @return array<int, array{
      *     key:string,
      *     date:string|null,
@@ -57,21 +59,24 @@ class ServiceReviewDashboardQuery
      */
     public function reviewGroups(?int $sectionLimit = null): array
     {
-        $reviewServices = ChurchService::query()
-            ->where('needs_review', true)
-            ->orderByDesc('date')
-            ->orderBy('service')
-            ->get();
-
         if ($sectionLimit === null) {
+            $reviewServices = ChurchService::query()
+                ->where('needs_review', true)
+                ->orderByDesc('date')
+                ->orderBy('service')
+                ->get();
+
             $sections = $this->reviewSections();
             $serviceLookup = $this->serviceLookup($sections, $reviewServices);
         } else {
-            // Capped callers (the inbox) iterate lazily so a large backlog is
-            // never fully hydrated; group services are resolved per key on
-            // demand instead of via the upfront identity scan.
+            // Capped callers (the inbox) only consume section entries, so the
+            // needs_review service seeding is skipped too — hydrating every
+            // flagged service would unbound the render cost the cap exists to
+            // contain. Sections iterate lazily and group services resolve per
+            // key on demand instead of via the upfront identity scan.
+            $reviewServices = new EloquentCollection;
             $sections = $this->reviewSectionsQuery()->lazy(self::LAZY_CHUNK_SIZE);
-            $serviceLookup = $this->keyedServices($reviewServices);
+            $serviceLookup = [];
         }
 
         $groups = [];
