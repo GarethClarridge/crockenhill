@@ -285,4 +285,50 @@ class ProcessingInitiatorTest extends TestCase
         $this->assertEquals(['title' => 'Faith'], $log->processing_metadata['id3_metadata']);
         $this->assertEquals('extra_value', $log->processing_metadata['extra_key']);
     }
+
+    #[Test]
+    public function service_override_wins_over_timestamp_detection(): void
+    {
+        // A morning recording whose video creation_time was an evening export.
+        $file = UploadedFile::fake()->create('Sunday 7th June 2026.mp4', 2048);
+        $extractedDateTime = Carbon::create(2026, 6, 7, 22, 49, 27);
+
+        $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
+        // Detection would say Evening; the override must take precedence and detection must not be consulted.
+        $this->metadataService->expects($this->never())->method('determineServiceFromTime');
+        $this->metadataService->expects($this->never())->method('determineServiceFromFilename');
+
+        $log = $this->initiator->initiateProcessing(
+            $file,
+            MediaType::Livestream,
+            null,
+            [],
+            null,
+            serviceOverride: SermonService::Morning,
+        );
+
+        $this->assertEquals('2026-06-07', $log->extracted_date->toDateString());
+        $this->assertEquals(SermonService::Morning, $log->extracted_service);
+        $this->assertEquals('manual_override', $log->processing_metadata['service_extraction_method']);
+    }
+
+    #[Test]
+    public function service_override_sets_service_on_the_pre_extracted_audio_path(): void
+    {
+        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
+
+        $this->metadataService->expects($this->never())->method('extractDateFromVideo');
+
+        $log = $this->initiator->initiateProcessing(
+            $file,
+            MediaType::Audio,
+            null,
+            ['source_file_path' => 'sermons/2026/01/audio.mp3'],
+            preExtractedMetadata: ['id3_metadata' => ['title' => 'Grace Alone']],
+            serviceOverride: SermonService::Evening,
+        );
+
+        $this->assertEquals(SermonService::Evening, $log->extracted_service);
+        $this->assertEquals('manual_override', $log->processing_metadata['service_extraction_method']);
+    }
 }

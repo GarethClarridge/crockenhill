@@ -188,17 +188,18 @@ class LivestreamSegmentationServiceTest extends TestCase
         // Expect ProcessingInitiator to be called with livestream type and additional data
         $this->processingInitiator->shouldReceive('initiateProcessing')
             ->once()
-            ->with(
-                Mockery::type(UploadedFile::class),
-                MediaType::Livestream,
-                null,
-                Mockery::on(function (array $data) {
-                    return isset($data['source_file_path'])
-                        && isset($data['file_size'])
-                        && isset($data['duration'])
-                        && isset($data['processing_metadata']);
-                })
-            )
+            ->withArgs(function (...$args): bool {
+                [$file, $type, $clientFileDate, $data] = $args;
+
+                return $file instanceof UploadedFile
+                    && $type === MediaType::Livestream
+                    && $clientFileDate === null
+                    && is_array($data)
+                    && isset($data['source_file_path'])
+                    && isset($data['file_size'])
+                    && isset($data['duration'])
+                    && isset($data['processing_metadata']);
+            })
             ->andReturnUsing(function () {
                 return MediaProcessingLog::factory()->livestream()->pending()->create();
             });

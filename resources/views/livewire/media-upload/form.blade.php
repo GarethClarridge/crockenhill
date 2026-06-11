@@ -51,6 +51,26 @@
                         </div>
                     </div>
 
+                    {{-- Service Selection: defaults per media type (livestream → morning,
+                         video/audio → evening) and overrides automatic detection. --}}
+                    @if($mediaType)
+                        <div>
+                            <x-select
+                                label="Service"
+                                required
+                                wire:model.live="serviceOverride"
+                                :options="[
+                                    ['id' => 'morning', 'name' => 'Morning'],
+                                    ['id' => 'evening', 'name' => 'Evening'],
+                                ]"
+                            />
+                            <p class="mt-2 text-sm text-gray-600">Which service this recording is for. We pre-select based on the media type — change it if it's wrong.</p>
+                            @error('serviceOverride')
+                                <p class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @endif
+
                     @if($mediaType === 'video' && config('media-processing.video_auto_trim.enabled', true))
                         <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
                             <x-toggle

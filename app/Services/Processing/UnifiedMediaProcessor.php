@@ -11,6 +11,7 @@ use App\Data\SermonMetadata;
 use App\Data\StandardProcessingResponse;
 use App\Data\VideoProcessingOptions;
 use App\Enums\MediaType;
+use App\Enums\SermonService;
 use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Services\Sermon\LivestreamSegmentationService;
@@ -49,6 +50,7 @@ class UnifiedMediaProcessor
      * @param  UploadedFile  $file  The uploaded media file
      * @param  string|null  $clientFileDate  Optional date provided by the client
      * @param  array{auto_trim?: bool, video_processing_mode?: string}  $options  Processing configuration
+     * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
      * @return ProcessingResult The result of the initiation attempt
      *
      * @throws UniqueConstraintViolationException If a duplicate race occurs
@@ -59,7 +61,8 @@ class UnifiedMediaProcessor
         string $type,
         UploadedFile $file,
         ?string $clientFileDate = null,
-        array $options = []
+        array $options = [],
+        ?SermonService $serviceOverride = null,
     ): ProcessingResult {
         Log::info('Unified media processing started', $this->sanitizeArrayForLog([
             'type' => $type,
@@ -103,9 +106,9 @@ class UnifiedMediaProcessor
 
         try {
             return match ($mediaType) {
-                MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey),
-                MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey),
-                MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey),
+                MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride),
+                MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash, $options, $dedupKey, $serviceOverride),
+                MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash, $dedupKey, $serviceOverride),
             };
         } catch (UniqueConstraintViolationException) {
             return $this->reuseRacedDuplicate($dedupKey);
@@ -216,7 +219,7 @@ class UnifiedMediaProcessor
      * @throws InvalidFileException If the file fails initial validation
      * @throws \Exception For underlying service or storage failures
      */
-    private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash, ?string $dedupKey): ProcessingResult
+    private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash, ?string $dedupKey, ?SermonService $serviceOverride = null): ProcessingResult
     {
         try {
             Log::info('Starting audio processing', $this->sanitizeArrayForLog([
@@ -244,7 +247,8 @@ class UnifiedMediaProcessor
                 ],
                 preExtractedMetadata: [
                     'id3_metadata' => $id3Metadata,
-                ]
+                ],
+                serviceOverride: $serviceOverride,
             );
 
             Log::info('Audio file stored, processing log created', $this->sanitizeArrayForLog([
@@ -405,7 +409,8 @@ class UnifiedMediaProcessor
         ?string $clientFileDate,
         ?string $fileHash,
         array $options = [],
-        ?string $dedupKey = null
+        ?string $dedupKey = null,
+        ?SermonService $serviceOverride = null,
     ): ProcessingResult {
         try {
             // Store video file temporarily before processing (preserves file timestamps for metadata extraction)
@@ -425,7 +430,8 @@ class UnifiedMediaProcessor
                         'video_processing_mode' => $videoProcessingMode,
                         'trim_requested' => $videoProcessingMode === MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
                     ],
-                ]
+                ],
+                serviceOverride: $serviceOverride,
             );
 
             $this->processingRunOrchestrator->start($processingLog);

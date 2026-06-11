@@ -6,6 +6,7 @@ namespace Tests\Feature\Livewire;
 
 use App\Data\ProcessingResult;
 use App\Enums\ProcessingStatus;
+use App\Enums\SermonService;
 use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
@@ -187,7 +188,8 @@ class MediaUploadTest extends TestCase
                 [
                     'auto_trim' => true,
                     'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
-                ]
+                ],
+                SermonService::Evening,
             )
             ->willReturn($mockResult);
 
@@ -200,6 +202,65 @@ class MediaUploadTest extends TestCase
             ->call('uploadComplete')
             ->assertSet('processingId', $expectedId)
             ->assertSet('status', 'processing');
+    }
+
+    #[Test]
+    public function it_defaults_the_service_per_media_type(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(MediaUpload::class)
+            ->set('mediaType', 'livestream')
+            ->assertSet('serviceOverride', SermonService::Morning->value)
+            ->set('mediaType', 'video')
+            ->assertSet('serviceOverride', SermonService::Evening->value)
+            ->set('mediaType', 'audio')
+            ->assertSet('serviceOverride', SermonService::Evening->value);
+    }
+
+    #[Test]
+    public function it_passes_the_selected_service_override_to_the_processor(): void
+    {
+        $this->actingAs($this->admin);
+
+        $expectedId = '00000000-0000-0000-0000-000000000999';
+        $file = UploadedFile::fake()->create('sermon.mp3', 1024);
+
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor->expects($this->once())
+            ->method('process')
+            ->with(
+                'audio',
+                $this->isInstanceOf(UploadedFile::class),
+                null,
+                [],
+                SermonService::Morning,
+            )
+            ->willReturn(ProcessingResult::success($expectedId, 'Started'));
+
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
+
+        // Audio defaults to evening; operator overrides to morning before submitting.
+        Livewire::test(MediaUpload::class)
+            ->set('mediaType', 'audio')
+            ->set('serviceOverride', SermonService::Morning->value)
+            ->set('mediaFile', $file)
+            ->call('uploadComplete')
+            ->assertSet('processingId', $expectedId)
+            ->assertSet('status', 'processing');
+    }
+
+    #[Test]
+    public function it_validates_that_a_service_is_selected(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(MediaUpload::class)
+            ->set('mediaType', 'audio')
+            ->set('serviceOverride', '')
+            ->set('mediaFile', UploadedFile::fake()->create('sermon.mp3', 1024))
+            ->call('uploadComplete')
+            ->assertHasErrors(['serviceOverride' => 'Please select which service this recording is for.']);
     }
 
     #[Test]

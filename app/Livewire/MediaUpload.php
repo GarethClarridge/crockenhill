@@ -8,6 +8,7 @@ use App\Data\VideoProcessingOptions;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
+use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
@@ -55,6 +56,14 @@ class MediaUpload extends Component
 
     public bool $autoTrimVideo = false;
 
+    /**
+     * Operator-selected service (morning/evening). Defaults per media type —
+     * morning for livestreams, evening for direct video/audio uploads — and
+     * overrides automatic detection so a recording is never misclassified by an
+     * unreliable video `creation_time` timestamp.
+     */
+    public string $serviceOverride = '';
+
     // Upload progress tracking
     public int $uploadProgress = 0;
 
@@ -92,6 +101,7 @@ class MediaUpload extends Component
     protected array $rules = [
         'mediaType' => 'required|in:audio,video,livestream',
         'mediaFile' => 'required|file',
+        'serviceOverride' => 'required|in:morning,evening',
     ];
 
     private UnifiedMediaProcessor $processor;
@@ -129,7 +139,19 @@ class MediaUpload extends Component
         if ($this->mediaType !== MediaType::Video->value) {
             $this->autoTrimVideo = false;
         }
+        $this->serviceOverride = $this->defaultServiceForType($this->mediaType);
         $this->resetErrorBag('mediaFile');
+    }
+
+    /**
+     * Default service slot for a freshly selected media type: livestreams are
+     * morning recordings, direct video/audio uploads default to evening.
+     */
+    private function defaultServiceForType(string $mediaType): string
+    {
+        return $mediaType === MediaType::Livestream->value
+            ? SermonService::Morning->value
+            : SermonService::Evening->value;
     }
 
     public function updatedMediaFile(): void
@@ -303,7 +325,8 @@ class MediaUpload extends Component
                 $this->mediaType,
                 $originalFile,
                 $this->fileModifiedDate,
-                $this->processingOptions()
+                $this->processingOptions(),
+                SermonService::tryFrom($this->serviceOverride),
             );
 
             if ($result->success) {
@@ -581,6 +604,8 @@ class MediaUpload extends Component
         return [
             'mediaType.required' => 'Please select a media type.',
             'mediaType.in' => 'Invalid media type selected.',
+            'serviceOverride.required' => 'Please select which service this recording is for.',
+            'serviceOverride.in' => 'Invalid service selected.',
             'mediaFile.required' => 'Please select a file to upload.',
             'mediaFile.file' => 'The uploaded item must be a file.',
             'mediaFile.mimes' => "Invalid file type. Supported formats: {$extensions}.",

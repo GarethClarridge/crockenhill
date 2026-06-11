@@ -8,6 +8,7 @@ use App\Data\LivestreamProcessingResult;
 use App\Data\ProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
+use App\Enums\SermonService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoSegmentationService;
@@ -51,12 +52,13 @@ class LivestreamSegmentationService
      * @param  string|null  $clientFileDate  Optional date provided by the client
      * @param  string|null  $fileHash  Pre-computed file hash for deduplication
      * @param  string|null  $dedupKey  Pre-built deduplication key
+     * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
      * @return ProcessingResult The result of the initiation attempt
      *
      * @throws Exception If storage space is insufficient or video format is invalid
      * @throws RuntimeException If storage service fails to return required file paths
      */
-    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null, ?string $dedupKey = null): ProcessingResult
+    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null, ?string $dedupKey = null, ?SermonService $serviceOverride = null): ProcessingResult
     {
         try {
             Log::info('Starting livestream processing', $this->sanitizeArrayForLog([
@@ -101,7 +103,8 @@ class LivestreamSegmentationService
                         'mime_type' => $uploadResult['mime_type'],
                         'file_format' => pathinfo($originalFilename, PATHINFO_EXTENSION),
                     ],
-                ]
+                ],
+                serviceOverride: $serviceOverride,
             );
 
             $this->orchestrator->start($processingLog);
