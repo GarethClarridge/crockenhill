@@ -26,6 +26,15 @@
         @endforeach
     </div>
 
+    @if($overflowNotices !== [])
+        <p class="mt-3 text-sm text-gray-500">
+            @foreach($overflowNotices as $notice)
+                Showing the newest {{ $notice['shown'] }} of {{ $notice['total'] }} {{ $notice['label'] }}.
+            @endforeach
+            Action items to surface the rest.
+        </p>
+    @endif
+
     <div class="mt-6 space-y-6" wire:loading.class.delay.200ms="opacity-50">
         @forelse($groups as $group)
             <x-card wire:key="inbox-group-{{ $group['key'] }}">
