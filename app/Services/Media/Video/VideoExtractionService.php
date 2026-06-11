@@ -107,8 +107,8 @@ class VideoExtractionService
                 return $this->extractSegmentWithReencoding($inputPath, $segment, $outputFilename);
             }
 
-            // Check if file was created - use appropriate method for temp disk
-            if (! $this->fileExists($tempPath, $tempDisk)) {
+            // Check if file was created - Storage::exists expects a disk-relative path
+            if (! $this->fileExists($relativePath, $tempDisk)) {
                 throw new VideoProcessingException('Output file was not created: '.$tempPath);
             }
 
@@ -119,7 +119,7 @@ class VideoExtractionService
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'duration' => $duration,
-                'output_size' => $this->getFileSize($tempPath, $tempDisk),
+                'output_size' => $this->getFileSize($relativePath, $tempDisk),
             ]);
 
             return $relativePath;
@@ -231,7 +231,7 @@ class VideoExtractionService
                 }
             }
 
-            if (! $this->fileExists($outputAbsolutePath, $tempDisk)) {
+            if (! $this->fileExists($outputRelativePath, $tempDisk)) {
                 throw new VideoProcessingException('Concatenated output file was not created');
             }
 

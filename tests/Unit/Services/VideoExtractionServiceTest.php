@@ -60,6 +60,33 @@ class VideoExtractionServiceTest extends TestCase
     // Note: extractSegment, extractSegmentAsFile, and extractSegmentAsUpload
     // require real FFmpeg binaries. We test the logic that doesn't need FFmpeg.
 
+    // ---- Output existence check uses disk-relative paths ----
+
+    #[Test]
+    public function it_recognises_the_output_file_created_by_a_successful_stream_copy(): void
+    {
+        // Stand in for ffmpeg: write fake content to the output path (the final
+        // argument) and exit 0, mimicking a successful stream copy.
+        $stubPath = storage_path('framework/testing/ffmpeg-stub.sh');
+        file_put_contents($stubPath, "#!/bin/sh\nfor last in \"\$@\"; do :; done\nprintf 'fake-video' > \"\$last\"\n");
+        chmod($stubPath, 0755);
+
+        Config::set('media-processing.ffmpeg.ffmpeg_path', $stubPath);
+
+        $relativePath = $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        // Regression: the existence check used to pass the absolute path to
+        // Storage::exists(), which expects a disk-relative path, so successful
+        // extractions were reported as "Output file was not created".
+        $this->assertTrue(Storage::disk('local')->exists($relativePath));
+        $this->assertSame('fake-video', Storage::disk('local')->get($relativePath));
+
+        unlink($stubPath);
+    }
+
     // ---- Segment time property access ----
 
     #[Test]

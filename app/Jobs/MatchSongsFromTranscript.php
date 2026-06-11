@@ -104,7 +104,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             ->get();
 
         $unmatchedSongs = $sections->filter(
-            fn (ServiceSection $s): bool => ($s->song_match_type === ServiceSectionSongMatchType::Unmatched || $s->song_match_type === null)
+            fn (ServiceSection $s): bool => $this->needsSongMatching($s)
         );
 
         if ($unmatchedSongs->isEmpty()) {
@@ -191,6 +191,26 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             ChurchServiceProcessingTimeline::MATCH_SONGS_FROM_TRANSCRIPT,
             $exception->getMessage()
         );
+    }
+
+    /**
+     * A section needs song matching when it has no match at all, or when OoS alignment
+     * could only infer a positional label and the unmatched review flag is still present
+     * (i.e. there is no catalog-backed evidence for the song yet).
+     */
+    private function needsSongMatching(ServiceSection $section): bool
+    {
+        if ($section->song_match_type === ServiceSectionSongMatchType::Unmatched || $section->song_match_type === null) {
+            return true;
+        }
+
+        if ($section->song_match_type !== ServiceSectionSongMatchType::Inferred) {
+            return false;
+        }
+
+        $reviewFlags = $section->metadata['review_flags'] ?? [];
+
+        return is_array($reviewFlags) && in_array('unmatched_song_section', $reviewFlags, true);
     }
 
     /**

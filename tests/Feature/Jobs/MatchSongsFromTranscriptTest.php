@@ -749,6 +749,123 @@ class MatchSongsFromTranscriptTest extends TestCase
         );
     }
 
+    // ---- Inferred sections still flagged as unmatched are rescued ----
+
+    #[Test]
+    public function it_processes_inferred_sections_that_still_carry_the_unmatched_review_flag(): void
+    {
+        Config::set('media-processing.song_matching.ocr_enabled', true);
+
+        $song = Song::factory()->create([
+            'title' => 'In Christ Alone',
+            'canonical_key' => 'in christ alone',
+            'lyrics_plain' => 'In Christ alone my hope is found He is my light my strength my song',
+        ]);
+
+        $sourceFile = 'temp/service_source.mp4';
+        Storage::disk('local')->put($sourceFile, 'fake-video-content');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'source_file_path' => $sourceFile,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'title' => 'In Christ Alone',
+            'song_id' => null,
+        ]);
+
+        // OoS alignment inferred a positional label but found no catalog-backed
+        // evidence, so the unmatched review flag is still present.
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred->value,
+            'church_service_item_id' => $item->id,
+            'start_time' => 200.0,
+            'end_time' => 400.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'review_flags' => ['song_alignment_inferred', 'unmatched_song_section'],
+                'review_reason' => 'song_alignment_inferred',
+            ],
+        ]);
+
+        $ocrText = 'In Christ alone my hope is found He is my light my strength my song';
+
+        $this->mock(SongLyricOcrService::class, function (MockInterface $mock) use ($ocrText): void {
+            $mock->shouldReceive('extractLyrics')->once()->andReturn($ocrText);
+        });
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+        );
+
+        $section->refresh();
+        $item->refresh();
+
+        $match = $section->metadata['transcript_song_match'] ?? null;
+        $this->assertIsArray($match);
+        $this->assertSame($song->id, $match['song_id']);
+        $this->assertSame('ocr', $match['match_source']);
+
+        // The unmatched flag is cleared, but the positional-inference flag is kept
+        // so a human still reviews the section.
+        $this->assertNotContains('unmatched_song_section', $section->metadata['review_flags'] ?? []);
+        $this->assertContains('song_alignment_inferred', $section->metadata['review_flags'] ?? []);
+        $this->assertTrue($section->needs_manual_review);
+
+        // The linked service item gains the catalog song link.
+        $this->assertSame($song->id, $item->song_id);
+    }
+
+    #[Test]
+    public function it_does_not_process_inferred_sections_without_the_unmatched_review_flag(): void
+    {
+        Song::factory()->create([
+            'title' => 'Amazing Grace',
+            'canonical_key' => 'amazing grace',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred->value,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Amazing Grace',
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(UnmatchedSongReviewApplicator::class),
+            app(ChurchServiceReviewSynchronizer::class),
+            app(MediaProcessingIdentityResolver::class),
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+        );
+
+        $section->refresh();
+
+        // Already-resolved inferred sections are left untouched even though a
+        // matching title hint exists.
+        $this->assertNull($section->metadata['transcript_song_match'] ?? null);
+    }
+
     // ---- Regression: confirmed sections are not processed ----
 
     #[Test]
