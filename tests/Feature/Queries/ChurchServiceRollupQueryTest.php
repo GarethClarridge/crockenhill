@@ -89,6 +89,39 @@ class ChurchServiceRollupQueryTest extends TestCase
     }
 
     #[Test]
+    public function it_rolls_up_auto_trim_video_runs_but_not_plain_video_runs(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+            'needs_review' => false,
+        ]);
+
+        // A plain (full_video) run is not part of the segmentation pipeline
+        // and must not affect the rollup …
+        MediaProcessingLog::factory()->video()->processing()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        $rollups = $this->query->forServices($this->freshServices());
+        $this->assertSame(ChurchServiceRollupStatus::AwaitingRecording, $rollups[$service->id]['status']);
+
+        // … but an auto-trim video run produces service sections and counts
+        // exactly like a livestream run.
+        MediaProcessingLog::factory()->video()->processing()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+            ],
+        ]);
+
+        $rollups = $this->query->forServices($this->freshServices());
+        $this->assertSame(ChurchServiceRollupStatus::Processing, $rollups[$service->id]['status']);
+    }
+
+    #[Test]
     public function it_returns_needs_review_with_a_count_covering_every_attention_source(): void
     {
         $service = ChurchService::factory()->create([

@@ -298,6 +298,45 @@ class ShowChurchServiceTest extends TestCase
     // Inline section review (P3.2)
     // -------------------------------------------------------------------------
 
+    #[Test]
+    public function the_workbench_renders_auto_trim_video_runs_and_their_sections(): void
+    {
+        [$service] = $this->workbenchServiceWithRun();
+
+        // Auto-trim video runs produce service sections through the same
+        // segmentation pipeline as livestreams, so the workbench renders
+        // their run cards and review panels …
+        $autoTrimRun = MediaProcessingLog::factory()->video()->completed()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'sermon_id' => null,
+            'processing_metadata' => [
+                'video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,
+            ],
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $autoTrimRun->id,
+            'church_service_item_id' => null,
+            'title' => 'Auto Trim Flagged Section',
+            'needs_manual_review' => true,
+        ]);
+
+        // … while plain (full_video) runs stay off the service page.
+        $plainVideoRun = MediaProcessingLog::factory()->video()->completed()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'sermon_id' => null,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSeeHtml('id="processing-run-'.$autoTrimRun->id.'"')
+            ->assertSee('Auto Trim Flagged Section')
+            ->assertSeeHtml('section-review-panel-'.$section->id)
+            ->assertDontSeeHtml('id="processing-run-'.$plainVideoRun->id.'"');
+    }
+
     /**
      * @return array{0: ChurchService, 1: MediaProcessingLog}
      */
