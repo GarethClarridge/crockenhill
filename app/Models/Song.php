@@ -145,8 +145,8 @@ class Song extends Model
             'slug' => $slugRule,
             'canonical_key' => ['required', 'string', 'max:255', $uniqueCanonicalKey],
             'alternate_title' => ['nullable', 'string', 'max:255'],
-            'lyrics_xml' => ['required', 'string'],
-            'lyrics_plain' => ['nullable', 'string'],
+            'lyrics_xml' => ['required', 'string', 'max:100000'],
+            'lyrics_plain' => ['nullable', 'string', 'max:100000'],
             'verse_order' => ['nullable', 'string', 'max:255'],
             'ccli_number' => ['nullable', 'string', 'max:255'],
         ];

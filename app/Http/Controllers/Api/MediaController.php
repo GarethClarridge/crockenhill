@@ -185,6 +185,8 @@ class MediaController extends Controller
      *
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
+     *
+     * @throws \InvalidArgumentException
      */
     public function confirmSegment(ConfirmMediaSegmentRequest $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
     {

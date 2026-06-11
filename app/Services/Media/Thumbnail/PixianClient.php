@@ -42,6 +42,8 @@ class PixianClient
 
     /**
      * @return array{contents:string,request_id:?string}|null
+     *
+     * @throws ConnectionException
      */
     public function removeBackground(string $imagePath): ?array
     {

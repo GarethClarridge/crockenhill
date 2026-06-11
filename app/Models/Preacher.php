@@ -100,6 +100,7 @@ class Preacher extends Model implements Sitemapable
             'name' => $nameRule,
             'slug' => $slugRule,
             'image_path' => ['nullable', 'string', 'max:255'],
+            'bio' => ['nullable', 'string', 'max:10000'],
         ];
     }
 
