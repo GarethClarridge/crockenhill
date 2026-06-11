@@ -8,9 +8,17 @@
 >
     <x-admin.form-shell title="Upload recording" description="Audio, sermon video, or full livestream — processing starts automatically.">
         <x-slot:actions>
-            <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-                Back to services
-            </x-button>
+            {{-- This page stays reachable when service tracking is disabled (gated only by
+                 the Sermon create Gate), but the services hub 404s in that state --}}
+            @if((bool) config('service-tracking.enabled', true))
+                <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
+                    Back to services
+                </x-button>
+            @else
+                <x-button link="{{ route('members.home') }}" variant="outline" inline>
+                    Back to members area
+                </x-button>
+            @endif
         </x-slot:actions>
 
         {{-- Upload Form --}}
