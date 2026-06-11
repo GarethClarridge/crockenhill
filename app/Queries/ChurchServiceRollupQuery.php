@@ -117,7 +117,7 @@ class ChurchServiceRollupQuery
     {
         return MediaProcessingLog::query()
             ->select(self::RUN_COLUMNS)
-            ->livestream()
+            ->segmentationPipeline()
             ->with([
                 'serviceSections' => fn ($query) => $query
                     ->orderBy('section_order')

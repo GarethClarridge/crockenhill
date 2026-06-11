@@ -483,6 +483,40 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
+    public function orphan_groups_offer_a_create_service_link_with_the_resolved_slot(): void
+    {
+        // A flagged section whose run resolves a date/slot that matches no
+        // ChurchService: the group offers to create the missing Sunday so
+        // its sections gain a workbench to be edited on.
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::Morning->value,
+            'sermon_id' => null,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'title' => 'Orphan Flagged Section',
+            'needs_manual_review' => true,
+        ]);
+
+        // A truly unattributed item (no resolved slot) must not offer one.
+        InboundEmail::factory()->create([
+            'subject' => 'Mystery email',
+            'status' => InboundEmailStatus::Failed->value,
+            'processing_metadata' => null,
+        ]);
+
+        $createUrl = str_replace('&', '&amp;', route('admin.services.create', ['date' => '2026-06-07', 'service' => 'morning']));
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSee('Orphan Flagged Section')
+            ->assertSeeHtml($createUrl)
+            ->assertSee('Create this service');
+    }
+
+    #[Test]
     public function it_shows_the_empty_state_when_nothing_needs_review(): void
     {
         Livewire::test(ReviewInbox::class)
@@ -521,16 +555,15 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
-    public function segment_links_for_auto_trim_video_runs_keep_the_standalone_page(): void
+    public function segment_links_for_auto_trim_video_runs_prefer_the_workbench(): void
     {
-        ChurchService::factory()->create([
+        $service = ChurchService::factory()->create([
             'date' => '2026-06-07',
             'service' => SermonService::Morning,
         ]);
 
-        // Auto-trim video runs support manual sermon review but the workbench
-        // run query only renders livestream runs — the inbox must not link to
-        // a workbench anchor that will never exist.
+        // The workbench renders every segmentation-pipeline run, so matched
+        // auto-trim video runs anchor there just like livestream runs.
         $run = MediaProcessingLog::factory()->manualReviewRequired()->create([
             'processing_type' => MediaType::Video,
             'extracted_date' => '2026-06-07',
@@ -548,8 +581,8 @@ class ReviewInboxTest extends TestCase
         ]);
 
         Livewire::test(ReviewInbox::class)
-            ->assertSeeHtml(route('admin.services.processing.review', $run))
-            ->assertDontSeeHtml('#processing-run-'.$run->id);
+            ->assertSeeHtml(route('admin.services.show', $service).'#processing-run-'.$run->id)
+            ->assertDontSeeHtml(route('admin.services.processing.review', $run));
     }
 
     #[Test]

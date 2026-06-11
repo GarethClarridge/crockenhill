@@ -46,6 +46,12 @@
                         <x-button link="{{ route('admin.services.show', $group['service']) }}" variant="ghost" size="xs" icon="arrow-right" iconPosition="trailing" inline>
                             Open service
                         </x-button>
+                    @elseif($group['date'] !== null && $group['service_value'] !== null)
+                        {{-- Orphan group: a resolved date/slot with no service record yet.
+                             Creating the Sunday gives its sections a workbench to be edited on --}}
+                        <x-button :link="route('admin.services.create', ['date' => $group['date'], 'service' => $group['service_value']])" variant="ghost" size="xs" icon="plus" inline>
+                            Create this service
+                        </x-button>
                     @endif
                 </div>
 
@@ -231,11 +237,10 @@
                                             @endif
                                         </p>
                                     </div>
-                                    {{-- Prefer the workbench when a livestream run matched a service; the standalone
-                                         page stays for orphan runs and for auto-trim video runs, which the workbench
-                                         run query (livestream-only) never renders --}}
+                                    {{-- Prefer the workbench when the run matched a service (it renders every
+                                         segmentation-pipeline run); the standalone page stays for orphan runs --}}
                                     <x-button
-                                        link="{{ $group['service'] instanceof \App\Models\ChurchService && $run->processing_type === \App\Enums\MediaType::Livestream
+                                        link="{{ $group['service'] instanceof \App\Models\ChurchService
                                             ? route('admin.services.show', $group['service']).'#processing-run-'.$run->id
                                             : route('admin.services.processing.review', $run) }}"
                                         variant="primary"

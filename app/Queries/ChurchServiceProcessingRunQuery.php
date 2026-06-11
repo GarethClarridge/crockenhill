@@ -24,7 +24,7 @@ class ChurchServiceProcessingRunQuery
         $fallbackProcessingIds = $this->runMatcher->fallbackProcessingIdsForService($churchService);
 
         return MediaProcessingLog::query()
-            ->livestream()
+            ->segmentationPipeline()
             ->with([
                 'serviceSections' => fn ($query) => $query
                     ->with([

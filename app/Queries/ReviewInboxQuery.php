@@ -25,6 +25,8 @@ use Illuminate\Support\Carbon;
  *
  * @phpstan-type InboxGroup array{
  *     key: string,
+ *     date: string|null,
+ *     service_value: string|null,
  *     date_label: string,
  *     service_label: string,
  *     service: ChurchService|null,
@@ -252,6 +254,8 @@ class ReviewInboxQuery
         if (! array_key_exists($key, $groups)) {
             $groups[$key] = [
                 'key' => $key,
+                'date' => $dateString,
+                'service_value' => $service?->value,
                 'date_label' => $dateString !== null ? Carbon::parse($dateString)->format('j M Y') : 'Unattributed',
                 'service_label' => $service?->label() ?? '',
                 'service' => null,
