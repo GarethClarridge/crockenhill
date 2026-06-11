@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
+use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -15,6 +16,7 @@ use App\Livewire\Admin\ChurchServices\SubmitEmailText;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
@@ -458,6 +460,155 @@ class ShowChurchServiceTest extends TestCase
             ->assertSee('Approve all pending publications')
             ->call('approvePendingPublications', $service->id)
             ->assertDispatched('notify');
+    }
+
+    // -------------------------------------------------------------------------
+    // Embedded segment confirmation (P3.3)
+    // -------------------------------------------------------------------------
+
+    private function pausedRunForService(ChurchService $service): MediaProcessingLog
+    {
+        Storage::disk('local')->put('livestreams/2026/paused.mp4', 'fake-video');
+
+        return MediaProcessingLog::factory()
+            ->livestream()
+            ->manualReviewRequired('multiple_qualifying_speech_blocks')
+            ->create([
+                'source_file_path' => 'livestreams/2026/paused.mp4',
+                'extracted_date' => $service->date->toDateString(),
+                'extracted_service' => $service->service->value,
+            ]);
+    }
+
+    #[Test]
+    public function it_embeds_segment_confirmation_for_runs_paused_on_manual_review(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        $run = $this->pausedRunForService($service);
+
+        $speechSegment = LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $run->id,
+            'segment_index' => 0,
+            'is_sermon_candidate' => true,
+        ]);
+
+        LivestreamSegment::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'segment_index' => 1,
+            'classification' => 'song',
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Confirm the sermon segment')
+            ->assertSee('This is the sermon')
+            ->assertSeeHtml('confirmRunSegment('.$run->id.', '.$speechSegment->id.')')
+            ->assertDontSee(route('admin.services.processing.review', $run), false);
+    }
+
+    #[Test]
+    public function it_confirms_a_sermon_segment_inline_on_the_workbench(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        $run = $this->pausedRunForService($service);
+
+        $speechSegment = LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $run->id,
+            'segment_index' => 0,
+        ]);
+
+        $this->mock(ConfirmLivestreamSermonSegment::class, function ($mock) use ($run, $speechSegment): void {
+            $mock->shouldReceive('execute')
+                ->once()
+                ->with($run->processing_id, $speechSegment->id, \Mockery::type(User::class));
+        });
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->call('confirmRunSegment', $run->id, $speechSegment->id)
+            ->assertDispatched('notify', type: 'success')
+            ->assertNoRedirect();
+    }
+
+    #[Test]
+    public function it_rejects_segment_confirmation_for_runs_that_do_not_belong_to_the_service(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        $otherService = ChurchService::factory()->create([
+            'date' => '2026-05-31',
+            'service' => SermonService::Morning,
+        ]);
+
+        $foreignRun = $this->pausedRunForService($otherService);
+
+        $segment = LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $foreignRun->id,
+            'segment_index' => 0,
+        ]);
+
+        $this->mock(ConfirmLivestreamSermonSegment::class, function ($mock): void {
+            $mock->shouldNotReceive('execute');
+        });
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->call('confirmRunSegment', $foreignRun->id, $segment->id)
+            ->assertDispatched('notify', type: 'error', message: 'Selected run does not belong to this service.');
+    }
+
+    #[Test]
+    public function it_rejects_segment_confirmation_when_the_run_is_not_awaiting_review(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $segment = LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $run->id,
+            'segment_index' => 0,
+        ]);
+
+        $this->mock(ConfirmLivestreamSermonSegment::class, function ($mock): void {
+            $mock->shouldNotReceive('execute');
+        });
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->call('confirmRunSegment', $run->id, $segment->id)
+            ->assertDispatched('notify', type: 'error', message: 'This run is not awaiting sermon-segment confirmation.');
+    }
+
+    #[Test]
+    public function confirm_run_segment_requires_admin(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        $run = $this->pausedRunForService($service);
+
+        $segment = LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $run->id,
+            'segment_index' => 0,
+        ]);
+
+        $member = User::factory()->create(['is_admin' => false]);
+
+        Livewire::actingAs($member)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->call('confirmRunSegment', $run->id, $segment->id)
+            ->assertForbidden();
     }
 
     #[Test]

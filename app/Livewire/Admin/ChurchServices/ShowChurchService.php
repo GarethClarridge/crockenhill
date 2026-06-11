@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
+use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Actions\DeleteLivestreamUpload;
 use App\Actions\ServiceReview\ResolvePendingStructureMerge;
 use App\Enums\MediaType;
@@ -14,6 +15,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
 use App\Queries\ChurchServiceProcessingRunQuery;
 use App\Services\Processing\ProcessingRunOrchestrator;
@@ -104,6 +106,47 @@ class ShowChurchService extends Component
         app(ProcessingRunOrchestrator::class)->reclassify($processingLog);
 
         $this->success('Section reclassification queued');
+    }
+
+    public function confirmRunSegment(int $processingLogId, int $segmentId): void
+    {
+        $this->authorizeAdmin();
+
+        $processingLog = MediaProcessingLog::query()->find($processingLogId);
+        if (! $processingLog instanceof MediaProcessingLog) {
+            $this->error('Processing run not found.');
+
+            return;
+        }
+
+        if (! $this->processingLogMatchesService($processingLog)) {
+            $this->error('Selected run does not belong to this service.');
+
+            return;
+        }
+
+        if (! $processingLog->requiresManualSermonReview()) {
+            $this->error('This run is not awaiting sermon-segment confirmation.');
+
+            return;
+        }
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        try {
+            app(ConfirmLivestreamSermonSegment::class)->execute(
+                $processingLog->processing_id,
+                $segmentId,
+                $user
+            );
+        } catch (\InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
+
+            return;
+        }
+
+        $this->success('Sermon segment confirmed. Processing will resume shortly.');
     }
 
     public function acceptIncomingMerge(): void

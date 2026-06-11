@@ -151,7 +151,17 @@
                                             @endif
                                         </p>
                                     </div>
-                                    <x-button link="{{ route('admin.services.processing.review', $run) }}" variant="primary" size="xs" icon="arrow-right" iconPosition="trailing" inline>
+                                    {{-- Prefer the workbench when the run matched a service; the standalone page stays for orphan runs --}}
+                                    <x-button
+                                        link="{{ $group['service'] instanceof \App\Models\ChurchService
+                                            ? route('admin.services.show', $group['service']).'#processing-run-'.$run->id
+                                            : route('admin.services.processing.review', $run) }}"
+                                        variant="primary"
+                                        size="xs"
+                                        icon="arrow-right"
+                                        iconPosition="trailing"
+                                        inline
+                                    >
                                         Choose segment
                                     </x-button>
                                 </div>
