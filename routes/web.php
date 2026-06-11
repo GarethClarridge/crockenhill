@@ -24,6 +24,7 @@ use App\Livewire\Admin\ChurchServices\ManageChurchService;
 use App\Livewire\Admin\ChurchServices\ProcessingReview;
 use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
 use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
+use App\Livewire\Admin\ChurchServices\ReviewInbox;
 use App\Livewire\Admin\ChurchServices\ServiceReviewDashboard;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\ShowSong;
@@ -191,6 +192,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
     // Church Services
     Route::get('/services', ListChurchServices::class)->name('services.index');
+    Route::get('/services/inbox', ReviewInbox::class)->name('services.inbox');
     Route::get('/services/create', ManageChurchService::class)->name('services.create');
     Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
     Route::get('/services/inbound-emails', ReviewInboundEmails::class)->name('services.inbound-emails');

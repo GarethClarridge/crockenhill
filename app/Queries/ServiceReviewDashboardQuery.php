@@ -14,15 +14,27 @@ use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class ServiceReviewDashboardQuery
 {
+    private const LAZY_CHUNK_SIZE = 100;
+
+    /** @var array<string, ChurchService|null> */
+    private array $serviceKeyLookupCache = [];
+
     public function __construct(
         private readonly MediaProcessingIdentityResolver $identityResolver,
     ) {}
 
     /**
+     * @param  int|null  $sectionLimit  When set, at most this many flagged sections are
+     *                                  collected (newest first), the backlog is iterated
+     *                                  lazily, and section-less needs_review service groups
+     *                                  are omitted — the capped inbox path, which only reads
+     *                                  section entries. Null keeps the full, exact result the
+     *                                  dashboard summary and counts rely on.
      * @return array<int, array{
      *     key:string,
      *     date:string|null,
@@ -45,18 +57,30 @@ class ServiceReviewDashboardQuery
      *     }>
      * }>
      */
-    public function reviewGroups(): array
+    public function reviewGroups(?int $sectionLimit = null): array
     {
-        $reviewServices = ChurchService::query()
-            ->where('needs_review', true)
-            ->orderByDesc('date')
-            ->orderBy('service')
-            ->get();
+        if ($sectionLimit === null) {
+            $reviewServices = ChurchService::query()
+                ->where('needs_review', true)
+                ->orderByDesc('date')
+                ->orderBy('service')
+                ->get();
 
-        $sections = $this->reviewSections();
-        $serviceLookup = $this->serviceLookup($sections, $reviewServices);
+            $sections = $this->reviewSections();
+            $serviceLookup = $this->serviceLookup($sections, $reviewServices);
+        } else {
+            // Capped callers (the inbox) only consume section entries, so the
+            // needs_review service seeding is skipped too — hydrating every
+            // flagged service would unbound the render cost the cap exists to
+            // contain. Sections iterate lazily and group services resolve per
+            // key on demand instead of via the upfront identity scan.
+            $reviewServices = new EloquentCollection;
+            $sections = $this->reviewSectionsQuery()->lazy(self::LAZY_CHUNK_SIZE);
+            $serviceLookup = [];
+        }
 
         $groups = [];
+        $flaggedSectionCount = 0;
 
         foreach ($reviewServices as $service) {
             $key = $this->serviceKey($service->date->toDateString(), $service->service);
@@ -69,12 +93,16 @@ class ServiceReviewDashboardQuery
         }
 
         foreach ($sections as $section) {
+            if ($sectionLimit !== null && $flaggedSectionCount >= $sectionLimit) {
+                break;
+            }
+
             $reasons = $this->reviewReasons($section);
             if ($reasons === []) {
                 continue;
             }
 
-            $context = $this->resolveGroupContext($section, $serviceLookup);
+            $context = $this->resolveGroupContext($section, $serviceLookup, lookupOnMiss: $sectionLimit !== null);
             $key = $context['key'];
 
             if (! array_key_exists($key, $groups)) {
@@ -102,6 +130,8 @@ class ServiceReviewDashboardQuery
                     ? route('admin.services.edit', $serviceModel)
                     : null,
             ];
+
+            $flaggedSectionCount++;
         }
 
         $groups = array_values($groups);
@@ -322,6 +352,14 @@ class ServiceReviewDashboardQuery
      */
     private function reviewSections(): EloquentCollection
     {
+        return $this->reviewSectionsQuery()->get();
+    }
+
+    /**
+     * @return Builder<ServiceSection>
+     */
+    private function reviewSectionsQuery(): Builder
+    {
         return ServiceSection::query()
             ->with([
                 'processingLog:id,processing_id,extracted_date,extracted_service,processing_metadata,church_service_id',
@@ -342,8 +380,7 @@ class ServiceReviewDashboardQuery
                             });
                     });
             })
-            ->orderByDesc('updated_at')
-            ->get();
+            ->orderByDesc('updated_at');
     }
 
     /**
@@ -369,9 +406,16 @@ class ServiceReviewDashboardQuery
                 ->whereIn('service', $services)
                 ->get();
 
-        return $reviewServices
-            ->merge($matchedServices)
-            ->unique('id')
+        return $this->keyedServices($reviewServices->merge($matchedServices)->unique('id'));
+    }
+
+    /**
+     * @param  Collection<int, ChurchService>  $services
+     * @return array<string, ChurchService>
+     */
+    private function keyedServices(Collection $services): array
+    {
+        return $services
             ->keyBy(fn (ChurchService $service): string => $this->serviceKey($service->date->toDateString(), $service->service))
             ->all();
     }
@@ -385,7 +429,7 @@ class ServiceReviewDashboardQuery
      *     service_model:ChurchService|null
      * }
      */
-    private function resolveGroupContext(ServiceSection $section, array $serviceLookup): array
+    private function resolveGroupContext(ServiceSection $section, array $serviceLookup, bool $lookupOnMiss = false): array
     {
         $service = $section->processingLog->churchService ?? $section->churchServiceItem?->churchService;
         if ($service instanceof ChurchService) {
@@ -401,11 +445,16 @@ class ServiceReviewDashboardQuery
         if ($identity !== null) {
             $key = $this->serviceKey($identity['date'], $identity['service']);
 
+            $serviceModel = $serviceLookup[$key] ?? null;
+            if ($serviceModel === null && $lookupOnMiss) {
+                $serviceModel = $this->findServiceByIdentity($key, $identity['date'], $identity['service']);
+            }
+
             return [
                 'key' => $key,
                 'date' => Carbon::parse($identity['date']),
                 'service' => $identity['service'],
-                'service_model' => $serviceLookup[$key] ?? null,
+                'service_model' => $serviceModel,
             ];
         }
 
@@ -415,6 +464,22 @@ class ServiceReviewDashboardQuery
             'service' => null,
             'service_model' => null,
         ];
+    }
+
+    /**
+     * Memoised per-key service lookup for the lazily iterated (capped) path,
+     * where the upfront bulk identity scan is skipped.
+     */
+    private function findServiceByIdentity(string $key, string $date, SermonService $service): ?ChurchService
+    {
+        if (! array_key_exists($key, $this->serviceKeyLookupCache)) {
+            $this->serviceKeyLookupCache[$key] = ChurchService::query()
+                ->whereDate('date', $date)
+                ->where('service', $service->value)
+                ->first();
+        }
+
+        return $this->serviceKeyLookupCache[$key];
     }
 
     /**

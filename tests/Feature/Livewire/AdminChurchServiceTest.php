@@ -1155,7 +1155,7 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function hub_attention_strip_links_to_the_existing_queue_pages(): void
+    public function hub_attention_strip_links_to_the_review_inbox_filters(): void
     {
         $this->actingAs($this->admin);
 
@@ -1169,7 +1169,8 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ListChurchServices::class)
             ->assertSee('Inbound emails')
             ->assertSee('Services needing review')
-            ->assertSeeHtml(route('admin.services.inbound-emails'))
+            ->assertSeeHtml(route('admin.services.inbox', ['filter' => 'emails']))
+            ->assertSeeHtml(route('admin.services.inbox', ['filter' => 'services']))
             ->assertDontSee('All caught up');
     }
 
