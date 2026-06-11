@@ -26,6 +26,15 @@
         @endforeach
     </div>
 
+    @if($overflowNotices !== [])
+        <p class="mt-3 text-sm text-gray-500">
+            @foreach($overflowNotices as $notice)
+                Showing the newest {{ $notice['shown'] }} of {{ $notice['total'] }} {{ $notice['label'] }}.
+            @endforeach
+            Action items to surface the rest.
+        </p>
+    @endif
+
     <div class="mt-6 space-y-6" wire:loading.class.delay.200ms="opacity-50">
         @forelse($groups as $group)
             <x-card wire:key="inbox-group-{{ $group['key'] }}">
@@ -153,9 +162,11 @@
                                             @endif
                                         </p>
                                     </div>
-                                    {{-- Prefer the workbench when the run matched a service; the standalone page stays for orphan runs --}}
+                                    {{-- Prefer the workbench when a livestream run matched a service; the standalone
+                                         page stays for orphan runs and for auto-trim video runs, which the workbench
+                                         run query (livestream-only) never renders --}}
                                     <x-button
-                                        link="{{ $group['service'] instanceof \App\Models\ChurchService
+                                        link="{{ $group['service'] instanceof \App\Models\ChurchService && $run->processing_type === \App\Enums\MediaType::Livestream
                                             ? route('admin.services.show', $group['service']).'#processing-run-'.$run->id
                                             : route('admin.services.processing.review', $run) }}"
                                         variant="primary"

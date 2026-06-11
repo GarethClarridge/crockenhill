@@ -14,6 +14,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
+use App\Queries\AdminAttentionCounts;
 use App\Queries\ReviewInboxQuery;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Auth;
@@ -167,7 +168,7 @@ class ReviewInbox extends Component
         $this->success('Service marked as reviewed.');
     }
 
-    public function render(ReviewInboxQuery $query): View
+    public function render(ReviewInboxQuery $query, AdminAttentionCounts $attentionCounts): View
     {
         $inbox = $query->build();
 
@@ -190,7 +191,39 @@ class ReviewInbox extends Component
             'groups' => $groups,
             'counts' => $inbox['counts'],
             'filterChips' => $this->filterChips($inbox['counts']),
+            'overflowNotices' => $this->overflowNotices($inbox['counts'], $attentionCounts),
         ])->layout('layouts.admin', ['title' => 'Review inbox', 'heading' => 'Review inbox']);
+    }
+
+    /**
+     * Sources whose true backlog exceeds the capped queue. True totals come
+     * from AdminAttentionCounts (same predicates as the capped lists, briefly
+     * cached — contract C1), so the notice can say "newest N of M" without
+     * re-materialising the backlog.
+     *
+     * @param  array{all: int, emails: int, sections: int, segments: int, services: int}  $counts
+     * @return list<array{label: string, shown: int, total: int}>
+     */
+    private function overflowNotices(array $counts, AdminAttentionCounts $attentionCounts): array
+    {
+        $totals = $attentionCounts->cached();
+
+        $sources = [
+            'emails' => ['label' => 'emails', 'total' => $totals['pending_emails']],
+            'sections' => ['label' => 'sections', 'total' => $totals['flagged_sections']],
+            'segments' => ['label' => 'segment confirmations', 'total' => $totals['awaiting_segment_runs']],
+            'services' => ['label' => 'service items', 'total' => $totals['pending_merges'] + $totals['services_needing_review']],
+        ];
+
+        $notices = [];
+
+        foreach ($sources as $key => $source) {
+            if ($source['total'] > $counts[$key]) {
+                $notices[] = ['label' => $source['label'], 'shown' => $counts[$key], 'total' => $source['total']];
+            }
+        }
+
+        return $notices;
     }
 
     /**
