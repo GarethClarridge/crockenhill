@@ -28,7 +28,7 @@ $cardClasses = match($variant) {
     @if($variant === 'list' || $variant === 'compact')
         <div {{ $variant === 'list' ? $attributes->merge(['class' => 'flex items-start justify-between']) : $attributes->class(['flex items-start justify-between']) }}>
             <div class="flex-1">
-                <h4 class="font-medium text-gray-900 mb-2">{{ $event->title }}</h4>
+                <h2 class="font-medium text-gray-900 mb-2">{{ $event->title }}</h2>
 
                 <x-calendar-event-meta
                     :event="$event"
@@ -46,9 +46,9 @@ $cardClasses = match($variant) {
         </div>
     @else
         {{-- Card variant (default or admin) --}}
-        <h4 class="p-6 mx-6 mt-6 font-display text-4xl">
+        <h2 class="p-6 mx-6 mt-6 font-display text-4xl">
             {{ $event->title }}
-        </h4>
+        </h2>
 
         <ul class="mx-6 px-6 mb-6 pb-6 prose">
             @if($showDate)
