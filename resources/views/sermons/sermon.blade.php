@@ -437,10 +437,10 @@
                                 <span class="font-medium text-gray-700">Total Segments:</span>
                                 <span class="text-gray-600"> {{ $sermon->livestreamProcessing->segments->count() }}</span>
                             </div>
-                            @if ($sermon->livestreamProcessing->duration_seconds)
+                            @if ($sermon->livestreamProcessing->duration)
                             <div>
                                 <span class="font-medium text-gray-700">Total Duration:</span>
-                                <span class="text-gray-600"> {{ gmdate('H:i:s', $sermon->livestreamProcessing->duration_seconds) }}</span>
+                                <span class="text-gray-600"> {{ gmdate('H:i:s', (int) $sermon->livestreamProcessing->duration) }}</span>
                             </div>
                             @endif
                             @if ($sermon->livestreamProcessing->processing_id)

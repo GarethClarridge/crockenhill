@@ -53,7 +53,7 @@ class ChildrensCornerController extends Controller
     {
         abort_unless($sermon->content_type === SermonContentType::ChildrensTalk, 404);
 
-        $sermon->loadMissing('preacherProfile:id,name,slug');
+        $sermon->loadMissing('preacherProfile:id,name,slug,image_path');
 
         $sermonView = $this->sermonViewPresenter->present($sermon);
         $speakerName = $sermonView['preacher_name'];
