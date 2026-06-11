@@ -187,7 +187,6 @@ class AdminLivewireAuthorizationTest extends TestCase
             ['admin.services.upload', []],
             ['admin.services.inbound-emails', []],
             ['admin.services.submit-email', []],
-            ['admin.services.review', []],
             ['admin.services.songs.index', []],
             ['admin.services.songs.show', ['song' => $song]],
             ['admin.services.section-publications', []],

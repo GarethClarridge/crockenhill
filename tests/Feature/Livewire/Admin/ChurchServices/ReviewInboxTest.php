@@ -319,6 +319,13 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
+    public function the_retired_review_dashboard_url_redirects_to_the_inbox(): void
+    {
+        $this->get(route('admin.services.review'))
+            ->assertRedirect(route('admin.services.inbox'));
+    }
+
+    #[Test]
     public function it_shows_the_empty_state_when_nothing_needs_review(): void
     {
         Livewire::test(ReviewInbox::class)

@@ -131,9 +131,11 @@
                                                 Requeue
                                             </x-form-button>
                                         @endif
-                                        <x-button link="{{ route('admin.services.review') }}" variant="ghost" size="xs" icon="arrow-top-right-on-square" inline aria-label="Edit this section on the review dashboard">
-                                            Edit
-                                        </x-button>
+                                        @if($group['service'] instanceof \App\Models\ChurchService)
+                                            <x-button link="{{ route('admin.services.show', $group['service']).'#section-'.$section->id }}" variant="ghost" size="xs" icon="arrow-top-right-on-square" inline aria-label="Edit this section on the service workbench">
+                                                Edit
+                                            </x-button>
+                                        @endif
                                     </div>
                                 </div>
                             @elseif($item['kind'] === 'segment')
