@@ -186,13 +186,13 @@ class SermonAnalysisService implements SermonAnalysisInterface
             Log::info('AI-generated title exceeds character limit, retrying', $this->sanitizeArrayForLog([
                 'title' => $validatedData['title'],
                 'length' => strlen($validatedData['title']),
-                'max' => SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
+                'max' => SermonAnalysis::MAX_TITLE_CHARACTERS,
                 'attempt' => $attempt,
             ]));
 
             throw new Exception(sprintf(
                 'AI title exceeds %d characters (%d chars).',
-                SermonAnalysisValidator::MAX_TITLE_CHARACTERS,
+                SermonAnalysis::MAX_TITLE_CHARACTERS,
                 strlen($validatedData['title'])
             ));
         }

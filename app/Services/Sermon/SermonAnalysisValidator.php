@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Sermon;
 
+use App\Data\SermonAnalysis;
 use App\Services\BritishEnglishConverter;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
@@ -11,10 +12,6 @@ use Illuminate\Support\Facades\Log;
 class SermonAnalysisValidator
 {
     use SanitizesLogData;
-
-    public const MAX_TITLE_WORDS = 12;
-
-    public const MAX_TITLE_CHARACTERS = 60;
 
     private const MIN_TRANSCRIPT_LENGTH = 100;
 
@@ -137,11 +134,7 @@ class SermonAnalysisValidator
         $title = $this->britishEnglishConverter->convert($title);
 
         // Limit to maximum words
-        $words = explode(' ', $title);
-        if (count($words) > self::MAX_TITLE_WORDS) {
-            $words = array_slice($words, 0, self::MAX_TITLE_WORDS);
-            $title = implode(' ', $words);
-        }
+        $title = SermonAnalysis::truncateTitle($title);
 
         // Ensure title is not too short
         if (strlen($title) < 3) {
@@ -156,7 +149,7 @@ class SermonAnalysisValidator
      */
     public function isTitleTooLong(string $title): bool
     {
-        return strlen($title) > self::MAX_TITLE_CHARACTERS;
+        return strlen($title) > SermonAnalysis::MAX_TITLE_CHARACTERS;
     }
 
     /**
