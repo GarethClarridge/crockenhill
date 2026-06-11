@@ -3,22 +3,39 @@
     description="Review the planned service, processing runs, and publication state."
 >
     <x-slot:actions>
-        <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
-            Review dashboard
+        <x-button link="{{ route('admin.services.inbox') }}" variant="outline" icon="inbox" inline>
+            Review inbox
         </x-button>
         <x-button link="{{ route('admin.services.edit', $churchService) }}" variant="outline" icon="pencil-square" inline>
             Edit service
         </x-button>
-        <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-            Song catalogue
-        </x-button>
-        <x-button link="{{ route('admin.services.section-publications') }}" variant="outline" inline>
-            Section queue
+        <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
+            Back to services
         </x-button>
     </x-slot:actions>
 
     <x-card class="py-3">
-        <x-admin.pipeline-steps :steps="$pipelineSteps" />
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <x-admin.pipeline-steps :steps="$pipelineSteps" />
+
+            @if($sectionPublishingEnabled && $pendingApprovalCount > 0)
+                <div class="flex items-center gap-3">
+                    <p class="text-xs text-gray-500">
+                        {{ $pendingApprovalCount }} pending {{ \Illuminate\Support\Str::plural('publication', $pendingApprovalCount) }}
+                    </p>
+                    <x-form-button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        wire:click="approvePendingPublications({{ $churchService->id }})"
+                        wire:target="approvePendingPublications({{ $churchService->id }})"
+                        wire:loading.attr="disabled"
+                    >
+                        Approve all pending publications
+                    </x-form-button>
+                </div>
+            @endif
+        </div>
     </x-card>
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">

@@ -543,4 +543,72 @@ class ServiceReviewDashboardQueryTest extends TestCase
         $this->assertCount(1, $result);
         $this->assertSame($matchedSection->id, $result->first()->id);
     }
+
+    #[Test]
+    public function pending_publication_sections_for_service_includes_fallback_matched_repaired_runs(): void
+    {
+        $processingId = '55555555-5555-5555-5555-555555555555';
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-07',
+            'service' => SermonService::Morning,
+        ]);
+
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Sermon',
+            'livestream_processing_id' => $processingId,
+        ]);
+
+        $repairedRun = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => $processingId,
+            'church_service_id' => null,
+            'extracted_date' => '2026-01-01',
+            'extracted_service' => SermonService::Evening->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $repairedRun->id,
+            'church_service_item_id' => null,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+        ]);
+
+        $result = $this->query->pendingPublicationSectionsForService($service);
+
+        $this->assertCount(1, $result);
+        $this->assertSame($section->id, $result->first()->id);
+    }
+
+    #[Test]
+    public function review_groups_includes_sections_flagged_only_by_heuristic_demotion(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-31',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'title' => 'Demoted Talk',
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => ['heuristic_demotion'],
+            ],
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertCount(1, $groups);
+        $this->assertCount(1, $groups[0]['sections']);
+        $this->assertSame('Demoted Talk', $groups[0]['sections'][0]['section']->title);
+        $this->assertContains(
+            'heuristic_demotion',
+            array_column($groups[0]['sections'][0]['reasons'], 'key')
+        );
+    }
 }

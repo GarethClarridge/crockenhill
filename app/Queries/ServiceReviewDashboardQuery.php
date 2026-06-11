@@ -8,8 +8,10 @@ use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
+use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\Processing\MediaProcessingIdentityResolver;
+use App\Support\ChurchServiceRunMatcher;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -26,6 +28,7 @@ class ServiceReviewDashboardQuery
 
     public function __construct(
         private readonly MediaProcessingIdentityResolver $identityResolver,
+        private readonly ChurchServiceRunMatcher $runMatcher,
     ) {}
 
     /**
@@ -230,10 +233,17 @@ class ServiceReviewDashboardQuery
     }
 
     /**
+     * Pending sections scoped to a service via ChurchServiceRunMatcher's
+     * three match paths (contract C2), so batch approval covers exactly the
+     * sections the workbench counts — including repaired runs matched only
+     * through fallback processing ids.
+     *
      * @return EloquentCollection<int, ServiceSection>
      */
     public function pendingPublicationSectionsForService(ChurchService $service): EloquentCollection
     {
+        $fallbackProcessingIds = $this->runMatcher->fallbackProcessingIdsForService($service);
+
         return ServiceSection::query()
             ->with([
                 'processingLog:id,processing_id,extracted_date,extracted_service,processing_metadata,church_service_id',
@@ -242,14 +252,11 @@ class ServiceReviewDashboardQuery
                 'churchServiceItem.churchService:id,date,service,needs_review',
             ])
             ->where('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
-            ->where(function (Builder $query) use ($service): void {
-                $query->whereHas('processingLog', function (Builder $query) use ($service): void {
-                    $query->where('church_service_id', $service->id)
-                        ->orWhere(function (Builder $query) use ($service): void {
-                            $query->whereDate('extracted_date', $service->date->toDateString())
-                                ->where('extracted_service', $service->service->value);
-                        });
-                })->orWhereHas('churchServiceItem', fn (Builder $query): Builder => $query->where('church_service_id', $service->id));
+            ->where(function (Builder $query) use ($service, $fallbackProcessingIds): void {
+                $query->whereIn('media_processing_log_id', MediaProcessingLog::query()
+                    ->select('id')
+                    ->tap(fn ($query) => $this->runMatcher->applyMatchClauses($query, $service, $fallbackProcessingIds)))
+                    ->orWhereHas('churchServiceItem', fn (Builder $query): Builder => $query->where('church_service_id', $service->id));
             })
             ->orderBy('section_order')
             ->orderBy('id')
@@ -333,6 +340,33 @@ class ServiceReviewDashboardQuery
         return $this->reviewReasons($section) !== [];
     }
 
+    /**
+     * Per-section review entry for surfaces that already hold the section
+     * (workbench timeline rows, inbox): the same reasons and guarded preview
+     * URLs that reviewGroups() builds, or null when nothing flags the section.
+     *
+     * @return array{
+     *     reasons: array<int, array{key: string, label: string, classes: string}>,
+     *     review_reason: string|null,
+     *     audio_url: string|null,
+     *     video_url: string|null
+     * }|null
+     */
+    public function reviewEntryFor(ServiceSection $section): ?array
+    {
+        $reasons = $this->reviewReasons($section);
+        if ($reasons === []) {
+            return null;
+        }
+
+        return [
+            'reasons' => $reasons,
+            'review_reason' => $this->reviewReasonLabel($section),
+            'audio_url' => $this->assetUrl($section, 'audio', $section->extracted_audio_path),
+            'video_url' => $this->assetUrl($section, 'video', $section->extracted_video_path),
+        ];
+    }
+
     public function batchApprovalSkipReason(ServiceSection $section): ?string
     {
         $additionalReviewFlags = collect($this->reviewReasons($section))
@@ -372,6 +406,7 @@ class ServiceReviewDashboardQuery
                 $query->where('needs_manual_review', true)
                     ->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
                     ->orWhere('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD)
+                    ->orWhereJsonContains('metadata->review_flags', 'heuristic_demotion')
                     ->orWhere(function (Builder $query): void {
                         $query->where('section_type', ServiceSectionType::Song->value)
                             ->where(function (Builder $query): void {

@@ -7,10 +7,13 @@ namespace App\Livewire\Admin\ChurchServices;
 use App\Actions\DeleteLivestreamUpload;
 use App\Actions\ServiceReview\ResolvePendingStructureMerge;
 use App\Enums\MediaType;
+use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
+use App\Livewire\Admin\ChurchServices\Concerns\ReviewsServiceSections;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Presenters\ChurchServiceShowPresenter;
 use App\Queries\ChurchServiceProcessingRunQuery;
 use App\Services\Processing\ProcessingRunOrchestrator;
@@ -23,7 +26,10 @@ use Livewire\Features\SupportRedirects\Redirector;
 
 class ShowChurchService extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use ManagesSectionPublication;
+    use ReviewsServiceSections;
+    use WithAdminAuthorization;
+    use WithNotifications;
 
     public ChurchService $churchService;
 
@@ -37,6 +43,15 @@ class ShowChurchService extends Component
                 ->orderBy('position')
                 ->orderBy('id'),
         ]);
+
+        // Seed edit state for review candidates only — seeding every section
+        // of every run would balloon the Livewire payload.
+        $this->seedSectionEditsForSections(
+            app(ChurchServiceProcessingRunQuery::class)
+                ->forService($this->churchService)
+                ->flatMap(fn (MediaProcessingLog $run) => $run->serviceSections)
+                ->filter(fn (ServiceSection $section): bool => $this->dashboardQuery->isReviewCandidate($section))
+        );
     }
 
     public function render(): View
@@ -45,7 +60,11 @@ class ShowChurchService extends Component
 
         $label = $this->churchService->date->format('j M Y').' '.$this->churchService->service->label();
 
-        return view('livewire.admin.church-services.show-church-service', $readModel->toViewData())
+        return view('livewire.admin.church-services.show-church-service', [
+            ...$readModel->toViewData(),
+            'sectionTypeOptions' => $this->sectionTypeOptions(),
+            'preacherOptions' => $this->preacherOptions(),
+        ])
             ->layout('layouts.admin', [
                 'title' => $label,
                 'heading' => $label,
