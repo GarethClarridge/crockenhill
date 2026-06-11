@@ -97,6 +97,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(SecurityHeaders::class);
 
+        // Run Sanctum's stateful middleware on the API group so same-origin
+        // browser requests authenticate via the session cookie, not just a
+        // bearer token. The media-processing SSE stream is consumed by an
+        // EventSource, which cannot send an Authorization header — without
+        // this, the logged-in admin's session cookie is ignored and the
+        // stream 401s. Token clients are unaffected (no stateful Origin).
+        $middleware->statefulApi();
+
         // Defence-in-depth: accept browsers that signal `Sec-Fetch-Site:
         // same-origin` or `same-site` as origin-verified, on top of the
         // existing CSRF token check. Token validation continues to apply

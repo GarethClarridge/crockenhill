@@ -7,7 +7,9 @@ namespace Tests\Feature\Api;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\TestCase;
@@ -102,6 +104,24 @@ class MediaProcessingStreamTest extends TestCase
         $response = $this->get("/api/media/processing/{$processingId}/stream");
 
         $response->assertStatus(401);
+    }
+
+    #[Test]
+    public function api_group_runs_sanctum_stateful_middleware_for_cookie_auth(): void
+    {
+        // The SSE stream is consumed by an EventSource, which can only send
+        // cookies — never a bearer token. Sanctum's web-guard fallback can
+        // only read that session cookie if EnsureFrontendRequestsAreStateful
+        // (and the session middleware it pulls in) runs on the API group.
+        // Without it, the logged-in admin's request 401s in the browser even
+        // though actingAs() tests pass, so guard the middleware wiring here.
+        $apiMiddleware = Route::getMiddlewareGroups()['api'] ?? [];
+
+        $this->assertContains(
+            EnsureFrontendRequestsAreStateful::class,
+            $apiMiddleware,
+            'API group must run Sanctum stateful middleware so EventSource/cookie clients authenticate.'
+        );
     }
 
     #[Test]
