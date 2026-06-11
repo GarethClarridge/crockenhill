@@ -14,16 +14,26 @@
                         wire:key="thumbnail-candidate-{{ $candidate['id'] }}"
                         wire:loading.class="opacity-50"
                         wire:target="selectThumbnailCandidate('{{ $candidate['id'] }}')"
-                        class="rounded-lg border p-3 {{ $candidate['is_selected'] ? 'border-cbc-teal bg-cbc-teal/5' : 'border-gray-200 bg-white' }}"
+                        @unless($candidate['is_selected'])
+                            wire:click="selectThumbnailCandidate('{{ $candidate['id'] }}')"
+                        @endunless
+                        class="group rounded-lg border p-3 transition-all duration-200 {{ $candidate['is_selected'] ? 'border-cbc-teal bg-cbc-teal/5 ring-1 ring-cbc-teal/20' : 'border-gray-200 bg-white cursor-pointer hover:border-cbc-teal/50 hover:shadow-md active:scale-[0.98]' }}"
                     >
                         <div class="space-y-3">
                             @if($candidate['preview_url'])
-                                <img
-                                    src="{{ $candidate['preview_url'] }}"
-                                    alt="Thumbnail candidate {{ $loop->iteration }}"
-                                    class="h-32 w-full rounded-lg border border-gray-200 object-cover"
-                                    loading="lazy"
-                                >
+                                <div class="relative">
+                                    <img
+                                        src="{{ $candidate['preview_url'] }}"
+                                        alt="Thumbnail candidate {{ $loop->iteration }}"
+                                        class="h-32 w-full rounded-lg border border-gray-200 object-cover transition-opacity duration-200 {{ $candidate['is_selected'] ? '' : 'group-hover:opacity-90' }}"
+                                        loading="lazy"
+                                    >
+                                    @if($candidate['is_selected'])
+                                        <div class="absolute top-2 right-2 rounded-full bg-cbc-teal p-1 shadow-lg ring-2 ring-white">
+                                            <x-heroicon-s-check class="h-3 w-3 text-white" aria-hidden="true" />
+                                        </div>
+                                    @endif
+                                </div>
                             @endif
 
                             <div class="grid grid-cols-[1fr_auto] items-center gap-3">
@@ -54,8 +64,9 @@
                                     <x-form-button
                                         variant="outline"
                                         size="sm"
-                                        wire:click="selectThumbnailCandidate('{{ $candidate['id'] }}')"
+                                        wire:click.stop="selectThumbnailCandidate('{{ $candidate['id'] }}')"
                                         wire:loading.attr="disabled"
+                                        class="group-hover:bg-cbc-teal group-hover:text-white group-hover:border-cbc-teal transition-colors"
                                     >
                                         Use this
                                     </x-form-button>
@@ -78,9 +89,12 @@
                 </p>
             </div>
         @else
-            <p class="text-sm text-gray-500">
-                No saved sermon thumbnails yet.
-            </p>
+            <div class="flex flex-col items-center justify-center space-y-2 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 p-6 text-center">
+                <x-heroicon-o-photo class="h-8 w-8 text-gray-300" aria-hidden="true" />
+                <p class="text-sm font-medium text-gray-500">
+                    No saved sermon thumbnails yet.
+                </p>
+            </div>
         @endif
 
         <div class="space-y-2">
