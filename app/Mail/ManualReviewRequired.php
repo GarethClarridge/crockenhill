@@ -53,6 +53,6 @@ class ManualReviewRequired extends Mailable
             return route('admin.services.processing.review', $log);
         }
 
-        return route('admin.services.processing.review.index');
+        return route('admin.services.inbox', ['filter' => 'segments']);
     }
 }

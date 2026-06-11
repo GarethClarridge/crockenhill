@@ -103,11 +103,80 @@
                                         >
                                             Reject
                                         </x-form-button>
-                                        <x-button link="{{ route('admin.services.inbound-emails') }}" variant="ghost" size="xs" icon="arrow-top-right-on-square" inline aria-label="Open the full email review page">
-                                            Full view
-                                        </x-button>
                                     </div>
                                 </div>
+
+                                {{-- Diagnostics ported from the retired inbound-emails page: the
+                                     sanitised original email and raw parser data, for judging a
+                                     failed or low-confidence parse before re-parsing or rejecting --}}
+                                <details class="mt-3 rounded-lg border border-gray-200 bg-gray-50 text-left" wire:key="inbox-email-diagnostics-{{ $item['email']->id }}">
+                                    <summary class="list-none cursor-pointer px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
+                                        <span class="flex items-center justify-between gap-3">
+                                            <span>Original email</span>
+                                            <span class="text-xs font-normal text-gray-500">Plain text, sanitised HTML, and parser data</span>
+                                        </span>
+                                    </summary>
+
+                                    <div class="space-y-4 border-t border-gray-200 px-3 py-3">
+                                        <div class="grid gap-4 xl:grid-cols-2">
+                                            <section class="space-y-2">
+                                                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Plain Text</h3>
+
+                                                @if($preview['has_plain_body'])
+                                                    <pre class="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-md border border-gray-200 bg-white px-3 py-3 font-mono text-xs leading-5 text-gray-700">{{ $preview['plain_body'] }}</pre>
+                                                @else
+                                                    <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                        No plain-text body stored.
+                                                    </p>
+                                                @endif
+                                            </section>
+
+                                            <section class="space-y-2">
+                                                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">HTML Preview</h3>
+
+                                                @if(is_string($preview['sanitized_html']))
+                                                    <div class="prose prose-sm max-w-none rounded-md border border-gray-200 bg-white px-3 py-3 text-gray-700">
+                                                        {!! $preview['sanitized_html'] !!}
+                                                    </div>
+                                                @elseif($preview['has_html_body'])
+                                                    <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                        Stored HTML contained no safe renderable content after sanitisation.
+                                                    </p>
+                                                @else
+                                                    <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                        No HTML body stored.
+                                                    </p>
+                                                @endif
+                                            </section>
+                                        </div>
+
+                                        <div class="grid gap-4 xl:grid-cols-2">
+                                            <section class="space-y-2">
+                                                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Parser Warnings</h3>
+
+                                                @if(is_string($preview['raw_warnings_json']))
+                                                    <pre class="max-h-56 overflow-auto rounded-md border border-gray-200 bg-slate-950 px-3 py-3 font-mono text-xs leading-5 text-slate-100">{{ $preview['raw_warnings_json'] }}</pre>
+                                                @else
+                                                    <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                        No parser warnings recorded.
+                                                    </p>
+                                                @endif
+                                            </section>
+
+                                            <section class="space-y-2">
+                                                <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Raw Parser Metadata</h3>
+
+                                                @if(is_string($preview['raw_parsing_json']))
+                                                    <pre class="max-h-56 overflow-auto rounded-md border border-gray-200 bg-slate-950 px-3 py-3 font-mono text-xs leading-5 text-slate-100">{{ $preview['raw_parsing_json'] }}</pre>
+                                                @else
+                                                    <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                        No parser metadata stored yet.
+                                                    </p>
+                                                @endif
+                                            </section>
+                                        </div>
+                                    </div>
+                                </details>
                             @elseif($item['kind'] === 'section')
                                 @php $section = $item['section']; @endphp
                                 <div class="flex flex-wrap items-start justify-between gap-4">

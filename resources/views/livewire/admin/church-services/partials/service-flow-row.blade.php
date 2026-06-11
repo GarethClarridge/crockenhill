@@ -218,6 +218,27 @@
                 ])
             </div>
         @endif
+
+        {{-- A rejected section with no other review flags gets no panel (rejection is a
+             decision already made, not a review reason), but it still needs its only
+             path back into the approval queue --}}
+        @if($reviewPanel === null
+            && ($sectionPublishingEnabled ?? false)
+            && ($item['section_id'] ?? null) !== null
+            && $item['publication_status'] === ServiceSectionPublicationStatus::Rejected)
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                <p class="text-xs text-gray-600">This section was rejected. Requeue it to send it back for approval.</p>
+                <x-form-button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    wire:click="requeue({{ $item['section_id'] }})"
+                    wire:target="requeue({{ $item['section_id'] }})"
+                >
+                    Requeue
+                </x-form-button>
+            </div>
+        @endif
     </div>
 
     @if($mergeSecondaryId !== null)

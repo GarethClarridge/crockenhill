@@ -8,6 +8,7 @@ use App\Enums\InboundEmailStatus;
 use App\Enums\MediaType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Livewire\Admin\ChurchServices\ReviewInbox;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
@@ -18,6 +19,8 @@ use App\Queries\ReviewInboxQuery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -322,10 +325,96 @@ class ReviewInboxTest extends TestCase
     }
 
     #[Test]
-    public function the_retired_review_dashboard_url_redirects_to_the_inbox(): void
+    public function the_retired_queue_urls_redirect_to_the_inbox(): void
     {
         $this->get(route('admin.services.review'))
             ->assertRedirect(route('admin.services.inbox'));
+
+        $this->get(route('admin.services.inbound-emails'))
+            ->assertRedirect(route('admin.services.inbox', ['filter' => 'emails']));
+
+        $this->get(route('admin.services.section-publications'))
+            ->assertRedirect(route('admin.services.inbox', ['filter' => 'sections']));
+
+        $this->get(route('admin.services.processing.review.index'))
+            ->assertRedirect(route('admin.services.inbox', ['filter' => 'segments']));
+    }
+
+    #[Test]
+    public function approve_blocks_when_extracted_media_is_missing(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-18',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'extracted_video_path' => 'sermons/sections/'.$run->id.'/missing-video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'-missing.mp3',
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->call('approve', $section->id)
+            ->assertDispatched(
+                'notify',
+                type: 'error',
+                message: 'Section media is missing. Reclassify and prepare candidates again.'
+            );
+
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->fresh()->publication_status);
+        Queue::assertNothingPushed();
+    }
+
+    #[Test]
+    public function approve_blocks_childrens_talks_without_a_confirmed_speaker(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-19',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'.mp3',
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'predicted' => [
+                        'outcome' => 'ambiguous',
+                        'preacher_name' => 'Detected Speaker',
+                        'confidence' => 0.61,
+                    ],
+                ],
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/'.$run->id.'/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-'.$run->id.'.mp3', 'audio');
+
+        Livewire::test(ReviewInbox::class)
+            ->call('approve', $section->id)
+            ->assertDispatched(
+                'notify',
+                type: 'error',
+                message: "Choose a speaker for this children's talk before approving publication."
+            );
+
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->fresh()->publication_status);
+        Queue::assertNothingPushed();
     }
 
     #[Test]
@@ -367,6 +456,30 @@ class ReviewInboxTest extends TestCase
                 ReviewInboxQuery::SOURCE_CAP,
                 ReviewInboxQuery::SOURCE_CAP + 1,
             ));
+    }
+
+    #[Test]
+    public function email_rows_expose_the_original_email_diagnostics(): void
+    {
+        // The retired inbound-emails page showed the sanitised original email
+        // and raw parser data; the inbox keeps that for diagnosing failures.
+        InboundEmail::factory()->create([
+            'subject' => 'Broken email',
+            'status' => InboundEmailStatus::Failed->value,
+            'body_plain' => 'Sunday 7 June order of service body text',
+            'body_html' => '<p>Sunday 7 June order of service rich text</p>',
+            'processing_metadata' => [
+                'failure' => ['message' => 'Could not parse this email'],
+                'parsing' => ['warnings' => ['Unrecognised heading format']],
+            ],
+        ]);
+
+        Livewire::test(ReviewInbox::class)
+            ->assertSee('Original email')
+            ->assertSee('Sunday 7 June order of service body text')
+            ->assertSee('Sunday 7 June order of service rich text')
+            ->assertSee('Unrecognised heading format')
+            ->assertSee('Could not parse this email');
     }
 
     #[Test]

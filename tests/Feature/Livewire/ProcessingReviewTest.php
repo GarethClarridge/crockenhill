@@ -7,7 +7,6 @@ namespace Tests\Feature\Livewire;
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ProcessingStatus;
 use App\Livewire\Admin\ChurchServices\ProcessingReview;
-use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
 use App\Mail\ManualReviewRequired;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
@@ -42,88 +41,10 @@ class ProcessingReviewTest extends TestCase
         ]);
     }
 
-    // ── ProcessingReviewList tests ──────────────────────────────────────────
-
-    #[Test]
-    public function review_list_shows_flagged_livestream_runs_only(): void
-    {
-        $this->actingAs($this->admin);
-
-        $flagged = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
-            'current_step' => 'manual_review_required',
-            'processing_metadata' => [
-                'manual_review' => [
-                    'status' => 'required',
-                    'reason_code' => 'multiple_qualifying_speech_blocks',
-                    'reason_message' => 'Ambiguous blocks.',
-                    'flagged_at' => now()->toIso8601String(),
-                    'speech_segments' => [],
-                ],
-            ],
-        ]);
-
-        // A completed run — should not appear
-        MediaProcessingLog::factory()->livestream()->completed()->create();
-
-        // A non-livestream failed run — should not appear
-        MediaProcessingLog::factory()->audio()->create([
-            'status' => ProcessingStatus::Failed,
-            'current_step' => 'manual_review_required',
-        ]);
-
-        Livewire::test(ProcessingReviewList::class)
-            ->assertSee($flagged->processing_id)
-            ->assertSee('Awaiting review')
-            ->assertDontSee('No sermon processing runs are awaiting manual review');
-    }
-
-    #[Test]
-    public function review_list_shows_empty_state_when_no_flagged_runs(): void
-    {
-        $this->actingAs($this->admin);
-
-        Livewire::test(ProcessingReviewList::class)
-            ->assertSee('No sermon processing runs are awaiting manual review');
-    }
-
-    #[Test]
-    public function review_list_includes_legacy_manual_review_rows_without_structured_metadata(): void
-    {
-        $this->actingAs($this->admin);
-
-        $legacyLog = MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::Failed,
-            'current_step' => 'manual_review_required',
-            'error_message' => 'Manual Review Note: Multiple speech blocks met the 20-minute sermon threshold.',
-            'processing_metadata' => null,
-        ]);
-
-        Livewire::test(ProcessingReviewList::class)
-            ->assertSee($legacyLog->processing_id)
-            ->assertSee('Multiple Qualifying Speech Blocks')
-            ->assertSee('Awaiting review');
-    }
-
-    #[Test]
-    public function review_list_requires_admin(): void
-    {
-        $this->actingAs($this->nonAdmin);
-
-        $this->get(route('admin.services.processing.review.index'))
-            ->assertForbidden();
-    }
-
-    #[Test]
-    public function review_list_route_is_accessible_to_admin(): void
-    {
-        $this->actingAs($this->admin)
-            ->get(route('admin.services.processing.review.index'))
-            ->assertOk()
-            ->assertSeeLivewire(ProcessingReviewList::class);
-    }
-
     // ── ProcessingReview detail tests ───────────────────────────────────────
+    // The list page is retired (P5): its queue lives in the review inbox, with
+    // the entries pinned by ReviewInboxTest. Only the orphan-run detail page
+    // remains here.
 
     #[Test]
     public function review_detail_renders_segments_and_reason(): void
@@ -218,7 +139,7 @@ class ProcessingReviewTest extends TestCase
 
         Livewire::test(ProcessingReview::class, ['processingLog' => $log])
             ->call('confirmSegment', $speechSegment->id)
-            ->assertRedirect(route('admin.services.processing.review.index'));
+            ->assertRedirect(route('admin.services.inbox', ['filter' => 'segments']));
     }
 
     #[Test]
@@ -300,12 +221,12 @@ class ProcessingReviewTest extends TestCase
     }
 
     #[Test]
-    public function manual_review_email_falls_back_to_queue_url_when_log_not_found(): void
+    public function manual_review_email_falls_back_to_the_inbox_url_when_log_not_found(): void
     {
         $mail = new ManualReviewRequired('nonexistent-id', 'Test reason');
         $rendered = $mail->render();
 
-        $expectedUrl = route('admin.services.processing.review.index');
+        $expectedUrl = route('admin.services.inbox', ['filter' => 'segments']);
         $this->assertStringContainsString($expectedUrl, $rendered);
     }
 

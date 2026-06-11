@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Security;
 
-use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
+use App\Livewire\Admin\ChurchServices\ReviewInbox;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\Meetings\ListMeetings;
 use App\Livewire\Admin\Pages\ListPages;
@@ -120,8 +120,8 @@ class AdminLivewireSecurityTest extends TestCase
         /** @var InboundEmail $email */
         $email = InboundEmail::factory()->create();
 
-        $this->mountAsAdminThenActAsUser(ReviewInboundEmails::class)
-            ->call('approve', $email->id)
+        $this->mountAsAdminThenActAsUser(ReviewInbox::class)
+            ->call('approveEmail', $email->id)
             ->assertForbidden();
     }
 

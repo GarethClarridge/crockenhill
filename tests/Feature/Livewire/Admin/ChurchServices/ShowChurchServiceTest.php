@@ -10,8 +10,6 @@ use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
-use App\Livewire\Admin\ChurchServices\ListSectionPublications;
-use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\SubmitEmailText;
 use App\Mail\LivestreamProcessingFailed;
@@ -128,18 +126,6 @@ class ShowChurchServiceTest extends TestCase
     public function church_service_workflow_pages_use_the_shared_admin_composition_components(): void
     {
         config(['media-processing.section_publishing.enabled' => true]);
-
-        Livewire::actingAs($this->admin)
-            ->test(ListSectionPublications::class)
-            ->assertSeeHtml('id="admin-list-results"')
-            ->assertSeeHtml('wire:loading.class.delay.200ms="opacity-50"')
-            ->assertSee('No section publications found');
-
-        Livewire::actingAs($this->admin)
-            ->test(ProcessingReviewList::class)
-            ->assertSeeHtml('id="admin-list-results"')
-            ->assertSeeHtml('wire:loading.class.delay.200ms="opacity-50"')
-            ->assertSee('No sermon processing runs');
 
         Livewire::actingAs($this->admin)
             ->test(SubmitEmailText::class)
@@ -801,6 +787,36 @@ class ShowChurchServiceTest extends TestCase
             ->assertDispatched('notify', type: 'success', message: 'Section moved back to pending approval.');
 
         $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->fresh()->publication_status);
+    }
+
+    #[Test]
+    public function a_rejected_section_with_no_review_flags_still_offers_requeue(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        // Rejection is not a review reason, so this section gets no review
+        // panel — but the timeline row must still offer the only path back
+        // into the approval queue.
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Welcome->value,
+            'church_service_item_id' => null,
+            'needs_manual_review' => false,
+            'confidence' => 0.98,
+            'publication_status' => ServiceSectionPublicationStatus::Rejected->value,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertDontSeeHtml('section-review-panel-'.$section->id)
+            ->assertSee('This section was rejected. Requeue it to send it back for approval.')
+            ->assertSee('Requeue');
+
+        config(['media-processing.section_publishing.enabled' => false]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertDontSee('Requeue');
     }
 
     #[Test]
