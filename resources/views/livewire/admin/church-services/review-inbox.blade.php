@@ -88,9 +88,6 @@
                                         >
                                             Reject
                                         </x-form-button>
-                                        <x-button link="{{ route('admin.services.inbound-emails') }}" variant="ghost" size="xs" icon="arrow-top-right-on-square" inline aria-label="Open the full email review page">
-                                            Full view
-                                        </x-button>
                                     </div>
                                 </div>
                             @elseif($item['kind'] === 'section')

@@ -8,7 +8,7 @@ use App\Enums\CalendarEventStatus;
 use App\Enums\InboundEmailStatus;
 use App\Livewire\Admin\CalendarEvents\EditCalendarEvent;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
-use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
+use App\Livewire\Admin\ChurchServices\ReviewInbox;
 use App\Livewire\Admin\Meetings\CreateMeeting;
 use App\Livewire\Admin\Meetings\EditMeeting;
 use App\Livewire\Admin\Meetings\ListMeetings;
@@ -308,8 +308,8 @@ class AuditLoggingTest extends TestCase
         ]);
 
         Livewire::actingAs($this->admin)
-            ->test(ReviewInboundEmails::class)
-            ->call('reject', $email->id);
+            ->test(ReviewInbox::class)
+            ->call('rejectEmail', $email->id);
 
         $email->refresh();
         $this->assertSame(InboundEmailStatus::Rejected, $email->status);

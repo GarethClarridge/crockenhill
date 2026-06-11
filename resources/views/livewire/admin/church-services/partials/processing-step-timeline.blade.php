@@ -14,7 +14,7 @@
                                     'completed' => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
                                     'running' => 'bg-sky-100 text-sky-800',
                                     'failed' => 'bg-rose-100 text-rose-800',
-                                    'skipped' => 'bg-amber-100 text-amber-800',
+                                    'skipped' => 'bg-slate-200 text-slate-700',
                                     'not_recorded' => 'bg-slate-200 text-slate-700',
                                     default => 'bg-gray-100 text-gray-700',
                                 } }}">

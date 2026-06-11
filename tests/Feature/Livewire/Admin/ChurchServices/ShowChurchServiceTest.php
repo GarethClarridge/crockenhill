@@ -10,8 +10,6 @@ use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
-use App\Livewire\Admin\ChurchServices\ListSectionPublications;
-use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\SubmitEmailText;
 use App\Mail\LivestreamProcessingFailed;
@@ -128,18 +126,6 @@ class ShowChurchServiceTest extends TestCase
     public function church_service_workflow_pages_use_the_shared_admin_composition_components(): void
     {
         config(['media-processing.section_publishing.enabled' => true]);
-
-        Livewire::actingAs($this->admin)
-            ->test(ListSectionPublications::class)
-            ->assertSeeHtml('id="admin-list-results"')
-            ->assertSeeHtml('wire:loading.class.delay.200ms="opacity-50"')
-            ->assertSee('No section publications found');
-
-        Livewire::actingAs($this->admin)
-            ->test(ProcessingReviewList::class)
-            ->assertSeeHtml('id="admin-list-results"')
-            ->assertSeeHtml('wire:loading.class.delay.200ms="opacity-50"')
-            ->assertSee('No sermon processing runs');
 
         Livewire::actingAs($this->admin)
             ->test(SubmitEmailText::class)

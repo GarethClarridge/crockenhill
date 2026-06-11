@@ -1,7 +1,7 @@
 <x-admin.page title="Review sermon processing" :description="'Select the correct sermon segment to resume processing for this '.strtolower($runLabel)">
     <x-slot:actions>
-        <x-button link="{{ route('admin.services.processing.review.index') }}" variant="outline" inline wire:navigate>
-            Back to queue
+        <x-button link="{{ route('admin.services.inbox', ['filter' => 'segments']) }}" variant="outline" inline wire:navigate>
+            Back to review inbox
         </x-button>
     </x-slot:actions>
 
@@ -106,8 +106,8 @@
             'confirming' => $confirming,
             'confirmCall' => fn ($segment): string => "confirmSegment({$segment->id})",
             'returnLink' => [
-                'href' => route('admin.services.processing.review.index'),
-                'label' => 'Return to queue',
+                'href' => route('admin.services.inbox', ['filter' => 'segments']),
+                'label' => 'Return to review inbox',
             ],
         ])
     </x-card>

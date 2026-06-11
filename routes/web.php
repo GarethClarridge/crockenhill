@@ -18,12 +18,9 @@ use App\Http\Controllers\SitemapController;
 use App\Livewire\Admin\CalendarEvents\EditCalendarEvent;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
-use App\Livewire\Admin\ChurchServices\ListSectionPublications;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
 use App\Livewire\Admin\ChurchServices\ProcessingReview;
-use App\Livewire\Admin\ChurchServices\ProcessingReviewList;
-use App\Livewire\Admin\ChurchServices\ReviewInboundEmails;
 use App\Livewire\Admin\ChurchServices\ReviewInbox;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\ShowSong;
@@ -197,18 +194,19 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/services/create', ManageChurchService::class)->name('services.create');
     Route::get('/services/upload', UploadChurchService::class)->name('services.upload');
     Route::get('/services/upload-recording', MediaUpload::class)->name('services.upload-recording');
-    Route::get('/services/inbound-emails', ReviewInboundEmails::class)->name('services.inbound-emails');
     Route::get('/services/submit-email', SubmitEmailText::class)->name('services.submit-email');
-    // Retired (P3.4): triage moved to the review inbox, editing to the service workbench.
+    // Retired queue pages (P3.4/P5): triage moved to the review inbox, editing
+    // to the service workbench. URLs 302 so bookmarks keep working.
     Route::redirect('/services/review', '/admin/services/inbox')->name('services.review');
+    Route::redirect('/services/inbound-emails', '/admin/services/inbox?filter=emails')->name('services.inbound-emails');
+    Route::redirect('/services/section-publications', '/admin/services/inbox?filter=sections')->name('services.section-publications');
+    Route::redirect('/services/processing/review', '/admin/services/inbox?filter=segments')->name('services.processing.review.index');
     Route::get('/services/songs', ListSongs::class)->name('services.songs.index');
     Route::get('/services/songs/{song}', ShowSong::class)->name('services.songs.show');
-    Route::get('/services/section-publications', ListSectionPublications::class)->name('services.section-publications');
     Route::get('/services/section-publications/{serviceSection}/preview/audio', [ServiceSectionCandidateMediaController::class, 'serveAudio'])
         ->name('services.section-publications.preview-audio');
     Route::get('/services/section-publications/{serviceSection}/preview/video', [ServiceSectionCandidateMediaController::class, 'serveVideo'])
         ->name('services.section-publications.preview-video');
-    Route::get('/services/processing/review', ProcessingReviewList::class)->name('services.processing.review.index');
     Route::get('/services/processing/{processingLog}/review', ProcessingReview::class)->name('services.processing.review');
     Route::get('/services/{churchService}/edit', ManageChurchService::class)->name('services.edit');
     Route::get('/services/{churchService}', ShowChurchService::class)->name('services.show');

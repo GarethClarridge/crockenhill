@@ -22,13 +22,13 @@
 
         @if($processingRunView->hasPendingPublications)
             <x-button
-                link="{{ route('admin.services.section-publications') }}"
+                link="{{ route('admin.services.inbox', ['filter' => 'sections']) }}"
                 variant="outline"
                 size="xs"
                 icon="queue-list"
                 inline
             >
-                Publication queue
+                Review inbox
             </x-button>
         @endif
     </div>

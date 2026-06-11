@@ -1,6 +1,6 @@
 # Crockenhill Design Style Guide
 
-This guide captures the current UI language in this Laravel 12 + Livewire + Tailwind v3 project and defines the standards for new feature work.
+This guide captures the current UI language in this Laravel 13 + Livewire 4 + Tailwind v4 project and defines the standards for new feature work.
 
 ## Visual References
 
@@ -62,6 +62,14 @@ Every page Blade view should follow the same shape: `@extends('layouts.main')` +
 **`<x-admin.shell>` props:** `heading` (required), `title` (optional, defaults to heading). Renders breadcrumbs and toast container.
 
 For **Livewire full-page admin components**, continue using the `#[Layout('layouts.admin')]` attribute and composing `<x-admin.page>`, `<x-admin.list-shell>`, or `<x-admin.form-shell>` directly inside the component view — no `<x-admin.shell>` wrapper needed.
+
+Three shared admin components added by the 2026-06 service-UI consolidation (all rendered on `/dev/components`):
+
+| Component | Props | Use for |
+|---|---|---|
+| `<x-admin.pipeline-steps>` | `steps` — list of `{label, state: done\|active\|blocked\|todo}` | Compact pipeline progress (services hub hero, service workbench header) |
+| `<x-admin.attention-strip>` | `chips` — list of `{label, count, href}` (zero-count chips omitted); renders a quiet "All caught up" line when every count is zero | One-line "does anything need me?" summary above a list |
+| `<x-admin.action-menu>` + `<x-admin.action-menu-item>` | menu: `label`, `icon`; item: `link`, `icon` | A single primary `+ Add` dropdown replacing rows of header buttons (Alpine, keyboard-operable, `x-cloak`) |
 
 `layouts/main.blade.php` reads `@push` stacks from the shells for `title`, `meta_description`, `meta_tags`, and `canonical`, with `@section` accepted as the alternate path for the full-width landing pages (`full-width-pages/home`, `church`, `community`, `christ`, `christmas`) and the error views (`errors/4xx.blade.php`, `errors/5xx.blade.php`) that intentionally do not use `<x-page.shell>`. The legacy `layouts/page.blade.php` dual-purpose layout has been removed — content pages should use the shell, not extend a separate layout.
 

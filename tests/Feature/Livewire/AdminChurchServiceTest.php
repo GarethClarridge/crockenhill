@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\InboundEmailStatus;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
@@ -52,11 +53,13 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
 use Tests\TestCase;
 use Tests\Traits\BuildsTestScenarios;
+use Tests\Traits\WithInboundEmailTestHelpers;
 
 class AdminChurchServiceTest extends TestCase
 {
     use BuildsTestScenarios;
     use RefreshDatabase;
+    use WithInboundEmailTestHelpers;
 
     private User $admin;
 
@@ -1332,5 +1335,47 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(ListChurchServices::class)
             ->assertSeeHtml('bg-gray-100 text-gray-700')
             ->assertDontSeeHtml('bg-green-100 text-green-800');
+    }
+
+    // Migrated from AdminInboundEmailReviewTest (P5) — the standalone email
+    // review page is retired; this pins the ManageChurchService prefill path
+    // used by the inbox's "Edit & approve" action.
+    #[Test]
+    public function manual_service_form_prefills_from_an_inbound_email_and_marks_it_processed_on_save(): void
+    {
+        $this->actingAs($this->admin);
+
+        $email = InboundEmail::factory()->create([
+            'status' => InboundEmailStatus::Pending->value,
+            'processing_metadata' => $this->processingMetadata(
+                resolvedDate: '2026-07-06',
+                resolvedService: SermonService::Morning->value,
+                items: [
+                    ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
+                    ['type' => 'custom', 'title' => 'Opening Prayer', 'metadata' => ['email_type' => 'prayer']],
+                ],
+            ),
+        ]);
+
+        $component = Livewire::test(ManageChurchService::class, ['inboundEmailId' => $email->id])
+            ->assertSet('form.date', '2026-07-06')
+            ->assertSet('form.service', SermonService::Morning->value)
+            ->assertSet('form.items.0.title', 'Welcome')
+            ->assertSet('form.items.1.title', 'Opening Prayer')
+            ->call('save');
+
+        $service = ChurchService::query()
+            ->where('date', '2026-07-06')
+            ->where('service', SermonService::Morning->value)
+            ->sole();
+
+        $component->assertRedirect(route('admin.services.show', $service));
+
+        $this->assertSame('manual', $service->source);
+
+        $email->refresh();
+        $this->assertSame(InboundEmailStatus::Processed, $email->status);
+        $this->assertSame('manual_edit', $email->processing_metadata['review']['mode'] ?? null);
+        $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id'] ?? null);
     }
 }
