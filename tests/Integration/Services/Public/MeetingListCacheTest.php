@@ -8,7 +8,7 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Services\Public\MeetingListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -22,7 +22,6 @@ class MeetingListCacheTest extends TestCase
     {
         parent::setUp();
         $this->service = app(MeetingListCache::class);
-        Cache::flush();
         $this->service->clearInternalCaches();
     }
 
@@ -68,46 +67,74 @@ class MeetingListCacheTest extends TestCase
     {
         Meeting::factory()->create(['slug' => 'cache-test']);
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::enableQueryLog();
 
+        // 1. Initial call - should trigger DB query
+        DB::flushQueryLog();
         $this->service->forAdminList();
+        $this->assertNotEmpty(DB::getQueryLog(), 'Expected the first call to trigger a database query.');
 
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        // 2. Second call (with internal cache cleared) - should NOT trigger DB query
+        $this->service->clearInternalCaches();
+        DB::flushQueryLog();
+        $this->service->forAdminList();
+        $this->assertEmpty(DB::getQueryLog(), 'Expected the second call to be served from the cache without database queries.');
     }
 
     #[Test]
     public function cache_is_invalidated_when_meeting_is_created(): void
     {
-        $this->service->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::enableQueryLog();
 
+        // 1. Warm cache
+        $this->service->forAdminList();
+        $this->service->clearInternalCaches();
+
+        // 2. Invalidate
         Meeting::factory()->create(['slug' => 'new-meeting']);
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        // 3. Verify re-fetch triggers query
+        DB::flushQueryLog();
+        $this->service->forAdminList();
+        $this->assertNotEmpty(DB::getQueryLog(), 'Expected a new database query after a meeting was created.');
     }
 
     #[Test]
     public function cache_is_invalidated_when_meeting_is_updated(): void
     {
         $meeting = Meeting::factory()->create(['slug' => 'update-test']);
-        $this->service->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::enableQueryLog();
 
+        // 1. Warm cache
+        $this->service->forAdminList();
+        $this->service->clearInternalCaches();
+
+        // 2. Invalidate
         $meeting->update(['location' => 'New Location']);
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        // 3. Verify re-fetch triggers query
+        DB::flushQueryLog();
+        $this->service->forAdminList();
+        $this->assertNotEmpty(DB::getQueryLog(), 'Expected a new database query after a meeting was updated.');
     }
 
     #[Test]
     public function cache_is_invalidated_when_meeting_is_deleted(): void
     {
         $meeting = Meeting::factory()->create(['slug' => 'delete-test']);
-        $this->service->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::enableQueryLog();
 
+        // 1. Warm cache
+        $this->service->forAdminList();
+        $this->service->clearInternalCaches();
+
+        // 2. Invalidate
         $meeting->delete();
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        // 3. Verify re-fetch triggers query
+        DB::flushQueryLog();
+        $this->service->forAdminList();
+        $this->assertNotEmpty(DB::getQueryLog(), 'Expected a new database query after a meeting was deleted.');
     }
 
     #[Test]
@@ -115,12 +142,18 @@ class MeetingListCacheTest extends TestCase
     {
         $page = Page::factory()->create(['heading' => 'Old Heading']);
         Meeting::factory()->create(['slug' => 'page-update-test', 'page_id' => $page->id]);
+        DB::enableQueryLog();
 
+        // 1. Warm cache
         $this->service->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        $this->service->clearInternalCaches();
 
+        // 2. Invalidate
         $page->update(['heading' => 'New Heading']);
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        // 3. Verify re-fetch triggers query
+        DB::flushQueryLog();
+        $this->service->forAdminList();
+        $this->assertNotEmpty(DB::getQueryLog(), 'Expected a new database query after a related page was updated.');
     }
 }
