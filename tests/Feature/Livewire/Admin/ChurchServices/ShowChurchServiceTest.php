@@ -748,6 +748,36 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function a_rejected_section_with_no_review_flags_still_offers_requeue(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        // Rejection is not a review reason, so this section gets no review
+        // panel — but the timeline row must still offer the only path back
+        // into the approval queue.
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Welcome->value,
+            'church_service_item_id' => null,
+            'needs_manual_review' => false,
+            'confidence' => 0.98,
+            'publication_status' => ServiceSectionPublicationStatus::Rejected->value,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertDontSeeHtml('section-review-panel-'.$section->id)
+            ->assertSee('This section was rejected. Requeue it to send it back for approval.')
+            ->assertSee('Requeue');
+
+        config(['media-processing.section_publishing.enabled' => false]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertDontSee('Requeue');
+    }
+
+    #[Test]
     public function save_section_requires_valid_type_and_title(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
