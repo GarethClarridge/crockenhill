@@ -5,7 +5,7 @@
     itemsName="sermon"
 >
     <x-slot:actions>
-        <x-button link="{{ route('admin.sermon-upload.create') }}" variant="primary" icon="cloud-arrow-up" inline>
+        <x-button link="{{ route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
             Upload Sermon
         </x-button>
     </x-slot:actions>
@@ -141,7 +141,7 @@
                     :hasFilters="$hasFilters"
                 >
                     @if(!$hasFilters)
-                        <x-button link="{{ route('admin.sermon-upload.create') }}" variant="primary" icon="cloud-arrow-up" inline>
+                        <x-button link="{{ route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
                             Upload Sermon
                         </x-button>
                     @endif

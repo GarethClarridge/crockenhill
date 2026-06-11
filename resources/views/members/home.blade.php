@@ -50,7 +50,7 @@
             @else
             {{-- Recording upload is gated only by the Sermon create Gate, so it
                  stays reachable when service tracking is switched off. --}}
-            <x-button link="{{ route('admin.sermon-upload.create') }}" icon="arrow-up-tray" iconStyle="solid">
+            <x-button link="{{ route('admin.services.upload-recording') }}" icon="arrow-up-tray" iconStyle="solid">
               Upload sermon
             </x-button>
             @endif

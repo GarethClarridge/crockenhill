@@ -22,8 +22,11 @@ class SentinelSecurityTest extends TestCase
     {
         $user = User::factory()->create(['is_admin' => false]);
 
-        // Attempt to access upload page as non-admin
+        // Attempt to access upload page as non-admin (legacy redirect and new page)
         $response = $this->actingAs($user)->get('/admin/sermon-upload');
+        $response->assertStatus(403);
+
+        $response = $this->actingAs($user)->get('/admin/services/upload-recording');
         $response->assertStatus(403);
 
         // Attempt to upload via the media API as non-admin — the media.process

@@ -3,15 +3,6 @@
         <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
             Back to services
         </x-button>
-        <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
-            Create service
-        </x-button>
-        <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
-            Song catalogue
-        </x-button>
-        <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
-            Import email text
-        </x-button>
         <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray">
             Import
         </x-form-button>

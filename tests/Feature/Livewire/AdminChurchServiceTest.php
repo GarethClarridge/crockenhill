@@ -1203,7 +1203,7 @@ class AdminChurchServiceTest extends TestCase
             ->assertSee('Paste email text')
             ->assertSee('Create manually')
             ->assertSee('Song catalogue')
-            ->assertSeeHtml(route('admin.sermon-upload.create'));
+            ->assertSeeHtml(route('admin.services.upload-recording'));
     }
 
     #[Test]

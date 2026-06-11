@@ -7,7 +7,7 @@
             Song catalogue
         </x-button>
         <x-admin.action-menu label="Add">
-            <x-admin.action-menu-item link="{{ route('admin.sermon-upload.create') }}" icon="film">
+            <x-admin.action-menu-item link="{{ route('admin.services.upload-recording') }}" icon="film">
                 Upload recording
             </x-admin.action-menu-item>
             <x-admin.action-menu-item link="{{ route('admin.services.upload') }}" icon="arrow-up-tray">

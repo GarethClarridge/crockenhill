@@ -64,14 +64,34 @@ class MediaUploadTest extends TestCase
 
         Livewire::test(MediaUpload::class)
             ->assertStatus(200)
-            ->assertSee('Upload Media');
+            ->assertSee('Upload recording');
+    }
+
+    #[Test]
+    public function the_back_link_avoids_the_services_hub_when_service_tracking_is_disabled(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(MediaUpload::class)
+            ->assertSeeHtml(route('admin.services.index'));
+
+        // The uploader stays reachable in this state (contract C5) but the
+        // services hub 404s, so the back link must not point at it.
+        config(['service-tracking.enabled' => false]);
+
+        Livewire::test(MediaUpload::class)
+            ->assertSeeHtml(route('members.home'))
+            ->assertDontSeeHtml(route('admin.services.index'));
     }
 
     #[Test]
     public function it_requires_authentication_and_admin_permissions()
     {
-        // Unauthenticated
+        // Unauthenticated — both the legacy redirect and the new page bounce to login
         $this->get(route('admin.sermon-upload.create'))
+            ->assertRedirect(route('login'));
+
+        $this->get(route('admin.services.upload-recording'))
             ->assertRedirect(route('login'));
     }
 
