@@ -104,7 +104,7 @@ class SermonController extends Controller
         abort_unless($sermon->content_type === SermonContentType::Sermon, 404);
 
         $sermon->loadMissing([
-            'scripturePassage:id,display_reference,normalized_reference',
+            'scripturePassage:id,display_reference,normalized_reference,html_content,copyright,fums_token',
             'preacherProfile:id,name,slug,image_path',
             'publishedServiceSection:id,published_sermon_id,media_processing_log_id',
             'latestProcessingLog',
