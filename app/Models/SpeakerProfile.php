@@ -59,7 +59,6 @@ class SpeakerProfile extends Model
     protected function casts(): array
     {
         return [
-            'id' => 'integer',
             'preacher_id' => 'integer',
             'centroid_embedding' => 'array',
             'sample_count' => 'integer',
