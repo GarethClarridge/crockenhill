@@ -97,15 +97,7 @@ class Song extends Model
     protected function alternateTitle(): Attribute
     {
         return Attribute::make(
-            set: function (?string $value): ?string {
-                if ($value === null) {
-                    return null;
-                }
-
-                $trimmed = trim($value);
-
-                return $trimmed === '' ? null : $trimmed;
-            },
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 
