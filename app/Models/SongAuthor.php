@@ -61,7 +61,7 @@ class SongAuthor extends Model
     protected function firstName(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 
@@ -71,7 +71,7 @@ class SongAuthor extends Model
     protected function lastName(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 

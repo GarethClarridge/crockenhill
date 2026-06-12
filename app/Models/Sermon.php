@@ -217,7 +217,7 @@ class Sermon extends Model implements Sitemapable
     protected function preacher(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 

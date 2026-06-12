@@ -117,7 +117,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     protected function day(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? (trim($value) ?: null) : null,
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 
@@ -127,7 +127,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     protected function who(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? trim($value) : null,
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 
@@ -137,7 +137,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     protected function location(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? (trim($value) ?: null) : null,
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 
@@ -147,7 +147,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     protected function leadersPhone(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? (trim($value) ?: null) : null,
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 
@@ -157,7 +157,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     protected function leadersEmail(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? (strtolower(trim($value)) ?: null) : null,
+            set: fn (?string $value): ?string => filled($value) ? strtolower(trim($value)) : null,
         );
     }
 

@@ -72,7 +72,7 @@ class SongBook extends Model
     protected function publisher(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => $value !== null ? (trim($value) ?: null) : null,
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 
