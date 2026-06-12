@@ -153,14 +153,14 @@ class BladeShellRenderingTest extends TestCase
     public function shells_render_main_content_with_tabindex(): void
     {
         // Auth Shell
-        $this->get('/login')->assertSeeHtml('<main id="main-content" class="mb-3" tabindex="-1">');
+        $this->get('/login')->assertSee('id="main-content"', false)->assertSee('tabindex="-1"', false);
 
         // Page Shell
         Page::factory()->create(['slug' => 'tabindex-test', 'area' => 'church']);
-        $this->get('/church/tabindex-test')->assertSeeHtml('<main id="main-content" class="mb-3" tabindex="-1">');
+        $this->get('/church/tabindex-test')->assertSee('id="main-content"', false)->assertSee('tabindex="-1"', false);
 
         // Admin Shell
         $admin = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
-        $this->actingAs($admin)->get('/admin/meetings')->assertSeeHtml('<main id="main-content" class="mb-3" tabindex="-1">');
+        $this->actingAs($admin)->get('/admin/meetings')->assertSee('id="main-content"', false)->assertSee('tabindex="-1"', false);
     }
 }

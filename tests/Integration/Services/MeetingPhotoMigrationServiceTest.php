@@ -10,55 +10,165 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Test;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\TestCase;
 
 class MeetingPhotoMigrationServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    private string $meetingSlug;
+    private MeetingPhotoMigrationService $service;
+
+    private string $testSlug;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->meetingSlug = 'test-meeting-'.Str::lower((string) Str::ulid());
-
+        $this->service = new MeetingPhotoMigrationService;
+        $this->testSlug = Str::slug('test-migration-meeting-'.Str::random(8));
         Storage::fake('public');
     }
 
     protected function tearDown(): void
     {
-        File::deleteDirectory(public_path("images/meetings/{$this->meetingSlug}"));
+        File::deleteDirectory(public_path("images/meetings/{$this->testSlug}"));
 
         parent::tearDown();
     }
 
-    public function test_it_is_rerunnable_at_the_file_level(): void
+    #[Test]
+    public function it_migrates_photos_successfully(): void
     {
-        $meeting = Meeting::factory()->create(['slug' => $this->meetingSlug]);
-        $directory = public_path("images/meetings/{$this->meetingSlug}");
+        $meeting = Meeting::factory()->create(['slug' => $this->testSlug]);
+        $directory = public_path("images/meetings/{$this->testSlug}");
 
         File::ensureDirectoryExists($directory);
-        File::put("{$directory}/one.gif", base64_decode(self::GIF_PIXEL));
-        File::put("{$directory}/two.gif", base64_decode(self::GIF_PIXEL));
+        File::put("{$directory}/photo1.jpg", base64_decode('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='));
+        File::put("{$directory}/photo2.png", base64_decode('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='));
 
-        $meeting->addMedia("{$directory}/one.gif")
-            ->withCustomProperties(['legacy_photo_path' => "images/meetings/{$this->meetingSlug}/one.gif"])
+        $result = $this->service->migrate();
+
+        $this->assertEquals(1, $result['summary']['meetings_examined']);
+        $this->assertEquals(2, $result['summary']['migrated']);
+        $this->assertEquals(0, $result['summary']['skipped']);
+        $this->assertEquals(0, $result['summary']['failed']);
+
+        /** @var Meeting $meeting */
+        $meeting = $meeting->refresh();
+        $this->assertCount(2, $meeting->getMedia('photos'));
+
+        /** @var Media|null $media1 */
+        $media1 = $meeting->getMedia('photos')->first(fn ($m) => $m->getCustomProperty('legacy_file_name') === 'photo1.jpg');
+        $this->assertNotNull($media1);
+        $this->assertEquals("images/meetings/{$this->testSlug}/photo1.jpg", $media1->getCustomProperty('legacy_photo_path'));
+
+        /** @var Media|null $media2 */
+        $media2 = $meeting->getMedia('photos')->first(fn ($m) => $m->getCustomProperty('legacy_file_name') === 'photo2.png');
+        $this->assertNotNull($media2);
+    }
+
+    #[Test]
+    public function it_respects_dry_run_option(): void
+    {
+        $meeting = Meeting::factory()->create(['slug' => $this->testSlug]);
+        $directory = public_path("images/meetings/{$this->testSlug}");
+
+        File::ensureDirectoryExists($directory);
+        File::put("{$directory}/photo1.jpg", 'content');
+
+        $result = $this->service->migrate(dryRun: true);
+
+        $this->assertTrue($result['dry_run']);
+        $this->assertEquals(1, $result['summary']['migrated']);
+
+        /** @var Meeting $freshMeeting */
+        $freshMeeting = $meeting->fresh();
+        $this->assertCount(0, $freshMeeting->getMedia('photos'));
+        $this->assertEquals('dry-run', $result['items'][0]['status']);
+    }
+
+    #[Test]
+    public function it_skips_when_directory_does_not_exist(): void
+    {
+        $slug = Str::slug('non-existent-slug-'.Str::random(8));
+        Meeting::factory()->create(['slug' => $slug]);
+
+        $result = $this->service->migrate();
+
+        $this->assertEquals(1, $result['summary']['meetings_examined']);
+        $this->assertEquals(1, $result['summary']['skipped']);
+        $this->assertEquals(0, $result['summary']['migrated']);
+        $this->assertEquals('skip', $result['items'][0]['status']);
+        $this->assertStringContainsString('no legacy photos directory', $result['items'][0]['label']);
+    }
+
+    #[Test]
+    public function it_skips_when_no_supported_files_are_found(): void
+    {
+        Meeting::factory()->create(['slug' => $this->testSlug]);
+        $directory = public_path("images/meetings/{$this->testSlug}");
+
+        File::ensureDirectoryExists($directory);
+        File::put("{$directory}/not-an-image.txt", 'content');
+
+        $result = $this->service->migrate();
+
+        $this->assertEquals(1, $result['summary']['skipped']);
+        $this->assertStringContainsString('no supported image files found', $result['items'][0]['label']);
+    }
+
+    #[Test]
+    public function it_skips_already_migrated_photos(): void
+    {
+        $meeting = Meeting::factory()->create(['slug' => $this->testSlug]);
+        $directory = public_path("images/meetings/{$this->testSlug}");
+
+        File::ensureDirectoryExists($directory);
+        $filePath = "{$directory}/photo1.jpg";
+        File::put($filePath, base64_decode('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='));
+
+        // Manually migrate once
+        /** @var Meeting $meeting */
+        $meeting->addMedia($filePath)
+            ->withCustomProperties([
+                'legacy_photo_path' => "images/meetings/{$this->testSlug}/photo1.jpg",
+                'legacy_file_name' => 'photo1.jpg',
+            ])
             ->preservingOriginal()
             ->toMediaCollection('photos');
 
-        $service = app(MeetingPhotoMigrationService::class);
+        /** @var Meeting $freshMeeting */
+        $freshMeeting = $meeting->fresh();
+        $this->assertCount(1, $freshMeeting->getMedia('photos'));
 
-        $firstRun = $service->migrate();
-        $secondRun = $service->migrate();
+        $result = $this->service->migrate();
 
-        $this->assertSame(1, $firstRun['summary']['migrated']);
-        $this->assertSame(1, $firstRun['summary']['skipped']);
-        $this->assertSame(0, $secondRun['summary']['migrated']);
-        $this->assertSame(2, $secondRun['summary']['skipped']);
-        $this->assertCount(2, $meeting->fresh()->getMedia('photos'));
+        $this->assertEquals(1, $result['summary']['skipped']);
+        $this->assertEquals(0, $result['summary']['migrated']);
+        $this->assertStringContainsString('already migrated', $result['items'][0]['label']);
     }
 
-    private const string GIF_PIXEL = 'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+    #[Test]
+    public function it_handles_failures_during_media_addition(): void
+    {
+        $meeting = Meeting::factory()->create(['slug' => $this->testSlug]);
+        $directory = public_path("images/meetings/{$this->testSlug}");
+        File::ensureDirectoryExists($directory);
+        $filePath = "{$directory}/broken.jpg";
+        File::put($filePath, 'broken');
+
+        // To force a failure, we make the file unreadable.
+        chmod($filePath, 0000);
+
+        try {
+            $result = $this->service->migrate();
+
+            $this->assertEquals(1, $result['summary']['failed']);
+            $this->assertEquals('error', $result['items'][0]['status']);
+        } finally {
+            chmod($filePath, 0644);
+        }
+    }
 }
