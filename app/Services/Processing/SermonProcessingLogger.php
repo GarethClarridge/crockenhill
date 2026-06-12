@@ -15,14 +15,24 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 
+/**
+ * Service for centralized logging, performance monitoring, and statistical
+ * analysis across the media processing pipeline.
+ *
+ * Provides a unified API for recording pipeline lifecycle events, API
+ * performance metrics, file operations, and health checks, with
+ * support for automated log sanitization.
+ */
 class SermonProcessingLogger
 {
     use SanitizesLogData;
 
     /**
-     * Log the start of sermon processing.
+     * Log the start of sermon processing with initial file metadata.
      *
-     * @param  array<string, mixed>  $metadata
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $filename  The original filename of the media
+     * @param  array<string, mixed>  $metadata  Initial metadata to record
      */
     public function logProcessingStart(string $processingId, string $filename, array $metadata = []): void
     {
@@ -39,9 +49,16 @@ class SermonProcessingLogger
     }
 
     /**
-     * Log a processing step with performance metrics.
+     * Log a discrete processing step with performance and memory metrics.
      *
-     * @param  array<string, mixed>  $metrics
+     * Automatically captures current memory usage, peak memory usage,
+     * and execution time relative to the request start.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $step  The identifier for the step being logged
+     * @param  string  $status  The outcome of the step (completed, failed, degraded)
+     * @param  array<string, mixed>  $metrics  Additional performance metrics to record
+     * @param  string|null  $errorMessage  Optional error detail for failed or degraded steps
      */
     public function logProcessingStep(
         string $processingId,
@@ -79,9 +96,15 @@ class SermonProcessingLogger
     }
 
     /**
-     * Log API call performance and results.
+     * Log the performance and outcome of an external API call.
      *
-     * @param  array<string, mixed>  $additionalContext
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $service  The name of the external service (e.g. OpenAI, Pixian)
+     * @param  string  $endpoint  The API endpoint or action name
+     * @param  float  $responseTime  The round-trip time in seconds
+     * @param  int  $statusCode  The HTTP status code returned by the API
+     * @param  string|null  $errorMessage  Optional error message for non-200 responses
+     * @param  array<string, mixed>  $additionalContext  Extra metadata to include in the log context
      */
     public function logApiCall(
         string $processingId,
@@ -112,7 +135,14 @@ class SermonProcessingLogger
     }
 
     /**
-     * Log file operations with performance metrics.
+     * Log a filesystem operation with timing and size metadata.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $operation  The type of operation (e.g. upload, move, extract)
+     * @param  string  $filePath  The path to the file involved in the operation
+     * @param  int|null  $fileSize  The size of the file in bytes
+     * @param  float|null  $operationTime  The time taken for the operation in seconds
+     * @param  string|null  $errorMessage  Optional error detail if the operation failed
      */
     public function logFileOperation(
         string $processingId,
@@ -148,9 +178,15 @@ class SermonProcessingLogger
     }
 
     /**
-     * Log processing completion with comprehensive statistics.
+     * Log the completion or termination of a media processing run.
      *
-     * @param  array<string, mixed>  $statistics
+     * Records final status, total execution time, and peak memory usage
+     * for the entire lifecycle.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  ProcessingStatus  $status  The terminal status (Completed, Failed, Cancelled)
+     * @param  array<string, mixed>  $statistics  Final processing statistics to record
+     * @param  string|null  $errorMessage  Optional error detail for non-successful completions
      */
     public function logProcessingComplete(
         string $processingId,
@@ -182,9 +218,15 @@ class SermonProcessingLogger
     }
 
     /**
-     * Log error with detailed context for troubleshooting.
+     * Log a critical error with full exception context and stack trace.
      *
-     * @param  array<string, mixed>  $additionalContext
+     * Automatically redacts sensitive information from stack traces and
+     * truncates them to a safe length before logging.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $step  The step where the error occurred
+     * @param  \Throwable  $exception  The exception that triggered the error
+     * @param  array<string, mixed>  $additionalContext  Extra metadata for troubleshooting
      */
     public function logError(
         string $processingId,
@@ -210,9 +252,10 @@ class SermonProcessingLogger
     }
 
     /**
-     * Log performance metrics for monitoring.
+     * Log arbitrary performance metrics for dashboard monitoring.
      *
-     * @param  array<string, mixed>  $metrics
+     * @param  string  $processingId  The unique processing identifier
+     * @param  array<string, mixed>  $metrics  Key-value pairs of metrics to record
      */
     public function logPerformanceMetrics(string $processingId, array $metrics): void
     {
@@ -226,9 +269,10 @@ class SermonProcessingLogger
     }
 
     /**
-     * Log system health check results.
+     * Log the result of a system health check.
      *
-     * @param  array<string, mixed>  $result
+     * @param  string  $checkName  The identifier for the health check
+     * @param  array<string, mixed>  $result  The outcome and diagnostic data for the check
      */
     public function logHealthCheck(string $checkName, array $result): void
     {
@@ -251,9 +295,16 @@ class SermonProcessingLogger
     }
 
     /**
-     * Generate processing statistics from logs.
+     * Generate high-level processing statistics from recent media logs.
      *
-     * @return array<string, mixed>
+     * @param  int  $days  The number of recent days to include in the analysis
+     * @return array{
+     *     period: array{start: string|null, end: string|null, days: int},
+     *     totals: array{processed: int, completed: int, failed: int, pending: int, processing: int},
+     *     success_rate: float|int,
+     *     average_processing_time: float|null,
+     *     error_patterns: array<string, int>,
+     * }
      */
     public function generateProcessingStatistics(int $days = 7): array
     {
@@ -361,9 +412,12 @@ class SermonProcessingLogger
     }
 
     /**
-     * Log a warning for processing.
+     * Log a non-terminal warning during media processing.
      *
-     * @param  array<string, mixed>  $context
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $step  The step where the warning was triggered
+     * @param  string  $message  The warning reason
+     * @param  array<string, mixed>  $context  Additional context for the warning
      */
     public function logWarning(string $processingId, string $step, string $message, array $context = []): void
     {
@@ -378,9 +432,15 @@ class SermonProcessingLogger
     }
 
     /**
-     * Generate a processing report for a livestream processing record.
+     * Generate a comprehensive processing report for a livestream processing run.
      *
-     * @throws \Exception When the processing record is not found.
+     * Aggregates database metadata, segment summaries, and parsed log entries
+     * into a single report object for administrative review.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return ProcessingReport The aggregated processing report
+     *
+     * @throws \Exception When the processing record is not found in the database.
      */
     public function generateProcessingReport(string $processingId): ProcessingReport
     {
@@ -415,9 +475,16 @@ class SermonProcessingLogger
     }
 
     /**
-     * Get recent livestream processing activity summary.
+     * Get a summary of recent livestream processing activity.
      *
-     * @return array<string, int|float|null>
+     * @param  int  $hours  The number of recent hours to include in the summary
+     * @return array{
+     *     total_processed: int,
+     *     successful: int,
+     *     failed: int,
+     *     in_progress: int,
+     *     average_duration_minutes: float|null,
+     * }
      */
     public function getRecentProcessingActivity(int $hours = 24): array
     {
