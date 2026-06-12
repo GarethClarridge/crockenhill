@@ -1,6 +1,6 @@
 <x-admin.list-shell
     title="Songs"
-    description="Most-used songs linked from imported service orders"
+    description="Most-used songs linked from imported orders of service"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
@@ -19,7 +19,7 @@
                 shortcut="slash" />
 
             <x-select
-                placeholder="Service slot"
+                placeholder="Service"
                 wire:model.live="serviceFilter"
                 :options="collect($services)->map(fn($service) => ['id' => $service->value, 'name' => $service->label()])->toArray()"
                 class="w-44" />
@@ -45,7 +45,7 @@
             <x-slot:actions>
                 <div x-show="$wire.hasFilters" x-transition x-cloak>
                     <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                        Clear Filters
+                        Clear filters
                     </x-form-button>
                 </div>
             </x-slot:actions>
@@ -61,7 +61,7 @@
             ['label' => 'Song', 'column' => 'title'],
             ['label' => 'Authors', 'column' => null],
             ['label' => 'Usage', 'column' => 'usage_count'],
-            ['label' => 'Last Used', 'column' => 'last_used_date'],
+            ['label' => 'Last used', 'column' => 'last_used_date'],
         ];
     @endphp
 
