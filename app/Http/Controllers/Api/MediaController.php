@@ -9,6 +9,7 @@ use App\Actions\GetMediaProcessingStatus;
 use App\Contracts\ProvidesSafeMessage;
 use App\Data\VideoProcessingOptions;
 use App\Enums\MediaType;
+use App\Exceptions\SafeInvalidArgumentException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CancelMediaProcessingRequest;
 use App\Http\Requests\ConfirmMediaSegmentRequest;
@@ -186,7 +187,7 @@ class MediaController extends Controller
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
      *
-     * @throws \InvalidArgumentException
+     * @throws \InvalidArgumentException|SafeInvalidArgumentException
      */
     public function confirmSegment(ConfirmMediaSegmentRequest $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
     {
@@ -208,7 +209,11 @@ class MediaController extends Controller
                 'status_url' => route('api.media.processing.status', ['processingId' => $this->sanitizeForLog($processingId)]),
             ], 202);
         } catch (\InvalidArgumentException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            $message = $e instanceof ProvidesSafeMessage
+                ? $e->getSafeMessage()
+                : 'Confirmation failed due to an internal error.';
+
+            return response()->json(['success' => false, 'message' => $message], 422);
         } catch (\Exception $e) {
             return $this->handleApiException($e, 'Segment confirmation failed', [
                 'processing_id' => $this->sanitizeForLog($processingId),
