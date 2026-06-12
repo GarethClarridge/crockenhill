@@ -53,6 +53,10 @@ class SpeakerSample extends Model
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
+            'speaker_profile_id' => 'integer',
+            'sermon_id' => 'integer',
+            'media_processing_log_id' => 'integer',
             'embedding' => 'array',
             'duration_seconds' => 'float',
             'quality_score' => 'float',
@@ -91,12 +95,14 @@ class SpeakerSample extends Model
     public static function validationRules(): array
     {
         return [
-            'speaker_profile_id' => ['sometimes', 'required', 'integer', 'exists:speaker_profiles,id'],
-            'sermon_id' => ['nullable', 'integer', 'exists:sermons,id'],
-            'media_processing_log_id' => ['nullable', 'integer', 'exists:media_processing_logs,id'],
+            'speaker_profile_id' => ['sometimes', 'required', 'integer', 'min:1', 'max:2147483647', 'exists:speaker_profiles,id'],
+            'sermon_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:sermons,id'],
+            'media_processing_log_id' => ['nullable', 'integer', 'min:1', 'max:2147483647', 'exists:media_processing_logs,id'],
+            'embedding' => ['required', 'array'],
             'quality_score' => ['nullable', 'numeric', 'min:0', 'max:1'],
-            'duration_seconds' => ['sometimes', 'required', 'numeric', 'min:0'],
+            'duration_seconds' => ['sometimes', 'required', 'numeric', 'min:0', 'max:9999999.999'],
             'source' => ['sometimes', 'required', Rule::enum(SampleSource::class)],
+            'approved' => ['boolean'],
         ];
     }
 }

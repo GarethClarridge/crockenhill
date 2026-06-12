@@ -10,3 +10,7 @@
 1.  Application-level validation (e.g., `lowercase` rule).
 2.  Model-level normalization (e.g., Eloquent Attribute mutators) to gracefully handle and fix data before it reaches the database.
 3.  Defensive testing that asserts both DB rejection and validation-level handling.
+
+## 2026-06-12 - Mirroring Schema in Model Layer
+**Learning:** `SpeakerProfile` and `SpeakerSample` models lacked complete validation rules and casts, leading to inconsistent integrity across the stack. Schema attributes like `exists`, `max` (string length), and standardized integer bounds were present in migrations but missing from `validationRules()`.
+**Action:** Fortify models by explicitly mirroring ALL database columns in both `casts()` (for type safety) and `validationRules()` (for defensive input handling). Adhere to the "Integer Bounding Pattern" using `max:2147483647` for standard ID fields to ensure cross-language compatibility.
