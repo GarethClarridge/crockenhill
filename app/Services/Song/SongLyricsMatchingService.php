@@ -97,16 +97,13 @@ class SongLyricsMatchingService
                 continue;
             }
 
-            $lyricsExcerpt = $this->normalize(
-                substr($song->lyrics_plain, 0, self::LYRICS_COMPARISON_LENGTH)
-            );
+            $lyricsNormalized = $this->normalize($song->lyrics_plain);
 
-            if ($lyricsExcerpt === '') {
+            if ($lyricsNormalized === '') {
                 continue;
             }
 
-            similar_text($transcriptNormalized, $lyricsExcerpt, $percent);
-            $score = $percent / 100.0;
+            $score = $this->bestWindowScore($transcriptNormalized, $lyricsNormalized);
 
             if ($score > $bestScore) {
                 $bestScore = $score;
@@ -123,6 +120,37 @@ class SongLyricsMatchingService
         }
 
         return $this->noMatch();
+    }
+
+    /**
+     * Score the probe against the best-matching window across the full lyrics.
+     *
+     * OCR frames and opening transcripts can capture any verse of a song, so the
+     * probe is compared against overlapping windows over the whole lyrics rather
+     * than only the opening lines.
+     */
+    private function bestWindowScore(string $probe, string $lyrics): float
+    {
+        if (str_contains($lyrics, $probe)) {
+            return 1.0;
+        }
+
+        $windowLength = max(strlen($probe), self::LYRICS_COMPARISON_LENGTH);
+        $lyricsLength = strlen($lyrics);
+        $step = max(1, intdiv($windowLength, 2));
+        $best = 0.0;
+
+        for ($offset = 0; $offset < $lyricsLength; $offset += $step) {
+            $window = substr($lyrics, $offset, $windowLength);
+            similar_text($probe, $window, $percent);
+            $best = max($best, $percent / 100.0);
+
+            if ($offset + $windowLength >= $lyricsLength) {
+                break;
+            }
+        }
+
+        return $best;
     }
 
     /**

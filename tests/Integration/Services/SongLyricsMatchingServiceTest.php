@@ -160,6 +160,39 @@ class SongLyricsMatchingServiceTest extends TestCase
         $this->assertSame($bestSong->id, $result['song_id']);
     }
 
+    #[Test]
+    public function it_matches_lyrics_sampled_from_a_later_verse(): void
+    {
+        // Real-world case: the OCR frame captures verse 2 of "My Jesus My Saviour",
+        // which starts well past the first 200 characters of lyrics_plain.
+        $song = Song::factory()->create([
+            'title' => 'My Jesus My Saviour',
+            'canonical_key' => 'my jesus my saviour',
+            'lyrics_plain' => "My Jesus, my Saviour,\nLord, there is none like You.\nAll of my days I want to praise\nThe wonders of Your mighty love.\n\nMy comfort, my shelter,\nTower of refuge and strength,\nLet every breath, all that I am,\nNever cease to worship You.\n\nShout to the Lord all the earth, let us sing\nPower and majesty, praise to the King",
+        ]);
+
+        $verseTwoOcr = "My comfort, my shelter,\nTower of refuge and strength,\nLet every breath, all that I am,\nNever cease to worship You.";
+
+        $result = $this->service->matchFromLyrics($verseTwoOcr);
+
+        $this->assertSame($song->id, $result['song_id']);
+        $this->assertGreaterThanOrEqual(0.6, $result['confidence']);
+    }
+
+    #[Test]
+    public function it_does_not_match_a_later_verse_against_an_unrelated_song(): void
+    {
+        Song::factory()->create([
+            'title' => 'Unrelated Hymn',
+            'canonical_key' => 'unrelated hymn',
+            'lyrics_plain' => "Guide me O thou great Jehovah\nPilgrim through this barren land\nI am weak but thou art mighty\nHold me with thy powerful hand\nBread of heaven, bread of heaven\nFeed me till I want no more",
+        ]);
+
+        $result = $this->service->matchFromLyrics("My comfort, my shelter,\nTower of refuge and strength");
+
+        $this->assertNull($result['song_id']);
+    }
+
     // ---- Configurable threshold ----
 
     #[Test]
@@ -173,8 +206,8 @@ class SongLyricsMatchingServiceTest extends TestCase
             'lyrics_plain' => 'The Lord is my shepherd I shall not want he leads me',
         ]);
 
-        // Transcript shares words but not enough for 0.95 similarity.
-        $result = $this->service->matchFromLyrics('The Lord is my shepherd');
+        // Transcript shares words but is not verbatim, so it cannot reach 0.95 similarity.
+        $result = $this->service->matchFromLyrics('The Lord he is my shepherd and so I shall never be in want');
 
         $this->assertNull($result['song_id']);
     }

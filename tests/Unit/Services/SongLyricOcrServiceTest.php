@@ -91,7 +91,7 @@ class SongLyricOcrServiceTest extends TestCase
         $service = new class extends SongLyricOcrService
         {
             /** @return array{0: string|null, 1: string|null} */
-            protected function extractFrame(float $startTime, float $endTime, string $localVideoPath): array
+            protected function extractFrame(float $startTime, float $endTime, string $localVideoPath, float $fraction = 0.10): array
             {
                 return [null, null];
             }
@@ -125,7 +125,7 @@ class SongLyricOcrServiceTest extends TestCase
             public function __construct(private string $fakeFramePath) {}
 
             /** @return array{0: string|null, 1: string|null} */
-            protected function extractFrame(float $startTime, float $endTime, string $localVideoPath): array
+            protected function extractFrame(float $startTime, float $endTime, string $localVideoPath, float $fraction = 0.10): array
             {
                 $fullPath = Storage::disk('local')->path($this->fakeFramePath);
 
@@ -151,7 +151,7 @@ class SongLyricOcrServiceTest extends TestCase
             public function __construct(private string $fakeFramePath) {}
 
             /** @return array{0: string|null, 1: string|null} */
-            protected function extractFrame(float $startTime, float $endTime, string $localVideoPath): array
+            protected function extractFrame(float $startTime, float $endTime, string $localVideoPath, float $fraction = 0.10): array
             {
                 $fullPath = Storage::disk('local')->path($this->fakeFramePath);
 
@@ -195,7 +195,7 @@ class SongLyricOcrServiceTest extends TestCase
             }
 
             /** @return array{0: string|null, 1: string|null} */
-            protected function extractFrame(float $startTime, float $endTime, string $localVideoPath): array
+            protected function extractFrame(float $startTime, float $endTime, string $localVideoPath, float $fraction = 0.10): array
             {
                 return ['temp/song-ocr/fake_frame.jpg', $this->tempFile];
             }

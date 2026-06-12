@@ -220,7 +220,7 @@ class SongSectionAligner
         $itemCandidates = $this->songCandidatesFromItem($item);
         $sectionCandidates = $this->songCandidatesFromSection($section);
 
-        if ($item->song_id !== null && ($section->metadata['song_id'] ?? null) === $item->song_id) {
+        if ($item->song_id !== null && in_array($item->song_id, $this->catalogEvidenceSongIds($section), true)) {
             return 1.0;
         }
 
@@ -242,6 +242,41 @@ class SongSectionAligner
         }
 
         return $best;
+    }
+
+    /**
+     * Song IDs the section has catalog-backed evidence for: the OoS-written song_id,
+     * the transcript/OCR match from MatchSongsFromTranscript, and any additional
+     * songs detected within the same section (back-to-back songs in one block).
+     *
+     * @return array<int, int>
+     */
+    private function catalogEvidenceSongIds(ServiceSection $section): array
+    {
+        $metadata = $this->metadata($section);
+        $songIds = [];
+
+        if (is_numeric($metadata['song_id'] ?? null)) {
+            $songIds[] = (int) $metadata['song_id'];
+        }
+
+        $transcriptMatch = $metadata['transcript_song_match'] ?? null;
+
+        if (is_array($transcriptMatch) && is_numeric($transcriptMatch['song_id'] ?? null)) {
+            $songIds[] = (int) $transcriptMatch['song_id'];
+        }
+
+        $additionalMatches = $metadata['additional_song_matches'] ?? [];
+
+        if (is_array($additionalMatches)) {
+            foreach ($additionalMatches as $additionalMatch) {
+                if (is_array($additionalMatch) && is_numeric($additionalMatch['song_id'] ?? null)) {
+                    $songIds[] = (int) $additionalMatch['song_id'];
+                }
+            }
+        }
+
+        return array_values(array_unique($songIds));
     }
 
     /**

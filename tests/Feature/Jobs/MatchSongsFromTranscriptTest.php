@@ -13,14 +13,12 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
-use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
+use App\Services\ChurchService\OosAlignmentService;
 use App\Services\Media\Audio\LocalWhisperTranscriptionService;
 use App\Services\Media\Video\VideoExtractionService;
-use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
-use App\Services\Song\UnmatchedSongReviewApplicator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -61,9 +59,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -82,9 +78,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -106,9 +100,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -150,9 +142,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -203,9 +193,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -248,9 +236,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -317,9 +303,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -402,9 +386,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             $transcriptionService,
@@ -469,9 +451,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             $transcriptionService,
@@ -515,9 +495,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -562,9 +540,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -614,16 +590,14 @@ class MatchSongsFromTranscriptTest extends TestCase
         $ocrText = 'Come people of the risen King who delight in songs of praising';
 
         $this->mock(SongLyricOcrService::class, function (MockInterface $mock) use ($ocrText): void {
-            $mock->shouldReceive('extractLyrics')
+            $mock->shouldReceive('extractLyricsSamples')
                 ->once()
-                ->andReturn($ocrText);
+                ->andReturn([$ocrText]);
         });
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -678,7 +652,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         // OCR returns null — no lyrics visible on screen.
         $this->mock(SongLyricOcrService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('extractLyrics')->once()->andReturn(null);
+            $mock->shouldReceive('extractLyricsSamples')->once()->andReturn([]);
         });
 
         $this->mock(VideoExtractionService::class, function (MockInterface $mock): void {
@@ -693,9 +667,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -727,14 +699,12 @@ class MatchSongsFromTranscriptTest extends TestCase
         ]);
 
         $mockOcr = $this->mock(SongLyricOcrService::class, function (MockInterface $mock): void {
-            $mock->shouldNotReceive('extractLyrics');
+            $mock->shouldNotReceive('extractLyricsSamples');
         });
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -794,14 +764,12 @@ class MatchSongsFromTranscriptTest extends TestCase
         $ocrText = 'In Christ alone my hope is found He is my light my strength my song';
 
         $this->mock(SongLyricOcrService::class, function (MockInterface $mock) use ($ocrText): void {
-            $mock->shouldReceive('extractLyrics')->once()->andReturn($ocrText);
+            $mock->shouldReceive('extractLyricsSamples')->once()->andReturn([$ocrText]);
         });
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -850,9 +818,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
@@ -892,9 +858,7 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
-            app(UnmatchedSongReviewApplicator::class),
-            app(ChurchServiceReviewSynchronizer::class),
-            app(MediaProcessingIdentityResolver::class),
+            app(OosAlignmentService::class),
             app(VideoExtractionService::class),
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),

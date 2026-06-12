@@ -10,19 +10,16 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
-use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
-use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
+use App\Services\ChurchService\OosAlignmentService;
 use App\Services\Media\Audio\LocalWhisperTranscriptionService;
 use App\Services\Media\Video\VideoExtractionService;
-use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
-use App\Services\Song\UnmatchedSongReviewApplicator;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -66,9 +63,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
 
     public function handle(
         SongLyricsMatchingService $lyricsMatchingService,
-        UnmatchedSongReviewApplicator $unmatchedSongApplicator,
-        ChurchServiceReviewSynchronizer $reviewSynchronizer,
-        MediaProcessingIdentityResolver $identityResolver,
+        OosAlignmentService $alignmentService,
         VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper,
         TranscriptionServiceInterface $transcriptionService,
@@ -123,12 +118,12 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             try {
                 [$localSourcePath, $cleanupSourcePath] = $this->resolveLocalSourceVideoPath($storageHelper);
             } catch (\Throwable $throwable) {
-                Log::warning('MatchSongsFromTranscript: source video unavailable, skipping OCR and song opening transcription', [
+                Log::warning('MatchSongsFromTranscript: source video unavailable, skipping frame extraction and song opening transcription', [
                     'processing_id' => $this->processingLog->processing_id,
                     'error' => $throwable->getMessage(),
                 ]);
-                // Proceed without video-based strategies — title-hint matching still works.
-                $ocrEnabled = false;
+                // Proceed without the video — title-hint matching and OCR matching
+                // against previously stored frame text still work.
                 $transcribeEnabled = false;
             }
         }
@@ -141,7 +136,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                     continue;
                 }
 
-                if ($ocrEnabled && $localSourcePath !== null) {
+                if ($ocrEnabled) {
                     if ($this->matchSectionFromVideoOcr($section, $localSourcePath, $lyricsMatchingService, $ocrService)) {
                         $matchedCount++;
 
@@ -169,7 +164,9 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         }
 
         if ($matchedCount > 0) {
-            $this->refreshReviewBookkeeping($sections, $unmatchedSongApplicator, $reviewSynchronizer, $identityResolver);
+            // Re-run the full OoS alignment so the new catalog-backed matches link
+            // sections to their order-of-service items and review state is rebuilt.
+            $alignmentService->alignForProcessingLog($this->processingLog);
         }
 
         $this->logStepComplete(
@@ -248,38 +245,72 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Extract a video frame near the start of the song section, OCR the projected lyrics,
-     * and attempt lyrics matching. Returns true if a match was found and persisted.
+     * Separator used when storing multiple OCR frame texts in song_ocr_text metadata.
+     */
+    private const string OCR_SAMPLE_SEPARATOR = "\n---\n";
+
+    /**
+     * OCR projected lyrics from frames sampled across the song section and attempt
+     * lyrics matching. Several frames are sampled so back-to-back songs merged into
+     * one section can both be identified: the first match becomes the section's
+     * primary match and further distinct matches are stored as alignment evidence.
+     *
+     * Previously stored OCR text is reused so re-runs work without the source video.
+     * Returns true if a primary match was found and persisted.
      */
     private function matchSectionFromVideoOcr(
         ServiceSection $section,
-        string $localSourcePath,
+        ?string $localSourcePath,
         SongLyricsMatchingService $lyricsMatchingService,
         SongLyricOcrService $ocrService
     ): bool {
         try {
-            $ocrText = $ocrService->extractLyrics(
-                (float) $section->start_time,
-                (float) $section->end_time,
-                $localSourcePath
-            );
+            $ocrTexts = $this->resolveOcrTexts($section, $localSourcePath, $ocrService);
 
-            if ($ocrText === null || trim($ocrText) === '') {
+            if ($ocrTexts === []) {
                 return false;
             }
 
-            // Store OCR text in metadata for traceability.
-            $metadataArray = $section->metadata?->toArray() ?? [];
-            $metadataArray['song_ocr_text'] = $ocrText;
-            $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
-            $section->saveQuietly();
+            /** @var array<int, array{song_id: int, confidence: float, matched_title: string|null}> $matches */
+            $matches = [];
 
-            $result = $lyricsMatchingService->matchFromLyrics($ocrText);
-            if ($result['song_id'] !== null) {
-                $this->applyMatch($section, $result['song_id'], (string) $result['matched_title'], $result['confidence'], 'ocr');
+            foreach ($ocrTexts as $ocrText) {
+                $result = $lyricsMatchingService->matchFromLyrics($ocrText);
+                $songId = $result['song_id'];
 
-                return true;
+                if ($songId !== null && ! array_key_exists($songId, $matches)) {
+                    $matches[$songId] = [
+                        'song_id' => $songId,
+                        'confidence' => $result['confidence'],
+                        'matched_title' => $result['matched_title'],
+                    ];
+                }
             }
+
+            if ($matches === []) {
+                return false;
+            }
+
+            $primary = array_shift($matches);
+
+            if ($matches !== []) {
+                $metadataArray = $section->metadata?->toArray() ?? [];
+                $metadataArray['additional_song_matches'] = array_values(array_map(
+                    static fn (array $match): array => [
+                        'song_id' => $match['song_id'],
+                        'title' => $match['matched_title'],
+                        'confidence' => $match['confidence'],
+                        'match_source' => 'ocr',
+                    ],
+                    $matches
+                ));
+                $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
+                $section->saveQuietly();
+            }
+
+            $this->applyMatch($section, $primary['song_id'], (string) $primary['matched_title'], $primary['confidence'], 'ocr');
+
+            return true;
         } catch (\Throwable $throwable) {
             Log::warning('MatchSongsFromTranscript: OCR song matching failed', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -289,6 +320,43 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         }
 
         return false;
+    }
+
+    /**
+     * Return the OCR texts for a section: previously stored text when available,
+     * otherwise freshly sampled frames (persisted for traceability and re-runs).
+     *
+     * @return array<int, string>
+     */
+    private function resolveOcrTexts(ServiceSection $section, ?string $localSourcePath, SongLyricOcrService $ocrService): array
+    {
+        $storedText = $section->metadata['song_ocr_text'] ?? null;
+
+        if (is_string($storedText) && trim($storedText) !== '') {
+            return array_values(array_filter(array_map(
+                'trim',
+                explode(self::OCR_SAMPLE_SEPARATOR, $storedText)
+            ), static fn (string $text): bool => $text !== ''));
+        }
+
+        if ($localSourcePath === null) {
+            return [];
+        }
+
+        $ocrTexts = $ocrService->extractLyricsSamples(
+            (float) $section->start_time,
+            (float) $section->end_time,
+            $localSourcePath
+        );
+
+        if ($ocrTexts !== []) {
+            $metadataArray = $section->metadata?->toArray() ?? [];
+            $metadataArray['song_ocr_text'] = implode(self::OCR_SAMPLE_SEPARATOR, $ocrTexts);
+            $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
+            $section->saveQuietly();
+        }
+
+        return $ocrTexts;
     }
 
     /**
@@ -431,72 +499,6 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 }
             }
         });
-    }
-
-    /**
-     * Re-run UnmatchedSongReviewApplicator and ChurchServiceReviewSynchronizer so that
-     * the service-level review state reflects the new matches.
-     *
-     * @param  EloquentCollection<int, ServiceSection>  $allSongSections
-     */
-    private function refreshReviewBookkeeping(
-        EloquentCollection $allSongSections,
-        UnmatchedSongReviewApplicator $unmatchedSongApplicator,
-        ChurchServiceReviewSynchronizer $reviewSynchronizer,
-        MediaProcessingIdentityResolver $identityResolver
-    ): void {
-        $churchService = $this->resolveChurchService($identityResolver);
-        if (! $churchService instanceof ChurchService) {
-            return;
-        }
-
-        /** @var EloquentCollection<int, ServiceSection> $freshSections */
-        $freshSections = ServiceSection::query()
-            ->where('media_processing_log_id', $this->processingLog->id)
-            ->orderBy('section_order')
-            ->orderBy('id')
-            ->get();
-
-        DB::transaction(function () use ($freshSections, $unmatchedSongApplicator, $reviewSynchronizer, $churchService): void {
-            // Collect IDs of all song sections that now have a confirmed or inferred match.
-            $matchedIds = $freshSections
-                ->filter(fn (ServiceSection $s): bool => $s->section_type === ServiceSectionType::Song
-                    && in_array($s->song_match_type, [ServiceSectionSongMatchType::Confirmed, ServiceSectionSongMatchType::Inferred], true)
-                )
-                ->pluck('id')
-                ->values()
-                ->all();
-
-            $unmatchedSections = $unmatchedSongApplicator->apply($freshSections, $matchedIds);
-
-            foreach ($freshSections as $section) {
-                $section->save();
-            }
-
-            // Derive review triggers from the now-refreshed unmatched count.
-            $reviewTriggers = $unmatchedSections->isNotEmpty()
-                ? ['unmatched_song_sections']
-                : [];
-
-            $reviewSynchronizer->sync($churchService, $freshSections, $reviewTriggers);
-        });
-    }
-
-    private function resolveChurchService(MediaProcessingIdentityResolver $identityResolver): ?ChurchService
-    {
-        if ($this->processingLog->church_service_id !== null) {
-            return ChurchService::query()->find($this->processingLog->church_service_id);
-        }
-
-        $identity = $identityResolver->resolve($this->processingLog);
-        if ($identity === null) {
-            return null;
-        }
-
-        return ChurchService::query()
-            ->where('date', $identity['date'])
-            ->where('service', $identity['service']->value)
-            ->first();
     }
 
     /**
