@@ -86,6 +86,7 @@ class SermonBuilder extends Builder
     {
         return $this->where(function (Builder $q): void {
             $q->whereNotNull('transcript_file_path')
+                ->whereRaw("TRIM(transcript_file_path) != ''")
                 ->orWhereHas('processingLogs');
         });
     }
@@ -96,7 +97,10 @@ class SermonBuilder extends Builder
     public function manual(): self
     {
         return $this->where(function (Builder $q): void {
-            $q->whereNull('transcript_file_path')
+            $q->where(function (Builder $sub): void {
+                $sub->whereNull('transcript_file_path')
+                    ->orWhereRaw("TRIM(transcript_file_path) = ''");
+            })
                 ->whereDoesntHave('processingLogs');
         });
     }

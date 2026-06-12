@@ -491,6 +491,10 @@ class Sermon extends Model implements Sitemapable
             return true;
         }
 
+        if (! $this->exists) {
+            return false;
+        }
+
         /**
          * Performance Optimization: Check if relationship is already loaded to prevent N+1 queries.
          * We prioritize latestProcessingLog as it is more commonly eager-loaded in listing views.
