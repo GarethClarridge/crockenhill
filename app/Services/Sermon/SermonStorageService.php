@@ -442,7 +442,13 @@ class SermonStorageService
     /**
      * Initialize the storage statistics array.
      *
-     * @return array<string, mixed>
+     * @return array{
+     *     total_sermons: int,
+     *     patterns: array{private: int, legacy: int, storage: int, processing: int},
+     *     disks: array<string, array{count: int, size: int, missing: int}>,
+     *     total_size: int,
+     *     missing_files: int
+     * }
      */
     private function initializeStorageStats(): array
     {
@@ -521,7 +527,7 @@ class SermonStorageService
 
         $this->validatePath((string) $path, $type);
 
-        if ($this->requiresGuardedDelivery($path)) {
+        if ($this->requiresGuardedDelivery((string) $path)) {
             return route($routeName, ['sermon' => $sermon->slug]);
         }
 
@@ -575,10 +581,10 @@ class SermonStorageService
 
             try {
                 return [
-                    'last_modified' => Storage::disk($info['disk'])->lastModified($info['path']),
-                    'size' => Storage::disk($info['disk'])->size($info['path']),
+                    'last_modified' => (int) Storage::disk($info['disk'])->lastModified($info['path']),
+                    'size' => (int) Storage::disk($info['disk'])->size($info['path']),
                 ];
-            } catch (Exception $e) {
+            } catch (Exception) {
                 return [
                     'last_modified' => null,
                     'size' => null,
