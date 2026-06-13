@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Presenters;
+namespace Tests\Integration\Presenters;
 
 use App\Models\Meeting;
 use App\Presenters\MeetingShowPresenter;

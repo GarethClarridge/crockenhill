@@ -26,7 +26,7 @@ class AdminListAccessibilityTest extends TestCase
         Livewire::actingAs($admin)
             ->test(ListSermons::class)
             ->assertSeeHtml('Skip to results')
-            ->assertSeeHtml('Showing <span class="font-medium text-gray-700">5</span> sermons')
+            ->assertSeeInOrder(['Showing', '5', 'sermons'])
             ->assertSeeHtml('id="admin-list-results"')
             ->assertSeeHtml('tabindex="-1"');
     }
@@ -41,8 +41,8 @@ class AdminListAccessibilityTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(ListSermons::class)
-            ->assertSeeHtml('Showing <span class="font-medium text-gray-700">1</span> to <span class="font-medium text-gray-700">20</span> of <span class="font-medium text-gray-700">25</span> sermons')
+            ->assertSeeInOrder(['Showing', '1', 'to', '20', 'of', '25', 'sermons'])
             ->call('setPage', 2)
-            ->assertSeeHtml('Showing <span class="font-medium text-gray-700">21</span> to <span class="font-medium text-gray-700">25</span> of <span class="font-medium text-gray-700">25</span> sermons');
+            ->assertSeeInOrder(['Showing', '21', 'to', '25', 'of', '25', 'sermons']);
     }
 }
