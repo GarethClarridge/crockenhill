@@ -186,7 +186,7 @@ class MediaController extends Controller
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
      *
-     * @throws \InvalidArgumentException
+     * @throws \App\Exceptions\SafeInvalidArgumentException
      */
     public function confirmSegment(ConfirmMediaSegmentRequest $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
     {
@@ -208,7 +208,11 @@ class MediaController extends Controller
                 'status_url' => route('api.media.processing.status', ['processingId' => $this->sanitizeForLog($processingId)]),
             ], 202);
         } catch (\InvalidArgumentException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            $message = $e instanceof ProvidesSafeMessage
+                ? $e->getSafeMessage()
+                : 'Invalid request parameters.';
+
+            return response()->json(['success' => false, 'message' => $message], 422);
         } catch (\Exception $e) {
             return $this->handleApiException($e, 'Segment confirmation failed', [
                 'processing_id' => $this->sanitizeForLog($processingId),
