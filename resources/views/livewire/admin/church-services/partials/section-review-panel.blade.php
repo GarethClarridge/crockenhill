@@ -93,18 +93,18 @@
     @if($section->section_type === \App\Enums\ServiceSectionType::ChildrensTalk)
         <div class="grid gap-3 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-2">
             <x-select
-                label="Choose preacher"
+                label="Choose speaker"
                 wire:model.blur="speakerEdits.{{ $section->id }}.preacher_id"
                 :options="$preacherOptions"
-                placeholder="Select a preacher..."
-                hint="Pick an existing preacher to confirm or override the detected speaker."
+                placeholder="Select a speaker..."
+                hint="Pick an existing speaker to confirm or override the detected one."
             />
 
             <x-input
                 label="Fallback speaker name"
                 wire:model.blur="speakerEdits.{{ $section->id }}.speaker_name"
                 maxlength="255"
-                hint="Use free text when the speaker is not in the preacher list."
+                hint="Use free text when the speaker is not in the speaker list."
             />
         </div>
 
