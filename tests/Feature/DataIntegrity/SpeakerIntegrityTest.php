@@ -155,12 +155,14 @@ class SpeakerIntegrityTest extends TestCase
     public function it_validates_profile_rules_at_application_level(): void
     {
         $rules = SpeakerProfile::validationRules();
+        $preacher = Preacher::factory()->create();
+        $validData = ['preacher_id' => $preacher->id];
 
-        $this->assertTrue(Validator::make(['quality_score' => 0.5], $rules)->passes());
-        $this->assertTrue(Validator::make(['quality_score' => null], $rules)->passes());
-        $this->assertFalse(Validator::make(['quality_score' => 1.1], $rules)->passes());
-        $this->assertFalse(Validator::make(['accept_threshold' => -0.1], $rules)->passes());
-        $this->assertFalse(Validator::make(['margin_threshold' => 1.01], $rules)->passes());
+        $this->assertTrue(Validator::make(array_merge($validData, ['quality_score' => 0.5]), $rules)->passes());
+        $this->assertTrue(Validator::make(array_merge($validData, ['quality_score' => null]), $rules)->passes());
+        $this->assertFalse(Validator::make(array_merge($validData, ['quality_score' => 1.1]), $rules)->passes());
+        $this->assertFalse(Validator::make(array_merge($validData, ['accept_threshold' => -0.1]), $rules)->passes());
+        $this->assertFalse(Validator::make(array_merge($validData, ['margin_threshold' => 1.01]), $rules)->passes());
     }
 
     #[Test]

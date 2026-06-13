@@ -106,11 +106,13 @@ class SpeakerProfile extends Model
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<string|mixed>>
      */
     public static function validationRules(): array
     {
         return [
+            'preacher_id' => ['required', 'integer', 'min:1', 'max:2147483647', 'exists:preachers,id'],
+            'sample_count' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
             'quality_score' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'accept_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],
             'margin_threshold' => ['nullable', 'numeric', 'min:0', 'max:1'],
