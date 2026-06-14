@@ -125,7 +125,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($testCases as $filename) {
             $result = $this->service->extractDateFromFilename($filename);
-            $this->assertEquals('2026-05-27', $result->format('Y-m-d'), "Failed for filename: {$filename}");
+            $this->assertEquals(now()->toDateString(), $result->format('Y-m-d'), "Failed for filename: {$filename}");
         }
     }
 
@@ -198,7 +198,7 @@ class MetadataExtractionServiceTest extends TestCase
 
         foreach ($testCases as $filename) {
             $result = $this->service->extractDateFromFilename($filename);
-            $this->assertEquals('2026-05-27', $result->format('Y-m-d'), "Failed for filename: {$filename}");
+            $this->assertEquals(now()->toDateString(), $result->format('Y-m-d'), "Failed for filename: {$filename}");
         }
     }
 
@@ -471,11 +471,11 @@ class MetadataExtractionServiceTest extends TestCase
     {
         // Empty filename
         $result = $this->service->extractDateFromFilename('');
-        $this->assertEquals('2026-05-27', $result->format('Y-m-d'));
+        $this->assertEquals(now()->toDateString(), $result->format('Y-m-d'));
 
         // Filename with only extension
         $result = $this->service->extractDateFromFilename('.mp3');
-        $this->assertEquals('2026-05-27', $result->format('Y-m-d'));
+        $this->assertEquals(now()->toDateString(), $result->format('Y-m-d'));
 
         // Filename with multiple extensions
         $result = $this->service->extractDateFromFilename('2024-01-15.backup.mp3');

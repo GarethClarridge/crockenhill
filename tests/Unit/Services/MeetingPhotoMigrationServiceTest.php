@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Models\Meeting;
 use App\Services\MeetingPhotoMigrationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,16 +15,17 @@ use Tests\TestCase;
 
 class MeetingPhotoMigrationServiceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private MeetingPhotoMigrationService $service;
 
-    private string $testSlug = 'test-migration-meeting';
+    private string $testSlug;
 
     protected function setUp(): void
     {
         parent::setUp();
 
+        $this->testSlug = 'test-migration-'.\Illuminate\Support\Str::lower((string) \Illuminate\Support\Str::ulid());
         $this->service = new MeetingPhotoMigrationService;
         Storage::fake('public');
     }
@@ -39,9 +40,6 @@ class MeetingPhotoMigrationServiceTest extends TestCase
     #[Test]
     public function it_migrates_photos_successfully(): void
     {
-        // Clear any existing meetings to have a predictable count
-        Meeting::query()->delete();
-
         $meeting = Meeting::factory()->create(['slug' => $this->testSlug]);
         $directory = public_path("images/meetings/{$this->testSlug}");
 
@@ -73,7 +71,6 @@ class MeetingPhotoMigrationServiceTest extends TestCase
     #[Test]
     public function it_respects_dry_run_option(): void
     {
-        Meeting::query()->delete();
         $meeting = Meeting::factory()->create(['slug' => $this->testSlug]);
         $directory = public_path("images/meetings/{$this->testSlug}");
 
@@ -93,8 +90,7 @@ class MeetingPhotoMigrationServiceTest extends TestCase
     #[Test]
     public function it_skips_when_directory_does_not_exist(): void
     {
-        Meeting::query()->delete();
-        Meeting::factory()->create(['slug' => 'non-existent-slug']);
+        Meeting::factory()->create(['slug' => 'non-existent-slug-'.\Illuminate\Support\Str::lower((string) \Illuminate\Support\Str::ulid())]);
 
         $result = $this->service->migrate();
 
@@ -108,7 +104,6 @@ class MeetingPhotoMigrationServiceTest extends TestCase
     #[Test]
     public function it_skips_when_no_supported_files_are_found(): void
     {
-        Meeting::query()->delete();
         Meeting::factory()->create(['slug' => $this->testSlug]);
         $directory = public_path("images/meetings/{$this->testSlug}");
 
@@ -124,7 +119,6 @@ class MeetingPhotoMigrationServiceTest extends TestCase
     #[Test]
     public function it_skips_already_migrated_photos(): void
     {
-        Meeting::query()->delete();
         $meeting = Meeting::factory()->create(['slug' => $this->testSlug]);
         $directory = public_path("images/meetings/{$this->testSlug}");
 
@@ -156,8 +150,6 @@ class MeetingPhotoMigrationServiceTest extends TestCase
     #[Test]
     public function it_handles_failures_during_media_addition(): void
     {
-        Meeting::query()->delete();
-
         // Create a meeting but we will mock the addMedia to fail
         // Actually it's easier to provide a broken file path or similar,
         // but the service uses $photo->getPathname() which is real.
