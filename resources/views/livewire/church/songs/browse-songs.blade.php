@@ -26,6 +26,8 @@
             <button
                 wire:click="$set('range', '{{ \App\Services\Public\PublicSongCatalogService::RANGE_ALL }}')"
                 wire:loading.attr="disabled"
+                aria-disabled="false"
+                wire:loading.attr="aria-disabled"
                 wire:loading.class="opacity-50"
                 wire:target="$set('range', '{{ \App\Services\Public\PublicSongCatalogService::RANGE_ALL }}')"
                 type="button"
@@ -41,6 +43,8 @@
             <button
                 wire:click="$set('range', '{{ \App\Services\Public\PublicSongCatalogService::RANGE_RECENT }}')"
                 wire:loading.attr="disabled"
+                aria-disabled="false"
+                wire:loading.attr="aria-disabled"
                 wire:loading.class="opacity-50"
                 wire:target="$set('range', '{{ \App\Services\Public\PublicSongCatalogService::RANGE_RECENT }}')"
                 type="button"
@@ -57,7 +61,7 @@
     </section>
 
     {{-- Results area --}}
-    <div id="song-results" tabindex="-1" class="focus:outline-none" wire:loading.class="opacity-60 pointer-events-none" wire:target="search, range">
+    <div id="song-results" tabindex="-1" class="focus:outline-none" wire:loading.class="opacity-60 pointer-events-none" wire:target="search, range" aria-busy="false" wire:loading.attr="aria-busy">
 
         {{-- Empty state --}}
         @if ($songs->isEmpty())

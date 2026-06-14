@@ -53,9 +53,9 @@ class PixianClient
 
         $imageContents = @file_get_contents($imagePath);
         if (! is_string($imageContents) || $imageContents === '') {
-            Log::warning('Pixian request skipped: image could not be read', [
-                'image_path' => $this->sanitizeForLog($imagePath),
-            ]);
+            Log::warning('Pixian request skipped: image could not be read', $this->sanitizeArrayForLog([
+                'image_path' => $imagePath,
+            ]));
 
             return null;
         }
@@ -63,10 +63,10 @@ class PixianClient
         try {
             $response = $this->makeRequest($imagePath, $imageContents);
         } catch (ConnectionException $e) {
-            Log::warning('Pixian connection error during background removal', [
-                'image_path' => $this->sanitizeForLog($imagePath),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Pixian connection error during background removal', $this->sanitizeArrayForLog([
+                'image_path' => $imagePath,
+                'error' => $e->getMessage(),
+            ]));
 
             return null;
         }
@@ -79,10 +79,10 @@ class PixianClient
 
         $body = $response->body();
         if ($body === '') {
-            Log::warning('Pixian returned an empty response body', [
-                'image_path' => $this->sanitizeForLog($imagePath),
-                'request_id' => $this->sanitizeForLog((string) $response->header('x-request-id')),
-            ]);
+            Log::warning('Pixian returned an empty response body', $this->sanitizeArrayForLog([
+                'image_path' => $imagePath,
+                'request_id' => (string) $response->header('x-request-id'),
+            ]));
 
             return null;
         }
@@ -109,12 +109,12 @@ class PixianClient
     {
         $body = $response->body();
 
-        Log::warning('Pixian background removal failed', [
-            'image_path' => $this->sanitizeForLog($imagePath),
+        Log::warning('Pixian background removal failed', $this->sanitizeArrayForLog([
+            'image_path' => $imagePath,
             'status' => $response->status(),
-            'body' => $this->sanitizeForLog($body !== '' ? $body : (string) json_encode($response->json())),
-            'request_id' => $this->sanitizeForLog((string) $this->extractRequestId($response)),
-        ]);
+            'body' => $body !== '' ? $body : (string) json_encode($response->json()),
+            'request_id' => (string) $this->extractRequestId($response),
+        ]));
     }
 
     private function extractRequestId(Response $response): ?string

@@ -34,7 +34,7 @@ if ($slot->isEmpty() && $attributes->has('aria-label') && !$attributes->has('tit
 }
 @endphp
 
-<button {{ $filteredAttributes->merge(['class' => $classes, 'type' => $type]) }} wire:loading.attr="disabled" @if($target) wire:target="{{ $target }}" @endif>
+<button {{ $filteredAttributes->merge(['class' => $classes, 'type' => $type]) }} wire:loading.attr="disabled" aria-disabled="false" wire:loading.attr="aria-disabled" @if($target) wire:target="{{ $target }}" @endif>
     @if($icon)
       <span wire:loading.remove @if($target) wire:target="{{ $target }}" @endif class="contents">
         <x-dynamic-component :component="'heroicon-o-' . $icon" class="w-4 h-4 {{ $slot->isNotEmpty() ? 'mr-2' : '' }}" aria-hidden="true" />

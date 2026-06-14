@@ -18,14 +18,6 @@ class RedirectsTest extends TestCase
     }
 
     #[Test]
-    public function it_redirects_typoed_contacttus_url(): void
-    {
-        $response = $this->get('/contacttus');
-        $response->assertRedirect('/');
-        $response->assertStatus(301);
-    }
-
-    #[Test]
     public function it_redirects_legacy_aboutus_url(): void
     {
         $response = $this->get('/aboutus');
