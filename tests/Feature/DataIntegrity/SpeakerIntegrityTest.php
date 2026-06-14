@@ -155,22 +155,37 @@ class SpeakerIntegrityTest extends TestCase
     public function it_validates_profile_rules_at_application_level(): void
     {
         $rules = SpeakerProfile::validationRules();
+        $preacher = Preacher::factory()->create();
+        $baseData = [
+            'preacher_id' => $preacher->id,
+            'provider' => 'resemblyzer',
+            'model_version' => 'v1.0',
+            'sample_count' => 10,
+            'is_active' => true,
+        ];
 
-        $this->assertTrue(Validator::make(['quality_score' => 0.5], $rules)->passes());
-        $this->assertTrue(Validator::make(['quality_score' => null], $rules)->passes());
-        $this->assertFalse(Validator::make(['quality_score' => 1.1], $rules)->passes());
-        $this->assertFalse(Validator::make(['accept_threshold' => -0.1], $rules)->passes());
-        $this->assertFalse(Validator::make(['margin_threshold' => 1.01], $rules)->passes());
+        $this->assertTrue(Validator::make([...$baseData, 'quality_score' => 0.5], $rules)->passes());
+        $this->assertTrue(Validator::make([...$baseData, 'quality_score' => null], $rules)->passes());
+        $this->assertFalse(Validator::make([...$baseData, 'quality_score' => 1.1], $rules)->passes());
+        $this->assertFalse(Validator::make([...$baseData, 'accept_threshold' => -0.1], $rules)->passes());
+        $this->assertFalse(Validator::make([...$baseData, 'margin_threshold' => 1.01], $rules)->passes());
     }
 
     #[Test]
     public function it_validates_sample_rules_at_application_level(): void
     {
         $rules = SpeakerSample::validationRules();
+        $profile = SpeakerProfile::factory()->create();
+        $baseData = [
+            'speaker_profile_id' => $profile->id,
+            'duration_seconds' => 60,
+            'source' => 'upload_auto',
+            'approved' => true,
+        ];
 
-        $this->assertTrue(Validator::make(['duration_seconds' => 60, 'quality_score' => 0.9], $rules)->passes());
-        $this->assertFalse(Validator::make(['duration_seconds' => -1], $rules)->passes());
-        $this->assertFalse(Validator::make(['quality_score' => 1.5], $rules)->passes());
+        $this->assertTrue(Validator::make([...$baseData, 'quality_score' => 0.9], $rules)->passes());
+        $this->assertFalse(Validator::make([...$baseData, 'duration_seconds' => -1], $rules)->passes());
+        $this->assertFalse(Validator::make([...$baseData, 'quality_score' => 1.5], $rules)->passes());
     }
 
     #[Test]
