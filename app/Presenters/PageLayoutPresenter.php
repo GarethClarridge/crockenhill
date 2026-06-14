@@ -16,16 +16,16 @@ class PageLayoutPresenter
     ) {}
 
     /**
-     * @param  Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>|array<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>  $links
+     * @param  Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>|array<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>  $links
      * @return array{
      *     area: string,
      *     content: string,
-     *     description: string,
+     *     description: string|null,
      *     heading: string,
      *     headingpicture: ?string,
      *     headingpictureMobile: ?string,
      *     headingpictureTablet: ?string,
-     *     links: Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>,
+     *     links: Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>,
      *     page: Page,
      *     slug: string
      * }
