@@ -27,9 +27,9 @@
     <a class="relative block aspect-video overflow-hidden bg-slate-200" href="{{ $pageUrl }}" wire:navigate tabindex="-1" aria-hidden="true">
         <img class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115" src="{{ $pageImageUrl }}" alt="{{ $pageHeading }}" onerror="this.onerror=null;this.src='/images/headings/small/default.webp';" loading="lazy" width="300" height="169">
         <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent"></div>
-        <h5 class="absolute inset-x-5 top-1/2 -translate-y-1/2 text-center font-display text-3xl leading-[0.95] text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.45)] sm:text-4xl">
+        <h2 class="absolute inset-x-5 top-1/2 -translate-y-1/2 text-center font-display text-3xl leading-[0.95] text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.45)] sm:text-4xl">
             {{ $pageHeading }}
-        </h5>
+        </h2>
     </a>
 
     <div class="flex flex-1 items-center justify-center px-6 py-5">

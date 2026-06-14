@@ -27,6 +27,9 @@
             {{-- Manual refresh button --}}
             <button
                 wire:click="refreshLogs"
+                wire:loading.attr="disabled"
+                aria-disabled="false"
+                wire:loading.attr="aria-disabled"
                 class="p-1 text-gray-500 hover:text-gray-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                 aria-label="Refresh logs"
             >
@@ -61,7 +64,7 @@
         </div>
     </div>
 
-    <div id="processing-logs-content" x-show="$wire.expanded" x-transition class="p-4">
+    <div id="processing-logs-content" x-show="$wire.expanded" x-transition class="p-4" aria-busy="false" wire:loading.attr="aria-busy" wire:target="refreshLogs, fetchLogs">
         {{-- Performance Summary --}}
         @if($showMetrics && !empty($performanceMetrics))
             <div class="grid grid-cols-3 gap-4 mb-6">
