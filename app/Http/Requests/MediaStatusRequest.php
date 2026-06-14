@@ -27,7 +27,7 @@ class MediaStatusRequest extends MediaProcessingRequest
     public function rules(): array
     {
         return [
-            'include_logs' => ['nullable', 'boolean'],
+            'include_logs' => ['nullable', 'boolean', 'max:10'], // Security: Explicit length limit for boolean input string
             'log_limit' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];
     }

@@ -50,6 +50,10 @@ class RateLimitServiceProvider extends ServiceProvider
             ];
         });
 
+        RateLimiter::for('media-admin-action', function (Request $request): Limit {
+            return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
+
         RateLimiter::for('mailgun-probe', function (Request $request): Limit {
             return Limit::perMinute(200)->by($request->ip());
         });

@@ -120,6 +120,8 @@ class UnifiedMediaProcessor
      *
      * @param  string  $processingId  The unique processing identifier
      * @return StandardProcessingResponse The current state snapshot
+     *
+     * @throws \Exception When the processing record is not found or inaccessible.
      */
     public function getStatus(string $processingId): StandardProcessingResponse
     {
@@ -133,6 +135,8 @@ class UnifiedMediaProcessor
      * @param  bool  $includeLogs  Whether to include the log collection
      * @param  int  $logLimit  Maximum number of recent log entries to return
      * @return StandardProcessingResponse The status with attached logs
+     *
+     * @throws \Exception When the processing record is not found or inaccessible.
      */
     public function getStatusWithLogs(string $processingId, bool $includeLogs = false, int $logLimit = 20): StandardProcessingResponse
     {
@@ -148,6 +152,8 @@ class UnifiedMediaProcessor
      *
      * @param  string  $processingId  The unique processing identifier
      * @return array{success: bool, message: string} Whether cancellation was successful
+     *
+     * @throws \Exception When cancellation logic fails or storage cannot be cleared.
      */
     public function cancel(string $processingId): array
     {
@@ -170,6 +176,8 @@ class UnifiedMediaProcessor
      *
      * @param  string  $processingId  The unique processing identifier
      * @return ProcessingResult The result of the retry initiation
+     *
+     * @throws \Exception When retry initiation fails due to internal errors.
      */
     public function retry(string $processingId): ProcessingResult
     {
