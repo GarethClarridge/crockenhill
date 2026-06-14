@@ -520,7 +520,8 @@ class ReviewInboxTest extends TestCase
     public function it_shows_the_empty_state_when_nothing_needs_review(): void
     {
         Livewire::test(ReviewInbox::class)
-            ->assertSee('All caught up — nothing needs review.')
+            ->assertSee('All caught up')
+            ->assertSee('There are no items currently requiring manual review.')
             ->assertSeeHtml(route('admin.services.index'));
     }
 

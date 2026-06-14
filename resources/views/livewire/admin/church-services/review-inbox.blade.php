@@ -84,14 +84,14 @@
                                     </div>
                                     <div class="flex flex-wrap items-center gap-2">
                                         @if($preview['can_approve'])
-                                            <x-form-button size="xs" variant="primary" icon="check" wire:click="approveEmail({{ $item['email']->id }})">
+                                            <x-form-button size="xs" variant="primary" icon="check" wire:click="approveEmail({{ $item['email']->id }})" loading-label="Approving...">
                                                 Approve
                                             </x-form-button>
                                         @endif
-                                        <x-form-button size="xs" variant="outline" icon="pencil-square" wire:click="editAndApproveEmail({{ $item['email']->id }})">
+                                        <x-form-button size="xs" variant="outline" icon="pencil-square" wire:click="editAndApproveEmail({{ $item['email']->id }})" loading-label="Loading editor...">
                                             Edit &amp; approve
                                         </x-form-button>
-                                        <x-form-button size="xs" variant="outline" icon="arrow-path" wire:click="reparseEmail({{ $item['email']->id }})">
+                                        <x-form-button size="xs" variant="outline" icon="arrow-path" wire:click="reparseEmail({{ $item['email']->id }})" loading-label="Re-parsing...">
                                             Re-parse
                                         </x-form-button>
                                         <x-form-button
@@ -100,6 +100,7 @@
                                             icon="x-mark"
                                             wire:click="rejectEmail({{ $item['email']->id }})"
                                             wire:confirm="Are you sure you want to reject this email? This cannot be undone."
+                                            loading-label="Rejecting..."
                                         >
                                             Reject
                                         </x-form-button>
@@ -204,14 +205,14 @@
                                     </div>
                                     <div class="flex flex-wrap items-center gap-2">
                                         @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PendingApproval)
-                                            <x-form-button size="xs" variant="primary" icon="check" wire:click="approve({{ $section->id }})">
+                                            <x-form-button size="xs" variant="primary" icon="check" wire:click="approve({{ $section->id }})" loading-label="Approving...">
                                                 Approve
                                             </x-form-button>
-                                            <x-form-button size="xs" variant="danger" icon="x-mark" wire:click="reject({{ $section->id }})" wire:confirm="Reject this section?">
+                                            <x-form-button size="xs" variant="danger" icon="x-mark" wire:click="reject({{ $section->id }})" wire:confirm="Reject this section?" loading-label="Rejecting...">
                                                 Reject
                                             </x-form-button>
                                         @elseif($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::Rejected)
-                                            <x-form-button size="xs" variant="outline" icon="arrow-uturn-left" wire:click="requeue({{ $section->id }})">
+                                            <x-form-button size="xs" variant="outline" icon="arrow-uturn-left" wire:click="requeue({{ $section->id }})" loading-label="Re-queueing...">
                                                 Requeue
                                             </x-form-button>
                                         @endif
@@ -279,7 +280,7 @@
                                         </p>
                                     </div>
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <x-form-button size="xs" variant="outline" icon="check" wire:click="markServiceReviewed({{ $item['service']->id }})">
+                                        <x-form-button size="xs" variant="outline" icon="check" wire:click="markServiceReviewed({{ $item['service']->id }})" loading-label="Marking reviewed...">
                                             Mark reviewed
                                         </x-form-button>
                                         <x-button link="{{ route('admin.services.show', $item['service']) }}" variant="ghost" size="xs" icon="arrow-right" iconPosition="trailing" inline>
@@ -293,15 +294,20 @@
                 </ul>
             </x-card>
         @empty
-            <x-card>
-                <div class="flex flex-col items-center gap-3 py-10 text-center">
-                    <x-heroicon-o-check-circle class="h-10 w-10 text-cbc-teal" aria-hidden="true" />
-                    <p class="font-display text-lg text-gray-900">All caught up — nothing needs review.</p>
+            <div class="flex flex-col items-center justify-center space-y-3 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 p-8 transition-colors hover:border-gray-300">
+                <div class="rounded-full bg-white shadow-sm ring-1 ring-gray-200 p-3">
+                    <x-heroicon-o-check-circle class="h-8 w-8 text-cbc-teal/60" aria-hidden="true" />
+                </div>
+                <h2 class="text-base font-semibold text-gray-900">All caught up</h2>
+                <p class="text-sm text-gray-500 max-w-sm mx-auto">
+                    There are no items currently requiring manual review.
+                </p>
+                <div class="mt-4">
                     <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
                         Back to services
                     </x-button>
                 </div>
-            </x-card>
+            </div>
         @endforelse
     </div>
 </x-admin.page>
