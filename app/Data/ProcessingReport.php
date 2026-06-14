@@ -10,12 +10,12 @@ use Illuminate\Support\Carbon;
 /**
  * @phpstan-type ProcessingReportData array{
  *     processing_id: string,
- *     status: string|ProcessingStatus,
+ *     status?: string|ProcessingStatus,
  *     original_filename: string,
  *     file_size_mb: float,
  *     duration_seconds: float|null,
- *     total_segments: int,
- *     processing_duration_seconds: float|int|null,
+ *     total_segments?: int,
+ *     processing_duration_seconds?: float|int|null,
  *     segment_summary: array{
  *         total_count: int,
  *         song_segments: array{count: int, total_duration: float},
@@ -55,15 +55,14 @@ class ProcessingReport
 
     public function getStatus(): string
     {
-        /** @var string|ProcessingStatus $status */
-        $status = $this->data['status'];
+        $status = $this->data['status'] ?? 'unknown';
 
         // Handle ProcessingStatus enum
         if ($status instanceof ProcessingStatus) {
             return $status->value;
         }
 
-        return $status;
+        return (string) $status;
     }
 
     public function hasErrors(): bool
@@ -78,11 +77,11 @@ class ProcessingReport
 
     public function getProcessingDuration(): float|int|null
     {
-        return $this->data['processing_duration_seconds'];
+        return $this->data['processing_duration_seconds'] ?? null;
     }
 
     public function getSegmentCount(): int
     {
-        return $this->data['total_segments'];
+        return $this->data['total_segments'] ?? 0;
     }
 }
