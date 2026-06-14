@@ -453,7 +453,7 @@
                     </div>
                     @endif
 
-                    <form method="POST" action="/christ/sermons/{{ date('Y', strtotime($sermon->date)) }}/{{ date('m', strtotime($sermon->date)) }}/{{ $sermon->slug }}/delete" accept-charset="UTF-8" class="grid grid-cols-2">
+                    <form method="POST" action="{{ route('sermons.destroy', $sermon->slug) }}" accept-charset="UTF-8" class="grid grid-cols-2">
                         @csrf
                         <a href="{{ route('admin.sermons.edit', $sermon->slug) }}" wire:navigate
                            class="w-full no-underline mx-auto block max-w-md p-4 text-center text-white rounded-bl-md bg-cbc-pattern bg-size-cover focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 transition-all">
