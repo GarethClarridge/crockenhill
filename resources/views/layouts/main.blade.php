@@ -9,8 +9,8 @@
     $pushedTitle = trim($__env->yieldPushContent('title'));
     $sectionTitle = trim($__env->yieldContent('title'));
     $resolvedTitle = $pushedTitle !== '' ? $pushedTitle : $sectionTitle;
-    $fullTitle = ($resolvedTitle === '' || $resolvedTitle === $siteName)
-      ? $siteName
+    $fullTitle = ($resolvedTitle === '' || $resolvedTitle === $siteName || \Illuminate\Support\Str::contains($resolvedTitle, $siteName))
+      ? ($resolvedTitle ?: $siteName)
       : $resolvedTitle.' | '.$siteName;
   @endphp
   <title>{{ $fullTitle }}</title>

@@ -6,6 +6,10 @@ Church
 
 @section('meta_description', 'Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical church in Kent.')
 
+@section('canonical')
+<link rel="canonical" href="{{ url('/church') }}">
+@endsection
+
 @section('meta_tags')
 <x-meta-tags
     title="Church"

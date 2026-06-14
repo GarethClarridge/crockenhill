@@ -1,8 +1,12 @@
 @extends('layouts.main')
 
-@section('title', 'Crockenhill Baptist Church')
+@section('title', 'Crockenhill Baptist Church | Worshipping God, Strengthening believers, Proclaiming Jesus Christ')
 
 @section('meta_description', 'We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all.')
+
+@section('canonical')
+<link rel="canonical" href="{{ url('/') }}">
+@endsection
 
 @section('meta_tags')
 <x-meta-tags
