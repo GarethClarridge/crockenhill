@@ -24,7 +24,7 @@
                             <x-heroicon-m-chevron-down class="h-3 w-3" aria-hidden="true" />
                         @endif
                     @else
-                        <x-heroicon-m-chevron-up-down class="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true" />
+                        <x-heroicon-m-chevron-up-down class="h-3 w-3 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity" aria-hidden="true" />
                     @endif
                 </span>
                 <span wire:loading wire:target="sort('{{ $column }}')" role="status" aria-live="polite">

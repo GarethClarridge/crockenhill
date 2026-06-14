@@ -12,7 +12,7 @@
                             wire:click="remove({{ $media->id }})"
                             wire:confirm="Remove this image?"
                             aria-label="Remove image: {{ $media->name }}"
-                            class="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                            class="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity">
                         <x-heroicon-o-x-mark class="w-3 h-3" aria-hidden="true" />
                     </button>
                 </div>
@@ -37,7 +37,7 @@
 
         @if($file)
             <div class="mt-4">
-                <img src="{{ $file->temporaryUrl() }}" alt="Preview of selected image" class="w-32 h-32 object-cover rounded-lg mx-auto" loading="lazy" />
+                <img src="{{ $file->temporaryUrl() }}" alt="Preview of the image selected for upload" class="w-32 h-32 object-cover rounded-lg mx-auto" loading="lazy" />
                 <x-form-button variant="primary" size="sm" wire:click="upload" class="mt-2">
                     Upload
                 </x-form-button>
