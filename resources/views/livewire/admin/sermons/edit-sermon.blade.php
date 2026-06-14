@@ -55,7 +55,12 @@
                     @else
                         <p>No {{ $isChildrensTalk ? 'speaker' : 'preacher' }} could be automatically identified. Please assign the correct {{ $isChildrensTalk ? 'speaker' : 'preacher' }} below.</p>
                     @endif
-                    <p class="mt-1">Saving this form will clear the review flag.</p>
+                    <div class="mt-4 flex flex-wrap items-center gap-3">
+                        <x-form-button type="button" variant="secondary" size="sm" icon="user-plus" @click="document.getElementById('form-preacherId').focus()">
+                            Assign {{ $isChildrensTalk ? 'speaker' : 'preacher' }}
+                        </x-form-button>
+                        <p class="text-xs text-amber-700">Saving this form will clear the review flag.</p>
+                    </div>
                 </x-alert>
             @endif
 
@@ -99,7 +104,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Points</label>
                     <div class="space-y-2">
-                        @foreach($points as $index => $point)
+                        @forelse($points as $index => $point)
                             <div wire:key="point-{{ $index }}"
                                  x-transition:enter="transition ease-out duration-200"
                                  x-transition:enter-start="opacity-0 -translate-y-2"
@@ -107,14 +112,19 @@
                                  x-transition:leave="transition ease-in duration-150"
                                  x-transition:leave-start="opacity-100 translate-y-0"
                                  x-transition:leave-end="opacity-0 -translate-y-2"
-                                 class="flex gap-2">
+                                 class="group flex items-center gap-2">
+                                <span class="text-xs font-medium text-gray-400 tabular-nums w-6">{{ $index + 1 }}.</span>
                                 <x-input wire:model="form.points.{{ $index }}" class="flex-1" maxlength="255" />
-                                <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600"
+                                <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity focus-visible:opacity-100"
                                     wire:click="removePoint({{ $index }})"
                                     wire:confirm="Remove this sermon point?"
                                     aria-label="Remove point" />
                             </div>
-                        @endforeach
+                        @empty
+                            <p class="text-sm text-gray-500 italic py-2">
+                                No points defined for this sermon yet. Click "Add point" to start.
+                            </p>
+                        @endforelse
                     </div>
                 </div>
             </div>
@@ -161,7 +171,7 @@
                         <div class="grid gap-2">
                             <x-form-button
                                 type="button"
-                                variant="outline"
+                                :variant="$sermon->videoVisibilityOverride() === \App\Enums\SermonVideoVisibilityOverride::Default ? 'primary' : 'outline'"
                                 size="sm"
                                 wire:click="setVideoVisibilityOverride('default')"
                             >
@@ -169,7 +179,7 @@
                             </x-form-button>
                             <x-form-button
                                 type="button"
-                                variant="outline"
+                                :variant="$sermon->videoVisibilityOverride() === \App\Enums\SermonVideoVisibilityOverride::ForceShow ? 'primary' : 'outline'"
                                 size="sm"
                                 wire:click="setVideoVisibilityOverride('force_show')"
                             >
@@ -177,7 +187,7 @@
                             </x-form-button>
                             <x-form-button
                                 type="button"
-                                variant="danger"
+                                :variant="$sermon->videoVisibilityOverride() === \App\Enums\SermonVideoVisibilityOverride::ForceHide ? 'danger' : 'outline'"
                                 size="sm"
                                 wire:click="setVideoVisibilityOverride('force_hide')"
                             >
