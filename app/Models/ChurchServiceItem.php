@@ -114,15 +114,7 @@ class ChurchServiceItem extends Model
     protected function sourceTitle(): Attribute
     {
         return Attribute::make(
-            set: function (?string $value): ?string {
-                if ($value === null) {
-                    return null;
-                }
-
-                $trimmed = trim($value);
-
-                return $trimmed === '' ? null : $trimmed;
-            },
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 
@@ -132,15 +124,7 @@ class ChurchServiceItem extends Model
     protected function openlpSearchTitle(): Attribute
     {
         return Attribute::make(
-            set: function (?string $value): ?string {
-                if ($value === null) {
-                    return null;
-                }
-
-                $trimmed = trim($value);
-
-                return $trimmed === '' ? null : $trimmed;
-            },
+            set: fn (?string $value): ?string => filled($value) ? trim($value) : null,
         );
     }
 

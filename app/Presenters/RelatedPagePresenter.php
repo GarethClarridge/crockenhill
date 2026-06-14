@@ -17,7 +17,7 @@ class RelatedPagePresenter
 
     /**
      * @param  list<string>  $extraExcludedSlugs
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     public function ordered(
         string $linkArea,
@@ -37,7 +37,7 @@ class RelatedPagePresenter
 
     /**
      * @param  list<string>  $extraExcludedSlugs
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     public function random(
         string $linkArea,
@@ -59,7 +59,7 @@ class RelatedPagePresenter
 
     /**
      * @param  Collection<int, Page>  $pages
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     private function presentCollection(Collection $pages): Collection
     {

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Rules\TrimmedText;
 use Database\Factories\SongAuthorFactory;
-use Illuminate\Contracts\Validation\ImplicitRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -81,33 +81,15 @@ class SongAuthor extends Model
     public static function validationRules(?self $author = null): array
     {
         $uniqueRule = Rule::unique('song_authors', 'display_name');
-        $trimmedTextRule = new class implements ImplicitRule
-        {
-            public function passes($attribute, $value): bool
-            {
-                if ($value === null) {
-                    return true;
-                }
-
-                return is_string($value)
-                    && $value !== ''
-                    && trim($value) === $value;
-            }
-
-            public function message(): string
-            {
-                return 'The :attribute field must not be empty or contain leading or trailing whitespace.';
-            }
-        };
 
         if ($author) {
             $uniqueRule->ignore($author->id);
         }
 
         return [
-            'display_name' => ['required', 'string', 'max:255', $trimmedTextRule, $uniqueRule],
-            'first_name' => ['nullable', 'string', 'max:255', $trimmedTextRule],
-            'last_name' => ['nullable', 'string', 'max:255', $trimmedTextRule],
+            'display_name' => ['required', 'string', 'max:255', new TrimmedText, $uniqueRule],
+            'first_name' => ['nullable', 'string', 'max:255', new TrimmedText],
+            'last_name' => ['nullable', 'string', 'max:255', new TrimmedText],
         ];
     }
 
