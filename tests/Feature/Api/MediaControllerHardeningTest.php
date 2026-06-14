@@ -25,15 +25,17 @@ class MediaControllerHardeningTest extends TestCase
         $processingId = '00000000-0000-0000-0000-000000000000';
 
         // Create processing log first to satisfy foreign key
+        /** @var MediaProcessingLog $log */
         $log = MediaProcessingLog::factory()->create();
         /** @var LivestreamSegment $segment */
         $segment = LivestreamSegment::factory()->create(['media_processing_log_id' => $log->id]);
         $segmentId = $segment->id;
 
-        /** @var \Mockery\MockInterface $actionMock */
+        /** @var \Mockery\MockInterface&\App\Actions\ConfirmLivestreamSermonSegment $actionMock */
         $actionMock = $this->mock(ConfirmLivestreamSermonSegment::class);
-        $actionMock->shouldReceive('execute')
-            ->andThrow(new SafeInvalidArgumentException('This is a safe message.'));
+        /** @var \Mockery\Expectation $expectation */
+        $expectation = $actionMock->shouldReceive('execute');
+        $expectation->andThrow(new SafeInvalidArgumentException('This is a safe message.'));
 
         $response = $this->actingAs($user)
             ->postJson(route('api.media.processing.confirm-segment', ['processingId' => $processingId]), [
@@ -55,15 +57,17 @@ class MediaControllerHardeningTest extends TestCase
         $processingId = '00000000-0000-0000-0000-000000000000';
 
         // Create processing log first to satisfy foreign key
+        /** @var MediaProcessingLog $log */
         $log = MediaProcessingLog::factory()->create();
         /** @var LivestreamSegment $segment */
         $segment = LivestreamSegment::factory()->create(['media_processing_log_id' => $log->id]);
         $segmentId = $segment->id;
 
-        /** @var \Mockery\MockInterface $actionMock */
+        /** @var \Mockery\MockInterface&\App\Actions\ConfirmLivestreamSermonSegment $actionMock */
         $actionMock = $this->mock(ConfirmLivestreamSermonSegment::class);
-        $actionMock->shouldReceive('execute')
-            ->andThrow(new \InvalidArgumentException('This is an unsafe internal error message.'));
+        /** @var \Mockery\Expectation $expectation */
+        $expectation = $actionMock->shouldReceive('execute');
+        $expectation->andThrow(new \InvalidArgumentException('This is an unsafe internal error message.'));
 
         $response = $this->actingAs($user)
             ->postJson(route('api.media.processing.confirm-segment', ['processingId' => $processingId]), [

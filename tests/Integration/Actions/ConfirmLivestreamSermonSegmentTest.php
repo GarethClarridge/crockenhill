@@ -8,6 +8,7 @@ use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractSermon;
 use App\Mail\LivestreamProcessingFailed;
+use App\Exceptions\SafeInvalidArgumentException;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
@@ -94,7 +95,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
     #[Test]
     public function it_rejects_an_unknown_processing_id(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(SafeInvalidArgumentException::class);
         $this->expectExceptionMessage('Processing log not found.');
 
         $this->action->execute('00000000-0000-0000-0000-000000000000', 1, $this->admin);
@@ -113,7 +114,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
 
         $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(SafeInvalidArgumentException::class);
         $this->expectExceptionMessage('Only segmentation-style runs');
 
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
@@ -125,7 +126,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->completed()->create();
         $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(SafeInvalidArgumentException::class);
         $this->expectExceptionMessage('not currently awaiting manual sermon review');
 
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
@@ -141,7 +142,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $otherLog = MediaProcessingLog::factory()->livestream()->create();
         $foreignSegment = LivestreamSegment::factory()->speech()->forProcessingLog($otherLog->id)->create();
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(SafeInvalidArgumentException::class);
         $this->expectExceptionMessage('Segment not found on this processing run.');
 
         $this->action->execute($log->processing_id, $foreignSegment->id, $this->admin);
@@ -155,7 +156,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $log = $this->makeLivestreamLogAwaitingReview('livestreams/2026/service.mp4');
         $segment = LivestreamSegment::factory()->song()->forProcessingLog($log->id)->create();
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(SafeInvalidArgumentException::class);
         $this->expectExceptionMessage('Only speech segments');
 
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
@@ -167,7 +168,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $log = $this->makeLivestreamLogAwaitingReview('livestreams/2026/missing.mp4');
         $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(SafeInvalidArgumentException::class);
         $this->expectExceptionMessage('source video file is no longer available');
 
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
@@ -179,7 +180,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $log = $this->makeLivestreamLogAwaitingReview(null);
         $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(SafeInvalidArgumentException::class);
         $this->expectExceptionMessage('No source video path recorded');
 
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
@@ -202,7 +203,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
 
         // Second attempt fails because status is now pending (not required)
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(SafeInvalidArgumentException::class);
         $this->expectExceptionMessage('not currently awaiting manual sermon review');
 
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
