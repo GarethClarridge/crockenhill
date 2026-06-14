@@ -7,3 +7,8 @@
 **Pattern:** Reflection poking into private methods for unit testing.
 **Cause:** Desire to test small, internal validation logic (validateAudioFileSize) without exercising the full service path.
 **Fix:** Refactor tests to mock dependencies (StorageAdapterHelper, FFMpeg) and verify behavior through the public API (extractOptimizedAudio), asserting on the resulting status array and filesystem side effects. This hardened the test against future refactors of the private method signature or naming.
+
+## 2026-06-13 - Harden accessibility assertions and relocate database-dependent unit tests
+**Pattern:** Brittle HTML-string assertions and misclassified unit tests.
+**Cause:** Exact markup matching with volatile CSS classes (Tailwind) in feature tests; presence of database-hitting tests in the Unit/ directory.
+**Fix:** Replaced `assertSeeHtml` with `assertSeeInOrder` for more robust content verification. Relocated `MeetingPhotoMigrationServiceTest` and `MeetingShowPresenterTest` to the Integration/ directory to align with architectural standards and ensure proper environment setup.
