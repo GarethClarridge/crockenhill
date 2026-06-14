@@ -2,21 +2,39 @@
 
 @section('title', 'Christ')
 
-@section('meta_description', 'Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Explore the good news of Christianity at Crockenhill Baptist Church.')
+@section('meta_description', 'Learn about Jesus Christ: who he is, why you need him, and what he has done for you. Explore the good news of Jesus at Crockenhill Baptist Church.')
 
 @section('meta_tags')
 <x-meta-tags
   title="Christ"
-  description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Explore the good news of Christianity at Crockenhill Baptist Church."
+  description="Learn about Jesus Christ: who he is, why you need him, and what he has done for you. Explore the good news of Jesus at Crockenhill Baptist Church."
   :image="asset('/images/homepage/may2024wide.webp')"
   image-alt="Crockenhill Baptist Church members outside the church building" />
 <x-schema.webpage
   heading="Christ"
-  description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Explore the good news of Christianity at Crockenhill Baptist Church."
+  description="Learn about Jesus Christ: who he is, why you need him, and what he has done for you. Explore the good news of Jesus at Crockenhill Baptist Church."
   :image="asset('/images/homepage/may2024wide.webp')"
 />
 
-<x-breadcrumbs area="christ" heading="Christ" jsonOnly />
+{{-- VideoObject JSON-LD for the featured gospel video --}}
+<script type="application/ld+json">
+{!! json_encode([
+    '@context' => 'https://schema.org',
+    '@type' => 'VideoObject',
+    'name' => 'Two Ways to Live - The Gospel in 90 seconds',
+    'description' => 'A short animation explaining the core message of Christianity: how we can be reconciled to God through Jesus Christ.',
+    'thumbnailUrl' => 'https://i.ytimg.com/vi/Y_lDeIzh2t0/maxresdefault.jpg',
+    'uploadDate' => '2012-05-24T10:14:52Z',
+    'duration' => 'PT1M27S',
+    'contentUrl' => 'https://www.youtube.com/watch?v=Y_lDeIzh2t0',
+    'embedUrl' => 'https://www.youtube.com/embed/Y_lDeIzh2t0',
+    'publisher' => [
+        '@type' => 'Organization',
+        'name' => 'Matthias Media',
+        'url' => 'https://matthiasmedia.com.au/'
+    ]
+], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+</script>
 
 <x-schema.faq :questions="[
     [
@@ -37,6 +55,10 @@
     ],
 ]" />
 @stop
+
+@push('breadcrumb_schema')
+<x-breadcrumbs area="christ" heading="Christ" jsonOnly />
+@endpush
 
 @section('content')
 <main id="main-content" tabindex="-1" class="text-center">
