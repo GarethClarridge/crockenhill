@@ -5,16 +5,41 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Enums\ProcessingStatus;
+use Illuminate\Support\Carbon;
 
+/**
+ * @phpstan-type ProcessingReportData array{
+ *     processing_id: string,
+ *     status?: string|ProcessingStatus,
+ *     original_filename: string,
+ *     file_size_mb: float,
+ *     duration_seconds: float|null,
+ *     total_segments?: int,
+ *     processing_duration_seconds?: float|int|null,
+ *     segment_summary: array{
+ *         total_count: int,
+ *         song_segments: array{count: int, total_duration: float},
+ *         speech_segments: array{count: int, total_duration: float},
+ *         sermon_segment: array{start_time: float, end_time: float, duration: float}|null,
+ *     },
+ *     sermon_processing_status: 'completed'|'not_started',
+ *     sermon_id: int|null,
+ *     errors: array<int, array{timestamp: string, level: string, message: string}>,
+ *     warnings: array<int, array{timestamp: string, level: string, message: string}>,
+ *     performance_metrics: array<string, array{execution_time: float, timestamp: string}>,
+ *     created_at: Carbon|null,
+ *     completed_at: Carbon|null,
+ * }
+ */
 class ProcessingReport
 {
     /**
-     * @param  array<string, mixed>  $data
+     * @param  ProcessingReportData  $data
      */
     public function __construct(public readonly array $data) {}
 
     /**
-     * @return array<string, mixed>
+     * @return ProcessingReportData
      */
     public function toArray(): array
     {
@@ -37,7 +62,7 @@ class ProcessingReport
             return $status->value;
         }
 
-        return $status;
+        return (string) $status;
     }
 
     public function hasErrors(): bool
@@ -50,7 +75,7 @@ class ProcessingReport
         return ! empty($this->data['warnings']);
     }
 
-    public function getProcessingDuration(): ?int
+    public function getProcessingDuration(): float|int|null
     {
         return $this->data['processing_duration_seconds'] ?? null;
     }

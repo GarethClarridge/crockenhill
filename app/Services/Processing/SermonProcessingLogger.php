@@ -434,11 +434,12 @@ class SermonProcessingLogger
     /**
      * Generate a comprehensive processing report for a livestream processing run.
      *
-     * Aggregates database metadata, segment summaries, and parsed log entries
-     * into a single report object for administrative review.
+     * Aggregates database metadata, segment summaries, performance metrics,
+     * and parsed log entries into a single report object for administrative
+     * review and audit trails.
      *
      * @param  string  $processingId  The unique processing identifier
-     * @return ProcessingReport The aggregated processing report
+     * @return ProcessingReport The aggregated processing report containing structured metadata and analysis
      *
      * @throws \Exception When the processing record is not found in the database.
      */
@@ -518,7 +519,7 @@ class SermonProcessingLogger
     }
 
     /**
-     * @return Collection<int, array<string, string>>
+     * @return Collection<int, array{timestamp: string, level: string, message: string}>
      */
     private function getLogsForReport(string $processingId): Collection
     {
@@ -547,7 +548,7 @@ class SermonProcessingLogger
     }
 
     /**
-     * @return array<string, string>|null
+     * @return array{timestamp: string, level: string, message: string}|null
      */
     private function parseReportLogLine(string $line): ?array
     {
@@ -564,7 +565,12 @@ class SermonProcessingLogger
 
     /**
      * @param  Collection<int, LivestreamSegment>  $segments
-     * @return array<string, mixed>
+     * @return array{
+     *     total_count: int,
+     *     song_segments: array{count: int, total_duration: float},
+     *     speech_segments: array{count: int, total_duration: float},
+     *     sermon_segment: array{start_time: float, end_time: float, duration: float}|null,
+     * }
      */
     private function buildSegmentSummary(Collection $segments): array
     {
@@ -591,15 +597,15 @@ class SermonProcessingLogger
     }
 
     /**
-     * @param  Collection<int, array<string, string>>  $logs
-     * @return array<string, array<string, float|string>>
+     * @param  Collection<int, array{timestamp: string, level: string, message: string}>  $logs
+     * @return array<string, array{execution_time: float, timestamp: string}>
      */
     private function buildPerformanceMetrics(Collection $logs): array
     {
         $metrics = [];
 
         foreach ($logs as $log) {
-            if (str_contains($log['message'] ?? '', 'performance metrics')) {
+            if (str_contains($log['message'], 'performance metrics')) {
                 if (preg_match('/execution_time_seconds":([\d.]+)/', $log['message'], $matches)) {
                     $step = $this->extractStepFromMessage($log['message']);
                     $metrics[$step] = [
