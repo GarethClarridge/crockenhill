@@ -6,6 +6,10 @@ Community
 
 @section('meta_description', 'Join our community activities at Crockenhill Baptist Church. Meet local people, activities for children, and opportunities to learn about Jesus in Kent.')
 
+@section('canonical')
+<link rel="canonical" href="{{ url('/community') }}">
+@endsection
+
 @section('meta_tags')
 <x-meta-tags
   title="Community"

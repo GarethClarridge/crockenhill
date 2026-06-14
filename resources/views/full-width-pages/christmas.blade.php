@@ -4,6 +4,10 @@
 
 @section('meta_description', 'Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events.')
 
+@section('canonical')
+<link rel="canonical" href="{{ url('/christmas') }}">
+@endsection
+
 @section('meta_tags')
 <x-meta-tags
     title="Christmas"

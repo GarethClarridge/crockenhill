@@ -28,7 +28,7 @@ class PageCardPresenter
 
         return [
             'area' => $area,
-            'description' => $page->description,
+            'description' => (string) $page->description,
             'heading' => $page->heading,
             'image_url' => $this->pageImagePresenter->headingImageSmallUrl($page) ?? '/images/headings/small/default.webp',
             'slug' => $page->slug,

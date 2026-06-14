@@ -4,6 +4,10 @@
 
 @section('meta_description', 'Learn about Jesus Christ: who he is, why you need him, and what he has done for you. Explore the good news of Jesus at Crockenhill Baptist Church.')
 
+@section('canonical')
+<link rel="canonical" href="{{ url('/christ') }}">
+@endsection
+
 @section('meta_tags')
 <x-meta-tags
   title="Christ"

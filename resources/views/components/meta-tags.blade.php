@@ -18,6 +18,8 @@
     'data1' => null,
     'label2' => null,
     'data2' => null,
+    'twitterSite' => null,
+    'twitterCreator' => null,
 ])
 
 @php
@@ -82,6 +84,12 @@
 <meta name="twitter:title" content="{{ $fullTitle }}">
 <meta name="twitter:description" content="{{ $metaDescription }}">
 <meta name="twitter:image" content="{{ $metaImage }}">
+@if($twitterSite)
+<meta name="twitter:site" content="{{ $twitterSite }}">
+@endif
+@if($twitterCreator)
+<meta name="twitter:creator" content="{{ $twitterCreator }}">
+@endif
 @if($imageAlt)
 <meta name="twitter:image:alt" content="{{ $imageAlt }}">
 @endif
