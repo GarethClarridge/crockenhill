@@ -4,7 +4,7 @@
     <div class="mt-auto border-t border-gray-100">
         <form
             method="POST"
-            action="/christ/sermons/{{ $sermon->date->format('Y') }}/{{ $sermon->date->format('m') }}/{{ $sermon->slug }}/delete"
+            action="{{ route('sermons.destroy', $sermon->slug) }}"
             accept-charset="UTF-8"
             class="grid grid-cols-2"
         >
