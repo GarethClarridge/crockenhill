@@ -42,7 +42,18 @@ class VideoStorageService
     }
 
     /**
-     * @return array<string, string|int|null>
+     * Store an uploaded video file temporarily for processing.
+     *
+     * @param  UploadedFile  $file  The uploaded video file
+     * @return array{
+     *     temp_path: string,
+     *     full_path: string,
+     *     original_filename: string,
+     *     file_size: int,
+     *     mime_type: string|null
+     * }
+     *
+     * @throws \RuntimeException If the file cannot be stored on the temp disk
      */
     public function storeUploadedVideo(UploadedFile $file): array
     {
@@ -81,6 +92,14 @@ class VideoStorageService
         }
     }
 
+    /**
+     * Extract a video segment from a source video file.
+     *
+     * @param  string  $inputVideoPath  Absolute path to the source video
+     * @param  LivestreamSegment  $segment  The segment to extract
+     * @param  string|null  $outputFilename  Optional custom filename for the output
+     * @return string The relative path to the extracted video file
+     */
     public function extractVideoSegment(
         string $inputVideoPath,
         LivestreamSegment $segment,
@@ -89,6 +108,14 @@ class VideoStorageService
         return $this->videoExtractor->extractSegmentAsFile($inputVideoPath, $segment, $outputFilename);
     }
 
+    /**
+     * Extract audio from a specific video segment.
+     *
+     * @param  string  $inputVideoPath  Absolute path to the source video
+     * @param  LivestreamSegment  $segment  The segment to extract audio from
+     * @param  string|null  $outputFilename  Optional custom filename for the output
+     * @return string The storage path to the extracted audio file
+     */
     public function extractAudioFromSegment(
         string $inputVideoPath,
         LivestreamSegment $segment,
@@ -124,7 +151,17 @@ class VideoStorageService
     }
 
     /**
-     * @return array<string, string>
+     * Move processed media files from temporary to permanent sermon storage.
+     *
+     * Handles both local and S3-compatible storage logic, including
+     * audio extraction and S3 stream uploads where necessary.
+     *
+     * @param  string  $tempVideoPath  The relative path on the temp disk
+     * @param  string  $sermonSlug  The slug to use for the final filenames
+     * @return array{video_path: string, audio_path: string} Final storage paths
+     *
+     * @throws \RuntimeException If file operations or S3 uploads fail
+     * @throws \Exception For underlying filesystem errors
      */
     public function moveToSermonStorage(string $tempVideoPath, string $sermonSlug): array
     {
@@ -251,6 +288,11 @@ class VideoStorageService
         ]);
     }
 
+    /**
+     * Delete temporary files that have exceeded their retention period.
+     *
+     * @return int The number of files successfully deleted
+     */
     public function cleanupExpiredFiles(): int
     {
         $deletedCount = 0;
@@ -285,7 +327,17 @@ class VideoStorageService
     }
 
     /**
-     * @return array<string, int>
+     * Retrieve aggregate statistics for video and audio storage disks.
+     *
+     * @return array{
+     *     temp_files_count: int,
+     *     temp_files_size: int,
+     *     video_files_count: int,
+     *     video_files_size: int,
+     *     audio_files_count: int,
+     *     audio_files_size: int,
+     *     total_size: int
+     * }|array<never, never>
      */
     public function getStorageStats(): array
     {
@@ -320,6 +372,12 @@ class VideoStorageService
         }
     }
 
+    /**
+     * Verify if enough local disk space is available for processing.
+     *
+     * @param  int  $requiredBytes  The estimated storage needed
+     * @return bool True if sufficient space exists
+     */
     public function validateStorageSpace(int $requiredBytes): bool
     {
         try {
@@ -337,6 +395,12 @@ class VideoStorageService
 
     /**
      * Upload a local file to permanent storage with exponential-backoff retry.
+     *
+     * @param  string  $localFilePath  Absolute path to the local source file
+     * @param  string  $permanentPath  Relative destination path on the permanent disk
+     * @return string The confirmed permanent storage path
+     *
+     * @throws \App\Exceptions\VideoProcessingException If all upload attempts fail
      */
     public function uploadToPermanentStorage(string $localFilePath, string $permanentPath): string
     {
@@ -394,24 +458,47 @@ class VideoStorageService
         }
     }
 
+    /**
+     * Get the public URL for a video file.
+     *
+     * @param  string  $videoPath  The storage path to the video
+     * @return string The full public URL
+     */
     public function getVideoUrl(string $videoPath): string
     {
         return Storage::disk($this->permanentDisk)->url($videoPath);
     }
 
+    /**
+     * Get the public URL for an audio file.
+     *
+     * @param  string  $audioPath  The storage path to the audio
+     * @return string The full public URL
+     */
     public function getAudioUrl(string $audioPath): string
     {
         return Storage::disk($this->permanentDisk)->url($audioPath);
     }
 
+    /**
+     * Check if a video file exists in permanent storage.
+     *
+     * @param  string  $videoPath  The storage path to check
+     * @return bool True if the file exists
+     */
     public function videoExists(string $videoPath): bool
     {
         return Storage::disk($this->permanentDisk)->exists($videoPath);
     }
 
     /**
-     * Check whether the source video for a processing run is still accessible,
-     * either on the configured temp disk or as an absolute filesystem path.
+     * Check whether the source video for a processing run is still accessible.
+     *
+     * Verifies existence either on the configured temp disk or as an
+     * absolute filesystem path.
+     *
+     * @param  string  $sourceFilePath  The path to check
+     * @return bool True if the source video exists
      */
     public function sourceVideoExistsForPath(string $sourceFilePath): bool
     {
@@ -421,6 +508,12 @@ class VideoStorageService
             || file_exists($sourceFilePath);
     }
 
+    /**
+     * Check if an audio file exists in permanent storage.
+     *
+     * @param  string  $audioPath  The storage path to check
+     * @return bool True if the file exists
+     */
     public function audioExists(string $audioPath): bool
     {
         return Storage::disk($this->permanentDisk)->exists($audioPath);
@@ -429,9 +522,18 @@ class VideoStorageService
     // Interface implementation methods
 
     /**
-     * Store uploaded file temporarily for processing
+     * Store uploaded file temporarily for processing.
      *
-     * @return array<string, string|int|null>
+     * Interface implementation delegating to storeUploadedVideo.
+     *
+     * @param  UploadedFile  $file  The uploaded file
+     * @return array{
+     *     temp_path: string,
+     *     full_path: string,
+     *     original_filename: string,
+     *     file_size: int,
+     *     mime_type: string|null
+     * }
      */
     public function storeTemporary(UploadedFile $file): array
     {
@@ -439,9 +541,12 @@ class VideoStorageService
     }
 
     /**
-     * Move processed file to permanent storage
+     * Move processed file to permanent storage.
+     *
+     * Interface implementation delegating to moveToSermonStorage.
      *
      * @param  array<string, mixed>  $uploadResult
+     * @return string The resulting permanent video path
      */
     public function moveToPermanent(array $uploadResult): string
     {
@@ -455,7 +560,13 @@ class VideoStorageService
     }
 
     /**
-     * Clean up temporary files and processing artifacts
+     * Clean up temporary files and processing artifacts.
+     *
+     * Interface implementation; currently a no-op as artifacts are
+     * handled by the specialized cleanupTemporaryFiles method.
+     *
+     * @param  string  $processingId  The processing identifier to clean up
+     * @return void
      */
     public function cleanup(string $processingId): void
     {

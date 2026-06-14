@@ -59,7 +59,15 @@ class VideoExtractionService
     }
 
     /**
-     * Extract video segment and return as file path (for storage operations)
+     * Extract video segment and return as file path (for storage operations).
+     *
+     * @param  string  $inputPath  Absolute path to the source video
+     * @param  object  $segment  Segment data with start_time and end_time
+     * @param  string|null  $outputFilename  Optional custom filename for the output
+     * @return string The relative path to the extracted video file
+     *
+     * @throws \App\Exceptions\VideoProcessingException If output file was not created
+     * @throws \Exception For underlying system or FFmpeg errors
      */
     public function extractSegmentAsFile(string $inputPath, object $segment, ?string $outputFilename = null): string
     {
@@ -139,7 +147,12 @@ class VideoExtractionService
     /**
      * Extract and hard-join multiple spans using FFmpeg concat demuxer.
      *
-     * @param  array<int, array{start_time: float, end_time: float}>  $segments
+     * @param  string  $inputPath  Absolute path to the source video
+     * @param  array<int, array{start_time: float, end_time: float}>  $segments  List of spans to join
+     * @param  string|null  $outputFilename  Optional custom filename for the output
+     * @return string The relative path to the concatenated video file
+     *
+     * @throws \App\Exceptions\VideoProcessingException If concatenation fails or no valid segments provided
      */
     public function extractConcatenatedSegmentAsFile(
         string $inputPath,
@@ -248,7 +261,14 @@ class VideoExtractionService
     }
 
     /**
-     * Extract video segment and return as UploadedFile (for processing pipelines)
+     * Extract video segment and return as UploadedFile (for processing pipelines).
+     *
+     * @param  string  $inputPath  Absolute path to the source video
+     * @param  object  $segment  Segment data with start_time and end_time
+     * @param  string|null  $outputFilename  Optional custom filename for the output
+     * @return UploadedFile The extracted segment as a Laravel UploadedFile
+     *
+     * @throws \App\Exceptions\VideoProcessingException If extraction fails or times are invalid
      */
     public function extractSegmentAsUpload(string $inputPath, object $segment, ?string $outputFilename = null): UploadedFile
     {
@@ -382,9 +402,15 @@ class VideoExtractionService
     }
 
     /**
-     * Extract audio from video segment
+     * Extract audio from a video segment.
      *
-     * @param  array<string, mixed>  $compressionOptions
+     * @param  string  $inputVideoPath  Absolute path to the source video
+     * @param  object  $segment  Segment data with start_time and end_time
+     * @param  array<string, mixed>  $compressionOptions  Technical options (bitrate, channels)
+     * @param  string|null  $outputFilename  Optional custom filename for the output
+     * @return string The storage path to the extracted audio file
+     *
+     * @throws \Exception If extraction or S3 upload fails
      */
     public function extractAudio(
         string $inputVideoPath,
@@ -472,6 +498,11 @@ class VideoExtractionService
      * Extract optimized audio from segment with compression validation.
      * Delegates to AudioCompressionService; passes its own S3 upload handler.
      *
+     * @param  string  $inputVideoPath  Absolute path to the source video
+     * @param  object  $segment  Segment data with start_time and end_time
+     * @param  string|null  $outputFilename  Optional custom filename for the output
+     * @param  string|null  $permanentDisk  Optional disk name override
+     * @param  string|null  $audioPath  Optional destination directory override
      * @return array{
      *     audio_path: string,
      *     full_path: string,
@@ -481,6 +512,8 @@ class VideoExtractionService
      *     compression_ratio: float,
      *     valid_for_transcription: bool
      * }
+     *
+     * @throws \Exception If extraction fails
      */
     public function extractOptimizedAudio(
         string $inputVideoPath,

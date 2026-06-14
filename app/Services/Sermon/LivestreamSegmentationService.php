@@ -72,13 +72,9 @@ class LivestreamSegmentationService
             }
 
             $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
-            $fullPath = is_string($uploadResult['full_path'] ?? null) ? $uploadResult['full_path'] : null;
-            $tempPath = is_string($uploadResult['temp_path'] ?? null) ? $uploadResult['temp_path'] : null;
-            $originalFilename = is_string($uploadResult['original_filename'] ?? null) ? $uploadResult['original_filename'] : null;
-
-            if ($fullPath === null || $tempPath === null || $originalFilename === null) {
-                throw new RuntimeException('Invalid upload result from storage service.');
-            }
+            $fullPath = $uploadResult['full_path'];
+            $tempPath = $uploadResult['temp_path'];
+            $originalFilename = $uploadResult['original_filename'];
 
             if (! $this->segmentationService->validateVideoFile($fullPath)) {
                 throw new Exception('Invalid video file format');

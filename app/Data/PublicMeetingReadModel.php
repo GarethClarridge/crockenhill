@@ -35,7 +35,7 @@ final readonly class PublicMeetingReadModel
      * @return array{
      *     area: string,
      *     content: string,
-     *     description: string,
+     *     description: string|null,
      *     heading: string,
      *     headingpicture: ?string,
      *     headingpictureMobile: ?string,
