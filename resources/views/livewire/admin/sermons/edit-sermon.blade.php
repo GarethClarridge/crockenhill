@@ -113,9 +113,9 @@
                                  x-transition:leave-start="opacity-100 translate-y-0"
                                  x-transition:leave-end="opacity-0 -translate-y-2"
                                  class="group flex items-center gap-2">
-                                <span class="text-xs font-medium text-gray-400 tabular-nums w-4">{{ $index + 1 }}.</span>
+                                <span class="text-xs font-medium text-gray-400 tabular-nums w-6">{{ $index + 1 }}.</span>
                                 <x-input wire:model="form.points.{{ $index }}" class="flex-1" maxlength="255" />
-                                <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity focus:opacity-100"
+                                <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity focus-visible:opacity-100"
                                     wire:click="removePoint({{ $index }})"
                                     wire:confirm="Remove this sermon point?"
                                     aria-label="Remove point" />
