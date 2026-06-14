@@ -285,7 +285,7 @@ class SermonController extends Controller
 
     /**
      * @param  list<string>  $extraExcludedSlugs
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     private function sermonLinks(string $slugToExclude, array $extraExcludedSlugs = []): Collection
     {

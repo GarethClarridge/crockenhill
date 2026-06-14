@@ -14,7 +14,7 @@ class PageCardPresenter
     ) {}
 
     /**
-     * @return array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}
+     * @return array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}
      */
     public function present(Page $page): array
     {
@@ -38,7 +38,7 @@ class PageCardPresenter
 
     /**
      * @param  Collection<int, Page>  $pages
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     public function presentCollection(Collection $pages): Collection
     {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Rules\TrimmedText;
 use Closure;
 use Database\Factories\SongBookFactory;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -86,26 +86,10 @@ class SongBook extends Model
             $uniqueSourceBookId->ignore($songBook->id);
         }
 
-        $trimmedTextRule = new class implements ValidationRule
-        {
-            public bool $implicit = true;
-
-            public function validate(string $attribute, mixed $value, Closure $fail): void
-            {
-                if ($value === null) {
-                    return;
-                }
-
-                if (! is_string($value) || $value === '' || trim($value) !== $value) {
-                    $fail('The :attribute field must not be empty or contain leading or trailing whitespace.');
-                }
-            }
-        };
-
         return [
             'source_book_id' => ['required', 'integer', $uniqueSourceBookId],
-            'name' => ['required', 'string', 'max:255', $trimmedTextRule],
-            'publisher' => ['nullable', 'string', 'max:255', $trimmedTextRule],
+            'name' => ['required', 'string', 'max:255', new TrimmedText],
+            'publisher' => ['nullable', 'string', 'max:255', new TrimmedText],
         ];
     }
 

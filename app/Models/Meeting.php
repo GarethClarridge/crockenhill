@@ -7,10 +7,10 @@ namespace App\Models;
 use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Enums\PageArea;
+use App\Rules\TrimmedText;
 use App\Sitemap\MeetingSitemapPresenter;
 use Closure;
 use Database\Factories\MeetingFactory;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -180,28 +180,14 @@ class Meeting extends Model implements HasMedia, Sitemapable
         }
         $pageIdRule[] = $uniquePageId;
 
-        $trimmedTextRule = new class implements ValidationRule
-        {
-            public function validate(string $attribute, mixed $value, Closure $fail): void
-            {
-                if ($value === null) {
-                    return;
-                }
-
-                if (! is_string($value) || $value === '' || trim($value) !== $value) {
-                    $fail('The :attribute field must not be empty or contain leading or trailing whitespace.');
-                }
-            }
-        };
-
         return [
             'slug' => $slugRule,
             'type' => ['required', Rule::enum(MeetingType::class)],
-            'day' => ['nullable', 'string', 'max:75', $trimmedTextRule],
-            'location' => ['nullable', 'string', 'max:255', $trimmedTextRule],
-            'who' => ['required', 'string', 'max:255', $trimmedTextRule],
-            'leaders_phone' => ['nullable', 'string', 'max:255', $trimmedTextRule],
-            'leaders_email' => ['nullable', 'email', 'max:255', $trimmedTextRule],
+            'day' => ['nullable', 'string', 'max:75', new TrimmedText],
+            'location' => ['nullable', 'string', 'max:255', new TrimmedText],
+            'who' => ['required', 'string', 'max:255', new TrimmedText],
+            'leaders_phone' => ['nullable', 'string', 'max:255', new TrimmedText],
+            'leaders_email' => ['nullable', 'email', 'max:255', new TrimmedText],
             'is_recurring' => ['nullable', 'boolean'],
             'frequency' => ['nullable', 'required_if:is_recurring,true', Rule::enum(MeetingFrequency::class)],
             'page_id' => $pageIdRule,

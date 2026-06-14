@@ -48,7 +48,7 @@ class PageCardService
     ) {}
 
     /**
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     public function forHome(): Collection
     {
@@ -56,7 +56,7 @@ class PageCardService
     }
 
     /**
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     public function forCommunity(): Collection
     {
@@ -64,7 +64,7 @@ class PageCardService
     }
 
     /**
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     public function forChurch(): Collection
     {
@@ -72,7 +72,7 @@ class PageCardService
     }
 
     /**
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     public function churchLinks(): Collection
     {
@@ -92,7 +92,7 @@ class PageCardService
 
     /**
      * @param  list<string>  $slugs
-     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
     private function communityPages(array $slugs, string $cacheKey): Collection
     {
