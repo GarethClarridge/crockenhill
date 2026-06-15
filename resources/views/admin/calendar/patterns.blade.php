@@ -5,7 +5,7 @@
 
 <x-admin.page
     title="Categorisation Patterns"
-    description="These patterns are used to automatically categorise calendar events based on their titles. Patterns are defined in the config/calendar.php file."
+    description="These patterns are used to automatically categorise calendar events based on their titles. Patterns are defined in the system configuration. Please contact the site administrator to make changes."
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.calendar.uncategorized') }}" variant="outline" inline>
@@ -84,7 +84,7 @@
             <div>
                 <h3 class="text-sm font-medium text-gray-900">Editing Patterns</h3>
                 <p class="mt-2 text-sm text-gray-600">
-                    To modify these patterns, edit the <code class="text-xs bg-gray-100 px-1 py-0.5 rounded">config/calendar.php</code> file and add or remove patterns from the <code class="text-xs bg-gray-100 px-1 py-0.5 rounded">meeting_patterns</code> array. Changes take effect on the next calendar sync.
+                    To modify these patterns, please contact the site administrator. Changes made to the system configuration take effect on the next calendar sync.
                 </p>
             </div>
         </div>
