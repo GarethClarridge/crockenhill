@@ -7,6 +7,7 @@ namespace App\Services\Processing;
 use App\Enums\MediaType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\TempDiskSpace;
@@ -28,7 +29,11 @@ class SermonValidationService
     ) {}
 
     /**
-     * Validate the uploaded audio file
+     * Validate the uploaded audio file against configured size and type constraints.
+     *
+     * @param  UploadedFile  $file  The uploaded audio file
+     *
+     * @throws InvalidFileException If the file is invalid
      */
     public function validateAudioFile(UploadedFile $file): void
     {
@@ -36,10 +41,13 @@ class SermonValidationService
     }
 
     /**
-     * Validate processing metadata
+     * Validate processing metadata before starting the pipeline.
      *
-     * @param  array<string, mixed>  $metadata
-     * @return array<int, string>
+     * @param  array{
+     *     source_type: string,
+     *     original_filename: string,
+     * }  $metadata  Initial processing metadata
+     * @return array<int, string> List of validation error messages
      */
     public function validateProcessingMetadata(array $metadata): array
     {
@@ -79,9 +87,20 @@ class SermonValidationService
     }
 
     /**
-     * Generate fallback data for graceful degradation
+     * Generate fallback data for graceful degradation.
      *
-     * @return array<string, mixed>
+     * Provides a set of minimum viable sermon attributes extracted from
+     * existing records or filenames when AI analysis fails or is unavailable.
+     *
+     * @param  Sermon  $sermon  The sermon model (potentially partially populated)
+     * @param  MediaProcessingLog  $processingLog  The active processing log
+     * @return array{
+     *     title: string,
+     *     slug: string,
+     *     series: null,
+     *     reference: null,
+     *     points: list<string>,
+     * } Fallback attribute set
      */
     public function generateFallbackData(Sermon $sermon, MediaProcessingLog $processingLog): array
     {
@@ -108,7 +127,14 @@ class SermonValidationService
     }
 
     /**
-     * Generate a fallback title for graceful degradation
+     * Generate a fallback title for graceful degradation.
+     *
+     * Attempts to derive a title from the original filename (stripping dates
+     * and separators) or falls back to a date-based "Sermon - [Date]" format.
+     *
+     * @param  Sermon  $sermon  The sermon model
+     * @param  MediaProcessingLog  $processingLog  The active processing log
+     * @return string The generated title
      */
     public function generateFallbackTitle(Sermon $sermon, MediaProcessingLog $processingLog): string
     {
@@ -131,10 +157,23 @@ class SermonValidationService
     }
 
     /**
-     * Validate sermon data before creation/update
+     * Validate sermon data before creation/update.
      *
-     * @param  array<string, mixed>  $data
-     * @return array<int, string>
+     * Applies standard sermon validation rules to an attribute array,
+     * ensuring title, date, and other optional fields meet length and format
+     * constraints.
+     *
+     * @param  array{
+     *     sermon_id?: int,
+     *     title?: string,
+     *     date?: string,
+     *     service?: string,
+     *     preacher?: string,
+     *     series?: string,
+     *     reference?: string,
+     *     slug?: string,
+     * }  $data  The attribute array to validate
+     * @return array<int, string> List of validation error messages
      */
     public function validateSermonData(array $data): array
     {
@@ -174,9 +213,13 @@ class SermonValidationService
     }
 
     /**
-     * Validate file storage constraints
+     * Validate file storage constraints.
      *
-     * @return array<int, string>
+     * Verifies sufficient disk space on the local temp disk and checks
+     * for known file extension compatibility issues.
+     *
+     * @param  UploadedFile  $file  The file to evaluate
+     * @return array<int, string> List of storage-related error messages or warnings
      */
     public function validateStorageConstraints(UploadedFile $file): array
     {
@@ -187,6 +230,10 @@ class SermonValidationService
         // Spaces (S3) disk in production with no `root`, so the old check there silently
         // passed (disk_free_space(null)). TempDiskSpace reads the same threshold the
         // historic importer guard uses, so the two never disagree.
+        //
+        // Rationale: We require 2x the file size to provide headroom for the original
+        // upload plus temporary processing artifacts generated during extraction
+        // or compression.
         $requiredSpace = $file->getSize() * 2; // File + processing overhead
 
         try {
@@ -217,9 +264,12 @@ class SermonValidationService
     }
 
     /**
-     * Validate processing requirements
+     * Validate application-level processing requirements.
      *
-     * @return array<int, string>
+     * Checks if external services (like OpenAI), queues, and storage disks
+     * are correctly configured before attempting to initiate processing.
+     *
+     * @return array<int, string> List of missing configuration error messages
      */
     public function validateProcessingRequirements(): array
     {
@@ -245,7 +295,14 @@ class SermonValidationService
     }
 
     /**
-     * Check if processing can be retried automatically
+     * Check if a failed processing run can be retried automatically.
+     *
+     * Evaluates the age of the run and the nature of the error (e.g. ignoring
+     * non-retryable critical failures like 'file_not_found') to determine
+     * if an automated retry attempt is appropriate.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log to evaluate
+     * @return bool True if the run is eligible for retry
      */
     public function canRetryProcessing(MediaProcessingLog $processingLog): bool
     {
@@ -276,7 +333,14 @@ class SermonValidationService
     }
 
     /**
-     * Check if processing requires manual review
+     * Check if a processing run requires manual administrative review.
+     *
+     * Determines if a run has stalled in a critical step or encountered
+     * an error pattern that cannot be resolved automatically (e.g. database
+     * constraint violations or missing source files).
+     *
+     * @param  MediaProcessingLog  $processingLog  The log to evaluate
+     * @return bool True if manual intervention is required
      */
     public function requiresManualReview(MediaProcessingLog $processingLog): bool
     {
