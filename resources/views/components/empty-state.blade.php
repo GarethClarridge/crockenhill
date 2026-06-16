@@ -9,7 +9,7 @@
         <x-dynamic-component :component="'heroicon-o-' . $icon" class="h-12 w-12" aria-hidden="true" />
     </div>
 
-    <h3 class="mb-3 font-display text-3xl text-slate-900">{{ $title }}</h3>
+    <h2 class="mb-3 font-display text-3xl text-slate-900">{{ $title }}</h2>
 
     @if($description)
         <p class="mx-auto max-w-lg text-lg text-slate-600">

@@ -410,10 +410,10 @@
 
                     @if ($sermon->source_type === 'livestream' && $sermon->livestreamProcessing)
                     <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                        <h3 class="font-display text-lg text-gray-900 mb-3 flex items-center gap-2">
+                        <h2 class="font-display text-lg text-gray-900 mb-3 flex items-center gap-2">
                             <x-heroicon-o-signal class="h-4 w-4 text-cbc-teal" />
                             Livestream Processing
-                        </h3>
+                        </h2>
                         <div class="grid grid-cols-1 gap-4 text-sm">
                             <div>
                                 <span class="font-medium text-gray-700">Original File:</span>

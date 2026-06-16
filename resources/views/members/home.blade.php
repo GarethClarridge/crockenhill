@@ -28,10 +28,10 @@
         @if (auth()->user()?->canAccessAdmin())
         <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
-            <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
+            <h2 class="font-display text-lg text-gray-900 flex items-center gap-2">
               <x-heroicon-o-microphone class="h-5 w-5 text-gray-500" aria-hidden="true" />
               Services, sermons and songs
-            </h3>
+            </h2>
           </div>
           <div class="p-4 grid grid-cols-2 gap-2">
             @if($serviceTrackingEnabled ?? true)
@@ -72,10 +72,10 @@
         @if (auth()->user()?->canAccessAdmin())
         <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
-            <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
+            <h2 class="font-display text-lg text-gray-900 flex items-center gap-2">
               <x-heroicon-o-calendar-days class="h-5 w-5 text-gray-500" aria-hidden="true" />
               Meetings and events
-            </h3>
+            </h2>
           </div>
           <div class="p-4 grid grid-cols-2 gap-2">
             <x-button link="{{ route('admin.meetings.index') }}" icon="pencil-square" iconStyle="solid">
@@ -104,10 +104,10 @@
         @if (auth()->user()?->canAccessAdmin())
         <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
-            <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
+            <h2 class="font-display text-lg text-gray-900 flex items-center gap-2">
               <x-heroicon-o-document-text class="h-5 w-5 text-gray-500" aria-hidden="true" />
               Content
-            </h3>
+            </h2>
           </div>
           <div class="p-4">
             <x-button link="/admin/pages" icon="pencil-square" iconStyle="solid">

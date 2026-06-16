@@ -2,7 +2,7 @@
     {{-- Header --}}
     <div class="flex items-center justify-between p-4 border-b">
         <div class="flex items-center space-x-3">
-            <h3 class="text-lg font-semibold text-gray-900">Processing Details</h3>
+            <h2 class="text-lg font-semibold text-gray-900">Processing Details</h2>
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                 {{ $this->statusColor === 'green' ? 'bg-green-100 text-green-800' : '' }}
                 {{ $this->statusColor === 'blue' ? 'bg-blue-100 text-blue-800' : '' }}
@@ -178,9 +178,9 @@
                         {{-- Content --}}
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between mb-1">
-                                <h4 class="text-sm font-medium text-gray-900">
+                                <h3 class="text-sm font-medium text-gray-900">
                                     {{ ucfirst(str_replace('_', ' ', $log['step'])) }}
-                                </h4>
+                                </h3>
                                 <span class="text-xs text-gray-500">
                                     {{ \Carbon\Carbon::parse($log['timestamp'])->diffForHumans() }}
                                 </span>
