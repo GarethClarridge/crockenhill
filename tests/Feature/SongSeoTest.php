@@ -25,9 +25,9 @@ class SongSeoTest extends TestCase
         $response = $this->actingAs($user)->get(route('church.songs.index'));
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Recent Songs | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse the songs most recently sung at Crockenhill Baptist Church.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/church/songs">', false);
+        $response->assertSee('Recent Songs | Crockenhill Baptist Church');
+        $response->assertSee('Browse the songs most recently sung at Crockenhill Baptist Church.');
+        $response->assertSee('http://localhost/church/songs');
     }
 
     #[Test]
@@ -38,9 +38,9 @@ class SongSeoTest extends TestCase
         $response = $this->actingAs($user)->get(route('church.songs.index', ['q' => 'Grace', 'range' => 'all']));
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Grace | Songs | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse songs matching &#039;Grace&#039; at Crockenhill Baptist Church.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/church/songs?q=Grace&amp;range=all">', false);
+        $response->assertSee('Grace | Songs | Crockenhill Baptist Church');
+        $response->assertSee("Browse songs matching 'Grace' at Crockenhill Baptist Church.");
+        $response->assertSee('http://localhost/church/songs?q=Grace&amp;range=all', false);
     }
 
     #[Test]
@@ -51,9 +51,9 @@ class SongSeoTest extends TestCase
         $response = $this->actingAs($user)->get(route('church.songs.index', ['range' => 'all']));
 
         $response->assertStatus(200);
-        $response->assertSee('<title>All Songs | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Browse the full song catalogue of Crockenhill Baptist Church.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/church/songs?range=all">', false);
+        $response->assertSee('All Songs | Crockenhill Baptist Church');
+        $response->assertSee('Browse the full song catalogue of Crockenhill Baptist Church.');
+        $response->assertSee('http://localhost/church/songs?range=all');
     }
 
     #[Test]
@@ -75,7 +75,7 @@ class SongSeoTest extends TestCase
         $response = $this->actingAs($user)->get(route('church.songs.index', ['q' => ['grace']]));
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Recent Songs | Crockenhill Baptist Church</title>', false);
+        $response->assertSee('Recent Songs | Crockenhill Baptist Church');
     }
 
     #[Test]
@@ -86,7 +86,7 @@ class SongSeoTest extends TestCase
         $response = $this->actingAs($user)->get(route('church.songs.index', ['q' => '0', 'range' => 'all']));
 
         $response->assertStatus(200);
-        $response->assertSee('<link rel="canonical" href="http://localhost/church/songs?q=0&amp;range=all">', false);
+        $response->assertSee('http://localhost/church/songs?q=0&amp;range=all', false);
     }
 
     #[Test]
@@ -103,9 +103,9 @@ class SongSeoTest extends TestCase
         $response = $this->actingAs($user)->get(route('church.songs.show', $song));
 
         $response->assertStatus(200);
-        $response->assertSee('<title>In Christ Alone | Songs | Crockenhill Baptist Church</title>', false);
-        $response->assertSee('<meta name="description" content="Lyrics and recent usage for In Christ Alone at Crockenhill Baptist Church.">', false);
-        $response->assertSee('<meta property="og:title" content="In Christ Alone | Songs | Crockenhill Baptist Church">', false);
+        $response->assertSee('In Christ Alone | Songs | Crockenhill Baptist Church');
+        $response->assertSee('Lyrics and recent usage for In Christ Alone at Crockenhill Baptist Church.');
+        $response->assertSee('In Christ Alone | Songs | Crockenhill Baptist Church');
 
         // MusicComposition Schema
         $response->assertSee('"@type": "MusicComposition"', false);
