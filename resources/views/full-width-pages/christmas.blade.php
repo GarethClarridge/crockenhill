@@ -112,31 +112,31 @@
       Preparing Room
     </h3>
     <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Saturday 30th November, 3-6pm
+      Saturday 30th November, 3:00pm – 6:00pm
     </p>
     <h3 id="event-coffee-cup-carols" class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
       Coffee Cup Carols
     </h3>
     <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Thursday 12th, 10:30am
+      Thursday 12th December, 10:30am
     </p>
     <h3 id="event-carols-in-the-chequers" class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
       Carols in the Chequers
     </h3>
     <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Wednesday 18th, 7:30pm
+      Wednesday 18th December, 7:30pm
     </p>
     <h3 id="event-carols-by-candlelight" class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
       Carols by Candlelight
     </h3>
     <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Sunday 22nd, 6:00pm
+      Sunday 22nd December, 6:00pm
     </p>
     <h3 id="event-christmas-morning-service" class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
       Christmas Morning Service
     </h3>
     <p class="mb-8 text-lg text-white font-normal lg:text-xl sm:px-16 lg:px-48">
-      Wednesday 25th, 10:30am
+      Wednesday 25th December, 10:30am
     </p>
   </div>
 
