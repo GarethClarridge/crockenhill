@@ -48,15 +48,31 @@ class GenerateProdSermonPatchCommand extends Command
             $prodIndex[$key] = $row;
         }
 
-        $localSermons = DB::table('sermons')->orderBy('date')->orderBy('service')->get();
-        $this->line('Local sermons: '.$localSermons->count());
+        $localSermonsQuery = DB::table('sermons')
+            ->select([
+                'id', 'date', 'service', 'content_type', 'audio_file_path',
+                'source_type', 'duration', 'filetype', 'title', 'slug',
+                'reference', 'preacher', 'preacher_source', 'preacher_confidence',
+                'needs_preacher_review', 'series', 'created_at', 'updated_at',
+            ])
+            ->orderBy('date')
+            ->orderBy('service');
+
+        $this->line('Local sermons: '.$localSermonsQuery->count());
 
         $updates = [];
         $inserts = [];
         $skipped = 0;
         $reservedInsertSlugs = $this->buildReservedInsertSlugs($prodSermons);
 
-        foreach ($localSermons as $local) {
+        /**
+         * Performance Optimization: Uses lazy() to iterate over the local sermon
+         * collection one-by-one, significantly reducing memory usage when
+         * processing large datasets. select() limits retrieved columns to only
+         * those required for comparison and patch generation, avoiding expensive
+         * longText columns.
+         */
+        foreach ($localSermonsQuery->lazy() as $local) {
             $key = $local->date.'|'.$local->service;
 
             if (isset($prodIndex[$key])) {
