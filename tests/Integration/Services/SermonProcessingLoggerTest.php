@@ -10,7 +10,9 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Services\Processing\SermonProcessingLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -372,6 +374,84 @@ class SermonProcessingLoggerTest extends TestCase
     }
 
     #[Test]
+    public function it_categorises_analysis_errors(): void
+    {
+        Log::spy();
+
+        MediaProcessingLog::factory()->audio()->failed()->create([
+            'error_message' => 'Failed to parse JSON analysis response',
+        ]);
+
+        $stats = $this->logger->generateProcessingStatistics();
+
+        $this->assertArrayHasKey('ANALYSIS_ERROR', $stats['error_patterns']);
+    }
+
+    #[Test]
+    public function it_categorises_database_errors(): void
+    {
+        Log::spy();
+
+        MediaProcessingLog::factory()->audio()->failed()->create([
+            'error_message' => 'Database connection timeout during save',
+        ]);
+
+        $stats = $this->logger->generateProcessingStatistics();
+
+        $this->assertArrayHasKey('DATABASE_ERROR', $stats['error_patterns']);
+    }
+
+    #[Test]
+    public function it_categorises_network_errors(): void
+    {
+        Log::spy();
+
+        MediaProcessingLog::factory()->audio()->failed()->create([
+            'error_message' => 'Network unreachable while fetching bible text',
+        ]);
+
+        $stats = $this->logger->generateProcessingStatistics();
+
+        $this->assertArrayHasKey('NETWORK_ERROR', $stats['error_patterns']);
+    }
+
+    #[Test]
+    public function it_calculates_average_processing_time(): void
+    {
+        Log::spy();
+
+        $now = now();
+        MediaProcessingLog::factory()->audio()->completed()->create([
+            'created_at' => $now,
+            'updated_at' => $now->copy()->addMinutes(10),
+        ]);
+        MediaProcessingLog::factory()->audio()->completed()->create([
+            'created_at' => $now,
+            'updated_at' => $now->copy()->addMinutes(20),
+        ]);
+
+        $stats = $this->logger->generateProcessingStatistics();
+
+        // (10 + 20) / 2 = 15 minutes = 900 seconds
+        $this->assertEquals(900, $stats['average_processing_time']);
+    }
+
+    #[Test]
+    public function it_handles_null_dates_when_calculating_average_processing_time(): void
+    {
+        Log::spy();
+
+        MediaProcessingLog::factory()->audio()->completed()->create([
+            'created_at' => null,
+            'updated_at' => now(),
+        ]);
+
+        $stats = $this->logger->generateProcessingStatistics();
+
+        $this->assertEquals(0, $stats['average_processing_time']);
+    }
+
+    #[Test]
     public function it_categorises_unknown_errors_as_other(): void
     {
         Log::spy();
@@ -461,6 +541,61 @@ class SermonProcessingLoggerTest extends TestCase
         $this->assertEquals('test-video.mp4', $data['original_filename']);
         $this->assertEquals(4, $data['total_segments']);
         $this->assertEquals('not_started', $data['sermon_processing_status']);
+    }
+
+    #[Test]
+    public function it_includes_parsed_logs_and_metrics_in_processing_report(): void
+    {
+        $processingId = 'test-log-parsing-' . Str::random(4);
+
+        // Create a unique temporary storage path for this test to avoid parallel race conditions on laravel.log
+        $tempStorage = storage_path('testing/sermon_logger_test_' . Str::random(8));
+        $tempLogDir = $tempStorage . '/logs';
+        if (! is_dir($tempLogDir)) {
+            mkdir($tempLogDir, 0777, true);
+        }
+        $tempLogPath = $tempLogDir . '/laravel.log';
+
+        // Redirect storage_path() for the duration of this test
+        $originalStoragePath = $this->app->storagePath();
+        $this->app->useStoragePath($tempStorage);
+
+        MediaProcessingLog::factory()->create([
+            'processing_id' => $processingId,
+            'status' => 'completed',
+        ]);
+
+        $logEntries = [
+            "[2025-05-20 10:00:00] local.ERROR: Processing error in step: validation {\"processing_id\":\"{$processingId}\"}",
+            "[2025-05-20 10:05:00] local.WARNING: Processing warning in step: extraction {\"processing_id\":\"{$processingId}\"}",
+            "[2025-05-20 10:10:00] local.INFO: Performance metrics {\"processing_id\":\"{$processingId}\",\"step\":\"transcription\",\"execution_time_seconds\":42.5}",
+        ];
+
+        file_put_contents($tempLogPath, implode("\n", $logEntries)."\n");
+
+        try {
+            $report = $this->logger->generateProcessingReport($processingId);
+            $data = $report->toArray();
+
+            $this->assertCount(1, $data['errors']);
+            $this->assertCount(1, $data['warnings']);
+            $this->assertArrayHasKey('transcription', $data['performance_metrics']);
+            $this->assertEquals(42.5, $data['performance_metrics']['transcription']['execution_time']);
+        } finally {
+            // Restore original storage path
+            $this->app->useStoragePath($originalStoragePath);
+
+            // Cleanup temp storage
+            if (is_file($tempLogPath)) {
+                unlink($tempLogPath);
+            }
+            if (is_dir($tempLogDir)) {
+                rmdir($tempLogDir);
+            }
+            if (is_dir($tempStorage)) {
+                rmdir($tempStorage);
+            }
+        }
     }
 
     #[Test]
