@@ -204,11 +204,10 @@ class LoginTest extends TestCase
 
         Log::shouldReceive('warning')
             ->once()
-            ->with('Admin logged in', \Mockery::on(function ($context) use ($crafted) {
-                return isset($context['email'])
-                    && $context['email'] !== $crafted
-                    && ! str_contains((string) $context['email'], "\n");
-            }));
+            ->withArgs(fn ($message, $context) => str_contains($message, 'Admin logged in') &&
+                isset($context['email']) &&
+                $context['email'] !== $crafted &&
+                ! str_contains((string) $context['email'], "\n"));
 
         Livewire::test(LoginComponent::class)
             ->set('email', $admin->email)
@@ -221,11 +220,10 @@ class LoginTest extends TestCase
     {
         Log::shouldReceive('warning')
             ->once()
-            ->with('Admin login attempt failed', \Mockery::on(function ($context) {
-                return isset($context['admin_id'])
-                    && isset($context['email'])
-                    && isset($context['ip']);
-            }));
+            ->withArgs(fn ($message, $context) => str_contains($message, 'Admin login attempt failed') &&
+                isset($context['admin_id']) &&
+                isset($context['email']) &&
+                isset($context['ip']));
 
         $admin = User::factory()->create([
             'is_admin' => true,

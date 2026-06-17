@@ -10,6 +10,7 @@ use App\Models\Sermon;
 use App\Services\Public\PreacherListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -36,14 +37,22 @@ class PreacherListCacheTest extends TestCase
         $preacherB = Preacher::factory()->create(['name' => 'Adam', 'is_active' => true]);
         Preacher::factory()->inactive()->create(['name' => 'Inactive']);
 
+        // First call populates the cache
+        DB::enableQueryLog();
+        $this->repository->forAdminList();
+        $this->assertNotEmpty(DB::getQueryLog());
+        DB::flushQueryLog();
+
+        // Second call (clearing internal memoization) should hit cache
+        $this->repository->clearInternalCaches();
         $list = $this->repository->forAdminList();
+
+        $this->assertCount(0, DB::getQueryLog());
 
         $this->assertCount(2, $list);
         $this->assertEquals(['Adam', 'Zack'], $list->values()->all());
         $this->assertEquals($preacherB->id, $list->keys()[0]);
         $this->assertEquals($preacherA->id, $list->keys()[1]);
-
-        $this->assertTrue(Cache::has(PreacherListCache::ADMIN_LIST_CACHE_KEY));
     }
 
     #[Test]
@@ -70,15 +79,23 @@ class PreacherListCacheTest extends TestCase
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
 
+        // First call populates the cache
+        DB::enableQueryLog();
+        $this->repository->forPublicList();
+        $this->assertNotEmpty(DB::getQueryLog());
+        DB::flushQueryLog();
+
+        // Second call (clearing internal memoization) should hit cache
+        $this->repository->clearInternalCaches();
         $list = $this->repository->forPublicList();
+
+        $this->assertCount(0, DB::getQueryLog());
 
         $this->assertCount(2, $list);
         $this->assertEquals('Preacher A', $list->first()->name);
         $this->assertEquals(2, $list->first()->sermons_count);
         $this->assertEquals('Preacher B', $list->last()->name);
         $this->assertEquals(1, $list->last()->sermons_count);
-
-        $this->assertTrue(Cache::has(PreacherListCache::PUBLIC_LIST_CACHE_KEY));
     }
 
     #[Test]
