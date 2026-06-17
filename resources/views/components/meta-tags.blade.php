@@ -29,6 +29,7 @@
     $metaImage = $image ?? asset('images/Primary.png');
     $metaUrl = $canonical ?? url()->current();
     $twitterCard = $image ? 'summary_large_image' : 'summary';
+    $resolvedImageAlt = $imageAlt ?? ($image ? null : 'Crockenhill Baptist Church logo');
 @endphp
 
 {{-- Open Graph meta tags --}}
@@ -41,8 +42,8 @@
 <meta property="og:image" content="{{ $metaImage }}">
 <meta property="og:image:width" content="{{ $imageWidth }}">
 <meta property="og:image:height" content="{{ $imageHeight }}">
-@if($imageAlt)
-<meta property="og:image:alt" content="{{ $imageAlt }}">
+@if($resolvedImageAlt)
+<meta property="og:image:alt" content="{{ $resolvedImageAlt }}">
 @endif
 
 @if($audio)
@@ -90,8 +91,8 @@
 @if($twitterCreator)
 <meta name="twitter:creator" content="{{ $twitterCreator }}">
 @endif
-@if($imageAlt)
-<meta name="twitter:image:alt" content="{{ $imageAlt }}">
+@if($resolvedImageAlt)
+<meta name="twitter:image:alt" content="{{ $resolvedImageAlt }}">
 @endif
 @if($label1 && $data1)
 <meta name="twitter:label1" content="{{ $label1 }}">

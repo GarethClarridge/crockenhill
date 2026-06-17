@@ -19,6 +19,8 @@
             description="Upcoming events at Crockenhill Baptist Church."
             :image="asset('/images/homepage/may2024wide.webp')"
             image-alt="Crockenhill Baptist Church members outside the church building"
+            label1="Upcoming events"
+            :data1="$allEvents->count()"
         />
         <x-schema.webpage
             heading="Church Calendar"

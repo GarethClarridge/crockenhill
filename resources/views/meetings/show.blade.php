@@ -29,6 +29,8 @@
             :description="$description ?? $heading"
             :image="$headingpicture ?? null"
             :image-alt="'Meeting: ' . $heading"
+            label1="When"
+            :data1="$meeting->day . ($meeting->start_time ? ' at ' . $meeting->start_time->format('g:ia') : '')"
         />
         <x-schema.webpage
             :heading="$heading"
