@@ -7,8 +7,23 @@ namespace App\Services\Media\Audio;
 use App\Exceptions\SegmentationException;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Statistical analysis of audio RMS (loudness) logs for segmentation.
+ *
+ * This service parses the raw text output from the FFmpeg `astats` metadata
+ * filter to build a time-mapped dataset of loudness levels. It uses this
+ * data to identify continuous "loud" periods (songs) and "quiet" periods
+ * (speech) using either fixed or adaptive thresholding calibrated for
+ * church recordings.
+ */
 class RmsAnalysisService
 {
+    /** Default RMS threshold (dB) — calibrated for church recordings with ambient noise. */
+    private const float DEFAULT_RMS_THRESHOLD = -45.0;
+
+    /** Minimum duration (seconds) for a loud section to be considered a distinct event. */
+    private const float DEFAULT_MIN_SECTION_DURATION = 30.0;
+
     private float $rmsThreshold;
 
     private float $minSectionDuration;
@@ -18,8 +33,8 @@ class RmsAnalysisService
 
     public function __construct()
     {
-        $this->rmsThreshold = config('media-processing.segmentation.rms_threshold', -45.0);
-        $this->minSectionDuration = config('media-processing.segmentation.min_section_duration', 30.0);
+        $this->rmsThreshold = (float) config('media-processing.segmentation.rms_threshold', self::DEFAULT_RMS_THRESHOLD);
+        $this->minSectionDuration = (float) config('media-processing.segmentation.min_section_duration', self::DEFAULT_MIN_SECTION_DURATION);
         $this->adaptiveConfig = config('media-processing.segmentation.adaptive_thresholds', []);
     }
 
@@ -30,7 +45,7 @@ class RmsAnalysisService
      * precise PTS timestamps.
      *
      * @param  string  $logContent  The raw output from the FFmpeg astats filter
-     * @return list<array{time: float, rms: float}>
+     * @return list<array{time: float, rms: float}> Dataset of PTS timestamps and RMS levels (dB)
      */
     public function extractRmsData(string $logContent): array
     {
@@ -66,8 +81,8 @@ class RmsAnalysisService
      *
      * @param  float  $startTime  Start timestamp in seconds
      * @param  float  $endTime  End timestamp in seconds
-     * @param  array<int, array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
-     * @return array{avg: float, peak: float}
+     * @param  list<array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
+     * @return array{avg: float, peak: float} Statistical summary (dB)
      */
     public function calculateSegmentRms(float $startTime, float $endTime, array $rmsData): array
     {
@@ -80,6 +95,7 @@ class RmsAnalysisService
         }
 
         if (empty($segmentRms)) {
+            // Fallback values representing a quiet but not silent segment.
             return ['avg' => -50.0, 'peak' => -40.0];
         }
 
@@ -102,7 +118,7 @@ class RmsAnalysisService
      * @param  string  $logContent  The raw FFmpeg astats output
      * @param  float|null  $threshold  Optional override for the RMS threshold (dB)
      * @param  float|null  $minSectionDuration  Optional override for minimum duration (seconds)
-     * @return list<array{start: float, end: float}>
+     * @return list<array{start: float, end: float}> Identified loud spans
      */
     public function parseAudioSections(string $logContent, ?float $threshold = null, ?float $minSectionDuration = null): array
     {
@@ -176,6 +192,8 @@ class RmsAnalysisService
             return $maxTime;
         }
 
+        // FFmpeg's astats output typically prints metadata at 43.06 fps (frame rate of the filter),
+        // so we use 43.0 as a safe divisor for a duration estimate when timestamps are missing.
         return count($lines) / 43.0;
     }
 
@@ -209,7 +227,7 @@ class RmsAnalysisService
      *         p75: float,
      *         adaptive_threshold: float,
      *     }
-     * }
+     * } The resolved threshold and diagnostic metadata
      *
      * @throws SegmentationException If adaptive calculation fails and fallback is disabled
      */
@@ -287,7 +305,7 @@ class RmsAnalysisService
      *     error: string,
      *     sample_count?: int,
      *     min_required?: int,
-     * }
+     * } Statistical analysis result
      */
     public function calculateAdaptiveThreshold(string $logContent): array
     {
@@ -369,13 +387,14 @@ class RmsAnalysisService
      * Searches the RMS dataset for entries closest to each target timestamp
      * within a defined tolerance. Used for point-in-time audio analysis.
      *
-     * @param  array<int, array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
+     * @param  list<array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
      * @param  list<float>  $timestamps  List of target timestamps in seconds
      * @return list<float> List of matching RMS levels (dB)
      */
     public function extractRmsForTimestamps(array $rmsData, array $timestamps): array
     {
         $values = [];
+        /** Window in seconds to search for a matching RMS entry around a target timestamp. */
         $tolerance = 5.0;
 
         foreach ($timestamps as $targetTime) {
@@ -396,7 +415,7 @@ class RmsAnalysisService
      * Returns a flat list of all RMS levels recorded between the start and
      * end times.
      *
-     * @param  array<int, array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
+     * @param  list<array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
      * @param  float  $startTime  Start timestamp in seconds
      * @param  float  $endTime  End timestamp in seconds
      * @return list<float> List of RMS levels (dB)
