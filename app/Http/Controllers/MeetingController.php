@@ -24,7 +24,12 @@ class MeetingController extends Controller
      */
     public function show(Meeting $meeting): ViewContract|RedirectResponse
     {
-        $meeting->loadMissing('page');
+        /**
+         * Performance Optimization: Limits retrieved columns for the eager-loaded page
+         * to required fields for visibility checks, read models, and view rendering
+         * to reduce memory usage and DB I/O.
+         */
+        $meeting->loadMissing('page:id,slug,heading,area,admin,navigation,description,created_at,updated_at,body,markdown');
 
         if ($redirect = $this->publicPageVisibilityGuard->enforce($meeting->page)) {
             return $redirect;

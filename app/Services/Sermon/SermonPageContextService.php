@@ -70,8 +70,14 @@ class SermonPageContextService
 
     private function queryReadingSection(int $processingLogId): ?ServiceSection
     {
+        /**
+         * Performance Optimization: Limits retrieved columns for the reading section
+         * and its related service item to required fields for reference resolution
+         * to reduce memory usage and DB I/O.
+         */
         $section = ServiceSection::query()
-            ->with('churchServiceItem')
+            ->select(['id', 'media_processing_log_id', 'church_service_item_id', 'section_type', 'section_order', 'start_time', 'title', 'metadata'])
+            ->with('churchServiceItem:id,church_service_id,title')
             ->where('media_processing_log_id', $processingLogId)
             ->where('section_type', ServiceSectionType::BibleReading)
             ->orderBy('section_order')

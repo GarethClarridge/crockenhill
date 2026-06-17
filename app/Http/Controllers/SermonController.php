@@ -103,11 +103,16 @@ class SermonController extends Controller
     {
         abort_unless($sermon->content_type === SermonContentType::Sermon, 404);
 
+        /**
+         * Performance Optimization: Limits retrieved columns for related models to
+         * required fields to reduce memory usage and DB I/O on the single sermon view.
+         */
         $sermon->loadMissing([
             'scripturePassage:id,display_reference,normalized_reference,html_content,copyright,fums_token',
             'preacherProfile:id,name,slug,image_path',
             'publishedServiceSection:id,published_sermon_id,media_processing_log_id',
-            'latestProcessingLog',
+            'latestProcessingLog' => fn ($query) => $query
+                ->select(['media_processing_logs.id', 'processing_id', 'media_processing_logs.sermon_id', 'status', 'current_step', 'error_message', 'original_filename', 'media_processing_logs.created_at', 'duration']),
             'livestreamProcessing' => fn ($query) => $query
                 ->select(['id', 'processing_id', 'sermon_id', 'original_filename', 'created_at', 'status', 'duration'])
                 ->with('segments:id,media_processing_log_id'),

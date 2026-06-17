@@ -44,7 +44,7 @@ class PageListCache
         $links = Cache::flexible($key, [86400, 172800], function () use ($areaValue) {
             return Page::query()
                 ->public()
-                ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
+                ->select(['id', 'slug', 'heading', 'area', 'description', 'admin', 'navigation'])
                 ->where('area', $areaValue)
                 ->get();
         });
@@ -75,7 +75,7 @@ class PageListCache
         $links = Cache::flexible($cacheKey, [86400, 172800], function () use ($areaValue, $orderedSlugs) {
             return Page::query()
                 ->public()
-                ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
+                ->select(['id', 'slug', 'heading', 'area', 'description', 'admin', 'navigation'])
                 ->where('area', $areaValue)
                 ->whereIn('slug', $orderedSlugs)
                 ->get()
