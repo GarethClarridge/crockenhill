@@ -21,9 +21,16 @@ class MediaValidationService
         $config = config("media-processing.types.{$type->value}");
         $maxSizeKB = (int) ($config['max_file_size'] / 1024);
         $extensions = implode(',', $config['allowed_extensions']);
+        $mimes = implode(',', $config['allowed_mimes'] ?? []);
+
+        $rules = "required|file|mimes:{$extensions}|max:{$maxSizeKB}";
+
+        if ($mimes !== '') {
+            $rules .= "|mimetypes:{$mimes}";
+        }
 
         return [
-            'file' => "required|file|mimes:{$extensions}|max:{$maxSizeKB}",
+            'file' => $rules,
         ];
     }
 

@@ -32,7 +32,7 @@ class UploadChurchServiceRequest extends FormRequest
         $maxSize = (int) config('service-tracking.upload.max_size_kb', 614400);
 
         return [
-            'file' => ['required', 'file', 'mimes:zip', 'max:'.$maxSize],
+            'file' => ['required', 'file', 'mimes:zip', 'mimetypes:application/zip', 'max:'.$maxSize],
         ];
     }
 

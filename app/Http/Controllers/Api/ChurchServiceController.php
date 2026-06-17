@@ -19,6 +19,9 @@ class ChurchServiceController extends Controller
         private readonly ImportChurchServiceFromOpenLp $importChurchServiceFromOpenLp,
     ) {}
 
+    /**
+     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     */
     public function store(UploadChurchServiceRequest $request): JsonResponse
     {
         $this->abortIfDisabled();
@@ -37,6 +40,9 @@ class ChurchServiceController extends Controller
             ->setStatusCode(201);
     }
 
+    /**
+     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     */
     public function show(ChurchService $churchService): ChurchServiceResource
     {
         $this->abortIfDisabled();
