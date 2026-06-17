@@ -21,7 +21,7 @@
             <div class="rounded-full bg-white shadow-sm ring-1 ring-gray-200 p-3">
                 <x-dynamic-component :component="'heroicon-o-' . $icon" class="h-8 w-8 text-cbc-teal/60" aria-hidden="true" />
             </div>
-            <h3 class="text-base font-semibold text-gray-900">{{ $title }}</h3>
+            <h2 class="text-base font-semibold text-gray-900">{{ $title }}</h2>
             <p class="text-sm text-gray-500 max-w-sm mx-auto">
                 {{ $description }}
             </p>

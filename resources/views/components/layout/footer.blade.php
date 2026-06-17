@@ -6,7 +6,7 @@ $linkClasses = 'rounded-sm text-cbc-teal-dark underline decoration-cbc-teal-dark
   <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 
     <section class="rounded-xl border border-white/80 bg-white/85 p-6 shadow-sm backdrop-blur-sm">
-      <h3 class="mb-3 font-display text-2xl text-cbc-teal-dark">Catch up</h3>
+      <h2 class="mb-3 font-display text-2xl text-cbc-teal-dark">Catch up</h2>
       <p class="mb-4 text-sm text-slate-700">Keep up with services and recent teaching.</p>
       <div class="flex flex-col items-center space-y-3">
         <a class="inline-flex items-center justify-center rounded-md bg-[linear-gradient(120deg,var(--color-cbc-teal)_0%,var(--color-cbc-teal-dark)_55%,#0e3a3c_100%)] px-3 py-1.5 text-sm text-white no-underline transition-all hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2" href="{{ config('organization.social.youtube') }}" rel="noopener" target="_blank">
@@ -19,7 +19,7 @@ $linkClasses = 'rounded-sm text-cbc-teal-dark underline decoration-cbc-teal-dark
     </section>
 
     <section class="rounded-xl border border-white/80 bg-white/85 p-6 shadow-sm backdrop-blur-sm">
-      <h3 class="mb-3 font-display text-2xl text-cbc-teal-dark">Contact us</h3>
+      <h2 class="mb-3 font-display text-2xl text-cbc-teal-dark">Contact us</h2>
       <ul class="mb-0 list-none space-y-1 text-cbc-teal-dark">
         <li>
           <a class="{{ $linkClasses }} flex items-center justify-center gap-2 py-2" href="tel:{{ config('organization.phone') }}">
@@ -49,7 +49,7 @@ $linkClasses = 'rounded-sm text-cbc-teal-dark underline decoration-cbc-teal-dark
     </section>
 
     <section class="rounded-xl border border-white/80 bg-white/85 p-6 shadow-sm backdrop-blur-sm">
-      <h3 class="mb-3 font-display text-2xl text-cbc-teal-dark">Visit us</h3>
+      <h2 class="mb-3 font-display text-2xl text-cbc-teal-dark">Visit us</h2>
       <address class="mb-4 not-italic text-slate-700">
         {{ config('organization.name') }}<br>
         {{ config('organization.address.street') }}<br>
