@@ -37,6 +37,8 @@
     :image="$headingpicture ?? null"
     :image-alt="$headingpicture ? 'Crockenhill Baptist Church: ' . $heading : null"
     :canonical="$canonical"
+    :label1="$area ? 'Section' : null"
+    :data1="$area ? \Illuminate\Support\Str::title($area) : null"
 />
 <x-schema.webpage
     :$heading
