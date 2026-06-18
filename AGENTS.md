@@ -251,10 +251,8 @@ It encodes the project-specific design system (brand tokens, component selection
 
 ### Mailable classes (`app/Mail/`)
 - `DiskSpaceWarning` — Critical disk-space alerts.
-- `LivestreamProcessingCompleted` — Success notification with sermon details.
 - `LivestreamProcessingFailed` — Failure notification with stack traces.
 - `ManualReviewRequired` — Segmentation review alert.
-- `PermissionError` — File-permission issues.
 
 ### Config
 - `MAIL_FROM_ADDRESS` — Sender (default `admin@crockenhill.org`).
