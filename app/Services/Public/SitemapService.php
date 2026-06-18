@@ -227,6 +227,11 @@ class SitemapService
                     ->orWhereNotIn('slug', ['preachers', 'series', 'all']);
             })
             ->where(function ($query): void {
+                // Exclude the christ/sermons page as it is added as a static high-priority URL.
+                $query->where('area', '!=', PageArea::Christ->value)
+                    ->orWhere('slug', '!=', 'sermons');
+            })
+            ->where(function ($query): void {
                 // Only exclude community pages whose slug matches a meeting slug,
                 // since meeting URLs are always /community/{meeting-slug} and would
                 // otherwise emit a duplicate <loc> for the same URL. The match is on
