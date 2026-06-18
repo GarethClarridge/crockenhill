@@ -10,12 +10,29 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Service for retrieving and parsing media processing logs.
+ *
+ * Provides structured visibility into the media processing pipeline's
+ * execution, progress, and performance metrics by parsing application-level
+ * log entries associated with a specific processing ID.
+ */
 class ProcessingLogService
 {
+    /**
+     * @param  string  $logFilePath  Optional path to the log file (defaults to storage/logs/laravel.log)
+     */
     public function __construct(
         private readonly string $logFilePath = ''
     ) {}
 
+    /**
+     * Retrieve a collection of processing logs for a specific ID.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  int  $limit  Maximum number of entries to return (default: 50)
+     * @return ProcessingLogCollection The structured collection of log entries
+     */
     public function getProcessingLogs(string $processingId, int $limit = 50): ProcessingLogCollection
     {
         $logs = $this->parseLogsFromFile($processingId, $limit);
@@ -27,6 +44,13 @@ class ProcessingLogService
         );
     }
 
+    /**
+     * Retrieve processing logs generated since a specific timestamp.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  Carbon  $since  The cutoff timestamp
+     * @return ProcessingLogCollection The structured collection of log entries
+     */
     public function getLogsSince(string $processingId, Carbon $since): ProcessingLogCollection
     {
         $logs = $this->parseLogsFromFile($processingId, null, $since);
@@ -38,6 +62,13 @@ class ProcessingLogService
         );
     }
 
+    /**
+     * Retrieve processing logs for a specific pipeline step.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $step  The step identifier to filter by
+     * @return ProcessingLogCollection The structured collection of log entries
+     */
     public function getLogsByStep(string $processingId, string $step): ProcessingLogCollection
     {
         $allLogs = $this->parseLogsFromFile($processingId);
@@ -51,7 +82,24 @@ class ProcessingLogService
     }
 
     /**
-     * @return array<string, mixed>|null
+     * Aggregates performance and resource usage metrics from log entries.
+     *
+     * Summarizes execution time and memory usage across all steps of a
+     * processing run, providing a breakdown of metrics per discrete step.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return array{
+     *     total_execution_time: float,
+     *     peak_memory_usage: int,
+     *     step_metrics: array<string, array{
+     *         execution_time: float|null,
+     *         memory_usage: int|null,
+     *         timestamp: string|null
+     *     }>,
+     *     total_entries: int,
+     *     error_count: int,
+     *     warning_count: int,
+     * }|null
      */
     public function getPerformanceMetrics(string $processingId): ?array
     {
