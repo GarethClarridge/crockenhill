@@ -250,6 +250,30 @@ class SitemapTest extends TestCase
     }
 
     #[Test]
+    public function sitemap_does_not_duplicate_the_christ_sermons_index_page(): void
+    {
+        // /christ/sermons is the canonical sermons index, emitted by addStaticUrls()
+        // via route('sermons.index'). It also exists as a seeded Page (area christ,
+        // slug sermons) — the (area, slug) unique constraint guarantees one such row —
+        // so addPages() must suppress it to avoid a duplicate <loc>.
+        $this->assertDatabaseHas('pages', [
+            'area' => PageArea::Christ->value,
+            'slug' => 'sermons',
+        ]);
+
+        Cache::forget('sitemap');
+
+        $response = $this->get('/sitemap.xml');
+        $content = $response->getContent();
+
+        $this->assertSame(
+            1,
+            substr_count($content, '<loc>http://localhost/christ/sermons</loc>'),
+            'The canonical /christ/sermons index URL should appear exactly once in the sitemap.'
+        );
+    }
+
+    #[Test]
     public function sitemap_has_correct_priorities(): void
     {
         Cache::forget('sitemap');

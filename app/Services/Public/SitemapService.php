@@ -227,7 +227,9 @@ class SitemapService
                     ->orWhereNotIn('slug', ['preachers', 'series', 'all']);
             })
             ->where(function ($query): void {
-                // Exclude the christ/sermons page as it is added as a static high-priority URL.
+                // Exclude the christ-area "sermons" page: /christ/sermons is the canonical
+                // sermons index already emitted by addStaticUrls() via route('sermons.index').
+                // Unlike the Sermons-area indexes above, this duplicate lives in the christ area.
                 $query->where('area', '!=', PageArea::Christ->value)
                     ->orWhere('slug', '!=', 'sermons');
             })
