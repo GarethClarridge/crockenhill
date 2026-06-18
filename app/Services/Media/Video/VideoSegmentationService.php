@@ -212,7 +212,7 @@ class VideoSegmentationService
 
     /**
      * @param  array<int, array{start: float, end: float}>  $loudSections
-     * @param  array<int, array{time: float, rms: float}>  $rmsData
+     * @param  list<array{time: float, rms: float}>  $rmsData
      * @return list<LivestreamSegment>
      */
     private function combineLoudAndQuietSections(array $loudSections, float $totalDuration, array $rmsData): array
