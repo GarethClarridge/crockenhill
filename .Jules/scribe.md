@@ -5,3 +5,11 @@
 ## 2025-06-05 - [Legacy Fallback Testing]
 **Learning:** Some models maintain legacy fallback logic (e.g., parsing string-based `error_message` when `processing_metadata` is null). Testing these ensures backward compatibility during migrations.
 **Action:** Use `grep` to find these legacy patterns and explicitly test them alongside modern implementations.
+
+## 2026-06-15 - [Enum Inference Testing]
+**Learning:** For Enums that provide domain categorization via inference (e.g. `ServiceSectionType::inferFromTitle`), unit tests should cover both direct keyword matches and case-insensitivity to ensure robust classification.
+**Action:** Always include a dedicated unit test for Enums that contain logic beyond simple case definitions.
+
+## 2026-06-15 - [Model Precedence Testing]
+**Learning:** Testing methods like `semanticSectionType` which combine explicit property checks, type mapping, and fuzzy inference requires multiple test cases to verify the correct precedence order (Explicit property > Type match > Fuzzy inference).
+**Action:** Write separate test methods for each level of precedence in the model to ensure behavior is exactly as intended and protected against refactoring.
