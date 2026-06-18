@@ -53,7 +53,7 @@ class RateLimitingSecurityTest extends TestCase
         // We'll attempt 6 uploads.
         for ($i = 0; $i < 5; $i++) {
             $response = $this->postJson('/api/media/audio', [
-                'file' => UploadedFile::fake()->create('sermon.mp3', 100),
+                'file' => UploadedFile::fake()->create('sermon.mp3', 100, 'audio/mpeg'),
             ]);
 
             $response->assertStatus(202);
@@ -61,7 +61,7 @@ class RateLimitingSecurityTest extends TestCase
 
         // The 6th request should be throttled
         $response = $this->postJson('/api/media/audio', [
-            'file' => UploadedFile::fake()->create('sermon.mp3', 100),
+            'file' => UploadedFile::fake()->create('sermon.mp3', 100, 'audio/mpeg'),
         ]);
 
         $response->assertStatus(429);
@@ -87,13 +87,13 @@ class RateLimitingSecurityTest extends TestCase
 
         // The 'media-upload' limiter allows 1 per minute for video/livestream.
         $response = $this->postJson('/api/media/video', [
-            'file' => UploadedFile::fake()->create('sermon.mp4', 1000),
+            'file' => UploadedFile::fake()->create('sermon.mp4', 1000, 'video/mp4'),
         ]);
         $response->assertStatus(202);
 
         // The 2nd request should be throttled
         $response = $this->postJson('/api/media/video', [
-            'file' => UploadedFile::fake()->create('sermon.mp4', 1000),
+            'file' => UploadedFile::fake()->create('sermon.mp4', 1000, 'video/mp4'),
         ]);
         $response->assertStatus(429);
     }

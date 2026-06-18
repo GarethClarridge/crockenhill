@@ -119,6 +119,8 @@ class SermonApiController extends Controller
 
     /**
      * Display the specified sermon
+     *
+     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
      */
     public function show(Sermon $sermon, SermonExposurePolicy $exposurePolicy): SermonResource
     {
