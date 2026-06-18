@@ -6,6 +6,7 @@ namespace Tests\Feature\Database;
 
 use App\Models\Sermon;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -44,6 +45,14 @@ class CorrectiveSchemaMigrationsTest extends TestCase
     {
         /** @var Migration $migration */
         $migration = require base_path('database/migrations/2026_04_20_053821_add_audio_file_path_check_to_sermons_table.php');
+
+        return $migration;
+    }
+
+    private function redundantLivestreamIndexMigration(): Migration
+    {
+        /** @var Migration $migration */
+        $migration = require base_path('database/migrations/2026_06_18_120000_drop_redundant_church_service_items_livestream_index.php');
 
         return $migration;
     }
@@ -161,6 +170,37 @@ class CorrectiveSchemaMigrationsTest extends TestCase
         $this->assertSame('sermons/archive/drifted.mp3', $trimmedSermon->fresh()->audio_file_path);
         $this->assertNull($blankSermon->fresh()->audio_file_path);
         $this->assertTrue($this->hasCheckConstraint('sermons', 'sermons_audio_file_path_format_check'));
+    }
+
+    #[Test]
+    public function it_drops_the_redundant_church_service_items_livestream_index_while_retaining_foreign_key_coverage(): void
+    {
+        if (! $this->isMySql()) {
+            $this->markTestSkipped('Foreign-key auto-indexing behaviour requires MySQL.');
+        }
+
+        // The foreign key supplies its own backing index, so the column remains indexed
+        // even once the duplicate explicit index is removed.
+        $this->assertTrue($this->hasForeignKey('church_service_items', 'livestream_service_section_id', 'service_sections'));
+        $this->assertTrue(Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_foreign'));
+
+        // Simulate an environment that applied the original (now-corrected) index migration.
+        if (! Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index')) {
+            Schema::table('church_service_items', function (Blueprint $table): void {
+                $table->index('livestream_service_section_id', 'church_service_items_livestream_service_section_id_index');
+            });
+        }
+        $this->assertTrue(Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index'));
+
+        $this->redundantLivestreamIndexMigration()->up();
+
+        $this->assertFalse(Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index'));
+        // Foreign-key backing index (and thus column coverage) is left intact.
+        $this->assertTrue(Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_foreign'));
+
+        $this->redundantLivestreamIndexMigration()->down();
+
+        $this->assertTrue(Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index'));
     }
 
     #[Test]
