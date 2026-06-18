@@ -57,6 +57,14 @@ class CorrectiveSchemaMigrationsTest extends TestCase
         return $migration;
     }
 
+    private function redundantFkIndexesMigration(): Migration
+    {
+        /** @var Migration $migration */
+        $migration = require base_path('database/migrations/2026_06_18_130000_drop_redundant_fk_indexes_from_media_processing_logs_and_speaker_samples.php');
+
+        return $migration;
+    }
+
     private function isMySql(): bool
     {
         return DB::getDriverName() === 'mysql';
@@ -201,6 +209,50 @@ class CorrectiveSchemaMigrationsTest extends TestCase
         $this->redundantLivestreamIndexMigration()->down();
 
         $this->assertTrue(Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index'));
+    }
+
+    #[Test]
+    public function it_drops_redundant_fk_duplicate_indexes_while_retaining_foreign_key_coverage(): void
+    {
+        if (! $this->isMySql()) {
+            $this->markTestSkipped('Foreign-key auto-indexing behaviour requires MySQL.');
+        }
+
+        $cases = [
+            ['media_processing_logs', 'sermon_id', 'sermons', 'media_processing_logs_sermon_id_index', 'media_processing_logs_sermon_id_foreign'],
+            ['media_processing_logs', 'owner_user_id', 'users', 'media_processing_logs_owner_user_id_index', 'media_processing_logs_owner_user_id_foreign'],
+            ['media_processing_logs', 'church_service_id', 'church_services', 'media_processing_logs_church_service_id_index', 'media_processing_logs_church_service_id_foreign'],
+            ['speaker_samples', 'media_processing_log_id', 'media_processing_logs', 'speaker_samples_media_processing_log_id_index', 'speaker_samples_media_processing_log_id_foreign'],
+        ];
+
+        // The foreign keys supply their own backing indexes, so each column stays indexed
+        // even once the duplicate explicit index is removed. Simulate an environment that
+        // applied the original (now-corrected) index migration.
+        foreach ($cases as [$table, $column, $referencedTable, $explicitIndex, $foreignIndex]) {
+            $this->assertTrue($this->hasForeignKey($table, $column, $referencedTable));
+            $this->assertTrue(Schema::hasIndex($table, $foreignIndex));
+
+            if (! Schema::hasIndex($table, $explicitIndex)) {
+                Schema::table($table, function (Blueprint $blueprint) use ($column, $explicitIndex): void {
+                    $blueprint->index($column, $explicitIndex);
+                });
+            }
+            $this->assertTrue(Schema::hasIndex($table, $explicitIndex));
+        }
+
+        $this->redundantFkIndexesMigration()->up();
+
+        foreach ($cases as [$table, , , $explicitIndex, $foreignIndex]) {
+            $this->assertFalse(Schema::hasIndex($table, $explicitIndex));
+            // Foreign-key backing index (and thus column coverage) is left intact.
+            $this->assertTrue(Schema::hasIndex($table, $foreignIndex));
+        }
+
+        $this->redundantFkIndexesMigration()->down();
+
+        foreach ($cases as [$table, , , $explicitIndex]) {
+            $this->assertTrue(Schema::hasIndex($table, $explicitIndex));
+        }
     }
 
     #[Test]
