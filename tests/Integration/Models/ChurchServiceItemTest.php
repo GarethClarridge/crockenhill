@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Models;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
@@ -85,5 +86,49 @@ class ChurchServiceItemTest extends TestCase
 
         $this->assertSoftDeleted('church_service_items', ['id' => $id]);
         $this->assertNotNull(ChurchServiceItem::withTrashed()->find($id)->deleted_at);
+    }
+
+    #[Test]
+    public function it_returns_explicit_semantic_section_type_when_set(): void
+    {
+        $item = ChurchServiceItem::factory()->create([
+            'section_type' => ServiceSectionType::Welcome,
+        ]);
+
+        $this->assertSame(ServiceSectionType::Welcome, $item->semanticSectionType());
+    }
+
+    #[Test]
+    public function it_infers_semantic_section_type_from_explicit_type_songs(): void
+    {
+        $item = ChurchServiceItem::factory()->create([
+            'section_type' => null,
+            'type' => 'songs',
+        ]);
+
+        $this->assertSame(ServiceSectionType::Song, $item->semanticSectionType());
+    }
+
+    #[Test]
+    public function it_infers_semantic_section_type_from_explicit_type_bibles(): void
+    {
+        $item = ChurchServiceItem::factory()->create([
+            'section_type' => null,
+            'type' => 'bibles',
+        ]);
+
+        $this->assertSame(ServiceSectionType::BibleReading, $item->semanticSectionType());
+    }
+
+    #[Test]
+    public function it_infers_semantic_section_type_from_title_when_no_explicit_type_match(): void
+    {
+        $item = ChurchServiceItem::factory()->create([
+            'section_type' => null,
+            'type' => 'custom',
+            'title' => 'Opening Prayer',
+        ]);
+
+        $this->assertSame(ServiceSectionType::Prayer, $item->semanticSectionType());
     }
 }
