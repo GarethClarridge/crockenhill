@@ -32,7 +32,6 @@ class SermonCandidateConfidenceServiceTest extends TestCase
         // One long speech segment (25 mins = 1500s)
         $candidate = LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
             'duration' => 1500.0,
             'start_time' => 1000.0,
         ]);
@@ -40,7 +39,6 @@ class SermonCandidateConfidenceServiceTest extends TestCase
         // One short speech segment (5 mins = 300s)
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
             'duration' => 300.0,
             'start_time' => 500.0,
         ]);
@@ -48,7 +46,6 @@ class SermonCandidateConfidenceServiceTest extends TestCase
         // One long SONG segment (should be ignored)
         LivestreamSegment::factory()->song()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
             'duration' => 2000.0,
         ]);
 
@@ -71,13 +68,11 @@ class SermonCandidateConfidenceServiceTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
             'duration' => 1500.0,
         ]);
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
             'duration' => 1600.0,
         ]);
 
@@ -96,7 +91,6 @@ class SermonCandidateConfidenceServiceTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
             'duration' => 600.0,
         ]);
 
@@ -115,7 +109,6 @@ class SermonCandidateConfidenceServiceTest extends TestCase
         // Longest is 25 mins (1500s) - Qualifying
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
             'duration' => 1500.0,
         ]);
 
@@ -123,7 +116,6 @@ class SermonCandidateConfidenceServiceTest extends TestCase
         // 1500 / 1100 = 1.36 (< 1.5 threshold)
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
             'duration' => 1100.0,
         ]);
 
@@ -142,14 +134,12 @@ class SermonCandidateConfidenceServiceTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log1->id,
-            'processing_id' => $log1->processing_id,
             'duration' => 1500.0,
         ]);
 
         // Long segment for DIFFERENT log
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log2->id,
-            'processing_id' => $log2->processing_id,
             'duration' => 2000.0,
         ]);
 
