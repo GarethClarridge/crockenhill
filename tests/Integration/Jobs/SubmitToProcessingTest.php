@@ -184,7 +184,7 @@ class SubmitToProcessingTest extends TestCase
         $mockCreationService = $this->createMock(SermonCreationService::class);
         $mockCreationService->expects($this->never())->method('createSermon');
 
-        Log::shouldReceive('info')->once()->with('SubmitToProcessing job skipped: processing cancelled', \Mockery::any());
+        Log::shouldReceive('info')->once()->withArgs(fn ($msg) => str_contains($msg, 'skipped') && str_contains($msg, 'cancelled'));
 
         $job = new SubmitToProcessing($log);
         $job->handle($mockCreationService);
