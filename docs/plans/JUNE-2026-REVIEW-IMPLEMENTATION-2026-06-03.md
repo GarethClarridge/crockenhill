@@ -1,6 +1,10 @@
 # June 2026 Review — Implementation Plan
 
 Created 2026-06-03. **Refreshed 2026-06-10** after a repo-state audit (own review + Codex review).
+**Re-verified 2026-06-18** — every completed phase's artifacts still hold against the repo (Phase 0
+fixes, R-track moves, Horizon/backup/health adoptions all present); the only stale data point was
+P5's `laravel/ai` version, corrected below. No phase verdict changed. The single open in-scope item
+remains P1's staging smoke test.
 Implements the findings in
 [docs/reviews/project-wide-improvement-review-2026-06-03.md](../reviews/project-wide-improvement-review-2026-06-03.md).
 
@@ -292,7 +296,7 @@ and do not wait for any approval):
 | **P1** | `laravel/horizon` | ✅ **Adopt** | Queue observability; its boot check also enforces the Phase 0.1 invariant permanently. |
 | **P3** | `spatie/laravel-health` (+ `schedule-monitor`) | ✅ **Done** (2026-06-10) | Canaries folded in as a custom check (option a); `/health` is the single monitoring surface. |
 | **P4** | `spatie/laravel-model-states` | ⏸️ **Defer** | Unchanged verdict; references updated to post-R3 paths. |
-| **P5** | `laravel/ai` | ⏸️ **Defer** | Reaffirmed 2026-06-10: Packagist shows v0.8.0 (2026-06-08), still pre-1.0. |
+| **P5** | `laravel/ai` | ⏸️ **Defer** | Capability-gated (2026-06-18): tiny replaceable surface, single provider, no unmet capability — not the version. |
 
 **Suggested adopt-now order: P2 → P1 → P3**, all independent of Track 1.
 
@@ -508,18 +512,38 @@ any of the other machines.
 
 ### Phase P5 — `laravel/ai` (Laravel AI SDK) · ⏸️ Defer
 
-**Status: Deferred — reaffirmed 2026-06-10: Packagist lists v0.8.0 (released 2026-06-08), still
-pre-1.0. Revisit at a stable (≥ 1.0) release.**
+**Status: Deferred — capability-gated, not version-gated.**
 
-The strategic fit is real — the app hand-rolled a smaller SDK (provider binding, structured output,
-fake layer) in [AiServiceProvider](../../app/Providers/AiServiceProvider.php) — but the AI work is
-isolated behind three contracts
+The deferral does **not** hinge on the version number. The previous framing ("revisit at ≥ 1.0")
+was a weak proxy: Laravel's docs encourage `laravel/ai` while Packagist still lists a pre-1.0
+release (v0.8.1, 2026-06-10), so the version signal contradicts itself and shouldn't drive the call.
+What actually decides it is **replaceable surface vs. capability gained**, and today both point to
+*wait*:
+
+- **The surface it would replace is tiny.** The hand-rolled "SDK" is essentially the 44-line
+  [AiServiceProvider](../../app/Providers/AiServiceProvider.php) (provider binding + fake layer).
+  The bulk of the AI code — `SermonAnalysisPromptBuilder`, `OpenAIResponseLogger`,
+  `SongLyricOcrService`, `SpeechSectionClassificationService`, the JSON-schema/response handling —
+  is **domain logic that stays whichever way we go**; `laravel/ai` does not replace it.
+- **Its headline value is the provider abstraction, and we have one provider.** Every AI call site
+  is OpenAI. An abstraction over a single provider abstracts nothing yet.
+- **Pre-1.0 means no backward-compat promise** (breaking changes land in *minor* releases), so
+  adopting now means riding churn to delete ~44 lines — risk without capability.
+
+The work is isolated behind three contracts
 ([SermonAnalysisInterface](../../app/Contracts/SermonAnalysisInterface.php),
 [TranscriptionServiceInterface](../../app/Contracts/TranscriptionServiceInterface.php),
 [OosEmailItemExtractor](../../app/Contracts/OosEmailItemExtractor.php)), so deferring costs nothing.
 
-**Trigger to revisit:** a stable release, *or* a concrete need the seam can't meet cheaply (provider
-failover, second-provider requirement). First seam when triggered: reimplement
+**Triggers to revisit (any one):**
+
+1. A **second AI provider or failover** requirement appears — the provider abstraction finally has a
+   job to do.
+2. A capability we'd otherwise **hand-build** is needed (agent/tool-call orchestration, streaming).
+3. The **bespoke fake layer** becomes a genuine test-maintenance burden.
+
+A stable (≥ 1.0) release is a *nice-to-have precondition* once one of the above fires — not a trigger
+on its own. First seam when triggered: reimplement
 [app/Services/Email/OpenAiOosEmailItemExtractor.php](../../app/Services/Email/OpenAiOosEmailItemExtractor.php)
 (the smaller, lower-traffic seam) as a structured-output agent behind its existing contract; swap its
 tests to the SDK fake layer; do sermon analysis second once the pattern is proven. Do not touch the

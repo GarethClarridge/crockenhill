@@ -44,9 +44,11 @@ request threw, here's the stack trace, first seen in deploy `<SHA>`".
 - `vendor/bin/sail composer require sentry/sentry-laravel:^4.25`
 - **Laravel 13 support: confirmed** (2026-06-10). `sentry/sentry-laravel`
   4.25.1 declares `illuminate/support ^6.0 | … | ^13.0` and
-  `php ^7.2 | ^8.0` — covers this repo's Laravel 13 / PHP 8.5 image. The
+  `php ^7.2 | ^8.0` — covers this repo's Laravel 13, `composer.json`
+  `php: ^8.4`, and the `php:8.5-fpm-bookworm` runtime image alike. The
   former go/no-go risk is retired; pin `^4.25` so we don't resolve an older
-  pre-13 release.
+  pre-13 release. **Re-confirm the resolved version at install time** — this
+  note predates the build; a newer 4.x may exist.
 
 ### 2. Publish & shape config
 - `vendor/bin/sail artisan vendor:publish --provider="Sentry\Laravel\ServiceProvider"`
@@ -95,11 +97,12 @@ handler. This codebase deliberately catches and recovers in many places
 (~100 `Log::error` calls), so "every request, job, and command" is only true
 after auditing those paths. Known offenders that swallow real failures:
 
-- `App\Services\MediaProcessing\ProcessingRunFailureHandler::handle()` — logs
+- `App\Services\Processing\ProcessingRunFailureHandler::handle()` — logs
   the terminal pipeline failure and transitions state; the exception never
   reaches the handler. Add `report($exception)` here — this *is* the final
   failure, so it can't double-report with the queue integration.
-- `ProcessingRunOrchestrator` / `UnifiedMediaProcessor` catch blocks — same
+- `ProcessingRunOrchestrator` / `UnifiedMediaProcessor` catch blocks (same
+  `App\Services\Processing` namespace) — same
   audit: where the catch represents an *unexpected* failure (not a known
   transient or manual-review transition), add `report($e)` alongside the
   existing log call.
@@ -183,7 +186,7 @@ reaches the running container's env. Make the image **self-identifying**:
 - `composer.json` / `composer.lock` — new dependency
 - `config/sentry.php` — **new** (published, then edited)
 - `bootstrap/app.php` — extend the existing `withExceptions` closure
-- `app/Services/MediaProcessing/ProcessingRunFailureHandler.php` (+ any other
+- `app/Services/Processing/ProcessingRunFailureHandler.php` (+ any other
   catch paths flagged by the step-4 audit) — add `report($e)`
 - `Dockerfile` — `ARG GIT_SHA` / `ENV APP_VERSION`
 - `.github/workflows/deploy.yml` — `build-args: GIT_SHA` on the build step
@@ -218,7 +221,8 @@ reaches the running container's env. Make the image **self-identifying**:
 
 - ~~Laravel 13 compatibility of `sentry/sentry-laravel`~~ — **resolved
   2026-06-10**: 4.25.1 declares `illuminate/support ^13.0` (verified on
-  Packagist). Pin `^4.25` in step 1.
+  Packagist). Pin `^4.25` in step 1, but re-confirm the resolved version when
+  you actually `composer require` — the Packagist check predates the build.
 - `throttle()` and `dontReportDuplicates()` affect the *whole* report pipeline
   (logs too, not just Sentry) — keep the limit high enough not to drop legit
   distinct errors during an incident.
