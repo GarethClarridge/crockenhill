@@ -91,7 +91,7 @@ class MediaValidationService
     /**
      * Validate a local file path against the canonical rules for a given media type.
      *
-     * @throws \App\Exceptions\InvalidFileException If the file size is too large or the MIME type is unsupported.
+     * @throws InvalidFileException If the file size is too large or the MIME type is unsupported.
      */
     public function validateLocalFile(MediaType $type, string $filePath): void
     {
@@ -113,7 +113,7 @@ class MediaValidationService
     /**
      * Validate an uploaded file against the canonical rules for a given media type.
      *
-     * @throws \App\Exceptions\InvalidFileException If the file is invalid, too large, or has an unsupported MIME type/extension.
+     * @throws InvalidFileException If the file is invalid, too large, or has an unsupported MIME type/extension.
      */
     public function validateUploadedFile(MediaType $type, UploadedFile $file): void
     {

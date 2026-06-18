@@ -66,7 +66,7 @@ class VideoExtractionService
      * @param  string|null  $outputFilename  Optional custom filename for the output
      * @return string The relative path to the extracted video file
      *
-     * @throws \App\Exceptions\VideoProcessingException If output file was not created
+     * @throws VideoProcessingException If output file was not created
      * @throws \Exception For underlying system or FFmpeg errors
      */
     public function extractSegmentAsFile(string $inputPath, object $segment, ?string $outputFilename = null): string
@@ -152,7 +152,7 @@ class VideoExtractionService
      * @param  string|null  $outputFilename  Optional custom filename for the output
      * @return string The relative path to the concatenated video file
      *
-     * @throws \App\Exceptions\VideoProcessingException If concatenation fails or no valid segments provided
+     * @throws VideoProcessingException If concatenation fails or no valid segments provided
      */
     public function extractConcatenatedSegmentAsFile(
         string $inputPath,
@@ -268,7 +268,7 @@ class VideoExtractionService
      * @param  string|null  $outputFilename  Optional custom filename for the output
      * @return UploadedFile The extracted segment as a Laravel UploadedFile
      *
-     * @throws \App\Exceptions\VideoProcessingException If extraction fails or times are invalid
+     * @throws VideoProcessingException If extraction fails or times are invalid
      */
     public function extractSegmentAsUpload(string $inputPath, object $segment, ?string $outputFilename = null): UploadedFile
     {
