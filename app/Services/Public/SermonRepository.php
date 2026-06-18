@@ -124,7 +124,7 @@ class SermonRepository
     public function getLatestSermons(): Collection
     {
         return $this->rememberFlexible('latest_sermons', [86400, 172800], function (): Collection {
-            $distinct_dates = Sermon::query()
+            $distinctDates = Sermon::query()
                 ->whereSermon()
                 ->select('date')
                 ->distinct()
@@ -132,12 +132,12 @@ class SermonRepository
                 ->limit(6)
                 ->pluck('date');
 
-            if ($distinct_dates->isEmpty()) {
+            if ($distinctDates->isEmpty()) {
                 return collect();
             }
 
             return $this->publicSermonQuery()
-                ->whereIn('date', $distinct_dates)
+                ->whereIn('date', $distinctDates)
                 ->orderBy('date', 'desc')
                 ->orderBy('service', 'asc')
                 ->get()
@@ -471,17 +471,7 @@ class SermonRepository
 
         $seriesSlugs = array_map(fn (string $s) => Str::slug($s), $seriesNames);
 
-        // Clear book list caches for all combinations of preacher and series
-        foreach ($preacherIds as $id) {
-            $this->forgetFlexible("sermon_scripture_books_{$id}_all");
-        }
-
-        foreach ($seriesSlugs as $slug) {
-            $this->forgetFlexible("sermon_scripture_books_all_{$slug}");
-            foreach ($preacherIds as $id) {
-                $this->forgetFlexible("sermon_scripture_books_{$id}_{$slug}");
-            }
-        }
+        $this->forgetPreacherAndSeriesCaches($preacherIds, $seriesSlugs);
 
         // Resolve all Bible books associated with this sermon (current and previous)
         // to ensure all relevant chapter caches are invalidated. We parse references
@@ -505,6 +495,38 @@ class SermonRepository
 
         $books = array_unique($books);
 
+        $this->forgetBookAndChapterCaches($books, $preacherIds, $seriesSlugs);
+    }
+
+    /**
+     * Clear scripture book list caches for all combinations of preacher and series.
+     *
+     * @param  array<int, int>  $preacherIds
+     * @param  array<int, string>  $seriesSlugs
+     */
+    private function forgetPreacherAndSeriesCaches(array $preacherIds, array $seriesSlugs): void
+    {
+        foreach ($preacherIds as $id) {
+            $this->forgetFlexible("sermon_scripture_books_{$id}_all");
+        }
+
+        foreach ($seriesSlugs as $slug) {
+            $this->forgetFlexible("sermon_scripture_books_all_{$slug}");
+            foreach ($preacherIds as $id) {
+                $this->forgetFlexible("sermon_scripture_books_{$id}_{$slug}");
+            }
+        }
+    }
+
+    /**
+     * Clear scripture chapter list caches for all combinations of Bible book, preacher, and series.
+     *
+     * @param  array<int, string>  $books
+     * @param  array<int, int>  $preacherIds
+     * @param  array<int, string>  $seriesSlugs
+     */
+    private function forgetBookAndChapterCaches(array $books, array $preacherIds, array $seriesSlugs): void
+    {
         foreach ($books as $book) {
             $bookSlug = Str::slug($book);
             $this->forgetFlexible("sermon_scripture_chapters_{$bookSlug}_all_all");

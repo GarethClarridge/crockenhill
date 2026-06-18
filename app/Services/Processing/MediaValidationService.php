@@ -14,7 +14,7 @@ class MediaValidationService
     /**
      * Return Laravel validation rules for a given media type.
      *
-     * @return array<string, string>
+     * @return array{file: string}
      */
     public function rulesForType(MediaType $type): array
     {
