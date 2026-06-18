@@ -78,13 +78,16 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($churchServices as $churchService)
-                @php $rollup = $rollups[$churchService->id] ?? null; @endphp
-                <tr class="hover:bg-gray-50" wire:loading.class.delay.200ms="opacity-50" wire:key="service-row-{{ $churchService->id }}">
+                @php
+                    $rollup = $rollups[$churchService->id] ?? null;
+                    $needsReview = $rollup !== null && $rollup['status'] === \App\Enums\ChurchServiceRollupStatus::NeedsReview;
+                @endphp
+                <tr class="hover:bg-gray-50 {{ $needsReview ? 'border-l-4 border-amber-400 bg-amber-50/30' : '' }}" wire:loading.class.delay.200ms="opacity-50" wire:key="service-row-{{ $churchService->id }}">
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $churchService->date->format('j M Y') }}</p>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        <x-badge variant="default" size="xs">
                             {{ $churchService->service->label() }}
-                        </span>
+                        </x-badge>
                     </td>
                     <td class="px-4 py-3">
                         <p class="text-sm">{{ $churchService->items_count }} {{ \Illuminate\Support\Str::plural('item', $churchService->items_count) }}</p>
@@ -94,14 +97,24 @@
                     </td>
                     <td class="px-4 py-3">
                         @if($rollup !== null)
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $rollup['status']->badgeClasses() }}">
-                                {{ $rollup['status']->label() . ($rollup['status'] === \App\Enums\ChurchServiceRollupStatus::NeedsReview ? " ({$rollup['attention_count']})" : '') }}
-                            </span>
+                            <x-badge
+                                :variant="match($rollup['status']) {
+                                    \App\Enums\ChurchServiceRollupStatus::NeedsReview => 'warning',
+                                    \App\Enums\ChurchServiceRollupStatus::Processing => 'sky',
+                                    \App\Enums\ChurchServiceRollupStatus::Ready => 'teal',
+                                    \App\Enums\ChurchServiceRollupStatus::Published => 'success',
+                                    default => 'default',
+                                }"
+                                size="xs"
+                                :pulse="$needsReview"
+                            >
+                                {{ $rollup['status']->label() . ($needsReview ? " ({$rollup['attention_count']})" : '') }}
+                            </x-badge>
                         @endif
                     </td>
                     <td class="px-4 py-3">
                         <p class="text-sm font-medium">{{ $churchService->original_filename ?: '-' }}</p>
-                        <p class="text-xs text-gray-500">{{ $churchService->updated_at?->format('j M Y H:i') }}</p>
+                        <p class="text-xs text-gray-500">{{ $churchService->updated_at?->diffForHumans() ?? '-' }}</p>
                     </td>
                     <td class="px-4 py-3 text-right">
                         <div class="flex gap-1 justify-end" role="group" aria-label="Actions for {{ $churchService->date->format('j M Y') }} {{ $churchService->service->label() }} service">
