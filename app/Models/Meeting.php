@@ -183,7 +183,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
         return [
             'slug' => $slugRule,
             'type' => ['required', Rule::enum(MeetingType::class)],
-            'day' => ['nullable', 'string', 'max:255', new TrimmedText],
+            'day' => ['nullable', 'string', 'max:75', new TrimmedText],
             'location' => ['nullable', 'string', 'max:255', new TrimmedText],
             'who' => ['required', 'string', 'max:255', new TrimmedText],
             'leaders_phone' => ['nullable', 'string', 'max:255', new TrimmedText],
