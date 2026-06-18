@@ -9,3 +9,8 @@
 **Pattern:** `config/redirects.php` entry pointing to a non-existent slug.
 **Cause:** `about-us/privacy-policy` redirects to `/church/privacy-policy`, but the page slug in the database is `privacy-notice`.
 **Action:** Cross-reference redirect targets against the `pages` table and `route:list`.
+
+## 2026-06-17 - Missing Seed Audio Asset
+**Pattern:** Sermon records created by seeders point to audio files that do not exist in the environment's storage.
+**Cause:** `SermonSeeder` assumes the presence of `sermons/seed/2024-11-24.mp3` in the public disk, but this file is not bundled with the repository or generated during setup.
+**Action:** Cross-check `audio_file_path` against `Storage::disk('public')->exists()` specifically for seeded records.

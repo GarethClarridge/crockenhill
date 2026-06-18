@@ -6,7 +6,7 @@
     'hasVideo',
 ])
 
-<article class="group relative flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+<article class="group relative flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300 motion-safe:hover:-translate-y-1 hover:shadow-lg">
     @if ($cardThumbnailUrl)
         <a
             href="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}"
@@ -18,7 +18,7 @@
             <img
                 src="{{ $cardThumbnailUrl }}"
                 alt="Children's Corner: {{ $sermon->title }}"
-                class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115"
+                class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out motion-safe:group-hover:scale-105 group-hover:brightness-115"
                 loading="lazy"
             >
             <div class="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent"></div>

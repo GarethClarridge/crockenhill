@@ -112,7 +112,7 @@
       x-transition:leave="transition ease-in duration-500"
       x-transition:leave-start="opacity-100"
       x-transition:leave-end="opacity-0"
-      class="h-full bg-cbc-teal shadow-[0_0_8px_var(--color-cbc-teal-light)] animate-progress"
+      class="h-full bg-cbc-teal shadow-[0_0_8px_var(--color-cbc-teal-light)] motion-safe:animate-progress motion-reduce:w-full"
       style="width: 0%;"
     ></div>
   </div>

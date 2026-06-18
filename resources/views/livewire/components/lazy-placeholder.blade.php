@@ -2,14 +2,14 @@
     {{-- Header with skeleton loader --}}
     <div class="flex items-center justify-between p-4 border-b">
         <div class="flex items-center space-x-3">
-            <div class="h-6 w-32 bg-gray-200 rounded animate-pulse"></div>
-            <div class="h-5 w-16 bg-gray-200 rounded-full animate-pulse"></div>
+            <div class="h-6 w-32 bg-gray-200 rounded motion-safe:animate-pulse"></div>
+            <div class="h-5 w-16 bg-gray-200 rounded-full motion-safe:animate-pulse"></div>
         </div>
 
         <div class="flex items-center space-x-2">
-            <div class="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>
-            <div class="h-6 w-6 bg-gray-200 rounded animate-pulse"></div>
-            <div class="h-6 w-20 bg-gray-200 rounded animate-pulse"></div>
+            <div class="h-5 w-24 bg-gray-200 rounded motion-safe:animate-pulse"></div>
+            <div class="h-6 w-6 bg-gray-200 rounded motion-safe:animate-pulse"></div>
+            <div class="h-6 w-20 bg-gray-200 rounded motion-safe:animate-pulse"></div>
         </div>
     </div>
 

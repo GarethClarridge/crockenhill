@@ -23,6 +23,6 @@ class BackToTopTest extends TestCase
 
         $this->assertStringContainsString('x-on:scroll.window.throttle.100ms="show = window.scrollY > 400"', $rendered);
         $this->assertStringContainsString('aria-label="Back to top"', $rendered);
-        $this->assertStringContainsString('window.scrollTo({ top: 0, behavior: \'smooth\' })', $rendered);
+        $this->assertStringContainsString('window.scrollTo({ top: 0, behavior: window.matchMedia(\'(prefers-reduced-motion: reduce)\').matches ? \'auto\' : \'smooth\' })', $rendered);
     }
 }

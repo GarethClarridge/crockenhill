@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CancelMediaProcessingRequest;
 use App\Http\Requests\ConfirmMediaSegmentRequest;
 use App\Http\Requests\MediaStatusRequest;
+use App\Http\Requests\MediaStreamRequest;
 use App\Http\Requests\ProcessMediaRequest;
 use App\Http\Requests\RetryMediaProcessingRequest;
 use App\Models\User;
@@ -122,8 +123,9 @@ class MediaController extends Controller
      * (completed, failed, cancelled) or after a one-hour deadline.
      *
      * Security: The underlying GetMediaProcessingStatus service enforces per-user visibility.
+     * Strict processingId shape validation is enforced via MediaStreamRequest.
      */
-    public function stream(string $processingId, GetMediaProcessingStatus $statusService): StreamedResponse
+    public function stream(MediaStreamRequest $request, string $processingId, GetMediaProcessingStatus $statusService): StreamedResponse
     {
         $pollSeconds = max(0, (int) config('media-processing.sse.poll_seconds', 2));
         $maxDurationSeconds = max(1, (int) config('media-processing.sse.max_duration_seconds', 3600));

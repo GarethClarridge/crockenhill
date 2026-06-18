@@ -7,18 +7,13 @@ namespace App\Services\Processing;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 
+/**
+ * @phpstan-import-type RetryPlan from ProcessingPhaseRegistry
+ */
 class ProcessingPhaseResetService
 {
     /**
-     * @param  array{
-     *     action: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream'|'manual_review',
-     *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
-     *     job_offset?: int,
-     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
-     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
-     *     reason_code?: string,
-     *     reason_message?: string
-     * }  $retryPlan
+     * @param  RetryPlan  $retryPlan
      */
     public function resetForRetry(MediaProcessingLog $processingLog, array $retryPlan): void
     {

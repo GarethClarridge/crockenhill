@@ -14,16 +14,23 @@ class MediaValidationService
     /**
      * Return Laravel validation rules for a given media type.
      *
-     * @return array<string, string>
+     * @return array{file: string}
      */
     public function rulesForType(MediaType $type): array
     {
         $config = config("media-processing.types.{$type->value}");
         $maxSizeKB = (int) ($config['max_file_size'] / 1024);
         $extensions = implode(',', $config['allowed_extensions']);
+        $mimes = implode(',', $config['allowed_mimes'] ?? []);
+
+        $rules = "required|file|mimes:{$extensions}|max:{$maxSizeKB}";
+
+        if ($mimes !== '') {
+            $rules .= "|mimetypes:{$mimes}";
+        }
 
         return [
-            'file' => "required|file|mimes:{$extensions}|max:{$maxSizeKB}",
+            'file' => $rules,
         ];
     }
 
@@ -84,7 +91,7 @@ class MediaValidationService
     /**
      * Validate a local file path against the canonical rules for a given media type.
      *
-     * Throws \App\Exceptions\InvalidFileException on the first failing constraint.
+     * @throws \App\Exceptions\InvalidFileException If the file size is too large or the MIME type is unsupported.
      */
     public function validateLocalFile(MediaType $type, string $filePath): void
     {
@@ -106,7 +113,7 @@ class MediaValidationService
     /**
      * Validate an uploaded file against the canonical rules for a given media type.
      *
-     * Throws \App\Exceptions\InvalidFileException on the first failing constraint.
+     * @throws \App\Exceptions\InvalidFileException If the file is invalid, too large, or has an unsupported MIME type/extension.
      */
     public function validateUploadedFile(MediaType $type, UploadedFile $file): void
     {

@@ -18,7 +18,7 @@
     $dateString = $sermonView['date_string'];
 @endphp
 
-<div data-sermon-card class="group relative flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+<div data-sermon-card class="group relative flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-all duration-300 motion-safe:hover:-translate-y-1 hover:shadow-lg">
 
   @if($thumbnailUrl)
     <a
@@ -32,7 +32,7 @@
       <img
         src="{{ $thumbnailUrl }}"
         alt="Sermon: {{ $sermon->title }}"
-        class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115"
+        class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out motion-safe:group-hover:scale-105 group-hover:brightness-115"
         loading="lazy"
         onerror="this.onerror=null; const card = this.closest('[data-sermon-card]'); card?.querySelector('[data-sermon-card-thumbnail]')?.remove(); card?.querySelector('[data-sermon-card-title-fallback]')?.classList.remove('hidden');"
       >

@@ -34,7 +34,7 @@ abstract class MediaProcessingRequest extends FormRequest
      * handle 400 for a malformed processingId. Preserving that contract here
      * means only body-field validation failures surface as 422.
      *
-     * @throws HttpException
+     * @throws HttpException If the processing ID format is invalid.
      */
     protected function assertProcessingIdShape(): void
     {

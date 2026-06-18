@@ -13,7 +13,7 @@
 >
     <button
         type="button"
-        @click="window.scrollTo({ top: 0, behavior: 'smooth' }); document.getElementById('main-content')?.focus()"
+        @click="window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); document.getElementById('main-content')?.focus()"
         aria-label="Back to top"
         title="Back to top"
         class="flex h-12 w-12 items-center justify-center rounded-full bg-cbc-teal text-white shadow-lg transition-all hover:bg-cbc-teal-dark hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 active:scale-95"

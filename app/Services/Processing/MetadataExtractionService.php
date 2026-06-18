@@ -598,8 +598,8 @@ class MetadataExtractionService
             }
         } catch (\Exception $e) {
             Log::debug('Failed to get file size from storage', [
-                'file_path' => $filePath,
-                'error' => $e->getMessage(),
+                'file_path' => $this->sanitizeForLog($filePath),
+                'error' => $this->sanitizeForLog($e->getMessage()),
             ]);
         }
 

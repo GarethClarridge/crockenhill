@@ -84,6 +84,7 @@ class ChurchServiceItem extends Model
             'section_type' => ServiceSectionType::class,
             'source' => ChurchServiceItemSource::class,
             'song_id' => 'integer',
+            'livestream_service_section_id' => 'integer',
             'metadata' => 'array',
         ];
     }
@@ -143,7 +144,7 @@ class ChurchServiceItem extends Model
             'source_title' => ['nullable', 'string', 'max:255'],
             'openlp_search_title' => ['nullable', 'string', 'max:255'],
             'song_id' => ['nullable', 'integer', 'min:1', 'exists:songs,id'],
-            'livestream_processing_id' => ['nullable', 'string', 'max:36'],
+            'livestream_processing_id' => ['nullable', 'uuid'],
             'livestream_service_section_id' => ['nullable', 'integer', 'min:1', 'exists:service_sections,id'],
         ];
     }

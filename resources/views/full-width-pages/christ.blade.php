@@ -120,7 +120,7 @@
     <p>
       But how did a man born the son of a carpenter in a village
       smaller than Crockenhill, in a province on the edge of the
-      Roman Empire end up shaping the course of history, the
+      Roman Empire, end up shaping the course of history, the
       culture of nations, and the lives of up to 2 billion people?
     </p>
     <p>
@@ -151,7 +151,7 @@
   <x-text>
     <p>
       But <a href="#who-is-jesus">the world Jesus gave us a glimpse of</a>
-      isn't the one we have is it?
+      isn't the one we have, is it?
     </p>
     <p>
       Our world is full of sickness and pain, loneliness and

@@ -17,3 +17,11 @@
 ## 2026-06-08 - Documenting Fuzzy Reassembly Logic
 **Learning:** Documentation for reassembly and deduplication logic (like in `AudioChunkingService`) must explicitly bridge the gap between technical implementation (85% similarity threshold) and domain impact (Whisper transcription variations across chunk boundaries). Precise `list<array{...}>` shapes for multi-segment data are essential for ensuring callers provide the necessary metadata (indices, timestamps) for correct ordering and overlap handling.
 **Action:** When documenting fuzzy matching or deduplication, always explain the calibration rationale for similarity thresholds to prevent arbitrary adjustments that might break edge-case handling.
+
+## 2026-06-15 - Documenting Log Parsing and Performance Summaries
+**Learning:** Documenting services that parse unstructured logs into structured data (like `ProcessingLogService`) requires precise return shapes to ensure downstream consumers (like status dashboards) can safely access nested metrics. Identifying that `timestamp` might be null in `step_metrics` (if a log entry lacks a timestamp but has performance data) was a critical catch for PHPStan accuracy.
+**Action:** Use nullable types in array shapes (`type|null`) for keys derived from logs or external inputs that might be malformed or missing.
+
+## 2026-06-18 - Centralizing Complex Array Shapes with PHPStan Types
+**Learning:** For complex data structures reused across the processing pipeline (like `RetryPlan` and `ProcessingPhase`), defining `@phpstan-type` aliases in a central registry (e.g., `ProcessingPhaseRegistry`) and leveraging `@phpstan-import-type` in consuming services ensures documentation consistency and improves static analysis precision.
+**Action:** Use `@phpstan-type` and `@phpstan-import-type` whenever a complex array shape is shared between services to prevent documentation rot. Note that `@phpstan-import-type` must be placed in the class-level PHPDoc block.

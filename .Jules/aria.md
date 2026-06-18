@@ -1,3 +1,3 @@
-## 2026-08-11 - Heading Hierarchy Standardisation
-**Pattern:** Content regions (cards, empty states, footers) jumping from `<h1>` to `<h3>` causing accessibility skips.
-**Fix:** Standardise internal structural headings in base components and layouts to use `<h2>`. Visual font size remains controlled by Tailwind utility classes, preserving design while fixing semantic hierarchy.
+## 2026-08-11 - Reduced Motion Support
+**Pattern:** Animations, transitions, and smooth scrolling can cause discomfort for users with vestibular disorders.
+**Fix:** Use `motion-safe:` for animations (`animate-progress`, `animate-pulse`, `hover:-translate-y-1`) and check `window.matchMedia('(prefers-reduced-motion: reduce)')` in Alpine.js for scroll behavior.

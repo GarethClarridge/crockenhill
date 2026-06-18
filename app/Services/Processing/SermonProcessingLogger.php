@@ -345,7 +345,7 @@ class SermonProcessingLogger
                     return 0;
                 }
 
-                return $log->updated_at->diffInSeconds($log->created_at);
+                return $log->updated_at->diffInSeconds($log->created_at, true);
             });
             $statistics['average_processing_time'] = round($totalTime / $completedLogs->count(), 2);
         }
@@ -605,7 +605,7 @@ class SermonProcessingLogger
         $metrics = [];
 
         foreach ($logs as $log) {
-            if (str_contains($log['message'], 'performance metrics')) {
+            if (str_contains(strtolower($log['message']), 'performance metrics')) {
                 if (preg_match('/execution_time_seconds":([\d.]+)/', $log['message'], $matches)) {
                     $step = $this->extractStepFromMessage($log['message']);
                     $metrics[$step] = [

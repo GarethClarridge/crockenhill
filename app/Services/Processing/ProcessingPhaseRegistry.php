@@ -13,6 +13,25 @@ use App\Models\MediaProcessingLog;
  * This class serves as the central source of truth for mapping discrete processing
  * steps to progress percentages and defining how a failed or cancelled pipeline
  * should be retried based on its last known state.
+ *
+ * @phpstan-type ProcessingPhase array{
+ *     key: string,
+ *     progress: int,
+ *     job_offset: int,
+ *     steps: list<string>,
+ *     retry_action?: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream',
+ *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+ *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none'
+ * }
+ * @phpstan-type RetryPlan array{
+ *     action: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream'|'manual_review',
+ *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
+ *     job_offset?: int,
+ *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+ *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
+ *     reason_code?: string,
+ *     reason_message?: string
+ * }
  */
 class ProcessingPhaseRegistry
 {
@@ -20,15 +39,7 @@ class ProcessingPhaseRegistry
      * Retrieve the ordered collection of phases for a specific pipeline profile.
      *
      * @param  string  $pipeline  The pipeline profile (audio, video, video_auto_trim, livestream)
-     * @return list<array{
-     *     key: string,
-     *     progress: int,
-     *     job_offset: int,
-     *     steps: list<string>,
-     *     retry_action?: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream',
-     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
-     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none'
-     * }>
+     * @return list<ProcessingPhase>
      */
     public function phasesForPipeline(string $pipeline): array
     {
@@ -102,15 +113,7 @@ class ProcessingPhaseRegistry
      * or requires manual administrative review.
      *
      * @param  MediaProcessingLog  $processingLog  The failed or cancelled log
-     * @return array{
-     *     action: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream'|'manual_review',
-     *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
-     *     job_offset?: int,
-     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
-     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
-     *     reason_code?: string,
-     *     reason_message?: string
-     * }
+     * @return RetryPlan
      */
     public function retryPlanFor(MediaProcessingLog $processingLog): array
     {
@@ -161,11 +164,7 @@ class ProcessingPhaseRegistry
     }
 
     /**
-     * @return array{
-     *     action: 'manual_review',
-     *     reason_code: string,
-     *     reason_message: string
-     * }
+     * @return RetryPlan
      */
     private function manualReviewPlan(string $reasonCode, string $reasonMessage): array
     {
@@ -176,6 +175,13 @@ class ProcessingPhaseRegistry
         ];
     }
 
+    /**
+     * Normalize processing step identifiers.
+     *
+     * Ensures that legacy or variant step formats (like those prefixed with
+     * livestream source metadata) are resolved to their canonical phase keys
+     * for registry lookup.
+     */
     private function normalizeStep(?string $step): ?string
     {
         if ($step === null || $step === '') {
@@ -204,15 +210,7 @@ class ProcessingPhaseRegistry
     }
 
     /**
-     * @return array{
-     *     key: string,
-     *     progress: int,
-     *     job_offset: int,
-     *     steps: list<string>,
-     *     retry_action?: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream',
-     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
-     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none'
-     * }|null
+     * @return ProcessingPhase|null
      */
     private function phaseForPipelineStep(string $pipeline, ?string $step): ?array
     {
@@ -230,12 +228,7 @@ class ProcessingPhaseRegistry
     }
 
     /**
-     * @return list<array{
-     *     key: string,
-     *     progress: int,
-     *     job_offset: int,
-     *     steps: list<string>
-     * }>
+     * @return list<ProcessingPhase>
      */
     private function audioPhases(): array
     {
@@ -338,12 +331,7 @@ class ProcessingPhaseRegistry
     }
 
     /**
-     * @return list<array{
-     *     key: string,
-     *     progress: int,
-     *     job_offset: int,
-     *     steps: list<string>
-     * }>
+     * @return list<ProcessingPhase>
      */
     private function videoPhases(): array
     {
@@ -469,15 +457,7 @@ class ProcessingPhaseRegistry
     }
 
     /**
-     * @return list<array{
-     *     key: string,
-     *     progress: int,
-     *     job_offset: int,
-     *     steps: list<string>,
-     *     retry_action?: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream',
-     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
-     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none'
-     * }>
+     * @return list<ProcessingPhase>
      */
     private function videoAutoTrimPhases(): array
     {
@@ -707,12 +687,7 @@ class ProcessingPhaseRegistry
     }
 
     /**
-     * @return list<array{
-     *     key: string,
-     *     progress: int,
-     *     job_offset: int,
-     *     steps: list<string>
-     * }>
+     * @return list<ProcessingPhase>
      */
     private function livestreamPhases(): array
     {

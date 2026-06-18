@@ -209,7 +209,7 @@ class BritishEnglishConverter
     /**
      * Get statistics about available corrections
      *
-     * @return array<string, mixed> Statistics
+     * @return array{total_patterns: int, cache_key: string, cache_ttl: int, external_wordlist_available: bool} Statistics
      */
     public function getStats(): array
     {

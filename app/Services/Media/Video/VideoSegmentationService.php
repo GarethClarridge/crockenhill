@@ -226,7 +226,7 @@ class VideoSegmentationService
             $end = $section['end'];
 
             if ($start > $previousEnd) {
-                $speechRms = $this->rmsAnalysisService->calculateSegmentRms($previousEnd, $start, $rmsData);
+                $speechRms = $this->rmsAnalysisService->calculateSegmentRms($previousEnd, $start, array_values($rmsData));
                 $combinedSections[] = new LivestreamSegment(
                     startTime: $previousEnd,
                     endTime: $start,
@@ -238,7 +238,7 @@ class VideoSegmentationService
                 );
             }
 
-            $songRms = $this->rmsAnalysisService->calculateSegmentRms($start, $end, $rmsData);
+            $songRms = $this->rmsAnalysisService->calculateSegmentRms($start, $end, array_values($rmsData));
             $combinedSections[] = new LivestreamSegment(
                 startTime: $start,
                 endTime: $end,
@@ -253,7 +253,7 @@ class VideoSegmentationService
         }
 
         if ($previousEnd < $totalDuration) {
-            $speechRms = $this->rmsAnalysisService->calculateSegmentRms($previousEnd, $totalDuration, $rmsData);
+            $speechRms = $this->rmsAnalysisService->calculateSegmentRms($previousEnd, $totalDuration, array_values($rmsData));
             $combinedSections[] = new LivestreamSegment(
                 startTime: $previousEnd,
                 endTime: $totalDuration,
