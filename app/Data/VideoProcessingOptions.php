@@ -85,7 +85,6 @@ final class VideoProcessingOptions
             'video_processing_mode' => [
                 'sometimes',
                 'string',
-                'max:20', // Security: Explicit length limit for video mode string
                 Rule::in([
                     MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO,
                     MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,

@@ -40,16 +40,7 @@ abstract class MediaProcessingRequest extends FormRequest
     {
         $processingId = $this->route('processingId');
 
-        /**
-         * Security: Strict length and format validation for the route parameter.
-         * Explicitly bounding the length to 36 characters provides Defense in Depth
-         * against extremely large input strings before the regex is even evaluated.
-         */
-        if (
-            ! is_string($processingId)
-            || strlen($processingId) !== 36
-            || preg_match('/^[0-9a-fA-F-]{36}$/', $processingId) !== 1
-        ) {
+        if (! is_string($processingId) || preg_match('/^[0-9a-fA-F-]{36}$/', $processingId) !== 1) {
             throw new HttpException(400, 'Invalid processing ID format.');
         }
     }
