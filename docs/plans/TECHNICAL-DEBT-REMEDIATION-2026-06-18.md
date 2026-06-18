@@ -88,20 +88,22 @@ No constraint change is needed: `^2.8.0` already permits the fixed `2.9.1`, and 
 `composer audit` runs only in the nightly workflow — [.github/workflows/nightly.yml:260](../../.github/workflows/nightly.yml#L260) (`npm audit` follows at line 262). The PR gate ([.github/workflows/pr.yml](../../.github/workflows/pr.yml)) enforces Pint ([:68](../../.github/workflows/pr.yml#L68)), PHPStan ([:74](../../.github/workflows/pr.yml#L74)), and the parallel test suite ([:77](../../.github/workflows/pr.yml#L77)) — **but not the security audit**. A vulnerable dependency can therefore merge and sit until a nightly run someone happens to act on. That is precisely how D1's CVE survived for a week.
 
 ### Approach
-Add `composer audit` (and `npm audit`) as a fast, blocking step on the PR workflow, reusing the dependency/cache steps already present there. Keep the nightly copy as the scheduled backstop. If dev-only advisories prove noisy, scope the PR step to `composer audit --no-dev` so production-path advisories still block while dev-tooling advisories are reported by nightly.
+Add `composer audit` and `npm audit` as fast, blocking steps on the PR workflow, right after `setup-laravel` installs dependencies (so a vulnerable dep fails before the test run). **Scope both to production dependencies** — `composer audit --no-dev` and `npm audit --omit=dev` — because dev/CI tooling never ships. This was not merely precautionary: a pre-commit check found the npm tree already carries dev-only advisories (`ws` via `puppeteer-core` = *high*; `js-yaml` via `@lhci/cli` = moderate) that would have red-flagged an unscoped `npm audit --audit-level=high` on day one. `nightly.yml` keeps the full audit (incl. dev) as the backstop. (The only production npm dependency today is `alpinejs`, so the npm gate is narrow but non-vacuous and future-proofs added runtime deps.)
 
 ### Target files
 - [.github/workflows/pr.yml](../../.github/workflows/pr.yml) — add the audit step after the existing Composer install / before or alongside Pint.
 
 ### Tasks
-- [ ] Add a `Composer audit` step to `pr.yml` running `composer audit` (consider `--no-dev` to limit to production-path advisories).
-- [ ] Add an `npm audit --audit-level=high` step (mirror the nightly intent; `|| true` is **not** acceptable — it must be able to fail).
-- [ ] Confirm placement reuses the cached `vendor/` from the existing install step (no second `composer install`).
-- [ ] Decide and document the override path for an *accepted* advisory (e.g. `--ignore <id>` with a comment + ticket link), so the gate can be consciously bypassed rather than disabled.
+- [x] Add a `Composer audit` step to `pr.yml` running `composer audit --no-dev` (production-path advisories only).
+- [x] Add an `npm audit --omit=dev --audit-level=high` step (no `|| true` — it can fail). Scoped to production after confirming the full-tree `--audit-level=high` is already red from dev-tooling advisories.
+- [x] Placement is right after `setup-laravel` (which runs `composer install` + `npm ci`), so there is no second install.
+- [x] Documented override path: add an accepted Composer advisory to `config.audit.ignore` in `composer.json` (code-reviewed), per the explanatory comment in `pr.yml` — preferred over a CLI `--ignore` buried in CI.
+
+> **Follow-up (not blocking D2):** the dev-only advisories above (`ws` high; `js-yaml`/`@lhci/cli` moderate) are real but ship nowhere and are caught by nightly. `ws` has a non-breaking `npm audit fix`; the `@lhci/cli` chain needs a major bump. Track under D6 / dependabot rather than this gate.
 
 ### Verification
-- [ ] Push a throwaway branch that pins a known-vulnerable package and confirm the PR check **fails**.
-- [ ] Revert the pin; confirm the check passes on a clean tree (after D1 has merged).
+- [x] Confirmed locally pre-commit: `composer audit --no-dev` → exit 0, `npm audit --omit=dev --audit-level=high` → exit 0 (`found 0 vulnerabilities`), and `pr.yml` parses as valid YAML (16 steps in the `quality` job).
+- [ ] On the first CI run, confirm the two new steps execute green; optionally push a throwaway branch pinning a known-vulnerable **production** package to confirm the gate **fails** as intended, then revert.
 
 ### Exit criteria
 - Opening a PR with a high/critical advisory on a production dependency fails CI before merge.

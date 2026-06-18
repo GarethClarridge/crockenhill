@@ -47,6 +47,20 @@ jobs:
       - name: Setup Laravel
         uses: ./.github/actions/setup-laravel
 
+      # Security audits run on every PR (previously nightly-only — see D2 of
+      # docs/plans/TECHNICAL-DEBT-REMEDIATION-2026-06-18.md). Placed before the
+      # test run so a vulnerable dependency fails fast. Both are scoped to
+      # production dependencies (the code that actually ships), so advisories in
+      # dev/CI tooling (PHPUnit, puppeteer, Lighthouse CI, …) don't block feature
+      # PRs; nightly.yml runs the full audit (incl. dev) as the backstop. To
+      # consciously accept a Composer advisory, add it to config.audit.ignore in
+      # composer.json (code-reviewed) rather than weakening this gate.
+      - name: Security audit (Composer, production deps)
+        run: composer audit --no-dev
+
+      - name: Security audit (npm, production deps)
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Configure Laravel for testing
         run: |
           php artisan key:generate
@@ -94,6 +108,7 @@ jobs:
             echo "- Bootstrap safety guard"
             echo "- Deploy view-cache safety guard"
             echo "- Frontend build"
+            echo "- Security audit (Composer + npm)"
             echo "- Schema dump freshness"
             echo "- Pint"
             echo "- Typing baseline"
