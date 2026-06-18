@@ -105,7 +105,7 @@ class SongSeoTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('In Christ Alone | Songs | Crockenhill Baptist Church');
         $response->assertSee('Lyrics and recent usage for In Christ Alone at Crockenhill Baptist Church.');
-        $response->assertSee('In Christ Alone | Songs | Crockenhill Baptist Church');
+        $response->assertSee('<meta property="og:title" content="In Christ Alone | Songs | Crockenhill Baptist Church">', false);
 
         // MusicComposition Schema
         $response->assertSee('"@type": "MusicComposition"', false);
