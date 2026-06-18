@@ -156,6 +156,7 @@ vendor/bin/sail bin pint --dirty       # Auto-fix formatting on changed files
 ## Testing Rules
 
 - Every code change must be programmatically tested. Write a new test or update an existing one, then run the affected tests to make sure they pass.
+- For a reported bug, write the reproducing test *first* — confirm it fails for the right reason (proving the bug), then fix the bug and prove it by making that same test pass (red → green). Do not start with the fix, and keep the test as a regression guard.
 - Prefer feature tests for HTTP/integration; unit tests for isolated logic.
 - Use PHPUnit, not Pest. Use `#[Test]` attributes on test methods. Use `DatabaseTransactions` for isolation. Use factories for model creation.
 - Cover happy path, failure paths, and edge cases.
