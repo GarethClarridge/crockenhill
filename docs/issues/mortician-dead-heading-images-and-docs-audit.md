@@ -1,4 +1,4 @@
-# 🪦 Mortician: Dead Assets & Documentation Audit — Heading Images
+# 🪦 Mortician: Dead Assets Audit — Heading Images
 
 ## 1. Unreferenced Heading Images in `public/images/headings/`
 
@@ -33,22 +33,3 @@ Low to Medium — Removing these assets is safe for the application's current lo
 
 **Recommendation:**
 Safe to remove most files. Retain `default.webp` and `sermons.webp` (large and small). A cleanup script could be used to remove all `.jpg` and unreferenced `.webp` files from these directories.
-
----
-
-## 2. Documentation Discrepancy in `AGENTS.md`
-
-**Artefact:**
-`AGENTS.md` (Line 51)
-
-**Evidence:**
-The documentation states:
-> - **PageImageService** — Image processing and storage for page heading images.
-
-However, no `PageImageService` class exists in the project. The actual service performing this role is `App\Services\Public\PageImageCacheService`.
-
-**Risk:**
-Very Low — Pure documentation error.
-
-**Recommendation:**
-Update `AGENTS.md` to correctly reference `PageImageCacheService`.
