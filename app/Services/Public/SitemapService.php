@@ -169,17 +169,25 @@ class SitemapService
                 'sermons.slug',
                 'sermons.thumbnail_file_path',
                 'sermons.thumbnail_generated_at',
+                'sermons.thumbnail_metadata',
                 'sermons.video_file_path',
                 'sermons.video_visibility_override',
                 'sermons.video_quality_status',
                 'sermons.content_type',
                 'sermons.updated_at',
+                'sermons.preacher',
+                'sermons.preacher_id',
                 'sermon_scripture_filters.bible_book as book_group',
             ])
             ->selectRaw('ROW_NUMBER() OVER (PARTITION BY sermon_scripture_filters.bible_book ORDER BY sermons.date DESC, sermons.id DESC) as row_num');
 
+        /**
+         * Performance Optimization: Eager load preacher profiles to avoid N+1 queries
+         * when resolving thumbnail and metadata for the representative sermons.
+         */
         $representativeSermons = Sermon::query()
             ->fromSub($subquery, 'ranked')
+            ->with(['preacherProfile:id,name,slug,image_path'])
             ->where('row_num', 1)
             ->get()
             ->keyBy('book_group');
@@ -315,16 +323,24 @@ class SitemapService
                 'series',
                 'thumbnail_file_path',
                 'thumbnail_generated_at',
+                'thumbnail_metadata',
                 'video_file_path',
                 'video_visibility_override',
                 'video_quality_status',
                 'content_type',
                 'updated_at',
+                'preacher',
+                'preacher_id',
             ])
             ->selectRaw('ROW_NUMBER() OVER (PARTITION BY series ORDER BY date DESC, id DESC) as row_num');
 
+        /**
+         * Performance Optimization: Eager load preacher profiles to avoid N+1 queries
+         * when resolving thumbnail and metadata for the representative sermons.
+         */
         $representativeSermons = Sermon::query()
             ->fromSub($subquery, 'ranked')
+            ->with(['preacherProfile:id,name,slug,image_path'])
             ->where('row_num', 1)
             ->get()
             ->keyBy('series');
