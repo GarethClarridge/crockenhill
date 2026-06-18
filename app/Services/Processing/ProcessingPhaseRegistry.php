@@ -32,6 +32,24 @@ use App\Models\MediaProcessingLog;
  *     reason_code?: string,
  *     reason_message?: string
  * }
+ * @phpstan-type ChainRetryPlan array{
+ *     action: 'dispatch_chain'|'dispatch_livestream_chain',
+ *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
+ *     job_offset?: int,
+ *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+ *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
+ *     reason_code?: string,
+ *     reason_message?: string
+ * }
+ * @phpstan-type ManualReviewPlan array{
+ *     action: 'manual_review',
+ *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
+ *     job_offset?: int,
+ *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+ *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
+ *     reason_code?: string,
+ *     reason_message?: string
+ * }
  */
 class ProcessingPhaseRegistry
 {
@@ -164,7 +182,11 @@ class ProcessingPhaseRegistry
     }
 
     /**
-     * @return RetryPlan
+     * @return array{
+     *     action: 'manual_review',
+     *     reason_code: string,
+     *     reason_message: string
+     * }
      */
     private function manualReviewPlan(string $reasonCode, string $reasonMessage): array
     {

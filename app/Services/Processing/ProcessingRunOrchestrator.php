@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\Log;
  * retrying failed/cancelled runs, and user-initiated cancellations.
  *
  * @phpstan-import-type RetryPlan from ProcessingPhaseRegistry
+ * @phpstan-import-type ChainRetryPlan from ProcessingPhaseRegistry
+ * @phpstan-import-type ManualReviewPlan from ProcessingPhaseRegistry
  */
 class ProcessingRunOrchestrator
 {
@@ -310,7 +312,7 @@ class ProcessingRunOrchestrator
     }
 
     /**
-     * @param  RetryPlan  $retryPlan
+     * @param  ChainRetryPlan  $retryPlan
      */
     private function retryWithChainFromPlan(MediaProcessingLog $processingLog, array $retryPlan): ProcessingResult
     {
@@ -361,7 +363,7 @@ class ProcessingRunOrchestrator
     }
 
     /**
-     * @param  RetryPlan  $retryPlan
+     * @param  ManualReviewPlan  $retryPlan
      */
     private function markForManualReviewFromPlan(MediaProcessingLog $processingLog, array $retryPlan): ProcessingResult
     {
