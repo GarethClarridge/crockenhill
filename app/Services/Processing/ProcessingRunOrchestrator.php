@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Log;
  * job chains or batches to their appropriate queues based on the media type.
  * Handles the logic for starting fresh runs, resuming after manual review,
  * retrying failed/cancelled runs, and user-initiated cancellations.
+ *
+ * @phpstan-import-type RetryPlan from ProcessingPhaseRegistry
  */
 class ProcessingRunOrchestrator
 {
@@ -140,6 +142,7 @@ class ProcessingRunOrchestrator
                 );
             }
 
+            /** @var RetryPlan $retryPlan */
             $retryPlan = $this->phaseRegistry->retryPlanFor($processingLog);
 
             return match ($retryPlan['action']) {
@@ -307,15 +310,7 @@ class ProcessingRunOrchestrator
     }
 
     /**
-     * @param  array{
-     *     action: 'dispatch_chain'|'dispatch_livestream_chain',
-     *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
-     *     job_offset?: int,
-     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
-     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
-     *     reason_code?: string,
-     *     reason_message?: string
-     * }  $retryPlan
+     * @param  RetryPlan  $retryPlan
      */
     private function retryWithChainFromPlan(MediaProcessingLog $processingLog, array $retryPlan): ProcessingResult
     {
@@ -366,15 +361,7 @@ class ProcessingRunOrchestrator
     }
 
     /**
-     * @param  array{
-     *     action: 'manual_review',
-     *     pipeline?: 'audio'|'video'|'video_auto_trim'|'livestream',
-     *     job_offset?: int,
-     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
-     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
-     *     reason_code?: string,
-     *     reason_message?: string
-     * }  $retryPlan
+     * @param  RetryPlan  $retryPlan
      */
     private function markForManualReviewFromPlan(MediaProcessingLog $processingLog, array $retryPlan): ProcessingResult
     {
