@@ -173,7 +173,7 @@ Church
       If you come to our services you'll notice we spend a lot of
       time reading and explaining the Bible. We believe the Bible
       is God's perfect word to us - it's how he speaks into our
-      everyday lives. When we hear the Bible preached God speaks
+      everyday lives. When we hear the Bible preached, God speaks
       to our hearts by his Spirit and forms us to be more and more
       like Jesus.
     </p>
@@ -278,7 +278,7 @@ Church
       We don't want to isolate ourselves from Christians in other
       places though. We are affiliated with
       <a href="https://fiec.org.uk/">
-        the Fellowship of Evangelical Churches
+        the Fellowship of Independent Evangelical Churches
       </a>, a nationwide group of like-minded churches.
     </p>
   </x-text>
