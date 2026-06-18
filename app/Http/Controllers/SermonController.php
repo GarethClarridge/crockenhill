@@ -111,6 +111,8 @@ class SermonController extends Controller
             'scripturePassage:id,display_reference,normalized_reference,html_content,copyright,fums_token',
             'preacherProfile:id,name,slug,image_path',
             'publishedServiceSection:id,published_sermon_id,media_processing_log_id',
+            // Table-prefixed columns are required here: latestOfMany() uses an inner self-join,
+            // so ambiguous column names (id, sermon_id, created_at) must be qualified.
             'latestProcessingLog' => fn ($query) => $query
                 ->select(['media_processing_logs.id', 'processing_id', 'media_processing_logs.sermon_id', 'status', 'current_step', 'error_message', 'original_filename', 'media_processing_logs.created_at', 'duration']),
             'livestreamProcessing' => fn ($query) => $query
