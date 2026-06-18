@@ -186,11 +186,10 @@ class ListMeetingsTest extends TestCase
 
         Log::shouldReceive('warning')
             ->once()
-            ->with('Meeting deleted by admin', \Mockery::on(function ($args) use ($meeting) {
-                return $args['admin_id'] === $this->admin->id &&
-                       $args['meeting_id'] === $meeting->id &&
-                       $args['slug'] === $meeting->slug;
-            }));
+            ->withArgs(fn ($message, $context) => str_contains($message, 'Meeting deleted') &&
+                $context['admin_id'] === $this->admin->id &&
+                $context['meeting_id'] === $meeting->id &&
+                $context['slug'] === $meeting->slug);
 
         Livewire::test(ListMeetings::class)
             ->call('delete', $meeting)

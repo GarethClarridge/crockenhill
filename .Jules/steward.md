@@ -12,3 +12,8 @@
 **Pattern:** Brittle HTML-string assertions and misclassified unit tests.
 **Cause:** Exact markup matching with volatile CSS classes (Tailwind) in feature tests; presence of database-hitting tests in the Unit/ directory.
 **Fix:** Replaced `assertSeeHtml` with `assertSeeInOrder` for more robust content verification. Relocated `MeetingPhotoMigrationServiceTest` and `MeetingShowPresenterTest` to the Integration/ directory to align with architectural standards and ensure proper environment setup.
+
+## 2026-06-17 - Harden caching and log assertions
+**Pattern:** Implementation-detail assertions (`Cache::has()`) and exact-string log assertions.
+**Cause:** Caching tests previously relied on private key names and only checked existence, not effectiveness. Log assertions used exact string matching, making them brittle to minor copy changes.
+**Fix:** Replaced `Cache::has()` with behavioral tests using `DB::enableQueryLog()` to verify zero queries on subsequent calls (after clearing internal memoization). Loosened log assertions to use `str_contains` via `withArgs` for resilience against rephrasing.
