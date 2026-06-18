@@ -10,9 +10,20 @@
                     {{ $heroService->date->format('j M Y') }} — {{ $heroService->service->label() }}
                 </h2>
                 @if($heroRollup !== null)
-                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $heroRollup['status']->badgeClasses() }}">
-                        {{ $heroRollup['status']->label() . ($heroRollup['status'] === \App\Enums\ChurchServiceRollupStatus::NeedsReview ? " ({$heroRollup['attention_count']})" : '') }}
-                    </span>
+                    @php $heroNeedsReview = $heroRollup['status'] === \App\Enums\ChurchServiceRollupStatus::NeedsReview; @endphp
+                    <x-badge
+                        :variant="match($heroRollup['status']) {
+                            \App\Enums\ChurchServiceRollupStatus::NeedsReview => 'warning',
+                            \App\Enums\ChurchServiceRollupStatus::Processing => 'sky',
+                            \App\Enums\ChurchServiceRollupStatus::Ready => 'teal',
+                            \App\Enums\ChurchServiceRollupStatus::Published => 'success',
+                            default => 'default',
+                        }"
+                        size="xs"
+                        :pulse="$heroNeedsReview"
+                    >
+                        {{ $heroRollup['status']->label() . ($heroNeedsReview ? " ({$heroRollup['attention_count']})" : '') }}
+                    </x-badge>
                 @endif
             </div>
             <p class="text-sm text-gray-600">
