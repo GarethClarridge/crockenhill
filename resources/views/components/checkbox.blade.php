@@ -31,6 +31,7 @@ $describedBy = implode(' ', $describedBy);
         <div class="text-sm leading-5">
             <label @if($id) id="{{ $id }}-label" for="{{ $id }}" @endif class="cursor-pointer font-medium text-gray-700">
                 {{ $label }}
+                @if($required) <span class="text-red-500" aria-hidden="true">*</span> @endif
             </label>
             @if($hint)
                 <p @if($id) id="{{ $id }}-hint" @endif class="text-gray-500">{{ $hint }}</p>

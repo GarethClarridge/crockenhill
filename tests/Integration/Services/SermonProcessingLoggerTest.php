@@ -10,7 +10,6 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Services\Processing\SermonProcessingLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
@@ -546,15 +545,15 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_includes_parsed_logs_and_metrics_in_processing_report(): void
     {
-        $processingId = 'test-log-parsing-' . Str::random(4);
+        $processingId = 'test-log-parsing-'.Str::random(4);
 
         // Create a unique temporary storage path for this test to avoid parallel race conditions on laravel.log
-        $tempStorage = storage_path('testing/sermon_logger_test_' . Str::random(8));
-        $tempLogDir = $tempStorage . '/logs';
+        $tempStorage = storage_path('testing/sermon_logger_test_'.Str::random(8));
+        $tempLogDir = $tempStorage.'/logs';
         if (! is_dir($tempLogDir)) {
             mkdir($tempLogDir, 0777, true);
         }
-        $tempLogPath = $tempLogDir . '/laravel.log';
+        $tempLogPath = $tempLogDir.'/laravel.log';
 
         // Redirect storage_path() for the duration of this test
         $originalStoragePath = $this->app->storagePath();

@@ -132,7 +132,7 @@ class SitemapService
          * keeping memory usage low for sites with large numbers of sermons.
          */
         $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'updated_at', 'audio_file_path', 'video_file_path', 'video_quality_status', 'video_visibility_override', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'scripture_passage_id'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'updated_at', 'audio_file_path', 'video_file_path', 'video_quality_status', 'video_visibility_override', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'summary', 'show_summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type', 'scripture_passage_id'])
             ->with([
                 'preacherProfile:id,name,slug,image_path',
                 'scripturePassage:id,display_reference,normalized_reference',
@@ -167,6 +167,7 @@ class SitemapService
                 'sermons.title',
                 'sermons.date',
                 'sermons.slug',
+                'sermons.service',
                 'sermons.thumbnail_file_path',
                 'sermons.thumbnail_generated_at',
                 'sermons.thumbnail_metadata',
@@ -291,9 +292,11 @@ class SitemapService
                         'sermons.title',
                         'sermons.date',
                         'sermons.slug',
+                        'sermons.service',
                         'sermons.audio_file_path',
                         'sermons.thumbnail_file_path',
                         'sermons.thumbnail_generated_at',
+                        'sermons.thumbnail_metadata',
                         'sermons.video_file_path',
                         'sermons.video_visibility_override',
                         'sermons.video_quality_status',
@@ -327,6 +330,7 @@ class SitemapService
                 'title',
                 'date',
                 'slug',
+                'service',
                 'series',
                 'thumbnail_file_path',
                 'thumbnail_generated_at',
