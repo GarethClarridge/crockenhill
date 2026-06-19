@@ -167,9 +167,17 @@
                         title="No sermons match these filters"
                         description="Try another book, chapter, preacher, or series, or clear the filters to return to the full sermon archive."
                     >
-                        <x-form-button type="button" variant="outline" size="sm" icon="x-mark" wire:click="clearFilters">
-                            Clear filters
-                        </x-form-button>
+                        <div class="flex flex-wrap justify-center gap-3">
+                            @if($bookFilter && $chapterFilter)
+                                <x-form-button type="button" variant="secondary" size="sm" icon="book-open" wire:click="removeFilter('chapter')">
+                                    Try searching all of {{ $bookFilter }}
+                                </x-form-button>
+                            @endif
+
+                            <x-form-button type="button" variant="outline" size="sm" icon="x-mark" wire:click="clearFilters">
+                                Clear all filters
+                            </x-form-button>
+                        </div>
                     </x-empty-state>
                 @else
                     <x-empty-state

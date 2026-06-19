@@ -111,6 +111,8 @@ class BrowseSermons extends Component
         if ($filter === 'book') {
             $this->bookFilter = null;
             $this->chapterFilter = null;
+        } elseif ($filter === 'chapter') {
+            $this->chapterFilter = null;
         } elseif ($filter === 'preacher') {
             $this->preacherFilter = null;
         } elseif ($filter === 'series') {
