@@ -124,6 +124,60 @@ Google Analytics 4 (GA4) provides insights into user behavior on your website.
 2. In GA4, go to "Reports" > "Realtime"
 3. You should see your visit appear within a few seconds
 
+### 8. Cookie Consent (Consent Mode v2)
+
+Analytics cookies are **not** "strictly necessary" under UK PECR/ICO guidance, so
+they require opt-in consent. The site implements this with Google Consent Mode v2,
+no third-party package:
+
+- On every page where `GOOGLE_ANALYTICS_ID` is set, `analytics_storage` defaults
+  to **`denied`**. GA still loads and sends cookieless, modelled pings.
+- A bespoke banner (`<x-cookie-consent>`) asks the visitor to **Accept** or
+  **Decline**. The choice is stored in `localStorage` (`cbc_analytics_consent`)
+  and persists across visits; the banner does not reappear once a choice is made.
+- **Accept** calls `gtag('consent', 'update', { analytics_storage: 'granted' })`
+  and switches GA to cookie-based measurement. **Decline** keeps storage denied.
+- No banner and no GA renders when `GOOGLE_ANALYTICS_ID` is unset (e.g. locally).
+
+The whole client-side integration lives in `resources/js/analytics.js`.
+
+### 9. Custom Events
+
+GA4 Enhanced Measurement does not track native `<audio>`/`<video>` players or our
+extension-less asset routes, so the site emits these explicitly:
+
+| Event | Fires when |
+|-------|-----------|
+| `page_view` | Each navigation (incl. `wire:navigate` hops — fired on `livewire:navigated`, not the one-time `config`) |
+| `sermon_play` | A sermon/children's-talk `<audio>`/`<video>` starts playing (once per element) |
+| `sermon_download` | The "Download audio" link is clicked |
+| `transcript_download` | An automated transcript is opened and fetched |
+| `share` | A copy-to-clipboard button annotated with `analytics` succeeds |
+| `podcast_subscribe` | Reserved — wired in JS, but no visible subscribe link exists yet (podcast pickup is better measured server-side; see the GA5 plan phase) |
+
+**Mark as key events (conversions)** in GA4 admin → Events: `sermon_play` and
+`podcast_subscribe` (confirm with stakeholders before enabling).
+
+### 10. Custom Dimensions (required for reporting)
+
+`sermon_play` and `page_view` carry these event params. They are collected
+immediately but **only reportable once registered** as event-scoped custom
+dimensions. In GA4: **Admin → Custom definitions → Create custom dimensions**, scope
+**Event**, for each:
+
+| Dimension name | Event parameter |
+|----------------|-----------------|
+| Preacher | `preacher` |
+| Series | `series` |
+| Service | `service` |
+| Content type | `content_type` |
+
+`content_group` is also set per page (`Sermons` / `Children's Corner`) and is
+reportable via the built-in **Content group** dimension without registration.
+
+After registering, confirm values populate in **Admin → DebugView** (the source of
+truth for verifying events and dimensions land).
+
 ---
 
 ## Google Business Profile Setup

@@ -120,26 +120,30 @@ class SeoMetaTagsTest extends TestCase
     }
 
     #[Test]
-    public function google_analytics_tag_appears_when_configured(): void
+    public function google_analytics_id_and_consent_banner_appear_when_configured(): void
     {
         config(['services.google_analytics.measurement_id' => 'G-TEST123456']);
 
         $response = $this->get('/');
 
         $response->assertStatus(200);
-        $response->assertSee('https://www.googletagmanager.com/gtag/js?id=G-TEST123456', false);
-        $response->assertSee('gtag(\'config\', \'G-TEST123456\');', false);
+        // The bootstrap now lives in resources/js/analytics.js; the layout only
+        // hands it the measurement ID. The gtag library is loaded from there.
+        $response->assertSee('window.__gaId', false);
+        $response->assertSee('G-TEST123456', false);
+        // Consent banner (GA1) only renders when there is analytics to consent to.
+        $response->assertSee('id="cookie-consent-heading"', false);
     }
 
     #[Test]
-    public function google_analytics_tag_does_not_appear_when_not_configured(): void
+    public function google_analytics_id_and_consent_banner_are_absent_when_not_configured(): void
     {
         config(['services.google_analytics.measurement_id' => null]);
 
         $response = $this->get('/');
 
         $response->assertStatus(200);
-        $response->assertDontSee('googletagmanager.com/gtag/js', false);
-        $response->assertDontSee('gtag(', false);
+        $response->assertDontSee('window.__gaId', false);
+        $response->assertDontSee('id="cookie-consent-heading"', false);
     }
 }

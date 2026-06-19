@@ -63,26 +63,12 @@
   <link rel="shortcut icon" href="/favicon.ico?v=GvJNbAA7Wv">
   <meta name="theme-color" content="#16324f">
 
-  {{-- Google Analytics 4 - Deferred to improve LCP --}}
+  {{-- Google Analytics 4 — bootstrapped (deferred for LCP), consent-gated, and
+       pageview/event-aware in resources/js/analytics.js. The inline script only
+       hands the measurement ID to JS so the module can no-op when GA is unset. --}}
   @if(config('services.google_analytics.measurement_id'))
   <script>
-    // Load GA after page becomes interactive to avoid blocking LCP
-    window.addEventListener('load', function() {
-      setTimeout(function() {
-        var script = document.createElement('script');
-        script.src = 'https://www.googletagmanager.com/gtag/js?id={{ config('services.google_analytics.measurement_id') }}';
-        script.async = true;
-        document.head.appendChild(script);
-
-        script.onload = function() {
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          window.gtag = gtag;
-          gtag('js', new Date());
-          gtag('config', '{{ config('services.google_analytics.measurement_id') }}');
-        };
-      }, 100); // Small delay to ensure page is fully rendered
-    });
+    window.__gaId = @json(config('services.google_analytics.measurement_id'));
   </script>
   @endif
 
@@ -136,6 +122,8 @@
   </footer>
 
   <x-back-to-top />
+
+  <x-cookie-consent />
 
   {{-- Livewire Scripts --}}
   @livewireScripts

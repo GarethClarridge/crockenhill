@@ -47,6 +47,8 @@
     @endphp
 
     <section class="space-y-8">
+        <x-analytics-context :sermon="$sermon" :preacher-name="$speakerName ?? null" />
+
         <div class="overflow-hidden rounded-2xl border border-cbc-teal/15 bg-[linear-gradient(135deg,rgba(36,154,151,0.12)_0%,rgba(29,104,106,0.08)_50%,rgba(20,85,87,0.16)_100%)] p-8 shadow-sm">
             <div class="flex flex-wrap items-start justify-between gap-6">
                 <div class="space-y-5">
@@ -110,6 +112,8 @@
                         src="{{ $sermonView['video_url'] }}"
                         class="w-full rounded-xl bg-slate-950"
                         controls
+                        data-analytics="sermon-media"
+                        data-ga-sermon-slug="{{ $sermon->slug }}"
                         @if($sermonView['thumbnail_url']) poster="{{ $sermonView['thumbnail_url'] }}" @endif
                     >
                         Your browser does not support the <code>video</code> element.
@@ -121,7 +125,12 @@
         @if ($hasAudio)
             <x-card heading="Listen">
                 <div class="not-prose">
-                    <audio src="{{ $sermonView['audio_url'] }}" class="w-full" controls>
+                    <audio
+                        src="{{ $sermonView['audio_url'] }}"
+                        class="w-full"
+                        controls
+                        data-analytics="sermon-media"
+                        data-ga-sermon-slug="{{ $sermon->slug }}">
                         Your browser does not support the <code>audio</code> element.
                     </audio>
                 </div>
