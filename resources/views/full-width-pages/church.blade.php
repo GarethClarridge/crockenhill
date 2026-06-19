@@ -4,7 +4,7 @@
 Church
 @stop
 
-@section('meta_description', 'Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical Baptist church in Kent.')
+@section('meta_description', 'Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical baptist church in Kent.')
 
 @section('canonical')
 <link rel="canonical" href="{{ url('/church') }}">
@@ -13,13 +13,13 @@ Church
 @section('meta_tags')
 <x-meta-tags
     title="Church"
-    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical Baptist church in Kent."
+    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical baptist church in Kent."
     :image="asset('/images/homepage/may2024wide.webp')"
     image-alt="Crockenhill Baptist Church members outside the church building"
 />
 <x-schema.webpage
     heading="Church"
-    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical Baptist church in Kent."
+    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical baptist church in Kent."
     :image="asset('/images/homepage/may2024wide.webp')"
 />
 
@@ -232,7 +232,7 @@ Church
     </p>
   </x-text>
 
-  <x-h3>A <i>Baptist</i> church</x-h3>
+  <x-h3>A <i>baptist</i> church</x-h3>
 
   <x-text>
     <p>
@@ -241,7 +241,7 @@ Church
     </p>
 
     <p>
-      These days we're a Baptist church. That means we think the
+      These days we're a baptist church. That means we think the
       Bible teaches adults should be baptised (the word just means
       dunked in water) when they come to trust in Jesus Christ
       for salvation.
@@ -260,7 +260,7 @@ Church
 
   <x-text>
     <p>
-      Despite being a Baptist church, we're not a member of
+      Despite being a baptist church, we're not a member of
       <a href="https://www.baptist.org.uk/">
         the Baptist Union
       </a>
