@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\DataIntegrity;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonPreacherIndexTest extends TestCase
 {
+    use RefreshDatabase;
+
     #[Test]
     public function it_has_the_preacher_id_and_date_composite_index(): void
     {
