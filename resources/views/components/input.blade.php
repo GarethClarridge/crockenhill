@@ -38,7 +38,7 @@ $clearLabel = 'Clear ' . ($label ?: ($attributes->get('placeholder') ?: 'input')
     @if($label)
         <label @if($id) for="{{ $id }}" @endif class="block text-sm font-medium text-gray-700 mb-1">
             {{ $label }}
-            @if($required) <span class="text-red-500">*</span> @endif
+            @if($required) <span class="text-red-500" aria-hidden="true">*</span> @endif
         </label>
     @endif
 

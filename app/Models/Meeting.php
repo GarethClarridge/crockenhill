@@ -9,7 +9,6 @@ use App\Enums\MeetingType;
 use App\Enums\PageArea;
 use App\Rules\TrimmedText;
 use App\Sitemap\MeetingSitemapPresenter;
-use Closure;
 use Database\Factories\MeetingFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
