@@ -1210,3 +1210,7 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_02_203631_add_i
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_10_072047_add_job_id_index_to_media_processing_logs_table',75);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_10_165337_create_schedule_monitor_tables',75);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_10_165517_create_health_tables',75);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_14_200000_add_missing_fk_indexes_to_media_processing_logs_and_speaker_samples',76);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_16_054346_add_index_to_church_service_items_livestream_service_section_id',76);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_120000_drop_redundant_church_service_items_livestream_index',76);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_130000_drop_redundant_fk_indexes_from_media_processing_logs_and_speaker_samples',76);

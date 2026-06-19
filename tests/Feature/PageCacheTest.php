@@ -9,6 +9,7 @@ use App\Services\Public\PageCardService;
 use App\Services\Public\PageListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -22,15 +23,26 @@ class PageCacheTest extends TestCase
     public function page_links_cache_is_populated_on_request(): void
     {
         $area = 'church';
-        Cache::forget("page_links_{$area}");
-
-        $this->assertFalse(Cache::has("page_links_{$area}"));
-
-        // Use the repository directly to verify caching
         $repository = app(PageListCache::class);
-        $repository->getAllLinksForArea($area);
 
-        $this->assertTrue(Cache::has("page_links_{$area}"));
+        // Clear everything to start fresh
+        Cache::flush();
+        $repository->clearInternalCaches();
+
+        DB::enableQueryLog();
+
+        // First call should hit the database
+        $repository->getAllLinksForArea($area);
+        $queries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], 'pages'));
+        $this->assertCount(1, $queries, 'Initial call should perform a database query on the pages table.');
+
+        DB::flushQueryLog();
+        $repository->clearInternalCaches();
+
+        // Second call should NOT hit the database (served from cache)
+        $repository->getAllLinksForArea($area);
+        $queries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], 'pages'));
+        $this->assertCount(0, $queries, 'Second call should be served from cache and perform no queries on the pages table.');
     }
 
     #[Test]
@@ -38,17 +50,27 @@ class PageCacheTest extends TestCase
     {
         $area = 'church';
         $repository = app(PageListCache::class);
+
+        Cache::flush();
+        $repository->clearInternalCaches();
+
+        // Populate cache
         $repository->getAllLinksForArea($area);
 
-        $this->assertTrue(Cache::has("page_links_{$area}"));
-
+        // Create a new page - this should invalidate the cache
         Page::factory()->create([
             'slug' => 'new-page',
             'area' => $area,
             'admin' => 'no',
         ]);
 
-        $this->assertFalse(Cache::has("page_links_{$area}"));
+        $repository->clearInternalCaches();
+        DB::enableQueryLog();
+
+        // Call again - should hit the database because cache was invalidated
+        $repository->getAllLinksForArea($area);
+        $queries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], 'pages'));
+        $this->assertCount(1, $queries, 'Call after creation should hit the database because cache was invalidated.');
     }
 
     #[Test]
@@ -62,13 +84,22 @@ class PageCacheTest extends TestCase
         ]);
 
         $repository = app(PageListCache::class);
+        Cache::flush();
+        $repository->clearInternalCaches();
+
+        // Populate cache
         $repository->getAllLinksForArea($area);
 
-        $this->assertTrue(Cache::has("page_links_{$area}"));
-
+        // Update the page - this should invalidate the cache
         $page->update(['heading' => 'Updated Heading']);
 
-        $this->assertFalse(Cache::has("page_links_{$area}"));
+        $repository->clearInternalCaches();
+        DB::enableQueryLog();
+
+        // Call again - should hit the database
+        $repository->getAllLinksForArea($area);
+        $queries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], 'pages'));
+        $this->assertCount(1, $queries, 'Call after update should hit the database because cache was invalidated.');
     }
 
     #[Test]
@@ -82,40 +113,65 @@ class PageCacheTest extends TestCase
         ]);
 
         $repository = app(PageListCache::class);
+        Cache::flush();
+        $repository->clearInternalCaches();
+
+        // Populate cache
         $repository->getAllLinksForArea($area);
 
-        $this->assertTrue(Cache::has("page_links_{$area}"));
-
+        // Delete the page - this should invalidate the cache
         $page->delete();
 
-        $this->assertFalse(Cache::has("page_links_{$area}"));
+        $repository->clearInternalCaches();
+        DB::enableQueryLog();
+
+        // Call again - should hit the database
+        $repository->getAllLinksForArea($area);
+        $queries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], 'pages'));
+        $this->assertCount(1, $queries, 'Call after deletion should hit the database because cache was invalidated.');
     }
 
     #[Test]
     public function page_links_cache_is_area_specific(): void
     {
         $repository = app(PageListCache::class);
+        Cache::flush();
+        $repository->clearInternalCaches();
 
+        // Populate caches for both areas
         $repository->getAllLinksForArea('church');
         $repository->getAllLinksForArea('community');
-
-        $this->assertTrue(Cache::has('page_links_church'));
-        $this->assertTrue(Cache::has('page_links_community'));
 
         // Update a page in 'church' area
         $page = Page::where('area', 'church')->first()
             ?? Page::factory()->create(['area' => 'church', 'slug' => 'cache-test-church', 'admin' => 'no']);
         $page->update(['heading' => 'New Heading']);
 
-        $this->assertFalse(Cache::has('page_links_church'));
-        $this->assertTrue(Cache::has('page_links_community'));
+        $repository->clearInternalCaches();
+        DB::enableQueryLog();
+
+        // Church area should hit DB
+        $repository->getAllLinksForArea('church');
+        $churchQueries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], 'pages'));
+        $this->assertCount(1, $churchQueries, 'Church cache should have been invalidated.');
+
+        DB::flushQueryLog();
+        $repository->clearInternalCaches();
+
+        // Community area should NOT hit DB
+        $repository->getAllLinksForArea('community');
+        $communityQueries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], 'pages'));
+        $this->assertCount(0, $communityQueries, 'Community cache should NOT have been invalidated.');
     }
 
     #[Test]
     public function page_card_rail_caches_are_invalidated_when_pages_change(): void
     {
-        Cache::forget('page_card_rail_home');
-        Cache::forget('illuminate:cache:flexible:created:page_card_rail_home');
+        $pageCardService = app(PageCardService::class);
+        $pageListCache = app(PageListCache::class);
+
+        Cache::flush();
+        $pageListCache->clearInternalCaches();
 
         Page::query()->where('slug', 'sunday-evenings')->delete();
 
@@ -125,12 +181,18 @@ class PageCacheTest extends TestCase
             'admin' => 'no',
         ]);
 
-        app(PageCardService::class)->forHome();
+        // Populate cache
+        $pageCardService->forHome();
 
-        $this->assertTrue(Cache::has('page_card_rail_home'));
-
+        // Update the page - this should invalidate the cache
         $page->update(['heading' => 'Updated Sunday Evenings']);
 
-        $this->assertFalse(Cache::has('page_card_rail_home'));
+        $pageListCache->clearInternalCaches();
+        DB::enableQueryLog();
+
+        // Call again - should hit the database
+        $pageCardService->forHome();
+        $queries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains($query['query'], 'pages'));
+        $this->assertGreaterThan(0, $queries->count(), 'Call after change should hit the database because cache was invalidated.');
     }
 }

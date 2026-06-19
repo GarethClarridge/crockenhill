@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Exceptions\SegmentationException;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Statistical analysis of audio RMS (loudness) logs for segmentation.
@@ -24,12 +23,16 @@ class RmsAnalysisService
     /** Minimum duration (seconds) for a loud section to be considered a distinct event. */
     private const float DEFAULT_MIN_SECTION_DURATION = 30.0;
 
-    private float $rmsThreshold;
+    private const string PTS_TIME_PATTERN = '/pts_time:(\d+(?:\.\d+)?)/';
 
-    private float $minSectionDuration;
+    private const string RMS_LEVEL_PATTERN = '/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/';
+
+    private readonly float $rmsThreshold;
+
+    private readonly float $minSectionDuration;
 
     /** @var array<string, mixed> */
-    private array $adaptiveConfig;
+    private readonly array $adaptiveConfig;
 
     public function __construct()
     {
@@ -54,15 +57,15 @@ class RmsAnalysisService
         $currentTime = 0.0;
 
         foreach ($lines as $line) {
-            if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $timeMatches)) {
-                $currentTime = (float) $timeMatches[1];
+            $ptsTime = $this->parsePtsTime($line);
+            if ($ptsTime !== null) {
+                $currentTime = $ptsTime;
 
                 continue;
             }
 
-            if (preg_match('/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/', $line, $matches)) {
-                $rmsLevel = $matches[1] === '-inf' ? -999.0 : (float) $matches[1];
-
+            $rmsLevel = $this->parseRmsLevel($line);
+            if ($rmsLevel !== null) {
                 $rmsData[] = [
                     'time' => $currentTime,
                     'rms' => $rmsLevel,
@@ -134,28 +137,32 @@ class RmsAnalysisService
         $currentTime = 0.0;
 
         foreach ($lines as $line) {
-            if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $timeMatches)) {
-                $currentTime = (float) $timeMatches[1];
+            $ptsTime = $this->parsePtsTime($line);
+            if ($ptsTime !== null) {
+                $currentTime = $ptsTime;
 
                 continue;
             }
 
-            if (preg_match('/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/', $line, $rmsMatches)) {
-                $rmsLevel = $rmsMatches[1] === '-inf' ? -999.0 : (float) $rmsMatches[1];
+            $rmsLevel = $this->parseRmsLevel($line);
+            if ($rmsLevel === null) {
+                continue;
+            }
 
-                if ($rmsLevel > $threshold) {
-                    if ($currentSection === null) {
-                        $currentSection = ['start' => $currentTime, 'end' => null];
-                    }
-                } else {
-                    if ($currentSection !== null) {
-                        $currentSection['end'] = $currentTime;
-                        if (($currentSection['end'] - $currentSection['start']) >= $minSectionDuration) {
-                            $sections[] = $currentSection;
-                        }
-                        $currentSection = null;
-                    }
+            if ($rmsLevel > $threshold) {
+                if ($currentSection === null) {
+                    $currentSection = ['start' => $currentTime, 'end' => null];
                 }
+
+                continue;
+            }
+
+            if ($currentSection !== null) {
+                $currentSection['end'] = $currentTime;
+                if (($currentSection['end'] - $currentSection['start']) >= $minSectionDuration) {
+                    $sections[] = $currentSection;
+                }
+                $currentSection = null;
             }
         }
 
@@ -183,8 +190,9 @@ class RmsAnalysisService
     {
         $maxTime = 0.0;
         foreach ($lines as $line) {
-            if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $matches)) {
-                $maxTime = max($maxTime, (float) $matches[1]);
+            $ptsTime = $this->parsePtsTime($line);
+            if ($ptsTime !== null) {
+                $maxTime = max($maxTime, $ptsTime);
             }
         }
 
@@ -310,45 +318,30 @@ class RmsAnalysisService
     public function calculateAdaptiveThreshold(string $logContent): array
     {
         try {
-            $rmsValues = [];
-            $lines = explode("\n", trim($logContent));
-
-            foreach ($lines as $line) {
-                if (preg_match('/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/', $line, $matches)) {
-                    $rmsLevel = $matches[1] === '-inf' ? -999.0 : (float) $matches[1];
-                    if ($rmsLevel > -999.0) {
-                        $rmsValues[] = $rmsLevel;
-                    }
-                }
-            }
+            $rmsData = $this->extractRmsData($logContent);
+            $rmsValues = array_filter(array_column($rmsData, 'rms'), fn (float $rms) => $rms > -999.0);
 
             $minSampleCount = $this->adaptiveConfig['min_sample_count'] ?? 1000;
-            if (count($rmsValues) < $minSampleCount) {
+            $sampleCount = count($rmsValues);
+
+            if ($sampleCount < $minSampleCount) {
                 return [
                     'success' => false,
                     'error' => 'insufficient_samples',
-                    'sample_count' => count($rmsValues),
+                    'sample_count' => $sampleCount,
                     'min_required' => $minSampleCount,
                 ];
             }
 
             sort($rmsValues);
-            $count = count($rmsValues);
 
             $speechPercentile = ($this->adaptiveConfig['speech_percentile'] ?? 30) / 100.0;
-            $speechThreshold = $rmsValues[(int) floor($count * $speechPercentile)];
+            $speechThreshold = $rmsValues[(int) floor($sampleCount * $speechPercentile)];
 
             $minThreshold = $this->adaptiveConfig['min_threshold'] ?? -80.0;
             $maxThreshold = $this->adaptiveConfig['max_threshold'] ?? -20.0;
 
             $adaptiveThreshold = max($minThreshold, min($maxThreshold, $speechThreshold));
-
-            $mean = array_sum($rmsValues) / $count;
-            $p25 = $rmsValues[(int) floor($count * 0.25)];
-            $p50 = $rmsValues[(int) floor($count * 0.50)];
-            $p75 = $rmsValues[(int) floor($count * 0.75)];
-            $minValue = $rmsValues[0];
-            $maxValue = $rmsValues[$count - 1];
 
             return [
                 'success' => true,
@@ -357,20 +350,11 @@ class RmsAnalysisService
                     'method' => 'adaptive',
                     'threshold_used' => $adaptiveThreshold,
                     'raw_threshold' => $speechThreshold,
-                    'sample_count' => $count,
+                    'sample_count' => $sampleCount,
                     'percentile_used' => $speechPercentile * 100,
                     'bounds_applied' => $speechThreshold !== $adaptiveThreshold,
                 ],
-                'rms_stats' => [
-                    'sample_count' => $count,
-                    'min' => $minValue,
-                    'max' => $maxValue,
-                    'mean' => $mean,
-                    'p25' => $p25,
-                    'p50' => $p50,
-                    'p75' => $p75,
-                    'adaptive_threshold' => $adaptiveThreshold,
-                ],
+                'rms_stats' => $this->calculateRmsStats($rmsValues, $adaptiveThreshold),
             ];
 
         } catch (\Exception $e) {
@@ -447,5 +431,52 @@ class RmsAnalysisService
     public function getMinSectionDuration(): float
     {
         return $this->minSectionDuration;
+    }
+
+    private function parsePtsTime(string $line): ?float
+    {
+        if (preg_match(self::PTS_TIME_PATTERN, $line, $matches)) {
+            return (float) $matches[1];
+        }
+
+        return null;
+    }
+
+    private function parseRmsLevel(string $line): ?float
+    {
+        if (preg_match(self::RMS_LEVEL_PATTERN, $line, $matches)) {
+            return $matches[1] === '-inf' ? -999.0 : (float) $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<float>  $sortedRmsValues
+     * @return array{
+     *     sample_count: int,
+     *     min: float,
+     *     max: float,
+     *     mean: float,
+     *     p25: float,
+     *     p50: float,
+     *     p75: float,
+     *     adaptive_threshold: float,
+     * }
+     */
+    private function calculateRmsStats(array $sortedRmsValues, float $adaptiveThreshold): array
+    {
+        $count = count($sortedRmsValues);
+
+        return [
+            'sample_count' => $count,
+            'min' => $sortedRmsValues[0],
+            'max' => $sortedRmsValues[$count - 1],
+            'mean' => array_sum($sortedRmsValues) / $count,
+            'p25' => $sortedRmsValues[(int) floor($count * 0.25)],
+            'p50' => $sortedRmsValues[(int) floor($count * 0.50)],
+            'p75' => $sortedRmsValues[(int) floor($count * 0.75)],
+            'adaptive_threshold' => $adaptiveThreshold,
+        ];
     }
 }

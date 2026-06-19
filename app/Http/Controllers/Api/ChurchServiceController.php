@@ -12,6 +12,7 @@ use App\Services\ChurchService\ImportChurchServiceFromOpenLp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ChurchServiceController extends Controller
 {
@@ -20,7 +21,7 @@ class ChurchServiceController extends Controller
     ) {}
 
     /**
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public function store(UploadChurchServiceRequest $request): JsonResponse
     {
@@ -41,7 +42,7 @@ class ChurchServiceController extends Controller
     }
 
     /**
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public function show(ChurchService $churchService): ChurchServiceResource
     {
