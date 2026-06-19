@@ -36,7 +36,17 @@ class PageController extends Controller
         }
 
         // Fetch the landing page for this area (where slug equals area)
-        $page = Page::query()->where('slug', $area)->where('area', $area)->first();
+        /**
+         * Performance Optimization: Limits retrieved columns for the page to required
+         * fields for visibility checks, read models, and view rendering to reduce
+         * memory usage and DB I/O.
+         */
+        $page = Page::query()
+            ->select(['id', 'slug', 'heading', 'area', 'admin', 'navigation', 'description', 'created_at', 'updated_at', 'body', 'markdown'])
+            ->where('slug', $area)
+            ->where('area', $area)
+            ->first();
+
         if (! $page instanceof Page) {
             if ($area === PageArea::Members->value && ! Auth::check()) {
                 // Even if no landing page exists, protect the members area by default
@@ -70,7 +80,16 @@ class PageController extends Controller
      */
     public function show(string $area, string $slug): Response
     {
-        $page = Page::query()->where('slug', $slug)->where('area', $area)->firstOrFail();
+        /**
+         * Performance Optimization: Limits retrieved columns for the page to required
+         * fields for visibility checks, read models, and view rendering to reduce
+         * memory usage and DB I/O.
+         */
+        $page = Page::query()
+            ->select(['id', 'slug', 'heading', 'area', 'admin', 'navigation', 'description', 'created_at', 'updated_at', 'body', 'markdown'])
+            ->where('slug', $slug)
+            ->where('area', $area)
+            ->firstOrFail();
 
         if ($redirect = $this->publicPageVisibilityGuard->enforce($page)) {
             return $redirect;
