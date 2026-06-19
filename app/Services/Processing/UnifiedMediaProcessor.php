@@ -278,6 +278,11 @@ class UnifiedMediaProcessor
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]));
 
+            // Caught and recovered, so it never reaches the framework handler.
+            // Surface the unexpected ones to Sentry; expected user-input
+            // failures (InvalidFileException) are filtered by dontReport().
+            report($e);
+
             return ProcessingResult::failure(
                 processingId: 'failed-'.Str::uuid(),
                 message: 'Failed to initiate audio processing: '.$this->safeInitiationMessage($e, 'audio'),
@@ -450,6 +455,11 @@ class UnifiedMediaProcessor
                 'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]));
+
+            // Caught and recovered, so it never reaches the framework handler.
+            // Surface the unexpected ones to Sentry; expected user-input
+            // failures (InvalidFileException) are filtered by dontReport().
+            report($e);
 
             return ProcessingResult::failure(
                 processingId: 'failed-'.Str::uuid(),

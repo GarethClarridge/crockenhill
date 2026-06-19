@@ -39,6 +39,14 @@ class ProcessingRunFailureHandler
             'trace' => $this->sanitizeStackTrace($exception->getTraceAsString()),
         ]));
 
+        // This is the terminal failure of the media pipeline: the batch/chain
+        // catch callback swallows the exception so it never reaches the
+        // framework handler, leaving it invisible to Sentry. Report it here.
+        // dontReportDuplicates() (bootstrap/app.php) keeps this from
+        // double-reporting with the queue integration, which sees the same
+        // throwable instance.
+        report($exception);
+
         $processingLog = MediaProcessingLog::query()
             ->where('processing_id', $processingId)
             ->first();

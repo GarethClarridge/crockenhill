@@ -159,6 +159,10 @@ class ProcessingRunOrchestrator
                 'trace' => $exception->getTraceAsString(),
             ]);
 
+            // A failed retry attempt is unexpected and recovers here without
+            // reaching the framework handler, so surface it to Sentry.
+            report($exception);
+
             $message = $exception instanceof ProvidesSafeMessage
                 ? $exception->getSafeMessage()
                 : 'An internal error occurred while attempting to retry processing.';

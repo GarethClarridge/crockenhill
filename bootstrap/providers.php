@@ -9,6 +9,7 @@ use App\Providers\HorizonServiceProvider;
 use App\Providers\MediaProcessingServiceProvider;
 use App\Providers\ModelObserverServiceProvider;
 use App\Providers\RateLimitServiceProvider;
+use App\Providers\SentryServiceProvider;
 use App\Providers\UrlServiceProvider;
 use App\Providers\ViewServiceProvider;
 
@@ -24,4 +25,5 @@ return [
     MediaProcessingServiceProvider::class,
     HorizonServiceProvider::class,
     HealthCheckServiceProvider::class,
+    SentryServiceProvider::class,
 ];

@@ -35,6 +35,13 @@ LABEL maintainer="Crockenhill Baptist Church"
 
 WORKDIR /var/www/html
 
+# Bake the building git SHA into the image so the running container is
+# self-identifying. config/sentry.php reads APP_VERSION for its release tag,
+# stamping every error with the exact deploy that produced it. The deploy
+# workflow passes GIT_SHA as a build-arg; local builds fall back to "unknown".
+ARG GIT_SHA=unknown
+ENV APP_VERSION=${GIT_SHA}
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/London
 

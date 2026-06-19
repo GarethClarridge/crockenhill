@@ -1,12 +1,15 @@
 <?php
 
 use App\Contracts\ProvidesSafeMessage;
+use App\Exceptions\InvalidFileException;
+use App\Exceptions\SafeInvalidArgumentException;
 use App\Http\Middleware\EnsureChildrensCornerAccess;
 use App\Http\Middleware\EnsureMediaProcessingAccess;
 use App\Http\Middleware\EnsureServiceTrackingAccess;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureValidMailgunWebhookSignature;
 use App\Http\Middleware\SecurityHeaders;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -14,6 +17,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Sentry\Laravel\Integration;
 use Spatie\Health\Models\HealthCheckResultHistoryItem;
 use Spatie\ScheduleMonitor\Models\MonitoredScheduledTaskLogItem;
 
@@ -133,6 +137,36 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo('/church/members');
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // Layer 3 error tracking (Sentry). Purely additive: the render/JSON
+        // behaviour below is untouched. Unhandled exceptions flow to Sentry via
+        // the documented Laravel 11+/13 hook; handled-and-recovered failures
+        // still need an explicit report() at the catch site (see the media
+        // pipeline failure handler).
+        Integration::handles($exceptions);
+
+        // Don't report the same throwable instance twice. Also the seam that
+        // makes the explicit report() in the media pipeline's batch/chain catch
+        // safe: the queue integration and that catch see the same instance, so
+        // it is reported once, not twice.
+        $exceptions->dontReportDuplicates();
+
+        // Burst guard so a runaway loop can't drain the free-tier quota in one
+        // incident. Keyed explicitly by error site (class + file + line) rather
+        // than Laravel's default of exception class alone: this codebase throws
+        // generic \Exception in several places, so a class-only key would let
+        // two unrelated incidents share one bucket and suppress each other.
+        $exceptions->throttle(fn (Throwable $e) => Limit::perMinute(60)
+            ->by($e::class.':'.$e->getFile().':'.$e->getLine()));
+
+        // Expected user-input / domain validation failures surfaced as 422s.
+        // They are not incidents, so keep them out of Sentry's noise budget.
+        // ProcessingException and its subclasses are deliberately NOT listed —
+        // those are real pipeline failures we want reported.
+        $exceptions->dontReport([
+            InvalidFileException::class,
+            SafeInvalidArgumentException::class,
+        ]);
+
         $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->expectsJson() || $request->is('api/*'));
 
         $exceptions->render(function (Throwable $e, Request $request) {
