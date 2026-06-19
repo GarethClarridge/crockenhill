@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Video;
 
 use App\Data\LivestreamSegment;
+use App\Exceptions\VideoProcessingException;
 use App\Services\Media\Audio\AudioCompressionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Traits\DetectsStorageType;
@@ -400,7 +401,7 @@ class VideoStorageService
      * @param  string  $permanentPath  Relative destination path on the permanent disk
      * @return string The confirmed permanent storage path
      *
-     * @throws \App\Exceptions\VideoProcessingException If all upload attempts fail
+     * @throws VideoProcessingException If all upload attempts fail
      */
     public function uploadToPermanentStorage(string $localFilePath, string $permanentPath): string
     {
@@ -566,7 +567,6 @@ class VideoStorageService
      * handled by the specialized cleanupTemporaryFiles method.
      *
      * @param  string  $processingId  The processing identifier to clean up
-     * @return void
      */
     public function cleanup(string $processingId): void
     {

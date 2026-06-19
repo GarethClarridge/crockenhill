@@ -9,6 +9,7 @@ use App\Services\MeetingPhotoMigrationService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\TestCase;
@@ -25,7 +26,7 @@ class MeetingPhotoMigrationServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->testSlug = \Illuminate\Support\Str::slug('test-migration-'.\Illuminate\Support\Str::random(8));
+        $this->testSlug = Str::slug('test-migration-'.Str::random(8));
         $this->service = new MeetingPhotoMigrationService;
         Storage::fake('public');
     }

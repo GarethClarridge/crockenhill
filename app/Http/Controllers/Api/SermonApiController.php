@@ -13,6 +13,7 @@ use App\Presenters\SermonViewPresenter;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class SermonApiController extends Controller
 {
@@ -120,7 +121,7 @@ class SermonApiController extends Controller
     /**
      * Display the specified sermon
      *
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public function show(Sermon $sermon, SermonExposurePolicy $exposurePolicy): SermonResource
     {
