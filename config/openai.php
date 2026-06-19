@@ -45,5 +45,7 @@ return [
     | for a response. By default, the client will time out after 30 seconds.
     */
 
-    'request_timeout' => env('OPENAI_REQUEST_TIMEOUT', 30),
+    // Cast to int: env() returns the raw string (e.g. "600"), and the OpenAI client passes
+    // this straight to Guzzle's "timeout" request option, which deprecates non-int|float values.
+    'request_timeout' => (int) env('OPENAI_REQUEST_TIMEOUT', 30),
 ];

@@ -207,7 +207,10 @@ return [
         'speech_transcription_min_duration_seconds' => (int) env('SERVICE_SECTION_SPEECH_TRANSCRIPTION_MIN_DURATION_SECONDS', 10),
         'short_song_max_duration_seconds' => (int) env('SERVICE_SECTION_SHORT_SONG_MAX_DURATION_SECONDS', 90),
         'childrens_talk_max_duration_seconds' => (int) env('SERVICE_SECTION_CHILDRENS_TALK_MAX_DURATION_SECONDS', 900),
-        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        // Speech-section classification drives the high-confidence auto-extraction decision,
+        // so it gets its own explicit model knob (defaulting to a stronger model than the
+        // generic gpt-4o-mini) rather than sharing the broad OPENAI_MODEL analysis default.
+        'model' => env('SERVICE_SECTION_CLASSIFICATION_MODEL', 'gpt-4o'),
         'childrens_talk_min_preceding_duration_seconds' => (int) env('SERVICE_SECTION_CHILDRENS_TALK_MIN_PRECEDING_DURATION_SECONDS', 300),
         'intro_max_start_seconds' => (int) env('SERVICE_SECTION_INTRO_MAX_START_SECONDS', 120),
         'outro_min_remaining_seconds' => (int) env('SERVICE_SECTION_OUTRO_MIN_REMAINING_SECONDS', 30),

@@ -87,6 +87,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         }
 
         $serviceContext = $this->buildServiceContext($existingSections->all());
+        $hasConflictingPrimarySermon = $this->hasConflictingPrimarySermon($existingSections->all());
 
         $classifiableSections = $existingSections->filter(fn (ServiceSection $s): bool => $this->shouldClassify($s))->values();
         $classifiableTotal = $classifiableSections->count();
@@ -110,7 +111,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
                 $classifiedSections = $classificationService->classify($section, $sectionContext);
 
                 foreach ($classifiedSections as $classifiedSection) {
-                    $rewrittenSections[] = $this->payloadFromClassifiedSection($section, $classifiedSection);
+                    $rewrittenSections[] = $this->payloadFromClassifiedSection($section, $classifiedSection, $hasConflictingPrimarySermon);
                 }
             } catch (\Throwable $throwable) {
                 Log::warning('Failed to classify speech section with AI transcript analysis', [
@@ -225,8 +226,11 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
      *     metadata: array<string, mixed>
      * }
      */
-    private function payloadFromClassifiedSection(ServiceSection $originalSection, array $classifiedSection): array
-    {
+    private function payloadFromClassifiedSection(
+        ServiceSection $originalSection,
+        array $classifiedSection,
+        bool $hasConflictingPrimarySermon
+    ): array {
         $sectionType = ServiceSectionType::from($classifiedSection['section_type']);
         $sameSignatureType = $sectionType === $originalSection->section_type;
 
@@ -235,11 +239,25 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
             'derived_from_section_type' => $originalSection->section_type->value,
         ]);
 
+        $confidence = ServiceSectionConfidence::resolve(
+            is_numeric($classifiedSection['confidence'] ?? null) ? (float) $classifiedSection['confidence'] : null,
+            $metadata
+        );
+
         $needsManualReview = $classifiedSection['needs_manual_review'];
 
+        // A transcript-derived sermon (every livestream sermon is one) is only forced to
+        // manual review when the classifier was not high-confidence, or when a separate
+        // RMS-detected primary sermon already exists — guarding against duplicate sermons.
+        // A genuinely high-confidence, unconflicted sermon is trusted so it can auto-extract.
         if ($sectionType === ServiceSectionType::Sermon && $originalSection->section_type !== ServiceSectionType::Sermon) {
-            $needsManualReview = true;
-            $metadata['review_reason'] = 'secondary_sermon_candidate';
+            $isHighConfidence = $classifiedSection['needs_manual_review'] === false
+                && $confidence >= ServiceSectionConfidence::HIGH_THRESHOLD;
+
+            if (! $isHighConfidence || $hasConflictingPrimarySermon) {
+                $needsManualReview = true;
+                $metadata['review_reason'] = 'secondary_sermon_candidate';
+            }
         }
 
         return [
@@ -250,15 +268,33 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
             'start_time' => (float) $classifiedSection['start_time'],
             'end_time' => (float) $classifiedSection['end_time'],
             'duration' => max(0.0, (float) $classifiedSection['end_time'] - (float) $classifiedSection['start_time']),
-            'confidence' => ServiceSectionConfidence::resolve(
-                is_numeric($classifiedSection['confidence'] ?? null) ? (float) $classifiedSection['confidence'] : null,
-                $metadata
-            ),
+            'confidence' => $confidence,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => $needsManualReview,
             'source_segment_ids' => $this->normaliseSourceSegmentIds($originalSection->source_segment_ids),
             'metadata' => $metadata,
         ];
+    }
+
+    /**
+     * Detect whether a primary sermon already exists independent of the section currently
+     * being classified — either an RMS-detected sermon section or a livestream segment the
+     * segmentation pipeline flagged as the sermon. Used to preserve the secondary-sermon
+     * review guard even for an otherwise high-confidence transcript sermon.
+     *
+     * @param  array<int, ServiceSection>  $sections
+     */
+    private function hasConflictingPrimarySermon(array $sections): bool
+    {
+        foreach ($sections as $section) {
+            if ($section->section_type === ServiceSectionType::Sermon) {
+                return true;
+            }
+        }
+
+        return $this->processingLog->segments()
+            ->where('is_sermon_segment', true)
+            ->exists();
     }
 
     /**

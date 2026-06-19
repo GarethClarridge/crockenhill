@@ -144,7 +144,19 @@ Rules:
 - Use relative seconds from the start of the supplied speech segment.
 - Cover only the speech content actually present in the transcript.
 - Split only when there is a clear boundary phrase or topic shift.
-- Keep confidence conservative when boundaries or labels are uncertain.
+- Confidence reflects the section TYPE label only, not boundary precision. Be decisive:
+  when the type is unmistakable, report confidence ≥ 0.9 even if the exact start/end is
+  approximate. A sustained expository address that opens a Bible passage and preaches
+  through it is clearly a sermon; an interactive, narrative talk aimed at children with
+  visual aids is clearly a childrens_talk.
+- Only drop confidence below 0.85 when the TYPE itself is genuinely ambiguous (e.g. a
+  short teaching block that could be either a sermon or a childrens_talk), not merely
+  because a boundary is fuzzy.
+- The "anomalies" array forces human review, so reserve it for genuine problems that a
+  person must check: truncated/garbled transcript, conflicting type signals you could not
+  resolve, or content that does not fit any type. Do NOT put routine reasoning, boundary
+  notes, or an explanation of a confident decision in "anomalies" — that belongs in
+  "notes". A confidently-typed section must have an empty "anomalies" array.
 - Use British English.
 - A church service almost never has two sermons. If you detect what looks like a sermon, consider whether it might be a childrens_talk instead. Children's talks are characterised by:
   • Shorter duration (typically 5–15 minutes vs 25–45 minutes for sermons)
@@ -152,7 +164,7 @@ Rules:
   • References to visual aids: "let's have the next slide", "can you see in the picture"
   • Simpler vocabulary and narrative-driven Bible teaching (often retelling a story)
   • Often ends with a brief prayer then transitions to a song
-  If in doubt between sermon and childrens_talk for a shorter expository section, prefer childrens_talk and flag an anomaly explaining why.
+  Only when you remain genuinely in doubt between sermon and childrens_talk for a shorter expository section, prefer childrens_talk, lower the confidence, and add an anomaly. If the evidence clearly points one way, classify it confidently and explain your reasoning in "notes", not "anomalies".
 TEXT,
                     ],
                     [

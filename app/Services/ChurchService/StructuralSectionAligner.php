@@ -38,9 +38,21 @@ class StructuralSectionAligner
         $presentationDecisions = $presentationClassification['decisions'];
         $ambiguousChildrensTalk = $presentationClassification['childrens_talk_count'] > 1;
 
+        // A sermon never has its own OoS line, so a detected sermon section can never
+        // align to an item. Excluding it from the structural walk — the same way songs
+        // are filtered below — means it is never markMismatch()-ed, never stamped
+        // oos_structure_mismatch, and never takes the −0.20 penalty, so a confidently
+        // detected sermon flows straight through to extraction. (Children's talks DO
+        // align to presentation items, so they stay in the walk and are exempted from
+        // penalties at markMismatch() instead — see markMismatch().)
+        $sectionTypesExcludedFromWalk = [
+            ServiceSectionType::Song,
+            ServiceSectionType::Sermon,
+        ];
+
         /** @var Collection<int, ServiceSection> $structuralSections */
         $structuralSections = $sections
-            ->filter(fn (ServiceSection $section): bool => $section->section_type !== ServiceSectionType::Song)
+            ->filter(fn (ServiceSection $section): bool => ! in_array($section->section_type, $sectionTypesExcludedFromWalk, true))
             ->values();
 
         /** @var Collection<int, ChurchServiceItem> $structuralItems */
@@ -66,8 +78,7 @@ class StructuralSectionAligner
             }
 
             if (! $item instanceof ChurchServiceItem) {
-                $this->markMismatch($section, null, 'unexpected_detected_section');
-                $mismatchCount++;
+                $mismatchCount += $this->markMismatch($section, null, 'unexpected_detected_section') ? 1 : 0;
                 $sectionIndex++;
 
                 continue;
@@ -138,8 +149,7 @@ class StructuralSectionAligner
             }
 
             if ($this->remainingSectionsContainType($structuralSections, $sectionIndex + 1, $expectedType)) {
-                $this->markMismatch($section, $item, 'unexpected_detected_section');
-                $mismatchCount++;
+                $mismatchCount += $this->markMismatch($section, $item, 'unexpected_detected_section') ? 1 : 0;
                 $sectionIndex++;
 
                 continue;
@@ -152,8 +162,7 @@ class StructuralSectionAligner
                 continue;
             }
 
-            $this->markMismatch($section, $item, 'oos_type_mismatch');
-            $mismatchCount++;
+            $mismatchCount += $this->markMismatch($section, $item, 'oos_type_mismatch') ? 1 : 0;
             $sectionIndex++;
             $itemIndex++;
         }
@@ -249,8 +258,19 @@ class StructuralSectionAligner
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
-    private function markMismatch(ServiceSection $section, ?ChurchServiceItem $item, string $reason): void
+    /**
+     * Record a structural mismatch on the section, returning true when a mismatch was
+     * actually applied. Sermon and children's-talk sections are legitimately absent from
+     * (or only loosely represented in) the OoS, so they are exempted: they keep their
+     * confidence and review state instead of taking the oos_structure_mismatch flag and
+     * the −0.20 penalty, and they do not count towards the structural mismatch total.
+     */
+    private function markMismatch(ServiceSection $section, ?ChurchServiceItem $item, string $reason): bool
     {
+        if (in_array($section->section_type, [ServiceSectionType::Sermon, ServiceSectionType::ChildrensTalk], true)) {
+            return false;
+        }
+
         $metadata = $this->metadata($section);
         $metadata['oos_alignment'] = array_merge($this->baselineRestorer->baseAlignmentMetadata($section), [
             'mismatch_reason' => $reason,
@@ -271,6 +291,8 @@ class StructuralSectionAligner
             0.20
         );
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+
+        return true;
     }
 
     /**

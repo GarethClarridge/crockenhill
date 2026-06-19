@@ -172,9 +172,122 @@ class ClassifySpeechSectionsTest extends TestCase
     }
 
     #[Test]
-    public function it_marks_secondary_sermon_candidates_for_manual_review(): void
+    public function it_marks_a_moderate_confidence_transcript_sermon_for_manual_review(): void
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 1,
+            'start_time' => 60.0,
+            'end_time' => 300.0,
+            'duration' => 240.0,
+            'metadata' => [
+                'transcript' => 'Turn in your Bibles with me.',
+            ],
+        ]);
+
+        // Classifier was not high-confidence (review flagged, score below the 0.85 bar).
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::Sermon->value,
+                    'title' => null,
+                    'start_time' => 60.0,
+                    'end_time' => 300.0,
+                    'duration' => 240.0,
+                    'needs_manual_review' => true,
+                    'metadata' => [
+                        'confidence_level' => 'low',
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.7,
+                        'transcript' => 'Turn in your Bibles with me.',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $section = ServiceSection::query()->firstOrFail();
+
+        $this->assertSame(ServiceSectionType::Sermon, $section->section_type);
+        $this->assertTrue($section->needs_manual_review);
+        $this->assertSame('secondary_sermon_candidate', $section->metadata['review_reason'] ?? null);
+    }
+
+    #[Test]
+    public function it_does_not_flag_a_high_confidence_transcript_sermon_when_no_conflicting_primary_exists(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 1,
+            'start_time' => 2420.0,
+            'end_time' => 4180.0,
+            'duration' => 1760.0,
+            'metadata' => [
+                'transcript' => 'Turn in your Bibles with me to Ezekiel chapter one.',
+            ],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section, array $serviceContext = []): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::Sermon->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'confidence_level' => 'high',
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.92,
+                        'transcript' => 'Turn in your Bibles with me to Ezekiel chapter one.',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
+
+        $section = ServiceSection::query()->firstOrFail();
+
+        $this->assertSame(ServiceSectionType::Sermon, $section->section_type);
+        $this->assertFalse($section->needs_manual_review);
+        $this->assertArrayNotHasKey('review_reason', $section->metadata->toArray());
+        $this->assertGreaterThanOrEqual(0.85, (float) $section->confidence);
+    }
+
+    #[Test]
+    public function it_flags_a_high_confidence_transcript_sermon_when_a_conflicting_rms_sermon_segment_exists(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        // The segmentation pipeline already flagged a livestream segment as the sermon.
+        $processingLog->segments()->create([
+            'segment_index' => 0,
+            'start_time' => 2500.0,
+            'end_time' => 4300.0,
+            'duration' => 1800.0,
+            'classification' => 'speech',
+            'is_sermon_candidate' => true,
+            'is_sermon_segment' => true,
+        ]);
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
@@ -196,9 +309,9 @@ class ClassifySpeechSectionsTest extends TestCase
                 return [[
                     'section_type' => ServiceSectionType::Sermon->value,
                     'title' => null,
-                    'start_time' => 60.0,
-                    'end_time' => 300.0,
-                    'duration' => 240.0,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
                     'needs_manual_review' => false,
                     'metadata' => [
                         'confidence_level' => 'high',
@@ -214,7 +327,7 @@ class ClassifySpeechSectionsTest extends TestCase
         $job = new ClassifySpeechSections($processingLog);
         $job->handle($service, app(ServiceSectionSyncService::class), app(SongTitleHintExtractor::class));
 
-        $section = ServiceSection::query()->firstOrFail();
+        $section = ServiceSection::query()->where('start_time', 60.0)->firstOrFail();
 
         $this->assertSame(ServiceSectionType::Sermon, $section->section_type);
         $this->assertTrue($section->needs_manual_review);

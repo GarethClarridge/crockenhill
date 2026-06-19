@@ -159,6 +159,102 @@ class StructuralSectionAlignerTest extends TestCase
         $this->assertSame(0, $mismatches);
     }
 
+    // ── Sermon / children's-talk filtering ───────────────────────────────────
+
+    #[Test]
+    public function it_does_not_mismatch_flag_or_penalise_a_sermon_section_with_no_oos_counterpart(): void
+    {
+        $churchService = $this->makeService();
+        $log = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $churchService->id]);
+
+        // A normal item/section pair that aligns cleanly.
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'section_type' => ServiceSectionType::Welcome,
+            'title' => 'Welcome',
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Welcome->value,
+            'section_order' => 1,
+            'church_service_item_id' => null,
+            'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
+        ]);
+
+        // A confidently-detected sermon section the OoS has no line for.
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 2,
+            'church_service_item_id' => null,
+            'needs_manual_review' => false,
+            'confidence' => 0.9,
+            'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'ai_transcript'],
+        ]);
+
+        $sections = ServiceSection::where('media_processing_log_id', $log->id)->orderBy('section_order')->get();
+        $items = ChurchServiceItem::where('church_service_id', $churchService->id)->get();
+
+        $mismatches = $this->aligner->align($sections, $items);
+
+        $mutatedSermon = $sections->firstOrFail(fn (ServiceSection $s): bool => $s->id === $sermon->id);
+
+        $this->assertSame(0, $mismatches);
+        $this->assertSame(ServiceSectionType::Sermon, $mutatedSermon->section_type);
+        $this->assertFalse($mutatedSermon->needs_manual_review);
+        $this->assertEqualsWithDelta(0.9, (float) $mutatedSermon->confidence, 0.001);
+        $this->assertNotContains('oos_structure_mismatch', $mutatedSermon->metadata['review_flags'] ?? []);
+    }
+
+    #[Test]
+    public function it_does_not_mismatch_flag_or_penalise_a_childrens_talk_section_with_no_oos_counterpart(): void
+    {
+        $churchService = $this->makeService();
+        $log = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $churchService->id]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'section_type' => ServiceSectionType::Welcome,
+            'title' => 'Welcome',
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Welcome->value,
+            'section_order' => 1,
+            'church_service_item_id' => null,
+            'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
+        ]);
+
+        $talk = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_order' => 2,
+            'church_service_item_id' => null,
+            'needs_manual_review' => false,
+            'confidence' => 0.9,
+            'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'ai_transcript'],
+        ]);
+
+        $sections = ServiceSection::where('media_processing_log_id', $log->id)->orderBy('section_order')->get();
+        $items = ChurchServiceItem::where('church_service_id', $churchService->id)->get();
+
+        $mismatches = $this->aligner->align($sections, $items);
+
+        $mutatedTalk = $sections->firstOrFail(fn (ServiceSection $s): bool => $s->id === $talk->id);
+
+        $this->assertSame(0, $mismatches);
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $mutatedTalk->section_type);
+        $this->assertFalse($mutatedTalk->needs_manual_review);
+        $this->assertEqualsWithDelta(0.9, (float) $mutatedTalk->confidence, 0.001);
+        $this->assertNotContains('oos_structure_mismatch', $mutatedTalk->metadata['review_flags'] ?? []);
+    }
+
     // ── OoS reclassification ──────────────────────────────────────────────────
 
     #[Test]
