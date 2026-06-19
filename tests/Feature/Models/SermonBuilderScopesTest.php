@@ -18,23 +18,30 @@ class SermonBuilderScopesTest extends TestCase
     #[Test]
     public function scope_by_preacher_finds_by_denormalized_name_or_profile_relationship(): void
     {
-        $preacher = Preacher::factory()->create(['name' => 'John Profile']);
+        // 1. Match via denormalized name column (even if preacher_id is null)
+        $sermonByDenormalized = Sermon::factory()->byPreacher('Denormalized Name')->create([
+            'preacher_id' => null,
+        ]);
 
-        $sermonByDenormalized = Sermon::factory()->byPreacher('John Denormalized')->create();
+        $this->assertTrue(Sermon::byPreacher('Denormalized Name')->get()->contains($sermonByDenormalized));
 
-        $sermonByProfile = Sermon::factory()->withPreacher($preacher)->byPreacher('Different Name')->create();
+        // 2. Match via linked preacher profile name (even if denormalized column is stale)
+        $preacher = Preacher::factory()->create(['name' => 'Profile Name']);
 
-        $sermonUnrelated = Sermon::factory()->byPreacher('Someone Else')->create();
+        // We use createQuietly to bypass the SermonIdentityObserver which would otherwise
+        // sync the 'preacher' string back to the profile name on save.
+        $sermonWithProfile = Sermon::factory()->withPreacher($preacher)->createQuietly([
+            'preacher' => 'Stale Name',
+        ]);
 
-        // Search by denormalized name
-        $resultsDenormalized = Sermon::byPreacher('John Denormalized')->get();
-        $this->assertTrue($resultsDenormalized->contains($sermonByDenormalized));
-        $this->assertFalse($resultsDenormalized->contains($sermonByProfile));
+        // Test matching via denormalized column
+        $this->assertTrue(Sermon::byPreacher('Stale Name')->get()->contains($sermonWithProfile));
 
-        // Search by profile name
-        $resultsProfile = Sermon::byPreacher('John Profile')->get();
-        $this->assertTrue($resultsProfile->contains($sermonByProfile));
-        $this->assertFalse($resultsProfile->contains($sermonByDenormalized));
+        // Test matching via profile relationship
+        $this->assertTrue(Sermon::byPreacher('Profile Name')->get()->contains($sermonWithProfile));
+
+        // Verify no false positives
+        $this->assertFalse(Sermon::byPreacher('Profile Name')->get()->contains($sermonByDenormalized));
     }
 
     #[Test]
