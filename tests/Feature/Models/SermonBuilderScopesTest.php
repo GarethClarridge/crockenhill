@@ -20,18 +20,15 @@ class SermonBuilderScopesTest extends TestCase
     {
         $preacher = Preacher::factory()->create(['name' => 'John Profile']);
 
-        $sermonByDenormalized = Sermon::factory()->create([
-            'preacher' => 'John Denormalized',
+        $sermonByDenormalized = Sermon::factory()->byPreacher('John Denormalized')->create([
             'preacher_id' => null,
         ]);
 
-        $sermonByProfile = Sermon::factory()->create([
-            'preacher' => 'Different Name',
-            'preacher_id' => $preacher->id,
+        $sermonByProfile = Sermon::factory()->withPreacher($preacher)->create([
+            'preacher' => 'Different Name', // Override the factory's name-sync to test specific query branch
         ]);
 
-        $sermonUnrelated = Sermon::factory()->create([
-            'preacher' => 'Someone Else',
+        $sermonUnrelated = Sermon::factory()->byPreacher('Someone Else')->create([
             'preacher_id' => null,
         ]);
 
