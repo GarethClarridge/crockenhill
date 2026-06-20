@@ -54,15 +54,10 @@ class CreateMeetingTest extends TestCase
     #[Test]
     public function it_can_create_a_meeting(): void
     {
+        Log::spy();
+
         $this->actingAs($this->admin);
         $page = Page::factory()->create();
-
-        Log::shouldReceive('warning')
-            ->once()
-            ->with('New meeting created by admin', \Mockery::on(function ($args) {
-                return $args['admin_id'] === $this->admin->id &&
-                       $args['slug'] === 'new-meeting-test';
-            }));
 
         Livewire::test(CreateMeeting::class)
             ->set('form.slug', 'new-meeting-test')
@@ -74,6 +69,12 @@ class CreateMeetingTest extends TestCase
             ->call('save')
             ->assertHasNoErrors()
             ->assertRedirect(route('admin.meetings.index'));
+
+        Log::assertLogged('warning', function ($message, $context) {
+            return str_contains($message, 'New meeting created by admin') &&
+                   $context['admin_id'] === $this->admin->id &&
+                   $context['slug'] === 'new-meeting-test';
+        });
 
         $this->assertDatabaseHas('meetings', [
             'slug' => 'new-meeting-test',
