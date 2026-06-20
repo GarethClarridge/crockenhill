@@ -228,8 +228,7 @@ class SermonItemListPresenter
         array $sermonView,
         string $datePublished,
         string $metaDescription,
-        string $logoUrl,
-        ?string $transcript = null,
+        string $logoUrl
     ): array {
         $video = [
             '@type' => 'VideoObject',
@@ -238,7 +237,6 @@ class SermonItemListPresenter
             'thumbnailUrl' => $sermonView['thumbnail_url'] ?: $logoUrl,
             'uploadDate' => $datePublished,
             'contentUrl' => $sermonView['video_url'],
-            'transcript' => $transcript,
         ];
 
         if ($sermonView['duration_iso8601']) {
@@ -256,8 +254,7 @@ class SermonItemListPresenter
         Sermon $sermon,
         array $sermonView,
         string $datePublished,
-        string $metaDescription,
-        ?string $transcript = null,
+        string $metaDescription
     ): array {
         $audio = [
             '@type' => 'AudioObject',
@@ -266,7 +263,6 @@ class SermonItemListPresenter
             'description' => $metaDescription,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
-            'transcript' => $transcript,
         ];
 
         if ($sermonView['duration_iso8601']) {
@@ -296,8 +292,7 @@ class SermonItemListPresenter
 
         $author = $this->resolveAuthor($sermon, $sermonView, $worksFor);
 
-        $transcript = $this->sermonViewPresenter->transcript($sermon);
-        $articleBody = $transcript ?: (($sermon->show_summary && $sermon->summary) ? strip_tags($sermon->summary) : null);
+        $articleBody = ($sermon->show_summary && $sermon->summary) ? strip_tags($sermon->summary) : null;
 
         $item = $this->buildArticle(
             $sermon,
@@ -317,8 +312,7 @@ class SermonItemListPresenter
                 $sermonView,
                 $datePublished,
                 $metaDescription,
-                $logoUrl,
-                $transcript
+                $logoUrl
             );
         }
 
@@ -327,8 +321,7 @@ class SermonItemListPresenter
                 $sermon,
                 $sermonView,
                 $datePublished,
-                $metaDescription,
-                $transcript
+                $metaDescription
             );
         }
 
