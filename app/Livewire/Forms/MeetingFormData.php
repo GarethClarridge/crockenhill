@@ -84,19 +84,25 @@ class MeetingFormData extends Form
 
         return [
             'slug' => $modelRules['slug'],
-            'type' => ['required', Rule::enum(MeetingType::class)],
-            'startTime' => 'nullable|date_format:H:i:s,H:i',
-            'endTime' => 'nullable|date_format:H:i:s,H:i|after_or_equal:startTime',
+            'type' => $modelRules['type'],
+            'startTime' => $modelRules['start_time'],
+            'endTime' => array_map(
+                fn ($rule) => $rule === 'after_or_equal:start_time' ? 'after_or_equal:startTime' : $rule,
+                $modelRules['end_time']
+            ),
             'day' => $modelRules['day'],
             'location' => $modelRules['location'],
             'who' => $modelRules['who'],
-            'pictures' => 'boolean',
+            'pictures' => $modelRules['pictures'],
             'leadersPhone' => $modelRules['leaders_phone'],
             'leadersEmail' => $modelRules['leaders_email'],
-            'meetingDate' => 'nullable|date_format:Y-m-d',
-            'isRecurring' => 'boolean',
-            'frequency' => ['nullable', 'required_if:isRecurring,true', Rule::enum(MeetingFrequency::class)],
-            'pageId' => ['nullable', 'integer', 'exists:pages,id', Rule::unique('meetings', 'page_id')->ignore($this->meeting)],
+            'meetingDate' => $modelRules['meeting_date'],
+            'isRecurring' => $modelRules['is_recurring'],
+            'frequency' => array_map(
+                fn ($rule) => $rule === 'required_if:is_recurring,true' ? 'required_if:isRecurring,true' : $rule,
+                $modelRules['frequency']
+            ),
+            'pageId' => $modelRules['page_id'],
         ];
     }
 

@@ -182,12 +182,16 @@ class Meeting extends Model implements HasMedia, Sitemapable
         return [
             'slug' => $slugRule,
             'type' => ['required', Rule::enum(MeetingType::class)],
+            'start_time' => ['nullable', 'date_format:H:i:s,H:i'],
+            'end_time' => ['nullable', 'date_format:H:i:s,H:i', 'after_or_equal:start_time'],
             'day' => ['nullable', 'string', 'max:75', new TrimmedText],
             'location' => ['nullable', 'string', 'max:255', new TrimmedText],
             'who' => ['required', 'string', 'max:255', new TrimmedText],
+            'pictures' => ['boolean'],
             'leaders_phone' => ['nullable', 'string', 'max:255', new TrimmedText],
             'leaders_email' => ['nullable', 'email', 'max:255', new TrimmedText],
-            'is_recurring' => ['nullable', 'boolean'],
+            'meeting_date' => ['nullable', 'date_format:Y-m-d'],
+            'is_recurring' => ['boolean'],
             'frequency' => ['nullable', 'required_if:is_recurring,true', Rule::enum(MeetingFrequency::class)],
             'page_id' => $pageIdRule,
         ];

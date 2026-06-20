@@ -10,3 +10,7 @@
 1.  Application-level validation (e.g., `lowercase` rule).
 2.  Model-level normalization (e.g., Eloquent Attribute mutators) to gracefully handle and fix data before it reaches the database.
 3.  Defensive testing that asserts both DB rejection and validation-level handling.
+
+## 2026-06-21 - Centralized Model Validation Synchronization
+**Learning:** Validation rules for models (e.g., Meeting) were incomplete and duplicated between the model and Livewire form objects. Centralizing these in a static `validationRules()` method on the model and consuming them in form objects ensures consistency and reduces technical debt.
+**Action:** When fortifying model validation, always check corresponding Livewire forms or Form Requests and refactor them to use the model's `validationRules()`. Ensure rules that reference other fields (e.g. `after_or_equal:start_time`) are correctly mapped to their form property equivalents (e.g. `after_or_equal:startTime`).
