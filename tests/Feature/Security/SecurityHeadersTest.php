@@ -9,6 +9,8 @@ use Tests\TestCase;
 
 class SecurityHeadersTest extends TestCase
 {
+    private const string EXPECTED_PERMISSIONS_POLICY = 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), idle-detection=(), interest-cohort=(), keyboard-map=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=()';
+
     #[Test]
     public function it_returns_security_headers_on_web_responses(): void
     {
@@ -18,7 +20,10 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->assertHeader('X-XSS-Protection', '0');
-        $response->assertHeader('Permissions-Policy', 'accelerometer=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
+        $response->assertHeader('Cross-Origin-Opener-Policy', 'same-origin');
+        $response->assertHeader('Cross-Origin-Resource-Policy', 'same-origin');
+        $response->assertHeader('X-Permitted-Cross-Domain-Policies', 'none');
+        $response->assertHeader('Permissions-Policy', self::EXPECTED_PERMISSIONS_POLICY);
         $response->assertHeader('Content-Security-Policy');
     }
 
@@ -31,7 +36,10 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->assertHeader('X-XSS-Protection', '0');
-        $response->assertHeader('Permissions-Policy', 'accelerometer=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
+        $response->assertHeader('Cross-Origin-Opener-Policy', 'same-origin');
+        $response->assertHeader('Cross-Origin-Resource-Policy', 'same-origin');
+        $response->assertHeader('X-Permitted-Cross-Domain-Policies', 'none');
+        $response->assertHeader('Permissions-Policy', self::EXPECTED_PERMISSIONS_POLICY);
         $response->assertHeader('Content-Security-Policy');
     }
 
