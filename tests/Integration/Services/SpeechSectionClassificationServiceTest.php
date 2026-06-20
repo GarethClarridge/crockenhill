@@ -116,6 +116,86 @@ class SpeechSectionClassificationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_anchors_each_sections_transcript_to_its_content_not_its_time_ratio(): void
+    {
+        // Reproduces the 24 May livestream mis-mapping: a single coarse speech block whose
+        // sub-sections have wildly different speech density. The bible reading is short (few
+        // words) but the prayer is long (many words). Slicing the transcript by character
+        // ratio — as the old excerpt logic did — assigns the time-first reading section the
+        // first N characters, which spill into the prayer text. The AI knows where each
+        // section starts (it read the words), so it returns a verbatim `start_text` anchor we
+        // use to align text to content instead of to elapsed time.
+        $readingText = 'Our reading this morning is taken from the book of Joshua chapter one verses one to nine.';
+        $prayerText = 'Let us pray. Father we come before you this morning with thankful hearts, '
+            .'grateful for your faithfulness across every generation, and we ask that you would '
+            .'be near to each person gathered here, comfort those who mourn, strengthen the weary, '
+            .'and turn our eyes towards your unchanging promises as we worship you together now. Amen.';
+
+        $transcript = $readingText.' '.$prayerText;
+
+        $service = new class($readingText, $prayerText) extends SpeechSectionClassificationService
+        {
+            public function __construct(
+                private readonly string $readingText,
+                private readonly string $prayerText,
+            ) {}
+
+            protected function requestClassificationResponse(ServiceSection $section, string $transcript, array $serviceContext = []): array
+            {
+                // The AI splits the block evenly in TIME (50/50) but reports the verbatim
+                // opening words of each section so the boundary can be found in the text.
+                return [
+                    'sections' => [
+                        [
+                            'section_type' => ServiceSectionType::BibleReading->value,
+                            'start_offset_seconds' => 0,
+                            'end_offset_seconds' => 50,
+                            'start_text' => 'Our reading this morning',
+                            'confidence' => 0.95,
+                            'notes' => [],
+                            'anomalies' => [],
+                        ],
+                        [
+                            'section_type' => ServiceSectionType::Prayer->value,
+                            'start_offset_seconds' => 50,
+                            'end_offset_seconds' => 100,
+                            'start_text' => 'Let us pray',
+                            'confidence' => 0.95,
+                            'notes' => [],
+                            'anomalies' => [],
+                        ],
+                    ],
+                ];
+            }
+        };
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Other->value,
+            'start_time' => 1150.0,
+            'end_time' => 1250.0,
+            'duration' => 100.0,
+            'metadata' => [
+                'transcript' => $transcript,
+            ],
+        ]);
+
+        $classified = $service->classify($section);
+
+        $this->assertCount(2, $classified);
+
+        // The bible-reading section must hold the reading, not the prayer that follows it.
+        $this->assertSame(ServiceSectionType::BibleReading->value, $classified[0]['section_type']);
+        $this->assertStringContainsString('Joshua', $classified[0]['metadata']['transcript']);
+        $this->assertStringNotContainsString('Let us pray', $classified[0]['metadata']['transcript']);
+
+        // The prayer section must hold the prayer, not the reading that precedes it.
+        $this->assertSame(ServiceSectionType::Prayer->value, $classified[1]['section_type']);
+        $this->assertStringContainsString('Let us pray', $classified[1]['metadata']['transcript']);
+        $this->assertStringNotContainsString('Joshua', $classified[1]['metadata']['transcript']);
+    }
+
+    #[Test]
     public function it_downgrades_low_confidence_classification_to_other_and_requires_review(): void
     {
         $service = new class extends SpeechSectionClassificationService

@@ -44,10 +44,12 @@ class SpeechSectionClassificationService
             return [$this->fallbackSection($section, $transcript, 'empty_ai_response')];
         }
 
+        $anchorStarts = $this->anchorTranscriptStarts($transcript, $sections);
+
         $normalised = [];
         $previousEnd = 0.0;
 
-        foreach ($sections as $candidate) {
+        foreach ($sections as $candidateIndex => $candidate) {
             $startOffset = $this->clampFloat($candidate['start_offset_seconds'] ?? null, 0.0, $sectionDuration);
             $endOffset = $this->clampFloat($candidate['end_offset_seconds'] ?? null, 0.0, $sectionDuration);
 
@@ -59,6 +61,16 @@ class SpeechSectionClassificationService
             if ($endOffset <= $startOffset) {
                 continue;
             }
+
+            $anchoredStart = $anchorStarts[$candidateIndex] ?? null;
+            $sectionTranscript = $this->resolveSectionTranscript(
+                $transcript,
+                $anchorStarts,
+                $candidateIndex,
+                $startOffset,
+                $endOffset,
+                $sectionDuration
+            );
 
             $confidence = $this->normaliseConfidence($candidate['confidence'] ?? 0.0);
             $requestedType = $this->normaliseSectionType($candidate['section_type'] ?? null);
@@ -88,8 +100,9 @@ class SpeechSectionClassificationService
                     'ai_requested_section_type' => $requestedType->value,
                     'ai_notes' => $notes,
                     'ai_anomalies' => $anomalies,
-                    'transcript' => $this->excerptTranscript($transcript, $startOffset, $endOffset, $sectionDuration),
+                    'transcript' => $sectionTranscript,
                     'transcript_scope' => 'section_excerpt',
+                    'transcript_alignment' => $anchoredStart === null ? 'time_ratio' : 'content_anchor',
                     'parent_transcript_available' => true,
                     'source_service_section_id' => $section->id,
                     'relative_start_seconds' => $startOffset,
@@ -140,9 +153,12 @@ class SpeechSectionClassificationService
                         'content' => <<<'TEXT'
 You classify a church service speech transcript into section boundaries.
 Return valid JSON only with this shape:
-{"sections":[{"section_type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","start_offset_seconds":0.0,"end_offset_seconds":0.0,"confidence":0.0,"notes":["string"],"anomalies":["string"]}]}
+{"sections":[{"section_type":"welcome|prayer|notices|song|childrens_talk|bible_reading|sermon|other","start_offset_seconds":0.0,"end_offset_seconds":0.0,"start_text":"first words of this section copied verbatim","confidence":0.0,"notes":["string"],"anomalies":["string"]}]}
 Rules:
 - Use relative seconds from the start of the supplied speech segment.
+- "start_text" MUST be the first 6 to 12 words of the section, copied verbatim and contiguously
+  from the transcript (identical words, order, and spelling). It is used to locate the section's
+  exact position in the transcript text, so it must appear there exactly as written.
 - Cover only the speech content actually present in the transcript.
 - Split only when there is a clear boundary phrase or topic shift.
 - Confidence reflects the section TYPE label only, not boundary precision. Be decisive:
@@ -280,6 +296,7 @@ TEXT,
                     'section_type' => $section->section_type->value,
                     'start_offset_seconds' => 0.0,
                     'end_offset_seconds' => $duration,
+                    'start_text' => trim((string) Str::substr($transcript, 0, 40)),
                     'confidence' => 0.7,
                     'notes' => ['Mock classifier inferred a single section.'],
                     'anomalies' => [],
@@ -299,6 +316,7 @@ TEXT,
                 'section_type' => $marker['type'],
                 'start_offset_seconds' => $startOffset,
                 'end_offset_seconds' => $index === array_key_last($markers) ? $duration : max($startOffset + 1.0, $endOffset),
+                'start_text' => trim((string) Str::substr($transcript, $marker['position'], 40)),
                 'confidence' => 0.9,
                 'notes' => ['Mock classifier matched a transcript marker.'],
                 'anomalies' => [],
@@ -425,6 +443,97 @@ TEXT,
     private function sectionDurationSeconds(ServiceSection $section): float
     {
         return max(0.0, (float) $section->end_time - (float) $section->start_time);
+    }
+
+    /**
+     * Locate each classified section inside the parent transcript by its verbatim opening words.
+     *
+     * The model returns its boundaries as elapsed-time offsets, but text density is not uniform
+     * across a speech block (a prayer drifts over long silences, narration races), so slicing the
+     * transcript by character ratio misattributes whole passages to the wrong section. The model
+     * also reports a short verbatim `start_text` for each section; finding that snippet gives the
+     * true character offset of the section's content, monotonically advancing a cursor so repeated
+     * phrases resolve in order.
+     *
+     * @param  array<int, array<string, mixed>>  $candidates
+     * @return array<int, int|null> Character offset per candidate, or null when no anchor was found.
+     */
+    private function anchorTranscriptStarts(string $transcript, array $candidates): array
+    {
+        $starts = [];
+        $cursor = 0;
+
+        foreach ($candidates as $index => $candidate) {
+            $snippet = is_string($candidate['start_text'] ?? null)
+                ? trim($candidate['start_text'])
+                : '';
+
+            if ($snippet === '') {
+                $starts[$index] = null;
+
+                continue;
+            }
+
+            $position = mb_stripos($transcript, $snippet, $cursor);
+
+            if ($position === false) {
+                // The model may have reordered or the cursor overshot a near-duplicate; retry
+                // from the start before giving up and falling back to the time-ratio excerpt.
+                $position = mb_stripos($transcript, $snippet);
+            }
+
+            if ($position === false) {
+                $starts[$index] = null;
+
+                continue;
+            }
+
+            $starts[$index] = $position;
+            $cursor = $position + mb_strlen($snippet);
+        }
+
+        return $starts;
+    }
+
+    /**
+     * Resolve a section's transcript from content anchors when available, falling back to the
+     * legacy time-ratio excerpt. A section runs from its own anchor up to the next anchored
+     * sibling (or the end of the transcript).
+     *
+     * @param  array<int, int|null>  $anchorStarts
+     */
+    private function resolveSectionTranscript(
+        string $transcript,
+        array $anchorStarts,
+        int $index,
+        float $startOffset,
+        float $endOffset,
+        float $sectionDuration
+    ): string {
+        $start = $anchorStarts[$index] ?? null;
+
+        if ($start === null) {
+            return $this->excerptTranscript($transcript, $startOffset, $endOffset, $sectionDuration);
+        }
+
+        $end = null;
+        foreach ($anchorStarts as $otherIndex => $otherStart) {
+            if ($otherIndex > $index && $otherStart !== null && $otherStart > $start) {
+                $end = $otherStart;
+
+                break;
+            }
+        }
+
+        $slice = $end === null
+            ? Str::substr($transcript, $start)
+            : Str::substr($transcript, $start, max(1, $end - $start));
+
+        $slice = trim($slice);
+
+        return $slice !== ''
+            ? $slice
+            : $this->excerptTranscript($transcript, $startOffset, $endOffset, $sectionDuration);
     }
 
     private function excerptTranscript(string $transcript, float $startOffset, float $endOffset, float $sectionDuration): string
