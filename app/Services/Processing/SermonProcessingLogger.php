@@ -23,7 +23,7 @@ use Illuminate\Support\Str;
  * performance metrics, file operations, and health checks, with
  * support for automated log sanitization.
  *
- * @phpstan-type ProcessingStepMetrics array{
+ * @phpstan-type ProcessingStepMetrics = array{
  *     original_filename?: string,
  *     sermon_id?: int,
  *     title?: string,
@@ -51,18 +51,18 @@ use Illuminate\Support\Str;
  *     model?: string,
  *     api_time_ms?: float,
  * }
- * @phpstan-type ApiCallContext array{
+ * @phpstan-type ApiCallContext = array{
  *     attempt?: int,
  *     model?: string,
  *     max_completion_tokens?: int,
  *     error_type?: string,
  * }
- * @phpstan-type ProcessingStatistics array{
+ * @phpstan-type ProcessingStatistics = array{
  *     sermon_id?: int,
  *     duration_seconds?: float,
  *     segments_count?: int,
  * }
- * @phpstan-type HealthCheckResult array{
+ * @phpstan-type HealthCheckResult = array{
  *     status: mixed,
  *     message?: mixed,
  * }
