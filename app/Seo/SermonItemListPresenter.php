@@ -170,7 +170,8 @@ class SermonItemListPresenter
         array $author,
         array $publisher,
         array $contentLocation,
-        string $logoUrl
+        string $logoUrl,
+        ?string $articleBody = null,
     ): array {
         $lastModified = ($sermon->updated_at instanceof Carbon && $sermon->updated_at->year > 0)
             ? $sermon->updated_at->toIso8601String()
@@ -183,6 +184,7 @@ class SermonItemListPresenter
             'name' => $sermon->title,
             'url' => $sermonView['canonical_url'],
             'description' => $metaDescription,
+            'articleBody' => $articleBody,
             'datePublished' => $datePublished,
             'dateModified' => $lastModified,
             'inLanguage' => 'en-GB',
@@ -226,7 +228,8 @@ class SermonItemListPresenter
         array $sermonView,
         string $datePublished,
         string $metaDescription,
-        string $logoUrl
+        string $logoUrl,
+        ?string $transcript = null,
     ): array {
         $video = [
             '@type' => 'VideoObject',
@@ -235,6 +238,7 @@ class SermonItemListPresenter
             'thumbnailUrl' => $sermonView['thumbnail_url'] ?: $logoUrl,
             'uploadDate' => $datePublished,
             'contentUrl' => $sermonView['video_url'],
+            'transcript' => $transcript,
         ];
 
         if ($sermonView['duration_iso8601']) {
@@ -252,7 +256,8 @@ class SermonItemListPresenter
         Sermon $sermon,
         array $sermonView,
         string $datePublished,
-        string $metaDescription
+        string $metaDescription,
+        ?string $transcript = null,
     ): array {
         $audio = [
             '@type' => 'AudioObject',
@@ -261,6 +266,7 @@ class SermonItemListPresenter
             'description' => $metaDescription,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
+            'transcript' => $transcript,
         ];
 
         if ($sermonView['duration_iso8601']) {
@@ -290,6 +296,9 @@ class SermonItemListPresenter
 
         $author = $this->resolveAuthor($sermon, $sermonView, $worksFor);
 
+        $transcript = $this->sermonViewPresenter->transcript($sermon);
+        $articleBody = $transcript ?: (($sermon->show_summary && $sermon->summary) ? strip_tags($sermon->summary) : null);
+
         $item = $this->buildArticle(
             $sermon,
             $sermonView,
@@ -298,7 +307,8 @@ class SermonItemListPresenter
             $author,
             $publisher,
             $contentLocation,
-            $logoUrl
+            $logoUrl,
+            $articleBody
         );
 
         if ($sermonView['video_url']) {
@@ -307,7 +317,8 @@ class SermonItemListPresenter
                 $sermonView,
                 $datePublished,
                 $metaDescription,
-                $logoUrl
+                $logoUrl,
+                $transcript
             );
         }
 
@@ -316,7 +327,8 @@ class SermonItemListPresenter
                 $sermon,
                 $sermonView,
                 $datePublished,
-                $metaDescription
+                $metaDescription,
+                $transcript
             );
         }
 
