@@ -9,6 +9,10 @@ use App\Services\BritishEnglishConverter;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @phpstan-import-type SermonAnalysisResult from SermonAnalysisService
+ * @phpstan-import-type RawAiAnalysisData from SermonAnalysisService
+ */
 class SermonAnalysisValidator
 {
     use SanitizesLogData;
@@ -56,16 +60,9 @@ class SermonAnalysisValidator
      * Normalises types, applies British English spelling corrections, enforces
      * word limits on titles, and ensures a valid structure for the SermonAnalysis DTO.
      *
-     * @param  array{title?: mixed, series?: mixed, reference?: mixed, points?: mixed, summary?: mixed}  $analysisData  Raw analysis data from AI
+     * @param  RawAiAnalysisData  $analysisData  Raw analysis data from AI
      * @param  string  $originalTranscript  Original transcript for fallback
-     * @return array{
-     *     title: string,
-     *     series: string|null,
-     *     reference: string|null,
-     *     points: list<string>,
-     *     summary: string|null,
-     *     transcript: string,
-     * } Validated and cleaned analysis data
+     * @return SermonAnalysisResult Validated and cleaned analysis data
      */
     public function validateAndCleanAnalysisData(array $analysisData, string $originalTranscript): array
     {
@@ -231,13 +228,13 @@ class SermonAnalysisValidator
      */
     private function sanitizeAiNullableString(mixed $value): ?string
     {
-        if (! is_string($value)) {
+        if (! filled($value) || ! is_string($value)) {
             return null;
         }
 
         $trimmed = trim($value);
 
-        if ($trimmed === '' || strtolower($trimmed) === 'null' || strtolower($trimmed) === 'none') {
+        if (in_array(strtolower($trimmed), ['null', 'none'], true)) {
             return null;
         }
 
