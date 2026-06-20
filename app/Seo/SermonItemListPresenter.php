@@ -170,7 +170,8 @@ class SermonItemListPresenter
         array $author,
         array $publisher,
         array $contentLocation,
-        string $logoUrl
+        string $logoUrl,
+        ?string $articleBody = null,
     ): array {
         $lastModified = ($sermon->updated_at instanceof Carbon && $sermon->updated_at->year > 0)
             ? $sermon->updated_at->toIso8601String()
@@ -183,6 +184,7 @@ class SermonItemListPresenter
             'name' => $sermon->title,
             'url' => $sermonView['canonical_url'],
             'description' => $metaDescription,
+            'articleBody' => $articleBody,
             'datePublished' => $datePublished,
             'dateModified' => $lastModified,
             'inLanguage' => 'en-GB',
@@ -290,6 +292,8 @@ class SermonItemListPresenter
 
         $author = $this->resolveAuthor($sermon, $sermonView, $worksFor);
 
+        $articleBody = ($sermon->show_summary && $sermon->summary) ? strip_tags($sermon->summary) : null;
+
         $item = $this->buildArticle(
             $sermon,
             $sermonView,
@@ -298,7 +302,8 @@ class SermonItemListPresenter
             $author,
             $publisher,
             $contentLocation,
-            $logoUrl
+            $logoUrl,
+            $articleBody
         );
 
         if ($sermonView['video_url']) {
