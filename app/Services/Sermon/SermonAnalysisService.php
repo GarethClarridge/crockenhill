@@ -17,6 +17,24 @@ use OpenAI\Exceptions\TransporterException;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
 
+/**
+ * @phpstan-type SermonAnalysisResult array{
+ *     title: string,
+ *     series: string|null,
+ *     reference: string|null,
+ *     points: list<string>,
+ *     summary: string|null,
+ *     transcript: string,
+ * }
+ * @phpstan-type RawAiAnalysisData array{
+ *     title?: mixed,
+ *     series?: mixed,
+ *     reference?: mixed,
+ *     points?: mixed,
+ *     summary?: mixed,
+ *     transcript?: mixed,
+ * }
+ */
 class SermonAnalysisService implements SermonAnalysisInterface
 {
     use SanitizesLogData;
@@ -102,14 +120,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      * @param  string  $transcript  The sermon transcript
      * @param  array<int, string>  $existingSeries  Array of existing series names
      * @param  string  $processingId  Processing ID for logging
-     * @return array{
-     *     title: string,
-     *     series: string|null,
-     *     reference: string|null,
-     *     points: list<string>,
-     *     summary: string|null,
-     *     transcript: string,
-     * } The parsed analysis results
+     * @return SermonAnalysisResult The parsed analysis results
      *
      * @throws Exception|ErrorException|TransporterException
      */
@@ -142,14 +153,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      * Execute a single AI analysis attempt.
      *
      * @param  array<int, string>  $existingSeries
-     * @return array{
-     *     title: string,
-     *     series: string|null,
-     *     reference: string|null,
-     *     points: list<string>,
-     *     summary: string|null,
-     *     transcript: string,
-     * }
+     * @return SermonAnalysisResult
      *
      * @throws Exception|\TypeError|ErrorException|TransporterException
      */
@@ -278,14 +282,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
     /**
      * Parse and validate OpenAI API response.
      *
-     * @return array{
-     *     title?: string,
-     *     series?: string|null,
-     *     reference?: string|null,
-     *     points?: array<int, string>,
-     *     summary?: string|null,
-     *     transcript?: string,
-     * }
+     * @return RawAiAnalysisData
      *
      * @throws Exception If the response structure is invalid or JSON parsing fails
      */
