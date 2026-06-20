@@ -17,6 +17,7 @@ use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -93,7 +94,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 12,
+            'job_offset' => 13,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -113,7 +114,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 16,
+            'job_offset' => 17,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -243,15 +244,16 @@ class ProcessingPhaseRegistryTest extends TestCase
                 'expectations' => [
                     0 => AnalyzeSegments::class,
                     1 => ClassifyServiceSections::class,
-                    8 => ExtractSermon::class,
-                    9 => SubmitToProcessing::class,
-                    12 => TranscribeAudio::class,
-                    13 => ProcessTranscriptWithAI::class,
-                    14 => AssessSermonVideoQuality::class,
-                    15 => GenerateThumbnail::class,
-                    16 => PrepareSectionPublicationCandidates::class,
-                    17 => SendCompletionNotification::class,
-                    18 => CleanupTemporaryFiles::class,
+                    6 => ResolveReadingReferences::class,
+                    9 => ExtractSermon::class,
+                    10 => SubmitToProcessing::class,
+                    13 => TranscribeAudio::class,
+                    14 => ProcessTranscriptWithAI::class,
+                    15 => AssessSermonVideoQuality::class,
+                    16 => GenerateThumbnail::class,
+                    17 => PrepareSectionPublicationCandidates::class,
+                    18 => SendCompletionNotification::class,
+                    19 => CleanupTemporaryFiles::class,
                 ],
             ],
         ];

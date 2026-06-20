@@ -16,6 +16,8 @@ final class ChurchServiceProcessingTimeline
 
     public const ALIGN_WITH_OOS = 'align_with_oos';
 
+    public const RESOLVE_READING_REFERENCES = 'resolve_reading_references';
+
     public const MATCH_SONGS_FROM_TRANSCRIPT = 'match_songs_from_transcript';
 
     public const RECLASSIFY_INTRO_OUTRO = 'reclassify_intro_outro';
@@ -49,6 +51,10 @@ final class ChurchServiceProcessingTimeline
             [
                 'key' => self::ALIGN_WITH_OOS,
                 'label' => 'Align with OoS',
+            ],
+            [
+                'key' => self::RESOLVE_READING_REFERENCES,
+                'label' => 'Resolve reading references',
             ],
             [
                 'key' => self::MATCH_SONGS_FROM_TRANSCRIPT,

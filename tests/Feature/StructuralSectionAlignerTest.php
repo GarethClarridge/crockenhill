@@ -20,12 +20,12 @@ class StructuralSectionAlignerTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * When a section has no matching type but the expected type appears later in the
-     * remaining sections, the current section is marked as "unexpected_detected_section"
-     * and the walk advances the section index only.
+     * A detected section that the sparse OoS never lists (here an extra Notices block ahead of
+     * the listed Prayer) is a free section gap under the content-aware alignment: the Prayer
+     * section still anchors to its item, and no `oos_structure_mismatch` is raised.
      */
     #[Test]
-    public function it_marks_section_as_unexpected_when_expected_type_appears_later_in_sections(): void
+    public function it_treats_an_unlisted_leading_section_as_a_free_gap_while_still_matching_later_sections(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-09',
@@ -74,22 +74,23 @@ class StructuralSectionAlignerTest extends TestCase
         $noticesSection->refresh();
         $prayerSection->refresh();
 
-        $this->assertContains('oos_structure_mismatch', $result['review_triggers']);
-        $this->assertSame('unexpected_detected_section', $noticesSection->metadata['oos_alignment']['mismatch_reason'] ?? null);
-        $this->assertTrue($noticesSection->needs_manual_review);
+        // The unlisted notices block is a free gap — no structural mismatch, no review flag.
+        $this->assertNotContains('oos_structure_mismatch', $result['review_triggers']);
+        $this->assertArrayNotHasKey('mismatch_reason', $noticesSection->metadata['oos_alignment'] ?? []);
+        $this->assertFalse($noticesSection->needs_manual_review);
 
-        // Prayer section was correctly matched after skipping the unexpected notices section
+        // Prayer section still anchors to its item.
         $this->assertSame($prayerItem->id, $prayerSection->church_service_item_id);
         $this->assertFalse($prayerSection->needs_manual_review);
     }
 
     /**
-     * When the current item type doesn't match and the same type appears later in
-     * the remaining items, the walk advances the item index without marking a mismatch
-     * on the section.
+     * An OoS item with no detected counterpart (here a "The Message" item the audio never
+     * surfaced as a distinct block) is a free item gap: the prayer section still aligns to the
+     * prayer item further along, and no structural mismatch is raised.
      */
     #[Test]
-    public function it_skips_an_item_when_the_section_type_appears_later_in_remaining_items(): void
+    public function it_treats_an_unmatched_oos_item_as_a_free_gap_while_still_matching_the_section(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-11-16',
@@ -129,8 +130,9 @@ class StructuralSectionAlignerTest extends TestCase
 
         $prayerSection->refresh();
 
-        $this->assertContains('oos_structure_mismatch', $result['review_triggers']);
-        // The prayer section should be matched to the prayer item (sermon item was skipped)
+        // The skipped "The Message" item is a free item gap — no structural mismatch.
+        $this->assertNotContains('oos_structure_mismatch', $result['review_triggers']);
+        // The prayer section is still matched to the prayer item.
         $this->assertSame($prayerItem->id, $prayerSection->church_service_item_id);
         $this->assertFalse($prayerSection->needs_manual_review);
         $this->assertArrayNotHasKey('mismatch_reason', $prayerSection->metadata['oos_alignment'] ?? []);

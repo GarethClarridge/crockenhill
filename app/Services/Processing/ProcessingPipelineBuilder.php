@@ -23,6 +23,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\ReclassifyIntroOutroSections;
+use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -139,6 +140,7 @@ class ProcessingPipelineBuilder
             new ClassifySpeechSections($log),
             new ProjectLivestreamServiceStructure($log),
             new AlignWithOos($log),
+            new ResolveReadingReferences($log),
             new MatchSongsFromTranscript($log),
             new ReclassifyIntroOutroSections($log),
             new ExtractSermon($log),
@@ -213,6 +215,7 @@ class ProcessingPipelineBuilder
             new ClassifySpeechSections($log),
             new ProjectLivestreamServiceStructure($log),
             new AlignWithOos($log),
+            new ResolveReadingReferences($log),
             new MatchSongsFromTranscript($log),
             new ReclassifyIntroOutroSections($log),
             new ExtractSermon($log),

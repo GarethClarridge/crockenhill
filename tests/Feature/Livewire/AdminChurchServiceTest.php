@@ -27,6 +27,7 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\ReclassifyIntroOutroSections;
 use App\Jobs\ReconcileServiceSections;
+use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeSpeechSegments;
@@ -762,6 +763,7 @@ class AdminChurchServiceTest extends TestCase
             ClassifySpeechSections::class,
             ProjectLivestreamServiceStructure::class,
             AlignWithOos::class,
+            ResolveReadingReferences::class,
             MatchSongsFromTranscript::class,
             ReclassifyIntroOutroSections::class,
             ExtractSermon::class,
@@ -836,6 +838,7 @@ class AdminChurchServiceTest extends TestCase
             ClassifySpeechSections::class,
             ProjectLivestreamServiceStructure::class,
             AlignWithOos::class,
+            ResolveReadingReferences::class,
             MatchSongsFromTranscript::class,
             ReclassifyIntroOutroSections::class,
             ExtractSermon::class,

@@ -69,14 +69,17 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
         $reclassifiedCount += $this->reclassifyIntro($songSections, $totalDuration);
         $reclassifiedCount += $this->reclassifyOutro($songSections, $totalDuration);
 
+        $transitionCount = $this->tagTransitionSections($totalDuration);
+
         $this->logStepComplete(
             ChurchServiceProcessingTimeline::RECLASSIFY_INTRO_OUTRO,
-            sprintf('Reclassified %d intro/outro section(s)', $reclassifiedCount)
+            sprintf('Reclassified %d intro/outro section(s); tagged %d transition(s)', $reclassifiedCount, $transitionCount)
         );
 
         Log::info('ReclassifyIntroOutroSections completed', [
             'processing_id' => $this->processingLog->processing_id,
             'reclassified' => $reclassifiedCount,
+            'transitions' => $transitionCount,
         ]);
     }
 
@@ -168,6 +171,95 @@ class ReclassifyIntroOutroSections extends ProcessingJob implements ShouldQueue
     {
         return $section->song_match_type !== null
             && $section->song_match_type !== ServiceSectionSongMatchType::Unmatched;
+    }
+
+    /**
+     * Tag short, near-empty "other" blips (e.g. a 10s inter-song image) as transitions so they
+     * stop generating review noise and are excluded from structural alignment. Unlike the
+     * intro/outro reclassification above, these are kept as their own microsections rather than
+     * merged into an adjacent song.
+     */
+    private function tagTransitionSections(float $totalDuration): int
+    {
+        $maxDuration = (float) config('media-processing.transitions.max_duration_seconds', 15);
+
+        /** @var EloquentCollection<int, ServiceSection> $sections */
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $this->processingLog->id)
+            ->orderBy('section_order')
+            ->orderBy('id')
+            ->get();
+
+        $tagged = 0;
+
+        foreach ($sections as $index => $section) {
+            if (! $this->isTransitionCandidate($section, $maxDuration)) {
+                continue;
+            }
+
+            $kind = $this->transitionKind($sections, $index);
+            if ($kind === null) {
+                continue;
+            }
+
+            $metadata = $section->metadata?->toArray() ?? [];
+            $metadata['is_transition'] = true;
+            $metadata['transition_kind'] = $kind;
+
+            $section->needs_manual_review = false;
+            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+            $section->save();
+
+            $tagged++;
+        }
+
+        return $tagged;
+    }
+
+    private function isTransitionCandidate(ServiceSection $section, float $maxDuration): bool
+    {
+        if ($section->section_type !== ServiceSectionType::Other) {
+            return false;
+        }
+
+        if ((float) $section->duration > $maxDuration) {
+            return false;
+        }
+
+        // Leave the intro/outro musical bumpers (reclassified above) for their own review.
+        if (in_array($section->metadata?->reviewReason, ['possible_musical_intro', 'possible_musical_outro'], true)) {
+            return false;
+        }
+
+        $transcript = $section->metadata?->transcript;
+
+        return ! is_string($transcript) || strlen(trim($transcript)) <= 15;
+    }
+
+    /**
+     * A transition only qualifies at a recording boundary or wedged between two songs.
+     *
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     */
+    private function transitionKind(EloquentCollection $sections, int $index): ?string
+    {
+        if ($index === 0) {
+            return 'intro';
+        }
+
+        if ($index === $sections->count() - 1) {
+            return 'outro';
+        }
+
+        $previous = $sections->get($index - 1);
+        $next = $sections->get($index + 1);
+
+        $betweenSongs = $previous instanceof ServiceSection
+            && $next instanceof ServiceSection
+            && $previous->section_type === ServiceSectionType::Song
+            && $next->section_type === ServiceSectionType::Song;
+
+        return $betweenSongs ? 'inter_song' : null;
     }
 
     private function reclassifySection(ServiceSection $section, ServiceSectionType $newType, string $reviewReason): void

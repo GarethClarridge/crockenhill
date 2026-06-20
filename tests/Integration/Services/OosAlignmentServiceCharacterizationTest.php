@@ -243,7 +243,7 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
     }
 
     #[Test]
-    public function it_marks_the_current_section_as_unexpected_when_the_expected_type_appears_later_in_remaining_sections(): void
+    public function it_treats_an_unlisted_leading_section_as_a_free_gap_and_anchors_later_matches(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-09-07',
@@ -313,14 +313,18 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $prayerSection->refresh();
         $readingSection->refresh();
 
-        $this->assertContains('oos_structure_mismatch', $result['review_triggers']);
-        $this->assertSame('unexpected_detected_section', $unexpectedSection->metadata['oos_alignment']['mismatch_reason'] ?? null);
+        // The leading Notices block is unlisted in the OoS, so it is a free gap rather than an
+        // `unexpected_detected_section` desync; the prayer and reading still anchor to their items.
+        $this->assertNotContains('oos_structure_mismatch', $result['review_triggers']);
+        $this->assertArrayNotHasKey('mismatch_reason', $unexpectedSection->metadata['oos_alignment'] ?? []);
+        $this->assertNull($unexpectedSection->church_service_item_id);
+        $this->assertFalse($unexpectedSection->needs_manual_review);
         $this->assertSame($prayerItem->id, $prayerSection->church_service_item_id);
         $this->assertSame($readingItem->id, $readingSection->church_service_item_id);
     }
 
     #[Test]
-    public function it_skips_a_missing_item_when_the_current_section_type_appears_later_in_remaining_items(): void
+    public function it_treats_an_unmatched_item_as_a_free_gap_and_anchors_both_sections_to_their_items(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-09-14',
@@ -383,7 +387,9 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $noticesSection->refresh();
         $readingSection->refresh();
 
-        $this->assertContains('oos_structure_mismatch', $result['review_triggers']);
+        // The unmatched "Opening Prayer" item is a free item gap, so no structural mismatch is
+        // raised; both detected sections still anchor to their matching items by type.
+        $this->assertNotContains('oos_structure_mismatch', $result['review_triggers']);
         $this->assertSame($readingItem->id, $noticesSection->church_service_item_id);
         $this->assertArrayNotHasKey('mismatch_reason', $noticesSection->metadata['oos_alignment'] ?? []);
         $this->assertFalse($noticesSection->needs_manual_review);

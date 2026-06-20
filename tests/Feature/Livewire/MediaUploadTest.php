@@ -22,6 +22,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\ReclassifyIntroOutroSections;
+use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -503,6 +504,7 @@ class MediaUploadTest extends TestCase
             ClassifySpeechSections::class,
             ProjectLivestreamServiceStructure::class,
             AlignWithOos::class,
+            ResolveReadingReferences::class,
             MatchSongsFromTranscript::class,
             ReclassifyIntroOutroSections::class,
             ExtractSermon::class,

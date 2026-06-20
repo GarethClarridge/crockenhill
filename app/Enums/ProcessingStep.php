@@ -44,6 +44,7 @@ enum ProcessingStep: string
     case ClassifySpeechSections = 'classify_speech_sections';
     case ProjectLivestreamServiceStructure = 'project_livestream_service_structure';
     case AlignWithOos = 'align_with_oos';
+    case ResolveReadingReferences = 'resolve_reading_references';
     case MatchSongsFromTranscript = 'match_songs_from_transcript';
     case ReclassifyIntroOutro = 'reclassify_intro_outro';
     case Extraction = 'extraction';

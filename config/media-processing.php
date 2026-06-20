@@ -223,6 +223,46 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Reading Reference Resolution (Improvement #1)
+    |--------------------------------------------------------------------------
+    | Derives the actual scripture reference for a bible_reading section from the
+    | recited transcript when the OoS only carries a generic "Bible Reading" title.
+    | Gated by the analysis-service switch as well, so the `mock` service never
+    | makes a live call in tests.
+    */
+    'reading_references' => [
+        'enabled' => env('READING_REFERENCES_ENABLED', true),
+        'model' => env('READING_REFERENCES_MODEL', 'gpt-5-mini'),
+        'min_confidence' => (float) env('READING_REFERENCES_MIN_CONFIDENCE', 0.6),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Media / Video Interludes (Improvement #5)
+    |--------------------------------------------------------------------------
+    | Tags detected blocks that align to an OoS `media` item (e.g. "Bibles.mp4")
+    | as structural interludes rather than mis-classifying their speech-over-video
+    | as prayer/notices. Audio + transcript + OoS only — never relies on the
+    | projector video being present in the livestream feed.
+    */
+    'media_interludes' => [
+        'enabled' => env('MEDIA_INTERLUDES_ENABLED', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Transition Microsections
+    |--------------------------------------------------------------------------
+    | Short "other" blips between non-speech sections (e.g. a 10s inter-song
+    | image) are tagged as transitions so they stop generating review noise and
+    | are excluded from structural alignment counting.
+    */
+    'transitions' => [
+        'max_duration_seconds' => (int) env('SERVICE_SECTION_TRANSITION_MAX_DURATION_SECONDS', 15),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Song Matching (Phase 4)
     |--------------------------------------------------------------------------
     */

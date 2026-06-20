@@ -20,14 +20,20 @@ class StructuralSectionAligner
     public function __construct(
         private readonly PresentationItemClassifier $presentationItemClassifier,
         private readonly SectionAlignmentBaselineRestorer $baselineRestorer,
+        private readonly SectionItemAlignmentScorer $scorer,
+        private readonly MediaInterludeCueDetector $mediaCueDetector,
     ) {}
 
     /**
-     * Walk structural sections and items in parallel, applying matches and recording mismatches.
+     * Align structural sections against OoS items using a global optimal alignment
+     * (Needleman–Wunsch) and apply the per-pair side-effects.
      *
-     * Uses lookahead to handle ordering gaps without inflating the mismatch count for sections
-     * that eventually align further along in the sequence. Returns the total count of structural
-     * mismatches (used for review-trigger evaluation).
+     * Unlike the previous greedy two-pointer walk, sections that are legitimately absent
+     * from a sparse slide-deck OoS (e.g. unlisted prayers) become free section gaps rather
+     * than a desync cascade of `unexpected_detected_section` flags. Only genuine aligned type
+     * conflicts count towards the returned structural mismatch total (used for review-trigger
+     * evaluation). Songs and sermons are excluded from the walk, and tagged transition
+     * microsections are skipped entirely.
      *
      * @param  EloquentCollection<int, ServiceSection>  $sections
      * @param  EloquentCollection<int, ChurchServiceItem>  $items
@@ -38,13 +44,13 @@ class StructuralSectionAligner
         $presentationDecisions = $presentationClassification['decisions'];
         $ambiguousChildrensTalk = $presentationClassification['childrens_talk_count'] > 1;
 
-        // A sermon never has its own OoS line, so a detected sermon section can never
-        // align to an item. Excluding it from the structural walk — the same way songs
-        // are filtered below — means it is never markMismatch()-ed, never stamped
-        // oos_structure_mismatch, and never takes the −0.20 penalty, so a confidently
-        // detected sermon flows straight through to extraction. (Children's talks DO
-        // align to presentation items, so they stay in the walk and are exempted from
-        // penalties at markMismatch() instead — see markMismatch().)
+        $mediaInterludesEnabled = (bool) config('media-processing.media_interludes.enabled', true);
+
+        // A sermon never has its own OoS line, so a detected sermon section can never align to
+        // an item; excluding it (like songs) keeps it out of the conflict/penalty machinery so a
+        // confidently detected sermon flows straight to extraction. Children's talks DO align to
+        // presentation items, so they stay in the walk and are exempted at markMismatch() instead.
+        // Tagged transition microsections are pure structural glue and are skipped outright.
         $sectionTypesExcludedFromWalk = [
             ServiceSectionType::Song,
             ServiceSectionType::Sermon,
@@ -52,7 +58,8 @@ class StructuralSectionAligner
 
         /** @var Collection<int, ServiceSection> $structuralSections */
         $structuralSections = $sections
-            ->filter(fn (ServiceSection $section): bool => ! in_array($section->section_type, $sectionTypesExcludedFromWalk, true))
+            ->filter(fn (ServiceSection $section): bool => ! in_array($section->section_type, $sectionTypesExcludedFromWalk, true)
+                && ! $this->isTransitionSection($section))
             ->values();
 
         /** @var Collection<int, ChurchServiceItem> $structuralItems */
@@ -60,114 +67,375 @@ class StructuralSectionAligner
             ->filter(fn (ChurchServiceItem $item): bool => $this->resolvedItemType($item, $presentationDecisions) !== ServiceSectionType::Song)
             ->values();
 
-        $sectionIndex = 0;
-        $itemIndex = 0;
+        $pairs = $this->optimalAlignment($structuralSections, $structuralItems, $presentationDecisions, $mediaInterludesEnabled);
+
         $mismatchCount = 0;
 
-        while ($sectionIndex < $structuralSections->count() || $itemIndex < $structuralItems->count()) {
-            /** @var ServiceSection|null $section */
-            $section = $structuralSections->get($sectionIndex);
-            /** @var ChurchServiceItem|null $item */
-            $item = $structuralItems->get($itemIndex);
-
-            if (! $section instanceof ServiceSection) {
-                $mismatchCount++;
-                $itemIndex++;
-
-                continue;
-            }
-
-            if (! $item instanceof ChurchServiceItem) {
-                $mismatchCount += $this->markMismatch($section, null, 'unexpected_detected_section') ? 1 : 0;
-                $sectionIndex++;
-
-                continue;
-            }
-
-            $expectedType = $this->resolvedItemType($item, $presentationDecisions);
-
-            if ($section->section_type === $expectedType) {
-                $this->applyMatchedItem($section, $item, 0.35);
-
-                if ($expectedType === ServiceSectionType::BibleReading) {
-                    $metadata = $this->metadata($section);
-                    $metadata['reading_reference'] = $item->title;
-                    $section->metadata = ServiceSectionMetadata::fromArray($metadata);
-                } elseif (($section->title === null || trim($section->title) === '') && $expectedType !== ServiceSectionType::Sermon) {
-                    $section->title = $item->title;
-                }
-
-                // Attach presentation inference trace even on a direct type match
-                $decision = $presentationDecisions[$item->id] ?? null;
-                if (is_array($decision)) {
-                    $this->applyPresentationDecisionMetadata($section, $decision, $ambiguousChildrensTalk);
-                }
-
-                $sectionIndex++;
-                $itemIndex++;
-
-                continue;
-            }
-
-            if ($section->section_type === ServiceSectionType::Other && $this->isOosReclassifiableType($expectedType)) {
-                $section->section_type = $expectedType;
-                $this->applyMatchedItem($section, $item, 0.35);
-
-                $metadata = $this->metadata($section);
-                $metadata['oos_alignment'] = array_merge($metadata['oos_alignment'] ?? [], [
-                    'reclassified_from' => ServiceSectionType::Other->value,
-                    'reclassified_by' => 'oos_alignment',
-                ]);
-                $section->metadata = ServiceSectionMetadata::fromArray($metadata);
-                $section->title = $item->title;
-
-                // Apply evidence-aware review flags for presentation items
-                $decision = $presentationDecisions[$item->id] ?? null;
-                if (is_array($decision)) {
-                    $this->applyPresentationDecisionMetadata($section, $decision, $ambiguousChildrensTalk);
-                }
-
-                $sectionIndex++;
-                $itemIndex++;
-
-                continue;
-            }
-
-            // Attach weak-evidence presentation hints even when the section doesn't get reclassified
-            $decision = $presentationDecisions[$item->id] ?? null;
-            if (is_array($decision) && $decision['evidence'] === 'weak') {
-                $metadata = $this->metadata($section);
-                $metadata['oos_alignment'] = array_merge($metadata['oos_alignment'] ?? [], [
-                    'presentation_inference' => [
-                        'resolved_type' => $decision['resolved_type']->value,
-                        'suspected_type' => $decision['suspected_type']?->value,
-                        'evidence' => $decision['evidence'],
-                        'reason' => $decision['reason'],
-                    ],
-                ]);
-                $section->metadata = ServiceSectionMetadata::fromArray($metadata);
-            }
-
-            if ($this->remainingSectionsContainType($structuralSections, $sectionIndex + 1, $expectedType)) {
-                $mismatchCount += $this->markMismatch($section, $item, 'unexpected_detected_section') ? 1 : 0;
-                $sectionIndex++;
-
-                continue;
-            }
-
-            if ($this->remainingItemsContainType($structuralItems, $itemIndex + 1, $section->section_type)) {
-                $mismatchCount++;
-                $itemIndex++;
-
-                continue;
-            }
-
-            $mismatchCount += $this->markMismatch($section, $item, 'oos_type_mismatch') ? 1 : 0;
-            $sectionIndex++;
-            $itemIndex++;
+        foreach ($pairs as $pair) {
+            $mismatchCount += $this->applyPair($pair, $presentationDecisions, $ambiguousChildrensTalk);
         }
 
         return $mismatchCount;
+    }
+
+    /**
+     * Compute the optimal monotonic alignment of sections to items, returning an ordered list
+     * of pairing decisions to apply. Diagonal moves are matches/reclassifications/media-interludes
+     * (or, as a last resort when no gap arrangement is as cheap, conflicts); the two gap moves
+     * leave one side unpaired.
+     *
+     * @param  Collection<int, ServiceSection>  $sections
+     * @param  Collection<int, ChurchServiceItem>  $items
+     * @param  array<int, array{
+     *     resolved_type: ServiceSectionType,
+     *     suspected_type: ServiceSectionType|null,
+     *     evidence: 'explicit'|'strong'|'weak',
+     *     requires_review: bool,
+     *     review_flag: string|null,
+     *     reason: string
+     * }>  $presentationDecisions
+     * @return list<array{
+     *     kind: 'match'|'reclassify'|'media'|'conflict'|'section_gap'|'item_gap',
+     *     section: ServiceSection|null,
+     *     item: ChurchServiceItem|null,
+     *     resolved_type: ServiceSectionType|null
+     * }>
+     */
+    private function optimalAlignment(
+        Collection $sections,
+        Collection $items,
+        array $presentationDecisions,
+        bool $mediaInterludesEnabled
+    ): array {
+        $n = $sections->count();
+        $m = $items->count();
+
+        $sectionGap = $this->scorer->sectionGapScore();
+        $itemGap = $this->scorer->itemGapScore();
+
+        // Precompute per-item resolution and per-section cue detection once.
+        $resolvedTypes = [];
+        $treatAsMedia = [];
+        foreach ($items as $j => $item) {
+            $resolvedTypes[$j] = $this->resolvedItemType($item, $presentationDecisions);
+            $treatAsMedia[$j] = $mediaInterludesEnabled && $this->isMediaItem($item);
+        }
+
+        $hasCue = [];
+        foreach ($sections as $i => $section) {
+            $hasCue[$i] = $this->mediaCueDetector->hasCue($this->sectionTranscript($section));
+        }
+
+        /** @var array<int, array<int, float>> $dp */
+        $dp = [];
+        for ($i = 0; $i <= $n; $i++) {
+            $dp[$i] = array_fill(0, $m + 1, 0.0);
+        }
+        for ($i = 1; $i <= $n; $i++) {
+            $dp[$i][0] = $dp[$i - 1][0] + $sectionGap;
+        }
+        for ($j = 1; $j <= $m; $j++) {
+            $dp[0][$j] = $dp[0][$j - 1] + $itemGap;
+        }
+
+        /** @var array<int, array<int, array{kind: string, score: float}>> $pairScores */
+        $pairScores = [];
+        for ($i = 1; $i <= $n; $i++) {
+            for ($j = 1; $j <= $m; $j++) {
+                /** @var ServiceSection $section */
+                $section = $sections->get($i - 1);
+                /** @var ChurchServiceItem $item */
+                $item = $items->get($j - 1);
+
+                $pair = $this->scorer->scorePair($section, $item, $resolvedTypes[$j - 1], $treatAsMedia[$j - 1], $hasCue[$i - 1]);
+                $pairScores[$i][$j] = $pair;
+
+                $dp[$i][$j] = max(
+                    $dp[$i - 1][$j - 1] + $pair['score'],
+                    $dp[$i - 1][$j] + $sectionGap,
+                    $dp[$i][$j - 1] + $itemGap,
+                );
+            }
+        }
+
+        return $this->traceback($sections, $items, $dp, $pairScores, $resolvedTypes, $sectionGap, $itemGap);
+    }
+
+    /**
+     * Walk the filled DP matrix back to the origin, preferring real diagonal matches, then gaps,
+     * then conflict diagonals last so a type conflict is only recorded when no equally-cheap gap
+     * arrangement exists.
+     *
+     * @param  Collection<int, ServiceSection>  $sections
+     * @param  Collection<int, ChurchServiceItem>  $items
+     * @param  array<int, array<int, float>>  $dp
+     * @param  array<int, array<int, array{kind: string, score: float}>>  $pairScores
+     * @param  array<int, ServiceSectionType>  $resolvedTypes
+     * @return list<array{
+     *     kind: 'match'|'reclassify'|'media'|'conflict'|'section_gap'|'item_gap',
+     *     section: ServiceSection|null,
+     *     item: ChurchServiceItem|null,
+     *     resolved_type: ServiceSectionType|null
+     * }>
+     */
+    private function traceback(
+        Collection $sections,
+        Collection $items,
+        array $dp,
+        array $pairScores,
+        array $resolvedTypes,
+        float $sectionGap,
+        float $itemGap
+    ): array {
+        $ops = [];
+        $i = $sections->count();
+        $j = $items->count();
+
+        while ($i > 0 || $j > 0) {
+            $pair = ($i > 0 && $j > 0) ? $pairScores[$i][$j] : null;
+            $diagScore = $pair !== null ? $dp[$i - 1][$j - 1] + $pair['score'] : null;
+
+            if ($pair !== null && $pair['kind'] !== 'conflict' && $diagScore !== null && $this->scoresEqual($dp[$i][$j], $diagScore)) {
+                $ops[] = $this->diagonalOp($pair['kind'], $sections->get($i - 1), $items->get($j - 1), $resolvedTypes[$j - 1]);
+                $i--;
+                $j--;
+
+                continue;
+            }
+
+            if ($i > 0 && $this->scoresEqual($dp[$i][$j], $dp[$i - 1][$j] + $sectionGap)) {
+                $ops[] = ['kind' => 'section_gap', 'section' => $sections->get($i - 1), 'item' => null, 'resolved_type' => null];
+                $i--;
+
+                continue;
+            }
+
+            if ($j > 0 && $this->scoresEqual($dp[$i][$j], $dp[$i][$j - 1] + $itemGap)) {
+                $ops[] = ['kind' => 'item_gap', 'section' => null, 'item' => $items->get($j - 1), 'resolved_type' => null];
+                $j--;
+
+                continue;
+            }
+
+            // Only a strictly-best conflict diagonal remains (CONFLICT_SCORE > both gaps summed).
+            if ($pair !== null) {
+                $ops[] = $this->diagonalOp($pair['kind'], $sections->get($i - 1), $items->get($j - 1), $resolvedTypes[$j - 1]);
+                $i--;
+                $j--;
+
+                continue;
+            }
+
+            // Defensive: exhaust any remaining edge cell as a gap (unreachable in practice).
+            // Reaching here means $pair is null, so exactly one of $i/$j is still positive.
+            if ($i > 0) {
+                $ops[] = ['kind' => 'section_gap', 'section' => $sections->get($i - 1), 'item' => null, 'resolved_type' => null];
+                $i--;
+            } else {
+                $ops[] = ['kind' => 'item_gap', 'section' => null, 'item' => $items->get($j - 1), 'resolved_type' => null];
+                $j--;
+            }
+        }
+
+        return array_reverse($ops);
+    }
+
+    /**
+     * @return array{
+     *     kind: 'match'|'reclassify'|'media'|'conflict',
+     *     section: ServiceSection|null,
+     *     item: ChurchServiceItem|null,
+     *     resolved_type: ServiceSectionType|null
+     * }
+     */
+    private function diagonalOp(string $kind, ?ServiceSection $section, ?ChurchServiceItem $item, ServiceSectionType $resolvedType): array
+    {
+        /** @var 'match'|'reclassify'|'media'|'conflict' $kind */
+        return ['kind' => $kind, 'section' => $section, 'item' => $item, 'resolved_type' => $resolvedType];
+    }
+
+    private function scoresEqual(float $a, float $b): bool
+    {
+        return abs($a - $b) < 1e-9;
+    }
+
+    /**
+     * Apply the side-effects for a single pairing decision and return 1 if it recorded a
+     * structural mismatch, 0 otherwise.
+     *
+     * @param  array{
+     *     kind: 'match'|'reclassify'|'media'|'conflict'|'section_gap'|'item_gap',
+     *     section: ServiceSection|null,
+     *     item: ChurchServiceItem|null,
+     *     resolved_type: ServiceSectionType|null
+     * }  $pair
+     * @param  array<int, array{
+     *     resolved_type: ServiceSectionType,
+     *     suspected_type: ServiceSectionType|null,
+     *     evidence: 'explicit'|'strong'|'weak',
+     *     requires_review: bool,
+     *     review_flag: string|null,
+     *     reason: string
+     * }>  $presentationDecisions
+     */
+    private function applyPair(array $pair, array $presentationDecisions, bool $ambiguousChildrensTalk): int
+    {
+        // Gaps are free: a section absent from the OoS keeps its baseline, an unlisted item has
+        // no detected counterpart. Neither counts as a structural mismatch.
+        if ($pair['kind'] === 'section_gap' || $pair['kind'] === 'item_gap') {
+            return 0;
+        }
+
+        $section = $pair['section'];
+        $item = $pair['item'];
+
+        if (! $section instanceof ServiceSection || ! $item instanceof ChurchServiceItem) {
+            return 0;
+        }
+
+        $resolvedType = $pair['resolved_type'] ?? $this->resolvedItemType($item, $presentationDecisions);
+
+        switch ($pair['kind']) {
+            case 'match':
+                $this->applyExactMatch($section, $item, $resolvedType, $presentationDecisions, $ambiguousChildrensTalk);
+
+                return 0;
+
+            case 'reclassify':
+                $this->applyReclassifyMatch($section, $item, $resolvedType, $presentationDecisions, $ambiguousChildrensTalk);
+
+                return 0;
+
+            case 'media':
+                $this->applyMediaInterlude($section, $item);
+
+                return 0;
+
+            case 'conflict':
+            default:
+                return $this->applyConflict($section, $item, $presentationDecisions);
+        }
+    }
+
+    /**
+     * @param  array<int, array{
+     *     resolved_type: ServiceSectionType,
+     *     suspected_type: ServiceSectionType|null,
+     *     evidence: 'explicit'|'strong'|'weak',
+     *     requires_review: bool,
+     *     review_flag: string|null,
+     *     reason: string
+     * }>  $presentationDecisions
+     */
+    private function applyExactMatch(
+        ServiceSection $section,
+        ChurchServiceItem $item,
+        ServiceSectionType $resolvedType,
+        array $presentationDecisions,
+        bool $ambiguousChildrensTalk
+    ): void {
+        $this->applyMatchedItem($section, $item, 0.35);
+
+        if ($resolvedType === ServiceSectionType::BibleReading) {
+            $metadata = $this->metadata($section);
+            $metadata['reading_reference'] = $item->title;
+            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        } elseif (($section->title === null || trim($section->title) === '') && $resolvedType !== ServiceSectionType::Sermon) {
+            $section->title = $item->title;
+        }
+
+        $decision = $presentationDecisions[$item->id] ?? null;
+        if (is_array($decision)) {
+            $this->applyPresentationDecisionMetadata($section, $decision, $ambiguousChildrensTalk);
+        }
+    }
+
+    /**
+     * @param  array<int, array{
+     *     resolved_type: ServiceSectionType,
+     *     suspected_type: ServiceSectionType|null,
+     *     evidence: 'explicit'|'strong'|'weak',
+     *     requires_review: bool,
+     *     review_flag: string|null,
+     *     reason: string
+     * }>  $presentationDecisions
+     */
+    private function applyReclassifyMatch(
+        ServiceSection $section,
+        ChurchServiceItem $item,
+        ServiceSectionType $resolvedType,
+        array $presentationDecisions,
+        bool $ambiguousChildrensTalk
+    ): void {
+        $section->section_type = $resolvedType;
+        $this->applyMatchedItem($section, $item, 0.35);
+
+        $metadata = $this->metadata($section);
+        $metadata['oos_alignment'] = array_merge($metadata['oos_alignment'] ?? [], [
+            'reclassified_from' => ServiceSectionType::Other->value,
+            'reclassified_by' => 'oos_alignment',
+        ]);
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $section->title = $item->title;
+
+        $decision = $presentationDecisions[$item->id] ?? null;
+        if (is_array($decision)) {
+            $this->applyPresentationDecisionMetadata($section, $decision, $ambiguousChildrensTalk);
+        }
+    }
+
+    /**
+     * Tag a detected block that aligned to an OoS media item (e.g. "Bibles.mp4") as a media
+     * interlude. The block is normalised to OTHER plus a metadata flag (no new enum case),
+     * matched to the item so it is not counted as a structural gap, and cleared of review state
+     * because a played video is structural context — never extracted, never published.
+     */
+    private function applyMediaInterlude(ServiceSection $section, ChurchServiceItem $item): void
+    {
+        $section->section_type = ServiceSectionType::Other;
+        $this->applyMatchedItem($section, $item, 0.35);
+
+        $metadata = $this->metadata($section);
+        $metadata['media_interlude'] = true;
+        $metadata['media_title'] = $item->title;
+        $metadata['oos_alignment'] = array_merge($metadata['oos_alignment'] ?? [], [
+            'media_interlude' => true,
+        ]);
+        unset($metadata['review_flags'], $metadata['review_reason']);
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $section->needs_manual_review = false;
+    }
+
+    /**
+     * @param  array<int, array{
+     *     resolved_type: ServiceSectionType,
+     *     suspected_type: ServiceSectionType|null,
+     *     evidence: 'explicit'|'strong'|'weak',
+     *     requires_review: bool,
+     *     review_flag: string|null,
+     *     reason: string
+     * }>  $presentationDecisions
+     */
+    private function applyConflict(ServiceSection $section, ChurchServiceItem $item, array $presentationDecisions): int
+    {
+        // Preserve the legacy weak-evidence presentation hint: when an item only weakly suggests
+        // a type (position-only) and the section did not adopt it, record the suspicion for review
+        // tooling without reclassifying or flagging.
+        $decision = $presentationDecisions[$item->id] ?? null;
+        if (is_array($decision) && $decision['evidence'] === 'weak') {
+            $metadata = $this->metadata($section);
+            $metadata['oos_alignment'] = array_merge($metadata['oos_alignment'] ?? [], [
+                'presentation_inference' => [
+                    'resolved_type' => $decision['resolved_type']->value,
+                    'suspected_type' => $decision['suspected_type']?->value,
+                    'evidence' => $decision['evidence'],
+                    'reason' => $decision['reason'],
+                ],
+            ]);
+            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        }
+
+        return $this->markMismatch($section, $item, 'oos_type_mismatch') ? 1 : 0;
     }
 
     /**
@@ -341,37 +609,28 @@ class StructuralSectionAligner
     }
 
     /**
-     * Returns true for structural section types that the OoS is authoritative enough
-     * to reclassify an audio-only OTHER segment into.
+     * An OoS media item (e.g. an OpenLP "media" plugin entry, or a title ending in a media
+     * file extension). Detection is intentionally audio/OoS only — the projector video may not
+     * be in the livestream feed, so visual analysis is never consulted.
      */
-    private function isOosReclassifiableType(ServiceSectionType $type): bool
+    private function isMediaItem(ChurchServiceItem $item): bool
     {
-        return in_array($type, [
-            ServiceSectionType::ChildrensTalk,
-            ServiceSectionType::BibleReading,
-            ServiceSectionType::Prayer,
-            ServiceSectionType::Notices,
-            ServiceSectionType::Welcome,
-        ], true);
+        if (strtolower($item->type) === 'media') {
+            return true;
+        }
+
+        return preg_match('/\.(mp4|mov|avi|mkv|webm|mp3|wav|m4a)$/i', (string) $item->title) === 1;
     }
 
-    /**
-     * @param  Collection<int, ServiceSection>  $sections
-     */
-    private function remainingSectionsContainType(Collection $sections, int $startIndex, ServiceSectionType $type): bool
+    private function isTransitionSection(ServiceSection $section): bool
     {
-        return $sections
-            ->slice($startIndex)
-            ->contains(fn (ServiceSection $section): bool => $section->section_type === $type);
+        return ($this->metadata($section)['is_transition'] ?? false) === true;
     }
 
-    /**
-     * @param  Collection<int, ChurchServiceItem>  $items
-     */
-    private function remainingItemsContainType(Collection $items, int $startIndex, ServiceSectionType $type): bool
+    private function sectionTranscript(ServiceSection $section): string
     {
-        return $items
-            ->slice($startIndex)
-            ->contains(fn (ChurchServiceItem $item): bool => $this->resolvedItemType($item) === $type);
+        $transcript = $this->metadata($section)['transcript'] ?? null;
+
+        return is_string($transcript) ? $transcript : '';
     }
 }

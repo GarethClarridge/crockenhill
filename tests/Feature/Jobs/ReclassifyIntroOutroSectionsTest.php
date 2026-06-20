@@ -202,6 +202,91 @@ class ReclassifyIntroOutroSectionsTest extends TestCase
         $this->assertEquals(ServiceSectionType::Song->value, $matchedOutro->section_type->value);
     }
 
+    // ---- Transition tagging ----
+
+    #[Test]
+    public function it_tags_a_short_empty_other_section_between_songs_as_a_transition(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create(['duration' => 4200.0]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'start_time' => 300.0,
+            'end_time' => 500.0,
+            'song_match_type' => null,
+        ]);
+
+        $transition = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 2,
+            'start_time' => 500.0,
+            'end_time' => 510.0,
+            'duration' => 10.0,
+            'needs_manual_review' => true,
+            'metadata' => ['classification_mode' => 'audio_only', 'transcript' => ''],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 3,
+            'start_time' => 510.0,
+            'end_time' => 700.0,
+            'song_match_type' => null,
+        ]);
+
+        (new ReclassifyIntroOutroSections($log))->handle();
+
+        $transition->refresh();
+
+        $this->assertTrue(($transition->metadata['is_transition'] ?? false) === true);
+        $this->assertSame('inter_song', $transition->metadata['transition_kind'] ?? null);
+        $this->assertFalse($transition->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_does_not_tag_a_long_other_speech_section_as_a_transition(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create(['duration' => 4200.0]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'start_time' => 300.0,
+            'end_time' => 500.0,
+            'song_match_type' => null,
+        ]);
+
+        $speech = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 2,
+            'start_time' => 500.0,
+            'end_time' => 1100.0,
+            'duration' => 600.0,
+            'metadata' => ['classification_mode' => 'ai_transcript', 'transcript' => 'A substantial spoken reflection that runs well beyond any transition blip.'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 3,
+            'start_time' => 1100.0,
+            'end_time' => 1300.0,
+            'song_match_type' => null,
+        ]);
+
+        (new ReclassifyIntroOutroSections($log))->handle();
+
+        $speech->refresh();
+
+        $this->assertArrayNotHasKey('is_transition', $speech->metadata?->toArray() ?? []);
+    }
+
     // ---- Skip conditions ----
 
     #[Test]

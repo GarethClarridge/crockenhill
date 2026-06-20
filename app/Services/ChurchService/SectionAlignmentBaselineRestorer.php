@@ -70,7 +70,13 @@ class SectionAlignmentBaselineRestorer
         $section->expected_item_id = null;
 
         // Clear all OoS-owned alignment state so each run is rebuilt from scratch
-        unset($metadata['oos_alignment'], $metadata['song_id'], $metadata['reading_reference']);
+        unset(
+            $metadata['oos_alignment'],
+            $metadata['song_id'],
+            $metadata['reading_reference'],
+            $metadata['media_interlude'],
+            $metadata['media_title'],
+        );
 
         $reviewFlags = $this->clearOosReviewFlags($this->reviewFlags($metadata));
 
