@@ -434,6 +434,17 @@ class SermonViewPresenter
         return $this->transcriptReader->read($sermon);
     }
 
+    public function transcriptUrl(Sermon $sermon): ?string
+    {
+        return $this->memoize($sermon, 'transcript_url', 'memoizedUrls', function () use ($sermon): ?string {
+            if (! $sermon->hasTranscript()) {
+                return null;
+            }
+
+            return route('sermons.transcript', ['sermon' => $sermon->slug]);
+        });
+    }
+
     /**
      * Get the preacher name for display.
      *

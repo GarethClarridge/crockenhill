@@ -82,7 +82,7 @@ class PodcastFeedService
             publishedAt: $sermon->date->toRfc2822String(),
             sermonId: $sermon->id,
             title: $sermon->title,
-            transcriptUrl: $this->buildTranscriptUrl($sermon),
+            transcriptUrl: $this->sermonViewPresenter->transcriptUrl($sermon),
         );
     }
 
@@ -117,14 +117,6 @@ class PodcastFeedService
         return ! empty($parts) ? implode(' ', $parts).'.' : $sermon->title;
     }
 
-    private function buildTranscriptUrl(Sermon $sermon): ?string
-    {
-        if (! $sermon->transcript_file_path) {
-            return null;
-        }
-
-        return route('sermons.transcript', ['sermon' => $sermon->slug]);
-    }
 
     /**
      * Get feed metadata for a service type
