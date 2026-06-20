@@ -19,7 +19,7 @@
         <div class="mx-auto w-full max-w-xs">
             <div class="w-full rounded-xl bg-gradient-teal p-[1.5px]">
                 <x-button link="/" variant="featureOutline" size="lg" class="w-full rounded-[11px]">
-                    Go to the homepage
+                    Return to the homepage
                 </x-button>
             </div>
         </div>
