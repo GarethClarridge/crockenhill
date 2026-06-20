@@ -58,6 +58,20 @@ at the same target — correct redirect behaviour.
 
 ---
 
+### O8 · Legacy sermon update artefacts (`UpdateSermonRecord` & `UpdateSermonRequest`)
+
+**Artefacts:** `app/Jobs/UpdateSermonRecord.php`, `app/Http/Requests/UpdateSermonRequest.php`
+
+These artefacts have been superseded by the `UnifiedMediaProcessor` and Livewire-based
+admin forms. Grep search returns zero production callers in `app/`, `resources/`,
+`routes/`, or `config/`.
+
+**Risk:** Low — isolated classes with no callers.
+
+**Action:** Remove both classes and retire/migrate legacy tests that still exercise them.
+
+---
+
 ## ✅ Recently resolved (2026-06-18 unless noted)
 
 - **O1 — Dead mailable `App\Mail\LivestreamProcessingCompleted`** — removed (class, view, test, `AGENTS.md` reference).
