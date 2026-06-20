@@ -22,6 +22,50 @@ use Illuminate\Support\Str;
  * Provides a unified API for recording pipeline lifecycle events, API
  * performance metrics, file operations, and health checks, with
  * support for automated log sanitization.
+ *
+ * @phpstan-type ProcessingStepMetrics array{
+ *     original_filename?: string,
+ *     sermon_id?: int,
+ *     title?: string,
+ *     slug?: string,
+ *     execution_time_ms?: float,
+ *     file_path?: string,
+ *     disk?: string,
+ *     file?: string,
+ *     transcript_length?: int,
+ *     word_count?: int,
+ *     error?: string,
+ *     total_duration?: float,
+ *     chunk_duration?: float,
+ *     overlap_duration?: float,
+ *     chunk?: int,
+ *     total_chunks?: int,
+ *     chunk_file?: string,
+ *     final_transcript_length?: int,
+ *     existing_series_count?: int,
+ *     reference?: string,
+ *     points_count?: int,
+ *     total_attempts?: int,
+ *     final_error?: string,
+ *     attempt?: int,
+ *     model?: string,
+ *     api_time_ms?: float,
+ * }
+ * @phpstan-type ApiCallContext array{
+ *     attempt?: int,
+ *     model?: string,
+ *     max_completion_tokens?: int,
+ *     error_type?: string,
+ * }
+ * @phpstan-type ProcessingStatistics array{
+ *     sermon_id?: int,
+ *     duration_seconds?: float,
+ *     segments_count?: int,
+ * }
+ * @phpstan-type HealthCheckResult array{
+ *     status: mixed,
+ *     message?: mixed,
+ * }
  */
 class SermonProcessingLogger
 {
@@ -57,7 +101,7 @@ class SermonProcessingLogger
      * @param  string  $processingId  The unique processing identifier
      * @param  string  $step  The identifier for the step being logged
      * @param  string  $status  The outcome of the step (completed, failed, degraded)
-     * @param  array<string, mixed>  $metrics  Additional performance metrics to record
+     * @param  ProcessingStepMetrics  $metrics  Additional performance metrics to record
      * @param  string|null  $errorMessage  Optional error detail for failed or degraded steps
      */
     public function logProcessingStep(
@@ -104,7 +148,7 @@ class SermonProcessingLogger
      * @param  float  $responseTime  The round-trip time in seconds
      * @param  int  $statusCode  The HTTP status code returned by the API
      * @param  string|null  $errorMessage  Optional error message for non-200 responses
-     * @param  array<string, mixed>  $additionalContext  Extra metadata to include in the log context
+     * @param  ApiCallContext  $additionalContext  Extra metadata to include in the log context
      */
     public function logApiCall(
         string $processingId,
@@ -141,7 +185,7 @@ class SermonProcessingLogger
      * @param  string  $operation  The type of operation (e.g. upload, move, extract)
      * @param  string  $filePath  The path to the file involved in the operation
      * @param  int|null  $fileSize  The size of the file in bytes
-     * @param  float|null  $operationTime  The time taken for the operation in seconds
+     * @param  float|null  $operationTime  The round-trip time in seconds
      * @param  string|null  $errorMessage  Optional error detail if the operation failed
      */
     public function logFileOperation(
@@ -185,7 +229,7 @@ class SermonProcessingLogger
      *
      * @param  string  $processingId  The unique processing identifier
      * @param  ProcessingStatus  $status  The terminal status (Completed, Failed, Cancelled)
-     * @param  array<string, mixed>  $statistics  Final processing statistics to record
+     * @param  ProcessingStatistics  $statistics  Final processing statistics to record
      * @param  string|null  $errorMessage  Optional error detail for non-successful completions
      */
     public function logProcessingComplete(
@@ -272,7 +316,7 @@ class SermonProcessingLogger
      * Log the result of a system health check.
      *
      * @param  string  $checkName  The identifier for the health check
-     * @param  array<string, mixed>  $result  The outcome and diagnostic data for the check
+     * @param  HealthCheckResult  $result  The outcome and diagnostic data for the check
      */
     public function logHealthCheck(string $checkName, array $result): void
     {
