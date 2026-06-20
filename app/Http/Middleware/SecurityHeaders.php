@@ -31,6 +31,13 @@ class SecurityHeaders
         // Security Header: Referrer Policy
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
+        // Security Header: Cross-Origin Policies
+        $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
+        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+
+        // Security Header: Prevent Flash/PDF from loading cross-domain data
+        $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');
+
         // Security Header: HSTS (Strict-Transport-Security)
         // Only added if the request is secure to avoid breaking local development environments
         if ($request->isSecure()) {
@@ -41,7 +48,7 @@ class SecurityHeaders
         // Restricts sensitive browser features that this application does not use.
         // ambient-light-sensor is deliberately absent: Chrome never shipped it as a
         // Permissions-Policy feature and logs "Unrecognized feature" on every page.
-        $response->headers->set('Permissions-Policy', 'accelerometer=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
+        $response->headers->set('Permissions-Policy', 'accelerometer=(), autoplay=(self "https://www.youtube.com"), battery=(), bluetooth=(), camera=(), display-capture=(), gamepad=(), geolocation=(), gyroscope=(), idle-detection=(), interest-cohort=(), keyboard-map=(), magnetometer=(), microphone=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), web-share=()');
 
         // Security Header: Content Security Policy (CSP)
         // Provides an additional layer of security by restricting where resources can be loaded from.
