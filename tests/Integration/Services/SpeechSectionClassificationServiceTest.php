@@ -10,6 +10,7 @@ use App\Services\ChurchService\SpeechSectionClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -299,6 +300,77 @@ class SpeechSectionClassificationServiceTest extends TestCase
         $this->assertCount(1, $classified);
         $this->assertSame(ServiceSectionType::Welcome->value, $classified[0]['section_type']);
         $this->assertFalse($classified[0]['needs_manual_review']);
+    }
+
+    #[Test]
+    public function it_sends_reasoning_model_parameters_when_classifying_with_gpt5(): void
+    {
+        Config::set('media-processing.analysis.service', 'openai');
+        Config::set('openai.api_key', 'test-key');
+        Config::set('media-processing.section_classification.model', 'gpt-5');
+
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode(['sections' => []]),
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Other->value,
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'duration' => 60.0,
+            'metadata' => ['transcript' => 'Good morning everyone and welcome.'],
+        ]);
+
+        (new SpeechSectionClassificationService)->classify($section);
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            return $parameters['model'] === 'gpt-5'
+                && ! array_key_exists('temperature', $parameters)
+                && $parameters['reasoning_effort'] === 'low'
+                && $parameters['max_completion_tokens'] === 4000;
+        });
+    }
+
+    #[Test]
+    public function it_keeps_temperature_when_classifying_with_a_classic_model(): void
+    {
+        Config::set('media-processing.analysis.service', 'openai');
+        Config::set('openai.api_key', 'test-key');
+        Config::set('media-processing.section_classification.model', 'gpt-4o');
+
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode(['sections' => []]),
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Other->value,
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'duration' => 60.0,
+            'metadata' => ['transcript' => 'Good morning everyone and welcome.'],
+        ]);
+
+        (new SpeechSectionClassificationService)->classify($section);
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            return $parameters['model'] === 'gpt-4o'
+                && $parameters['temperature'] === 0.1
+                && ! array_key_exists('reasoning_effort', $parameters);
+        });
     }
 
     #[Test]

@@ -6,6 +6,7 @@ namespace App\Services\ChurchService;
 
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
+use App\Support\OpenAiChatPayload;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Support\Str;
 use OpenAI\Laravel\Facades\OpenAI;
@@ -131,8 +132,8 @@ class SpeechSectionClassificationService
         $sectionDuration = $this->sectionDurationSeconds($section);
 
         try {
-            $response = OpenAI::chat()->create([
-                'model' => (string) config('media-processing.section_classification.model', 'gpt-4o-mini'),
+            $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
+                'model' => (string) config('media-processing.section_classification.model', 'gpt-5'),
                 'messages' => [
                     [
                         'role' => 'system',
@@ -173,8 +174,10 @@ TEXT,
                     ],
                 ],
                 'temperature' => 0.1,
-                'max_completion_tokens' => 1400,
-            ]);
+                // Headroom for reasoning models, whose hidden reasoning tokens share this budget
+                // with the visible JSON; classic models stop early so the ceiling costs nothing.
+                'max_completion_tokens' => 4000,
+            ]));
         } catch (TypeError $exception) {
             throw new RuntimeException(
                 'OpenAI speech section classification response malformed: '.$exception->getMessage(),

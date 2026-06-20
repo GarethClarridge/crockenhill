@@ -127,7 +127,9 @@ return [
     'analysis' => [
         'service' => env('ANALYSIS_SERVICE', 'mock'),
         'openai_api_key' => env('OPENAI_API_KEY'),
-        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        // Dedicated knob (was the shared OPENAI_MODEL) so sermon analysis can diverge from the
+        // lower-stakes email parser; defaults to a reasoning model for better public summaries.
+        'model' => env('ANALYSIS_MODEL', 'gpt-5-mini'),
         'max_retries' => env('ANALYSIS_MAX_RETRIES', 3),
         'retry_delay_base' => env('ANALYSIS_RETRY_DELAY_BASE', 2),
         'debug_http_responses' => env('OPENAI_DEBUG_HTTP_RESPONSES', false),
@@ -207,10 +209,10 @@ return [
         'speech_transcription_min_duration_seconds' => (int) env('SERVICE_SECTION_SPEECH_TRANSCRIPTION_MIN_DURATION_SECONDS', 10),
         'short_song_max_duration_seconds' => (int) env('SERVICE_SECTION_SHORT_SONG_MAX_DURATION_SECONDS', 90),
         'childrens_talk_max_duration_seconds' => (int) env('SERVICE_SECTION_CHILDRENS_TALK_MAX_DURATION_SECONDS', 900),
-        // Speech-section classification drives the high-confidence auto-extraction decision,
-        // so it gets its own explicit model knob (defaulting to a stronger model than the
-        // generic gpt-4o-mini) rather than sharing the broad OPENAI_MODEL analysis default.
-        'model' => env('SERVICE_SECTION_CLASSIFICATION_MODEL', 'gpt-4o'),
+        // Speech-section classification drives the high-confidence auto-extraction decision and
+        // the sermon-vs-children's-talk judgement, so it gets its own explicit model knob
+        // (defaulting to the flagship reasoning model) rather than the cheaper analysis default.
+        'model' => env('SERVICE_SECTION_CLASSIFICATION_MODEL', 'gpt-5'),
         'childrens_talk_min_preceding_duration_seconds' => (int) env('SERVICE_SECTION_CHILDRENS_TALK_MIN_PRECEDING_DURATION_SECONDS', 300),
         'intro_max_start_seconds' => (int) env('SERVICE_SECTION_INTRO_MAX_START_SECONDS', 120),
         'outro_min_remaining_seconds' => (int) env('SERVICE_SECTION_OUTRO_MIN_REMAINING_SECONDS', 30),
@@ -235,7 +237,7 @@ return [
         'song_opening_local_whisper_timeout' => (int) env('SONG_MATCHING_LOCAL_WHISPER_TIMEOUT', env('LOCAL_WHISPER_TIMEOUT', 1800)),
         'lyrics_threshold' => (float) env('SONG_MATCHING_LYRICS_THRESHOLD', 0.6),
         'ocr_enabled' => env('SONG_MATCHING_OCR_ENABLED', true),
-        'ocr_model' => env('SONG_MATCHING_OCR_MODEL', 'gpt-4o-mini'),
+        'ocr_model' => env('SONG_MATCHING_OCR_MODEL', 'gpt-5-mini'),
     ],
 
     /*

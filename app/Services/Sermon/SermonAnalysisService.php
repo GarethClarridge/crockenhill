@@ -9,6 +9,7 @@ use App\Data\SermonAnalysis;
 use App\Services\OpenAIResponseLogger;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Public\SermonRepository;
+use App\Support\OpenAiChatPayload;
 use App\Traits\SanitizesLogData;
 use Exception;
 use Illuminate\Support\Facades\Log;
@@ -155,7 +156,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      */
     private function runAnalysisAttempt(string $transcript, array $existingSeries, string $processingId, int $attempt, float $apiStartTime): array
     {
-        $model = (string) config('media-processing.analysis.model', 'gpt-4o-mini');
+        $model = (string) config('media-processing.analysis.model', 'gpt-5-mini');
 
         $this->logger->logProcessingStep(
             $processingId,
@@ -325,7 +326,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
     private function executeAiRequest(string $prompt, string $model, string $processingId, int $attempt): CreateResponse
     {
         try {
-            return OpenAI::chat()->create([
+            return OpenAI::chat()->create(OpenAiChatPayload::forModel([
                 'model' => $model,
                 'messages' => [
                     [
@@ -338,8 +339,10 @@ class SermonAnalysisService implements SermonAnalysisInterface
                     ],
                 ],
                 'temperature' => 0.3,
-                'max_completion_tokens' => 1500,
-            ]);
+                // Headroom for reasoning models, whose hidden reasoning tokens share this budget
+                // with the visible JSON; classic models stop early so the ceiling costs nothing.
+                'max_completion_tokens' => 4000,
+            ]));
         } catch (ErrorException $e) {
             throw $e;
         } catch (\TypeError $e) {

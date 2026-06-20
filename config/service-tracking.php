@@ -20,7 +20,9 @@ return [
     ],
 
     'email_parsing' => [
-        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        // Dedicated knob (was the shared OPENAI_MODEL) — lowest-stakes structured extraction, so
+        // it defaults to the cheapest current model rather than tracking the analysis default.
+        'model' => env('OOS_EMAIL_PARSING_MODEL', 'gpt-4.1-nano'),
         'review_threshold' => 0.75,
         'auto_import_threshold' => 0.90,
     ],

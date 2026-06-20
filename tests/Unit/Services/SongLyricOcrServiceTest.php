@@ -8,6 +8,7 @@ use App\Services\Song\SongLyricOcrService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -43,6 +44,54 @@ class SongLyricOcrServiceTest extends TestCase
         $result = $service->extractLyrics(60.0, 180.0, '/fake/video.mp4');
 
         $this->assertSame($lyricsText, $result);
+    }
+
+    #[Test]
+    public function it_sends_reasoning_model_parameters_for_a_gpt5_ocr_model(): void
+    {
+        Config::set('media-processing.song_matching.ocr_model', 'gpt-5-mini');
+
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [
+                    ['message' => ['content' => 'Amazing grace']],
+                ],
+            ]),
+        ]);
+
+        $this->makeServiceWithFakeFrame('Amazing grace')->extractLyrics(60.0, 180.0, '/fake/video.mp4');
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            return $method === 'create'
+                && $parameters['model'] === 'gpt-5-mini'
+                && ! array_key_exists('max_tokens', $parameters)
+                && ! array_key_exists('temperature', $parameters)
+                && $parameters['max_completion_tokens'] === 2000
+                && $parameters['reasoning_effort'] === 'minimal';
+        });
+    }
+
+    #[Test]
+    public function it_migrates_max_tokens_for_a_classic_ocr_model(): void
+    {
+        Config::set('media-processing.song_matching.ocr_model', 'gpt-4o-mini');
+
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [
+                    ['message' => ['content' => 'Amazing grace']],
+                ],
+            ]),
+        ]);
+
+        $this->makeServiceWithFakeFrame('Amazing grace')->extractLyrics(60.0, 180.0, '/fake/video.mp4');
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            return $parameters['model'] === 'gpt-4o-mini'
+                && ! array_key_exists('max_tokens', $parameters)
+                && ! array_key_exists('reasoning_effort', $parameters)
+                && $parameters['max_completion_tokens'] === 2000;
+        });
     }
 
     #[Test]
