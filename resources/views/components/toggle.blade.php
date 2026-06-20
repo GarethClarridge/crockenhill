@@ -71,7 +71,7 @@
             @if($label)
                 <label @if($id) id="{{ $id }}-label" for="{{ $id }}" @endif class="cursor-pointer font-medium text-gray-700">
                     {{ $label }}
-                    @if($required) <span class="text-red-500">*</span> @endif
+                    @if($required) <span class="text-red-500" aria-hidden="true">*</span> @endif
                 </label>
             @endif
             @if($hint)

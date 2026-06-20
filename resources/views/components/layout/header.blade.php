@@ -81,8 +81,8 @@
     :aria-expanded="expanded"
     aria-controls="mobile-menu"
   >
-    <x-heroicon-m-bars-3 x-show="!expanded" class="h-6 w-6" />
-    <x-heroicon-m-x-mark x-show="expanded" class="h-6 w-6" x-cloak />
+    <x-heroicon-m-bars-3 x-show="!expanded" class="h-6 w-6" aria-hidden="true" />
+    <x-heroicon-m-x-mark x-show="expanded" class="h-6 w-6" aria-hidden="true" x-cloak />
   </button>
 
   </div>
