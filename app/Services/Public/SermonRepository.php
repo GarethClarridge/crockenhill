@@ -239,8 +239,8 @@ class SermonRepository
         string|int|null $preacherId,
         string|int|null $series,
     ): array {
-        $book = is_string($book) && trim($book) !== '' ? trim($book) : null;
-        $series = is_string($series) && trim($series) !== '' ? trim($series) : null;
+        $book = filled($book) ? trim((string) $book) : null;
+        $series = filled($series) ? trim((string) $series) : null;
         $preacherId = filter_var($preacherId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
         $chapter = filter_var($chapter, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
 

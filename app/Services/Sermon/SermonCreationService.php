@@ -313,7 +313,7 @@ class SermonCreationService
      */
     private function fillIfBlank(Sermon $existing, array &$updates, string $field, ?string $incoming): void
     {
-        if ($incoming !== null && $incoming !== '' && empty($existing->{$field})) {
+        if (filled($incoming) && blank($existing->{$field})) {
             $updates[$field] = $incoming;
         }
     }
@@ -323,13 +323,13 @@ class SermonCreationService
      */
     private function fillSeriesIfBlank(Sermon $existing, SermonCreationOptions $options, array &$updates): void
     {
-        if (! empty($existing->series)) {
+        if (filled($existing->series)) {
             return;
         }
 
         $value = $options->id3Series ?? ($options->aiAnalysis['series'] ?? null);
 
-        if (is_string($value) && $value !== '') {
+        if (filled($value)) {
             $updates['series'] = $value;
         }
     }
@@ -339,13 +339,13 @@ class SermonCreationService
      */
     private function fillReferenceIfBlank(Sermon $existing, SermonCreationOptions $options, array &$updates): void
     {
-        if (! empty($existing->reference)) {
+        if (filled($existing->reference)) {
             return;
         }
 
         $value = $options->id3Reference ?? ($options->aiAnalysis['reference'] ?? null);
 
-        if (is_string($value) && $value !== '') {
+        if (filled($value)) {
             $updates['reference'] = $value;
         }
     }
@@ -355,11 +355,11 @@ class SermonCreationService
      */
     private function fillPointsIfBlank(Sermon $existing, SermonCreationOptions $options, array &$updates): void
     {
-        if (! empty($existing->points)) {
+        if (filled($existing->points)) {
             return;
         }
 
-        if (isset($options->aiAnalysis['points'])) {
+        if (filled($options->aiAnalysis['points'] ?? null)) {
             $updates['points'] = $options->aiAnalysis['points'];
         }
     }
@@ -369,7 +369,7 @@ class SermonCreationService
      */
     private function refreshAiField(Sermon $existing, array &$updates, string $field, mixed $value): void
     {
-        if (! is_string($value) || $value === '') {
+        if (blank($value)) {
             return;
         }
 
@@ -615,13 +615,13 @@ class SermonCreationService
     {
         // Priority 1: ID3 tag title (if present)
         $id3Title = $context['id3_title'] ?? null;
-        if ($id3Title && ! empty(trim($id3Title))) {
+        if (filled($id3Title)) {
             return Str::limit($id3Title, 100, '');
         }
 
         // Priority 2: AI-generated title (if available)
         $aiAnalysis = $context['ai_analysis'] ?? null;
-        if ($aiAnalysis && ! empty($aiAnalysis['title'])) {
+        if (filled($aiAnalysis['title'] ?? null)) {
             return $aiAnalysis['title'];
         }
 
