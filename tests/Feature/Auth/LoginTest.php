@@ -202,6 +202,7 @@ class LoginTest extends TestCase
             'password' => bcrypt('correct-password'),
         ]);
 
+        Log::partialMock();
         Log::shouldReceive('warning')
             ->once()
             ->withArgs(fn ($message, $context) => str_contains($message, 'Admin logged in') &&
@@ -218,17 +219,18 @@ class LoginTest extends TestCase
     #[Test]
     public function failed_admin_login_is_logged_as_warning(): void
     {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'password' => bcrypt('correct-password'),
+        ]);
+
+        Log::partialMock();
         Log::shouldReceive('warning')
             ->once()
             ->withArgs(fn ($message, $context) => str_contains($message, 'Admin login attempt failed') &&
                 isset($context['admin_id']) &&
                 isset($context['email']) &&
                 isset($context['ip']));
-
-        $admin = User::factory()->create([
-            'is_admin' => true,
-            'password' => bcrypt('correct-password'),
-        ]);
 
         Livewire::test(LoginComponent::class)
             ->set('email', $admin->email)
@@ -240,6 +242,7 @@ class LoginTest extends TestCase
     #[Test]
     public function failed_regular_user_login_is_not_logged_as_warning(): void
     {
+        Log::partialMock();
         Log::shouldReceive('warning')
             ->never();
 

@@ -22,3 +22,8 @@
 **Pattern:** Internal cache key assertion
 **Cause:** Previous tests used `Cache::has('key')` which is brittle and doesn't guarantee the cache is actually used by the code path.
 **Fix:** Replaced with behavioral verification using `DB::enableQueryLog()` and asserting zero subsequent queries to the 'preachers' table after cache warming.
+
+## 2026-08-15 - Harden log mocking and job retry timing
+**Pattern:** Strict log mocking and approximate timestamp assertions.
+**Cause:** `Log::shouldReceive()` creates a strict mock that fails on any un-mocked log call (even at different levels), causing brittleness when unrelated code paths log information. Job `retryUntil` tests used `assertEqualsWithDelta` which is fragile and slow if execution hangs.
+**Fix:** Introduced `Log::partialMock()` to isolate the specific logs under test while allowing the rest of the logging system to function naturally. Replaced approximate time assertions with deterministic checks using `Carbon::setTestNow()`.
