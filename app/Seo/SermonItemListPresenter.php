@@ -221,6 +221,8 @@ class SermonItemListPresenter
 
     /**
      * @param  array<string, mixed>  $sermonView
+     * @param  array<string, mixed>  $author
+     * @param  array<string, mixed>  $publisher
      * @return array<string, mixed>
      */
     private function buildVideoObject(
@@ -228,7 +230,9 @@ class SermonItemListPresenter
         array $sermonView,
         string $datePublished,
         string $metaDescription,
-        string $logoUrl
+        string $logoUrl,
+        array $author,
+        array $publisher,
     ): array {
         $video = [
             '@type' => 'VideoObject',
@@ -237,6 +241,8 @@ class SermonItemListPresenter
             'thumbnailUrl' => $sermonView['thumbnail_url'] ?: $logoUrl,
             'uploadDate' => $datePublished,
             'contentUrl' => $sermonView['video_url'],
+            'author' => $author,
+            'publisher' => $publisher,
         ];
 
         if ($sermonView['duration_iso8601']) {
@@ -248,13 +254,17 @@ class SermonItemListPresenter
 
     /**
      * @param  array<string, mixed>  $sermonView
+     * @param  array<string, mixed>  $author
+     * @param  array<string, mixed>  $publisher
      * @return array<string, mixed>
      */
     private function buildAudioObject(
         Sermon $sermon,
         array $sermonView,
         string $datePublished,
-        string $metaDescription
+        string $metaDescription,
+        array $author,
+        array $publisher,
     ): array {
         $audio = [
             '@type' => 'AudioObject',
@@ -263,6 +273,8 @@ class SermonItemListPresenter
             'description' => $metaDescription,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
+            'author' => $author,
+            'publisher' => $publisher,
         ];
 
         if ($sermonView['duration_iso8601']) {
@@ -312,7 +324,9 @@ class SermonItemListPresenter
                 $sermonView,
                 $datePublished,
                 $metaDescription,
-                $logoUrl
+                $logoUrl,
+                $author,
+                $publisher,
             );
         }
 
@@ -321,7 +335,9 @@ class SermonItemListPresenter
                 $sermon,
                 $sermonView,
                 $datePublished,
-                $metaDescription
+                $metaDescription,
+                $author,
+                $publisher,
             );
         }
 
