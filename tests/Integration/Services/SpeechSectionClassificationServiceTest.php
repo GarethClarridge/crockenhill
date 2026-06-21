@@ -419,6 +419,42 @@ class SpeechSectionClassificationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_instructs_the_model_to_require_structural_cues_before_labelling_a_childrens_talk(): void
+    {
+        Config::set('media-processing.analysis.service', 'openai');
+        Config::set('openai.api_key', 'test-key');
+
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode(['sections' => []]),
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Other->value,
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'duration' => 60.0,
+            'metadata' => ['transcript' => 'Good morning everyone and welcome.'],
+        ]);
+
+        (new SpeechSectionClassificationService)->classify($section);
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            $systemPrompt = $parameters['messages'][0]['content'] ?? '';
+
+            return is_string($systemPrompt)
+                && str_contains($systemPrompt, 'children dismissed, parent-addressed language')
+                && str_contains($systemPrompt, 'catechism');
+        });
+    }
+
+    #[Test]
     public function it_keeps_temperature_when_classifying_with_a_classic_model(): void
     {
         Config::set('media-processing.analysis.service', 'openai');

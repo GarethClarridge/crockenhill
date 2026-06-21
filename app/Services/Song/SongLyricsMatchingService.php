@@ -51,13 +51,13 @@ class SongLyricsMatchingService
             return null;
         }
 
-        $key = Song::canonicalizeKey($firstLine);
-        if ($key === '') {
+        $keyVariants = Song::matchKeyVariants($firstLine);
+        if ($keyVariants === []) {
             return null;
         }
 
         $song = Song::query()
-            ->where('canonical_key', $key)
+            ->whereIn('canonical_key', $keyVariants)
             ->first();
 
         if ($song instanceof Song) {

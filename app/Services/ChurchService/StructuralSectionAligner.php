@@ -17,6 +17,18 @@ class StructuralSectionAligner
 {
     use ReadsSectionMetadata;
 
+    /**
+     * Structural types a generic presentation slide can plausibly stand in for. The
+     * positional fallback only links a stranded slide to a section of one of these types.
+     *
+     * @var array<int, ServiceSectionType>
+     */
+    private const POSITIONAL_FALLBACK_TYPES = [
+        ServiceSectionType::ChildrensTalk,
+        ServiceSectionType::Notices,
+        ServiceSectionType::BibleReading,
+    ];
+
     public function __construct(
         private readonly PresentationItemClassifier $presentationItemClassifier,
         private readonly SectionAlignmentBaselineRestorer $baselineRestorer,
@@ -71,11 +83,140 @@ class StructuralSectionAligner
 
         $mismatchCount = 0;
 
+        /** @var list<ChurchServiceItem> $itemGaps */
+        $itemGaps = [];
+        /** @var list<ServiceSection> $sectionGaps */
+        $sectionGaps = [];
+
         foreach ($pairs as $pair) {
             $mismatchCount += $this->applyPair($pair, $presentationDecisions, $ambiguousChildrensTalk);
+
+            if ($pair['kind'] === 'item_gap' && $pair['item'] instanceof ChurchServiceItem) {
+                $itemGaps[] = $pair['item'];
+            } elseif ($pair['kind'] === 'section_gap' && $pair['section'] instanceof ServiceSection) {
+                $sectionGaps[] = $pair['section'];
+            }
         }
 
+        $this->applyPositionalFallback($itemGaps, $sectionGaps, $presentationDecisions);
+
         return $mismatchCount;
+    }
+
+    /**
+     * Additive traceability pass over the DP remainders.
+     *
+     * Presentation slides with generic names ("Andrew Talk.pptx", "epap.pptx") never
+     * content-anchor, so when the surrounding matched pairs strand them they fall out as
+     * `item_gap`. Their corresponding section (e.g. a children's talk detected purely from
+     * audio) likewise falls out as `section_gap`. This pass links the two when — and only
+     * when — the classifier resolved or suspected a concrete type for the item and there is
+     * exactly one unaligned section of that compatible type.
+     *
+     * The link is deliberately low-trust: it sets the item ids and a flagged
+     * `positional_fallback` marker for review tooling, but never changes `section_type`,
+     * never boosts confidence, and never alters the structural-mismatch total. It can never
+     * influence sermon extraction.
+     *
+     * @param  list<ChurchServiceItem>  $itemGaps
+     * @param  list<ServiceSection>  $sectionGaps
+     * @param  array<int, array{
+     *     resolved_type: ServiceSectionType,
+     *     suspected_type: ServiceSectionType|null,
+     *     evidence: 'explicit'|'strong'|'weak',
+     *     requires_review: bool,
+     *     review_flag: string|null,
+     *     reason: string
+     * }>  $presentationDecisions
+     */
+    private function applyPositionalFallback(array $itemGaps, array $sectionGaps, array $presentationDecisions): void
+    {
+        foreach ($itemGaps as $item) {
+            $decision = $presentationDecisions[$item->id] ?? null;
+            if (! is_array($decision)) {
+                continue;
+            }
+
+            $targetType = $this->positionalFallbackType($decision);
+            if (! $targetType instanceof ServiceSectionType) {
+                continue;
+            }
+
+            $candidates = array_values(array_filter(
+                $sectionGaps,
+                static fn (ServiceSection $section): bool => $section->section_type === $targetType
+            ));
+
+            // Conservatism is the whole safety story: a single unambiguous candidate only.
+            if (count($candidates) !== 1) {
+                continue;
+            }
+
+            $section = $candidates[0];
+            $this->linkPositionalFallback($section, $item);
+
+            // Consume the section so a later item cannot link to it a second time.
+            $sectionGaps = array_values(array_filter(
+                $sectionGaps,
+                static fn (ServiceSection $candidate): bool => $candidate->id !== $section->id
+            ));
+        }
+    }
+
+    /**
+     * The concrete section type a stranded presentation item points at, if any. Prefers an
+     * explicit/strong resolved type, then the position-only suspected type; only the three
+     * structural types a slide can plausibly stand in for qualify.
+     *
+     * @param  array{
+     *     resolved_type: ServiceSectionType,
+     *     suspected_type: ServiceSectionType|null,
+     *     evidence: 'explicit'|'strong'|'weak',
+     *     requires_review: bool,
+     *     review_flag: string|null,
+     *     reason: string
+     * }  $decision
+     */
+    private function positionalFallbackType(array $decision): ?ServiceSectionType
+    {
+        foreach ([$decision['resolved_type'], $decision['suspected_type']] as $type) {
+            if ($type instanceof ServiceSectionType && in_array($type, self::POSITIONAL_FALLBACK_TYPES, true)) {
+                return $type;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Record the low-trust positional link on an otherwise-unaligned section. Writes the
+     * base_* snapshot so a rerun's baseline restore can undo it, sets the item ids and the
+     * `positional_fallback` metadata marker, and raises the `presentation_positional_fallback`
+     * review flag. It never touches section_type or confidence.
+     */
+    private function linkPositionalFallback(ServiceSection $section, ChurchServiceItem $item): void
+    {
+        $metadata = $this->metadata($section);
+        $metadata['oos_alignment'] = array_merge($this->baselineRestorer->baseAlignmentMetadata($section), [
+            'matched_item_type' => $item->type,
+            'matched_item_title' => $item->title,
+            'positional_fallback' => true,
+        ]);
+
+        $reviewFlags = $this->reviewFlags($metadata);
+        $reviewFlags[] = 'presentation_positional_fallback';
+        $metadata['review_flags'] = array_values(array_unique($reviewFlags));
+
+        if (! array_key_exists('review_reason', $metadata)
+            || in_array($metadata['review_reason'], SectionAlignmentBaselineRestorer::OOS_REVIEW_REASONS, true)) {
+            $metadata['review_reason'] = 'presentation_positional_fallback';
+        }
+
+        $section->church_service_item_id = $item->id;
+        $section->matched_item_id = $item->id;
+        $section->expected_item_id = null;
+        $section->needs_manual_review = true;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     /**

@@ -23,8 +23,10 @@ class SectionAlignmentBaselineRestorer
         'oos_structure_mismatch',
         'unmatched_song_section',
         'song_alignment_inferred',
+        'song_name_reference_only',
         'ambiguous_childrens_talk',
         'inferred_childrens_talk',
+        'presentation_positional_fallback',
     ];
 
     /**
@@ -36,8 +38,10 @@ class SectionAlignmentBaselineRestorer
         'oos_structure_mismatch',
         'unmatched_song_section',
         'song_alignment_inferred',
+        'song_name_reference_only',
         'ambiguous_childrens_talk',
         'inferred_childrens_talk',
+        'presentation_positional_fallback',
     ];
 
     /**

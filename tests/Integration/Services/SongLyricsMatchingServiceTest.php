@@ -63,6 +63,21 @@ class SongLyricsMatchingServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_matches_an_oh_variant_to_an_o_catalogued_title(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'O Jesus I Have Promised',
+            'canonical_key' => 'o jesus i have promised',
+            'lyrics_plain' => null,
+        ]);
+
+        $result = $this->service->matchFromLyrics("Oh Jesus I Have Promised\nto serve thee to the end");
+
+        $this->assertSame($song->id, $result['song_id']);
+        $this->assertSame(1.0, $result['confidence']);
+    }
+
+    #[Test]
     public function it_is_case_insensitive_for_canonical_key_lookup(): void
     {
         $song = Song::factory()->create([

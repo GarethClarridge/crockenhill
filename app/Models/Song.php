@@ -169,6 +169,35 @@ class Song extends Model
     }
 
     /**
+     * Canonical match keys for a title, including a leading "O"/"Oh" variant so a hymn catalogued
+     * as "O Jesus I Have Promised" still matches a transcript of "Oh Jesus I Have Promised" (F9).
+     *
+     * The stored {@see self::$canonical_key} is uniquely indexed and left untouched; these
+     * variants are only used when comparing, which keeps two genuinely distinct "O…"/"Oh…" songs
+     * able to coexist.
+     *
+     * @return array<int, string>
+     */
+    public static function matchKeyVariants(string $value): array
+    {
+        $key = self::canonicalizeKey($value);
+
+        if ($key === '') {
+            return [];
+        }
+
+        $variants = [$key];
+
+        if (str_starts_with($key, 'oh ')) {
+            $variants[] = 'o '.substr($key, 3);
+        } elseif (str_starts_with($key, 'o ')) {
+            $variants[] = 'oh '.substr($key, 2);
+        }
+
+        return array_values(array_unique($variants));
+    }
+
+    /**
      * @return BelongsToMany<SongAuthor, $this>
      */
     public function authors(): BelongsToMany

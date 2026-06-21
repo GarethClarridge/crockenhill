@@ -15,7 +15,7 @@ class SermonCandidateConfidenceService
      * @param  Collection<int, LivestreamSegment>  $speechSegments
      * @return array{
      *     is_clear: bool,
-     *     reason: 'clear'|'no_qualifying_speech_block'|'multiple_qualifying_speech_blocks'|'ratio_below_threshold',
+     *     reason: 'clear'|'no_qualifying_speech_block'|'multiple_qualifying_speech_blocks'|'ratio_below_threshold'|'candidate_exceeds_maximum_duration',
      *     candidate: LivestreamSegment|null,
      *     qualifying_segments_count: int,
      *     next_longest_duration: float,
@@ -94,6 +94,25 @@ class SermonCandidateConfidenceService
             ];
         }
 
+        // An over-long sole candidate signals under-segmentation (F10): RMS collapsed several
+        // service elements into one block. The 1.5x ratio guard cannot fire (there is no
+        // competing segment), so cap the duration explicitly and route to manual review.
+        $maxCandidateDuration = (float) config(
+            'media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds',
+            2700
+        );
+
+        if ($maxCandidateDuration > 0.0 && (float) $candidate->duration > $maxCandidateDuration) {
+            return [
+                'is_clear' => false,
+                'reason' => 'candidate_exceeds_maximum_duration',
+                'candidate' => null,
+                'qualifying_segments_count' => 1,
+                'next_longest_duration' => $nextLongestDuration,
+                'speech_segments' => $speechSegmentSummaries,
+            ];
+        }
+
         if ($nextLongestDuration > 0.0 && (float) $candidate->duration < ($nextLongestDuration * 1.5)) {
             return [
                 'is_clear' => false,
@@ -118,7 +137,7 @@ class SermonCandidateConfidenceService
     /**
      * @return array{
      *     is_clear: bool,
-     *     reason: 'clear'|'no_qualifying_speech_block'|'multiple_qualifying_speech_blocks'|'ratio_below_threshold',
+     *     reason: 'clear'|'no_qualifying_speech_block'|'multiple_qualifying_speech_blocks'|'ratio_below_threshold'|'candidate_exceeds_maximum_duration',
      *     candidate: LivestreamSegment|null,
      *     qualifying_segments_count: int,
      *     next_longest_duration: float,

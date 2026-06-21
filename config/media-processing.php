@@ -234,6 +234,10 @@ return [
         'enabled' => env('READING_REFERENCES_ENABLED', true),
         'model' => env('READING_REFERENCES_MODEL', 'gpt-5-mini'),
         'min_confidence' => (float) env('READING_REFERENCES_MIN_CONFIDENCE', 0.6),
+        // A short closing section whose transcript is a benediction formula is not a reading,
+        // even if the model names a passage (F12). The duration + end-of-service position guard
+        // means a benediction genuinely read mid-service is still resolved.
+        'benediction_max_duration_seconds' => (float) env('READING_REFERENCES_BENEDICTION_MAX_DURATION', 60),
     ],
 
     /*
@@ -290,6 +294,16 @@ return [
             'enabled' => env('SERVICE_SECTION_ENHANCED_SERMON_ENABLED', true),
             'adjacent_gap_seconds' => 60,
             'allow_non_adjacent_concat' => env('SERVICE_SECTION_ALLOW_NON_ADJACENT_CONCAT', true),
+            // Beyond this gap a bible reading is too far from the sermon to be the preached
+            // text, so it is not paired (F3). 15 minutes is deliberately generous.
+            'max_pairing_gap_seconds' => 900,
+            // Readings shorter than this are demoted (not excluded) when ranking the preached
+            // text, so a short "let us turn to..." preamble loses to the substantive reading (F17).
+            'min_reading_duration_seconds' => 90,
+            // A sermon span longer than this is implausible and indicates under-segmentation
+            // (e.g. RMS collapsing a whole service into one block). The run is routed to manual
+            // review rather than silently extracting the wrong content (F10).
+            'max_sermon_duration_seconds' => 2700,
         ],
     ],
 

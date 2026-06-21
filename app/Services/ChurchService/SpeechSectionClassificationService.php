@@ -181,6 +181,13 @@ Rules:
   • References to visual aids: "let's have the next slide", "can you see in the picture"
   • Simpler vocabulary and narrative-driven Bible teaching (often retelling a story)
   • Often ends with a brief prayer then transitions to a song
+  • Structural cues that it is genuinely aimed at children: the children are called to the
+    front or are dismissed to their groups afterwards ("off you go to your groups now"), and
+    the speaker addresses the parents or wider congregation about the children.
+  Require those structural cues — children dismissed, parent-addressed language — before
+  labelling a block childrens_talk. Interactive question-and-answer alone is not enough: a
+  catechism recitation or an all-age teaching block can be interactive yet have no children
+  dismissed and no parent-addressed language, and is not a childrens_talk.
   Only when you remain genuinely in doubt between sermon and childrens_talk for a shorter expository section, prefer childrens_talk, lower the confidence, and add an anomaly. If the evidence clearly points one way, classify it confidently and explain your reasoning in "notes", not "anomalies".
 TEXT,
                     ],

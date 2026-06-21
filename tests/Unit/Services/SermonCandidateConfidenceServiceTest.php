@@ -92,4 +92,46 @@ class SermonCandidateConfidenceServiceTest extends TestCase
         $this->assertSame('ratio_below_threshold', $result['reason']);
         $this->assertNull($result['candidate']);
     }
+
+    #[Test]
+    public function it_flags_review_when_the_sole_candidate_exceeds_the_maximum_duration(): void
+    {
+        // A 65-minute block with no competitor (F10): the 1.5x ratio guard cannot fire, so the
+        // duration cap is the only thing standing between under-segmentation and a wrong extract.
+        $segments = new Collection([
+            LivestreamSegment::factory()->make([
+                'id' => 51,
+                'classification' => 'speech',
+                'start_time' => 0.0,
+                'end_time' => 3916.0,
+                'duration' => 3916.0,
+            ]),
+        ]);
+
+        $result = $this->service->evaluate($segments);
+
+        $this->assertFalse($result['is_clear']);
+        $this->assertSame('candidate_exceeds_maximum_duration', $result['reason']);
+        $this->assertNull($result['candidate']);
+    }
+
+    #[Test]
+    public function it_keeps_a_sole_candidate_clear_when_within_the_maximum_duration(): void
+    {
+        $segments = new Collection([
+            LivestreamSegment::factory()->make([
+                'id' => 61,
+                'classification' => 'speech',
+                'start_time' => 0.0,
+                'end_time' => 1800.0,
+                'duration' => 1800.0,
+            ]),
+        ]);
+
+        $result = $this->service->evaluate($segments);
+
+        $this->assertTrue($result['is_clear']);
+        $this->assertSame('clear', $result['reason']);
+        $this->assertSame(61, $result['candidate']?->id);
+    }
 }

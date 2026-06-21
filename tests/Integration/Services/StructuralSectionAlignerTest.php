@@ -10,7 +10,9 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\SectionAlignmentBaselineRestorer;
 use App\Services\ChurchService\StructuralSectionAligner;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -34,6 +36,70 @@ class StructuralSectionAlignerTest extends TestCase
             'date' => '2026-06-07',
             'service' => SermonService::Morning->value,
         ]);
+    }
+
+    /**
+     * @param  list<array{position: int, type: string, title: string, section_type: ServiceSectionType|null}>  $rows
+     */
+    private function createOosItems(ChurchService $churchService, array $rows): void
+    {
+        foreach ($rows as $row) {
+            ChurchServiceItem::factory()->create(array_merge($row, ['church_service_id' => $churchService->id]));
+        }
+    }
+
+    /**
+     * @param  list<array{order: int, type: ServiceSectionType}>  $rows
+     */
+    private function createDetectedSections(MediaProcessingLog $log, array $rows): void
+    {
+        foreach ($rows as $row) {
+            ServiceSection::factory()->create([
+                'media_processing_log_id' => $log->id,
+                'section_type' => $row['type']->value,
+                'section_order' => $row['order'],
+                'church_service_item_id' => null,
+                'needs_manual_review' => false,
+                'confidence' => 0.7,
+                'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'ai_transcript'],
+            ]);
+        }
+    }
+
+    /**
+     * A service whose OoS lists a generic "Andrew Talk.pptx" slide that never content-anchors.
+     * The matched welcome pair strands the slide as an `item_gap` and the detected children's
+     * talk as a `section_gap` at opposite ends of the monotonic alignment — exactly the shape
+     * the positional fallback is meant to reconcile.
+     *
+     * @return array{0: Collection<int, ServiceSection>, 1: Collection<int, ChurchServiceItem>, 2: int, 3: int}
+     */
+    private function buildPositionalFallbackScenario(): array
+    {
+        $churchService = $this->makeService();
+        $log = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $churchService->id]);
+
+        // The song establishes the first-song position so the later slide is suspected (weak)
+        // to be a children's talk rather than notices.
+        $this->createOosItems($churchService, [
+            ['position' => 1, 'type' => 'songs', 'title' => 'Opening Song', 'section_type' => null],
+            ['position' => 2, 'type' => 'custom', 'title' => 'Welcome', 'section_type' => ServiceSectionType::Welcome],
+            ['position' => 3, 'type' => 'presentations', 'title' => 'Andrew Talk.pptx', 'section_type' => null],
+        ]);
+
+        $this->createDetectedSections($log, [
+            ['order' => 1, 'type' => ServiceSectionType::Song],
+            ['order' => 2, 'type' => ServiceSectionType::ChildrensTalk],
+            ['order' => 3, 'type' => ServiceSectionType::Welcome],
+        ]);
+
+        $sections = ServiceSection::where('media_processing_log_id', $log->id)->orderBy('section_order')->get();
+        $items = ChurchServiceItem::where('church_service_id', $churchService->id)->orderBy('position')->get();
+
+        $slideId = $items->firstOrFail(fn (ChurchServiceItem $i): bool => $i->title === 'Andrew Talk.pptx')->id;
+        $talkId = $sections->firstOrFail(fn (ServiceSection $s): bool => $s->section_type === ServiceSectionType::ChildrensTalk)->id;
+
+        return [$sections, $items, $slideId, $talkId];
     }
 
     // ── Happy path: matching types ────────────────────────────────────────────
@@ -567,6 +633,132 @@ class StructuralSectionAlignerTest extends TestCase
         $this->assertSame(ServiceSectionType::Other, $mutated->section_type);
         $this->assertNull($mutated->matched_item_id);
         $this->assertTrue(($mutated->metadata['is_transition'] ?? false) === true);
+    }
+
+    // ── F15: positional fallback for stranded presentation slides ─────────────
+
+    #[Test]
+    public function it_positionally_links_a_stranded_presentation_slide_to_a_single_unaligned_section(): void
+    {
+        [$sections, $items, $itemId, $sectionId] = $this->buildPositionalFallbackScenario();
+
+        $mismatches = $this->aligner->align($sections, $items);
+
+        $talk = $sections->firstOrFail(fn (ServiceSection $s): bool => $s->id === $sectionId);
+
+        // Traceability only: the link must never count as a structural mismatch.
+        $this->assertSame(0, $mismatches);
+        $this->assertSame($itemId, $talk->matched_item_id);
+        $this->assertSame($itemId, $talk->church_service_item_id);
+        $this->assertTrue(($talk->metadata['oos_alignment']['positional_fallback'] ?? false) === true);
+        $this->assertContains('presentation_positional_fallback', $talk->metadata['review_flags'] ?? []);
+        $this->assertTrue($talk->needs_manual_review);
+
+        // It must not change the type or boost confidence.
+        $this->assertSame(ServiceSectionType::ChildrensTalk, $talk->section_type);
+        $this->assertEqualsWithDelta(0.7, (float) $talk->confidence, 0.001);
+    }
+
+    #[Test]
+    public function it_does_not_positionally_link_when_the_presentation_slide_already_aligned_in_the_dp(): void
+    {
+        $churchService = $this->makeService();
+        $log = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $churchService->id]);
+
+        // A clearly-named slide content-anchors in the DP (strong → ChildrensTalk), so it is
+        // never a remainder and the additive fallback has nothing to do.
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'presentations',
+            'section_type' => null,
+            'title' => "Children's Talk.pptx",
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_order' => 1,
+            'church_service_item_id' => null,
+            'confidence' => 0.7,
+            'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'ai_transcript'],
+        ]);
+
+        $sections = ServiceSection::where('media_processing_log_id', $log->id)->get();
+        $items = ChurchServiceItem::where('church_service_id', $churchService->id)->get();
+
+        $this->aligner->align($sections, $items);
+
+        $mutated = $sections->firstOrFail(fn (ServiceSection $s): bool => $s->id === $section->id);
+
+        // It matched through the normal DP path, not the fallback.
+        $this->assertSame($item->id, $mutated->matched_item_id);
+        $this->assertArrayNotHasKey('positional_fallback', $mutated->metadata['oos_alignment'] ?? []);
+        $this->assertNotContains('presentation_positional_fallback', $mutated->metadata['review_flags'] ?? []);
+    }
+
+    #[Test]
+    public function it_does_not_positionally_link_when_two_compatible_sections_are_unaligned(): void
+    {
+        $churchService = $this->makeService();
+        $log = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $churchService->id]);
+
+        $this->createOosItems($churchService, [
+            ['position' => 1, 'type' => 'songs', 'title' => 'Opening Song', 'section_type' => null],
+            ['position' => 2, 'type' => 'custom', 'title' => 'Welcome', 'section_type' => ServiceSectionType::Welcome],
+            ['position' => 3, 'type' => 'presentations', 'title' => 'Andrew Talk.pptx', 'section_type' => null],
+        ]);
+
+        // Two children's-talk sections both fall out as section gaps → ambiguous, so no guess.
+        $this->createDetectedSections($log, [
+            ['order' => 1, 'type' => ServiceSectionType::Song],
+            ['order' => 2, 'type' => ServiceSectionType::ChildrensTalk],
+            ['order' => 3, 'type' => ServiceSectionType::ChildrensTalk],
+            ['order' => 4, 'type' => ServiceSectionType::Welcome],
+        ]);
+
+        $sections = ServiceSection::where('media_processing_log_id', $log->id)->orderBy('section_order')->get();
+        $items = ChurchServiceItem::where('church_service_id', $churchService->id)->orderBy('position')->get();
+        $slideId = $items->firstOrFail(fn (ChurchServiceItem $i): bool => $i->title === 'Andrew Talk.pptx')->id;
+
+        $this->aligner->align($sections, $items);
+
+        $talks = $sections->filter(fn (ServiceSection $s): bool => $s->section_type === ServiceSectionType::ChildrensTalk);
+        $this->assertCount(2, $talks);
+        foreach ($talks as $talk) {
+            $this->assertNotSame($slideId, $talk->matched_item_id);
+            $this->assertNotContains('presentation_positional_fallback', $talk->metadata['review_flags'] ?? []);
+        }
+    }
+
+    #[Test]
+    public function it_clears_the_positional_fallback_flag_on_a_second_alignment_pass(): void
+    {
+        [$sections, $items, $itemId, $sectionId] = $this->buildPositionalFallbackScenario();
+
+        $restorer = app(SectionAlignmentBaselineRestorer::class);
+
+        $this->aligner->align($sections, $items);
+
+        // Mimic the orchestrator's pre-pass baseline restore, then realign.
+        foreach ($sections as $section) {
+            $restorer->prepare($section);
+        }
+
+        $restored = $sections->firstOrFail(fn (ServiceSection $s): bool => $s->id === $sectionId);
+        $this->assertNotContains('presentation_positional_fallback', $restored->metadata['review_flags'] ?? []);
+        $this->assertNull($restored->matched_item_id);
+
+        $this->aligner->align($sections, $items);
+
+        $relinked = $sections->firstOrFail(fn (ServiceSection $s): bool => $s->id === $sectionId);
+        $flags = $relinked->metadata['review_flags'] ?? [];
+        $this->assertSame($itemId, $relinked->matched_item_id);
+        $this->assertSame(
+            1,
+            count(array_filter($flags, fn (string $flag): bool => $flag === 'presentation_positional_fallback')),
+            'The fallback flag must not accumulate across reruns.'
+        );
     }
 
     // ── Empty inputs ──────────────────────────────────────────────────────────

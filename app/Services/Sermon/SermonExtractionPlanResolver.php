@@ -6,10 +6,12 @@ namespace App\Services\Sermon;
 
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Support\ServiceSectionConfidence;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class SermonExtractionPlanResolver
 {
@@ -46,7 +48,21 @@ class SermonExtractionPlanResolver
             return $this->baselinePlan($processingLog, ['reason' => 'no_high_confidence_sermon_section']);
         }
 
-        $bibleSection = $this->findPreferredSection($processingLog, ServiceSectionType::BibleReading);
+        // A sermon section longer than the plausible ceiling signals under-segmentation (F10) —
+        // e.g. RMS collapsing a whole service into one block. Decline it so the run falls through
+        // to the baseline path, where SermonCandidateConfidenceService routes it to manual review
+        // rather than silently extracting the wrong content.
+        $maxSermonDuration = (float) config('media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds', 2700);
+        if ($maxSermonDuration > 0.0 && (float) $sermonSection->duration > $maxSermonDuration) {
+            return $this->baselinePlan($processingLog, [
+                'reason' => 'sermon_section_exceeds_maximum_duration',
+                'sermon_section_id' => $sermonSection->id,
+                'sermon_duration_seconds' => (float) $sermonSection->duration,
+                'max_sermon_duration_seconds' => $maxSermonDuration,
+            ]);
+        }
+
+        $bibleSection = $this->selectBibleReading($processingLog, $sermonSection);
         if (! $bibleSection instanceof ServiceSection) {
             return [
                 'mode' => 'single_span',
@@ -95,6 +111,27 @@ class SermonExtractionPlanResolver
                     'sermon_section_id' => $sermonSection->id,
                     'bible_section_id' => $bibleSection->id,
                     'gap_seconds' => $gapSeconds,
+                ],
+            ];
+        }
+
+        // A reading further than the maximum pairing gap is almost never the preached text
+        // (F3) — e.g. an opening-notices verse 30+ minutes before the sermon. Do not pair it.
+        $maxPairingGapSeconds = (float) config('media-processing.section_extraction.enhanced_sermon.max_pairing_gap_seconds', 900);
+        if ($gapSeconds > $maxPairingGapSeconds) {
+            return [
+                'mode' => 'single_span',
+                'source' => 'service_sections',
+                'segments' => [[
+                    'start_time' => (float) $sermonSection->start_time,
+                    'end_time' => (float) $sermonSection->end_time,
+                ]],
+                'metadata' => [
+                    'strategy' => 'sermon_only_reading_gap_exceeded',
+                    'sermon_section_id' => $sermonSection->id,
+                    'bible_section_id' => $bibleSection->id,
+                    'gap_seconds' => $gapSeconds,
+                    'max_pairing_gap_seconds' => $maxPairingGapSeconds,
                 ],
             ];
         }
@@ -216,5 +253,65 @@ class SermonExtractionPlanResolver
             ->first();
 
         return $section instanceof ServiceSection ? $section : null;
+    }
+
+    /**
+     * Select the bible reading most likely to be the preached text, ranked by evidence rather
+     * than mere service order (F5). Overlapping readings are still returned when they are the
+     * best candidate, so the caller's invalid-timing branch can handle them — the selection
+     * must not silently remove that branch.
+     */
+    private function selectBibleReading(MediaProcessingLog $processingLog, ServiceSection $sermonSection): ?ServiceSection
+    {
+        /** @var EloquentCollection<int, ServiceSection> $candidates */
+        $candidates = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('section_type', ServiceSectionType::BibleReading->value)
+            ->where('status', ServiceSectionStatus::Identified->value)
+            ->where('needs_manual_review', false)
+            ->where('confidence', '>=', ServiceSectionConfidence::HIGH_THRESHOLD)
+            ->whereColumn('end_time', '>', 'start_time')
+            ->with('churchServiceItem')
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        $sermonStart = (float) $sermonSection->start_time;
+        $minReadingDuration = (float) config(
+            'media-processing.section_extraction.enhanced_sermon.min_reading_duration_seconds',
+            90
+        );
+
+        return $candidates
+            ->sortByDesc(fn (ServiceSection $reading): array => $this->readingEvidence($reading, $sermonStart, $minReadingDuration))
+            ->first();
+    }
+
+    /**
+     * Evidence tuple for ranking a bible reading as the preached text, compared lexicographically
+     * by sortByDesc so earlier elements dominate. Every element is "higher is better":
+     * 1. linked to a `bibles`-type OoS item (the day's scripture is marked in the order of service);
+     * 2. valid timing — ends before the sermon starts (an overlapping reading is worse);
+     * 3. a substantive duration over a short preamble (F17, a demotion not a hard exclusion);
+     * 4. proximity to the sermon; then longer duration and id as deterministic tie-breaks.
+     *
+     * @return array{int, int, int, float, float, int}
+     */
+    private function readingEvidence(ServiceSection $reading, float $sermonStart, float $minReadingDuration): array
+    {
+        $gap = $sermonStart - (float) $reading->end_time;
+        $item = $reading->churchServiceItem;
+        $biblesLinked = $item instanceof ChurchServiceItem && $item->type === 'bibles';
+
+        return [
+            $biblesLinked ? 1 : 0,
+            $gap >= 0.0 ? 1 : 0,
+            (float) $reading->duration >= $minReadingDuration ? 1 : 0,
+            -abs($gap),
+            (float) $reading->duration,
+            (int) $reading->id,
+        ];
     }
 }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Enums\ServiceSectionType;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\Sermon\SermonExtractionPlanResolver;
@@ -198,5 +200,152 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame(1000.0, $plan['segments'][0]['start_time']);
         $this->assertSame(2400.0, $plan['segments'][0]['end_time']);
         $this->assertSame('sermon_only_invalid_bible_timing', $plan['metadata']['strategy']);
+    }
+
+    #[Test]
+    public function it_prefers_the_bibles_linked_reading_over_a_closer_unlinked_one(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        // Closer but not marked as the day's scripture in the order of service.
+        $this->reading($log, order: 1, start: 1800.0, end: 1900.0);
+
+        $linkedReading = $this->reading($log, order: 2, start: 1500.0, end: 1650.0, itemId: $this->biblesOosItem()->id);
+
+        $this->sermon($log, order: 3, start: 2000.0, end: 3500.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('non_adjacent_bible_plus_sermon_concat', $plan['metadata']['strategy']);
+        $this->assertSame($linkedReading->id, $plan['metadata']['bible_section_id']);
+        $this->assertSame(1500.0, $plan['segments'][0]['start_time']);
+    }
+
+    #[Test]
+    public function it_prefers_the_closest_reading_rather_than_the_earliest(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        // Earliest in service order, but a long way before the sermon.
+        $this->reading($log, order: 1, start: 1500.0, end: 1650.0);
+
+        $closerReading = $this->reading($log, order: 2, start: 1750.0, end: 1900.0);
+
+        $this->sermon($log, order: 3, start: 2000.0, end: 3500.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame($closerReading->id, $plan['metadata']['bible_section_id']);
+        $this->assertSame(1750.0, $plan['segments'][0]['start_time']);
+    }
+
+    #[Test]
+    public function it_demotes_a_short_preamble_reading_in_favour_of_a_substantive_one(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.min_reading_duration_seconds' => 90]);
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $substantiveReading = $this->reading($log, order: 1, start: 1400.0, end: 1700.0);
+
+        // A 30-second "let us turn to..." preamble immediately before the sermon.
+        $this->reading($log, order: 2, start: 1950.0, end: 1980.0);
+
+        $this->sermon($log, order: 3, start: 2000.0, end: 3500.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame($substantiveReading->id, $plan['metadata']['bible_section_id']);
+    }
+
+    #[Test]
+    public function it_does_not_pair_a_reading_beyond_the_max_pairing_gap(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.max_pairing_gap_seconds' => 900]);
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        // An opening-notices verse ~20 minutes before the sermon.
+        $this->reading($log, order: 1, start: 500.0, end: 800.0);
+
+        $this->sermon($log, order: 2, start: 2000.0, end: 3500.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('single_span', $plan['mode']);
+        $this->assertSame('sermon_only_reading_gap_exceeded', $plan['metadata']['strategy']);
+        $this->assertSame(2000.0, $plan['segments'][0]['start_time']);
+        $this->assertSame(3500.0, $plan['segments'][0]['end_time']);
+    }
+
+    #[Test]
+    public function it_routes_an_over_long_sermon_section_to_the_baseline_for_manual_review(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds' => 2700]);
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 0.0,
+            'sermon_end_time' => 3916.0,
+        ]);
+
+        // A 65-minute "sermon" section — RMS under-segmentation collapsing the whole service.
+        $this->sermon($log, order: 1, start: 0.0, end: 3916.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('baseline', $plan['mode']);
+        $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame('sermon_section_exceeds_maximum_duration', $plan['metadata']['reason']);
+    }
+
+    private function reading(MediaProcessingLog $log, int $order, float $start, float $end, ?int $itemId = null): ServiceSection
+    {
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => $itemId,
+            'section_type' => ServiceSectionType::BibleReading->value,
+            'section_order' => $order,
+            'start_time' => $start,
+            'end_time' => $end,
+            'duration' => $end - $start,
+            'needs_manual_review' => false,
+        ]);
+    }
+
+    private function sermon(MediaProcessingLog $log, int $order, float $start, float $end): ServiceSection
+    {
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => $order,
+            'start_time' => $start,
+            'end_time' => $end,
+            'duration' => $end - $start,
+            'needs_manual_review' => false,
+        ]);
+    }
+
+    private function biblesOosItem(): ChurchServiceItem
+    {
+        $service = ChurchService::factory()->create();
+
+        return ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'type' => 'bibles',
+            'title' => 'Colossians 1:15-23',
+        ]);
     }
 }

@@ -323,4 +323,121 @@ class SongSectionAlignerTest extends TestCase
         $this->assertSame($song->id, $section->metadata['song_id'] ?? null);
         $this->assertGreaterThanOrEqual(ServiceSectionConfidence::HIGH_THRESHOLD, $section->confidence);
     }
+
+    /**
+     * A song played twice in the order of service: the single detected performance occurs late
+     * in the recording, so it must match the later OoS occurrence, not the first one (F13).
+     */
+    #[Test]
+    public function it_matches_a_late_performance_to_the_later_of_two_identical_song_items(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-11-09',
+            'service' => SermonService::Morning->value,
+        ]);
+
+        $song = Song::factory()->create(['title' => 'All I Have Is Christ']);
+
+        $preSermonItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'songs',
+            'title' => 'All I Have Is Christ',
+            'song_id' => $song->id,
+        ]);
+
+        $postSermonItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 8,
+            'type' => 'songs',
+            'title' => 'All I Have Is Christ',
+            'song_id' => $song->id,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        // A long sermon block establishes the service timeline.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 3916.0,
+        ]);
+
+        // The one detected performance is near the very end — the post-sermon occurrence.
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'start_time' => 3916.0,
+            'end_time' => 4057.0,
+            'title' => 'All I Have Is Christ',
+            'confidence' => 0.5,
+            'metadata' => [
+                'classification_mode' => 'ai_transcript',
+                // transcript_song_match survives baseline restoration (unlike metadata.song_id).
+                'transcript_song_match' => ['song_id' => $song->id, 'confidence' => 0.95],
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        $this->assertSame($postSermonItem->id, $section->church_service_item_id);
+        $this->assertNotSame($preSermonItem->id, $section->church_service_item_id);
+    }
+
+    /**
+     * A section whose transcript merely introduces a song ("our next song...") with no
+     * performance evidence must not consume an OoS item via positional inference (F18).
+     */
+    #[Test]
+    public function it_does_not_consume_an_oos_item_for_a_spoken_song_reference(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-11-16',
+            'service' => SermonService::Morning->value,
+        ]);
+
+        $song = Song::factory()->create(['title' => 'O God Beyond All Praising']);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 4,
+            'type' => 'songs',
+            'title' => 'O God Beyond All Praising',
+            'song_id' => $song->id,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.74,
+            'metadata' => [
+                'classification_mode' => 'ai_transcript',
+                'transcript' => 'Our next song picks up one of the themes in our service this morning.',
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+        $item->refresh();
+
+        $this->assertNull($section->church_service_item_id);
+        $this->assertContains('song_name_reference_only', $section->metadata['review_flags'] ?? []);
+        $this->assertTrue($section->needs_manual_review);
+        $this->assertLessThanOrEqual(0.64, $section->confidence);
+    }
 }
