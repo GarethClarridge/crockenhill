@@ -53,6 +53,10 @@ class ChildrensCornerController extends Controller
     {
         abort_unless($sermon->content_type === SermonContentType::ChildrensTalk, 404);
 
+        /**
+         * Performance Optimization: Limits retrieved columns for the preacher profile
+         * to required fields to reduce memory usage and DB I/O on the single talk view.
+         */
         $sermon->loadMissing('preacherProfile:id,name,slug,image_path');
 
         $sermonView = $this->sermonViewPresenter->present($sermon);

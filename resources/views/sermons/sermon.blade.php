@@ -63,7 +63,8 @@
             <img
                 src="{{ $sermonView['thumbnail_url'] }}"
                 alt="Sermon: {{ $sermon->title }}"
-                class="w-full max-h-96 object-cover">
+                class="w-full max-h-96 object-cover"
+                loading="lazy">
         </div>
         @endif
 
