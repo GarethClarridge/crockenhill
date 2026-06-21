@@ -22,6 +22,52 @@ use Illuminate\Support\Str;
  * Provides a unified API for recording pipeline lifecycle events, API
  * performance metrics, file operations, and health checks, with
  * support for automated log sanitization.
+ *
+ * @phpstan-type ProcessingStepMetrics array{
+ *     memory_usage?: int,
+ *     peak_memory?: int,
+ *     execution_time?: float,
+ *     execution_time_ms?: float,
+ *     original_filename?: string,
+ *     sermon_id?: int,
+ *     title?: string,
+ *     slug?: string,
+ *     file_path?: string,
+ *     disk?: string,
+ *     chunk?: int,
+ *     total_chunks?: int,
+ *     chunk_file?: string,
+ *     transcript_length?: int,
+ *     word_count?: int,
+ *     attempt?: int,
+ *     model?: string,
+ *     existing_series_count?: int,
+ *     points_count?: int,
+ *     error?: string,
+ *     total_attempts?: int,
+ *     final_error?: string,
+ *     api_time_ms?: float,
+ * }
+ * @phpstan-type ApiCallContext array{
+ *     attempt?: int,
+ *     model?: string,
+ *     max_completion_tokens?: int,
+ *     error_type?: string,
+ *     response_type?: string,
+ *     status_code?: int,
+ *     api_time_ms?: float,
+ * }
+ * @phpstan-type ProcessingStatistics array{
+ *     period: array{start: string|null, end: string|null, days: int},
+ *     totals: array{processed: int, completed: int, failed: int, pending: int, processing: int},
+ *     success_rate: float|int,
+ *     average_processing_time: float|null,
+ *     error_patterns: array<string, int>,
+ * }
+ * @phpstan-type HealthCheckResult array{
+ *     status: 'healthy'|'degraded'|'error'|'unknown',
+ *     result: array<string, mixed>,
+ * }
  */
 class SermonProcessingLogger
 {
@@ -57,7 +103,7 @@ class SermonProcessingLogger
      * @param  string  $processingId  The unique processing identifier
      * @param  string  $step  The identifier for the step being logged
      * @param  string  $status  The outcome of the step (completed, failed, degraded)
-     * @param  array<string, mixed>  $metrics  Additional performance metrics to record
+     * @param  ProcessingStepMetrics  $metrics  Additional performance metrics to record
      * @param  string|null  $errorMessage  Optional error detail for failed or degraded steps
      */
     public function logProcessingStep(
@@ -104,7 +150,7 @@ class SermonProcessingLogger
      * @param  float  $responseTime  The round-trip time in seconds
      * @param  int  $statusCode  The HTTP status code returned by the API
      * @param  string|null  $errorMessage  Optional error message for non-200 responses
-     * @param  array<string, mixed>  $additionalContext  Extra metadata to include in the log context
+     * @param  ApiCallContext  $additionalContext  Extra metadata to include in the log context
      */
     public function logApiCall(
         string $processingId,
@@ -185,7 +231,7 @@ class SermonProcessingLogger
      *
      * @param  string  $processingId  The unique processing identifier
      * @param  ProcessingStatus  $status  The terminal status (Completed, Failed, Cancelled)
-     * @param  array<string, mixed>  $statistics  Final processing statistics to record
+     * @param  ProcessingStepMetrics  $statistics  Final processing statistics to record
      * @param  string|null  $errorMessage  Optional error detail for non-successful completions
      */
     public function logProcessingComplete(
@@ -272,18 +318,20 @@ class SermonProcessingLogger
      * Log the result of a system health check.
      *
      * @param  string  $checkName  The identifier for the health check
-     * @param  array<string, mixed>  $result  The outcome and diagnostic data for the check
+     * @param  HealthCheckResult  $result  The outcome and diagnostic data for the check
      */
     public function logHealthCheck(string $checkName, array $result): void
     {
+        $status = $result['status'];
+
         $context = [
             'health_check' => $this->sanitizeForLog($checkName),
-            'status' => $result['status'] ?? 'unknown',
+            'status' => $status,
             'result' => $result,
             'timestamp' => now()->toISOString(),
         ];
 
-        $logLevel = match ($result['status'] ?? 'unknown') {
+        $logLevel = match ($status) {
             'healthy' => 'info',
             'degraded' => 'warning',
             'error' => 'error',
@@ -298,13 +346,7 @@ class SermonProcessingLogger
      * Generate high-level processing statistics from recent media logs.
      *
      * @param  int  $days  The number of recent days to include in the analysis
-     * @return array{
-     *     period: array{start: string|null, end: string|null, days: int},
-     *     totals: array{processed: int, completed: int, failed: int, pending: int, processing: int},
-     *     success_rate: float|int,
-     *     average_processing_time: float|null,
-     *     error_patterns: array<string, int>,
-     * }
+     * @return ProcessingStatistics
      */
     public function generateProcessingStatistics(int $days = 7): array
     {
