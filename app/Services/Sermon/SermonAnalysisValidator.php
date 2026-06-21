@@ -80,9 +80,9 @@ class SermonAnalysisValidator
 
         // Validate points (must be array of strings)
         $points = [];
-        if (isset($analysisData['points']) && is_array($analysisData['points'])) {
+        if (filled($analysisData['points'] ?? null) && is_array($analysisData['points'])) {
             foreach ($analysisData['points'] as $point) {
-                if (is_string($point) && ! empty(trim($point))) {
+                if (filled($point) && is_string($point)) {
                     $cleanPoint = $this->britishEnglishConverter->convert(trim($point));
                     $points[] = $cleanPoint;
                 }
@@ -118,11 +118,11 @@ class SermonAnalysisValidator
      */
     public function validateAndCleanTitle(string $title): string
     {
-        $title = trim($title);
-
-        if (empty($title)) {
+        if (blank($title)) {
             return 'Untitled sermon';
         }
+
+        $title = trim($title);
 
         // Remove quotes if present
         $title = trim($title, '"\'');
@@ -182,11 +182,11 @@ class SermonAnalysisValidator
      */
     public function validateAndCleanSummary(string $summary): ?string
     {
-        $summary = trim($summary);
-
-        if (empty($summary)) {
+        if (blank($summary)) {
             return null;
         }
+
+        $summary = trim($summary);
 
         // Remove quotes if present
         $summary = trim($summary, '"\'');

@@ -121,10 +121,10 @@ class SermonAnalysis extends Data implements ArrayAccess
     public static function fromAiAnalysis(array $analysisData): self
     {
         $title = $analysisData['title'] ?? 'Untitled Sermon';
-        $series = ! empty($analysisData['series']) ? $analysisData['series'] : null;
-        $reference = ! empty($analysisData['reference']) ? $analysisData['reference'] : null;
+        $series = filled($analysisData['series'] ?? null) ? $analysisData['series'] : null;
+        $reference = filled($analysisData['reference'] ?? null) ? $analysisData['reference'] : null;
         $points = $analysisData['points'] ?? [];
-        $summary = ! empty($analysisData['summary']) ? $analysisData['summary'] : null;
+        $summary = filled($analysisData['summary'] ?? null) ? $analysisData['summary'] : null;
         $transcript = $analysisData['transcript'] ?? '';
 
         return self::create($title, $series, $reference, $points, $summary, $transcript);
