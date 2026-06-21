@@ -52,6 +52,8 @@ class ProcessingInitiator
      * @param  array<string, mixed>|null  $preExtractedMetadata  When non-null, replaces video-style date/service extraction
      * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
      * @return MediaProcessingLog The newly created processing log
+     *
+     * @throws \Illuminate\Database\UniqueConstraintViolationException If a duplicate processing run is initiated concurrently.
      */
     public function initiateProcessing(
         UploadedFile $file,
@@ -73,25 +75,25 @@ class ProcessingInitiator
                 $baseMetadata['service_extraction_method'] = 'manual_override';
             }
 
-            Log::info('Initiating media processing with pre-extracted metadata', [
-                'processing_id' => $this->sanitizeForLog($processingId),
+            Log::info('Initiating media processing with pre-extracted metadata', $this->sanitizeArrayForLog([
+                'processing_id' => $processingId,
                 'processing_type' => $processingType->value,
-                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
+                'original_filename' => $file->getClientOriginalName(),
                 'service_override' => $serviceOverride?->value,
-            ]);
+            ]));
         } else {
             $extractedDateTime = $this->metadataService->extractDateFromVideo($file, $clientFileDate);
             $extractedService = $serviceOverride ?? $this->determineService($extractedDateTime, $file->getClientOriginalName());
 
-            Log::info('Extracted metadata from media file', [
-                'processing_id' => $this->sanitizeForLog($processingId),
+            Log::info('Extracted metadata from media file', $this->sanitizeArrayForLog([
+                'processing_id' => $processingId,
                 'processing_type' => $processingType->value,
-                'original_filename' => $this->sanitizeForLog($file->getClientOriginalName()),
-                'extracted_date' => $this->sanitizeForLog($extractedDateTime->toDateString()),
-                'extracted_datetime' => $this->sanitizeForLog($extractedDateTime->toDateTimeString()),
+                'original_filename' => $file->getClientOriginalName(),
+                'extracted_date' => $extractedDateTime->toDateString(),
+                'extracted_datetime' => $extractedDateTime->toDateTimeString(),
                 'extracted_service' => $extractedService->value,
                 'service_override' => $serviceOverride?->value,
-            ]);
+            ]));
 
             $extractedIdentity = [
                 'extracted_date' => $extractedDateTime->toDateString(),
