@@ -58,7 +58,7 @@ class SermonCreationService
             $options->contentType,
         );
 
-        if ($existing === null) {
+        if (blank($existing)) {
             return $this->createFresh($processingLog, $options, $sermonDate, $service);
         }
 
@@ -115,11 +115,11 @@ class SermonCreationService
 
     private function detectExistingRichness(Sermon $existing): RichnessLevel
     {
-        if ($existing->livestream_processing_id !== null) {
+        if (filled($existing->livestream_processing_id)) {
             return RichnessLevel::Livestream;
         }
 
-        if (! empty($existing->video_file_path)) {
+        if (filled($existing->video_file_path)) {
             return RichnessLevel::Video;
         }
 
@@ -164,19 +164,19 @@ class SermonCreationService
     ): Sermon {
         $updates = [];
 
-        if ($options->videoFilePath) {
+        if (filled($options->videoFilePath)) {
             $updates['video_file_path'] = $options->videoFilePath;
         }
 
-        if ($options->livestreamProcessingId) {
+        if (filled($options->livestreamProcessingId)) {
             $updates['livestream_processing_id'] = $options->livestreamProcessingId;
         }
 
-        if ($options->segmentStartTime !== null) {
+        if (filled($options->segmentStartTime)) {
             $updates['segment_start_time'] = $options->segmentStartTime;
         }
 
-        if ($options->segmentEndTime !== null) {
+        if (filled($options->segmentEndTime)) {
             $updates['segment_end_time'] = $options->segmentEndTime;
         }
 
@@ -191,7 +191,7 @@ class SermonCreationService
         $this->fillReferenceIfBlank($existing, $options, $updates);
         $this->fillPointsIfBlank($existing, $options, $updates);
 
-        if (empty($existing->duration) && $options->duration !== null) {
+        if (blank($existing->duration) && filled($options->duration)) {
             $updates['duration'] = $options->duration;
         }
 
@@ -208,7 +208,7 @@ class SermonCreationService
             }
         }
 
-        if ($updates !== []) {
+        if (filled($updates)) {
             $existing->fill($updates);
             $existing->save();
         }
@@ -238,29 +238,29 @@ class SermonCreationService
             $updates['audio_file_path'] = $options->audioFilePath;
         }
 
-        if (($incoming === MediaType::Video || $incoming === MediaType::Livestream) && $options->videoFilePath) {
+        if (($incoming === MediaType::Video || $incoming === MediaType::Livestream) && filled($options->videoFilePath)) {
             $updates['video_file_path'] = $options->videoFilePath;
         }
 
-        if ($options->transcriptFilePath) {
+        if (filled($options->transcriptFilePath)) {
             $updates['transcript_file_path'] = $options->transcriptFilePath;
         }
 
         if ($incoming === MediaType::Livestream) {
-            if ($options->livestreamProcessingId) {
+            if (filled($options->livestreamProcessingId)) {
                 $updates['livestream_processing_id'] = $options->livestreamProcessingId;
             }
 
-            if ($options->segmentStartTime !== null) {
+            if (filled($options->segmentStartTime)) {
                 $updates['segment_start_time'] = $options->segmentStartTime;
             }
 
-            if ($options->segmentEndTime !== null) {
+            if (filled($options->segmentEndTime)) {
                 $updates['segment_end_time'] = $options->segmentEndTime;
             }
         }
 
-        if ($options->duration !== null) {
+        if (filled($options->duration)) {
             $updates['duration'] = $options->duration;
         }
 
@@ -282,7 +282,7 @@ class SermonCreationService
             $updates['needs_preacher_review'] = $resolved['needs_review'];
         }
 
-        if ($updates !== []) {
+        if (filled($updates)) {
             $existing->fill($updates);
             $existing->save();
         }
@@ -422,31 +422,31 @@ class SermonCreationService
             'duration' => $options->duration,
         ];
 
-        if ($options->videoFilePath) {
+        if (filled($options->videoFilePath)) {
             $sermonData['video_file_path'] = $options->videoFilePath;
         }
 
-        if ($options->transcriptFilePath) {
+        if (filled($options->transcriptFilePath)) {
             $sermonData['transcript_file_path'] = $options->transcriptFilePath;
         }
 
-        if ($options->livestreamProcessingId) {
+        if (filled($options->livestreamProcessingId)) {
             $sermonData['livestream_processing_id'] = $options->livestreamProcessingId;
         }
 
-        if ($options->id3Series) {
+        if (filled($options->id3Series)) {
             $sermonData['series'] = $options->id3Series;
-        } elseif ($options->aiAnalysis && isset($options->aiAnalysis['series'])) {
+        } elseif (filled($options->aiAnalysis['series'] ?? null)) {
             $sermonData['series'] = $options->aiAnalysis['series'];
         }
 
-        if ($options->id3Reference) {
+        if (filled($options->id3Reference)) {
             $sermonData['reference'] = $options->id3Reference;
-        } elseif ($options->aiAnalysis && isset($options->aiAnalysis['reference'])) {
+        } elseif (filled($options->aiAnalysis['reference'] ?? null)) {
             $sermonData['reference'] = $options->aiAnalysis['reference'];
         }
 
-        if ($options->aiAnalysis && array_key_exists('points', $options->aiAnalysis)) {
+        if (filled($options->aiAnalysis['points'] ?? null)) {
             $sermonData['points'] = $options->aiAnalysis['points'];
         }
 
@@ -466,7 +466,7 @@ class SermonCreationService
     {
         $explicitPreacher = $this->normalizePreacherInput($options->preacher);
 
-        if ($explicitPreacher !== null) {
+        if (filled($explicitPreacher)) {
             $preacherModel = $this->resolveExplicitPreacher($explicitPreacher, $options->preacherId);
 
             return [
@@ -480,7 +480,7 @@ class SermonCreationService
 
         $id3Preacher = $this->normalizePreacherInput($options->id3Preacher);
         $preacherName = $id3Preacher ?? 'Visiting Speaker';
-        $preacherSource = $id3Preacher !== null ? PreacherSource::Id3 : PreacherSource::Default;
+        $preacherSource = filled($id3Preacher) ? PreacherSource::Id3 : PreacherSource::Default;
 
         return [
             'preacher_name' => $preacherName,
@@ -493,7 +493,7 @@ class SermonCreationService
 
     private function resolveExplicitPreacher(string $preacherName, ?int $preacherId): Preacher
     {
-        if ($preacherId !== null) {
+        if (filled($preacherId)) {
             $preacher = Preacher::query()->find($preacherId);
 
             if ($preacher instanceof Preacher) {
@@ -506,13 +506,13 @@ class SermonCreationService
 
     private function normalizePreacherInput(?string $name): ?string
     {
-        if ($name === null) {
+        if (blank($name)) {
             return null;
         }
 
         $normalized = $this->preacherResolutionService->normalizeWhitespace($name);
 
-        return $normalized === '' ? null : $normalized;
+        return blank($normalized) ? null : $normalized;
     }
 
     /**
@@ -522,7 +522,7 @@ class SermonCreationService
         MediaProcessingLog $processingLog,
         string $filename
     ): string {
-        if ($processingLog->extracted_date !== null) {
+        if (filled($processingLog->extracted_date)) {
             $extractedDate = $processingLog->extracted_date->toDateString();
             $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
 
@@ -616,7 +616,7 @@ class SermonCreationService
         // Priority 1: ID3 tag title (if present)
         $id3Title = $context['id3_title'] ?? null;
         if (filled($id3Title)) {
-            return Str::limit($id3Title, 100, '');
+            return Str::limit((string) $id3Title, 100, '');
         }
 
         // Priority 2: AI-generated title (if available)
@@ -645,23 +645,14 @@ class SermonCreationService
         /** @var MediaProcessingLog|null $processingLog */
         $processingLog = $context['processing_log'] ?? null;
 
-        if (empty($filename)) {
+        if (blank($filename)) {
             return 'Sermon - '.now()->format('F j, Y');
         }
 
-        $baseFilename = pathinfo($filename, PATHINFO_FILENAME);
-
-        // Remove common date patterns
-        $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $baseFilename);
-        $title = preg_replace('/\d{1,2}[-_]\d{1,2}[-_]\d{4}/', '', $title ?? '');
-
-        // Remove common sermon-related words and clean up
-        $title = preg_replace('/\b(sermon|message|service|am|pm)\b/i', '', $title ?? '');
-        $title = preg_replace('/[-_]+/', ' ', $title ?? '');
-        $title = trim($title ?? '');
+        $title = $this->cleanFilenameForTitle($filename);
 
         // If title is empty or too short, use a default
-        if (empty($title) || strlen($title) < 3 || $this->looksLikeFilenameFragment($title)) {
+        if (blank($title) || strlen($title) < 3 || $this->looksLikeFilenameFragment($title)) {
             // Try to build from context
             $date = $context['date'] ?? $this->filenameParser->extractDateFromFilename($filename)->toDateString();
 
@@ -686,6 +677,27 @@ class SermonCreationService
     }
 
     /**
+     * Clean a filename for use as a sermon title.
+     *
+     * Removes common date patterns, sermon-related keywords (am/pm/service),
+     * and replaces separators with spaces.
+     */
+    private function cleanFilenameForTitle(string $filename): string
+    {
+        $baseFilename = pathinfo($filename, PATHINFO_FILENAME);
+
+        // Remove common date patterns
+        $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $baseFilename);
+        $title = preg_replace('/\d{1,2}[-_]\d{1,2}[-_]\d{4}/', '', $title ?? '');
+
+        // Remove common sermon-related words and clean up
+        $title = preg_replace('/\b(sermon|message|service|am|pm)\b/i', '', $title ?? '');
+        $title = preg_replace('/[-_]+/', ' ', $title ?? '');
+
+        return trim($title ?? '');
+    }
+
+    /**
      * Determine if a string looks like an unparsed filename fragment.
      *
      * Returns true for strings that are entirely numbers, spaces, or separators,
@@ -695,7 +707,7 @@ class SermonCreationService
     {
         $normalized = trim($title);
 
-        if ($normalized === '') {
+        if (blank($normalized)) {
             return true;
         }
 
