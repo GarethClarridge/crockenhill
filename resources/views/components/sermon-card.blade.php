@@ -24,14 +24,13 @@
     <a
       href="{{ $sermonUrl }}"
       wire:navigate
-      tabindex="-1"
-      aria-hidden="true"
       data-sermon-card-thumbnail
-      class="relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200"
+      class="relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-inset"
     >
       <img
         src="{{ $thumbnailUrl }}"
-        alt="Sermon: {{ $sermon->title }}"
+        alt=""
+        role="presentation"
         class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115"
         loading="lazy"
         onerror="this.onerror=null; const card = this.closest('[data-sermon-card]'); card?.querySelector('[data-sermon-card-thumbnail]')?.remove(); card?.querySelector('[data-sermon-card-title-fallback]')?.classList.remove('hidden');"
@@ -47,13 +46,13 @@
 
   <div class="flex flex-col flex-1 p-6">
     @if (($sermon->title != null) && ! $thumbnailUrl)
-      <a class="group" href="{{ $sermonUrl }}" wire:navigate tabindex="-1" aria-hidden="true">
+      <a class="group focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal rounded" href="{{ $sermonUrl }}" wire:navigate>
         <h2 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h2>
       </a>
     @elseif ($sermon->title != null)
-      <a class="group hidden" href="{{ $sermonUrl }}" wire:navigate data-sermon-card-title-fallback>
+      <a class="group hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal rounded" href="{{ $sermonUrl }}" wire:navigate data-sermon-card-title-fallback>
         <h2 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h2>

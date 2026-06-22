@@ -65,9 +65,6 @@
                                 ]"
                             />
                             <p class="mt-2 text-sm text-gray-600">Which service this recording is for. We pre-select based on the media type — change it if it's wrong.</p>
-                            @error('serviceOverride')
-                                <p class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
-                            @enderror
                         </div>
                     @endif
 
@@ -94,13 +91,13 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2" for="media-file">
                                 @if($mediaType === 'audio')
-                                    Upload sermon audio file <span class="text-red-500">*</span>
+                                    Upload sermon audio file <span class="text-red-500" aria-hidden="true">*</span>
                                 @elseif($mediaType === 'video')
-                                    Upload sermon video file <span class="text-red-500">*</span>
+                                    Upload sermon video file <span class="text-red-500" aria-hidden="true">*</span>
                                 @elseif($mediaType === 'livestream')
-                                    Upload full livestream file <span class="text-red-500">*</span>
+                                    Upload full livestream file <span class="text-red-500" aria-hidden="true">*</span>
                                 @else
-                                    Upload media file <span class="text-red-500">*</span>
+                                    Upload media file <span class="text-red-500" aria-hidden="true">*</span>
                                 @endif
                             </label>
 
@@ -147,6 +144,7 @@
                                     class="sr-only"
                                     accept="{{ $acceptAttribute }}"
                                     x-on:change="handleFileInputChange($event)"
+                                    @if($errors->has('mediaFile')) aria-describedby="media-file-error" aria-invalid="true" @endif
                                 />
                                 <input type="hidden" x-model="fileModifiedDate" />
                                 <label for="media-file" class="cursor-pointer inline-block align-middle">
@@ -157,7 +155,7 @@
                             </div>
 
                             @error('mediaFile')
-                                <p class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
+                                <p class="mt-1 text-sm text-red-600" id="media-file-error" role="alert">{{ $message }}</p>
                             @enderror
                         </div>
 
