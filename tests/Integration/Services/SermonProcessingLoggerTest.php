@@ -28,6 +28,8 @@ class SermonProcessingLoggerTest extends TestCase
         MediaProcessingLog::query()->delete();
 
         $this->logger = new SermonProcessingLogger;
+
+        Log::spy();
     }
 
     // --- logProcessingStart() ---
@@ -35,39 +37,39 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_logs_processing_start_as_info(): void
     {
-        Log::shouldReceive('info')
+        $this->logger->logProcessingStart('proc-001', 'sermon.mp3');
+
+        Log::shouldHaveReceived('info')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return $message === 'Sermon processing started'
                     && $context['processing_id'] === 'proc-001'
                     && $context['filename'] === 'sermon.mp3';
             });
-
-        $this->logger->logProcessingStart('proc-001', 'sermon.mp3');
     }
 
     #[Test]
     public function it_includes_metadata_in_processing_start_log(): void
     {
-        Log::shouldReceive('info')
+        $this->logger->logProcessingStart('proc-001', 'sermon.mp3', ['preacher' => 'John']);
+
+        Log::shouldHaveReceived('info')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return $context['metadata']['preacher'] === 'John';
             });
-
-        $this->logger->logProcessingStart('proc-001', 'sermon.mp3', ['preacher' => 'John']);
     }
 
     #[Test]
     public function it_includes_memory_usage_in_processing_start(): void
     {
-        Log::shouldReceive('info')
+        $this->logger->logProcessingStart('proc-001', 'sermon.mp3');
+
+        Log::shouldHaveReceived('info')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return isset($context['memory_usage']) && isset($context['peak_memory']);
             });
-
-        $this->logger->logProcessingStart('proc-001', 'sermon.mp3');
     }
 
     // --- logProcessingStep() ---
@@ -75,61 +77,61 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_logs_completed_step_as_info(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logProcessingStep('proc-001', 'transcription', 'completed');
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level, string $message) {
                 return $level === 'info' && str_contains($message, 'transcription') && str_contains($message, 'completed');
             });
-
-        $this->logger->logProcessingStep('proc-001', 'transcription', 'completed');
     }
 
     #[Test]
     public function it_logs_failed_step_as_error(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logProcessingStep('proc-001', 'transcription', 'failed');
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level) {
                 return $level === 'error';
             });
-
-        $this->logger->logProcessingStep('proc-001', 'transcription', 'failed');
     }
 
     #[Test]
     public function it_logs_degraded_step_as_warning(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logProcessingStep('proc-001', 'analysis', 'degraded');
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level) {
                 return $level === 'warning';
             });
-
-        $this->logger->logProcessingStep('proc-001', 'analysis', 'degraded');
     }
 
     #[Test]
     public function it_logs_unknown_status_as_debug(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logProcessingStep('proc-001', 'validation', 'started');
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level) {
                 return $level === 'debug';
             });
-
-        $this->logger->logProcessingStep('proc-001', 'validation', 'started');
     }
 
     #[Test]
     public function it_includes_error_message_in_step_log_when_provided(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logProcessingStep('proc-001', 'analysis', 'failed', [], 'API rate limited');
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level, string $message, array $context) {
                 return isset($context['error_message']) && $context['error_message'] === 'API rate limited';
             });
-
-        $this->logger->logProcessingStep('proc-001', 'analysis', 'failed', [], 'API rate limited');
     }
 
     // --- logApiCall() ---
@@ -137,7 +139,9 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_logs_successful_api_call_as_info(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logApiCall('proc-001', 'openai', '/v1/audio/transcriptions', 1.5, 200);
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level, string $message, array $context) {
                 return $level === 'info'
@@ -145,20 +149,18 @@ class SermonProcessingLoggerTest extends TestCase
                     && $context['status_code'] === 200
                     && $context['response_time_ms'] > 0;
             });
-
-        $this->logger->logApiCall('proc-001', 'openai', '/v1/audio/transcriptions', 1.5, 200);
     }
 
     #[Test]
     public function it_logs_failed_api_call_as_error(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logApiCall('proc-001', 'openai', '/v1/audio/transcriptions', 0.5, 500, 'Server error');
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level) {
                 return $level === 'error';
             });
-
-        $this->logger->logApiCall('proc-001', 'openai', '/v1/audio/transcriptions', 0.5, 500, 'Server error');
     }
 
     // --- logFileOperation() ---
@@ -166,7 +168,9 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_logs_file_operation_with_size_and_time(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logFileOperation('proc-001', 'upload', '/path/sermon.mp3', 1048576, 0.25);
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level, string $message, array $context) {
                 return $level === 'info'
@@ -175,20 +179,18 @@ class SermonProcessingLoggerTest extends TestCase
                     && isset($context['file_size_human'])
                     && $context['operation_time_ms'] > 0;
             });
-
-        $this->logger->logFileOperation('proc-001', 'upload', '/path/sermon.mp3', 1048576, 0.25);
     }
 
     #[Test]
     public function it_logs_file_operation_error(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logFileOperation('proc-001', 'delete', '/path/file.mp3', null, null, 'Permission denied');
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level, string $message, array $context) {
                 return $level === 'error' && isset($context['error_message']);
             });
-
-        $this->logger->logFileOperation('proc-001', 'delete', '/path/file.mp3', null, null, 'Permission denied');
     }
 
     // --- logProcessingComplete() ---
@@ -196,37 +198,37 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_logs_successful_completion_as_info(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::Completed, ['sermon_id' => 42]);
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level, string $message) {
                 return $level === 'info' && str_contains($message, 'completed');
             });
-
-        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::Completed, ['sermon_id' => 42]);
     }
 
     #[Test]
     public function it_logs_failed_completion_as_error(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::Failed, [], 'Disk full');
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level) {
                 return $level === 'error';
             });
-
-        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::Failed, [], 'Disk full');
     }
 
     #[Test]
     public function it_logs_cancelled_completion_as_info(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::Cancelled, [], 'User requested');
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level, string $message) {
                 return $level === 'info' && str_contains($message, 'cancelled');
             });
-
-        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::Cancelled, [], 'User requested');
     }
 
     // --- logError() ---
@@ -234,7 +236,10 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_logs_exception_with_full_context(): void
     {
-        Log::shouldReceive('error')
+        $exception = new \RuntimeException('API down');
+        $this->logger->logError('proc-001', 'transcription', $exception);
+
+        Log::shouldHaveReceived('error')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return str_contains($message, 'transcription')
@@ -242,9 +247,6 @@ class SermonProcessingLoggerTest extends TestCase
                     && $context['exception_class'] === 'RuntimeException'
                     && isset($context['stack_trace']);
             });
-
-        $exception = new \RuntimeException('API down');
-        $this->logger->logError('proc-001', 'transcription', $exception);
     }
 
     // --- logHealthCheck() ---
@@ -252,37 +254,37 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_logs_healthy_check_as_info(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logHealthCheck('queue', ['status' => 'healthy']);
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level) {
                 return $level === 'info';
             });
-
-        $this->logger->logHealthCheck('queue', ['status' => 'healthy']);
     }
 
     #[Test]
     public function it_logs_degraded_check_as_warning(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logHealthCheck('storage', ['status' => 'degraded']);
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level) {
                 return $level === 'warning';
             });
-
-        $this->logger->logHealthCheck('storage', ['status' => 'degraded']);
     }
 
     #[Test]
     public function it_logs_error_check_as_error(): void
     {
-        Log::shouldReceive('log')
+        $this->logger->logHealthCheck('processing', ['status' => 'error']);
+
+        Log::shouldHaveReceived('log')
             ->once()
             ->withArgs(function (string $level) {
                 return $level === 'error';
             });
-
-        $this->logger->logHealthCheck('processing', ['status' => 'error']);
     }
 
     // --- generateProcessingStatistics() ---
@@ -290,8 +292,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_generates_statistics_with_correct_counts(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->completed()->count(5)->create();
         MediaProcessingLog::factory()->audio()->failed()->count(2)->create();
         MediaProcessingLog::factory()->audio()->pending()->count(1)->create();
@@ -309,8 +309,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_calculates_success_rate(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->completed()->count(8)->create();
         MediaProcessingLog::factory()->audio()->failed()->count(2)->create();
 
@@ -322,8 +320,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_returns_zero_success_rate_when_no_records(): void
     {
-        Log::spy();
-
         $stats = $this->logger->generateProcessingStatistics();
 
         $this->assertEquals(0, $stats['success_rate']);
@@ -332,8 +328,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_categorises_api_errors(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->failed()->create([
             'error_message' => 'OpenAI API rate limit exceeded',
         ]);
@@ -347,8 +341,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_categorises_storage_errors(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->failed()->create([
             'error_message' => 'No disk space left on storage device',
         ]);
@@ -361,8 +353,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_categorises_transcription_errors(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->failed()->create([
             'error_message' => 'Whisper transcription service unavailable',
         ]);
@@ -375,8 +365,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_categorises_analysis_errors(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->failed()->create([
             'error_message' => 'Failed to parse JSON analysis response',
         ]);
@@ -389,8 +377,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_categorises_database_errors(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->failed()->create([
             'error_message' => 'Database connection timeout during save',
         ]);
@@ -403,8 +389,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_categorises_network_errors(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->failed()->create([
             'error_message' => 'Network unreachable while fetching bible text',
         ]);
@@ -417,8 +401,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_calculates_average_processing_time(): void
     {
-        Log::spy();
-
         $now = now();
         MediaProcessingLog::factory()->audio()->completed()->create([
             'created_at' => $now,
@@ -438,8 +420,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_handles_null_dates_when_calculating_average_processing_time(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->completed()->create([
             'created_at' => null,
             'updated_at' => now(),
@@ -453,8 +433,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_categorises_unknown_errors_as_other(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->audio()->failed()->create([
             'error_message' => 'Something completely unexpected happened',
         ]);
@@ -467,8 +445,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_includes_period_information(): void
     {
-        Log::spy();
-
         $stats = $this->logger->generateProcessingStatistics(days: 14);
 
         $this->assertEquals(14, $stats['period']['days']);
@@ -481,7 +457,9 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_logs_warning_with_step_and_message(): void
     {
-        Log::shouldReceive('warning')
+        $this->logger->logWarning('proc-001', 'extraction', 'Low disk space');
+
+        Log::shouldHaveReceived('warning')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return str_contains($message, 'extraction')
@@ -490,20 +468,18 @@ class SermonProcessingLoggerTest extends TestCase
                     && $context['warning_message'] === 'Low disk space'
                     && isset($context['timestamp']);
             });
-
-        $this->logger->logWarning('proc-001', 'extraction', 'Low disk space');
     }
 
     #[Test]
     public function it_includes_context_in_warning_log(): void
     {
-        Log::shouldReceive('warning')
+        $this->logger->logWarning('proc-001', 'video', 'Quality reduced', ['quality' => 'low']);
+
+        Log::shouldHaveReceived('warning')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return $context['context']['quality'] === 'low';
             });
-
-        $this->logger->logWarning('proc-001', 'video', 'Quality reduced', ['quality' => 'low']);
     }
 
     // --- generateProcessingReport() ---
@@ -511,8 +487,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_generates_processing_report_for_existing_record(): void
     {
-        Log::spy();
-
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-report-id',
             'status' => 'completed',
@@ -611,8 +585,6 @@ class SermonProcessingLoggerTest extends TestCase
     #[Test]
     public function it_returns_recent_livestream_processing_activity(): void
     {
-        Log::spy();
-
         MediaProcessingLog::factory()->livestream()->create([
             'status' => 'completed',
             'created_at' => now()->subHours(2),
