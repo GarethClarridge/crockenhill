@@ -60,8 +60,13 @@ class ScriptureOperatorService
     }
 
     /**
+     * Run scripture enrichment for sermons missing linked passages.
+     *
+     * Performance Optimization: Uses lazy() to stream results when processing
+     * the collection, ensuring O(1) memory usage regardless of the limit.
+     *
      * @return array{
-     *     sermons: Collection<int, Sermon>,
+     *     sermons: \Illuminate\Support\Collection<int, Sermon>,
      *     summary: EnrichmentSummary,
      *     dry_run: bool,
      *     queue: bool,
@@ -75,17 +80,19 @@ class ScriptureOperatorService
         int $delayMs = 500,
         ?callable $progress = null,
     ): array {
-        $sermons = Sermon::query()
+        $query = Sermon::query()
             ->whereNotNull('reference')
             ->where('reference', '!=', '')
             ->whereNull('scripture_passage_id')
-            ->limit($limit)
-            ->get();
+            ->limit($limit);
 
         $summary = $this->emptySummary();
         $stoppedEarly = false;
+        $processedSermons = collect();
 
-        foreach ($sermons as $index => $sermon) {
+        foreach ($query->lazy() as $index => $sermon) {
+            $processedSermons->push($sermon);
+
             if ($dryRun) {
                 if ($progress !== null) {
                     $progress('dry-run', $sermon, (string) $sermon->reference);
@@ -105,7 +112,7 @@ class ScriptureOperatorService
             }
 
             if (! $this->client->hasDailyBudget()) {
-                $summary['budget_exceeded'] += $sermons->count() - $index;
+                $summary['budget_exceeded'] += $limit - $index;
                 $stoppedEarly = true;
                 if ($progress !== null) {
                     $progress('budget_exceeded', $sermon, (string) $sermon->reference);
@@ -138,7 +145,7 @@ class ScriptureOperatorService
         }
 
         return [
-            'sermons' => $sermons,
+            'sermons' => $processedSermons,
             'summary' => $summary,
             'dry_run' => $dryRun,
             'queue' => $queue,
@@ -147,8 +154,13 @@ class ScriptureOperatorService
     }
 
     /**
+     * Refresh stale scripture passages from the API.
+     *
+     * Performance Optimization: Uses lazy() to stream results when processing
+     * the collection, ensuring O(1) memory usage regardless of volume.
+     *
      * @return array{
-     *     passages: Collection<int, ScripturePassage>,
+     *     passages: \Illuminate\Support\Collection<int, ScripturePassage>,
      *     summary: RefreshSummary,
      *     dry_run: bool,
      *     stopped_early: bool
@@ -157,9 +169,8 @@ class ScriptureOperatorService
     public function runRefresh(bool $dryRun = false, int $delayMs = 500, ?callable $progress = null): array
     {
         $refreshAfterDays = (int) config('services.api_bible.refresh_after_days', 28);
-        $passages = ScripturePassage::query()
-            ->where('fetched_at', '<', now()->subDays($refreshAfterDays))
-            ->get();
+        $query = ScripturePassage::query()
+            ->where('fetched_at', '<', now()->subDays($refreshAfterDays));
 
         $summary = [
             'updated' => 0,
@@ -169,8 +180,12 @@ class ScriptureOperatorService
             'budget_exceeded' => 0,
         ];
         $stoppedEarly = false;
+        $processedPassages = collect();
+        $totalCandidates = (clone $query)->count();
 
-        foreach ($passages as $index => $passage) {
+        foreach ($query->lazy() as $index => $passage) {
+            $processedPassages->push($passage);
+
             if ($dryRun) {
                 if ($progress !== null) {
                     $progress('dry-run', $passage, $passage->normalized_reference);
@@ -180,7 +195,7 @@ class ScriptureOperatorService
             }
 
             if (! $this->client->hasDailyBudget()) {
-                $summary['budget_exceeded'] += $passages->count() - $index;
+                $summary['budget_exceeded'] += $totalCandidates - $index;
                 $stoppedEarly = true;
                 if ($progress !== null) {
                     $progress('budget_exceeded', $passage, $passage->normalized_reference);
@@ -213,7 +228,7 @@ class ScriptureOperatorService
         }
 
         return [
-            'passages' => $passages,
+            'passages' => $processedPassages,
             'summary' => $summary,
             'dry_run' => $dryRun,
             'stopped_early' => $stoppedEarly,
