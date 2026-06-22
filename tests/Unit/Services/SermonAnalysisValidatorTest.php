@@ -126,6 +126,80 @@ class SermonAnalysisValidatorTest extends TestCase
     }
 
     #[Test]
+    public function it_truncates_summary_to_200_words_and_ends_on_a_period(): void
+    {
+        // 200 words followed by a 201st word containing a period at the end of the block.
+        $words = array_fill(0, 199, 'word');
+        $words[] = 'last.';
+        $words[] = 'extra';
+        $summary = implode(' ', $words);
+
+        $result = $this->validator->validateAndCleanSummary($summary);
+
+        $this->assertNotNull($result);
+        $this->assertStringEndsWith('.', $result);
+        $this->assertEquals(200, count(explode(' ', $result)));
+    }
+
+    #[Test]
+    public function it_truncates_summary_to_200_words_and_ends_on_an_exclamation_mark(): void
+    {
+        $words = array_fill(0, 199, 'word');
+        $words[] = 'last!';
+        $words[] = 'extra';
+        $summary = implode(' ', $words);
+
+        $result = $this->validator->validateAndCleanSummary($summary);
+
+        $this->assertNotNull($result);
+        $this->assertStringEndsWith('!', $result);
+    }
+
+    #[Test]
+    public function it_truncates_summary_to_200_words_and_ends_on_a_question_mark(): void
+    {
+        $words = array_fill(0, 199, 'word');
+        $words[] = 'last?';
+        $words[] = 'extra';
+        $summary = implode(' ', $words);
+
+        $result = $this->validator->validateAndCleanSummary($summary);
+
+        $this->assertNotNull($result);
+        $this->assertStringEndsWith('?', $result);
+    }
+
+    #[Test]
+    public function it_truncates_summary_to_exactly_200_words_if_no_sentence_boundary_within_threshold(): void
+    {
+        // Period at word 100 (50% mark), which is < 80% threshold of the 200-word block.
+        $words = array_fill(0, 99, 'word');
+        $words[] = 'mid.';
+        $words = array_merge($words, array_fill(0, 100, 'word'));
+        $words[] = 'extra';
+        $summary = implode(' ', $words);
+
+        $result = $this->validator->validateAndCleanSummary($summary);
+
+        $this->assertNotNull($result);
+        $this->assertStringEndsWith('word', $result);
+        $this->assertEquals(200, count(explode(' ', $result)));
+    }
+
+    #[Test]
+    public function it_truncates_summary_to_exactly_200_words_if_no_sentence_boundary_at_all(): void
+    {
+        $words = array_fill(0, 210, 'word');
+        $summary = implode(' ', $words);
+
+        $result = $this->validator->validateAndCleanSummary($summary);
+
+        $this->assertNotNull($result);
+        $this->assertEquals(200, count(explode(' ', $result)));
+        $this->assertStringEndsWith('word', $result);
+    }
+
+    #[Test]
     public function it_normalises_null_and_none_values_in_analysis_data(): void
     {
         $transcript = 'Sample transcript content for testing purposes with enough words to pass validation.';
