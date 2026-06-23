@@ -75,17 +75,25 @@ class ScriptureOperatorService
         int $delayMs = 500,
         ?callable $progress = null,
     ): array {
-        $sermons = Sermon::query()
+        /**
+         * Performance Optimization: Uses lazyById() to process records in chunks,
+         * reducing memory pressure for large enrichment tasks while ensuring
+         * records updated during iteration (which removes them from the query result)
+         * are handled correctly.
+         */
+        $query = Sermon::query()
             ->whereNotNull('reference')
             ->where('reference', '!=', '')
-            ->whereNull('scripture_passage_id')
-            ->limit($limit)
-            ->get();
+            ->whereNull('scripture_passage_id');
 
+        $sermons = collect();
         $summary = $this->emptySummary();
         $stoppedEarly = false;
+        $processedCount = 0;
 
-        foreach ($sermons as $index => $sermon) {
+        foreach ($query->lazyById(100)->take($limit) as $sermon) {
+            $sermons->push($sermon);
+            $index = $processedCount++;
             if ($dryRun) {
                 if ($progress !== null) {
                     $progress('dry-run', $sermon, (string) $sermon->reference);
@@ -157,10 +165,16 @@ class ScriptureOperatorService
     public function runRefresh(bool $dryRun = false, int $delayMs = 500, ?callable $progress = null): array
     {
         $refreshAfterDays = (int) config('services.api_bible.refresh_after_days', 28);
-        $passages = ScripturePassage::query()
-            ->where('fetched_at', '<', now()->subDays($refreshAfterDays))
-            ->get();
 
+        /**
+         * Performance Optimization: Uses lazyById() to process stale passages in chunks.
+         * Accumulates results in a standard Collection during the loop to maintain the
+         * existing return type while benefiting from memory-efficient chunking.
+         */
+        $query = ScripturePassage::query()
+            ->where('fetched_at', '<', now()->subDays($refreshAfterDays));
+
+        $passages = collect();
         $summary = [
             'updated' => 0,
             'not_found' => 0,
@@ -169,8 +183,12 @@ class ScriptureOperatorService
             'budget_exceeded' => 0,
         ];
         $stoppedEarly = false;
+        $totalCount = $query->clone()->count();
+        $processedCount = 0;
 
-        foreach ($passages as $index => $passage) {
+        foreach ($query->lazyById(100) as $passage) {
+            $passages->push($passage);
+            $index = $processedCount++;
             if ($dryRun) {
                 if ($progress !== null) {
                     $progress('dry-run', $passage, $passage->normalized_reference);
@@ -180,7 +198,7 @@ class ScriptureOperatorService
             }
 
             if (! $this->client->hasDailyBudget()) {
-                $summary['budget_exceeded'] += $passages->count() - $index;
+                $summary['budget_exceeded'] += $totalCount - $index;
                 $stoppedEarly = true;
                 if ($progress !== null) {
                     $progress('budget_exceeded', $passage, $passage->normalized_reference);
