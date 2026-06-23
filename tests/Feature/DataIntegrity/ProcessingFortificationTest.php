@@ -72,7 +72,7 @@ class ProcessingFortificationTest extends TestCase
     {
         $rules = LivestreamSegment::validationRules();
 
-        $this->assertRuleHasNoMaximum($rules['media_processing_log_id']);
+        $this->assertContains('max:9223372036854775807', $rules['media_processing_log_id']);
 
         $this->assertValidationPasses($rules['segment_index'], 'segment_index', 65535);
         $this->assertValidationFails($rules['segment_index'], 'segment_index', 65536);
@@ -100,7 +100,7 @@ class ProcessingFortificationTest extends TestCase
         $this->assertValidationPasses($rules['owner_user_id'], 'owner_user_id', self::UNSIGNED_INTEGER_MAX);
         $this->assertValidationFails($rules['owner_user_id'], 'owner_user_id', self::UNSIGNED_INTEGER_MAX + 1);
 
-        $this->assertRuleHasNoMaximum($rules['church_service_id']);
+        $this->assertContains('max:9223372036854775807', $rules['church_service_id']);
 
         $validator = Validator::make(['duration' => 10000000], ['duration' => $rules['duration']]);
         $this->assertTrue($validator->fails());
@@ -118,9 +118,9 @@ class ProcessingFortificationTest extends TestCase
         $this->assertValidationFails($churchServiceRules['manual_reviewed_by_user_id'], 'manual_reviewed_by_user_id', self::UNSIGNED_INTEGER_MAX + 1);
 
         $churchServiceItemRules = ChurchServiceItem::validationRules();
-        $this->assertRuleHasNoMaximum($churchServiceItemRules['church_service_id']);
-        $this->assertRuleHasNoMaximum($churchServiceItemRules['song_id']);
-        $this->assertRuleHasNoMaximum($churchServiceItemRules['livestream_service_section_id']);
+        $this->assertContains('max:9223372036854775807', $churchServiceItemRules['church_service_id']);
+        $this->assertContains('max:4294967295', $churchServiceItemRules['song_id']);
+        $this->assertContains('max:9223372036854775807', $churchServiceItemRules['livestream_service_section_id']);
         $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $churchServiceItemRules['position']);
         $this->assertValidationPasses($churchServiceItemRules['position'], 'position', self::UNSIGNED_INTEGER_MAX);
         $this->assertValidationFails($churchServiceItemRules['position'], 'position', self::UNSIGNED_INTEGER_MAX + 1);
