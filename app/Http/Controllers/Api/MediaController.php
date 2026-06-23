@@ -9,6 +9,7 @@ use App\Actions\GetMediaProcessingStatus;
 use App\Contracts\ProvidesSafeMessage;
 use App\Data\VideoProcessingOptions;
 use App\Enums\MediaType;
+use App\Exceptions\InvalidFileException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CancelMediaProcessingRequest;
 use App\Http\Requests\ConfirmMediaSegmentRequest;
@@ -19,6 +20,7 @@ use App\Http\Requests\RetryMediaProcessingRequest;
 use App\Models\User;
 use App\Services\Processing\UnifiedMediaProcessor;
 use App\Traits\SanitizesLogData;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\StreamedEvent;
 use Illuminate\Support\Facades\Log;
@@ -37,6 +39,10 @@ class MediaController extends Controller
      *
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
+     *
+     * @throws UniqueConstraintViolationException If a duplicate race occurs
+     * @throws InvalidFileException If the file fails initial validation
+     * @throws \Exception For underlying service or storage failures
      */
     public function upload(ProcessMediaRequest $request, string $type): JsonResponse
     {
@@ -85,6 +91,8 @@ class MediaController extends Controller
      *
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
+     *
+     * @throws \Exception If the status check fails
      */
     public function status(MediaStatusRequest $request, string $processingId): JsonResponse
     {
@@ -160,6 +168,8 @@ class MediaController extends Controller
      *
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
+     *
+     * @throws \Exception If the cancellation fails
      */
     public function cancel(CancelMediaProcessingRequest $request, string $processingId): JsonResponse
     {
@@ -187,6 +197,9 @@ class MediaController extends Controller
      *
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
+     *
+     * @throws \InvalidArgumentException If parameters are invalid
+     * @throws \Exception If the confirmation fails
      */
     public function confirmSegment(ConfirmMediaSegmentRequest $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
     {
@@ -226,6 +239,8 @@ class MediaController extends Controller
      *
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
+     *
+     * @throws \Exception If the retry initiation fails
      */
     public function retry(RetryMediaProcessingRequest $request, string $processingId): JsonResponse
     {

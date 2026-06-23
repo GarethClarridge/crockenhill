@@ -44,6 +44,7 @@ class SermonCreationService
      * @return Sermon The created or updated sermon model
      *
      * @throws SermonRichnessDowngradeException When attempting to overwrite a richer record
+     * @throws \Exception For underlying service or repository failures
      */
     public function createSermon(
         MediaProcessingLog $processingLog,
@@ -80,6 +81,9 @@ class SermonCreationService
         };
     }
 
+    /**
+     * @throws SermonRichnessDowngradeException
+     */
     private function rejectOrForce(
         Sermon $existing,
         MediaProcessingLog $processingLog,
@@ -89,22 +93,22 @@ class SermonCreationService
         RichnessLevel $incomingLevel,
     ): Sermon {
         if ($options->forceOverwrite) {
-            Log::warning('SermonCreationService: forceOverwrite bypassed richness downgrade rejection', [
+            Log::warning('SermonCreationService: forceOverwrite bypassed richness downgrade rejection', $this->sanitizeArrayForLog([
                 'sermon_id' => $existing->id,
-                'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
+                'processing_id' => $processingLog->processing_id,
                 'existing_level' => $existingLevel->name,
                 'incoming_level' => $incomingLevel->name,
-            ]);
+            ]));
 
             return $this->replaceExisting($existing, $processingLog, $options);
         }
 
-        Log::warning('SermonCreationService: rejecting richness downgrade', [
+        Log::warning('SermonCreationService: rejecting richness downgrade', $this->sanitizeArrayForLog([
             'sermon_id' => $existing->id,
-            'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
+            'processing_id' => $processingLog->processing_id,
             'existing_level' => $existingLevel->name,
             'incoming_level' => $incomingLevel->name,
-        ]);
+        ]));
 
         throw SermonRichnessDowngradeException::forExisting(
             $existing,
@@ -213,11 +217,11 @@ class SermonCreationService
             $existing->save();
         }
 
-        Log::info('SermonCreationService: enriched existing sermon', [
+        Log::info('SermonCreationService: enriched existing sermon', $this->sanitizeArrayForLog([
             'sermon_id' => $existing->id,
-            'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
-            'fields_updated' => array_map(fn (string $key) => $this->sanitizeForLog($key), array_keys($updates)),
-        ]);
+            'processing_id' => $processingLog->processing_id,
+            'fields_updated' => array_keys($updates),
+        ]));
 
         return $existing->refresh();
     }
@@ -287,11 +291,11 @@ class SermonCreationService
             $existing->save();
         }
 
-        Log::info('SermonCreationService: replaced existing sermon media', [
+        Log::info('SermonCreationService: replaced existing sermon media', $this->sanitizeArrayForLog([
             'sermon_id' => $existing->id,
-            'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
-            'fields_updated' => array_map(fn (string $key) => $this->sanitizeForLog($key), array_keys($updates)),
-        ]);
+            'processing_id' => $processingLog->processing_id,
+            'fields_updated' => array_keys($updates),
+        ]));
 
         return $existing->refresh();
     }
@@ -526,22 +530,22 @@ class SermonCreationService
             $extractedDate = $processingLog->extracted_date->toDateString();
             $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
 
-            Log::info('SermonCreationService: Using date extracted from file metadata', [
-                'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
-                'extracted_date' => $this->sanitizeForLog($extractedDate),
-                'extraction_method' => $this->sanitizeForLog((string) ($processingMetadata['date_extraction_method'] ?? 'unknown')),
-            ]);
+            Log::info('SermonCreationService: Using date extracted from file metadata', $this->sanitizeArrayForLog([
+                'processing_id' => $processingLog->processing_id,
+                'extracted_date' => $extractedDate,
+                'extraction_method' => (string) ($processingMetadata['date_extraction_method'] ?? 'unknown'),
+            ]));
 
             return $extractedDate;
         }
 
         $filenameDate = $this->filenameParser->extractDateFromFilename($filename)->toDateString();
 
-        Log::info('SermonCreationService: Using date extracted from filename', [
-            'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
-            'filename' => $this->sanitizeForLog($filename),
-            'extracted_date' => $this->sanitizeForLog($filenameDate),
-        ]);
+        Log::info('SermonCreationService: Using date extracted from filename', $this->sanitizeArrayForLog([
+            'processing_id' => $processingLog->processing_id,
+            'filename' => $filename,
+            'extracted_date' => $filenameDate,
+        ]));
 
         return $filenameDate;
     }
@@ -556,22 +560,22 @@ class SermonCreationService
         if ($processingLog->extracted_service instanceof SermonService) {
             $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
 
-            Log::info('SermonCreationService: Using service extracted from file metadata', [
-                'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
+            Log::info('SermonCreationService: Using service extracted from file metadata', $this->sanitizeArrayForLog([
+                'processing_id' => $processingLog->processing_id,
                 'extracted_service' => $processingLog->extracted_service->value,
-                'extraction_method' => $this->sanitizeForLog((string) ($processingMetadata['service_extraction_method'] ?? 'unknown')),
-            ]);
+                'extraction_method' => (string) ($processingMetadata['service_extraction_method'] ?? 'unknown'),
+            ]));
 
             return $processingLog->extracted_service;
         }
 
         $service = $this->filenameParser->determineServiceFromFilename($filename);
 
-        Log::info('SermonCreationService: Using service detected from filename', [
-            'processing_id' => $this->sanitizeForLog($processingLog->processing_id),
-            'filename' => $this->sanitizeForLog($filename),
+        Log::info('SermonCreationService: Using service detected from filename', $this->sanitizeArrayForLog([
+            'processing_id' => $processingLog->processing_id,
+            'filename' => $filename,
             'service' => $service->value,
-        ]);
+        ]));
 
         return $service;
     }
