@@ -27,3 +27,8 @@
 **Pattern:** Strict log mocking and approximate timestamp assertions.
 **Cause:** `Log::shouldReceive()` creates a strict mock that fails on any un-mocked log call (even at different levels), causing brittleness when unrelated code paths log information. Job `retryUntil` tests used `assertEqualsWithDelta` which is fragile and slow if execution hangs.
 **Fix:** Introduced `Log::partialMock()` to isolate the specific logs under test while allowing the rest of the logging system to function naturally. Replaced approximate time assertions with deterministic checks using `Carbon::setTestNow()`.
+
+## 2026-06-23 - Harden Log assertions with Spies
+**Pattern:** Brittle log expectations using `Log::shouldReceive`.
+**Cause:** `Log::shouldReceive` sets strict expectations that must be defined before the code executes, making it difficult to follow the AAA (Arrange-Act-Assert) pattern and often causing tests to fail on unrelated log calls.
+**Fix:** Replaced `Log::shouldReceive` with `Log::spy()` in `setUp()` and used `Log::shouldHaveReceived()` for post-execution assertions. This decouples the test from internal execution order and allows for clearer assertions of observable outcomes.
