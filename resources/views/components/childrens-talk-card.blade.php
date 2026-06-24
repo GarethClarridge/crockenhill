@@ -11,9 +11,8 @@
         <a
             href="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}"
             wire:navigate
-            tabindex="-1"
-            aria-hidden="true"
-            class="relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
+            aria-label="{{ $sermon->title }}"
+            class="relative z-10 block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
         >
             <img
                 src="{{ $cardThumbnailUrl }}"
@@ -38,9 +37,8 @@
                 <a
                     href="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}"
                     wire:navigate
-                    tabindex="-1"
-                    aria-hidden="true"
-                    class="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
+                    aria-label="{{ $sermon->title }}"
+                    class="relative z-10 block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                 >
                     <h2 class="font-display text-2xl leading-tight text-gray-900 transition-colors hover:text-cbc-teal-dark">
                         {{ $sermon->title }}

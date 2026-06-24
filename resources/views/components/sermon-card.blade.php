@@ -24,10 +24,8 @@
     <a
       href="{{ $sermonUrl }}"
       wire:navigate
-      tabindex="-1"
-      aria-hidden="true"
       data-sermon-card-thumbnail
-      class="relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200"
+      class="relative z-10 block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
     >
       <img
         src="{{ $thumbnailUrl }}"
@@ -47,13 +45,13 @@
 
   <div class="flex flex-col flex-1 p-6">
     @if (($sermon->title != null) && ! $thumbnailUrl)
-      <a class="group" href="{{ $sermonUrl }}" wire:navigate tabindex="-1" aria-hidden="true">
+      <a class="relative z-10 group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2" href="{{ $sermonUrl }}" wire:navigate aria-label="{{ $sermon->title }}">
         <h2 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h2>
       </a>
     @elseif ($sermon->title != null)
-      <a class="group hidden" href="{{ $sermonUrl }}" wire:navigate data-sermon-card-title-fallback>
+      <a class="relative z-10 group hidden rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2" href="{{ $sermonUrl }}" wire:navigate data-sermon-card-title-fallback aria-label="{{ $sermon->title }}">
         <h2 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h2>
