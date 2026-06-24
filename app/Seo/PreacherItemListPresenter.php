@@ -22,7 +22,7 @@ class PreacherItemListPresenter
         $orgId = $appUrl.'/#organization';
 
         $worksFor = [
-            '@type' => 'Church',
+            '@type' => 'Organization',
             'name' => $orgName,
             '@id' => $orgId,
         ];

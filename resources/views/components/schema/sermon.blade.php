@@ -23,7 +23,7 @@
         'url' => $sermonView['preacher_url'],
         'jobTitle' => 'Preacher',
         'worksFor' => [
-            '@type' => 'Church',
+            '@type' => 'Organization',
             'name' => config('organization.name'),
             '@id' => config('app.url').'/#organization',
         ],
@@ -34,18 +34,6 @@
     }
 
     $articleBody = $transcript ?: (($sermon->show_summary && $sermon->summary) ? strip_tags($sermon->summary) : null);
-
-    $publisher = [
-        '@type' => 'Church',
-        'name' => config('organization.name'),
-        '@id' => config('app.url').'/#organization',
-        'logo' => [
-            '@type' => 'ImageObject',
-            'url' => asset('images/Primary.png'),
-            'width' => 444,
-            'height' => 481,
-        ],
-    ];
 
     $schema = [
         '@' . 'context' => 'https://schema.org',
@@ -62,7 +50,17 @@
         'inLanguage' => 'en-GB',
         'genre' => 'Sermon',
         'author' => $author,
-        'publisher' => $publisher,
+        'publisher' => [
+            '@type' => 'Organization',
+            'name' => config('organization.name'),
+            '@id' => config('app.url').'/#organization',
+            'logo' => [
+                '@type' => 'ImageObject',
+                'url' => asset('images/Primary.png'),
+                'width' => 444,
+                'height' => 481,
+            ],
+        ],
         'mainEntityOfPage' => [
             '@type' => 'WebPage',
             '@id' => $sermonView['canonical_url'] . '#webpage',
@@ -103,7 +101,7 @@
             'uploadDate' => $datePublished,
             'contentUrl' => $sermonView['video_url'],
             'author' => $author,
-            'publisher' => $publisher,
+            'publisher' => $schema['publisher'],
             'inLanguage' => 'en-GB',
         ];
 
@@ -126,7 +124,7 @@
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
             'author' => $author,
-            'publisher' => $publisher,
+            'publisher' => $schema['publisher'],
             'inLanguage' => 'en-GB',
         ];
 
