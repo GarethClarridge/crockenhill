@@ -62,8 +62,9 @@ class ScriptureOperatorService
     /**
      * Run scripture enrichment for sermons missing linked passages.
      *
-     * Performance Optimization: Uses lazy() to stream results when processing
-     * the collection, ensuring O(1) memory usage regardless of the limit.
+     * Performance Optimization: Uses lazyById() to stream results during processing.
+     * This ensures O(1) memory usage during the loop and prevents skipping records
+     * when scripture_passage_id is updated (avoiding offset-paging pitfalls).
      *
      * @return array{
      *     sermons: \Illuminate\Support\Collection<int, Sermon>,
@@ -83,14 +84,15 @@ class ScriptureOperatorService
         $query = Sermon::query()
             ->whereNotNull('reference')
             ->where('reference', '!=', '')
-            ->whereNull('scripture_passage_id')
-            ->limit($limit);
+            ->whereNull('scripture_passage_id');
 
         $summary = $this->emptySummary();
         $stoppedEarly = false;
         $processedSermons = collect();
 
-        foreach ($query->lazy() as $index => $sermon) {
+        // Use lazyById to stream results and avoid skipping rows during mutations.
+        // We use take($limit) to strictly respect the requested limit.
+        foreach ($query->lazyById(100)->take($limit) as $index => $sermon) {
             $processedSermons->push($sermon);
 
             if ($dryRun) {
@@ -156,8 +158,9 @@ class ScriptureOperatorService
     /**
      * Refresh stale scripture passages from the API.
      *
-     * Performance Optimization: Uses lazy() to stream results when processing
-     * the collection, ensuring O(1) memory usage regardless of volume.
+     * Performance Optimization: Uses lazyById() to stream results during processing.
+     * This ensures O(1) memory usage during the loop and prevents skipping records
+     * when fetched_at is updated (avoiding offset-paging pitfalls).
      *
      * @return array{
      *     passages: \Illuminate\Support\Collection<int, ScripturePassage>,
@@ -183,7 +186,8 @@ class ScriptureOperatorService
         $processedPassages = collect();
         $totalCandidates = (clone $query)->count();
 
-        foreach ($query->lazy() as $index => $passage) {
+        // Use lazyById to stream results and avoid skipping rows when fetched_at is updated.
+        foreach ($query->lazyById(100) as $index => $passage) {
             $processedPassages->push($passage);
 
             if ($dryRun) {
