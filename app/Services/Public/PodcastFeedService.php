@@ -123,7 +123,7 @@ class PodcastFeedService
             return null;
         }
 
-        return url("/christ/sermons/{$sermon->date->format('Y')}/{$sermon->date->format('m')}/{$sermon->slug}/transcript");
+        return route('sermons.transcript', ['sermon' => $sermon->slug]);
     }
 
     /**
