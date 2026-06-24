@@ -56,6 +56,11 @@
 
     <article class="space-y-6">
 
+        <x-analytics-context
+            :sermon="$sermon"
+            :preacher-name="$sermonView['preacher_name']"
+            :service-label="$sermonView['service_label'] ?? null" />
+
         {{-- ══ Row 1: Hero thumbnail / Media (full width) ══════════ --}}
 
         @if(! $hasPublicVideo && $sermonView['thumbnail_url'])
@@ -83,15 +88,33 @@
             </div>
             <div class="p-6 space-y-6">
                 @if ($hasPublicAudio)
-                <audio src="{{ $sermonView['audio_url'] }}" class="w-full rounded-lg" controls>
+                <audio
+                    src="{{ $sermonView['audio_url'] }}"
+                    class="w-full rounded-lg"
+                    controls
+                    data-analytics="sermon-media"
+                    data-ga-sermon-slug="{{ $sermon->slug }}">
                     Your browser does not support the <code>audio</code> element.
                 </audio>
+                <div>
+                    <a
+                        href="{{ $sermonView['audio_url'] }}"
+                        download
+                        data-analytics="sermon-download"
+                        data-ga-sermon-slug="{{ $sermon->slug }}"
+                        class="inline-flex items-center gap-1.5 text-sm font-medium text-cbc-teal-dark underline decoration-cbc-teal/40 underline-offset-2 transition-colors hover:text-cbc-teal focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded">
+                        <x-heroicon-o-arrow-down-tray class="h-4 w-4" aria-hidden="true" />
+                        Download audio
+                    </a>
+                </div>
                 @endif
 
                 @if ($hasPublicVideo)
                 <video src="{{ $sermonView['video_url'] }}"
                     class="w-full rounded-lg"
                     controls
+                    data-analytics="sermon-media"
+                    data-ga-sermon-slug="{{ $sermon->slug }}"
                     @if($sermonView['thumbnail_url']) poster="{{ $sermonView['thumbnail_url'] }}" @endif>
                     Your browser does not support the <code>video</code> element.
                 </video>
@@ -203,6 +226,9 @@
                                     }
                                     this.html = await response.text();
                                     this.loaded = true;
+                                    if (window.gaTrackEvent) {
+                                        window.gaTrackEvent('transcript_download', { sermon_slug: @js($sermon->slug) });
+                                    }
                                 } catch (e) {
                                     this.error = 'Transcript could not be loaded.';
                                 } finally {
@@ -352,6 +378,7 @@
                                     label="Copy reference"
                                     title="Copy Bible reference to clipboard"
                                     icon="clipboard-document"
+                                    analytics="scripture_reference"
                                 />
                             </div>
                         </div>

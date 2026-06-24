@@ -8,6 +8,9 @@
     'icon' => 'link',
     'copiedIcon' => 'check',
     'size' => 'sm',
+    // When set, a successful copy fires a GA `share` event carrying this value as
+    // its content_type (GA3). Leave null to opt out of analytics for this button.
+    'analytics' => null,
 ])
 
 @php
@@ -50,6 +53,11 @@ $resolvedIconSize = $iconSizeClasses[$hideLabel ? 'xs' : $size] ?? $iconSizeClas
         navigator.clipboard.writeText(textToCopy).then(() => {
             copied = true;
             setTimeout(() => copied = false, 2000);
+            @if($analytics)
+            if (window.gaTrackEvent) {
+                window.gaTrackEvent('share', { method: 'clipboard', content_type: {{ \Illuminate\Support\Js::from($analytics) }} });
+            }
+            @endif
         });
     "
     {{ $attributes->merge(['class' => $classes]) }}
