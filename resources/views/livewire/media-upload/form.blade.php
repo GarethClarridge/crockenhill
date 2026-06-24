@@ -27,28 +27,26 @@
                 <div class="space-y-6">
                     {{-- Media Type Selection --}}
                     <div>
+                        @php
+                            $mediaTypeDescription = match($mediaType) {
+                                'audio' => 'Audio: Direct sermon recording → Transcription → AI Analysis → Sermon Record',
+                                'video' => 'Video: Pre-edited sermon video → Audio Extraction → Transcription → AI Analysis → Sermon Record',
+                                'livestream' => 'Livestream: Full service recording → Segmentation → Audio Extraction → Transcription → AI Analysis → Sermon Record',
+                                default => null,
+                            };
+                        @endphp
                         <x-select
                             label="Media type"
                             required
                             wire:model.live="mediaType"
                             placeholder="Select media type..."
+                            :hint="$mediaTypeDescription"
                             :options="[
                                 ['id' => 'audio', 'name' => 'Audio only'],
                                 ['id' => 'video', 'name' => 'Sermon video'],
                                 ['id' => 'livestream', 'name' => 'Full livestream'],
                             ]"
                         />
-
-                        {{-- Dynamic descriptions based on selection --}}
-                        <div class="mt-2 text-sm text-gray-600">
-                            @if($mediaType === 'audio')
-                                <p><strong>Audio:</strong> Direct sermon recording → Transcription → AI Analysis → Sermon Record</p>
-                            @elseif($mediaType === 'video')
-                                <p><strong>Video:</strong> Pre-edited sermon video → Audio Extraction → Transcription → AI Analysis → Sermon Record</p>
-                            @elseif($mediaType === 'livestream')
-                                <p><strong>Livestream:</strong> Full service recording → Segmentation → Audio Extraction → Transcription → AI Analysis → Sermon Record</p>
-                            @endif
-                        </div>
                     </div>
 
                     {{-- Service Selection: defaults per media type (livestream → morning,
@@ -59,12 +57,12 @@
                                 label="Service"
                                 required
                                 wire:model.live="serviceOverride"
+                                hint="Which service this recording is for. We pre-select based on the media type — change it if it's wrong."
                                 :options="[
                                     ['id' => 'morning', 'name' => 'Morning'],
                                     ['id' => 'evening', 'name' => 'Evening'],
                                 ]"
                             />
-                            <p class="mt-2 text-sm text-gray-600">Which service this recording is for. We pre-select based on the media type — change it if it's wrong.</p>
                         </div>
                     @endif
 
@@ -119,11 +117,11 @@
 
                                     @if($mediaFile)
                                         <p class="text-sm text-gray-600 mb-2">File selected: <strong>{{ $mediaFile->getClientOriginalName() }}</strong></p>
-                                        <p class="text-sm text-gray-500">Ready to upload</p>
+                                        <p id="media-file-ready" class="text-sm text-gray-500">Ready to upload</p>
                                     @else
                                         <p class="text-lg text-gray-600 mb-2">Drop your file here or click to browse</p>
-                                        <p class="text-sm text-gray-500">Maximum file size: {{ $maxFileSize ?? 'N/A' }}</p>
-                                        <p class="text-sm text-gray-500">Accepted formats: {{ $allowedExtensions ?? 'N/A' }}</p>
+                                        <p id="media-file-max-size" class="text-sm text-gray-500">Maximum file size: {{ $maxFileSize ?? 'N/A' }}</p>
+                                        <p id="media-file-formats" class="text-sm text-gray-500">Accepted formats: {{ $allowedExtensions ?? 'N/A' }}</p>
                                     @endif
                                 </div>
 
@@ -133,7 +131,7 @@
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        <span class="text-sm leading-none">Validating file...</span>
+                                        <span id="media-file-validating" class="text-sm leading-none">Validating file...</span>
                                     </span>
                                 </div>
 
@@ -142,9 +140,12 @@
                                     type="file"
                                     id="media-file"
                                     class="sr-only"
+                                    required
+                                    aria-required="true"
                                     accept="{{ $acceptAttribute }}"
                                     x-on:change="handleFileInputChange($event)"
-                                    @if($errors->has('mediaFile')) aria-describedby="media-file-error" aria-invalid="true" @endif
+                                    aria-describedby="media-file-max-size media-file-formats @if($mediaFile) media-file-ready @endif @if($errors->has('mediaFile')) media-file-error @endif"
+                                    @if($errors->has('mediaFile')) aria-invalid="true" @endif
                                 />
                                 <input type="hidden" x-model="fileModifiedDate" />
                                 <label for="media-file" class="cursor-pointer inline-block align-middle">
