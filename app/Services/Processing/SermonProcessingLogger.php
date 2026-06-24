@@ -22,6 +22,11 @@ use Illuminate\Support\Str;
  * Provides a unified API for recording pipeline lifecycle events, API
  * performance metrics, file operations, and health checks, with
  * support for automated log sanitization.
+ *
+ * @phpstan-type HealthCheckResult array{
+ *     status: string,
+ *     message?: string,
+ * }
  */
 class SermonProcessingLogger
 {
@@ -272,17 +277,19 @@ class SermonProcessingLogger
      * Log the result of a system health check.
      *
      * @param  string  $checkName  The identifier for the health check
-     * @param  array<string, mixed>  $result  The outcome and diagnostic data for the check
+     * @param  HealthCheckResult  $result  The outcome and diagnostic data for the check
      */
     public function logHealthCheck(string $checkName, array $result): void
     {
         $context = [
             'health_check' => $this->sanitizeForLog($checkName),
+            /** @phpstan-ignore nullCoalesce.offset */
             'status' => $result['status'] ?? 'unknown',
             'result' => $result,
             'timestamp' => now()->toISOString(),
         ];
 
+        /** @phpstan-ignore nullCoalesce.offset */
         $logLevel = match ($result['status'] ?? 'unknown') {
             'healthy' => 'info',
             'degraded' => 'warning',
