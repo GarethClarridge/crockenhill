@@ -122,7 +122,13 @@ class SermonCreationOptions
     /**
      * Create options for livestream processing
      *
-     * @param  array<string, mixed>  $metadata
+     * @param  array{
+     *     original_filename?: string,
+     *     video_file_path?: string|null,
+     *     livestream_processing_id?: string,
+     *     segment_start_time?: float|null,
+     *     segment_end_time?: float|null,
+     * }  $metadata
      */
     public static function fromLivestream(MediaProcessingLog $log, array $metadata): self
     {
