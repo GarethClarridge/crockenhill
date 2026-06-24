@@ -16,6 +16,8 @@ $variantClasses = [
     'secondary' => 'border border-transparent bg-slate-100/90 text-[#145557] hover:bg-white shadow-none',
     'outline'   => 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700',
     'danger'    => 'bg-cbc-crimson hover:bg-[#590d16] text-white',
+    'warning'   => 'bg-amber-600 hover:bg-amber-700 text-white',
+    'success'   => 'bg-green-600 hover:bg-green-700 text-white',
     'ghost'     => 'hover:bg-gray-100 text-gray-600',
 ];
 
@@ -34,7 +36,7 @@ if ($slot->isEmpty() && $attributes->has('aria-label') && !$attributes->has('tit
 }
 @endphp
 
-<button {{ $filteredAttributes->merge(['class' => $classes, 'type' => $type]) }} wire:loading.attr="disabled" aria-disabled="false" wire:loading.attr="aria-disabled" @if($target) wire:target="{{ $target }}" @endif>
+<button {{ $filteredAttributes->merge(['class' => $classes, 'type' => $type]) }} wire:loading.attr="disabled" wire:offline.attr="disabled" aria-disabled="false" wire:loading.attr="aria-disabled" @if($target) wire:target="{{ $target }}" @endif>
     @if($icon)
       <span wire:loading.remove @if($target) wire:target="{{ $target }}" @endif class="contents">
         <x-dynamic-component :component="'heroicon-o-' . $icon" class="w-4 h-4 {{ $slot->isNotEmpty() ? 'mr-2' : '' }}" aria-hidden="true" />

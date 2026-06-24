@@ -5,13 +5,15 @@
                 <h3 class="text-sm font-semibold text-blue-900">
                     Uploading {{ $currentFileName ?? 'file' }}...
                 </h3>
-                <button
+                <x-form-button
+                    variant="ghost"
+                    size="xs"
+                    class="text-red-600 hover:bg-red-50"
                     wire:click="requestCancelUpload"
-                    class="text-sm font-medium text-red-600 transition-colors hover:text-red-800"
-                    type="button"
+                    wire:target="requestCancelUpload"
                 >
                     Cancel
-                </button>
+                </x-form-button>
             </div>
 
             <div class="mb-2">
@@ -20,10 +22,10 @@
                         class="h-3 rounded-full bg-blue-600 transition-all duration-300 ease-out"
                         style="width: {{ $uploadProgress }}%"
                         role="progressbar"
+                        aria-label="Upload progress"
                         aria-valuenow="{{ $uploadProgress }}"
                         aria-valuemin="0"
                         aria-valuemax="100"
-                        aria-label="Upload progress"
                     ></div>
                 </div>
             </div>

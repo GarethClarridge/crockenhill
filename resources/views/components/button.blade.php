@@ -29,6 +29,8 @@ $variantClasses = [
     'featureOutline' => 'border border-transparent bg-slate-100/90 text-[#145557] hover:bg-white shadow-none focus:ring-cbc-teal',
     'outline'   => 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700',
     'danger'    => 'bg-cbc-crimson hover:bg-[#590d16] text-white',
+    'warning'   => 'bg-amber-600 hover:bg-amber-700 text-white',
+    'success'   => 'bg-green-600 hover:bg-green-700 text-white',
     'ghost'     => 'hover:bg-gray-100 text-gray-600',
 ];
 
