@@ -30,7 +30,7 @@ jobs:
         options: --health-cmd="MYSQL_PWD=testing mysqladmin ping -uroot --silent" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -123,7 +123,7 @@ jobs:
         options: --shm-size=2g --add-host=host-docker-internal:host-gateway
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Laravel
         uses: ./.github/actions/setup-laravel
@@ -198,7 +198,7 @@ jobs:
       image_tag: ${{ steps.image.outputs.tag }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -338,7 +338,7 @@ jobs:
       BACKUP_FILE: backups/db-${{ github.run_id }}-${{ github.run_attempt }}.sql.gz
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Prepare remote smoke script directory
         uses: appleboy/ssh-action@v1
