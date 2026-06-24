@@ -663,7 +663,7 @@ class MediaProcessingLog extends Model
             'visual_processing_time' => ['nullable', 'numeric', 'min:0', 'max:9999999.999'],
             'sermon_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:sermons,id'],
             'owner_user_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:users,id'],
-            'church_service_id' => ['nullable', 'integer', 'min:1', 'exists:church_services,id'],
+            'church_service_id' => ['nullable', 'integer', 'min:1', 'max:9223372036854775807', 'exists:church_services,id'],
             'error_message' => ['nullable', 'string'],
             'current_step' => ['nullable', 'string', 'max:255'],
             'source_file_path' => ['nullable', 'string', 'max:255'],

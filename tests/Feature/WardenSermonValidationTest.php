@@ -111,14 +111,14 @@ class WardenSermonValidationTest extends TestCase
 
         // download_count has no exists rule, so a failure here can only come from the max bound.
         $validator = Validator::make([
-            'download_count' => 2147483648,
+            'download_count' => 4294967296,
         ], [
             'download_count' => $rules['download_count'],
         ]);
 
         $this->assertTrue($validator->fails());
         $this->assertEquals(
-            'The download count field must not be greater than 2147483647.',
+            'The download count field must not be greater than 4294967295.',
             $validator->errors()->first('download_count')
         );
     }
@@ -129,7 +129,7 @@ class WardenSermonValidationTest extends TestCase
         $rules = Sermon::validationRules();
 
         $validator = Validator::make([
-            'download_count' => 2147483647,
+            'download_count' => 4294967295,
         ], [
             'download_count' => $rules['download_count'],
         ]);
