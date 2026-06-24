@@ -39,6 +39,7 @@
         '@' . 'context' => 'https://schema.org',
         '@type' => 'Article',
         '@id' => $sermonView['canonical_url'] . '#sermon',
+        'url' => $sermonView['canonical_url'],
         'headline' => $sermon->title,
         'description' => $metaDescription,
         'articleBody' => $articleBody,
@@ -97,6 +98,8 @@
             'thumbnailUrl' => $thumbnailUrl,
             'uploadDate' => $datePublished,
             'contentUrl' => $sermonView['video_url'],
+            'author' => $author,
+            'publisher' => $schema['publisher'],
         ];
 
         if ($duration) {
@@ -116,6 +119,8 @@
             'description' => $metaDescription,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
+            'author' => $author,
+            'publisher' => $schema['publisher'],
         ];
 
         if ($duration) {
