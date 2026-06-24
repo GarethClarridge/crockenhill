@@ -191,7 +191,9 @@ class SermonCreationService
         $this->fillReferenceIfBlank($existing, $options, $updates);
         $this->fillPointsIfBlank($existing, $options, $updates);
 
-        if (blank($existing->duration) && filled($options->duration)) {
+        // A stored duration of 0 (or null) counts as missing, so a richer
+        // livestream/video source can still backfill the real length.
+        if (($existing->duration === null || $existing->duration <= 0) && filled($options->duration)) {
             $updates['duration'] = $options->duration;
         }
 
