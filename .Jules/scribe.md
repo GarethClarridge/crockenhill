@@ -13,3 +13,7 @@
 ## 2026-06-15 - [Model Precedence Testing]
 **Learning:** Testing methods like `semanticSectionType` which combine explicit property checks, type mapping, and fuzzy inference requires multiple test cases to verify the correct precedence order (Explicit property > Type match > Fuzzy inference).
 **Action:** Write separate test methods for each level of precedence in the model to ensure behavior is exactly as intended and protected against refactoring.
+
+## 2026-06-16 - [Presenter Memoization Testing]
+**Learning:** Testing memoization in presenters that use model identity (ID + `updated_at`) for cache keys requires either using `factory()->create()` or manually setting the `updated_at` timestamp. Without a persisted state or explicit timestamp, consecutive calls might yield different cache keys if the object hash or internal state changes.
+**Action:** Use `factory()->create()` for memoization tests that rely on `cacheKey()` logic, or explicitly mock the storage service to verify that it is only called once.
