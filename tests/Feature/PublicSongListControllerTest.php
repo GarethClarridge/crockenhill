@@ -95,6 +95,20 @@ class PublicSongListControllerTest extends TestCase
     }
 
     #[Test]
+    public function show_passes_correct_data_to_view(): void
+    {
+        $song = Song::factory()->create(['title' => 'Amazing Grace']);
+
+        $response = $this->actingAs($this->user)->get("/church/songs/{$song->slug}");
+
+        $response->assertStatus(200);
+        $response->assertViewHas('song', fn (Song $viewSong): bool => $viewSong->is($song));
+        $response->assertViewHas('usageCount');
+        $response->assertViewHas('lastSungDate');
+        $response->assertViewHas('usageHistory');
+    }
+
+    #[Test]
     public function show_returns_404_for_nonexistent_song(): void
     {
         $response = $this->actingAs($this->user)->get('/church/songs/no-such-song');
