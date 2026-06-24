@@ -143,7 +143,7 @@ class ChurchServiceItem extends Model
             'source' => ['nullable', Rule::enum(ChurchServiceItemSource::class)],
             'source_title' => ['nullable', 'string', 'max:255'],
             'openlp_search_title' => ['nullable', 'string', 'max:255'],
-            'song_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:songs,id'],
+            'song_id' => ['nullable', 'integer', 'min:1', 'max:9223372036854775807', 'exists:songs,id'],
             'livestream_processing_id' => ['nullable', 'uuid'],
             'livestream_service_section_id' => ['nullable', 'integer', 'min:1', 'max:9223372036854775807', 'exists:service_sections,id'],
         ];

@@ -119,7 +119,7 @@ class ProcessingFortificationTest extends TestCase
 
         $churchServiceItemRules = ChurchServiceItem::validationRules();
         $this->assertContains('max:9223372036854775807', $churchServiceItemRules['church_service_id']);
-        $this->assertContains('max:4294967295', $churchServiceItemRules['song_id']);
+        $this->assertContains('max:9223372036854775807', $churchServiceItemRules['song_id']);
         $this->assertContains('max:9223372036854775807', $churchServiceItemRules['livestream_service_section_id']);
         $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $churchServiceItemRules['position']);
         $this->assertValidationPasses($churchServiceItemRules['position'], 'position', self::UNSIGNED_INTEGER_MAX);
