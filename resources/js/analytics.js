@@ -119,13 +119,23 @@ function paramsFromDataset(el) {
     return params;
 }
 
+// Tracks the path of the most recent page_view so that opting in to analytics
+// does not replay a page_view that navigation has already counted.
+let lastPageViewPath = null;
+
+function pagePath() {
+    return window.location.pathname + window.location.search;
+}
+
 function sendPageView() {
     if (!window.gtag) {
         return;
     }
 
+    lastPageViewPath = pagePath();
+
     window.gtag('event', 'page_view', {
-        page_path: window.location.pathname + window.location.search,
+        page_path: lastPageViewPath,
         page_title: document.title,
         ...contentDimensions(),
     });
@@ -220,8 +230,12 @@ function grantConsent() {
     persistConsent('granted');
     if (window.gtag) {
         window.gtag('consent', 'update', { analytics_storage: 'granted' });
-        // Capture the current page now that storage is permitted.
-        sendPageView();
+        // Capture the current page now that storage is permitted, but only if
+        // navigation hasn't already counted it — otherwise opting in would
+        // double-count this page_view.
+        if (lastPageViewPath !== pagePath()) {
+            sendPageView();
+        }
     }
 }
 
