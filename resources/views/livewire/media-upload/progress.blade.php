@@ -22,6 +22,7 @@
                         class="h-3 rounded-full bg-blue-600 transition-all duration-300 ease-out"
                         style="width: {{ $uploadProgress }}%"
                         role="progressbar"
+                        aria-label="Upload progress"
                         aria-valuenow="{{ $uploadProgress }}"
                         aria-valuemin="0"
                         aria-valuemax="100"
