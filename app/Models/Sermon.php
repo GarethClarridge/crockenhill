@@ -304,7 +304,7 @@ class Sermon extends Model implements Sitemapable
             get: function (): ?string {
                 $metadata = $this->thumbnail_metadata;
 
-                if ($metadata === null) {
+                if (blank($metadata)) {
                     return null;
                 }
 
@@ -425,30 +425,30 @@ class Sermon extends Model implements Sitemapable
 
     public function hasPlainThumbnail(): bool
     {
-        return $this->plain_thumbnail_file_path !== null;
+        return filled($this->plain_thumbnail_file_path);
     }
 
     public function hasCardThumbnail(): bool
     {
-        return $this->card_thumbnail_file_path !== null;
+        return filled($this->card_thumbnail_file_path);
     }
 
     public function hasThumbnailCandidates(): bool
     {
-        return $this->thumbnail_candidates !== [];
+        return filled($this->thumbnail_candidates);
     }
 
     public function hasVideoGeneratedThumbnail(): bool
     {
         $metadata = $this->thumbnail_metadata;
 
-        if ($metadata === null) {
+        if (blank($metadata)) {
             return false;
         }
 
-        return $metadata->videoDuration !== null
-            || $metadata->thumbnailCandidates !== []
-            || $metadata->selectedThumbnailCandidateId !== null;
+        return filled($metadata->videoDuration)
+            || filled($metadata->thumbnailCandidates)
+            || filled($metadata->selectedThumbnailCandidateId);
     }
 
     /**
@@ -500,7 +500,7 @@ class Sermon extends Model implements Sitemapable
          * We prioritize latestProcessingLog as it is more commonly eager-loaded in listing views.
          */
         if ($this->relationLoaded('latestProcessingLog')) {
-            return $this->latestProcessingLog !== null;
+            return filled($this->latestProcessingLog);
         }
 
         if ($this->relationLoaded('processingLogs')) {
