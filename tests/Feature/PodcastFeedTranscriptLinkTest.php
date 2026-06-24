@@ -32,7 +32,7 @@ class PodcastFeedTranscriptLinkTest extends TestCase
         $xml = $response->getContent();
 
         // 3. Extract the transcript URL from the feed
-        // <podcast:transcript url="..." type="text/plain" />
+        // <podcast:transcript url="..." type="text/html" />
         if (! preg_match('/<podcast:transcript url="([^"]+)"/', $xml, $matches)) {
             $this->fail('Transcript URL not found in podcast feed');
         }
