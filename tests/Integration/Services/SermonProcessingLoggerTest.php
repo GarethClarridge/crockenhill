@@ -27,6 +27,8 @@ class SermonProcessingLoggerTest extends TestCase
 
         MediaProcessingLog::query()->delete();
 
+        Log::spy();
+
         $this->logger = new SermonProcessingLogger;
 
         Log::spy();
