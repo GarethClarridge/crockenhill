@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * @property int $id
@@ -84,13 +85,18 @@ class InboundEmail extends Model
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<string|mixed>>
      */
     public static function validationRules(): array
     {
         return [
+            'message_id' => ['required', 'string', 'max:512'],
             'from' => ['string', 'max:255'],
             'subject' => ['string', 'max:255'],
+            'body_plain' => ['nullable', 'string', 'max:500000'],
+            'body_html' => ['nullable', 'string', 'max:500000'],
+            'received_at' => ['required', 'date'],
+            'status' => ['required', Rule::enum(InboundEmailStatus::class)],
         ];
     }
 }
