@@ -105,7 +105,7 @@ class SermonPresentationAssembler
             'series_url' => $presenter->seriesUrl($sermon),
             'service_label' => $presenter->serviceLabel($sermon),
             'thumbnail_url' => $presenter->thumbnailUrl($sermon),
-            'transcript_url' => $hasTranscript ? route('sermons.transcript', ['sermon' => $sermon->slug]) : null,
+            'transcript_url' => $presenter->transcriptUrl($sermon),
             'video_url' => $presenter->videoUrl($sermon),
         ];
     }

@@ -52,7 +52,7 @@
       <itunes:explicit>false</itunes:explicit>
       <itunes:episodeType>full</itunes:episodeType>
 @if($feedItem->transcriptUrl)
-      <podcast:transcript url="{{ $feedItem->transcriptUrl }}" type="text/plain" />
+      <podcast:transcript url="{{ $feedItem->transcriptUrl }}" type="text/html" />
 @endif
     </item>
     @endforeach
