@@ -105,7 +105,7 @@
                         <div class="flex flex-col flex-1 p-6 @if (!empty($snippetsBySongId[$song->id])) pb-0 @endif">
                             <div class="flex items-start justify-between gap-4">
                                 <div class="flex flex-col gap-2">
-                                    <a class="group" href="{{ $songUrl }}" wire:navigate tabindex="-1">
+                                    <a class="relative z-10 group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2" href="{{ $songUrl }}" wire:navigate aria-label="{{ $song->title }}">
                                         <h2 class="font-display text-3xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
                                             {{ $song->title }}
                                         </h2>
