@@ -75,16 +75,12 @@ class ScriptureOperatorService
         int $delayMs = 500,
         ?callable $progress = null,
     ): array {
-        /**
-         * Performance Optimization: Use lazy() to iterate through sermons one by one,
-         * keeping memory usage low during bulk scripture enrichment.
-         */
         $sermons = Sermon::query()
             ->whereNotNull('reference')
             ->where('reference', '!=', '')
             ->whereNull('scripture_passage_id')
             ->limit($limit)
-            ->lazy();
+            ->get();
 
         $summary = $this->emptySummary();
         $stoppedEarly = false;
@@ -161,13 +157,9 @@ class ScriptureOperatorService
     public function runRefresh(bool $dryRun = false, int $delayMs = 500, ?callable $progress = null): array
     {
         $refreshAfterDays = (int) config('services.api_bible.refresh_after_days', 28);
-        /**
-         * Performance Optimization: Use lazy() to iterate through passages one by one,
-         * keeping memory usage low during bulk scripture refresh.
-         */
         $passages = ScripturePassage::query()
             ->where('fetched_at', '<', now()->subDays($refreshAfterDays))
-            ->lazy();
+            ->get();
 
         $summary = [
             'updated' => 0,
