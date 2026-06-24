@@ -14,7 +14,7 @@
         <form method="POST" action="{{ route('admin.calendar.sync') }}" class="inline">
             @csrf
             <x-form-button variant="secondary" inline>
-                Sync Calendar
+                Sync calendar
             </x-form-button>
         </form>
     </x-slot:actions>
