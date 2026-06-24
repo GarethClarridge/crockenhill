@@ -651,14 +651,7 @@ class SermonCreationService
 
         $baseFilename = pathinfo($filename, PATHINFO_FILENAME);
 
-        // Remove common date patterns
-        $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $baseFilename);
-        $title = preg_replace('/\d{1,2}[-_]\d{1,2}[-_]\d{4}/', '', $title ?? '');
-
-        // Remove common sermon-related words and clean up
-        $title = preg_replace('/\b(sermon|message|service|am|pm)\b/i', '', $title ?? '');
-        $title = preg_replace('/[-_]+/', ' ', $title ?? '');
-        $title = trim($title ?? '');
+        $title = $this->cleanFilenameForTitle($baseFilename);
 
         // If title is empty or too short, use a default
         if (empty($title) || strlen($title) < 3 || $this->looksLikeFilenameFragment($title)) {
@@ -683,6 +676,24 @@ class SermonCreationService
 
         // Ensure it's not too long
         return Str::limit($title, 100, '');
+    }
+
+    /**
+     * Clean a filename for use as a sermon title.
+     *
+     * Removes date patterns, common sermon keywords, and replaces separators with spaces.
+     */
+    private function cleanFilenameForTitle(string $filename): string
+    {
+        // Remove common date patterns (YYYY-MM-DD, DD-MM-YYYY)
+        $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename);
+        $title = preg_replace('/\d{1,2}[-_]\d{1,2}[-_]\d{4}/', '', $title ?? '');
+
+        // Remove common sermon-related words and clean up
+        $title = preg_replace('/\b(sermon|message|service|am|pm)\b/i', '', $title ?? '');
+        $title = preg_replace('/[-_]+/', ' ', $title ?? '');
+
+        return trim($title ?? '');
     }
 
     /**
