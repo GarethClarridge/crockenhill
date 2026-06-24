@@ -124,7 +124,7 @@ class Song extends Model
         $uniqueCanonicalKey = function (string $attribute, mixed $value, \Closure $fail) use ($ignoreId): void {
             $normalised = self::canonicalizeKey((string) $value);
             $query = self::query()->where('canonical_key', $normalised);
-            if ($ignoreId !== null) {
+            if (filled($ignoreId)) {
                 $query->where('id', '!=', $ignoreId);
             }
             if ($query->exists()) {
@@ -242,7 +242,7 @@ class Song extends Model
     public function displayVideo(): ?SongVideo
     {
         $featured = $this->featuredVideo()->first();
-        if ($featured !== null) {
+        if (filled($featured)) {
             return $featured;
         }
 

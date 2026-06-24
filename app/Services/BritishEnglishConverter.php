@@ -36,10 +36,10 @@ class BritishEnglishConverter
      */
     public function convert(string $text): string
     {
-        if ($this->patterns === null || $this->replacements === null) {
+        if (blank($this->patterns) || blank($this->replacements)) {
             $corrections = $this->getCorrections();
 
-            if (empty($corrections)) {
+            if (blank($corrections)) {
                 return $text;
             }
 
@@ -72,7 +72,7 @@ class BritishEnglishConverter
         // Load from external word list if available, otherwise use built-in
         $wordList = $this->loadWordList();
 
-        if (! empty($wordList)) {
+        if (filled($wordList)) {
             return $this->buildCorrectionsFromWordList($wordList);
         }
 

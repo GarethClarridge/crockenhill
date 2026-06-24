@@ -59,7 +59,7 @@ class SermonCreationService
             $options->contentType,
         );
 
-        if ($existing === null) {
+        if (blank($existing)) {
             return $this->createFresh($processingLog, $options, $sermonDate, $service);
         }
 
@@ -119,11 +119,11 @@ class SermonCreationService
 
     private function detectExistingRichness(Sermon $existing): RichnessLevel
     {
-        if ($existing->livestream_processing_id !== null) {
+        if (filled($existing->livestream_processing_id)) {
             return RichnessLevel::Livestream;
         }
 
-        if (! empty($existing->video_file_path)) {
+        if (filled($existing->video_file_path)) {
             return RichnessLevel::Video;
         }
 
@@ -168,19 +168,19 @@ class SermonCreationService
     ): Sermon {
         $updates = [];
 
-        if ($options->videoFilePath) {
+        if (filled($options->videoFilePath)) {
             $updates['video_file_path'] = $options->videoFilePath;
         }
 
-        if ($options->livestreamProcessingId) {
+        if (filled($options->livestreamProcessingId)) {
             $updates['livestream_processing_id'] = $options->livestreamProcessingId;
         }
 
-        if ($options->segmentStartTime !== null) {
+        if (filled($options->segmentStartTime)) {
             $updates['segment_start_time'] = $options->segmentStartTime;
         }
 
-        if ($options->segmentEndTime !== null) {
+        if (filled($options->segmentEndTime)) {
             $updates['segment_end_time'] = $options->segmentEndTime;
         }
 
@@ -195,7 +195,9 @@ class SermonCreationService
         $this->fillReferenceIfBlank($existing, $options, $updates);
         $this->fillPointsIfBlank($existing, $options, $updates);
 
-        if (empty($existing->duration) && $options->duration !== null) {
+        // A stored duration of 0 (or null) counts as missing, so a richer
+        // livestream/video source can still backfill the real length.
+        if (($existing->duration === null || $existing->duration <= 0) && filled($options->duration)) {
             $updates['duration'] = $options->duration;
         }
 
@@ -212,7 +214,7 @@ class SermonCreationService
             }
         }
 
-        if ($updates !== []) {
+        if (filled($updates)) {
             $existing->fill($updates);
             $existing->save();
         }
@@ -246,25 +248,25 @@ class SermonCreationService
             $updates['video_file_path'] = $options->videoFilePath;
         }
 
-        if ($options->transcriptFilePath) {
+        if (filled($options->transcriptFilePath)) {
             $updates['transcript_file_path'] = $options->transcriptFilePath;
         }
 
         if ($incoming === MediaType::Livestream) {
-            if ($options->livestreamProcessingId) {
+            if (filled($options->livestreamProcessingId)) {
                 $updates['livestream_processing_id'] = $options->livestreamProcessingId;
             }
 
-            if ($options->segmentStartTime !== null) {
+            if (filled($options->segmentStartTime)) {
                 $updates['segment_start_time'] = $options->segmentStartTime;
             }
 
-            if ($options->segmentEndTime !== null) {
+            if (filled($options->segmentEndTime)) {
                 $updates['segment_end_time'] = $options->segmentEndTime;
             }
         }
 
-        if ($options->duration !== null) {
+        if (filled($options->duration)) {
             $updates['duration'] = $options->duration;
         }
 
@@ -286,7 +288,7 @@ class SermonCreationService
             $updates['needs_preacher_review'] = $resolved['needs_review'];
         }
 
-        if ($updates !== []) {
+        if (filled($updates)) {
             $existing->fill($updates);
             $existing->save();
         }
@@ -470,7 +472,7 @@ class SermonCreationService
     {
         $explicitPreacher = $this->normalizePreacherInput($options->preacher);
 
-        if ($explicitPreacher !== null) {
+        if (filled($explicitPreacher)) {
             $preacherModel = $this->resolveExplicitPreacher($explicitPreacher, $options->preacherId);
 
             return [
@@ -484,7 +486,7 @@ class SermonCreationService
 
         $id3Preacher = $this->normalizePreacherInput($options->id3Preacher);
         $preacherName = $id3Preacher ?? 'Visiting Speaker';
-        $preacherSource = $id3Preacher !== null ? PreacherSource::Id3 : PreacherSource::Default;
+        $preacherSource = filled($id3Preacher) ? PreacherSource::Id3 : PreacherSource::Default;
 
         return [
             'preacher_name' => $preacherName,
@@ -497,7 +499,7 @@ class SermonCreationService
 
     private function resolveExplicitPreacher(string $preacherName, ?int $preacherId): Preacher
     {
-        if ($preacherId !== null) {
+        if (filled($preacherId)) {
             $preacher = Preacher::query()->find($preacherId);
 
             if ($preacher instanceof Preacher) {
@@ -510,7 +512,7 @@ class SermonCreationService
 
     private function normalizePreacherInput(?string $name): ?string
     {
-        if ($name === null) {
+        if (blank($name)) {
             return null;
         }
 
@@ -526,7 +528,7 @@ class SermonCreationService
         MediaProcessingLog $processingLog,
         string $filename
     ): string {
-        if ($processingLog->extracted_date !== null) {
+        if (filled($processingLog->extracted_date)) {
             $extractedDate = $processingLog->extracted_date->toDateString();
             $processingMetadata = $processingLog->processing_metadata?->toArray() ?? [];
 
@@ -649,7 +651,7 @@ class SermonCreationService
         /** @var MediaProcessingLog|null $processingLog */
         $processingLog = $context['processing_log'] ?? null;
 
-        if (empty($filename)) {
+        if (blank($filename)) {
             return 'Sermon - '.now()->format('F j, Y');
         }
 
@@ -658,7 +660,7 @@ class SermonCreationService
         $title = $this->cleanFilenameForTitle($baseFilename);
 
         // If title is empty or too short, use a default
-        if (empty($title) || strlen($title) < 3 || $this->looksLikeFilenameFragment($title)) {
+        if (blank($title) || strlen($title) < 3 || $this->looksLikeFilenameFragment($title)) {
             // Try to build from context
             $date = $context['date'] ?? $this->filenameParser->extractDateFromFilename($filename)->toDateString();
 
