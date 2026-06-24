@@ -6,7 +6,6 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Meeting;
 use App\Models\Page;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;

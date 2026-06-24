@@ -7,6 +7,7 @@ namespace Tests\Feature\Seo;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -40,7 +41,7 @@ class SermonItemListArticleBodyTest extends TestCase
             'show_summary' => true,
         ]);
 
-        $response = $this->get(route('sermons.series.show', \Illuminate\Support\Str::slug($seriesName)));
+        $response = $this->get(route('sermons.series.show', Str::slug($seriesName)));
 
         $response->assertStatus(200);
         $response->assertSee('"articleBody": "Series sermon summary."', false);

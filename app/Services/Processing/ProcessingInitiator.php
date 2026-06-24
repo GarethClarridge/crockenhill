@@ -10,6 +10,7 @@ use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Traits\SanitizesLogData;
 use Carbon\Carbon;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -53,7 +54,7 @@ class ProcessingInitiator
      * @param  SermonService|null  $serviceOverride  Operator-selected service; when set, overrides automatic detection
      * @return MediaProcessingLog The newly created processing log
      *
-     * @throws \Illuminate\Database\UniqueConstraintViolationException If a duplicate processing run is initiated concurrently.
+     * @throws UniqueConstraintViolationException If a duplicate processing run is initiated concurrently.
      */
     public function initiateProcessing(
         UploadedFile $file,

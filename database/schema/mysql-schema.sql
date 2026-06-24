@@ -679,6 +679,7 @@ CREATE TABLE `sermons` (
   KEY `sermons_video_quality_status_index` (`video_quality_status`),
   KEY `sermons_download_count_index` (`download_count`),
   KEY `sermons_preacher_id_foreign` (`preacher_id`),
+  KEY `sermons_preacher_id_date_index` (`preacher_id`,`date`),
   CONSTRAINT `sermons_livestream_processing_id_foreign` FOREIGN KEY (`livestream_processing_id`) REFERENCES `media_processing_logs` (`processing_id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `sermons_preacher_id_foreign` FOREIGN KEY (`preacher_id`) REFERENCES `preachers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `sermons_scripture_passage_id_foreign` FOREIGN KEY (`scripture_passage_id`) REFERENCES `scripture_passages` (`id`) ON DELETE SET NULL,
@@ -1214,3 +1215,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_14_200000_add_m
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_16_054346_add_index_to_church_service_items_livestream_service_section_id',76);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_120000_drop_redundant_church_service_items_livestream_index',76);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_130000_drop_redundant_fk_indexes_from_media_processing_logs_and_speaker_samples',76);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_19_054923_add_preacher_id_date_index_to_sermons_table',77);

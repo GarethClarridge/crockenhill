@@ -87,6 +87,7 @@ class SermonPresentationAssemblerTest extends TestCase
         $this->presenter->shouldReceive('seriesUrl')->with($sermon)->andReturn('series_url');
         $this->presenter->shouldReceive('serviceLabel')->with($sermon)->andReturn('service_label');
         $this->presenter->shouldReceive('thumbnailUrl')->with($sermon)->andReturn('thumb_url');
+        $this->presenter->shouldReceive('transcriptUrl')->with($sermon)->andReturn('transcript_url');
         $this->presenter->shouldReceive('videoUrl')->with($sermon)->andReturn('video_url');
 
         $result = $this->assembler->forList($this->presenter, $sermon);
@@ -110,7 +111,7 @@ class SermonPresentationAssemblerTest extends TestCase
             'series_url' => 'series_url',
             'service_label' => 'service_label',
             'thumbnail_url' => 'thumb_url',
-            'transcript_url' => route('sermons.transcript', ['sermon' => 'test-sermon']),
+            'transcript_url' => 'transcript_url',
             'video_url' => 'video_url',
         ], $result);
     }
