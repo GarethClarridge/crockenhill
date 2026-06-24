@@ -84,7 +84,7 @@ class SermonItemListPresenter
     private function buildPublisher(string $orgName, string $logoUrl, string $orgId): array
     {
         return [
-            '@type' => 'Organization',
+            '@type' => 'Church',
             'name' => $orgName,
             '@id' => $orgId,
             'logo' => [
@@ -113,7 +113,7 @@ class SermonItemListPresenter
     private function buildWorksFor(string $orgName, string $orgId): array
     {
         return [
-            '@type' => 'Organization',
+            '@type' => 'Church',
             'name' => $orgName,
             '@id' => $orgId,
         ];
@@ -221,6 +221,8 @@ class SermonItemListPresenter
 
     /**
      * @param  array<string, mixed>  $sermonView
+     * @param  array<string, mixed>  $author
+     * @param  array<string, mixed>  $publisher
      * @return array<string, mixed>
      */
     private function buildVideoObject(
@@ -228,15 +230,21 @@ class SermonItemListPresenter
         array $sermonView,
         string $datePublished,
         string $metaDescription,
-        string $logoUrl
+        string $logoUrl,
+        array $author,
+        array $publisher,
     ): array {
         $video = [
             '@type' => 'VideoObject',
             'name' => $sermon->title,
+            'url' => $sermonView['video_url'],
             'description' => $metaDescription,
             'thumbnailUrl' => $sermonView['thumbnail_url'] ?: $logoUrl,
             'uploadDate' => $datePublished,
             'contentUrl' => $sermonView['video_url'],
+            'author' => $author,
+            'publisher' => $publisher,
+            'inLanguage' => 'en-GB',
         ];
 
         if ($sermonView['duration_iso8601']) {
@@ -248,21 +256,29 @@ class SermonItemListPresenter
 
     /**
      * @param  array<string, mixed>  $sermonView
+     * @param  array<string, mixed>  $author
+     * @param  array<string, mixed>  $publisher
      * @return array<string, mixed>
      */
     private function buildAudioObject(
         Sermon $sermon,
         array $sermonView,
         string $datePublished,
-        string $metaDescription
+        string $metaDescription,
+        array $author,
+        array $publisher,
     ): array {
         $audio = [
             '@type' => 'AudioObject',
             'name' => $sermon->title,
+            'url' => $sermonView['audio_url'],
             'contentUrl' => $sermonView['audio_url'],
             'description' => $metaDescription,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
+            'author' => $author,
+            'publisher' => $publisher,
+            'inLanguage' => 'en-GB',
         ];
 
         if ($sermonView['duration_iso8601']) {
@@ -312,7 +328,9 @@ class SermonItemListPresenter
                 $sermonView,
                 $datePublished,
                 $metaDescription,
-                $logoUrl
+                $logoUrl,
+                $author,
+                $publisher
             );
         }
 
@@ -321,7 +339,9 @@ class SermonItemListPresenter
                 $sermon,
                 $sermonView,
                 $datePublished,
-                $metaDescription
+                $metaDescription,
+                $author,
+                $publisher
             );
         }
 

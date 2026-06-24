@@ -23,7 +23,7 @@
         'url' => $sermonView['preacher_url'],
         'jobTitle' => 'Preacher',
         'worksFor' => [
-            '@type' => 'Organization',
+            '@type' => 'Church',
             'name' => config('organization.name'),
             '@id' => config('app.url').'/#organization',
         ],
@@ -35,11 +35,25 @@
 
     $articleBody = $transcript ?: (($sermon->show_summary && $sermon->summary) ? strip_tags($sermon->summary) : null);
 
+    $publisher = [
+        '@type' => 'Church',
+        'name' => config('organization.name'),
+        '@id' => config('app.url').'/#organization',
+        'logo' => [
+            '@type' => 'ImageObject',
+            'url' => asset('images/Primary.png'),
+            'width' => 444,
+            'height' => 481,
+        ],
+    ];
+
     $schema = [
         '@' . 'context' => 'https://schema.org',
         '@type' => 'Article',
         '@id' => $sermonView['canonical_url'] . '#sermon',
         'headline' => $sermon->title,
+        'name' => $sermon->title,
+        'url' => $sermonView['canonical_url'],
         'description' => $metaDescription,
         'articleBody' => $articleBody,
         'image' => $thumbnailUrl,
@@ -48,17 +62,7 @@
         'inLanguage' => 'en-GB',
         'genre' => 'Sermon',
         'author' => $author,
-        'publisher' => [
-            '@type' => 'Organization',
-            'name' => config('organization.name'),
-            '@id' => config('app.url').'/#organization',
-            'logo' => [
-                '@type' => 'ImageObject',
-                'url' => asset('images/Primary.png'),
-                'width' => 444,
-                'height' => 481,
-            ],
-        ],
+        'publisher' => $publisher,
         'mainEntityOfPage' => [
             '@type' => 'WebPage',
             '@id' => $sermonView['canonical_url'] . '#webpage',
@@ -93,10 +97,14 @@
         $schema['video'] = [
             '@type' => 'VideoObject',
             'name' => $sermon->title,
+            'url' => $sermonView['video_url'],
             'description' => $metaDescription,
             'thumbnailUrl' => $thumbnailUrl,
             'uploadDate' => $datePublished,
             'contentUrl' => $sermonView['video_url'],
+            'author' => $author,
+            'publisher' => $publisher,
+            'inLanguage' => 'en-GB',
         ];
 
         if ($duration) {
@@ -112,10 +120,14 @@
         $schema['audio'] = [
             '@type' => 'AudioObject',
             'name' => $sermon->title,
+            'url' => $sermonView['audio_url'],
             'contentUrl' => $sermonView['audio_url'],
             'description' => $metaDescription,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
+            'author' => $author,
+            'publisher' => $publisher,
+            'inLanguage' => 'en-GB',
         ];
 
         if ($duration) {
