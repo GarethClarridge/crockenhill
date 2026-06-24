@@ -106,7 +106,7 @@
                 >
                     @if(!$hasFilters)
                         <x-button link="{{ route('admin.calendar.sync') }}" variant="primary" icon="arrow-path" inline>
-                            Sync Calendar
+                            Sync calendar
                         </x-button>
                     @endif
                 </x-admin.empty-state>
