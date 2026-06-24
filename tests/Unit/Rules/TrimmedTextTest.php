@@ -22,7 +22,7 @@ class TrimmedTextTest extends TestCase
     public function it_passes_for_null_values(): void
     {
         $this->rule->validate('attribute', null, function ($message) {
-            $this->fail('Validation should have passed for null: ' . $message);
+            $this->fail('Validation should have passed for null: '.$message);
         });
 
         $this->assertTrue(true);
@@ -41,7 +41,7 @@ class TrimmedTextTest extends TestCase
 
         foreach ($validStrings as $value) {
             $this->rule->validate('attribute', $value, function ($message) use ($value) {
-                $this->fail("Validation should have passed for '{$value}': " . $message);
+                $this->fail("Validation should have passed for '{$value}': ".$message);
             });
         }
 
@@ -133,7 +133,7 @@ class TrimmedTextTest extends TestCase
             true,
             false,
             [],
-            new \stdClass(),
+            new \stdClass,
         ];
 
         foreach ($invalidValues as $value) {
@@ -143,7 +143,7 @@ class TrimmedTextTest extends TestCase
                 $this->assertStringContainsString('must not be empty or contain leading or trailing whitespace', $message);
             });
 
-            $this->assertTrue($failed, "Validation should have failed for non-string value: " . print_r($value, true));
+            $this->assertTrue($failed, 'Validation should have failed for non-string value: '.print_r($value, true));
         }
     }
 }

@@ -117,7 +117,6 @@ class PodcastFeedService
         return ! empty($parts) ? implode(' ', $parts).'.' : $sermon->title;
     }
 
-
     /**
      * Get feed metadata for a service type
      *
