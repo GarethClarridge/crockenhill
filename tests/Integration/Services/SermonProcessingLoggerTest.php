@@ -252,6 +252,26 @@ class SermonProcessingLoggerTest extends TestCase
     // --- logHealthCheck() ---
 
     #[Test]
+    public function it_sanitizes_log_data_to_prevent_log_injection(): void
+    {
+        Log::spy();
+
+        // Input with control characters (potential log injection)
+        $maliciousFilename = "sermon\ntitle\r.mp3";
+
+        $this->logger->logProcessingStart('proc-001', $maliciousFilename);
+
+        Log::shouldHaveReceived('info')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                // The newline and carriage return should be replaced by spaces
+                return ! str_contains($context['filename'], "\n")
+                    && ! str_contains($context['filename'], "\r")
+                    && str_contains($context['filename'], 'sermon title');
+            });
+    }
+
+    #[Test]
     public function it_logs_healthy_check_as_info(): void
     {
         $this->logger->logHealthCheck('queue', ['status' => 'healthy']);
