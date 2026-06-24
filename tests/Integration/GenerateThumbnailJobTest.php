@@ -13,6 +13,7 @@ use App\Models\Sermon;
 use App\Services\Media\Thumbnail\ThumbnailGenerationService;
 use App\Services\Media\Video\FrameExtractionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -31,6 +32,14 @@ class GenerateThumbnailJobTest extends TestCase
         config([
             'media-processing.storage.sermon_disk' => 'public',
         ]);
+
+        Log::spy();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     #[Test]
@@ -94,10 +103,6 @@ class GenerateThumbnailJobTest extends TestCase
                 ]
             ));
 
-        Log::partialMock();
-        Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('warning')->never();
-
         $job = new GenerateThumbnail($log);
         $job->handle($mockService, $this->createMock(FrameExtractionService::class));
 
@@ -106,6 +111,9 @@ class GenerateThumbnailJobTest extends TestCase
         $this->assertNotNull($sermon->thumbnail_generated_at);
         $this->assertSame('candidate-3', $sermon->thumbnail_metadata?->selectedThumbnailCandidateId);
         $this->assertSame('sermons/thumbnails/test-plain.jpg', $sermon->thumbnail_metadata?->thumbnailCandidates[0]['plain_path']);
+
+        Log::shouldHaveReceived('info')->atLeast()->once();
+        Log::shouldNotHaveReceived('warning');
     }
 
     #[Test]
@@ -124,10 +132,6 @@ class GenerateThumbnailJobTest extends TestCase
             ->with($this->callback(fn (Sermon $model): bool => $model->is($sermon)), 'sermons/1/video.mp4', 'public')
             ->willReturn(ThumbnailResult::skipped('Test failure'));
 
-        Log::partialMock();
-        Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('warning')->atLeast()->once();
-
         $job = new GenerateThumbnail($log);
         $job->handle($mockService, $this->createMock(FrameExtractionService::class));
 
@@ -135,6 +139,9 @@ class GenerateThumbnailJobTest extends TestCase
         $this->assertNull($sermon->thumbnail_file_path);
         $this->assertNull($sermon->thumbnail_generated_at);
         $this->assertNull($sermon->thumbnail_metadata);
+
+        Log::shouldHaveReceived('info')->atLeast()->once();
+        Log::shouldHaveReceived('warning')->atLeast()->once();
     }
 
     #[Test]
@@ -150,14 +157,13 @@ class GenerateThumbnailJobTest extends TestCase
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->never())->method('generateThumbnail');
 
-        Log::partialMock();
-        Log::shouldReceive('error')->once()->with(
+        $job = new GenerateThumbnail($log);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+
+        Log::shouldHaveReceived('error')->once()->with(
             'Missing sermon ID or video path for thumbnail generation',
             \Mockery::any()
         );
-
-        $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
     }
 
     #[Test]
@@ -171,9 +177,11 @@ class GenerateThumbnailJobTest extends TestCase
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->never())->method('generateThumbnail');
 
-        Log::partialMock();
-        Log::shouldReceive('info')->once();
-        Log::shouldReceive('warning')->once()->with(
+        $job = new GenerateThumbnail($log);
+        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+
+        Log::shouldHaveReceived('info')->once();
+        Log::shouldHaveReceived('warning')->once()->with(
             'Video file not found for thumbnail generation',
             [
                 'sermon_id' => $sermon->id,
@@ -181,9 +189,6 @@ class GenerateThumbnailJobTest extends TestCase
                 'disk' => 'public',
             ]
         );
-
-        $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
     }
 
     #[Test]
@@ -200,15 +205,14 @@ class GenerateThumbnailJobTest extends TestCase
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->never())->method('generateThumbnail');
 
-        Log::partialMock();
-        Log::shouldReceive('info')->twice();
-        Log::shouldReceive('warning')->never();
-
         $job = new GenerateThumbnail($log);
         $job->handle($mockService, $this->createMock(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
+
+        Log::shouldHaveReceived('info')->twice();
+        Log::shouldNotHaveReceived('warning');
     }
 
     #[Test]
@@ -227,15 +231,14 @@ class GenerateThumbnailJobTest extends TestCase
             ->with($this->callback(fn (Sermon $model): bool => $model->is($sermon)), 'sermons/1/video.mp4', 'public')
             ->willThrowException(new \Exception('Service error'));
 
-        Log::partialMock();
-        Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('warning')->atLeast()->once();
-
         $job = new GenerateThumbnail($log);
         $job->handle($mockService, $this->createMock(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
+
+        Log::shouldHaveReceived('info')->atLeast()->once();
+        Log::shouldHaveReceived('warning')->atLeast()->once();
     }
 
     #[Test]
@@ -261,13 +264,12 @@ class GenerateThumbnailJobTest extends TestCase
             ->with($this->callback(fn (Sermon $model): bool => $model->is($sermon)), 'sermons/1/final-video.mp4', 'public')
             ->willReturn(ThumbnailResult::skipped('Not needed for this test'));
 
-        Log::partialMock();
-        Log::shouldReceive('debug')->atLeast()->once();
-        Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('warning')->atLeast()->once();
-
         $job = new GenerateThumbnail($log);
         $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+
+        Log::shouldHaveReceived('debug')->atLeast()->once();
+        Log::shouldHaveReceived('info')->atLeast()->once();
+        Log::shouldHaveReceived('warning')->atLeast()->once();
     }
 
     #[Test]
@@ -286,7 +288,7 @@ class GenerateThumbnailJobTest extends TestCase
     #[Test]
     public function it_has_correct_retry_until_time(): void
     {
-        \Illuminate\Support\Carbon::setTestNow('2026-05-27 12:00:00');
+        Carbon::setTestNow('2026-05-27 12:00:00');
         $job = new GenerateThumbnail(MediaProcessingLog::factory()->video()->processing()->create());
 
         $retryUntil = $job->retryUntil();
@@ -296,7 +298,6 @@ class GenerateThumbnailJobTest extends TestCase
             now()->addDay()->timestamp,
             $retryUntil->getTimestamp()
         );
-        \Illuminate\Support\Carbon::setTestNow();
     }
 
     #[Test]
@@ -307,8 +308,9 @@ class GenerateThumbnailJobTest extends TestCase
         ]);
         $job = new GenerateThumbnail($this->createProcessingLog($sermon, 'sermons/1/video.mp4'));
 
-        Log::partialMock();
-        Log::shouldReceive('warning')->once()->with(
+        $job->failed(new \Exception('Test failure'));
+
+        Log::shouldHaveReceived('warning')->once()->with(
             'GenerateThumbnail job failed permanently',
             \Mockery::on(function (array $context) use ($sermon): bool {
                 return $context['sermon_id'] === $sermon->id &&
@@ -317,8 +319,6 @@ class GenerateThumbnailJobTest extends TestCase
                     isset($context['attempts']);
             })
         );
-
-        $job->failed(new \Exception('Test failure'));
     }
 
     #[Test]
@@ -331,11 +331,10 @@ class GenerateThumbnailJobTest extends TestCase
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->never())->method('generateThumbnail');
 
-        Log::partialMock();
-        Log::shouldReceive('info')->once()->with('GenerateThumbnail job skipped: processing cancelled', \Mockery::any());
-
         $job = new GenerateThumbnail($log);
         $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+
+        Log::shouldHaveReceived('info')->once()->with('GenerateThumbnail job skipped: processing cancelled', \Mockery::any());
     }
 
     private function createProcessingLog(
