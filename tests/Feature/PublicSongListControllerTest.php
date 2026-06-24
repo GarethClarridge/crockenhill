@@ -102,7 +102,7 @@ class PublicSongListControllerTest extends TestCase
         $response = $this->actingAs($this->user)->get("/church/songs/{$song->slug}");
 
         $response->assertStatus(200);
-        $response->assertViewHas('song', $song);
+        $response->assertViewHas('song', fn (Song $viewSong): bool => $viewSong->is($song));
         $response->assertViewHas('usageCount');
         $response->assertViewHas('lastSungDate');
         $response->assertViewHas('usageHistory');
