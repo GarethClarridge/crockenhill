@@ -16,12 +16,50 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 class SermonExtractionPlanResolver
 {
     /**
+     * Resolve the optimal sermon extraction plan from a livestream recording.
+     *
+     * This method implements a multi-layered decision hierarchy to determine exactly which
+     * segments of a livestream recording should be extracted as the sermon. It prioritizes
+     * high-precision markers before falling back to coarser baseline data.
+     *
+     * Decision Hierarchy:
+     * 1. Manual Confirmation: If a human has explicitly selected a segment in the UI, that
+     *    selection always wins.
+     * 2. Enhanced Extraction: If the "enhanced sermon" feature is enabled, the resolver
+     *    looks for high-confidence sermon sections identified during pipeline processing.
+     *    It attempts to pair the sermon with a preceding Bible reading section.
+     * 3. Baseline: Fall back to the coarse start/end times originally detected during the
+     *    initial media processing pass.
+     *
+     * Extraction Modes:
+     * - 'single_span': Extracts one contiguous block of audio/video. This is used for
+     *   manual confirmations, baseline fallbacks, or when a sermon and its reading are
+     *   adjacent (gap < configured threshold).
+     * - 'concat_spans': Extracts multiple non-contiguous segments and joins them. This is
+     *   used when a Bible reading and sermon are separated by a gap (e.g., a short song or
+     *   prayer) but should still be presented as a single media item.
+     * - 'baseline': A special mode indicating the resolver fell through to original
+     *   processing log times.
+     *
+     * Logic Constraints and Failure Modes:
+     * - F10 (Under-segmentation): If a sermon section exceeds a plausible maximum duration,
+     *   it is rejected as it likely includes multiple service elements that weren't correctly
+     *   split by RMS analysis.
+     * - F3 (Pairing Gap): Bible readings too far removed from the sermon (exceeding
+     *   max_pairing_gap_seconds) are not paired to avoid including irrelevant readings.
+     * - F5/F17 (Reading Evidence): Readings are ranked by evidence (linkage to OoS items,
+     *   substantive duration, proximity) rather than simple order to find the most likely
+     *   preached text.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log of the current processing run
      * @return array{
      *     mode: 'single_span'|'concat_spans'|'baseline',
      *     source: 'service_sections'|'processing_log'|'manual_review',
      *     segments: array<int, array{start_time: float, end_time: float}>,
      *     metadata: array<string, mixed>
      * }
+     *
+     * @throws \Exception When baseline times are missing or confirmed segments cannot be found.
      */
     public function resolve(MediaProcessingLog $processingLog): array
     {
