@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\Scripture\ScriptureReferenceResolver;
+use PHPUnit\Framework\TestCase;
 use TechWilk\BibleVerseParser\BiblePassageParser;
-use Tests\TestCase;
 
 class ScriptureReferenceResolverTest extends TestCase
 {

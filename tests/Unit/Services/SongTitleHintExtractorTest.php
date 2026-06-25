@@ -8,7 +8,7 @@ use App\Enums\ServiceSectionType;
 use App\Services\Song\SongTitleHintExtractor;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class SongTitleHintExtractorTest extends TestCase
 {

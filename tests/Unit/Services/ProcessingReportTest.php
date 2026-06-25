@@ -7,7 +7,7 @@ namespace Tests\Unit\Services;
 use App\Data\ProcessingReport;
 use App\Enums\ProcessingStatus;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class ProcessingReportTest extends TestCase
 {
