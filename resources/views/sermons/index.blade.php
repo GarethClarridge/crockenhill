@@ -38,10 +38,7 @@
 
     @if (auth()->user()?->canAccessAdmin())
         <div class="px-6 max-w-2xl mx-auto mt-6 my-12">
-            <x-button
-                link="{{ route('admin.services.upload-recording') }}"
-                aria-label="Upload a new sermon recording"
-            >
+            <x-button link="{{ route('admin.services.upload-recording') }}">
                 Upload a new sermon
             </x-button>
         </div>

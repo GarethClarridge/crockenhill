@@ -83,29 +83,9 @@
                         class="mt-6 w-full"
                         aria-label="Bar chart of song usage by year">
                         @php $maxCount = max(array_column($usageByYear, 'count')); @endphp
-
-                        <table class="sr-only">
-                            <caption>Song usage by year</caption>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Year</th>
-                                    <th scope="col">Uses</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($usageByYear as $entry)
-                                    <tr>
-                                        <td>{{ $entry['year'] }}</td>
-                                        <td>{{ $entry['count'] }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
                         <div
                             class="overflow-x-auto"
-                            x-init="$el.scrollLeft = $el.scrollWidth"
-                            aria-hidden="true">
+                            x-init="$el.scrollLeft = $el.scrollWidth">
                             <div class="relative flex items-end gap-2" style="height: 120px; min-width: max-content;">
                                 @foreach($usageByYear as $entry)
                                     @php $heightPx = $maxCount > 0 ? round(($entry['count'] / $maxCount) * 120) : 0; @endphp

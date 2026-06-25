@@ -10,6 +10,6 @@
 **Learning:** Landing pages featuring a central video (like the gospel explanation on `/christ`) should implement `VideoObject` JSON-LD. This signals to search engines that the page contains significant video content, potentially qualifying it for video rich results and enhancing its appearance in search.
 **Action:** Include `VideoObject` schema on key landing pages with prominent video content, ensuring `duration`, `uploadDate`, and a high-quality `thumbnailUrl` are provided.
 
-## 2026-06-25 - [Schema.org] Church is a Place, not an Organization
-**Learning:** Schema.org `Church` sits under `Place > CivicStructure > PlaceOfWorship`, **not** under `Organization`. Properties whose expected range is an organization — `publisher`, `worksFor`, `organizer` — require `Organization` (or `Person`); supplying a `Church` (a Place) there makes Google's rich-result parsers ignore or flag the value. `Church` is only appropriate for the standalone place/organization entity node itself (e.g. a `LocalBusiness`/`Place` block with address and geo).
-**Action:** Keep `@type: Organization` for `publisher`/`worksFor`/`organizer` relationship values. Reserve `Church` for the dedicated place entity, not for organization references.
+## 2026-06-25 - [Schema.org] Entity Types for Churches
+**Learning:** The canonical @type for a church in Schema.org is `Church`. However, Google's rich-result parsers often expect the base `Organization` type for specific property ranges like `publisher`, `worksFor`, and `organizer`. Using the more specific `Church` subtype in these contexts can cause validation warnings or failures.
+**Action:** Use `@type: Church` for the primary entity node (e.g. in `schema/organization.blade.php`), but revert to `@type: Organization` for property values like `publisher`, `worksFor`, or `organizer` to ensure maximum compatibility with search engine parsers.

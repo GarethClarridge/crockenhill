@@ -114,7 +114,7 @@ class Preacher extends Model implements Sitemapable
     {
         return Attribute::make(
             get: function (): ?string {
-                if (blank($this->image_path)) {
+                if (! $this->image_path) {
                     return null;
                 }
 

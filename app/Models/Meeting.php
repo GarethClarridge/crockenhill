@@ -232,7 +232,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public function hasContent(): bool
     {
-        return filled($this->page);
+        return $this->page !== null;
     }
 
     /**
@@ -245,7 +245,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     {
         return Attribute::make(
             get: function (): ?string {
-                if (filled($this->meeting_date)) {
+                if ($this->meeting_date) {
                     $dateTime = $this->meeting_date;
                     // If start_time is a Carbon instance (due to cast) and represents a valid time
                     if ($this->start_time instanceof Carbon) {
@@ -312,7 +312,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     {
         $meetingDate = $this->meeting_date;
 
-        if (! $this->is_recurring || ! $meetingDate instanceof Carbon || blank($this->frequency)) {
+        if (! $this->is_recurring || ! $meetingDate instanceof Carbon || ! $this->frequency) {
             return null;
         }
 

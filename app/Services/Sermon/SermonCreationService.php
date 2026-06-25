@@ -518,7 +518,7 @@ class SermonCreationService
 
         $normalized = $this->preacherResolutionService->normalizeWhitespace($name);
 
-        return filled($normalized) ? $normalized : null;
+        return $normalized === '' ? null : $normalized;
     }
 
     /**
@@ -712,7 +712,7 @@ class SermonCreationService
     {
         $normalized = trim($title);
 
-        if (blank($normalized)) {
+        if ($normalized === '') {
             return true;
         }
 

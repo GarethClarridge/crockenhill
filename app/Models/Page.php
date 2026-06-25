@@ -68,7 +68,7 @@ class Page extends Model implements HasMedia, Sitemapable
 
             $heading = trim($page->heading);
 
-            $page->description = filled($heading) ? $heading : 'No description provided.';
+            $page->description = $heading !== '' ? $heading : 'No description provided.';
         });
     }
 
@@ -166,7 +166,7 @@ class Page extends Model implements HasMedia, Sitemapable
     {
         return Attribute::make(
             get: function (): ?string {
-                if (filled($this->slug)) {
+                if ($this->slug !== '') {
                     return '/'.trim($this->area->value, '/').'/'.trim($this->slug, '/');
                 }
 
@@ -244,7 +244,7 @@ class Page extends Model implements HasMedia, Sitemapable
             get: function (): string {
                 $description = trim(strip_tags($this->description ?? ''));
 
-                if (blank($description)) {
+                if (empty($description)) {
                     $description = $this->heading;
                 }
 

@@ -17,24 +17,10 @@ use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
-/**
- * Handler for enhancing and publishing song segments extracted from livestreams.
- *
- * This handler manages the "livestream-to-song" pipeline, which includes downloading
- * extracted video clips, applying audio enhancement (normalization) if possible,
- * and promoting the final video asset to the public sermon disk where it is
- * linked to a canonical Song model.
- */
 class SongPublicationHandler implements SectionPublicationHandler
 {
     use SanitizesLogData;
 
-    /**
-     * @param  SongVideoService  $songVideoService  Service for managing song video records
-     * @param  ServiceSectionPublicationTransitionService  $publicationTransitions  Service for managing section state transitions
-     * @param  AudioEnhancementService  $audioEnhancement  Service for normalizing audio in video files
-     * @param  StorageAdapterHelper  $storageHelper  Service for cross-disk storage operations
-     */
     public function __construct(
         private readonly SongVideoService $songVideoService,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
@@ -42,17 +28,11 @@ class SongPublicationHandler implements SectionPublicationHandler
         private readonly StorageAdapterHelper $storageHelper,
     ) {}
 
-    /**
-     * {@inheritDoc}
-     */
     public function requiresAudioExtraction(): bool
     {
         return false;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function hasReusableExtractedMedia(ServiceSection $section): bool
     {
         $videoPath = $section->extracted_video_path;
@@ -64,15 +44,6 @@ class SongPublicationHandler implements SectionPublicationHandler
         return Storage::disk($section->extractedAssetDisk($videoPath))->exists($videoPath);
     }
 
-    /**
-     * Determine if a song section is eligible for automated publication.
-     *
-     * Song publication requires either a confirmed song match or a high-confidence
-     * inferred match linked to a canonical Song record in the database.
-     *
-     * @param  ServiceSection  $section  The section to evaluate
-     * @return bool True if the section is linked to a valid song
-     */
     public function isEligible(ServiceSection $section): bool
     {
         if (! $section->hasConfirmedSongMatch() && ! $section->hasInferredSongMatch()) {
@@ -84,34 +55,16 @@ class SongPublicationHandler implements SectionPublicationHandler
         return $item !== null && $item->song_id !== null;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function afterExtraction(ServiceSection $section): void
     {
         // No post-extraction enrichment needed for songs.
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function requiresApproval(): bool
     {
         return false;
     }
 
-    /**
-     * Publish a song section by enhancing its audio and promoting the asset.
-     *
-     * Downloads the extracted video to local temp storage, applies normalization
-     * via the AudioEnhancementService, and promotes the final MP4 to the public
-     * sermon disk before creating the SongVideo record.
-     *
-     * @param  ServiceSection  $section  The section to publish
-     *
-     * @throws \RuntimeException If assets are missing, song links are broken,
-     *                           or storage promotion fails.
-     */
     public function publish(ServiceSection $section): void
     {
         // Idempotent: skip if a SongVideo already exists for this section.
@@ -183,11 +136,6 @@ class SongPublicationHandler implements SectionPublicationHandler
         $section->save();
     }
 
-    /**
-     * Handle removal of a section by deleting its associated SongVideo and file.
-     *
-     * @param  ServiceSection  $section  The removed section
-     */
     public function onSectionRemoved(ServiceSection $section): void
     {
         $songVideo = SongVideo::query()

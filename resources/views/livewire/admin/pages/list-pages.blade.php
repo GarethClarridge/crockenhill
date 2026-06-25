@@ -73,7 +73,7 @@
                     <td class="px-4 py-3">
                         @if($page->hasMedia('headings'))
                             <img src="{{ $page->getFirstMediaUrl('headings', 'thumbnail') }}"
-                                 alt="Thumbnail for {{ $page->heading }}"
+                                 alt="Header image for {{ $page->heading }}"
                                  class="w-10 h-10 object-cover rounded-lg"
                                  loading="lazy" />
                         @else
