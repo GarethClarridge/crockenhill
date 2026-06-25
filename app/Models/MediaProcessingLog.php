@@ -150,6 +150,7 @@ class MediaProcessingLog extends Model
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
             'processing_type' => MediaType::class,
             'status' => ProcessingStatus::class,
             'ai_analysis' => SermonAnalysisCast::class,

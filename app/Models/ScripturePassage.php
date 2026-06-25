@@ -47,6 +47,7 @@ class ScripturePassage extends Model
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
             'fetched_at' => 'datetime',
         ];
     }

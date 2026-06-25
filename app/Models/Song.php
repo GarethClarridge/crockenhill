@@ -150,6 +150,7 @@ class Song extends Model
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
             'import_metadata' => 'array',
         ];
     }

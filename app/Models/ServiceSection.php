@@ -98,6 +98,9 @@ class ServiceSection extends Model
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
+            'media_processing_log_id' => 'integer',
+            'church_service_item_id' => 'integer',
             'section_type' => ServiceSectionType::class,
             'section_order' => 'integer',
             'start_time' => 'float',

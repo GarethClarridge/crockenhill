@@ -51,6 +51,7 @@ class SongBook extends Model
     protected function casts(): array
     {
         return [
+            'id' => 'integer',
             'source_book_id' => 'integer',
         ];
     }
