@@ -133,7 +133,7 @@ class Song extends Model
         };
 
         return [
-            'title' => ['required', 'string', 'max:100'],
+            'title' => ['required', 'string', 'max:255'],
             'slug' => $slugRule,
             'canonical_key' => ['required', 'string', 'max:255', $uniqueCanonicalKey],
             'alternate_title' => ['nullable', 'string', 'max:255'],
