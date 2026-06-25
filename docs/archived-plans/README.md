@@ -23,6 +23,7 @@ This folder contains completed implementation plans and historical audit/refacto
 | **media-upload-combined-report-and-plan.md** | April 2026 | Historical combined audit and phased media-upload refactor plan after completed context was split out |
 | **livestream-derived-service-plan.md** | April 2026 | Livestream-first church service projection, staged merge review, and identity-first matching plan after delivery |
 | **SERVICE-UI-CONSOLIDATION-2026-06-10.md** | June 2026 | Service/livestream admin IA refactor consolidating 13 surfaces into 6 (services hub, workbench, review inbox); retired queue pages 302 to inbox filters |
+| **TESTING-REMEDIATION-PLAN.md** | June 2026 | Test-suite runtime/flakiness remediation (T1–T9): removed Pwned Passwords & DigitalOcean Spaces network calls, added `Http::preventStrayRequests()`, re-levelled the SEO/metadata cluster to presenter tests, consolidated schema tests, cleared placeholder assertions, standardised DB traits, and moved pure-function unit tests off the Laravel TestCase |
 
 ## Historical Audits & Reports
 
