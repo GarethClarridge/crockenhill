@@ -37,13 +37,6 @@ class SermonViewPresenter
     private array $memoizedPresents = [];
 
     /**
-     * Memoization for formatted dates.
-     *
-     * @var array<int, array{human: string, iso: string, short: string}>
-     */
-    private array $memoizedDates = [];
-
-    /**
      * Tracks which keys have been computed, allowing null to be a legitimate cached result.
      *
      * @var array<string, true>
@@ -55,6 +48,7 @@ class SermonViewPresenter
         private readonly SermonStorageService $storageService,
         private readonly SermonTranscriptReader $transcriptReader,
         private readonly SermonPresentationAssembler $assembler = new SermonPresentationAssembler,
+        private readonly SermonDateFormatter $dateFormatter = new SermonDateFormatter,
     ) {}
 
     /**
@@ -62,7 +56,7 @@ class SermonViewPresenter
      */
     public function formattedDuration(Sermon $sermon): ?string
     {
-        return SermonContentFormatter::humanDuration($this->durationInSeconds($sermon));
+        return $this->dateFormatter->formattedDuration($sermon);
     }
 
     /**
@@ -70,36 +64,17 @@ class SermonViewPresenter
      */
     public function durationIso8601(Sermon $sermon): ?string
     {
-        return SermonContentFormatter::iso8601Duration($this->durationInSeconds($sermon));
-    }
-
-    /**
-     * Normalize the float-cast `duration` column to an integer number of seconds.
-     */
-    private function durationInSeconds(Sermon $sermon): ?int
-    {
-        return $sermon->duration === null ? null : (int) $sermon->duration;
+        return $this->dateFormatter->durationIso8601($sermon);
     }
 
     /**
      * Get various formatted date strings for the sermon.
      *
-     * Performance Optimization: Memoizes date formatting results by timestamp
-     * to avoid redundant object calls and string formatting across multiple
-     * sermons sharing the same date in a listing. Returns human-friendly,
-     * ISO 8601, and short display formats.
-     *
      * @return array{human: string, iso: string, short: string}
      */
     public function formattedDates(Sermon $sermon): array
     {
-        $timestamp = $sermon->date->getTimestamp();
-
-        return $this->memoizedDates[$timestamp] ??= [
-            'human' => $sermon->date->format('F j, Y'),
-            'iso' => $sermon->date->toDateString(),
-            'short' => $sermon->date->format('j F Y'),
-        ];
+        return $this->dateFormatter->formattedDates($sermon);
     }
 
     /**
@@ -107,7 +82,7 @@ class SermonViewPresenter
      */
     public function humanDate(Sermon $sermon): string
     {
-        return $this->formattedDates($sermon)['human'];
+        return $this->dateFormatter->humanDate($sermon);
     }
 
     /**
@@ -119,8 +94,8 @@ class SermonViewPresenter
         $this->memoized = [];
         $this->memoizedUrls = [];
         $this->memoizedPresents = [];
-        $this->memoizedDates = [];
         $this->computed = [];
+        $this->dateFormatter->clearCache();
     }
 
     public function audioUrl(Sermon $sermon): ?string
