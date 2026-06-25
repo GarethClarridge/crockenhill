@@ -25,6 +25,7 @@
         'worksFor' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),
+            'url' => config('app.url'),
             '@id' => config('app.url').'/#organization',
         ],
     ];
@@ -52,6 +53,7 @@
         'publisher' => [
             '@type' => 'Organization',
             'name' => config('organization.name'),
+            'url' => config('app.url'),
             '@id' => config('app.url').'/#organization',
             'logo' => [
                 '@type' => 'ImageObject',
@@ -80,6 +82,7 @@
             'name' => $sermon->series,
             'url' => $sermonView['series_url'],
             '@id' => $sermonView['series_url'] . '#series',
+            'inLanguage' => 'en-GB',
         ];
     }
 
@@ -94,10 +97,12 @@
         $schema['video'] = [
             '@type' => 'VideoObject',
             'name' => $sermon->title,
+            'url' => $sermonView['canonical_url'],
             'description' => $metaDescription,
             'thumbnailUrl' => $thumbnailUrl,
             'uploadDate' => $datePublished,
             'contentUrl' => $sermonView['video_url'],
+            'inLanguage' => 'en-GB',
             'author' => $author,
             'publisher' => $schema['publisher'],
         ];
@@ -115,10 +120,12 @@
         $schema['audio'] = [
             '@type' => 'AudioObject',
             'name' => $sermon->title,
+            'url' => $sermonView['canonical_url'],
             'contentUrl' => $sermonView['audio_url'],
             'description' => $metaDescription,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
+            'inLanguage' => 'en-GB',
             'author' => $author,
             'publisher' => $schema['publisher'],
         ];
