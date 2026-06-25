@@ -21,11 +21,12 @@ class TrimmedTextTest extends TestCase
     #[Test]
     public function it_passes_for_null_values(): void
     {
-        $this->rule->validate('attribute', null, function ($message) {
-            $this->fail('Validation should have passed for null: '.$message);
+        $failed = false;
+        $this->rule->validate('attribute', null, function () use (&$failed) {
+            $failed = true;
         });
 
-        $this->assertTrue(true);
+        $this->assertFalse($failed, 'Validation should have passed for null.');
     }
 
     #[Test]
@@ -40,12 +41,13 @@ class TrimmedTextTest extends TestCase
         ];
 
         foreach ($validStrings as $value) {
-            $this->rule->validate('attribute', $value, function ($message) use ($value) {
-                $this->fail("Validation should have passed for '{$value}': ".$message);
+            $failed = false;
+            $this->rule->validate('attribute', $value, function () use (&$failed) {
+                $failed = true;
             });
-        }
 
-        $this->assertTrue(true);
+            $this->assertFalse($failed, "Validation should have passed for '{$value}'.");
+        }
     }
 
     #[Test]
