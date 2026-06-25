@@ -481,7 +481,7 @@ class SermonAssetControllerTest extends TestCase
     {
         $sermon = Sermon::factory()->create(['slug' => 'transcript-sermon', 'transcript_file_path' => 'transcripts/sample.txt']);
 
-        $reader = $this->createMock(SermonTranscriptReader::class);
+        $reader = $this->createStub(SermonTranscriptReader::class);
         $reader->method('read')->willReturn("Hello **world**.\n\nSecond paragraph.");
         $this->app->instance(SermonTranscriptReader::class, $reader);
 

@@ -23,7 +23,7 @@ class MeetingShowPresenterTest extends TestCase
         parent::setUp();
 
         $this->presenter = new MeetingShowPresenter(
-            $this->createMock(PageLayoutPresenter::class),
+            $this->createStub(PageLayoutPresenter::class),
         );
     }
 

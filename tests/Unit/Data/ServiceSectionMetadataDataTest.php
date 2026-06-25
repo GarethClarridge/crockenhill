@@ -122,7 +122,7 @@ class ServiceSectionMetadataDataTest extends TestCase
     public function cast_get_deserialises_json(): void
     {
         $cast = new ServiceSectionMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $json = json_encode(['confidence_level' => 'high', 'song_id' => 7]);
         $result = $cast->get($model, 'metadata', $json, []);
@@ -136,7 +136,7 @@ class ServiceSectionMetadataDataTest extends TestCase
     public function cast_get_returns_empty_metadata_for_null(): void
     {
         $cast = new ServiceSectionMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $result = $cast->get($model, 'metadata', null, []);
         $this->assertInstanceOf(ServiceSectionMetadata::class, $result);
@@ -146,7 +146,7 @@ class ServiceSectionMetadataDataTest extends TestCase
     public function cast_set_serialises_to_json(): void
     {
         $cast = new ServiceSectionMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $metadata = ServiceSectionMetadata::fromArray(['confidence_level' => 'low', 'song_id' => 3]);
         $result = $cast->set($model, 'metadata', $metadata, []);
@@ -160,7 +160,7 @@ class ServiceSectionMetadataDataTest extends TestCase
     public function cast_set_returns_null_for_null(): void
     {
         $cast = new ServiceSectionMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $this->assertNull($cast->set($model, 'metadata', null, []));
     }
@@ -169,7 +169,7 @@ class ServiceSectionMetadataDataTest extends TestCase
     public function cast_round_trips_metadata(): void
     {
         $cast = new ServiceSectionMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $original = ServiceSectionMetadata::fromArray([
             'confidence_level' => 'high',

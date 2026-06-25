@@ -6,14 +6,14 @@ namespace Tests\Feature;
 
 use App\Enums\SermonService;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PodcastFeedTranscriptLinkTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function podcast_feed_contains_resolvable_transcript_url(): void

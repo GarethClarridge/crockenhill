@@ -35,7 +35,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         Storage::fake('public');
 
         // Mock the logger dependency
-        $this->mockLogger = $this->createMock(SermonProcessingLogger::class);
+        $this->mockLogger = $this->createStub(SermonProcessingLogger::class);
 
         // Set OpenAI API key for testing
         Config::set('media-processing.transcription.openai_api_key', 'test-api-key');

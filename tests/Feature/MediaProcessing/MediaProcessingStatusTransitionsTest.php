@@ -407,7 +407,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->audio()->failed()->create();
 
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockProcessor->method('retry')->willReturn(
             ProcessingResult::success($log->processing_id, 'Retry initiated')
         );

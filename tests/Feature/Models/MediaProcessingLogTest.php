@@ -6,13 +6,13 @@ namespace Tests\Feature\Models;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MediaProcessingLogTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_identifies_completed_status(): void

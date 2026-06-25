@@ -378,7 +378,7 @@ class MetadataExtractionServiceTest extends TestCase
         ];
 
         foreach ($testCases as $extension => $expected) {
-            $file = $this->createMock(UploadedFile::class);
+            $file = $this->createStub(UploadedFile::class);
             $file->method('getClientOriginalName')->willReturn('test'.($extension ? '.'.$extension : ''));
             $file->method('hashName')->willReturn('hash.mp3');
             $file->method('getClientOriginalExtension')->willReturn($extension);

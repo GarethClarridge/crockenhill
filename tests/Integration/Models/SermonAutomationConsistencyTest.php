@@ -6,13 +6,13 @@ namespace Tests\Integration\Models;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonAutomationConsistencyTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_returns_false_for_is_automated_on_unsaved_models_even_if_unlinked_logs_exist(): void

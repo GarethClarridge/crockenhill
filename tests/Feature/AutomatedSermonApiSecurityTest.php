@@ -168,7 +168,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
             processingId: 'test-uuid-token-ability',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
@@ -191,7 +191,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
             processingId: 'test-uuid-token-ability',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
@@ -238,7 +238,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
             processingId: 'test-uuid-mime',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
@@ -275,7 +275,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
             processingId: 'test-uuid-path',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
@@ -344,7 +344,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
             processingId: 'test-uuid-zipbomb',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
@@ -363,7 +363,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
     public function it_sanitizes_user_input_in_logs(): void
     {
         // Mock the unified media processor to keep this test focused on logging behavior.
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Sermon processing initiated successfully'
@@ -470,7 +470,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
             processingId: 'test-uuid-123',
             message: 'Processing retry initiated successfully'
         );
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockProcessor->method('retry')->willReturn($mockResult);
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
@@ -502,7 +502,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
             processingId: 'test-uuid-content-type',
             message: 'Audio processing initiated successfully'
         );
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturn($mockResult);
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
@@ -554,7 +554,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
     public function it_limits_request_frequency(): void
     {
         // Mock UnifiedMediaProcessor to avoid actual processing on upload
-        $mockService = $this->createMock(UnifiedMediaProcessor::class);
+        $mockService = $this->createStub(UnifiedMediaProcessor::class);
         $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Sermon processing initiated successfully'

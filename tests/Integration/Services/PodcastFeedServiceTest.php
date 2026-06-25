@@ -30,7 +30,7 @@ class PodcastFeedServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->storageService = $this->createMock(SermonStorageService::class);
+        $this->storageService = $this->createStub(SermonStorageService::class);
         $this->service = new PodcastFeedService(
             $this->storageService,
             new SermonViewPresenter(

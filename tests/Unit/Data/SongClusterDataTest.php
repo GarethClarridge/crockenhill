@@ -178,7 +178,7 @@ class SongClusterDataTest extends TestCase
     public function cast_get_deserialises_json_to_collection(): void
     {
         $cast = new SongClusterCollectionCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $json = json_encode([$this->validClusterArray()]);
         $result = $cast->get($model, 'clusters', $json, []);
@@ -191,7 +191,7 @@ class SongClusterDataTest extends TestCase
     public function cast_get_returns_null_for_empty_value(): void
     {
         $cast = new SongClusterCollectionCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $this->assertNull($cast->get($model, 'clusters', '', []));
         $this->assertNull($cast->get($model, 'clusters', null, []));
@@ -201,7 +201,7 @@ class SongClusterDataTest extends TestCase
     public function cast_set_serialises_collection_to_json(): void
     {
         $cast = new SongClusterCollectionCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $collection = SongClusterCollection::fromArray([$this->validClusterArray()]);
         $result = $cast->set($model, 'clusters', $collection, []);
@@ -216,7 +216,7 @@ class SongClusterDataTest extends TestCase
     public function cast_set_returns_null_for_null(): void
     {
         $cast = new SongClusterCollectionCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $this->assertNull($cast->set($model, 'clusters', null, []));
     }
@@ -225,7 +225,7 @@ class SongClusterDataTest extends TestCase
     public function cast_round_trips_collection(): void
     {
         $cast = new SongClusterCollectionCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $original = SongClusterCollection::fromArray([$this->validClusterArray()]);
         $json = $cast->set($model, 'clusters', $original, []);

@@ -75,7 +75,7 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
 
         // The speaker-identification provider is the only AI dependency; mock it to a match
         // so the children's-talk speaker resolves automatically (no manual review needed).
-        $speakerService = $this->createMock(SpeakerIdentificationInterface::class);
+        $speakerService = $this->createStub(SpeakerIdentificationInterface::class);
         $speakerService->method('identify')->willReturn(SpeakerMatchResult::matched(
             $profile->load('preacher'),
             0.93,
@@ -142,7 +142,7 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
      */
     private function fakeVideoExtractor(): VideoExtractionService
     {
-        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor = $this->createStub(VideoExtractionService::class);
 
         $videoExtractor->method('extractSegmentAsFile')
             ->willReturnCallback(function (string $inputPath, object $segment, ?string $outputFilename): string {

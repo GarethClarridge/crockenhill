@@ -304,7 +304,7 @@ class BatchApproveServicePublicationsTest extends TestCase
         Storage::disk('public')->put('sections/default-error/video.mp4', 'video');
         Storage::disk('public')->put('sections/default-error/audio.mp3', 'audio');
 
-        $mockApprove = $this->createMock(ApproveSectionForPublication::class);
+        $mockApprove = $this->createStub(ApproveSectionForPublication::class);
         $mockApprove->method('approvalBlocker')->willReturn(null);
         $mockApprove->method('execute')->willReturn('  Some Unexpected Error Message  ');
         $this->app->instance(ApproveSectionForPublication::class, $mockApprove);

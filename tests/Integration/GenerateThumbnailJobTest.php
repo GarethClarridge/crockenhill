@@ -104,7 +104,7 @@ class GenerateThumbnailJobTest extends TestCase
             ));
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertSame('sermons/thumbnails/test.jpg', $sermon->thumbnail_file_path);
@@ -133,7 +133,7 @@ class GenerateThumbnailJobTest extends TestCase
             ->willReturn(ThumbnailResult::skipped('Test failure'));
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -158,7 +158,7 @@ class GenerateThumbnailJobTest extends TestCase
         $mockService->expects($this->never())->method('generateThumbnail');
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         Log::shouldHaveReceived('error')->once()->with(
             'Missing sermon ID or video path for thumbnail generation',
@@ -178,7 +178,7 @@ class GenerateThumbnailJobTest extends TestCase
         $mockService->expects($this->never())->method('generateThumbnail');
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         Log::shouldHaveReceived('info')->once();
         Log::shouldHaveReceived('warning')->once()->with(
@@ -206,7 +206,7 @@ class GenerateThumbnailJobTest extends TestCase
         $mockService->expects($this->never())->method('generateThumbnail');
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -232,7 +232,7 @@ class GenerateThumbnailJobTest extends TestCase
             ->willThrowException(new \Exception('Service error'));
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -265,7 +265,7 @@ class GenerateThumbnailJobTest extends TestCase
             ->willReturn(ThumbnailResult::skipped('Not needed for this test'));
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         Log::shouldHaveReceived('debug')->atLeast()->once();
         Log::shouldHaveReceived('info')->atLeast()->once();
@@ -332,7 +332,7 @@ class GenerateThumbnailJobTest extends TestCase
         $mockService->expects($this->never())->method('generateThumbnail');
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         Log::shouldHaveReceived('info')->once()->with('GenerateThumbnail job skipped: processing cancelled', \Mockery::any());
     }

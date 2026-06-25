@@ -234,7 +234,7 @@ class SermonAnalysisDataTest extends TestCase
     public function cast_get_deserialises_json_to_sermon_analysis(): void
     {
         $cast = new SermonAnalysisCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $json = json_encode([
             'title' => 'Cast Title',
@@ -252,7 +252,7 @@ class SermonAnalysisDataTest extends TestCase
     public function cast_get_returns_null_for_empty_value(): void
     {
         $cast = new SermonAnalysisCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $this->assertNull($cast->get($model, 'analysis', '', []));
         $this->assertNull($cast->get($model, 'analysis', null, []));
@@ -262,7 +262,7 @@ class SermonAnalysisDataTest extends TestCase
     public function cast_set_serialises_sermon_analysis_to_json(): void
     {
         $cast = new SermonAnalysisCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $analysis = SermonAnalysis::create('Title', null, null, [], null, str_repeat('t', 200));
         $result = $cast->set($model, 'analysis', $analysis, []);
@@ -276,7 +276,7 @@ class SermonAnalysisDataTest extends TestCase
     public function cast_set_returns_null_for_null_value(): void
     {
         $cast = new SermonAnalysisCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $this->assertNull($cast->set($model, 'analysis', null, []));
     }
@@ -285,7 +285,7 @@ class SermonAnalysisDataTest extends TestCase
     public function cast_round_trips_sermon_analysis(): void
     {
         $cast = new SermonAnalysisCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $original = SermonAnalysis::create('Round Trip', 'Series', 'John 1:1', ['P1', 'P2'], 'Summary', str_repeat('t', 200));
 

@@ -61,7 +61,7 @@ class ThumbnailErrorHandlingTest extends TestCase
         );
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -139,7 +139,7 @@ class ThumbnailErrorHandlingTest extends TestCase
         );
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -170,7 +170,7 @@ class ThumbnailErrorHandlingTest extends TestCase
         );
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -224,7 +224,7 @@ class ThumbnailErrorHandlingTest extends TestCase
         );
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
@@ -271,13 +271,13 @@ class ThumbnailErrorHandlingTest extends TestCase
             );
 
         $job1 = new GenerateThumbnail($log);
-        $job1->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job1->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
 
         $job2 = new GenerateThumbnail($log->fresh() ?? $log);
-        $job2->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job2->handle($mockService, $this->createStub(FrameExtractionService::class));
 
         $sermon->refresh();
         $this->assertEquals('sermons/thumbnails/recovered.jpg', $sermon->thumbnail_file_path);
@@ -304,7 +304,7 @@ class ThumbnailErrorHandlingTest extends TestCase
         );
 
         $job = new GenerateThumbnail($log);
-        $job->handle($mockService, $this->createMock(FrameExtractionService::class));
+        $job->handle($mockService, $this->createStub(FrameExtractionService::class));
     }
 
     private function createVideoProcessingLog(Sermon $sermon): MediaProcessingLog

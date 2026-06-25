@@ -31,7 +31,7 @@ class PublicMeetingReadModelCacheTest extends TestCase
     {
         parent::setUp();
 
-        $this->meetingShowPresenter = $this->createMock(MeetingShowPresenter::class);
+        $this->meetingShowPresenter = $this->createStub(MeetingShowPresenter::class);
         $this->publicPageReadModelCache = $this->createMock(PublicPageReadModelCache::class);
 
         $this->service = new PublicMeetingReadModelCache(

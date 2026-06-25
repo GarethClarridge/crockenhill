@@ -446,7 +446,7 @@ class MediaUploadTest extends TestCase
 
         $file = UploadedFile::fake()->create('livestream.mp4', 50000, 'video/mp4');
 
-        $mockSegmentationService = $this->createMock(VideoSegmentationService::class);
+        $mockSegmentationService = $this->createStub(VideoSegmentationService::class);
         $mockSegmentationService->method('validateVideoFile')->willReturn(true);
         $mockSegmentationService->method('getVideoMetadata')->willReturn([
             'duration' => 3600.0,
@@ -454,7 +454,7 @@ class MediaUploadTest extends TestCase
             'size' => 50000,
         ]);
 
-        $mockStorageService = $this->createMock(VideoStorageService::class);
+        $mockStorageService = $this->createStub(VideoStorageService::class);
         $mockStorageService->method('validateStorageSpace')->willReturn(true);
         $mockStorageService->method('storeUploadedVideo')->willReturn([
             'original_filename' => 'livestream.mp4',

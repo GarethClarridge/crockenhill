@@ -34,7 +34,7 @@ trait MediaProcessingTestHelpers
     {
         $processingId = $processingId ?? 'test-uuid-123';
 
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockResult = ProcessingResult::success(
             processingId: $processingId,
             message: 'Processing initiated successfully',
