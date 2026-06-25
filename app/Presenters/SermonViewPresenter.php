@@ -43,13 +43,21 @@ class SermonViewPresenter
      */
     private array $computed = [];
 
+    /**
+     * Builds the SEO/meta surface; defaults to one backed by the exposure policy.
+     */
+    private readonly SermonMetaPresenter $metaPresenter;
+
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonStorageService $storageService,
         private readonly SermonTranscriptReader $transcriptReader,
         private readonly SermonPresentationAssembler $assembler = new SermonPresentationAssembler,
         private readonly SermonDateFormatter $dateFormatter = new SermonDateFormatter,
-    ) {}
+        ?SermonMetaPresenter $metaPresenter = null,
+    ) {
+        $this->metaPresenter = $metaPresenter ?? new SermonMetaPresenter($this->exposurePolicy);
+    }
 
     /**
      * Get the human-friendly formatted duration of the sermon (e.g. "1h 30m").
@@ -580,21 +588,11 @@ class SermonViewPresenter
     }
 
     /**
-     * Generate the SEO meta description for a sermon.
-     *
-     * Performance Optimization: Memoizes generated meta descriptions to avoid
-     * redundant assembly logic for the same sermon within a single request.
-     * Checks for existing database-stored descriptions before falling back
-     * to dynamic generation.
-     */
-    /**
      * Get the descriptive alt text for a sermon thumbnail image.
      */
     public function imageAlt(Sermon $sermon): string
     {
-        $preacherName = $this->displayPreacherName($sermon);
-
-        return 'Sermon: '.$sermon->title.($preacherName ? ' by '.$preacherName : '');
+        return $this->metaPresenter->imageAlt($this, $sermon);
     }
 
     /**
@@ -602,35 +600,18 @@ class SermonViewPresenter
      */
     public function childrensTalkImageAlt(Sermon $sermon): string
     {
-        $preacherName = $this->displayPreacherName($sermon);
-
-        return "Children's Corner: ".$sermon->title.($preacherName ? ' by '.$preacherName : '');
+        return $this->metaPresenter->childrensTalkImageAlt($this, $sermon);
     }
 
+    /**
+     * Generate the SEO meta description for a sermon.
+     *
+     * The description shape lives on SermonMetaPresenter; this method adds only
+     * request-level memoization of the assembled result.
+     */
     public function metaDescription(Sermon $sermon): string
     {
-        return $this->memoize($sermon, 'meta_desc', 'memoized', function () use ($sermon): string {
-            $attributes = $sermon->getAttributes();
-            if (filled($attributes['meta_description'] ?? null)) {
-                return (string) $attributes['meta_description'];
-            }
-
-            $summary = ($sermon->show_summary && filled($sermon->summary))
-                ? strip_tags((string) $sermon->summary)
-                : null;
-
-            return SermonContentFormatter::metaDescription(
-                title: (string) $sermon->title,
-                preacherName: $this->displayPreacherName($sermon) ?? 'Unknown preacher',
-                humanDate: $this->humanDate($sermon),
-                reference: $this->displayReference($sermon),
-                series: filled($sermon->series) ? (string) $sermon->series : null,
-                serviceLabel: $this->serviceLabel($sermon),
-                hasVideo: $this->exposurePolicy->shouldExposeVideo($sermon),
-                hasAudio: filled($sermon->audio_file_path),
-                summary: $summary,
-            );
-        });
+        return $this->memoize($sermon, 'meta_desc', 'memoized', fn (): string => $this->metaPresenter->metaDescription($this, $sermon));
     }
 
     public function videoUrl(Sermon $sermon): ?string
