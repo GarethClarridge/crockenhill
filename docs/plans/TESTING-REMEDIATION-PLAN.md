@@ -40,7 +40,7 @@ Do **not** edit `AppServiceProvider` (production keeps the breach check). Instea
 - [tests/TestCase.php](../../tests/TestCase.php) — add the binding in `setUp()`.
 
 ### Tasks
-- [ ] In `tests/TestCase.php::setUp()` (after `parent::setUp()`), bind a fake verifier:
+- [x] In `tests/TestCase.php::setUp()` (after `parent::setUp()`), bind a fake verifier:
   ```php
   use Illuminate\Contracts\Validation\UncompromisedVerifier;
   // ...
@@ -51,15 +51,18 @@ Do **not** edit `AppServiceProvider` (production keeps the breach check). Instea
       }
   });
   ```
-- [ ] If any test genuinely needs to assert breach rejection (none found today), it can override this binding locally with a verifier returning `false`.
-- [ ] Decide the fate of [tests/Feature/Security/PasswordDefaultsTest.php](../../tests/Feature/Security/PasswordDefaultsTest.php): it still validly asserts min-length/letters/numbers/symbols against `Password::defaults()`; keep it, just confirm it no longer hits the network (it won't, post-binding).
+- [x] If any test genuinely needs to assert breach rejection (none found today), it can override this binding locally with a verifier returning `false`.
+- [x] Decide the fate of [tests/Feature/Security/PasswordDefaultsTest.php](../../tests/Feature/Security/PasswordDefaultsTest.php): it still validly asserts min-length/letters/numbers/symbols against `Password::defaults()`; keep it, just confirm it no longer hits the network (it won't, post-binding).
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact --parallel tests/Feature/Security/PasswordDefaultsTest.php tests/Feature/Security/AuditLoggingTest.php tests/Feature/Livewire/AdminUserTest.php tests/Feature/Auth/PasswordStrengthTest.php tests/Feature/Auth/AuthRateLimitingTest.php tests/Feature/Livewire/Admin/Users`
-- [ ] Confirm `PasswordDefaultsTest` drops from ~10 s to <1 s.
+- [x] `vendor/bin/sail artisan test --compact --parallel tests/Feature/Security/PasswordDefaultsTest.php tests/Feature/Security/AuditLoggingTest.php tests/Feature/Livewire/AdminUserTest.php tests/Feature/Auth/PasswordStrengthTest.php tests/Feature/Auth/AuthRateLimitingTest.php tests/Feature/Livewire/Admin/Users`
+- [x] Confirm `PasswordDefaultsTest` drops from ~10 s to <1 s.
+
+### What changed
+The fix lives entirely in the test container — production password policy is byte-for-byte unchanged. [tests/TestCase.php](../../tests/TestCase.php) now calls `preventPwnedPasswordsNetworkCall()` from `setUp()` (after `parent::setUp()`), rebinding `UncompromisedVerifier` to an anonymous no-network fake whose `verify()` always returns `true`. [app/Providers/AppServiceProvider.php](../../app/Providers/AppServiceProvider.php#L92-L98) keeps `Password::defaults()->...->uncompromised()` so the production breach check is untouched. `PasswordDefaultsTest` was kept verbatim: it still validates the min-12/letters/numbers/symbols rules against `Password::defaults()`, and with the fake verifier bound it satisfies `uncompromised()` without a round-trip to api.pwnedpasswords.com. No `runningUnitTests()` branch was introduced (Guardrail honoured).
 
 ### Exit criteria
-- No test reaches api.pwnedpasswords.com; the 11 user/auth files no longer depend on an external service.
+- [x] No test reaches api.pwnedpasswords.com; the 11 user/auth files no longer depend on an external service.
 
 ---
 
@@ -78,17 +81,20 @@ Point the test endpoint at an address that **refuses immediately** instead of ti
 - [config/filesystems.php:73-84](../../config/filesystems.php#L73-L84) — `do_spaces` disk; confirm it reads `DO_SPACES_ENDPOINT` (it does, line 79) and add an optional `'retries' => env('DO_SPACES_RETRIES', 3)` so tests can set 0.
 
 ### Tasks
-- [ ] In `phpunit.xml`, change `DO_SPACES_ENDPOINT` to `http://127.0.0.1:1` (connection-refused, instant).
-- [ ] Add `<env name="DO_SPACES_RETRIES" value="0"/>` and wire `'retries'` into the `do_spaces` disk config's S3 client options (`'options' => ['retries' => ...]` or the client's `retries` key) so the SDK does not retry the refused connection.
-- [ ] Re-read the two affected tests' intent comments and confirm they still assert "we did NOT fall back to S3" (status 200, no S3 content). With a fast-fail endpoint, a wrong fallback now surfaces as a fast 500 rather than a 200, so the guard tightens rather than weakens.
+- [x] In `phpunit.xml`, change `DO_SPACES_ENDPOINT` to `http://127.0.0.1:1` (connection-refused, instant).
+- [x] Add `<env name="DO_SPACES_RETRIES" value="0"/>` and wire `'retries'` into the `do_spaces` disk config's S3 client options (`'options' => ['retries' => ...]` or the client's `retries` key) so the SDK does not retry the refused connection.
+- [x] Re-read the two affected tests' intent comments and confirm they still assert "we did NOT fall back to S3" (status 200, no S3 content). With a fast-fail endpoint, a wrong fallback now surfaces as a fast 500 rather than a 200, so the guard tightens rather than weakens.
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact --parallel tests/Feature/SermonPagesTest.php tests/Feature/Security/RobustPathProtectionTest.php`
-- [ ] Confirm both target tests drop from ~12.6 s to sub-second.
-- [ ] Spot-check a couple of asset-serving tests that *do* fake `do_spaces` to ensure the endpoint change doesn't affect them (it shouldn't — faked disks bypass the network).
+- [x] `vendor/bin/sail artisan test --compact --parallel tests/Feature/SermonPagesTest.php tests/Feature/Security/RobustPathProtectionTest.php`
+- [x] Confirm both target tests drop from ~12.6 s to sub-second.
+- [x] Spot-check a couple of asset-serving tests that *do* fake `do_spaces` to ensure the endpoint change doesn't affect them (it shouldn't — faked disks bypass the network).
+
+### What changed
+[phpunit.xml](../../phpunit.xml) now sets `DO_SPACES_ENDPOINT=http://127.0.0.1:1` (a refused-connection address that errors in milliseconds, mirroring the existing `OPENAI_BASE_URL=http://127.0.0.1:1/v1` trick in the same file) and adds `DO_SPACES_RETRIES=0`. [config/filesystems.php](../../config/filesystems.php#L73-L89) reads that into the `do_spaces` disk via `'retries' => (int) env('DO_SPACES_RETRIES', 3)` — defaulting to `3` in production and `0` under test so the AWS SDK does not retry the refused connection with backoff (the cast is required because the SDK validates `retries` as an integer). The regression guards are unchanged and tightened, not weakened: [tests/Feature/SermonPagesTest.php](../../tests/Feature/SermonPagesTest.php#L133-L151) still fakes only the `local`/`public` disks and leaves `do_spaces` unfaked to catch a wrong S3 fallback, asserting status 200; a wrong fallback now surfaces as a fast failure instead of a ~12 s TCP timeout. Faked-disk asset tests are unaffected — `Storage::fake('do_spaces')` bypasses the network entirely, so the endpoint value is irrelevant to them.
 
 ### Exit criteria
-- No test blocks on a real DigitalOcean Spaces timeout; the S3-fallback regression guards still fail (fast) on wrong behaviour.
+- [x] No test blocks on a real DigitalOcean Spaces timeout; the S3-fallback regression guards still fail (fast) on wrong behaviour.
 
 ---
 
@@ -299,8 +305,8 @@ Pure-logic tests under `tests/Unit/Services` and `tests/Unit/Support` — e.g. `
 
 ## Definition of done
 
-- [ ] No test reaches api.pwnedpasswords.com (T1).
-- [ ] No test blocks on a real DigitalOcean Spaces timeout (T2).
+- [x] No test reaches api.pwnedpasswords.com (T1).
+- [x] No test blocks on a real DigitalOcean Spaces timeout (T2).
 - [ ] Each public page type has ≤2 SEO HTTP smoke tests; metadata variants live in presenter/formatter tests (T3).
 - [ ] `Http::preventStrayRequests()` guards the suite; no stray Laravel-`Http` calls (T4).
 - [x] Thumbnail-render cost audited: no redundant variants existed (caching already maximal); dead helpers removed without fidelity loss (T5).
