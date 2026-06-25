@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\Media\Video\FrameQualityScorer;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class FrameQualityScorerTest extends TestCase
 {

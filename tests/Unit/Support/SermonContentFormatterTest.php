@@ -6,7 +6,7 @@ namespace Tests\Unit\Support;
 
 use App\Support\SermonContentFormatter;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class SermonContentFormatterTest extends TestCase
 {

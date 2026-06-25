@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\Song\SongLyricSnippetBuilder;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class SongLyricSnippetBuilderTest extends TestCase
 {

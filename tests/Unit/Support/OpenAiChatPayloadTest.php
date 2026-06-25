@@ -7,7 +7,7 @@ namespace Tests\Unit\Support;
 use App\Support\OpenAiChatPayload;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class OpenAiChatPayloadTest extends TestCase
 {

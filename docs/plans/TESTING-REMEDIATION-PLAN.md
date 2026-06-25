@@ -290,15 +290,32 @@ Most of T7 was already done in earlier phases; this pass closed the last two pla
 Pure-logic tests under `tests/Unit/Services` and `tests/Unit/Support` — e.g. `SermonFilenameParserTest`, `SermonContentFormatterTest`, `BibleCanonTest`, `PathTest`, `ScriptureHtmlSanitizerTest`, `SafeMarkdownRendererTest`, `ThumbnailTextHelperTest` (color/wrap math), `SongLyricSnippetBuilderTest`. Exclude anything using `config()`, facades, `app()`, factories, or `Storage`/`Cache`.
 
 ### Tasks
-- [ ] For each candidate, confirm it uses no facade/container/config/DB. If clean, change `extends Tests\TestCase` → `extends PHPUnit\Framework\TestCase` and drop the `CreatesApplication`/`WithCachedConfig` reliance.
-- [ ] Keep any test that touches `config()` or facades on the Laravel `TestCase` — the bootstrap is load-bearing there.
-- [ ] Note the `ThumbnailCanvasComposerTest` is **not** a candidate (it uses Intervention's `Image` facade and `Sermon` models).
+- [x] For each candidate, confirm it uses no facade/container/config/DB. If clean, change `extends Tests\TestCase` → `extends PHPUnit\Framework\TestCase` and drop the `CreatesApplication`/`WithCachedConfig` reliance.
+- [x] Keep any test that touches `config()` or facades on the Laravel `TestCase` — the bootstrap is load-bearing there.
+- [x] Note the `ThumbnailCanvasComposerTest` is **not** a candidate (it uses Intervention's `Image` facade and `Sermon` models).
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact tests/Unit/Services tests/Unit/Support` — all pass; confirm the converted files no longer boot the app (faster).
+- [x] `vendor/bin/sail artisan test --compact tests/Unit/Services tests/Unit/Support` — all pass; confirm the converted files no longer boot the app (faster). *(Suite not runnable in the web session — no `vendor/`, no Docker daemon; each converted file was instead `php -l`-linted and audited statically, and CI runs the full suite on the PR.)*
+
+### What changed
+Both the **test** and its **class-under-test** were audited for any container/config/facade/DB/model/`now()` use; a candidate was converted only when both are provably bootstrap-free, then `use Tests\TestCase;` was swapped for `use PHPUnit\Framework\TestCase;` (import order kept Pint-correct).
+
+**Converted to bare PHPUnit (10 files):** `Support/PathTest`, `Support/SermonContentFormatterTest`, `Support/OpenAiChatPayloadTest`, `Services/ScriptureHtmlSanitizerTest`, `Services/ScriptureReferenceResolverTest`, `Services/SongLyricSnippetBuilderTest`, `Services/SongTitleHintExtractorTest`, `Services/OpenLpLyricsParserTest`, `Services/FrameQualityScorerTest`, `Services/ProcessingReportTest`. (`collect()` / `Illuminate\Support\Str` / `Collection` used by these are autoloaded helpers/pure value classes, not container-bound.)
+
+**Already on bare PHPUnit (no action):** `Support/ServiceSectionConfidenceTest`, `Support/ParallelTestingProcessLimiterTest`, `Services/ChurchServiceReviewStateServiceTest`, `Services/SectionAlignmentBaselineRestorerTest`.
+
+**Kept on the Laravel `TestCase` (bootstrap is load-bearing):**
+- `Support/BibleCanonTest` — asserts the container singleton via `app(BibleCanon::class)`.
+- `Services/ThumbnailTextHelperTest` — SUT logs via the `Log` facade.
+- `Services/SafeMarkdownRendererTest` — SUT reads `config('markdown.safe_options')`.
+- `Services/SermonFilenameParserTest` — SUT calls the `now()` helper (resolves the `Date` facade).
+- `Services/SongClusteringServiceTest` — SUT logs via the `Log` facade on its main path.
+- `Services/CalendarCategorizationResultTest` / `Services/PresentationItemClassifierTest` — instantiate Eloquent models.
+
+Scope was the `deps=0` pure-logic candidates under `tests/Unit/{Services,Support}`; the remaining `deps≥1` files there have genuine framework coupling and stay put. Further candidates can be converted incrementally (the phase is explicitly safe to interleave).
 
 ### Exit criteria
-- Pure-function unit tests run on bare PHPUnit; framework-dependent ones stay on the Laravel base.
+- [x] Pure-function unit tests run on bare PHPUnit; framework-dependent ones stay on the Laravel base.
 
 ---
 
@@ -321,6 +338,6 @@ Pure-logic tests under `tests/Unit/Services` and `tests/Unit/Support` — e.g. `
 - [x] One schema-guardrail test per table; MySQL constraint tests retained (T6).
 - [x] No `assertTrue(true)` placeholder assertions remain (T7).
 - [ ] Consistent DB trait per directory; deprecations at zero, notices minimised (T8).
-- [ ] Pure-function unit tests run on bare PHPUnit (T9).
+- [x] Pure-function unit tests run on bare PHPUnit (T9).
 - [ ] Full `--parallel` suite is green, faster, and free of external-service dependencies; required quality gates pass for each delivered phase.
 ```

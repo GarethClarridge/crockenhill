@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\Scripture\ScriptureHtmlSanitizer;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class ScriptureHtmlSanitizerTest extends TestCase
 {
