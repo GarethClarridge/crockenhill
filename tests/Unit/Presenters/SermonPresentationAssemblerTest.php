@@ -7,7 +7,6 @@ namespace Tests\Unit\Presenters;
 use App\Models\Sermon;
 use App\Presenters\SermonPresentationAssembler;
 use App\Presenters\SermonViewPresenter;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,8 +14,6 @@ use Tests\TestCase;
 
 class SermonPresentationAssemblerTest extends TestCase
 {
-    use DatabaseTransactions;
-
     private SermonViewPresenter&MockInterface $presenter;
 
     private SermonPresentationAssembler $assembler;

@@ -13,7 +13,6 @@ use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Services\Sermon\SermonStorageService;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -21,8 +20,6 @@ use Tests\TestCase;
 
 class SermonViewPresenterTest extends TestCase
 {
-    use DatabaseTransactions;
-
     private SermonExposurePolicy&MockInterface $exposurePolicy;
 
     private SermonStorageService&MockInterface $storageService;
@@ -238,7 +235,11 @@ class SermonViewPresenterTest extends TestCase
     #[Test]
     public function it_memoizes_results(): void
     {
-        $sermon = Sermon::factory()->create(['audio_file_path' => 'original.mp3']);
+        $sermon = Sermon::factory()->make([
+            'id' => 123,
+            'updated_at' => now(),
+            'audio_file_path' => 'original.mp3',
+        ]);
 
         $this->storageService->shouldReceive('getAudioDeliveryUrl')->once()->with($sermon)->andReturn('https://cdn.example.com/url1');
 
@@ -258,7 +259,11 @@ class SermonViewPresenterTest extends TestCase
     #[Test]
     public function it_clears_internal_caches(): void
     {
-        $sermon = Sermon::factory()->create(['series' => 'Cache Clear Test']);
+        $sermon = Sermon::factory()->make([
+            'id' => 456,
+            'updated_at' => now(),
+            'series' => 'Cache Clear Test',
+        ]);
 
         $url1 = $this->presenter->seriesUrl($sermon);
 
