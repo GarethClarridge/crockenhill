@@ -182,7 +182,7 @@ class Song extends Model
     {
         $key = self::canonicalizeKey($value);
 
-        if ($key === '') {
+        if (blank($key)) {
             return [];
         }
 
