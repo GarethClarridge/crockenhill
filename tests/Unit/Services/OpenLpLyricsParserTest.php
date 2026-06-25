@@ -6,7 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\Song\OpenLpLyricsParser;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class OpenLpLyricsParserTest extends TestCase
 {
