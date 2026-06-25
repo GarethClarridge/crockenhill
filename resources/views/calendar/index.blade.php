@@ -74,7 +74,7 @@
                                 ],
                                 'image' => $primaryImage,
                                 'organizer' => [
-                                    '@type' => 'Church',
+                                    '@type' => 'Organization',
                                     'name' => $orgName,
                                     'url' => $orgUrl,
                                     '@id' => config('app.url').'/#organization',

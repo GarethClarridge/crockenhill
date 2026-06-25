@@ -53,7 +53,7 @@
                                 ],
                                 'image' => asset('images/Primary.png'),
                                 'organizer' => [
-                                    '@type' => 'Church',
+                                    '@type' => 'Organization',
                                     'name' => config('organization.name'),
                                     'url' => url('/'),
                                 ],

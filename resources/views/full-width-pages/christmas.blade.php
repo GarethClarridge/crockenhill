@@ -74,7 +74,7 @@
                     ],
                     'image' => asset('/images/homepage/christmas2023.webp'),
                     'organizer' => [
-                        '@type' => 'Church',
+                        '@type' => 'Organization',
                         'name' => config('organization.name'),
                         'url' => url('/'),
                     ],

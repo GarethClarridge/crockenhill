@@ -8,7 +8,7 @@
         '@id' => config('app.url').'/#website',
         'url' => config('app.url'),
         'publisher' => [
-            '@type' => 'Church',
+            '@type' => 'Organization',
             'name' => config('organization.name'),
             '@id' => config('app.url').'/#organization',
             'logo' => [
