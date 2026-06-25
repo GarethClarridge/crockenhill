@@ -8,10 +8,12 @@ use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
+use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\User;
 use App\Services\Public\PreacherListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -402,5 +404,57 @@ class SermonPagesTest extends TestCase
         app(PreacherListCache::class)->forPublicList();
 
         $this->get('/christ/sermons')->assertStatus(200);
+    }
+
+    #[Test]
+    public function admin_sees_livestream_processing_panel_with_segment_count(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => 'processing-admin-panel',
+            'original_filename' => 'admin-service.mp4',
+        ]);
+
+        LivestreamSegment::factory()->count(5)->create([
+            'media_processing_log_id' => $processingLog->id,
+        ]);
+
+        $sermon = Sermon::factory()->fromLivestream()->create([
+            'slug' => 'admin-panel-sermon',
+            'livestream_processing_id' => $processingLog->processing_id,
+        ]);
+
+        $admin = User::factory()->crockenhillAdmin()->create();
+
+        $response = $this->actingAs($admin)
+            ->followingRedirects()
+            ->get("/christ/sermons/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('Livestream Processing');
+        $response->assertSeeInOrder(['Total Segments:', '5']);
+    }
+
+    #[Test]
+    public function non_admins_do_not_see_livestream_processing_panel(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => 'processing-guest-hidden',
+            'original_filename' => 'private-service.mp4',
+        ]);
+
+        LivestreamSegment::factory()->count(3)->create([
+            'media_processing_log_id' => $processingLog->id,
+        ]);
+
+        $sermon = Sermon::factory()->fromLivestream()->create([
+            'slug' => 'guest-hidden-sermon',
+            'livestream_processing_id' => $processingLog->processing_id,
+        ]);
+
+        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Livestream Processing');
+        $response->assertDontSee('private-service.mp4');
     }
 }

@@ -77,7 +77,13 @@
 
                 <div class="w-full max-w-sm">
                     <div class="w-full rounded-xl bg-gradient-teal p-[1.5px]">
-                        <x-button link="{{ route('church.songs.index') }}" variant="secondary" size="lg" class="w-full rounded-[11px]">
+                        <x-button
+                            link="{{ route('church.songs.index') }}"
+                            variant="secondary"
+                            size="lg"
+                            class="w-full rounded-[11px]"
+                            aria-label="Back to song catalogue"
+                        >
                             Back to Songs
                         </x-button>
                     </div>

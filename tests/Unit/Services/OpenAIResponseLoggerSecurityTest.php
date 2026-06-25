@@ -11,30 +11,36 @@ use Tests\TestCase;
 
 class OpenAIResponseLoggerSecurityTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Log::spy();
+    }
+
     #[Test]
     public function it_sanitizes_processing_id_and_response_preview_in_log_response(): void
     {
-        Log::shouldReceive('warning')
+        OpenAIResponseLogger::logResponse("proc-123\n", 1, "malicious\nresponse\r\t");
+
+        Log::shouldHaveReceived('warning')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return $context['processing_id'] === 'proc-123'
                     && $context['response_content_preview'] === 'malicious response';
             });
-
-        OpenAIResponseLogger::logResponse("proc-123\n", 1, "malicious\nresponse\r\t");
     }
 
     #[Test]
     public function it_sanitizes_processing_id_and_error_message_and_body_preview_in_log_transport_error(): void
     {
-        Log::shouldReceive('error')
+        OpenAIResponseLogger::logTransportError("proc-123\r", 1, "transport\nerror\t", 500, "error\nbody\r");
+
+        Log::shouldHaveReceived('error')
             ->once()
             ->withArgs(function (string $message, array $context) {
                 return $context['processing_id'] === 'proc-123'
                     && $context['error_message'] === 'transport error'
                     && $context['response_body_preview'] === 'error body';
             });
-
-        OpenAIResponseLogger::logTransportError("proc-123\r", 1, "transport\nerror\t", 500, "error\nbody\r");
     }
 }
