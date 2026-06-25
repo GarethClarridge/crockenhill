@@ -147,16 +147,19 @@ Point the test endpoint at an address that **refuses immediately** instead of ti
 After T1/T2 remove the known stray calls, add `Http::preventStrayRequests()` in `TestCase::setUp()` so any *new* unmocked Laravel-`Http` call fails loudly instead of hanging. Note this governs only the `Http` facade — raw Guzzle / the OpenAI SDK are unaffected (those already point at the refused `127.0.0.1:1` endpoint).
 
 ### Tasks
-- [ ] Add `Http::preventStrayRequests();` to `tests/TestCase.php::setUp()`.
-- [ ] Run the **full** suite once and triage every failure it surfaces (each is a real unmocked external call). Existing `Http::fake` users (`ApiBibleClientTest` and the 2 others) are unaffected because they set their own fakes.
-- [ ] For each surfaced offender, add a scoped `Http::fake([...])` in that test.
-- [ ] If triage is large, land `preventStrayRequests` behind the fakes incrementally rather than blocking the phase.
+- [x] Add `Http::preventStrayRequests();` to `tests/TestCase.php::setUp()`.
+- [x] Run the **full** suite once and triage every failure it surfaces (each is a real unmocked external call). Existing `Http::fake` users (`ApiBibleClientTest` and the 2 others) are unaffected because they set their own fakes.
+- [x] For each surfaced offender, add a scoped `Http::fake([...])` in that test.
+- [x] If triage is large, land `preventStrayRequests` behind the fakes incrementally rather than blocking the phase.
 
 ### Verification
-- [ ] Full `vendor/bin/sail artisan test --parallel` passes with the guard on.
+- [x] Full `vendor/bin/sail artisan test --parallel` passes with the guard on.
+
+### What changed
+[tests/TestCase.php](../../tests/TestCase.php) calls `Http::preventStrayRequests()` in `setUp()` (immediately after the T1/T2 bindings), so any unmocked Laravel-`Http` call now fails loudly instead of hanging on a real request. The triage left each genuine HTTP caller mocking its own calls: six test files set a scoped `Http::fake([...])` — `PixianClientTest`, `RouteCanaryProberTest`, `LocalWhisperTranscriptionServiceTest`, `ApiBibleClientTest`, `HealthEndpointTest`, and `RouteCanariesCheckTest` — which override the global guard for their cases. The guard governs only the `Http` facade; raw Guzzle / the OpenAI SDK are unaffected and already point at the refused `127.0.0.1:1` endpoint (T1's OpenAI trick and T2's Spaces endpoint), so no stray network egress remains anywhere in the suite.
 
 ### Exit criteria
-- A new unmocked `Http::` call in any test fails fast with a clear "stray request" error.
+- [x] A new unmocked `Http::` call in any test fails fast with a clear "stray request" error.
 
 ---
 
@@ -308,7 +311,7 @@ Pure-logic tests under `tests/Unit/Services` and `tests/Unit/Support` — e.g. `
 - [x] No test reaches api.pwnedpasswords.com (T1).
 - [x] No test blocks on a real DigitalOcean Spaces timeout (T2).
 - [ ] Each public page type has ≤2 SEO HTTP smoke tests; metadata variants live in presenter/formatter tests (T3).
-- [ ] `Http::preventStrayRequests()` guards the suite; no stray Laravel-`Http` calls (T4).
+- [x] `Http::preventStrayRequests()` guards the suite; no stray Laravel-`Http` calls (T4).
 - [x] Thumbnail-render cost audited: no redundant variants existed (caching already maximal); dead helpers removed without fidelity loss (T5).
 - [x] One schema-guardrail test per table; MySQL constraint tests retained (T6).
 - [ ] No `assertTrue(true)` placeholder assertions remain (T7).
