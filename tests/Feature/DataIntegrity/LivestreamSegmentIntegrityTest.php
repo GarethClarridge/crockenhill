@@ -52,6 +52,37 @@ class LivestreamSegmentIntegrityTest extends TestCase
     }
 
     #[Test]
+    public function the_factory_keeps_end_time_consistent_when_start_time_and_duration_are_overridden(): void
+    {
+        $log = MediaProcessingLog::factory()->create();
+
+        // Overriding start_time/duration without end_time must not leave a stale
+        // end_time that violates livestream_segments_timing_check (end_time >= start_time).
+        $segment = LivestreamSegment::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'start_time' => 1000.0,
+            'duration' => 1500.0,
+        ]);
+
+        $this->assertSame(2500.0, (float) $segment->end_time);
+    }
+
+    #[Test]
+    public function the_factory_respects_an_explicitly_provided_end_time(): void
+    {
+        $log = MediaProcessingLog::factory()->create();
+
+        $segment = LivestreamSegment::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'start_time' => 100.0,
+            'duration' => 50.0,
+            'end_time' => 200.0,
+        ]);
+
+        $this->assertSame(200.0, (float) $segment->end_time);
+    }
+
+    #[Test]
     public function it_allows_same_segment_index_for_different_processing_logs(): void
     {
         $log1 = MediaProcessingLog::factory()->create();
