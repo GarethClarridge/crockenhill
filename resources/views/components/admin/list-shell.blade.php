@@ -38,9 +38,9 @@
         </div>
 
         @isset($pagination)
-            <div class="mt-4">
+            <nav class="mt-4" aria-label="Pagination">
                 {{ $pagination }}
-            </div>
+            </nav>
         @endisset
     </x-card>
 </x-admin.page>
