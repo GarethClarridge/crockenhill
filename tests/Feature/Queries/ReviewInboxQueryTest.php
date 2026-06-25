@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Queries;
+namespace Tests\Feature\Queries;
 
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
