@@ -19,10 +19,25 @@ use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Handler for promoting and publishing sermon segments extracted from livestreams.
+ *
+ * This handler manages the "livestream-to-sermon" pipeline, ensuring that extracted
+ * audio and video clips are correctly promoted to public storage, sermon metadata
+ * is resolved from the processing identity, and a canonical Sermon record is
+ * created or enriched via the SermonCreationService.
+ */
 class SermonPublicationHandler implements SectionPublicationHandler
 {
     use SanitizesLogData;
 
+    /**
+     * @param  ChildrensTalkSpeakerService  $childrensTalkSpeakerService  Service for detecting speakers in children's talks
+     * @param  SermonCreationService  $sermonCreationService  Service for richness-aware sermon upserts
+     * @param  MediaProcessingIdentityResolver  $identityResolver  Service for resolving date/service from processing logs
+     * @param  ServiceSectionPublicationTransitionService  $publicationTransitions  Service for managing section state transitions
+     * @param  ExtractedSectionMediaChecker  $mediaChecker  Service for verifying existence of extracted assets
+     */
     public function __construct(
         private readonly ChildrensTalkSpeakerService $childrensTalkSpeakerService,
         private readonly SermonCreationService $sermonCreationService,
@@ -31,16 +46,32 @@ class SermonPublicationHandler implements SectionPublicationHandler
         private readonly ExtractedSectionMediaChecker $mediaChecker,
     ) {}
 
+    /**
+     * {@inheritDoc}
+     */
     public function requiresAudioExtraction(): bool
     {
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function hasReusableExtractedMedia(ServiceSection $section): bool
     {
         return $this->mediaChecker->hasExtractedMedia($section);
     }
 
+    /**
+     * Determine if a sermon section is eligible for automated publication.
+     *
+     * Enforces the high-confidence requirement for automated sermon publication
+     * to prevent low-confidence segments from being published without administrative
+     * review.
+     *
+     * @param  ServiceSection  $section  The section to evaluate
+     * @return bool True if the section meets confidence thresholds or if requirements are disabled
+     */
     public function isEligible(ServiceSection $section): bool
     {
         $requireHighConfidence = (bool) config('media-processing.section_publishing.require_high_confidence', true);
@@ -48,6 +79,9 @@ class SermonPublicationHandler implements SectionPublicationHandler
         return ! $requireHighConfidence || ($section->confidence ?? 0.0) >= ServiceSectionConfidence::HIGH_THRESHOLD;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function afterExtraction(ServiceSection $section): void
     {
         if ($section->section_type === ServiceSectionType::ChildrensTalk) {
@@ -55,11 +89,26 @@ class SermonPublicationHandler implements SectionPublicationHandler
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function requiresApproval(): bool
     {
         return true;
     }
 
+    /**
+     * Publish an approved sermon section to the public sermon repository.
+     *
+     * Promotes extracted audio and video assets to permanent storage, resolves the
+     * sermon's identity (date/service) from the parent processing log, and
+     * initiates a richness-aware upsert of the Sermon record.
+     *
+     * @param  ServiceSection  $section  The approved section to publish
+     *
+     * @throws \RuntimeException If assets are missing, identity cannot be resolved,
+     *                           or state transitions fail.
+     */
     public function publish(ServiceSection $section): void
     {
         $processingLog = $section->processingLog;
@@ -134,6 +183,11 @@ class SermonPublicationHandler implements SectionPublicationHandler
         $section->save();
     }
 
+    /**
+     * Handle the removal of a section by logging a warning if it was already published.
+     *
+     * @param  ServiceSection  $section  The removed section
+     */
     public function onSectionRemoved(ServiceSection $section): void
     {
         if ($section->published_sermon_id === null) {
