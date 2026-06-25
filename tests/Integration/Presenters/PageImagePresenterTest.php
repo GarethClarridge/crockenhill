@@ -30,7 +30,7 @@ class PageImagePresenterTest extends TestCase
         /** @var Page $page */
         $page = Page::factory()->create();
 
-        $cacheService = $this->createMock(PageImageCacheService::class);
+        $cacheService = $this->createStub(PageImageCacheService::class);
         $cacheService->method('get')->willReturn([
             'desktop' => null,
             'tablet' => null,
@@ -49,7 +49,7 @@ class PageImagePresenterTest extends TestCase
         /** @var Page $page */
         $page = Page::factory()->create();
 
-        $cacheService = $this->createMock(PageImageCacheService::class);
+        $cacheService = $this->createStub(PageImageCacheService::class);
         $cacheService->method('get')->willReturn([
             'desktop' => 'https://cdn.example.com/pages/heading.webp',
             'tablet' => null,

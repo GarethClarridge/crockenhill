@@ -11,13 +11,13 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Monitoring\RouteCanaryRegistry;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class RouteCanaryRegistryTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private RouteCanaryRegistry $registry;
 

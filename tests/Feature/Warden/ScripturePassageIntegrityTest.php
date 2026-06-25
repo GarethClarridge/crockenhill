@@ -78,11 +78,11 @@ class ScripturePassageIntegrityTest extends TestCase
             fumsToken: null,
         );
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->createStub(ApiBibleClient::class);
         $client->method('hasDailyBudget')->willReturn(true);
         $client->method('fetchPassageById')->willReturn($result);
 
-        $sanitizer = $this->createMock(ScriptureHtmlSanitizer::class);
+        $sanitizer = $this->createStub(ScriptureHtmlSanitizer::class);
         $sanitizer->method('sanitize')->willReturn('<p>For God so loved the world...</p>');
 
         $this->app->instance(ApiBibleClient::class, $client);

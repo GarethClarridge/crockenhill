@@ -44,7 +44,7 @@ class ExtractSermonTest extends TestCase
         $mockExtractor = $this->createMock(VideoExtractionService::class);
         $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Log::shouldReceive('info')->once()->with('ExtractSermon job skipped: processing cancelled', \Mockery::any());
 
@@ -62,7 +62,7 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Log::shouldReceive('error')->once();
 
@@ -119,7 +119,7 @@ class ExtractSermonTest extends TestCase
                 'valid_for_transcription' => true,
             ]);
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
@@ -211,7 +211,7 @@ class ExtractSermonTest extends TestCase
                 'valid_for_transcription' => true,
             ]);
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
@@ -294,7 +294,7 @@ class ExtractSermonTest extends TestCase
                 'valid_for_transcription' => true,
             ]);
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
@@ -376,7 +376,7 @@ class ExtractSermonTest extends TestCase
                 'valid_for_transcription' => true,
             ]);
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
@@ -483,7 +483,7 @@ class ExtractSermonTest extends TestCase
 
         $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
@@ -570,7 +570,7 @@ class ExtractSermonTest extends TestCase
                 'valid_for_transcription' => true,
             ]);
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Mail::fake();
         Log::shouldReceive('info')->atLeast()->once();
@@ -617,7 +617,7 @@ class ExtractSermonTest extends TestCase
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
         $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Mail::fake();
         Log::shouldReceive('warning')->atLeast()->once();
@@ -722,7 +722,7 @@ class ExtractSermonTest extends TestCase
                 'valid_for_transcription' => true,
             ]);
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Mail::fake();
         Log::shouldReceive('info')->atLeast()->once();
@@ -771,7 +771,7 @@ class ExtractSermonTest extends TestCase
         $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
         $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Mail::fake();
         Log::shouldReceive('warning')->atLeast()->once();
@@ -818,7 +818,7 @@ class ExtractSermonTest extends TestCase
         $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
         $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Mail::fake();
         Log::shouldReceive('warning')->atLeast()->once();
@@ -867,7 +867,7 @@ class ExtractSermonTest extends TestCase
         $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
         $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Mail::fake();
         Log::shouldReceive('warning')->atLeast()->once();
@@ -907,7 +907,7 @@ class ExtractSermonTest extends TestCase
             ->method('extractSegmentAsFile')
             ->willThrowException(new \Exception('FFmpeg segfault'));
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('error')->once();
@@ -964,7 +964,7 @@ class ExtractSermonTest extends TestCase
                 'valid_for_transcription' => true,
             ]);
 
-        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage = $this->createStub(VideoStorageService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('error')->once();

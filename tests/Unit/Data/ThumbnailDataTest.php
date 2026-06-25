@@ -183,7 +183,7 @@ class ThumbnailDataTest extends TestCase
     public function cast_get_deserialises_json_to_thumbnail_metadata(): void
     {
         $cast = new ThumbnailMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $json = json_encode(['timestamp' => 5.0, 'video_duration' => 600.0]);
         $result = $cast->get($model, 'thumbnail_metadata', $json, []);
@@ -196,7 +196,7 @@ class ThumbnailDataTest extends TestCase
     public function cast_get_returns_null_for_empty_value(): void
     {
         $cast = new ThumbnailMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $this->assertNull($cast->get($model, 'thumbnail_metadata', '', []));
         $this->assertNull($cast->get($model, 'thumbnail_metadata', null, []));
@@ -206,7 +206,7 @@ class ThumbnailDataTest extends TestCase
     public function cast_set_serialises_thumbnail_metadata_to_json(): void
     {
         $cast = new ThumbnailMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $metadata = ThumbnailMetadata::fromArray(['timestamp' => 10.5, 'video_duration' => 900.0]);
         $result = $cast->set($model, 'thumbnail_metadata', $metadata, []);
@@ -220,7 +220,7 @@ class ThumbnailDataTest extends TestCase
     public function cast_set_returns_null_for_null(): void
     {
         $cast = new ThumbnailMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $this->assertNull($cast->set($model, 'thumbnail_metadata', null, []));
     }
@@ -229,7 +229,7 @@ class ThumbnailDataTest extends TestCase
     public function cast_round_trips_thumbnail_metadata(): void
     {
         $cast = new ThumbnailMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $original = ThumbnailMetadata::fromArray([
             'timestamp' => 45.0,

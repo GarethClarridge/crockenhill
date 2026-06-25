@@ -193,7 +193,7 @@ class ChurchServiceMetadataDataTest extends TestCase
     public function cast_get_deserialises_json_to_import_metadata(): void
     {
         $cast = new ChurchServiceImportMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $json = json_encode(['confidence_score' => 0.8, 'parse_method' => 'openlp']);
         $result = $cast->get($model, 'import_metadata', $json, []);
@@ -206,7 +206,7 @@ class ChurchServiceMetadataDataTest extends TestCase
     public function cast_get_returns_empty_metadata_for_null(): void
     {
         $cast = new ChurchServiceImportMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $result = $cast->get($model, 'import_metadata', null, []);
         $this->assertInstanceOf(ChurchServiceImportMetadata::class, $result);
@@ -216,7 +216,7 @@ class ChurchServiceMetadataDataTest extends TestCase
     public function cast_set_serialises_to_json(): void
     {
         $cast = new ChurchServiceImportMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $metadata = ChurchServiceImportMetadata::fromArray(['confidence_score' => 0.9]);
         $result = $cast->set($model, 'import_metadata', $metadata, []);
@@ -230,7 +230,7 @@ class ChurchServiceMetadataDataTest extends TestCase
     public function cast_set_returns_null_for_null(): void
     {
         $cast = new ChurchServiceImportMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $this->assertNull($cast->set($model, 'import_metadata', null, []));
     }
@@ -239,7 +239,7 @@ class ChurchServiceMetadataDataTest extends TestCase
     public function cast_round_trips_import_metadata(): void
     {
         $cast = new ChurchServiceImportMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $original = ChurchServiceImportMetadata::fromArray([
             'confidence_score' => 0.95,

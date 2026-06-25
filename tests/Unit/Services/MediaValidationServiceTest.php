@@ -183,7 +183,7 @@ class MediaValidationServiceTest extends TestCase
      */
     private function createMockUploadedFile(string $name, string $mimeType, int $size): UploadedFile
     {
-        $file = $this->createMock(UploadedFile::class);
+        $file = $this->createStub(UploadedFile::class);
         $file->method('isValid')->willReturn(true);
         $file->method('getSize')->willReturn($size);
         $file->method('getMimeType')->willReturn($mimeType);

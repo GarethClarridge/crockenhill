@@ -53,11 +53,11 @@ class UnifiedMediaProcessorTest extends TestCase
         parent::setUp();
 
         $this->livestreamService = $this->createMock(LivestreamSegmentationService::class);
-        $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
-        $this->processingLogService = $this->createMock(ProcessingLogService::class);
+        $this->pipelineBuilder = $this->createStub(ProcessingPipelineBuilder::class);
+        $this->processingLogService = $this->createStub(ProcessingLogService::class);
         $this->processingInitiator = $this->createMock(ProcessingInitiator::class);
-        $this->metadataService = $this->createMock(MetadataExtractionService::class);
-        $this->mediaValidation = $this->createMock(MediaValidationService::class);
+        $this->metadataService = $this->createStub(MetadataExtractionService::class);
+        $this->mediaValidation = $this->createStub(MediaValidationService::class);
 
         $this->app->instance(LivestreamSegmentationService::class, $this->livestreamService);
         $this->app->instance(ProcessingPipelineBuilder::class, $this->pipelineBuilder);

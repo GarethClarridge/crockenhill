@@ -34,7 +34,7 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         Storage::fake('local');
         Storage::fake('public');
 
-        $videoService = $this->createMock(VideoSegmentationService::class);
+        $videoService = $this->createStub(VideoSegmentationService::class);
         $videoService->method('getVideoMetadata')->willReturn([
             'duration' => 1800.0,
             'width' => 1920,

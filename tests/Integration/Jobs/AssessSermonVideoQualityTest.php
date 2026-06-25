@@ -45,8 +45,8 @@ class AssessSermonVideoQualityTest extends TestCase
             ->method('assessAndRetainLocalPath')
             ->willReturn(['result' => $assessmentResult, 'localVideoPath' => null]);
 
-        $frameExtractionService = $this->createMock(FrameExtractionService::class);
-        $exposurePolicy = $this->createMock(SermonExposurePolicy::class);
+        $frameExtractionService = $this->createStub(FrameExtractionService::class);
+        $exposurePolicy = $this->createStub(SermonExposurePolicy::class);
 
         (new AssessSermonVideoQuality($log))->handle($service, $frameExtractionService, $exposurePolicy);
 
@@ -68,8 +68,8 @@ class AssessSermonVideoQualityTest extends TestCase
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
         $service->method('assessAndRetainLocalPath')->willThrowException(new \RuntimeException('boom'));
 
-        $frameExtractionService = $this->createMock(FrameExtractionService::class);
-        $exposurePolicy = $this->createMock(SermonExposurePolicy::class);
+        $frameExtractionService = $this->createStub(FrameExtractionService::class);
+        $exposurePolicy = $this->createStub(SermonExposurePolicy::class);
 
         (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle($service, $frameExtractionService, $exposurePolicy);
 

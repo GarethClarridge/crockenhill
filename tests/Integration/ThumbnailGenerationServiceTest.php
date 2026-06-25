@@ -46,7 +46,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         $this->createLogoAsset();
 
         // Mock the VideoSegmentationService dependency
-        $videoService = $this->createMock(VideoSegmentationService::class);
+        $videoService = $this->createStub(VideoSegmentationService::class);
         $videoService->method('getVideoMetadata')->willReturn([
             'duration' => 1800.0, // 30 minutes
             'width' => 1920,
@@ -211,7 +211,7 @@ class ThumbnailGenerationServiceTest extends TestCase
     public function it_validates_video_metadata_requirements()
     {
         // Mock VideoSegmentationService to return invalid metadata
-        $videoService = $this->createMock(VideoSegmentationService::class);
+        $videoService = $this->createStub(VideoSegmentationService::class);
         $videoService->method('getVideoMetadata')->willReturn([
             'duration' => 0, // Invalid duration
             'width' => 0,    // Invalid width
@@ -412,11 +412,11 @@ class ThumbnailGenerationServiceTest extends TestCase
 
     private function makeThumbnailServiceWithExtractorResult(?array $extractorResult): ThumbnailGenerationService
     {
-        $extractor = $this->createMock(ThumbnailForegroundExtractionService::class);
+        $extractor = $this->createStub(ThumbnailForegroundExtractionService::class);
         $extractor->method('extract')->willReturn($extractorResult);
 
         return new ThumbnailGenerationService(
-            $this->createMock(FrameExtractionService::class),
+            $this->createStub(FrameExtractionService::class),
             app(StorageAdapterHelper::class),
             $extractor,
             app(ThumbnailCanvasComposer::class),

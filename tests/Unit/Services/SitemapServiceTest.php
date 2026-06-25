@@ -33,12 +33,12 @@ class SitemapServiceTest extends TestCase
         Preacher::query()->delete();
         Page::query()->delete();
 
-        $exposurePolicy = $this->createMock(SermonExposurePolicy::class);
-        $sermonRepository = $this->createMock(SermonRepository::class);
-        $pageSitemapPresenter = $this->createMock(PageSitemapPresenter::class);
-        $sermonSitemapPresenter = $this->createMock(SermonSitemapPresenter::class);
-        $meetingSitemapPresenter = $this->createMock(MeetingSitemapPresenter::class);
-        $preacherSitemapPresenter = $this->createMock(PreacherSitemapPresenter::class);
+        $exposurePolicy = $this->createStub(SermonExposurePolicy::class);
+        $sermonRepository = $this->createStub(SermonRepository::class);
+        $pageSitemapPresenter = $this->createStub(PageSitemapPresenter::class);
+        $sermonSitemapPresenter = $this->createStub(SermonSitemapPresenter::class);
+        $meetingSitemapPresenter = $this->createStub(MeetingSitemapPresenter::class);
+        $preacherSitemapPresenter = $this->createStub(PreacherSitemapPresenter::class);
 
         $this->service = new SitemapService(
             $exposurePolicy,
@@ -47,7 +47,7 @@ class SitemapServiceTest extends TestCase
             $sermonSitemapPresenter,
             $meetingSitemapPresenter,
             $preacherSitemapPresenter,
-            $this->createMock(SermonViewPresenter::class),
+            $this->createStub(SermonViewPresenter::class),
         );
     }
 
@@ -114,10 +114,10 @@ class SitemapServiceTest extends TestCase
     {
         $filePath = tempnam(sys_get_temp_dir(), 'sitemap').'.xml';
 
-        $exposurePolicy = $this->createMock(SermonExposurePolicy::class);
+        $exposurePolicy = $this->createStub(SermonExposurePolicy::class);
         $exposurePolicy->method('childrensTalksArePublic')->willReturn(false);
 
-        $sermonRepository = $this->createMock(SermonRepository::class);
+        $sermonRepository = $this->createStub(SermonRepository::class);
         $sermonRepository->method('getLatestSermons')->willReturn(collect());
         $sermonRepository->method('getSermonsByService')->willReturn(collect());
         $sermonRepository->method('getAllSermons')->willReturn(collect());
@@ -129,11 +129,11 @@ class SitemapServiceTest extends TestCase
             ->setConstructorArgs([
                 $exposurePolicy,
                 $sermonRepository,
-                $this->createMock(PageSitemapPresenter::class),
-                $this->createMock(SermonSitemapPresenter::class),
-                $this->createMock(MeetingSitemapPresenter::class),
-                $this->createMock(PreacherSitemapPresenter::class),
-                $this->createMock(SermonViewPresenter::class),
+                $this->createStub(PageSitemapPresenter::class),
+                $this->createStub(SermonSitemapPresenter::class),
+                $this->createStub(MeetingSitemapPresenter::class),
+                $this->createStub(PreacherSitemapPresenter::class),
+                $this->createStub(SermonViewPresenter::class),
             ])
             ->onlyMethods(['getFilePath'])
             ->getMock();

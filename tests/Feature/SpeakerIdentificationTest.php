@@ -369,7 +369,7 @@ class SpeakerIdentificationTest extends TestCase
 
         $matchResult = SpeakerMatchResult::matched($profile->load('preacher'), 0.90, 0.70, [$profile->id => 0.90]);
 
-        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService = $this->createStub(SpeakerIdentificationInterface::class);
         $mockService->method('identify')->willReturn($matchResult);
 
         $this->instance(SpeakerIdentificationInterface::class, $mockService);
@@ -417,7 +417,7 @@ class SpeakerIdentificationTest extends TestCase
 
         $matchResult = SpeakerMatchResult::matched($profile->load('preacher'), 0.88, 0.70, [$profile->id => 0.88]);
 
-        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService = $this->createStub(SpeakerIdentificationInterface::class);
         $mockService->method('identify')->willReturn($matchResult);
 
         (new IdentifySpeaker($log))->handle($mockService);
@@ -456,7 +456,7 @@ class SpeakerIdentificationTest extends TestCase
 
         $noMatchResult = SpeakerMatchResult::noMatch(0.60, 0.55, [], 'Score below threshold');
 
-        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService = $this->createStub(SpeakerIdentificationInterface::class);
         $mockService->method('identify')->willReturn($noMatchResult);
 
         $originalPreacherId = $sermon->preacher_id;
@@ -506,7 +506,7 @@ class SpeakerIdentificationTest extends TestCase
 
         $errorResult = SpeakerMatchResult::error('Embedding extraction failed');
 
-        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService = $this->createStub(SpeakerIdentificationInterface::class);
         $mockService->method('identify')->willReturn($errorResult);
 
         (new IdentifySpeaker($log))->handle($mockService);
@@ -579,7 +579,7 @@ class SpeakerIdentificationTest extends TestCase
             'source_file_path' => 'sermons/audio/test.mp3',
         ]);
 
-        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService = $this->createStub(SpeakerIdentificationInterface::class);
         // RuntimeException is a deterministic/unknown error — must not be re-thrown
         $mockService->method('identify')->willThrowException(new \RuntimeException('Service unavailable'));
 
@@ -614,7 +614,7 @@ class SpeakerIdentificationTest extends TestCase
             'source_file_path' => 'sermons/audio/test.mp3',
         ]);
 
-        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService = $this->createStub(SpeakerIdentificationInterface::class);
         $mockService->method('identify')->willThrowException(new ConnectionException('Connection timed out'));
 
         // Should re-throw — transient failures must propagate so the queue can retry
@@ -646,7 +646,7 @@ class SpeakerIdentificationTest extends TestCase
         $clientException = new class('Connection reset by peer') extends \Exception implements ClientExceptionInterface {};
         $transporterException = new TransporterException($clientException);
 
-        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService = $this->createStub(SpeakerIdentificationInterface::class);
         $mockService->method('identify')->willThrowException($transporterException);
 
         // Should re-throw — TransporterException wraps network-level failures and must be retried

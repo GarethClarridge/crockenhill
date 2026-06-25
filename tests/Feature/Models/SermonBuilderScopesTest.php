@@ -7,13 +7,13 @@ namespace Tests\Feature\Models;
 use App\Enums\SermonSourceType;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonBuilderScopesTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function scope_by_preacher_finds_by_denormalized_name_or_profile_relationship(): void

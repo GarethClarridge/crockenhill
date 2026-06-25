@@ -6,7 +6,7 @@ namespace Tests\Integration\Services;
 
 use App\Models\Meeting;
 use App\Services\MeetingPhotoMigrationService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -16,7 +16,7 @@ use Tests\TestCase;
 
 class MeetingPhotoMigrationServiceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private MeetingPhotoMigrationService $service;
 

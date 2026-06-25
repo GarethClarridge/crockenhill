@@ -135,10 +135,10 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
     {
         $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
 
-        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService = $this->createStub(FrameExtractionService::class);
         $frameExtractionService->method('videoFileExists')->willThrowException(new \RuntimeException('boom'));
 
-        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $storageHelper = $this->createStub(StorageAdapterHelper::class);
         $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);
 
         $result = $service->assess($sermon, 'sermons/video.mp4', 'public');
@@ -153,13 +153,13 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
         $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
         $frames = $this->frames('checker', 8);
 
-        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService = $this->createStub(FrameExtractionService::class);
         $frameExtractionService->method('videoFileExists')->willReturn(true);
         $frameExtractionService->method('ensureLocalVideoPath')->willReturn('temp/downloaded.mp4');
         $frameExtractionService->method('getVideoMetadata')->willReturn(['duration' => 120.0]);
         $frameExtractionService->method('extractBaseFrame')->willReturnOnConsecutiveCalls(...$frames);
 
-        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $storageHelper = $this->createStub(StorageAdapterHelper::class);
         $storageHelper->method('isS3CompatibleDisk')->willReturn(true);
 
         $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);
@@ -176,13 +176,13 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
         $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
         $frames = $this->frames('checker', 8);
 
-        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService = $this->createStub(FrameExtractionService::class);
         $frameExtractionService->method('videoFileExists')->willReturn(true);
         $frameExtractionService->method('ensureLocalVideoPath')->willReturn('storage/sermons/video.mp4');
         $frameExtractionService->method('getVideoMetadata')->willReturn(['duration' => 120.0]);
         $frameExtractionService->method('extractBaseFrame')->willReturnOnConsecutiveCalls(...$frames);
 
-        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $storageHelper = $this->createStub(StorageAdapterHelper::class);
         $storageHelper->method('isS3CompatibleDisk')->willReturn(false);
 
         $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);
@@ -198,10 +198,10 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
     {
         $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/missing.mp4']);
 
-        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService = $this->createStub(FrameExtractionService::class);
         $frameExtractionService->method('videoFileExists')->willReturn(false);
 
-        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $storageHelper = $this->createStub(StorageAdapterHelper::class);
         $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);
 
         $outcome = $service->assessAndRetainLocalPath($sermon, 'sermons/missing.mp4', 'public');
@@ -216,10 +216,10 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
     {
         $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
 
-        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService = $this->createStub(FrameExtractionService::class);
         $frameExtractionService->method('videoFileExists')->willThrowException(new \RuntimeException('fail'));
 
-        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $storageHelper = $this->createStub(StorageAdapterHelper::class);
         $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);
 
         $outcome = $service->assessAndRetainLocalPath($sermon, 'sermons/video.mp4', 'public');
@@ -237,14 +237,14 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
 
         $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
 
-        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService = $this->createStub(FrameExtractionService::class);
         $frameExtractionService->method('videoFileExists')->willReturn(true);
         $frameExtractionService->method('ensureLocalVideoPath')->willReturn('local-video.mp4');
         $frameExtractionService->method('getVideoMetadata')->willReturn(['duration' => 120.0]);
         $frameExtractionService->method('extractBaseFrame')->willReturnOnConsecutiveCalls(...$frames);
         $frameExtractionService->method('cleanupDownloadedVideo');
 
-        $storageHelper = $this->createMock(StorageAdapterHelper::class);
+        $storageHelper = $this->createStub(StorageAdapterHelper::class);
         $storageHelper->method('isS3CompatibleDisk')->willReturn(false);
 
         $service = new SermonVideoQualityAssessmentService($frameExtractionService, $storageHelper);

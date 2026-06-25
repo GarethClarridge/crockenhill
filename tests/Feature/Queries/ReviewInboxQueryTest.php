@@ -12,14 +12,14 @@ use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Queries\ReviewInboxQuery;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Tests\Traits\WithInboundEmailTestHelpers;
 
 class ReviewInboxQueryTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
     use WithInboundEmailTestHelpers;
 
     private ReviewInboxQuery $query;

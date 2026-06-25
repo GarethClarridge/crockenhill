@@ -208,7 +208,7 @@ class ProcessingMetadataDataTest extends TestCase
     public function cast_get_deserialises_json_string(): void
     {
         $cast = new ProcessingMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $json = json_encode(['id3_metadata' => ['title' => 'From Cast']]);
         $result = $cast->get($model, 'metadata', $json, []);
@@ -221,7 +221,7 @@ class ProcessingMetadataDataTest extends TestCase
     public function cast_get_returns_empty_metadata_for_null(): void
     {
         $cast = new ProcessingMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $result = $cast->get($model, 'metadata', null, []);
 
@@ -233,7 +233,7 @@ class ProcessingMetadataDataTest extends TestCase
     public function cast_set_serialises_processing_metadata_to_json(): void
     {
         $cast = new ProcessingMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $metadata = ProcessingMetadata::fromArray(['id3_metadata' => ['title' => 'Serialised']]);
         $result = $cast->set($model, 'metadata', $metadata, []);
@@ -247,7 +247,7 @@ class ProcessingMetadataDataTest extends TestCase
     public function cast_set_serialises_plain_array(): void
     {
         $cast = new ProcessingMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $result = $cast->set($model, 'metadata', ['key' => 'val'], []);
 
@@ -258,7 +258,7 @@ class ProcessingMetadataDataTest extends TestCase
     public function cast_set_returns_null_for_null(): void
     {
         $cast = new ProcessingMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $this->assertNull($cast->set($model, 'metadata', null, []));
     }
@@ -267,7 +267,7 @@ class ProcessingMetadataDataTest extends TestCase
     public function cast_round_trips_processing_metadata(): void
     {
         $cast = new ProcessingMetadataCast;
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
 
         $original = ProcessingMetadata::fromArray([
             'id3_metadata' => ['title' => 'Round Trip', 'preacher' => 'Alice'],

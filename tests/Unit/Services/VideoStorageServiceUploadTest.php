@@ -19,8 +19,8 @@ class VideoStorageServiceUploadTest extends TestCase
     {
         parent::setUp();
 
-        $extractionService = $this->createMock(VideoExtractionService::class);
-        $compressionService = $this->createMock(AudioCompressionService::class);
+        $extractionService = $this->createStub(VideoExtractionService::class);
+        $compressionService = $this->createStub(AudioCompressionService::class);
         $this->service = app(VideoStorageService::class, [
             'videoExtractor' => $extractionService,
             'audioCompressor' => $compressionService,

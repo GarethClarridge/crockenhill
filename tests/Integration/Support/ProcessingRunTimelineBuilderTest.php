@@ -10,13 +10,13 @@ use App\Models\SermonProcessingStep;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ProcessingRunTimelineBuilder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ProcessingRunTimelineBuilderTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
     public function it_builds_timelines_for_all_runs_in_a_collection(): void

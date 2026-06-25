@@ -50,7 +50,7 @@ class LivestreamProcessingApiTest extends TestCase
         });
 
         // Mock UnifiedMediaProcessor for consistent test responses
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor = $this->createStub(UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturnCallback(function () {
             $testUuid = Str::uuid()->toString();
 
@@ -378,7 +378,7 @@ class LivestreamProcessingApiTest extends TestCase
         $this->withMiddleware(ThrottleRequests::class);
 
         // Mock the service to ensure we can test rate limiting behavior
-        $mockService = $this->createMock(LivestreamSegmentationService::class);
+        $mockService = $this->createStub(LivestreamSegmentationService::class);
         $mockResult = ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Livestream processing initiated successfully'
@@ -461,7 +461,7 @@ class LivestreamProcessingApiTest extends TestCase
     public function test_api_handles_concurrent_uploads()
     {
         // Mock the service to avoid rate limiting issues
-        $mockService = $this->createMock(LivestreamSegmentationService::class);
+        $mockService = $this->createStub(LivestreamSegmentationService::class);
         $mockService->method('startProcessing')
             ->willReturnOnConsecutiveCalls(
                 ProcessingResult::success(
