@@ -9,3 +9,7 @@
 ## 2026-06-10 - [Video SEO] VideoObject for Gospel Landing Pages
 **Learning:** Landing pages featuring a central video (like the gospel explanation on `/christ`) should implement `VideoObject` JSON-LD. This signals to search engines that the page contains significant video content, potentially qualifying it for video rich results and enhancing its appearance in search.
 **Action:** Include `VideoObject` schema on key landing pages with prominent video content, ensuring `duration`, `uploadDate`, and a high-quality `thumbnailUrl` are provided.
+
+## 2026-06-25 - [Schema.org] Canonical Entity Type for Churches
+**Learning:** The canonical @type for a church in Schema.org structured data is 'Church' (a subtype of Organization and LocalBusiness). Using this more specific type improves semantic accuracy for search engines compared to the generic 'Organization'.
+**Action:** Always use @type: Church instead of Organization in all structured data contexts (publisher, worksFor, organizer, etc.) related to the church entity.

@@ -53,7 +53,7 @@ class SermonJsonLdTest extends TestCase
         $this->assertStringContainsString('"@type": "Article"', $content);
         $this->assertStringContainsString('"headline": "Enhanced JSON-LD Sermon"', $content);
         $this->assertStringContainsString('"publisher":', $content);
-        $this->assertStringContainsString('"@type": "Organization"', $content);
+        $this->assertStringContainsString('"@type": "Church"', $content);
         $this->assertStringContainsString('"name": "Crockenhill Baptist Church"', $content);
         $this->assertStringContainsString('"mainEntityOfPage":', $content);
         $this->assertStringContainsString('"@type": "WebPage"', $content);

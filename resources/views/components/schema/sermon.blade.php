@@ -23,7 +23,7 @@
         'url' => $sermonView['preacher_url'],
         'jobTitle' => 'Preacher',
         'worksFor' => [
-            '@type' => 'Organization',
+            '@type' => 'Church',
             'name' => config('organization.name'),
             '@id' => config('app.url').'/#organization',
         ],
@@ -50,7 +50,7 @@
         'genre' => 'Sermon',
         'author' => $author,
         'publisher' => [
-            '@type' => 'Organization',
+            '@type' => 'Church',
             'name' => config('organization.name'),
             '@id' => config('app.url').'/#organization',
             'logo' => [

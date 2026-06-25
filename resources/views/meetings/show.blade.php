@@ -63,7 +63,7 @@
                         ],
                     ],
                     'organizer' => [
-                        '@type' => 'Organization',
+                        '@type' => 'Church',
                         'name' => config('organization.name'),
                         'url' => url('/'),
                         '@id' => config('app.url').'/#organization',
@@ -132,7 +132,7 @@
                                 ],
                                 'image' => $headingpicture ?? asset('images/Primary.png'),
                                 'organizer' => [
-                                    '@type' => 'Organization',
+                                    '@type' => 'Church',
                                     'name' => config('organization.name'),
                                     'url' => url('/'),
                                     '@id' => config('app.url').'/#organization',
