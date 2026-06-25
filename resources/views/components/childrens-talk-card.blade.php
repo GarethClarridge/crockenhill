@@ -16,7 +16,7 @@
         >
             <img
                 src="{{ $cardThumbnailUrl }}"
-                alt="Children's Corner: {{ $sermon->title }}"
+                alt="Children's talk: {{ $sermon->title }}"
                 class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115"
                 loading="lazy"
             >
