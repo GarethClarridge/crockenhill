@@ -47,8 +47,13 @@ class ReviewInboxQueryTest extends TestCase
             'extracted_date' => $date,
             'extracted_service' => $serviceValue,
         ]);
+        // Null the item relation so the run identity (extracted_date/service)
+        // resolves the group. Left unset, the factory attaches a random
+        // ChurchServiceItem -> ChurchService, which resolveGroupContext() prefers,
+        // scattering this section into an unrelated, faker-dependent group.
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'needs_manual_review' => true,
         ]);
