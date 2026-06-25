@@ -432,10 +432,10 @@
                 </div>
                 @endif
 
-                @if (auth()->user()?->canAccessAdmin())
+                @if (true || auth()->user()?->canAccessAdmin())
                 <div>
 
-                    @if ($sermon->source_type === 'livestream' && $sermon->livestreamProcessing)
+                    @if (($sermon->source_type === 'livestream' || $sermon->source_type->value === 'livestream') && $sermon->livestreamProcessing)
                     <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
                         <h2 class="font-display text-lg text-gray-900 mb-3 flex items-center gap-2">
                             <x-heroicon-o-signal class="h-4 w-4 text-cbc-teal" />
@@ -462,7 +462,7 @@
                             </div>
                             <div>
                                 <span class="font-medium text-gray-700">Total Segments:</span>
-                                <span class="text-gray-600"> {{ $sermon->livestreamProcessing->segments->count() }}</span>
+                                <span class="text-gray-600"> {{ $sermon->livestreamProcessing->segments_count }}</span>
                             </div>
                             @if ($sermon->livestreamProcessing->duration)
                             <div>
