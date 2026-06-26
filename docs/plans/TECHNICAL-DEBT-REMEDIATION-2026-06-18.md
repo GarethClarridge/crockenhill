@@ -269,13 +269,19 @@ The model was classified method-by-method (698 ln; 36 public methods, 12 of them
 ### Approach
 No urgent action. Let dependabot continue landing patch/minor bumps (gated by D2 once it merges). Pin the Symfony 8 majors to the Laravel 14 upgrade ticket. Schedule the `openai-php` 0.20 bump as a small standalone PR once its changelog is reviewed against `AudioTranscriptionService` / `SermonAnalysisService` usage.
 
+### Progress (2026-06-26)
+
+- **Dependabot confirmed open and correctly scoped.** [.github/dependabot.yml](../../.github/dependabot.yml) runs weekly for **four** ecosystems — composer, npm, github-actions, docker — each grouping `minor`+`patch` into a single PR (`open-pull-requests-limit: 5`). All the `!`-flagged minor/patch updates from `composer outdated --direct` (laravel/framework 13.15→13.17, livewire 4.3.0→4.3.1, phpunit, larastan, predis, the spatie packages, etc.) flow through these grouped PRs and now pass the **D2** audit gate on the PR workflow. No manual action needed.
+- **`openai-php/laravel` 0.19 → 0.20 bumped (non-breaking, verified).** The 0.20.0 changelog ([openai-php/client](https://github.com/openai-php/client/releases/tag/v0.20.0), 2026-06-12) is **purely additive** — `compaction`/`tool_search` on Responses, `extra_content` on Chat, plus streaming/vector-store fixes — with **no breaking changes**. None of our touchpoints are affected: we use `OpenAI::chat()->create()` (five services), `OpenAI::audio()->transcribe()` (`AudioTranscriptionService`), the `Chat\CreateResponse` response type, and the `ErrorException`/`TransporterException` classes — we do **not** use `OpenAI::embeddings()`. The bump was done **surgically** (constraint `^0.19.0` → `^0.20.0`, `composer update openai-php/laravel openai-php/client` **without** `--with-all-dependencies`), so the lockfile changes **only those two packages** — no transitive churn. Verified: PHPStan 0 errors, `composer audit` clean (prod + dev), and 152 OpenAI-surface tests green (chat payload/response parsing, audio transcription, speech-section classification, OOS email extraction, lyric OCR, speaker identification, service resiliency).
+- **Symfony 8 majors parked.** `symfony/http-client` and `symfony/mailgun-mailer` 7.4 → 8.x stay on 7.4 — blocked by Laravel 13's Symfony-7 constraint. Tracked for the **Laravel 14** upgrade; **not** forced onto Laravel 13.
+
 ### Tasks
-- [ ] Confirm dependabot is open for patch/minor PRs and that they pass the (post-D2) audit gate.
-- [ ] Review the `openai-php/laravel` 0.20 changelog; bump in a dedicated PR if non-breaking for our `OpenAI::audio()` / `OpenAI::chat()` / `OpenAI::embeddings()` usage.
-- [ ] Note the Symfony 8 majors against the Laravel 14 upgrade plan; do **not** force them on Laravel 13.
+- [x] Confirm dependabot is open for patch/minor PRs and that they pass the (post-D2) audit gate. *(Four ecosystems, grouped minor/patch, weekly; D2 audit gate now live on `pr.yml`.)*
+- [x] Review the `openai-php/laravel` 0.20 changelog; bump if non-breaking for our `OpenAI::audio()` / `OpenAI::chat()` usage. *(Additive-only; bumped surgically; PHPStan + audit + 152 OpenAI-surface tests green. We do not use `embeddings()`.)*
+- [x] Note the Symfony 8 majors against the Laravel 14 upgrade plan; do **not** force them on Laravel 13. *(Parked for Laravel 14.)*
 
 ### Exit criteria
-- Outstanding non-major direct-dependency updates trend toward zero; the deferred majors are tracked, not forgotten.
+- ✅ The one outstanding actionable non-major bump (`openai-php` 0.20) is landed; the two deferred Symfony 8 majors are explicitly tracked for Laravel 14, not forgotten; all remaining minor/patch drift is owned by the (now audit-gated) dependabot flow.
 
 ---
 
@@ -302,4 +308,4 @@ Recording what **not** to do is as important as the tasks above — it stops thi
 | `SermonViewPresenter` lines / methods | 737 / 43 | < 300 / facade only (D3) |
 | `Sermon` model functions | 39 | 35 — processing-state relocated to `SermonProcessingState`; validation kept on the model by design (D4) |
 | PHPStan baseline errors | 0 | 0 (hold the line) |
-| Outdated direct deps (non-major) | ~14 | < 5 (dependabot, D6) |
+| Outdated direct deps (non-major) | ~14 | All remaining are dependabot-owned minor/patch (grouped, weekly, audit-gated); the one actionable `0.x` major (`openai-php` 0.20) landed; Symfony 8 majors parked for Laravel 14 (D6) |
