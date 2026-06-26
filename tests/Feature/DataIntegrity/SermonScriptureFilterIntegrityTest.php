@@ -21,12 +21,12 @@ class SermonScriptureFilterIntegrityTest extends TestCase
         $rules = SermonScriptureFilter::validationRules();
 
         // sermon_id: unsignedInteger (max: 4294967295)
-        $this->assertContains('max:' . self::UNSIGNED_INTEGER_MAX, $rules['sermon_id']);
+        $this->assertContains('max:'.self::UNSIGNED_INTEGER_MAX, $rules['sermon_id']);
         $this->assertValidationPasses($rules['sermon_id'], 'sermon_id', self::UNSIGNED_INTEGER_MAX);
         $this->assertValidationFails($rules['sermon_id'], 'sermon_id', self::UNSIGNED_INTEGER_MAX + 1);
 
         // bible_chapter: unsignedSmallInteger (max: 65535)
-        $this->assertContains('max:' . self::UNSIGNED_SMALL_INTEGER_MAX, $rules['bible_chapter']);
+        $this->assertContains('max:'.self::UNSIGNED_SMALL_INTEGER_MAX, $rules['bible_chapter']);
         $this->assertValidationPasses($rules['bible_chapter'], 'bible_chapter', self::UNSIGNED_SMALL_INTEGER_MAX);
         $this->assertValidationFails($rules['bible_chapter'], 'bible_chapter', self::UNSIGNED_SMALL_INTEGER_MAX + 1);
 
