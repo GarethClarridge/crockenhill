@@ -52,9 +52,9 @@ class SermonScriptureFilter extends Model
     public static function validationRules(): array
     {
         return [
-            'sermon_id' => ['required', 'integer', 'exists:sermons,id'],
+            'sermon_id' => ['required', 'integer', 'min:1', 'max:4294967295', 'exists:sermons,id'],
             'bible_book' => ['required', 'string', 'max:50'],
-            'bible_chapter' => ['required', 'integer', 'min:1'],
+            'bible_chapter' => ['required', 'integer', 'min:1', 'max:65535'],
         ];
     }
 
