@@ -48,15 +48,23 @@ class SermonViewPresenter
      */
     private readonly SermonMetaPresenter $metaPresenter;
 
+    /**
+     * Builds media and page URLs; defaults to one backed by the storage and
+     * exposure services.
+     */
+    private readonly SermonUrlBuilder $urlBuilder;
+
     public function __construct(
-        private readonly SermonExposurePolicy $exposurePolicy,
-        private readonly SermonStorageService $storageService,
+        SermonExposurePolicy $exposurePolicy,
+        SermonStorageService $storageService,
         private readonly SermonTranscriptReader $transcriptReader,
         private readonly SermonPresentationAssembler $assembler = new SermonPresentationAssembler,
         private readonly SermonDateFormatter $dateFormatter = new SermonDateFormatter,
         ?SermonMetaPresenter $metaPresenter = null,
+        ?SermonUrlBuilder $urlBuilder = null,
     ) {
-        $this->metaPresenter = $metaPresenter ?? new SermonMetaPresenter($this->exposurePolicy);
+        $this->metaPresenter = $metaPresenter ?? new SermonMetaPresenter($exposurePolicy);
+        $this->urlBuilder = $urlBuilder ?? new SermonUrlBuilder($storageService, $exposurePolicy);
     }
 
     /**
@@ -108,9 +116,7 @@ class SermonViewPresenter
 
     public function audioUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'audio', 'memoizedUrls', fn (): ?string => filled($sermon->audio_file_path)
-            ? $this->storageService->getAudioDeliveryUrl($sermon)
-            : null);
+        return $this->memoize($sermon, 'audio', 'memoizedUrls', fn (): ?string => $this->urlBuilder->audioUrl($this, $sermon));
     }
 
     /**
@@ -146,60 +152,23 @@ class SermonViewPresenter
 
     public function canonicalUrl(Sermon $sermon): string
     {
-        return $this->memoize($sermon, 'canonical', 'memoizedUrls', fn (): string => $this->exposurePolicy->canonicalUrl($sermon));
+        return $this->memoize($sermon, 'canonical', 'memoizedUrls', fn (): string => $this->urlBuilder->canonicalUrl($this, $sermon));
     }
 
     /**
      * Get the card variant thumbnail URL for a sermon.
-     *
-     * Performance Optimization: Implements fallback logic to use the primary
-     * thumbnail path if metadata is not loaded (e.g. in listings) to avoid
-     * N+1 queries for large JSON metadata.
      */
     public function cardThumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'card_thumb', 'memoizedUrls', function () use ($sermon): ?string {
-            if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-                return null;
-            }
-
-            if (! isset($sermon->getAttributes()['thumbnail_metadata'])) {
-                return null;
-            }
-
-            if (! $sermon->hasPlainThumbnail()) {
-                return null;
-            }
-
-            return $this->storageService->getCardThumbnailDeliveryUrl($sermon);
-        });
+        return $this->memoize($sermon, 'card_thumb', 'memoizedUrls', fn (): ?string => $this->urlBuilder->cardThumbnailUrl($this, $sermon));
     }
 
     /**
      * Get the plain variant thumbnail URL for a sermon.
-     *
-     * Performance Optimization: Implements fallback logic to use the primary
-     * thumbnail path if metadata is not loaded (e.g. in listings) to avoid
-     * N+1 queries for large JSON metadata.
      */
     public function plainThumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'plain_thumb', 'memoizedUrls', function () use ($sermon): ?string {
-            if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-                return null;
-            }
-
-            // Fallback for listings where metadata is not selected: use primary thumbnail
-            if (! isset($sermon->getAttributes()['thumbnail_metadata']) && $sermon->hasThumbnail()) {
-                return $this->thumbnailUrl($sermon);
-            }
-
-            if (! $sermon->hasPlainThumbnail()) {
-                return null;
-            }
-
-            return $this->storageService->getPlainThumbnailDeliveryUrl($sermon);
-        });
+        return $this->memoize($sermon, 'plain_thumb', 'memoizedUrls', fn (): ?string => $this->urlBuilder->plainThumbnailUrl($this, $sermon));
     }
 
     /**
@@ -394,22 +363,12 @@ class SermonViewPresenter
 
     public function publicUrl(Sermon $sermon): string
     {
-        return $this->memoize($sermon, 'public', 'memoizedUrls', fn (): string => $this->exposurePolicy->publicUrl($sermon));
+        return $this->memoize($sermon, 'public', 'memoizedUrls', fn (): string => $this->urlBuilder->publicUrl($this, $sermon));
     }
 
     public function thumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'thumb', 'memoizedUrls', function () use ($sermon): ?string {
-            if (! $this->exposurePolicy->shouldExposeThumbnail($sermon)) {
-                return null;
-            }
-
-            if (! $sermon->hasThumbnail()) {
-                return null;
-            }
-
-            return $this->storageService->getThumbnailDeliveryUrl($sermon);
-        });
+        return $this->memoize($sermon, 'thumb', 'memoizedUrls', fn (): ?string => $this->urlBuilder->thumbnailUrl($this, $sermon));
     }
 
     public function transcript(Sermon $sermon): ?string
@@ -419,13 +378,7 @@ class SermonViewPresenter
 
     public function transcriptUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'transcript_url', 'memoizedUrls', function () use ($sermon): ?string {
-            if (! $sermon->hasTranscript()) {
-                return null;
-            }
-
-            return route('sermons.transcript', ['sermon' => $sermon->slug]);
-        });
+        return $this->memoize($sermon, 'transcript_url', 'memoizedUrls', fn (): ?string => $this->urlBuilder->transcriptUrl($this, $sermon));
     }
 
     /**
@@ -616,13 +569,7 @@ class SermonViewPresenter
 
     public function videoUrl(Sermon $sermon): ?string
     {
-        return $this->memoize($sermon, 'video', 'memoizedUrls', function () use ($sermon): ?string {
-            if (! $this->exposurePolicy->shouldExposeVideo($sermon)) {
-                return null;
-            }
-
-            return $this->storageService->getVideoDeliveryUrl($sermon);
-        });
+        return $this->memoize($sermon, 'video', 'memoizedUrls', fn (): ?string => $this->urlBuilder->videoUrl($this, $sermon));
     }
 
     /**
