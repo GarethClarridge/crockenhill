@@ -30,10 +30,10 @@ class SermonViewPresenter
         private readonly SermonTranscriptReader $transcriptReader,
         private readonly SermonPresentationAssembler $assembler = new SermonPresentationAssembler,
         private readonly SermonDateFormatter $dateFormatter = new SermonDateFormatter,
-        private readonly SermonIdentityResolver $identityResolver = new SermonIdentityResolver,
-        private readonly SermonPresenterCache $cache = new SermonPresenterCache,
         ?SermonMetaPresenter $metaPresenter = null,
         ?SermonUrlBuilder $urlBuilder = null,
+        private readonly SermonIdentityResolver $identityResolver = new SermonIdentityResolver,
+        private readonly SermonPresenterCache $cache = new SermonPresenterCache,
     ) {
         $this->metaPresenter = $metaPresenter ?? new SermonMetaPresenter($exposurePolicy);
         $this->urlBuilder = $urlBuilder ?? new SermonUrlBuilder($storageService, $exposurePolicy);
