@@ -481,7 +481,7 @@ class StructuralSectionAligner
             $metadata = $this->metadata($section);
             $metadata['reading_reference'] = $item->title;
             $section->metadata = ServiceSectionMetadata::fromArray($metadata);
-        } elseif (($section->title === null || trim($section->title) === '') && $resolvedType !== ServiceSectionType::Sermon) {
+        } elseif (blank($section->title) && $resolvedType !== ServiceSectionType::Sermon) {
             $section->title = $item->title;
         }
 

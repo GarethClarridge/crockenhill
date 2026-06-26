@@ -8,7 +8,6 @@ use App\Data\ThumbnailMetadata;
 use App\Data\ThumbnailMetadataCast;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
-use App\Enums\ProcessingStatus;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
@@ -18,6 +17,7 @@ use App\Models\Builders\SermonBuilder;
 use App\Rules\NotEmptyString;
 use App\Rules\SermonPointElement;
 use App\Sitemap\SermonSitemapPresenter;
+use App\Support\SermonProcessingState;
 use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -521,59 +521,15 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * Get the current processing status for this sermon
+     * Read-only view of this sermon's media-processing state.
      *
-     * @return ProcessingStatus|null The current processing status or null if not automated
+     * Pipeline state (status, completion, failure, in-progress) describes the
+     * related {@see MediaProcessingLog}, not the sermon itself, so it is read
+     * through a dedicated collaborator rather than spread across model methods.
      */
-    public function getProcessingStatus(): ?ProcessingStatus
+    public function processingState(): SermonProcessingState
     {
-        return $this->latestProcessingLog?->status;
-    }
-
-    /**
-     * Check if processing is complete for this sermon
-     *
-     * @return bool True if processing is completed
-     */
-    public function isProcessingComplete(): bool
-    {
-        $status = $this->getProcessingStatus();
-
-        return $status?->isComplete() ?? false;
-    }
-
-    /**
-     * Check if processing has failed for this sermon
-     *
-     * @return bool True if processing has failed
-     */
-    public function isProcessingFailed(): bool
-    {
-        $status = $this->getProcessingStatus();
-
-        return $status?->isFailed() ?? false;
-    }
-
-    /**
-     * Check if processing is currently in progress for this sermon
-     *
-     * @return bool True if processing is in progress
-     */
-    public function isProcessingInProgress(): bool
-    {
-        $status = $this->getProcessingStatus();
-
-        return $status?->isInProgress() ?? false;
-    }
-
-    /**
-     * Get the latest processing log for this sermon
-     *
-     * @return MediaProcessingLog|null The latest processing log or null
-     */
-    public function getLatestProcessingLog(): ?MediaProcessingLog
-    {
-        return $this->latestProcessingLog;
+        return new SermonProcessingState($this->latestProcessingLog);
     }
 
     /**
