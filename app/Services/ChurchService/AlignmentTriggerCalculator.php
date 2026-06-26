@@ -57,7 +57,7 @@ class AlignmentTriggerCalculator
      *     song_match_type: string|null,
      *     review_reason: string|null,
      * }>  $beforeState  Array keyed by section ID
-     * @return list<'ambiguous_sermon_detection'|'unmatched_song_sections'|'oos_structure_mismatch'|'late_oos_alignment_changed'|'too_many_low_confidence_sections'|'manual_review_sections'>
+     * @return array<int, 'ambiguous_sermon_detection'|'unmatched_song_sections'|'oos_structure_mismatch'|'late_oos_alignment_changed'|'too_many_low_confidence_sections'|'manual_review_sections'>
      */
     public function calculate(
         EloquentCollection $sections,
