@@ -84,7 +84,7 @@ class SermonItemListPresenter
     private function buildPublisher(string $orgName, string $logoUrl, string $orgId): array
     {
         return [
-            '@type' => 'Organization',
+            '@type' => ['Organization', 'Church'],
             'name' => $orgName,
             '@id' => $orgId,
             'logo' => [
@@ -113,7 +113,7 @@ class SermonItemListPresenter
     private function buildWorksFor(string $orgName, string $orgId): array
     {
         return [
-            '@type' => 'Organization',
+            '@type' => ['Organization', 'Church'],
             'name' => $orgName,
             '@id' => $orgId,
         ];

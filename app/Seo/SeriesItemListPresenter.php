@@ -39,7 +39,7 @@ class SeriesItemListPresenter
                         'url' => $seriesUrl,
                         'inLanguage' => 'en-GB',
                         'publisher' => [
-                            '@type' => 'Organization',
+                            '@type' => ['Organization', 'Church'],
                             'name' => $orgName,
                             '@id' => $orgId,
                             'logo' => [
