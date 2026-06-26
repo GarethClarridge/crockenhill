@@ -63,9 +63,9 @@
                 </div>
 
                 @if ($talks->hasPages())
-                    <div class="mx-auto mt-8 max-w-2xl">
+                    <nav class="mx-auto mt-8 max-w-2xl" aria-label="Pagination">
                         {{ $talks->links() }}
-                    </div>
+                    </nav>
                 @endif
             </section>
         @endif

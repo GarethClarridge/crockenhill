@@ -156,9 +156,9 @@
             </div>
 
             @if ($sermons->hasPages())
-                <div class="mx-auto mt-8 max-w-2xl px-6">
+                <nav class="mx-auto mt-8 max-w-2xl px-6" aria-label="Pagination">
                     {{ $sermons->links(data: ['scrollTo' => '#sermon-results']) }}
-                </div>
+                </nav>
             @endif
         @else
             <section class="mx-auto mt-8 max-w-2xl px-6">

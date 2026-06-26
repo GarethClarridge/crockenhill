@@ -186,9 +186,9 @@
                 </div>
 
                 @if ($songs->hasPages())
-                    <div class="mx-auto mt-8 max-w-2xl">
+                    <nav class="mx-auto mt-8 max-w-2xl" aria-label="Pagination">
                         {{ $songs->links(data: ['scrollTo' => '#song-results']) }}
-                    </div>
+                    </nav>
                 @endif
             </section>
         @endif
