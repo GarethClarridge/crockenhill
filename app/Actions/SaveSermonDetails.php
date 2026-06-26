@@ -78,12 +78,12 @@ class SaveSermonDetails
         $sermon->update($updateData);
 
         $fresh = $sermon->fresh();
-        Log::warning('Sermon updated by admin', [
+        Log::warning('Sermon updated by admin', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
             'sermon_id' => $sermon->id,
-            'title' => $this->sanitizeForLog($fresh instanceof Sermon ? $fresh->title : $sermon->title),
-            'slug' => $this->sanitizeForLog($fresh instanceof Sermon ? $fresh->slug : $sermon->slug),
-        ]);
+            'title' => $fresh instanceof Sermon ? $fresh->title : $sermon->title,
+            'slug' => $fresh instanceof Sermon ? $fresh->slug : $sermon->slug,
+        ]));
 
         // Dispatch enrichment after saving if reference was set or changed
         if ($referenceChanged && ! empty($newReference)) {

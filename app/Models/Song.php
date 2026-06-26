@@ -133,7 +133,9 @@ class Song extends Model
         };
 
         return [
-            'title' => ['required', 'string', 'max:255'],
+            // Security: Explicit length constraints are enforced on all text fields to provide
+            // Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
+            'title' => ['required', 'string', 'max:100'],
             'slug' => $slugRule,
             'canonical_key' => ['required', 'string', 'max:255', $uniqueCanonicalKey],
             'alternate_title' => ['nullable', 'string', 'max:255'],
@@ -141,6 +143,8 @@ class Song extends Model
             'lyrics_plain' => ['nullable', 'string', 'max:100000'],
             'verse_order' => ['nullable', 'string', 'max:255'],
             'ccli_number' => ['nullable', 'string', 'max:255'],
+            'copyright' => ['nullable', 'string', 'max:1000'],
+            'comments' => ['nullable', 'string', 'max:100000'],
         ];
     }
 

@@ -186,10 +186,10 @@ class MetadataExtractionService
 
             // getID3 signals file-open failures via an 'error' key rather than throwing
             if (! empty($info['error'])) {
-                Log::warning('Failed to extract audio info from uploaded file', [
-                    'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
-                    'error' => $this->sanitizeForLog(implode('; ', (array) $info['error'])),
-                ]);
+                Log::warning('Failed to extract audio info from uploaded file', $this->sanitizeArrayForLog([
+                    'filename' => $file->getClientOriginalName(),
+                    'error' => implode('; ', (array) $info['error']),
+                ]));
 
                 return $this->getDefaultAudioInfo($file);
             }
@@ -204,10 +204,10 @@ class MetadataExtractionService
             ];
         } catch (\Exception $e) {
             // Log the error but don't fail the entire process
-            Log::warning('Failed to extract audio info from uploaded file', [
-                'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to extract audio info from uploaded file', $this->sanitizeArrayForLog([
+                'filename' => $file->getClientOriginalName(),
+                'error' => $e->getMessage(),
+            ]));
 
             return $this->getDefaultAudioInfo($file);
         }
@@ -236,10 +236,10 @@ class MetadataExtractionService
             ];
         } catch (\Exception $e) {
             // Log the error but don't fail the entire process
-            Log::warning('Failed to extract audio info from file path', [
-                'filepath' => $this->sanitizeForLog($filePath),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to extract audio info from file path', $this->sanitizeArrayForLog([
+                'filepath' => $filePath,
+                'error' => $e->getMessage(),
+            ]));
 
             return $this->getDefaultAudioInfoFromPath($filePath);
         }
@@ -419,10 +419,10 @@ class MetadataExtractionService
             $filenameDate = $this->filenameParser->tryExtractDateFromFilename($filename);
 
             if (! $filePath || ! file_exists($filePath)) {
-                Log::warning('Video file not found for date extraction, using available fallbacks', [
-                    'file_path' => is_string($filePath) ? $this->sanitizeForLog($filePath) : null,
-                    'filename' => $this->sanitizeForLog($filename),
-                ]);
+                Log::warning('Video file not found for date extraction, using available fallbacks', $this->sanitizeArrayForLog([
+                    'file_path' => is_string($filePath) ? $filePath : null,
+                    'filename' => $filename,
+                ]));
 
                 return $filenameDate ?? $clientDate ?? $this->extractDateFromFilename($filename);
             }
@@ -434,39 +434,39 @@ class MetadataExtractionService
                 // If the filename encodes a real date that is older than the metadata date,
                 // the metadata is likely a download/re-encode timestamp — prefer the filename.
                 if ($filenameDate !== null && $metadataDate->isAfter($filenameDate->copy()->endOfDay())) {
-                    Log::info('Filename date preferred: metadata creation_time is newer', [
-                        'filename' => $this->sanitizeForLog($filename),
+                    Log::info('Filename date preferred: metadata creation_time is newer', $this->sanitizeArrayForLog([
+                        'filename' => $filename,
                         'filename_date' => $filenameDate->toDateString(),
                         'metadata_date' => $metadataDate->toDateString(),
-                    ]);
+                    ]));
 
                     return $filenameDate;
                 }
 
-                Log::info('Extracted creation date from video metadata tags', [
-                    'filename' => $this->sanitizeForLog($filename),
+                Log::info('Extracted creation date from video metadata tags', $this->sanitizeArrayForLog([
+                    'filename' => $filename,
                     'metadata_date' => $metadataDate->toDateString(),
-                ]);
+                ]));
 
                 return $metadataDate;
             }
 
             // Strategy 2: Filename parsing
             if ($filenameDate !== null) {
-                Log::info('Using filename date for video date extraction', [
-                    'filename' => $this->sanitizeForLog($filename),
+                Log::info('Using filename date for video date extraction', $this->sanitizeArrayForLog([
+                    'filename' => $filename,
                     'filename_date' => $filenameDate->toDateString(),
-                ]);
+                ]));
 
                 return $filenameDate;
             }
 
             // Strategy 3: Client-provided file date
             if ($clientDate !== null) {
-                Log::info('Using client-provided file modification date', [
-                    'filename' => $this->sanitizeForLog($filename),
+                Log::info('Using client-provided file modification date', $this->sanitizeArrayForLog([
+                    'filename' => $filename,
                     'parsed_date' => $clientDate->toDateString(),
-                ]);
+                ]));
 
                 return $clientDate;
             }
@@ -475,23 +475,23 @@ class MetadataExtractionService
             $fileTimestampDate = $this->extractDateFromFileTimestamp($filePath);
 
             if ($fileTimestampDate !== null) {
-                Log::info('Using original file modification timestamp', [
-                    'filename' => $this->sanitizeForLog($filename),
+                Log::info('Using original file modification timestamp', $this->sanitizeArrayForLog([
+                    'filename' => $filename,
                     'file_date' => $fileTimestampDate->toDateString(),
-                ]);
+                ]));
 
                 return $fileTimestampDate;
             }
 
-            Log::info('No creation date in video metadata or file timestamp, falling back to filename', [
-                'filename' => $this->sanitizeForLog($filename),
-            ]);
+            Log::info('No creation date in video metadata or file timestamp, falling back to filename', $this->sanitizeArrayForLog([
+                'filename' => $filename,
+            ]));
 
         } catch (\Exception $e) {
-            Log::warning('Failed to extract date from video metadata, using filename fallback', [
-                'filename' => $this->sanitizeForLog($filename),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to extract date from video metadata, using filename fallback', $this->sanitizeArrayForLog([
+                'filename' => $filename,
+                'error' => $e->getMessage(),
+            ]));
         }
 
         // Final fallback to filename extraction
@@ -553,11 +553,11 @@ class MetadataExtractionService
         try {
             return Carbon::parse($clientProvidedDate);
         } catch (\Exception $e) {
-            Log::warning('Failed to parse client-provided date, falling back', [
-                'filename' => $this->sanitizeForLog($filename),
-                'client_date' => $this->sanitizeForLog((string) $clientProvidedDate),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to parse client-provided date, falling back', $this->sanitizeArrayForLog([
+                'filename' => $filename,
+                'client_date' => (string) $clientProvidedDate,
+                'error' => $e->getMessage(),
+            ]));
 
             return null;
         }
@@ -597,10 +597,10 @@ class MetadataExtractionService
                 return Storage::disk('public')->size($filePath);
             }
         } catch (\Exception $e) {
-            Log::debug('Failed to get file size from storage', [
-                'file_path' => $this->sanitizeForLog($filePath),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::debug('Failed to get file size from storage', $this->sanitizeArrayForLog([
+                'file_path' => $filePath,
+                'error' => $e->getMessage(),
+            ]));
         }
 
         // Final fallback - might be a local path without leading slash
@@ -636,16 +636,16 @@ class MetadataExtractionService
                 $reference = $info['comments']['comment'][0];
             }
 
-            Log::info('Extracted ID3 metadata from audio file', [
-                'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
-                'title' => $this->sanitizeForLog((string) $title),
-                'preacher' => $this->sanitizeForLog((string) $preacher),
-                'series' => $this->sanitizeForLog((string) $series),
-                'reference' => $this->sanitizeForLog((string) $reference),
+            Log::info('Extracted ID3 metadata from audio file', $this->sanitizeArrayForLog([
+                'filename' => $file->getClientOriginalName(),
+                'title' => (string) $title,
+                'preacher' => (string) $preacher,
+                'series' => (string) $series,
+                'reference' => (string) $reference,
                 'title_type' => gettype($title),
                 'title_empty' => empty($title),
                 'raw_info_keys' => array_keys($info),
-            ]);
+            ]));
 
             return [
                 'title' => $title ?: null,
@@ -654,10 +654,10 @@ class MetadataExtractionService
                 'reference' => $reference,
             ];
         } catch (\Exception $e) {
-            Log::warning('Failed to extract ID3 metadata from audio file', [
-                'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to extract ID3 metadata from audio file', $this->sanitizeArrayForLog([
+                'filename' => $file->getClientOriginalName(),
+                'error' => $e->getMessage(),
+            ]));
 
             return [
                 'title' => null,
@@ -692,10 +692,10 @@ class MetadataExtractionService
                 'duration' => $this->extractDuration($info),
             ];
         } catch (\Exception $e) {
-            Log::warning('Failed to extract ID3 metadata from audio file path', [
-                'filepath' => $this->sanitizeForLog($filePath),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to extract ID3 metadata from audio file path', $this->sanitizeArrayForLog([
+                'filepath' => $filePath,
+                'error' => $e->getMessage(),
+            ]));
 
             return [
                 'title' => null,
