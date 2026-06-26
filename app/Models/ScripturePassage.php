@@ -58,12 +58,14 @@ class ScripturePassage extends Model
     public static function validationRules(): array
     {
         return [
+            // Security: Explicit length constraints are enforced on all text fields to provide
+            // Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
             'bible_id' => ['required', 'string', 'max:255'],
             'normalized_reference' => ['required', 'string', 'max:255'],
             'api_passage_id' => ['nullable', 'string', 'max:255'],
             'display_reference' => ['nullable', 'string', 'max:255'],
-            'html_content' => ['required', 'string'],
-            'copyright' => ['required', 'string'],
+            'html_content' => ['required', 'string', 'max:500000'],
+            'copyright' => ['required', 'string', 'max:65535'],
             'fums_token' => ['nullable', 'string', 'max:255'],
             'fetched_at' => ['required', 'date'],
         ];

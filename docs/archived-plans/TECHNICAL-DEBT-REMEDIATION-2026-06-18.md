@@ -1,5 +1,7 @@
 # Technical Debt Remediation Plan (2026-06-18)
 
+> **Status: ✅ Complete — archived 2026-06-26.** All six phases (D1–D6) landed. D1/D2 closed the security CVE and promoted the audit to the PR gate; D3 decomposed `SermonViewPresenter`; D4 extracted `SermonProcessingState` off the `Sermon` model (validation deliberately kept on the model); D5 reviewed `MediaProcessingLog` and recorded that its size is intrinsic (no orchestration to relocate); D6 bumped `openai-php` to 0.20, confirmed the dependabot/audit flow, and parked the Symfony 8 majors for Laravel 14. See each phase's **Progress/Findings** section for details.
+
 Created 2026-06-18 from a churn × complexity × security analysis of the codebase (git history over the last 90 days, `composer audit`, `composer outdated --direct`, PHPStan config, file-size complexity proxies, and test-coverage mapping of the hotspots).
 
 This plan turns each finding into an ordered, verifiable phase. Phases are numbered `D1…D6` (D for *debt*) and ordered by priority. Each phase is independently shippable as a single PR.
@@ -232,17 +234,33 @@ This is an **investigation-first** phase. Read the model, classify its methods (
 - [app/Services/Processing/SermonProcessingLogger.php](../../app/Services/Processing/SermonProcessingLogger.php) — likely destination for any orchestration.
 - **Safety net:** existing `MediaProcessingLog` and processing-job tests (e.g. [tests/Feature/SermonProcessingJobChainTest.php](../../tests/Feature/SermonProcessingJobChainTest.php), [tests/Feature/SermonProcessingErrorHandlingTest.php](../../tests/Feature/SermonProcessingErrorHandlingTest.php)).
 
+### Findings (2026-06-26) — no orchestration to relocate; size is intrinsic
+
+The model was classified method-by-method (698 ln; 36 public methods, 12 of them query scopes; 9 private/static helpers). The result is the **"it's fine, here's why"** outcome this phase explicitly sanctions: there is essentially no orchestration on the record to move.
+
+**Side-effect audit.** A grep for `save`/`update`/`delete`/`forceFill`/`dispatch`/`Bus`/`Queue`/`Storage`/`DB`/`event`/`Http` across the model returns **exactly one** hit: `putVideoQualityMetadata()` ([:474](../../app/Models/MediaProcessingLog.php#L474)) does a single self-write of one JSON column (`forceFill(['processing_metadata' => …])->save()`). There is **no** job dispatching, no service coordination, no multi-record workflow, and no external I/O anywhere in the class. The orchestration genuinely lives where it should — `ProcessingRunOrchestrator`, `ProcessingRunFailureHandler`, `MediaProcessingRunTransitionService`, `ProcessingInitiator`, `ProcessingPhaseRegistry`, and the logging/reporting `SermonProcessingLogger`.
+
+**Method classification (all four buckets are model-appropriate):**
+- **Data shape** — `$fillable`/`casts()` are large only because the row is wide (~36 columns spanning audio, video, livestream, visual-analysis, queue-correlation). Two backward-compat accessors (`storedFilePath`, `originalFilename`).
+- **Query scopes (12)** — `byType`/`audio`/`video`/`livestream`/`segmentationPipeline`/`processing`/`pending`/`completed`/`failed`/`awaitingManualSermonReview`/`recent`/`visibleTo`. This is the query surface for the processing dashboard; it belongs on the model. `scopeSegmentationPipeline` is intentionally the SQL mirror of `usesSegmentationPipeline()`.
+- **State predicates** — `isComplete`/`isFailed`/`isProcessing`/`isPending`/`isCancelled`/`isDegradedCompletion`: pure reads over `status`.
+- **Read-model derivations** — `videoProcessingMode`, `isAutoTrimVideoRun`, `usesSegmentationPipeline`, `canUseManualSermonReview`, `processingPipelineProfile`, `requiresManualSermonReview`, `manualReviewMetadata`, `manuallyConfirmedSegmentId`, `temporaryFilePaths`, `buildDedupKey`/`makeDedupKey`. These derive classification from the record's **own** columns and are consumed as a shared read-model by **10+ collaborators** (jobs, presenters, Livewire, services, actions, queries). Relocating them would force every caller through new indirection and scatter the single source of truth — a net complexity increase, which the plan's guardrails forbid. The legacy manual-review string-parsing cluster (`legacyManualReview*`, ~50 ln, all `private`) is cohesive backward-compat for old rows and reads only this record's columns.
+
+**On `putVideoQualityMetadata` (the one writer):** one app caller (`AssessSermonVideoQuality` job). It is a focused self-write of the record's own JSON column, not orchestration; pushing it into a service would add a load/mutate/save round-trip for no real gain. Left in place.
+
+**Conclusion.** The model is large because it is a wide denormalised processing record that also serves as the dashboard's query surface and a widely-consumed read-model — all intrinsic. No orchestration was found to move, so no code changes are made for D5 (consistent with the Non-Goals: refactoring stable, tested code is pure cost). The phase closes on the documented-rationale branch of its exit criteria.
+
 ### Tasks
-- [ ] Classify every method: data/state vs. orchestration/decision.
-- [ ] If orchestration is found, move it to the relevant `Processing` service; otherwise document why the size is justified and close the phase.
-- [ ] Keep moves small and test-backed.
+- [x] Classify every method: data/state vs. orchestration/decision. *(36 public + 9 helper methods classified above; all data-shape / scopes / state-reads.)*
+- [x] If orchestration is found, move it to the relevant `Processing` service; otherwise document why the size is justified and close the phase. *(None found — size is intrinsic; rationale recorded above.)*
+- [x] Keep moves small and test-backed. *(No moves warranted.)*
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact --parallel tests/Feature/SermonProcessing*` (and any direct model test).
-- [ ] `vendor/bin/sail composer phpstan` — 0 errors.
+- [x] No code change, so the existing `MediaProcessingLog` and processing-job suites remain the unchanged safety net; the audit was static (grep for side-effects + caller mapping).
+- [x] `composer phpstan` — 0 errors (unchanged; no code touched).
 
 ### Exit criteria
-- Either orchestration is relocated with coverage retained, or a short written rationale records that the model's size is intrinsic.
+- ✅ Met via the documented-rationale branch: a short written rationale records that the model's size is intrinsic and that no orchestration belongs elsewhere.
 
 ---
 
@@ -258,13 +276,19 @@ This is an **investigation-first** phase. Read the model, classify its methods (
 ### Approach
 No urgent action. Let dependabot continue landing patch/minor bumps (gated by D2 once it merges). Pin the Symfony 8 majors to the Laravel 14 upgrade ticket. Schedule the `openai-php` 0.20 bump as a small standalone PR once its changelog is reviewed against `AudioTranscriptionService` / `SermonAnalysisService` usage.
 
+### Progress (2026-06-26)
+
+- **Dependabot confirmed open and correctly scoped.** [.github/dependabot.yml](../../.github/dependabot.yml) runs weekly for **four** ecosystems — composer, npm, github-actions, docker — each grouping `minor`+`patch` into a single PR (`open-pull-requests-limit: 5`). All the `!`-flagged minor/patch updates from `composer outdated --direct` (laravel/framework 13.15→13.17, livewire 4.3.0→4.3.1, phpunit, larastan, predis, the spatie packages, etc.) flow through these grouped PRs and now pass the **D2** audit gate on the PR workflow. No manual action needed.
+- **`openai-php/laravel` 0.19 → 0.20 bumped (non-breaking, verified).** The 0.20.0 changelog ([openai-php/client](https://github.com/openai-php/client/releases/tag/v0.20.0), 2026-06-12) is **purely additive** — `compaction`/`tool_search` on Responses, `extra_content` on Chat, plus streaming/vector-store fixes — with **no breaking changes**. None of our touchpoints are affected: we use `OpenAI::chat()->create()` (five services), `OpenAI::audio()->transcribe()` (`AudioTranscriptionService`), the `Chat\CreateResponse` response type, and the `ErrorException`/`TransporterException` classes — we do **not** use `OpenAI::embeddings()`. The bump was done **surgically** (constraint `^0.19.0` → `^0.20.0`, `composer update openai-php/laravel openai-php/client` **without** `--with-all-dependencies`), so the lockfile changes **only those two packages** — no transitive churn. Verified: PHPStan 0 errors, `composer audit` clean (prod + dev), and 152 OpenAI-surface tests green (chat payload/response parsing, audio transcription, speech-section classification, OOS email extraction, lyric OCR, speaker identification, service resiliency).
+- **Symfony 8 majors parked.** `symfony/http-client` and `symfony/mailgun-mailer` 7.4 → 8.x stay on 7.4 — blocked by Laravel 13's Symfony-7 constraint. Tracked for the **Laravel 14** upgrade; **not** forced onto Laravel 13.
+
 ### Tasks
-- [ ] Confirm dependabot is open for patch/minor PRs and that they pass the (post-D2) audit gate.
-- [ ] Review the `openai-php/laravel` 0.20 changelog; bump in a dedicated PR if non-breaking for our `OpenAI::audio()` / `OpenAI::chat()` / `OpenAI::embeddings()` usage.
-- [ ] Note the Symfony 8 majors against the Laravel 14 upgrade plan; do **not** force them on Laravel 13.
+- [x] Confirm dependabot is open for patch/minor PRs and that they pass the (post-D2) audit gate. *(Four ecosystems, grouped minor/patch, weekly; D2 audit gate now live on `pr.yml`.)*
+- [x] Review the `openai-php/laravel` 0.20 changelog; bump if non-breaking for our `OpenAI::audio()` / `OpenAI::chat()` usage. *(Additive-only; bumped surgically; PHPStan + audit + 152 OpenAI-surface tests green. We do not use `embeddings()`.)*
+- [x] Note the Symfony 8 majors against the Laravel 14 upgrade plan; do **not** force them on Laravel 13. *(Parked for Laravel 14.)*
 
 ### Exit criteria
-- Outstanding non-major direct-dependency updates trend toward zero; the deferred majors are tracked, not forgotten.
+- ✅ The one outstanding actionable non-major bump (`openai-php` 0.20) is landed; the two deferred Symfony 8 majors are explicitly tracked for Laravel 14, not forgotten; all remaining minor/patch drift is owned by the (now audit-gated) dependabot flow.
 
 ---
 
@@ -291,4 +315,4 @@ Recording what **not** to do is as important as the tasks above — it stops thi
 | `SermonViewPresenter` lines / methods | 737 / 43 | ✅ 309 / facade only (D3) |
 | `Sermon` model functions | 39 | 35 — processing-state relocated to `SermonProcessingState`; validation kept on the model by design (D4) |
 | PHPStan baseline errors | 0 | 0 (hold the line) |
-| Outdated direct deps (non-major) | ~14 | < 5 (dependabot, D6) |
+| Outdated direct deps (non-major) | ~14 | All remaining are dependabot-owned minor/patch (grouped, weekly, audit-gated); the one actionable `0.x` major (`openai-php` 0.20) landed; Symfony 8 majors parked for Laravel 14 (D6) |
