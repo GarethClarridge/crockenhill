@@ -145,17 +145,27 @@ Suggested seams (confirm names against existing conventions in `app/Support`, `a
   - [tests/Integration/Presenters/SermonViewPresenterTest.php](../../tests/Integration/Presenters/SermonViewPresenterTest.php)
   - [tests/Integration/Presenters/SermonPresentationAssemblerTest.php](../../tests/Integration/Presenters/SermonPresentationAssemblerTest.php)
 
+### Progress (2026-06-26)
+First decomposition pass landed (presenter **748 → 651 lines**), extracting three cohesive clusters behind the unchanged public facade, each as its own commit with focused unit coverage:
+- `SermonDateFormatter` — the date/duration cluster (owns its date-timestamp memo).
+- `SermonMetaPresenter` — the meta-description / image-alt cluster (the named seam above).
+- `SermonUrlBuilder` — the URL/thumbnail cluster (the plain-thumbnail fallback still resolves through the presenter, preserving its memoized result).
+
+The `SermonPresentationAssembler` (present/forApi/forList shaping) was extracted in an earlier pass. Caching was deliberately **left as the single `memoize()`/`cacheKey()` seam on the presenter** — collaborators are pure and the presenter wraps them — so cache behaviour is byte-for-byte unchanged; `clearInternalCaches()` now also resets the date formatter's cache.
+
+Still outstanding for this phase: the entangled **preacher-name resolution** cluster (`displayPreacherName`/`preacherUrl`/`preacherImageUrl`/`resolvePreacherAttribute`) and the identity-keyed `displayReference`/`seriesUrl`/`serviceLabel` methods, plus the final push under the ~300-line target.
+
 ### Tasks
-- [ ] Characterise the current caching behaviour first (what `memoize`/`cacheKey` actually key on) so the extracted decorator reproduces it exactly.
-- [ ] Extract one responsibility cluster per commit; after each, run the two presenter tests above plus `SermonDisplayTest`/`SermonSeoTest`.
-- [ ] Move memoization into a single seam; confirm `clearInternalCaches()` still resets all caches (it is called between requests/tests).
-- [ ] Add focused unit tests for each extracted collaborator (cheaper than the current full-presenter integration tests).
-- [ ] Target: `SermonViewPresenter` < ~300 lines, each collaborator single-responsibility.
+- [x] Characterise the current caching behaviour first (what `memoize`/`cacheKey` actually key on) so the extracted decorator reproduces it exactly.
+- [~] Extract one responsibility cluster per commit; after each, run the two presenter tests above plus `SermonDisplayTest`/`SermonSeoTest`. *(3 clusters done: dates, meta, URLs; preacher-resolution cluster remains.)*
+- [~] Move memoization into a single seam; confirm `clearInternalCaches()` still resets all caches (it is called between requests/tests). *(Kept as the single `memoize()` seam on the presenter; `clearInternalCaches()` now also clears the date formatter.)*
+- [~] Add focused unit tests for each extracted collaborator (cheaper than the current full-presenter integration tests). *(Added for `SermonDateFormatter`, `SermonMetaPresenter`, `SermonUrlBuilder`.)*
+- [ ] Target: `SermonViewPresenter` < ~300 lines, each collaborator single-responsibility. *(651 lines so far.)*
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact --parallel tests/Integration/Presenters tests/Integration/Models/SermonDisplayTest.php tests/Integration/Models/SermonSeoTest.php tests/Feature/SermonPagesTest.php`
-- [ ] `vendor/bin/sail artisan dusk` for the public sermon page (presenter output is rendered there).
-- [ ] `vendor/bin/sail composer phpstan` — 0 errors, no new baseline entries.
+- [x] `tests/Integration/Presenters tests/Integration/Models/SermonDisplayTest.php tests/Integration/Models/SermonSeoTest.php tests/Feature/SermonPagesTest.php` — green (plus `tests/Unit/Presenters`, sitemap and API-controller suites: 202 passing across presenter consumers).
+- [ ] `vendor/bin/sail artisan dusk` for the public sermon page — not run for this pass; the server-rendered `SermonPagesTest` exercises the same presenter output and is green.
+- [x] `composer phpstan` — 0 errors, no new baseline entries.
 
 ### Exit criteria
 - Public facade unchanged; presenter is an orchestrator under ~300 lines; each extracted collaborator is independently unit-tested; full suite + Dusk green.
