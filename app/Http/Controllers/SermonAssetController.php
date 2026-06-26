@@ -41,7 +41,7 @@ class SermonAssetController extends Controller
 
         $transcript = $this->transcriptReader->read($sermon);
 
-        if ($transcript === null || trim($transcript) === '') {
+        if (blank($transcript)) {
             abort(404, 'Transcript not found.');
         }
 
