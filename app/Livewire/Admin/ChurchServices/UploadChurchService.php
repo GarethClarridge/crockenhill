@@ -83,7 +83,12 @@ class UploadChurchService extends Component
 
     public function render(): View
     {
+        /**
+         * Performance Optimization: Limits retrieved columns for recent services
+         * to required fields for the sidebar listing to reduce memory usage and DB I/O.
+         */
         $recentServices = ChurchService::query()
+            ->select(['id', 'date', 'service', 'original_filename', 'updated_at'])
             ->withCount('items')
             ->orderByDesc('date')
             ->orderByDesc('updated_at')
