@@ -227,17 +227,33 @@ This is an **investigation-first** phase. Read the model, classify its methods (
 - [app/Services/Processing/SermonProcessingLogger.php](../../app/Services/Processing/SermonProcessingLogger.php) — likely destination for any orchestration.
 - **Safety net:** existing `MediaProcessingLog` and processing-job tests (e.g. [tests/Feature/SermonProcessingJobChainTest.php](../../tests/Feature/SermonProcessingJobChainTest.php), [tests/Feature/SermonProcessingErrorHandlingTest.php](../../tests/Feature/SermonProcessingErrorHandlingTest.php)).
 
+### Findings (2026-06-26) — no orchestration to relocate; size is intrinsic
+
+The model was classified method-by-method (698 ln; 36 public methods, 12 of them query scopes; 9 private/static helpers). The result is the **"it's fine, here's why"** outcome this phase explicitly sanctions: there is essentially no orchestration on the record to move.
+
+**Side-effect audit.** A grep for `save`/`update`/`delete`/`forceFill`/`dispatch`/`Bus`/`Queue`/`Storage`/`DB`/`event`/`Http` across the model returns **exactly one** hit: `putVideoQualityMetadata()` ([:474](../../app/Models/MediaProcessingLog.php#L474)) does a single self-write of one JSON column (`forceFill(['processing_metadata' => …])->save()`). There is **no** job dispatching, no service coordination, no multi-record workflow, and no external I/O anywhere in the class. The orchestration genuinely lives where it should — `ProcessingRunOrchestrator`, `ProcessingRunFailureHandler`, `MediaProcessingRunTransitionService`, `ProcessingInitiator`, `ProcessingPhaseRegistry`, and the logging/reporting `SermonProcessingLogger`.
+
+**Method classification (all four buckets are model-appropriate):**
+- **Data shape** — `$fillable`/`casts()` are large only because the row is wide (~36 columns spanning audio, video, livestream, visual-analysis, queue-correlation). Two backward-compat accessors (`storedFilePath`, `originalFilename`).
+- **Query scopes (12)** — `byType`/`audio`/`video`/`livestream`/`segmentationPipeline`/`processing`/`pending`/`completed`/`failed`/`awaitingManualSermonReview`/`recent`/`visibleTo`. This is the query surface for the processing dashboard; it belongs on the model. `scopeSegmentationPipeline` is intentionally the SQL mirror of `usesSegmentationPipeline()`.
+- **State predicates** — `isComplete`/`isFailed`/`isProcessing`/`isPending`/`isCancelled`/`isDegradedCompletion`: pure reads over `status`.
+- **Read-model derivations** — `videoProcessingMode`, `isAutoTrimVideoRun`, `usesSegmentationPipeline`, `canUseManualSermonReview`, `processingPipelineProfile`, `requiresManualSermonReview`, `manualReviewMetadata`, `manuallyConfirmedSegmentId`, `temporaryFilePaths`, `buildDedupKey`/`makeDedupKey`. These derive classification from the record's **own** columns and are consumed as a shared read-model by **10+ collaborators** (jobs, presenters, Livewire, services, actions, queries). Relocating them would force every caller through new indirection and scatter the single source of truth — a net complexity increase, which the plan's guardrails forbid. The legacy manual-review string-parsing cluster (`legacyManualReview*`, ~50 ln, all `private`) is cohesive backward-compat for old rows and reads only this record's columns.
+
+**On `putVideoQualityMetadata` (the one writer):** one app caller (`AssessSermonVideoQuality` job). It is a focused self-write of the record's own JSON column, not orchestration; pushing it into a service would add a load/mutate/save round-trip for no real gain. Left in place.
+
+**Conclusion.** The model is large because it is a wide denormalised processing record that also serves as the dashboard's query surface and a widely-consumed read-model — all intrinsic. No orchestration was found to move, so no code changes are made for D5 (consistent with the Non-Goals: refactoring stable, tested code is pure cost). The phase closes on the documented-rationale branch of its exit criteria.
+
 ### Tasks
-- [ ] Classify every method: data/state vs. orchestration/decision.
-- [ ] If orchestration is found, move it to the relevant `Processing` service; otherwise document why the size is justified and close the phase.
-- [ ] Keep moves small and test-backed.
+- [x] Classify every method: data/state vs. orchestration/decision. *(36 public + 9 helper methods classified above; all data-shape / scopes / state-reads.)*
+- [x] If orchestration is found, move it to the relevant `Processing` service; otherwise document why the size is justified and close the phase. *(None found — size is intrinsic; rationale recorded above.)*
+- [x] Keep moves small and test-backed. *(No moves warranted.)*
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact --parallel tests/Feature/SermonProcessing*` (and any direct model test).
-- [ ] `vendor/bin/sail composer phpstan` — 0 errors.
+- [x] No code change, so the existing `MediaProcessingLog` and processing-job suites remain the unchanged safety net; the audit was static (grep for side-effects + caller mapping).
+- [x] `composer phpstan` — 0 errors (unchanged; no code touched).
 
 ### Exit criteria
-- Either orchestration is relocated with coverage retained, or a short written rationale records that the model's size is intrinsic.
+- ✅ Met via the documented-rationale branch: a short written rationale records that the model's size is intrinsic and that no orchestration belongs elsewhere.
 
 ---
 
