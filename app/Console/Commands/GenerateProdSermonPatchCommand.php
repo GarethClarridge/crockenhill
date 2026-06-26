@@ -129,7 +129,7 @@ class GenerateProdSermonPatchCommand extends Command
             $localValue = $local->$field ?? null;
 
             // Only fill in where prod has a blank/null
-            if (($prodValue === null || $prodValue === '') && $localValue !== null && $localValue !== '') {
+            if (blank($prodValue) && filled($localValue)) {
                 $clauses[$field] = $localValue;
             }
         }
@@ -296,7 +296,7 @@ class GenerateProdSermonPatchCommand extends Command
         foreach ($prodSermons as $row) {
             $slug = $row['slug'] ?? null;
 
-            if (! is_string($slug) || trim($slug) === '') {
+            if (blank($slug)) {
                 continue;
             }
 
@@ -337,11 +337,11 @@ class GenerateProdSermonPatchCommand extends Command
     {
         $titleSlug = Str::slug(trim((string) ($local->title ?? '')));
 
-        if ($titleSlug !== '') {
+        if (filled($titleSlug)) {
             return $titleSlug;
         }
 
-        if ($existingSlug !== '') {
+        if (filled($existingSlug)) {
             return $existingSlug;
         }
 
@@ -445,7 +445,7 @@ class GenerateProdSermonPatchCommand extends Command
     {
         $opt = $this->option('dump');
 
-        if (is_string($opt) && trim($opt) !== '') {
+        if (filled($opt)) {
             return $opt;
         }
 
