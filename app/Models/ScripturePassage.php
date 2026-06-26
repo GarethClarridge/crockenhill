@@ -65,7 +65,7 @@ class ScripturePassage extends Model
             'api_passage_id' => ['nullable', 'string', 'max:255'],
             'display_reference' => ['nullable', 'string', 'max:255'],
             'html_content' => ['required', 'string', 'max:500000'],
-            'copyright' => ['required', 'string', 'max:500000'],
+            'copyright' => ['required', 'string', 'max:65535'],
             'fums_token' => ['nullable', 'string', 'max:255'],
             'fetched_at' => ['required', 'date'],
         ];

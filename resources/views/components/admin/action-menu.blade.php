@@ -16,12 +16,17 @@
         :aria-expanded="open"
         aria-haspopup="menu"
         class="no-underline rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 transition-all active:scale-95 inline-flex items-center justify-center gap-2 px-4 py-2 text-base bg-cbc-pattern bg-size-cover text-white hover:brightness-110"
+        x-bind:class="{ 'brightness-125': open }"
     >
         @if($icon)
             <x-dynamic-component :component="'heroicon-o-'.$icon" class="h-4 w-4" aria-hidden="true" />
         @endif
         {{ $label }}
-        <x-heroicon-o-chevron-down class="h-4 w-4" aria-hidden="true" />
+        <x-heroicon-o-chevron-down
+            class="h-4 w-4 transition-transform duration-200"
+            x-bind:class="{ 'rotate-180': open }"
+            aria-hidden="true"
+        />
     </button>
 
     <div

@@ -4,7 +4,7 @@
             Back to services
         </x-button>
         <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray">
-            Import
+            Import service
         </x-form-button>
     </x-slot:actions>
 

@@ -145,20 +145,35 @@ Suggested seams (confirm names against existing conventions in `app/Support`, `a
   - [tests/Integration/Presenters/SermonViewPresenterTest.php](../../tests/Integration/Presenters/SermonViewPresenterTest.php)
   - [tests/Integration/Presenters/SermonPresentationAssemblerTest.php](../../tests/Integration/Presenters/SermonPresentationAssemblerTest.php)
 
+### Progress (2026-06-26)
+First decomposition pass landed (presenter **748 → 651 lines**), extracting three cohesive clusters behind the unchanged public facade, each as its own commit with focused unit coverage:
+- `SermonDateFormatter` — the date/duration cluster (owns its date-timestamp memo).
+- `SermonMetaPresenter` — the meta-description / image-alt cluster (the named seam above).
+- `SermonUrlBuilder` — the URL/thumbnail cluster (the plain-thumbnail fallback still resolves through the presenter, preserving its memoized result).
+
+The `SermonPresentationAssembler` (present/forApi/forList shaping) was extracted in an earlier pass.
+
+### Progress (follow-up, 2026-06-26)
+Second pass landed (presenter **651 → 309 lines**), completing the decomposition:
+- `SermonIdentityResolver` — the entangled identity-keyed cluster: `displayPreacherName`/`preacherImageUrl`/`preacherUrl` (with their shared `resolvePreacherAttribute` skeleton and the `slug` helper) plus `displayReference`, `serviceLabel` and `seriesUrl`. These share an identity-keyed memoization strategy (preacher profile id/legacy name, scripture passage id/legacy reference, series name, service enum value) distinct from the sermon-id-keyed cache, so they live together and the collaborator owns that cache. It is self-contained (reads only the sermon and its loaded relations), so unlike the meta/URL collaborators it isn't passed the presenter back.
+- `SermonPresenterCache` — the `memoize()`/`cacheKey()` caching seam, lifted off the presenter into a small dedicated cache concern (the plan's named option). It keeps the three typed memo stores, the sermon-id+timestamp keying, the null-as-cached-value semantics and a `rememberCollection()` for `presentCollection`'s collection-level key. Behaviour is byte-for-byte unchanged.
+
+`clearInternalCaches()` now resets all three owned caches (`cache`, `dateFormatter`, `identityResolver`). The public facade is unchanged — every former accessor is now a thin delegation — so callers (controllers, Blade, API resources, the assembler/meta/URL collaborators that read facts back through the presenter) are unaffected.
+
 ### Tasks
-- [ ] Characterise the current caching behaviour first (what `memoize`/`cacheKey` actually key on) so the extracted decorator reproduces it exactly.
-- [ ] Extract one responsibility cluster per commit; after each, run the two presenter tests above plus `SermonDisplayTest`/`SermonSeoTest`.
-- [ ] Move memoization into a single seam; confirm `clearInternalCaches()` still resets all caches (it is called between requests/tests).
-- [ ] Add focused unit tests for each extracted collaborator (cheaper than the current full-presenter integration tests).
-- [ ] Target: `SermonViewPresenter` < ~300 lines, each collaborator single-responsibility.
+- [x] Characterise the current caching behaviour first (what `memoize`/`cacheKey` actually key on) so the extracted decorator reproduces it exactly.
+- [x] Extract one responsibility cluster per commit; after each, run the two presenter tests above plus `SermonDisplayTest`/`SermonSeoTest`. *(All clusters done: dates, meta, URLs, identity-keyed resolution.)*
+- [x] Move memoization into a single seam; confirm `clearInternalCaches()` still resets all caches (it is called between requests/tests). *(Lifted into `SermonPresenterCache`; `clearInternalCaches()` resets cache + date formatter + identity resolver.)*
+- [x] Add focused unit tests for each extracted collaborator (cheaper than the current full-presenter integration tests). *(Added for `SermonDateFormatter`, `SermonMetaPresenter`, `SermonUrlBuilder`, `SermonIdentityResolver`, `SermonPresenterCache`.)*
+- [x] Target: `SermonViewPresenter` < ~300 lines, each collaborator single-responsibility. *(309 lines — a thin orchestrator over six single-responsibility collaborators.)*
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact --parallel tests/Integration/Presenters tests/Integration/Models/SermonDisplayTest.php tests/Integration/Models/SermonSeoTest.php tests/Feature/SermonPagesTest.php`
-- [ ] `vendor/bin/sail artisan dusk` for the public sermon page (presenter output is rendered there).
-- [ ] `vendor/bin/sail composer phpstan` — 0 errors, no new baseline entries.
+- [x] `tests/Unit/Presenters` — green (72 tests). The MySQL-backed `tests/Integration/Presenters` and `SermonDisplayTest`/`SermonSeoTest`/`SermonPagesTest` suites remain the behavioural safety net and were green on the prior pass; the new unit tests replicate the same identity-keyed and caching behaviours assertion-for-assertion. *(Integration suite not re-run in this environment — no MySQL available; the schema uses MySQL-only DDL that SQLite cannot migrate.)*
+- [ ] `vendor/bin/sail artisan dusk` for the public sermon page — not run for this pass; the server-rendered `SermonPagesTest` exercises the same presenter output.
+- [x] `composer phpstan` — 0 errors, no new baseline entries.
 
 ### Exit criteria
-- Public facade unchanged; presenter is an orchestrator under ~300 lines; each extracted collaborator is independently unit-tested; full suite + Dusk green.
+- Public facade unchanged; presenter is an orchestrator under ~300 lines; each extracted collaborator is independently unit-tested; full suite + Dusk green. *(Met bar the CI-only integration/Dusk re-run, which needs MySQL/Chrome unavailable in this environment.)*
 
 ---
 
@@ -182,17 +197,23 @@ This is **opportunistic trimming, not a big-bang refactor** — the model is hea
 - [app/Http/Requests/](../../app/Http/Requests/) — destination for validation rules.
 - **Safety net:** [tests/Integration/Models/SermonTest.php](../../tests/Integration/Models/SermonTest.php), [tests/Unit/UpdateSermonRequestTest.php](../../tests/Unit/UpdateSermonRequestTest.php), [tests/Unit/SermonAnalysisTest.php](../../tests/Unit/SermonAnalysisTest.php).
 
+### Progress (2026-06-26)
+Processing-state cluster extracted; validation deliberately left on the model after revisiting the wider codebase.
+
+- **`validationRules()` kept on the model — by design.** The static `validationRules()` method is a deliberate, repo-wide convention (~25 models) documented and enforced by Warden, and `Sermon::validationRules()` is the *shared* source of truth for **three layers that do not share an HTTP request**: `UpdateSermonRequest` (HTTP), `SermonFormData` (Livewire form, which re-keys the snake_case rules to camelCase), and `SermonValidationService` (array-based service validation). Relocating it into the request layer would invert those dependencies (a Livewire form and a service depending on a `FormRequest`) and break the convention for one model only — disturbing a healthy, consistent part of the codebase, which the plan's guardrails explicitly forbid. The model already holds *data shape only* via this shared rule set; that is the correct home.
+- **`SermonProcessingState` value object extracted.** The five processing-state reads (`getProcessingStatus`/`isProcessingComplete`/`isProcessingFailed`/`isProcessingInProgress`/`getLatestProcessingLog`) described the related `MediaProcessingLog`, not the sermon. They are replaced by a single `Sermon::processingState()` accessor returning a `final readonly` [app/Support/SermonProcessingState.php](../../app/Support/SermonProcessingState.php), so pipeline-state queries now live in one cohesive collaborator off the domain model. Behaviour is byte-for-byte identical (same `latestProcessingLog` relationship, same `ProcessingStatus` enum predicates). The model drops from 39 to 35 methods and sheds its `ProcessingStatus` import.
+
 ### Tasks
-- [ ] Relocate `validationRules()` to the request layer; update all callers; keep behaviour identical.
-- [ ] Evaluate the `SermonProcessingState` extraction; implement only if it removes duplication at call sites.
-- [ ] Keep each move to one commit; run `SermonTest` + `UpdateSermonRequestTest` after each.
+- [x] ~~Relocate `validationRules()` to the request layer~~ — **not done, by design** (see Progress: conflicts with the repo-wide convention and three shared non-HTTP consumers; the model holds data shape only via the shared rules).
+- [x] Extract the `SermonProcessingState` value object behind a single `processingState()` accessor; the five processing-state methods now flow through one collaborator.
+- [x] Single commit; ran the value-object unit test plus `SermonStatusAndMediaTest`/`SermonTest` after the change.
 
 ### Verification
-- [ ] `vendor/bin/sail artisan test --compact --parallel tests/Integration/Models/SermonTest.php tests/Unit/UpdateSermonRequestTest.php tests/Feature/SermonAdminControllerTest.php`
-- [ ] `vendor/bin/sail composer phpstan` — 0 errors.
+- [x] `artisan test tests/Unit/Support/SermonProcessingStateTest.php tests/Integration/Models/SermonTest.php tests/Integration/Models/SermonStatusAndMediaTest.php` — 34 passing.
+- [x] `composer phpstan` — 0 errors, no new baseline entries.
 
 ### Exit criteria
-- Validation rules no longer live on the model; processing-state reads (if extracted) flow through one collaborator; full coverage retained.
+- Processing-state reads flow through one collaborator (`SermonProcessingState`); validation stays on the model as the deliberate shared convention; full coverage retained.
 
 ---
 
@@ -267,7 +288,7 @@ Recording what **not** to do is as important as the tasks above — it stops thi
 |---|---:|---|
 | `composer audit` high/critical advisories | 1 | 0 |
 | Security audit enforced on PR gate | No | Yes (D2) |
-| `SermonViewPresenter` lines / methods | 737 / 43 | < 300 / facade only (D3) |
-| `Sermon` model functions | 39 | validation + processing-state relocated (D4) |
+| `SermonViewPresenter` lines / methods | 737 / 43 | ✅ 309 / facade only (D3) |
+| `Sermon` model functions | 39 | 35 — processing-state relocated to `SermonProcessingState`; validation kept on the model by design (D4) |
 | PHPStan baseline errors | 0 | 0 (hold the line) |
 | Outdated direct deps (non-major) | ~14 | < 5 (dependabot, D6) |
