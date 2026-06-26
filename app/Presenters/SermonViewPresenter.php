@@ -4,15 +4,45 @@ declare(strict_types=1);
 
 namespace App\Presenters;
 
+use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Services\Media\Audio\SermonTranscriptReader;
 use App\Services\Sermon\SermonExposurePolicy;
 use App\Services\Sermon\SermonStorageService;
 use App\Support\SermonContentFormatter;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class SermonViewPresenter
 {
+    /**
+     * General memoization for scalar and nullable values.
+     *
+     * @var array<string, mixed>
+     */
+    private array $memoized = [];
+
+    /**
+     * Memoization for generated URLs.
+     *
+     * @var array<string, ?string>
+     */
+    private array $memoizedUrls = [];
+
+    /**
+     * Memoization for presented data arrays and collections.
+     *
+     * @var array<string, array<string, mixed>|array<int, array<string, mixed>>>
+     */
+    private array $memoizedPresents = [];
+
+    /**
+     * Tracks which keys have been computed, allowing null to be a legitimate cached result.
+     *
+     * @var array<string, true>
+     */
+    private array $computed = [];
+
     /**
      * Builds the SEO/meta surface; defaults to one backed by the exposure policy.
      */
@@ -32,8 +62,6 @@ class SermonViewPresenter
         private readonly SermonDateFormatter $dateFormatter = new SermonDateFormatter,
         ?SermonMetaPresenter $metaPresenter = null,
         ?SermonUrlBuilder $urlBuilder = null,
-        private readonly SermonIdentityResolver $identityResolver = new SermonIdentityResolver,
-        private readonly SermonPresenterCache $cache = new SermonPresenterCache,
     ) {
         $this->metaPresenter = $metaPresenter ?? new SermonMetaPresenter($exposurePolicy);
         $this->urlBuilder = $urlBuilder ?? new SermonUrlBuilder($storageService, $exposurePolicy);
@@ -79,14 +107,16 @@ class SermonViewPresenter
      */
     public function clearInternalCaches(): void
     {
-        $this->cache->clear();
+        $this->memoized = [];
+        $this->memoizedUrls = [];
+        $this->memoizedPresents = [];
+        $this->computed = [];
         $this->dateFormatter->clearCache();
-        $this->identityResolver->clearCache();
     }
 
     public function audioUrl(Sermon $sermon): ?string
     {
-        return $this->cache->remember($sermon, 'audio', 'memoizedUrls', fn (): ?string => $this->urlBuilder->audioUrl($this, $sermon));
+        return $this->memoize($sermon, 'audio', 'memoizedUrls', fn (): ?string => $this->urlBuilder->audioUrl($this, $sermon));
     }
 
     /**
@@ -99,15 +129,30 @@ class SermonViewPresenter
 
     /**
      * Get the preacher's profile image URL.
+     *
+     * Performance Optimization: Memoizes preacher image URL lookups by identity
+     * (profile ID or name string) instead of sermon ID. This avoids redundant
+     * lookups across multiple sermons in a listing by the same preacher.
+     *
+     * Relation Loading: Always consults the loaded relation first to ensure
+     * the most current state is returned.
      */
     public function preacherImageUrl(Sermon $sermon): ?string
     {
-        return $this->identityResolver->preacherImageUrl($sermon);
+        return $this->resolvePreacherAttribute(
+            $sermon,
+            'img',
+            store: 'memoized',
+            // The image URL resolves the moment the relation is loaded, even when
+            // the profile is null (it simply yields a null URL).
+            fromLoaded: static fn (Sermon $sermon): array => [true, $sermon->preacherProfile?->profile_image_url],
+            fromUnloaded: static fn (Sermon $sermon): ?string => null,
+        );
     }
 
     public function canonicalUrl(Sermon $sermon): string
     {
-        return $this->cache->remember($sermon, 'canonical', 'memoizedUrls', fn (): string => $this->urlBuilder->canonicalUrl($this, $sermon));
+        return $this->memoize($sermon, 'canonical', 'memoizedUrls', fn (): string => $this->urlBuilder->canonicalUrl($this, $sermon));
     }
 
     /**
@@ -115,7 +160,7 @@ class SermonViewPresenter
      */
     public function cardThumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->cache->remember($sermon, 'card_thumb', 'memoizedUrls', fn (): ?string => $this->urlBuilder->cardThumbnailUrl($this, $sermon));
+        return $this->memoize($sermon, 'card_thumb', 'memoizedUrls', fn (): ?string => $this->urlBuilder->cardThumbnailUrl($this, $sermon));
     }
 
     /**
@@ -123,31 +168,99 @@ class SermonViewPresenter
      */
     public function plainThumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->cache->remember($sermon, 'plain_thumb', 'memoizedUrls', fn (): ?string => $this->urlBuilder->plainThumbnailUrl($this, $sermon));
+        return $this->memoize($sermon, 'plain_thumb', 'memoizedUrls', fn (): ?string => $this->urlBuilder->plainThumbnailUrl($this, $sermon));
     }
 
     /**
      * Get the preacher's profile URL.
+     *
+     * Performance Optimization: Memoizes preacher URL lookups by identity
+     * (profile ID or name string) instead of sermon ID. This avoids redundant
+     * lookups across multiple sermons in a listing by the same preacher.
+     *
+     * Relation Loading: Always consults the loaded relation first to ensure
+     * the most current state is returned.
      */
     public function preacherUrl(Sermon $sermon): ?string
     {
-        return $this->identityResolver->preacherUrl($sermon);
+        return $this->resolvePreacherAttribute(
+            $sermon,
+            'url',
+            store: 'memoizedUrls',
+            // Only a non-null loaded profile yields a slug-based URL; otherwise
+            // fall through to the name-derived fallback.
+            fromLoaded: function (Sermon $sermon): array {
+                if ($sermon->preacherProfile === null) {
+                    return [false, null];
+                }
+
+                return [true, route('sermons.preacher', ['preacher' => $sermon->preacherProfile->slug])];
+            },
+            fromUnloaded: function (Sermon $sermon): ?string {
+                $preacherName = $this->displayPreacherName($sermon);
+
+                return filled($preacherName)
+                    ? route('sermons.preacher', ['preacher' => $this->slug($preacherName)])
+                    : null;
+            },
+            valueKey: 'preacher',
+        );
     }
 
     /**
      * Get the label for the sermon's service.
+     *
+     * Performance Optimization: Memoizes service labels based on the enum value
+     * to avoid redundant method calls and string formatting across a listing.
+     *
+     * Robustness: Handles the SermonService enum with a safety check to ensure
+     * compatibility, matching the logic previously found in Blade templates.
      */
     public function serviceLabel(Sermon $sermon): ?string
     {
-        return $this->identityResolver->serviceLabel($sermon);
+        $service = $sermon->service;
+
+        if ($service === null) {
+            return null;
+        }
+
+        $key = "service_label_{$service->value}";
+
+        if (isset($this->computed[$key])) {
+            /** @var string */
+            return $this->memoized[$key];
+        }
+
+        $label = $service->label();
+
+        $this->computed[$key] = true;
+
+        return $this->memoized[$key] = $label;
     }
 
     /**
      * Get the URL for a sermon series.
+     *
+     * Performance Optimization: Memoizes series URLs based on the series name
+     * to avoid redundant Str::slug calls when processing large sermon collections.
      */
     public function seriesUrl(Sermon $sermon): ?string
     {
-        return $this->identityResolver->seriesUrl($sermon);
+        if (! $sermon->series) {
+            return null;
+        }
+
+        $key = "series_url_{$sermon->series}";
+
+        if (isset($this->computed[$key])) {
+            return $this->memoizedUrls[$key];
+        }
+
+        $url = route('sermons.series.show', ['series' => $this->slug($sermon->series)]);
+
+        $this->computed[$key] = true;
+
+        return $this->memoizedUrls[$key] = $url;
     }
 
     /**
@@ -160,7 +273,7 @@ class SermonViewPresenter
      */
     public function presentForApi(Sermon $sermon): array
     {
-        return $this->cache->remember($sermon, 'api_present', 'memoizedPresents', fn (): array => $this->assembler->forApi($this, $sermon));
+        return $this->memoize($sermon, 'api_present', 'memoizedPresents', fn (): array => $this->assembler->forApi($this, $sermon));
     }
 
     /**
@@ -183,10 +296,19 @@ class SermonViewPresenter
         sort($ids);
         $collectionKey = 'col_'.sha1(implode('|', $ids));
 
-        return $this->cache->rememberCollection($collectionKey, fn (): array => $sermons
+        if (isset($this->computed[$collectionKey])) {
+            /** @var array<int, array<string, mixed>> */
+            return $this->memoizedPresents[$collectionKey];
+        }
+
+        $presented = $sermons
             ->keyBy('id')
             ->map(fn (Sermon $sermon) => $this->presentForList($sermon))
-            ->all());
+            ->all();
+
+        $this->computed[$collectionKey] = true;
+
+        return $this->memoizedPresents[$collectionKey] = $presented;
     }
 
     /**
@@ -222,7 +344,7 @@ class SermonViewPresenter
      */
     public function presentForList(Sermon $sermon): array
     {
-        return $this->cache->remember($sermon, 'list_present', 'memoizedPresents', fn (): array => $this->assembler->forList($this, $sermon));
+        return $this->memoize($sermon, 'list_present', 'memoizedPresents', fn (): array => $this->assembler->forList($this, $sermon));
     }
 
     /**
@@ -236,17 +358,17 @@ class SermonViewPresenter
      */
     public function present(Sermon $sermon): array
     {
-        return $this->cache->remember($sermon, 'full_present', 'memoizedPresents', fn (): array => $this->assembler->forFull($this, $sermon));
+        return $this->memoize($sermon, 'full_present', 'memoizedPresents', fn (): array => $this->assembler->forFull($this, $sermon));
     }
 
     public function publicUrl(Sermon $sermon): string
     {
-        return $this->cache->remember($sermon, 'public', 'memoizedUrls', fn (): string => $this->urlBuilder->publicUrl($this, $sermon));
+        return $this->memoize($sermon, 'public', 'memoizedUrls', fn (): string => $this->urlBuilder->publicUrl($this, $sermon));
     }
 
     public function thumbnailUrl(Sermon $sermon): ?string
     {
-        return $this->cache->remember($sermon, 'thumb', 'memoizedUrls', fn (): ?string => $this->urlBuilder->thumbnailUrl($this, $sermon));
+        return $this->memoize($sermon, 'thumb', 'memoizedUrls', fn (): ?string => $this->urlBuilder->thumbnailUrl($this, $sermon));
     }
 
     public function transcript(Sermon $sermon): ?string
@@ -256,23 +378,166 @@ class SermonViewPresenter
 
     public function transcriptUrl(Sermon $sermon): ?string
     {
-        return $this->cache->remember($sermon, 'transcript_url', 'memoizedUrls', fn (): ?string => $this->urlBuilder->transcriptUrl($this, $sermon));
+        return $this->memoize($sermon, 'transcript_url', 'memoizedUrls', fn (): ?string => $this->urlBuilder->transcriptUrl($this, $sermon));
     }
 
     /**
      * Get the preacher name for display.
+     *
+     * Performance Optimization: Memoizes preacher name lookup by identity
+     * (profile ID or name string) instead of sermon ID. This avoids redundant
+     * lookups across multiple sermons in a listing by the same preacher.
+     *
+     * Relation Loading: Always consults the loaded relation first to ensure
+     * the most current state is returned, avoiding staleness when relations
+     * transition from unloaded to loaded within a single request.
      */
     public function displayPreacherName(Sermon $sermon): ?string
     {
-        return $this->identityResolver->displayPreacherName($sermon);
+        return $this->resolvePreacherAttribute(
+            $sermon,
+            'name',
+            store: 'memoized',
+            // Only a non-null loaded profile is authoritative; otherwise fall
+            // through to the legacy `preacher` string column.
+            fromLoaded: static function (Sermon $sermon): array {
+                if ($sermon->preacherProfile === null) {
+                    return [false, null];
+                }
+
+                return [true, $sermon->preacherProfile->name ?: null];
+            },
+            fromUnloaded: static function (Sermon $sermon): ?string {
+                $preacherName = trim((string) $sermon->preacher);
+
+                return $preacherName === '' ? null : $preacherName;
+            },
+        );
+    }
+
+    /**
+     * Resolve a preacher-derived attribute (display name, profile URL, image URL)
+     * with the shared identity-keyed memoization the three lookups all need.
+     *
+     * The skeleton is identical across the three: derive an identity key (profile
+     * ID, else the legacy `preacher` string), short-circuit once an authoritative
+     * (relation-loaded) result has been computed for that identity, prefer the
+     * loaded relation over any previously-cached unloaded fallback, and otherwise
+     * cache the fallback. The three callers supply only how the value is computed
+     * from a loaded profile versus the unloaded fallback, plus which memo store
+     * the result lives in.
+     *
+     * `$fromLoaded` returns `[true, $value]` when the loaded relation is
+     * authoritative for this attribute, or `[false, null]` to skip the loaded
+     * branch and fall through to `$fromUnloaded` (e.g. when the profile is null
+     * but the attribute still has a string-column fallback).
+     *
+     * @param  'memoized'|'memoizedUrls'  $store
+     * @param  callable(Sermon): array{0: bool, 1: ?string}  $fromLoaded
+     * @param  callable(Sermon): ?string  $fromUnloaded
+     */
+    private function resolvePreacherAttribute(
+        Sermon $sermon,
+        string $prefix,
+        string $store,
+        callable $fromLoaded,
+        callable $fromUnloaded,
+        ?string $valueKey = null,
+    ): ?string {
+        $identityKey = $sermon->preacher_id !== null
+            ? "id_{$sermon->preacher_id}"
+            : (string) $sermon->preacher;
+
+        if ($identityKey === '') {
+            return null;
+        }
+
+        $valueKey ??= $prefix;
+        $memoKey = "{$valueKey}_{$identityKey}";
+        $authFlag = "{$prefix}_auth_{$identityKey}";
+        $computedFlag = "{$prefix}_{$identityKey}";
+
+        if (isset($this->computed[$authFlag])) {
+            return $this->{$store}[$memoKey];
+        }
+
+        // If the relation is explicitly loaded and authoritative for this
+        // attribute, use it as the source of truth and update the memo.
+        if ($sermon->relationLoaded('preacherProfile')) {
+            [$applies, $value] = $fromLoaded($sermon);
+
+            if ($applies) {
+                $this->computed[$authFlag] = true;
+                $this->computed[$computedFlag] = true;
+
+                return $this->{$store}[$memoKey] = $value;
+            }
+        }
+
+        if (isset($this->computed[$computedFlag])) {
+            return $this->{$store}[$memoKey];
+        }
+
+        // Fall back to the unloaded path and cache the result.
+        $this->computed[$computedFlag] = true;
+
+        return $this->{$store}[$memoKey] = $fromUnloaded($sermon);
     }
 
     /**
      * Get the scripture reference for display.
+     *
+     * Performance Optimization: Memoizes reference lookup by identity
+     * (passage ID or reference string) instead of sermon ID. This avoids
+     * redundant lookups across multiple sermons in a listing using the
+     * same bible passage.
+     *
+     * Relation Loading: Always consults the loaded relation first to ensure
+     * the most current state is returned, avoiding staleness when relations
+     * transition from unloaded to loaded within a single request.
      */
     public function displayReference(Sermon $sermon): ?string
     {
-        return $this->identityResolver->displayReference($sermon);
+        $identityKey = $sermon->scripture_passage_id !== null
+            ? "id_{$sermon->scripture_passage_id}"
+            : (string) $sermon->reference;
+
+        if ($identityKey === '') {
+            return null;
+        }
+
+        $keyAuth = "ref_auth_{$identityKey}";
+        if (isset($this->computed[$keyAuth])) {
+            return $this->memoized["ref_{$identityKey}"];
+        }
+
+        // If the relation is explicitly loaded, use it as the source of truth and update memo
+        if ($sermon->relationLoaded('scripturePassage') && $sermon->scripturePassage instanceof ScripturePassage) {
+            $displayReference = $sermon->scripturePassage->display_reference ?: $sermon->scripturePassage->normalized_reference;
+
+            if (trim((string) $displayReference) !== '') {
+                $this->computed[$keyAuth] = true;
+                $this->computed["ref_{$identityKey}"] = true;
+
+                return $this->memoized["ref_{$identityKey}"] = $displayReference;
+            }
+        }
+
+        $key = "ref_{$identityKey}";
+        if (isset($this->computed[$key])) {
+            return $this->memoized[$key];
+        }
+
+        // Fall back to the unloaded path: cache the string fallback
+        $reference = trim((string) $sermon->reference);
+
+        $this->computed[$key] = true;
+
+        if ($reference === '') {
+            return $this->memoized[$key] = null;
+        }
+
+        return $this->memoized[$key] = $reference;
     }
 
     /**
@@ -299,11 +564,88 @@ class SermonViewPresenter
      */
     public function metaDescription(Sermon $sermon): string
     {
-        return $this->cache->remember($sermon, 'meta_desc', 'memoized', fn (): string => $this->metaPresenter->metaDescription($this, $sermon));
+        return $this->memoize($sermon, 'meta_desc', 'memoized', fn (): string => $this->metaPresenter->metaDescription($this, $sermon));
     }
 
     public function videoUrl(Sermon $sermon): ?string
     {
-        return $this->cache->remember($sermon, 'video', 'memoizedUrls', fn (): ?string => $this->urlBuilder->videoUrl($this, $sermon));
+        return $this->memoize($sermon, 'video', 'memoizedUrls', fn (): ?string => $this->urlBuilder->videoUrl($this, $sermon));
+    }
+
+    /**
+     * Internal helper to generate slugs with request-level memoization.
+     *
+     * Performance Optimization: Avoids redundant Str::slug() calls which
+     * can be expensive when processing hundreds of strings in a listing.
+     */
+    private function slug(string $value): string
+    {
+        $key = "slug_{$value}";
+
+        if (isset($this->computed[$key])) {
+            /** @var string */
+            return $this->memoized[$key];
+        }
+
+        $slug = Str::slug($value);
+
+        $this->computed[$key] = true;
+
+        return $this->memoized[$key] = $slug;
+    }
+
+    /**
+     * Memoize a per-sermon computation keyed by the sermon's identity + timestamp.
+     *
+     * Wraps the cacheKey() → isset-check → compute → store dance that every
+     * sermon-id-keyed accessor shares. The computed flag is what makes a null
+     * result a legitimate cached value (rather than a perpetual cache miss), so
+     * the flag is set before the value is stored. `$store` names which memo array
+     * the result lives in; the literal-string union keeps the dynamic write
+     * type-safe.
+     *
+     * @template TValue
+     *
+     * @param  'memoized'|'memoizedUrls'|'memoizedPresents'  $store
+     * @param  callable(): TValue  $compute
+     * @return TValue
+     */
+    private function memoize(Sermon $sermon, string $type, string $store, callable $compute): mixed
+    {
+        $key = $this->cacheKey($sermon, $type);
+
+        if (isset($this->computed[$key])) {
+            return $this->{$store}[$key];
+        }
+
+        $this->computed[$key] = true;
+
+        return $this->{$store}[$key] = $compute();
+    }
+
+    /**
+     * Generate a cache key for the given sermon and type.
+     *
+     * Performance Optimization: Memoizes the sermon's combined ID and timestamp
+     * within the request to avoid redundant string concatenations and Carbon
+     * object method calls when generating keys for multiple sermon attributes.
+     * Uses isset() for faster lookup performance and handles unpersisted models
+     * by falling back to object hashes.
+     */
+    private function cacheKey(Sermon $sermon, string $type): string
+    {
+        $id = $sermon->id ?? 'u'.spl_object_id($sermon);
+
+        $key = "sermon_key_{$id}";
+        if (! isset($this->computed[$key])) {
+            $timestamp = $sermon->updated_at?->getTimestamp() ?? 0;
+            $this->computed[$key] = true;
+            $this->memoized[$key] = "{$id}_{$timestamp}";
+        }
+
+        /** @var string */
+        $sermonKey = $this->memoized[$key];
+
+        return $type.'_'.$sermonKey;
     }
 }

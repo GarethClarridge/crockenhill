@@ -52,10 +52,9 @@ class SermonScriptureFilter extends Model
     public static function validationRules(): array
     {
         return [
-            // Security: integer bounding on ID and chapter fields adds defence in depth against malformed input and overflow.
-            'sermon_id' => ['required', 'integer', 'min:1', 'max:4294967295', 'exists:sermons,id'],
+            'sermon_id' => ['required', 'integer', 'exists:sermons,id'],
             'bible_book' => ['required', 'string', 'max:50'],
-            'bible_chapter' => ['required', 'integer', 'min:1', 'max:65535'],
+            'bible_chapter' => ['required', 'integer', 'min:1'],
         ];
     }
 

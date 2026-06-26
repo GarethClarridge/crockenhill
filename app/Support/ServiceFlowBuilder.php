@@ -67,12 +67,12 @@ final class ServiceFlowBuilder
             $rowType = is_string($row['row_type']) ? $row['row_type'] : 'unplanned';
             $startTime = is_numeric($row['start_time']) ? (float) $row['start_time'] : null;
             $endTime = is_numeric($row['end_time']) ? (float) $row['end_time'] : null;
-            $plannedTitle = filled($row['planned_title']) ? $row['planned_title'] : null;
+            $plannedTitle = is_string($row['planned_title']) && $row['planned_title'] !== '' ? $row['planned_title'] : null;
             $needsReview = (bool) ($row['needs_review'] ?? false);
-            $reviewReason = filled($row['review_reason']) ? $row['review_reason'] : null;
-            $mismatchReason = filled($row['mismatch_reason']) ? $row['mismatch_reason'] : null;
-            $confidenceLevel = filled($row['confidence_level']) ? $row['confidence_level'] : null;
-            $songTitle = filled($row['song_title']) ? $row['song_title'] : null;
+            $reviewReason = is_string($row['review_reason']) && $row['review_reason'] !== '' ? $row['review_reason'] : null;
+            $mismatchReason = is_string($row['mismatch_reason']) && $row['mismatch_reason'] !== '' ? $row['mismatch_reason'] : null;
+            $confidenceLevel = is_string($row['confidence_level']) && $row['confidence_level'] !== '' ? $row['confidence_level'] : null;
+            $songTitle = is_string($row['song_title']) && $row['song_title'] !== '' ? $row['song_title'] : null;
             $sectionId = is_int($row['section_id']) ? $row['section_id'] : null;
 
             // Load section metadata for ai_notes / transcript / song_title_hint
@@ -151,7 +151,7 @@ final class ServiceFlowBuilder
 
             $hint = is_string($metadata['song_title_hint'] ?? null) ? (string) $metadata['song_title_hint'] : null;
 
-            return filled($hint) ? $hint : null;
+            return ($hint !== null && $hint !== '') ? $hint : null;
         }
 
         if ($type === ServiceSectionType::Sermon) {
@@ -161,7 +161,7 @@ final class ServiceFlowBuilder
         if ($type === ServiceSectionType::BibleReading) {
             // Check ai_notes or reading_reference for a Bible ref
             $ref = is_string($metadata['reading_reference'] ?? null) ? (string) $metadata['reading_reference'] : null;
-            if (filled($ref)) {
+            if ($ref !== null && $ref !== '') {
                 return $ref;
             }
 
@@ -191,7 +191,7 @@ final class ServiceFlowBuilder
         $aiNotes = self::aiNotesList($metadata);
         if ($aiNotes !== []) {
             $note = trim((string) $aiNotes[0]);
-            if (filled($note)) {
+            if ($note !== '') {
                 return mb_strlen($note) > 120 ? mb_substr($note, 0, 117).'...' : $note;
             }
         }
@@ -275,7 +275,7 @@ final class ServiceFlowBuilder
     {
         $title = $processingLog->ai_analysis?->title;
 
-        return filled($title) ? $title : null;
+        return is_string($title) && $title !== '' ? $title : null;
     }
 
     /**
@@ -309,7 +309,7 @@ final class ServiceFlowBuilder
     private static function extractTranscriptExcerpt(array $metadata): ?string
     {
         $transcript = is_string($metadata['transcript'] ?? null) ? trim((string) $metadata['transcript']) : null;
-        if (blank($transcript)) {
+        if ($transcript === null || $transcript === '') {
             return null;
         }
 
@@ -331,7 +331,7 @@ final class ServiceFlowBuilder
 
         return array_values(array_filter(
             array_map(fn ($n): string => is_string($n) ? trim($n) : '', $notes),
-            fn (string $n): bool => filled($n),
+            fn (string $n): bool => $n !== '',
         ));
     }
 }

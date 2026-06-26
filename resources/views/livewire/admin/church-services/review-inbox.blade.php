@@ -16,7 +16,7 @@
                 wire:click="$set('filter', '{{ $chip['key'] }}')"
                 wire:key="inbox-filter-{{ $chip['key'] }}"
                 aria-pressed="{{ $filter === $chip['key'] ? 'true' : 'false' }}"
-                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 active:scale-95 {{ $filter === $chip['key'] ? 'bg-cbc-teal text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50' }}"
+                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 {{ $filter === $chip['key'] ? 'bg-cbc-teal text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50' }}"
             >
                 {{ $chip['label'] }}
                 <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold {{ $filter === $chip['key'] ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600' }}">

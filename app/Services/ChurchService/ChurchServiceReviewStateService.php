@@ -143,7 +143,7 @@ class ChurchServiceReviewStateService
 
     private function parseTimestamp(?string $value): ?CarbonImmutable
     {
-        if (blank($value)) {
+        if ($value === null || trim($value) === '') {
             return null;
         }
 

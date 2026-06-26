@@ -14,8 +14,3 @@
 **Pattern:** Sermon records created by seeders point to audio files that do not exist in the environment's storage.
 **Cause:** `SermonSeeder` assumes the presence of `sermons/seed/2024-11-24.mp3` in the public disk, but this file is not bundled with the repository or generated during setup.
 **Action:** Cross-check `audio_file_path` against `Storage::disk('public')->exists()` specifically for seeded records.
-
-## 2026-06-26 - Community route monopolization
-**Pattern:** Pages in the 'community' area return 404 if no matching Meeting record exists.
-**Cause:** The route `GET /community/{meeting:slug}` in `routes/web.php` uses implicit model binding for the `Meeting` model. Because it is defined before the catch-all `{area}/{slug}` route, any URL starting with `/community/` is intercepted. If the slug doesn't exist in the `meetings` table, Laravel returns a 404 before it can reach the general page controller, even if a `Page` with that slug exists.
-**Action:** When checking community links, verify both `Page` and `Meeting` existence, and prefer using `Meeting` slugs for the `/community/` prefix.

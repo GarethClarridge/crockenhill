@@ -20,7 +20,7 @@
                     <a
                         href="{{ $chip['href'] }}"
                         wire:navigate
-                        class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 transition-transform active:scale-95"
+                        class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                     >
                         <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-200 px-1 text-xs font-semibold text-amber-900">{{ $chip['count'] }}</span>
                         {{ $chip['label'] }}

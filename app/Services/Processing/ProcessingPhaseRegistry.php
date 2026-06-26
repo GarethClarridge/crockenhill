@@ -206,7 +206,7 @@ class ProcessingPhaseRegistry
      */
     private function normalizeStep(?string $step): ?string
     {
-        if (blank($step)) {
+        if ($step === null || $step === '') {
             return null;
         }
 

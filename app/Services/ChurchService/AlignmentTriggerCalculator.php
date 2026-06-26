@@ -10,12 +10,6 @@ use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 
-/**
- * Evaluates the post-alignment state of a church service to determine if manual administrative review is required.
- *
- * This calculator identifies conditions such as structure mismatches, low confidence detections, or changes
- * to late-arriving services that necessitate human oversight.
- */
 class AlignmentTriggerCalculator
 {
     /**
@@ -23,15 +17,7 @@ class AlignmentTriggerCalculator
      * Pass the result to calculate() as $beforeState for late-arrival change detection.
      *
      * @param  EloquentCollection<int, ServiceSection>  $sections
-     * @return array<int, array{
-     *     church_service_item_id: int|null,
-     *     title: string|null,
-     *     confidence: float,
-     *     reading_reference: string|null,
-     *     song_id: int|null,
-     *     song_match_type: string|null,
-     *     review_reason: string|null,
-     * }>  Array keyed by section ID
+     * @return array<int, array<string, mixed>>
      */
     public function captureAlignmentState(EloquentCollection $sections): array
     {
@@ -48,16 +34,8 @@ class AlignmentTriggerCalculator
      *
      * @param  EloquentCollection<int, ServiceSection>  $sections
      * @param  Collection<int, ServiceSection>  $unmatchedSongSections
-     * @param  array<int, array{
-     *     church_service_item_id: int|null,
-     *     title: string|null,
-     *     confidence: float,
-     *     reading_reference: string|null,
-     *     song_id: int|null,
-     *     song_match_type: string|null,
-     *     review_reason: string|null,
-     * }>  $beforeState  Array keyed by section ID
-     * @return array<int, 'ambiguous_sermon_detection'|'unmatched_song_sections'|'oos_structure_mismatch'|'late_oos_alignment_changed'|'too_many_low_confidence_sections'|'manual_review_sections'>
+     * @param  array<int, array<string, mixed>>  $beforeState
+     * @return array<int, string>
      */
     public function calculate(
         EloquentCollection $sections,
@@ -87,9 +65,6 @@ class AlignmentTriggerCalculator
         }
 
         $lowConfidenceSections = $this->lowConfidenceSections($sections);
-
-        // The 20% threshold is a heuristic: if more than a fifth of the service sections are
-        // low-confidence, the overall alignment is considered suspect and requires manual verification.
         if ($sections->count() > 0 && ($lowConfidenceSections->count() / $sections->count()) > 0.20) {
             $reviewTriggers[] = 'too_many_low_confidence_sections';
         }
@@ -135,15 +110,7 @@ class AlignmentTriggerCalculator
     }
 
     /**
-     * @return array{
-     *     church_service_item_id: int|null,
-     *     title: string|null,
-     *     confidence: float,
-     *     reading_reference: string|null,
-     *     song_id: int|null,
-     *     song_match_type: string|null,
-     *     review_reason: string|null,
-     * }
+     * @return array<string, mixed>
      */
     private function sectionAlignmentState(ServiceSection $section): array
     {

@@ -30,8 +30,8 @@ class SermonStatusAndMediaTest extends TestCase
             'status' => ProcessingStatus::Processing,
         ]);
 
-        $this->assertSame(ProcessingStatus::Processing, $sermon->processingState()->status());
-        $this->assertTrue($sermon->processingState()->log()->is($log));
+        $this->assertSame(ProcessingStatus::Processing, $sermon->getProcessingStatus());
+        $this->assertTrue($sermon->getLatestProcessingLog()->is($log));
     }
 
     #[Test]
@@ -39,8 +39,8 @@ class SermonStatusAndMediaTest extends TestCase
     {
         $sermon = Sermon::factory()->create();
 
-        $this->assertNull($sermon->processingState()->status());
-        $this->assertNull($sermon->processingState()->log());
+        $this->assertNull($sermon->getProcessingStatus());
+        $this->assertNull($sermon->getLatestProcessingLog());
     }
 
     #[Test]
@@ -48,14 +48,14 @@ class SermonStatusAndMediaTest extends TestCase
     {
         $sermon = Sermon::factory()->create();
 
-        $this->assertFalse($sermon->processingState()->isComplete());
+        $this->assertFalse($sermon->isProcessingComplete());
 
         MediaProcessingLog::factory()->create([
             'sermon_id' => $sermon->id,
             'status' => ProcessingStatus::Completed,
         ]);
 
-        $this->assertTrue($sermon->refresh()->processingState()->isComplete());
+        $this->assertTrue($sermon->refresh()->isProcessingComplete());
     }
 
     #[Test]
@@ -63,14 +63,14 @@ class SermonStatusAndMediaTest extends TestCase
     {
         $sermon = Sermon::factory()->create();
 
-        $this->assertFalse($sermon->processingState()->isFailed());
+        $this->assertFalse($sermon->isProcessingFailed());
 
         MediaProcessingLog::factory()->create([
             'sermon_id' => $sermon->id,
             'status' => ProcessingStatus::Failed,
         ]);
 
-        $this->assertTrue($sermon->refresh()->processingState()->isFailed());
+        $this->assertTrue($sermon->refresh()->isProcessingFailed());
     }
 
     #[Test]
@@ -78,14 +78,14 @@ class SermonStatusAndMediaTest extends TestCase
     {
         $sermon = Sermon::factory()->create();
 
-        $this->assertFalse($sermon->processingState()->isInProgress());
+        $this->assertFalse($sermon->isProcessingInProgress());
 
         MediaProcessingLog::factory()->create([
             'sermon_id' => $sermon->id,
             'status' => ProcessingStatus::Processing,
         ]);
 
-        $this->assertTrue($sermon->refresh()->processingState()->isInProgress());
+        $this->assertTrue($sermon->refresh()->isProcessingInProgress());
     }
 
     // ---- Media and Livestream Helpers ----

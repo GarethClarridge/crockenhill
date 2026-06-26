@@ -53,8 +53,7 @@ class SermonJsonLdTest extends TestCase
         $this->assertStringContainsString('"@type": "Article"', $content);
         $this->assertStringContainsString('"headline": "Enhanced JSON-LD Sermon"', $content);
         $this->assertStringContainsString('"publisher":', $content);
-        // The organization node is multi-typed: Organization satisfies schema.org's
-        // publisher/worksFor expectations while Church expresses the church-specific type.
+        $this->assertStringContainsString('"@type": [', $content);
         $this->assertStringContainsString('"Organization"', $content);
         $this->assertStringContainsString('"Church"', $content);
         $this->assertStringContainsString('"name": "Crockenhill Baptist Church"', $content);

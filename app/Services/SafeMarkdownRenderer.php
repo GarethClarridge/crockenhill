@@ -33,7 +33,7 @@ class SafeMarkdownRenderer
 
     public function convert(?string $markdown): string
     {
-        if (blank($markdown)) {
+        if ($markdown === null || $markdown === '') {
             return '';
         }
 

@@ -33,7 +33,7 @@ class ResolvePendingStructureMerge
         $pendingMerge = $churchService->import_metadata?->pendingStructureMerge;
         $incomingSource = $churchService->pending_structure_merge_source;
 
-        if (blank($pendingMerge) || blank($incomingSource)) {
+        if ($pendingMerge === null || ! is_string($incomingSource) || trim($incomingSource) === '') {
             return new StructureMergeResolution(
                 churchService: $churchService,
                 resolution: $resolution,
