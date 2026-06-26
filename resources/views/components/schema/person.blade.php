@@ -10,7 +10,7 @@
         'name' => $preacher->name,
         'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
         'worksFor' => [
-            '@type' => 'Church',
+            '@type' => ['Organization', 'Church'],
             'name' => config('organization.name'),
             '@id' => config('app.url').'/#organization',
         ],
