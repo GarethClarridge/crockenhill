@@ -1,5 +1,7 @@
 # Technical Debt Remediation Plan (2026-06-18)
 
+> **Status: ✅ Complete — archived 2026-06-26.** All six phases (D1–D6) landed. D1/D2 closed the security CVE and promoted the audit to the PR gate; D3 decomposed `SermonViewPresenter`; D4 extracted `SermonProcessingState` off the `Sermon` model (validation deliberately kept on the model); D5 reviewed `MediaProcessingLog` and recorded that its size is intrinsic (no orchestration to relocate); D6 bumped `openai-php` to 0.20, confirmed the dependabot/audit flow, and parked the Symfony 8 majors for Laravel 14. See each phase's **Progress/Findings** section for details.
+
 Created 2026-06-18 from a churn × complexity × security analysis of the codebase (git history over the last 90 days, `composer audit`, `composer outdated --direct`, PHPStan config, file-size complexity proxies, and test-coverage mapping of the hotspots).
 
 This plan turns each finding into an ordered, verifiable phase. Phases are numbered `D1…D6` (D for *debt*) and ordered by priority. Each phase is independently shippable as a single PR.
