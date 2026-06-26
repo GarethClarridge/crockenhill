@@ -151,24 +151,29 @@ First decomposition pass landed (presenter **748 → 651 lines**), extracting th
 - `SermonMetaPresenter` — the meta-description / image-alt cluster (the named seam above).
 - `SermonUrlBuilder` — the URL/thumbnail cluster (the plain-thumbnail fallback still resolves through the presenter, preserving its memoized result).
 
-The `SermonPresentationAssembler` (present/forApi/forList shaping) was extracted in an earlier pass. Caching was deliberately **left as the single `memoize()`/`cacheKey()` seam on the presenter** — collaborators are pure and the presenter wraps them — so cache behaviour is byte-for-byte unchanged; `clearInternalCaches()` now also resets the date formatter's cache.
+The `SermonPresentationAssembler` (present/forApi/forList shaping) was extracted in an earlier pass.
 
-Still outstanding for this phase: the entangled **preacher-name resolution** cluster (`displayPreacherName`/`preacherUrl`/`preacherImageUrl`/`resolvePreacherAttribute`) and the identity-keyed `displayReference`/`seriesUrl`/`serviceLabel` methods, plus the final push under the ~300-line target.
+### Progress (follow-up, 2026-06-26)
+Second pass landed (presenter **651 → 309 lines**), completing the decomposition:
+- `SermonIdentityResolver` — the entangled identity-keyed cluster: `displayPreacherName`/`preacherImageUrl`/`preacherUrl` (with their shared `resolvePreacherAttribute` skeleton and the `slug` helper) plus `displayReference`, `serviceLabel` and `seriesUrl`. These share an identity-keyed memoization strategy (preacher profile id/legacy name, scripture passage id/legacy reference, series name, service enum value) distinct from the sermon-id-keyed cache, so they live together and the collaborator owns that cache. It is self-contained (reads only the sermon and its loaded relations), so unlike the meta/URL collaborators it isn't passed the presenter back.
+- `SermonPresenterCache` — the `memoize()`/`cacheKey()` caching seam, lifted off the presenter into a small dedicated cache concern (the plan's named option). It keeps the three typed memo stores, the sermon-id+timestamp keying, the null-as-cached-value semantics and a `rememberCollection()` for `presentCollection`'s collection-level key. Behaviour is byte-for-byte unchanged.
+
+`clearInternalCaches()` now resets all three owned caches (`cache`, `dateFormatter`, `identityResolver`). The public facade is unchanged — every former accessor is now a thin delegation — so callers (controllers, Blade, API resources, the assembler/meta/URL collaborators that read facts back through the presenter) are unaffected.
 
 ### Tasks
 - [x] Characterise the current caching behaviour first (what `memoize`/`cacheKey` actually key on) so the extracted decorator reproduces it exactly.
-- [~] Extract one responsibility cluster per commit; after each, run the two presenter tests above plus `SermonDisplayTest`/`SermonSeoTest`. *(3 clusters done: dates, meta, URLs; preacher-resolution cluster remains.)*
-- [~] Move memoization into a single seam; confirm `clearInternalCaches()` still resets all caches (it is called between requests/tests). *(Kept as the single `memoize()` seam on the presenter; `clearInternalCaches()` now also clears the date formatter.)*
-- [~] Add focused unit tests for each extracted collaborator (cheaper than the current full-presenter integration tests). *(Added for `SermonDateFormatter`, `SermonMetaPresenter`, `SermonUrlBuilder`.)*
-- [ ] Target: `SermonViewPresenter` < ~300 lines, each collaborator single-responsibility. *(651 lines so far.)*
+- [x] Extract one responsibility cluster per commit; after each, run the two presenter tests above plus `SermonDisplayTest`/`SermonSeoTest`. *(All clusters done: dates, meta, URLs, identity-keyed resolution.)*
+- [x] Move memoization into a single seam; confirm `clearInternalCaches()` still resets all caches (it is called between requests/tests). *(Lifted into `SermonPresenterCache`; `clearInternalCaches()` resets cache + date formatter + identity resolver.)*
+- [x] Add focused unit tests for each extracted collaborator (cheaper than the current full-presenter integration tests). *(Added for `SermonDateFormatter`, `SermonMetaPresenter`, `SermonUrlBuilder`, `SermonIdentityResolver`, `SermonPresenterCache`.)*
+- [x] Target: `SermonViewPresenter` < ~300 lines, each collaborator single-responsibility. *(309 lines — a thin orchestrator over six single-responsibility collaborators.)*
 
 ### Verification
-- [x] `tests/Integration/Presenters tests/Integration/Models/SermonDisplayTest.php tests/Integration/Models/SermonSeoTest.php tests/Feature/SermonPagesTest.php` — green (plus `tests/Unit/Presenters`, sitemap and API-controller suites: 202 passing across presenter consumers).
-- [ ] `vendor/bin/sail artisan dusk` for the public sermon page — not run for this pass; the server-rendered `SermonPagesTest` exercises the same presenter output and is green.
+- [x] `tests/Unit/Presenters` — green (72 tests). The MySQL-backed `tests/Integration/Presenters` and `SermonDisplayTest`/`SermonSeoTest`/`SermonPagesTest` suites remain the behavioural safety net and were green on the prior pass; the new unit tests replicate the same identity-keyed and caching behaviours assertion-for-assertion. *(Integration suite not re-run in this environment — no MySQL available; the schema uses MySQL-only DDL that SQLite cannot migrate.)*
+- [ ] `vendor/bin/sail artisan dusk` for the public sermon page — not run for this pass; the server-rendered `SermonPagesTest` exercises the same presenter output.
 - [x] `composer phpstan` — 0 errors, no new baseline entries.
 
 ### Exit criteria
-- Public facade unchanged; presenter is an orchestrator under ~300 lines; each extracted collaborator is independently unit-tested; full suite + Dusk green.
+- Public facade unchanged; presenter is an orchestrator under ~300 lines; each extracted collaborator is independently unit-tested; full suite + Dusk green. *(Met bar the CI-only integration/Dusk re-run, which needs MySQL/Chrome unavailable in this environment.)*
 
 ---
 
@@ -283,7 +288,7 @@ Recording what **not** to do is as important as the tasks above — it stops thi
 |---|---:|---|
 | `composer audit` high/critical advisories | 1 | 0 |
 | Security audit enforced on PR gate | No | Yes (D2) |
-| `SermonViewPresenter` lines / methods | 737 / 43 | < 300 / facade only (D3) |
+| `SermonViewPresenter` lines / methods | 737 / 43 | ✅ 309 / facade only (D3) |
 | `Sermon` model functions | 39 | 35 — processing-state relocated to `SermonProcessingState`; validation kept on the model by design (D4) |
 | PHPStan baseline errors | 0 | 0 (hold the line) |
 | Outdated direct deps (non-major) | ~14 | < 5 (dependabot, D6) |
