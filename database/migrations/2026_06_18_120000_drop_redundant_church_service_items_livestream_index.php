@@ -11,16 +11,22 @@ return new class extends Migration
     /**
      * Drop the redundant explicit index on church_service_items.livestream_service_section_id.
      *
-     * The column is the local side of a foreign key to service_sections, and MySQL/MariaDB
-     * automatically create a backing index (church_service_items_livestream_service_section_id_foreign)
-     * for every foreign key. The separately added church_service_items_livestream_service_section_id_index
-     * therefore duplicates that coverage on the production engine, adding write and storage overhead for
-     * no read benefit. The guard keeps this a no-op on engines (e.g. SQLite) where the duplicate was the
-     * only index, or where the original migration was never applied.
+     * The column is the local side of a foreign key to service_sections. When MySQL creates that
+     * foreign key it only adds its own backing index (church_service_items_livestream_service_section_id_foreign)
+     * if no suitable index already exists. Where that auto-created `_foreign` index is present, the separately
+     * added church_service_items_livestream_service_section_id_index duplicates its coverage and can be dropped.
+     *
+     * Where the `_foreign` index is absent, MySQL adopted the explicit `_index` as the foreign key's sole
+     * backing index, so it is not redundant and dropping it fails with errno 1553
+     * ("needed in a foreign key constraint"). Guarding on the `_foreign` index keeps this a safe no-op in
+     * that case, and on engines (e.g. SQLite) that do not auto-index foreign-key columns.
      */
     public function up(): void
     {
-        if (Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index')) {
+        if (
+            Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index')
+            && Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_foreign')
+        ) {
             Schema::table('church_service_items', function (Blueprint $table): void {
                 $table->dropIndex('church_service_items_livestream_service_section_id_index');
             });

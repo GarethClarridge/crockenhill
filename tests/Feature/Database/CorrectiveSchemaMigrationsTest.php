@@ -212,6 +212,33 @@ class CorrectiveSchemaMigrationsTest extends TestCase
     }
 
     #[Test]
+    public function it_leaves_the_livestream_index_in_place_when_it_is_the_foreign_keys_only_backing_index(): void
+    {
+        if (! $this->isMySql()) {
+            $this->markTestSkipped('Foreign-key auto-indexing behaviour requires MySQL.');
+        }
+
+        // Reproduce the production state: the explicit index exists and the foreign key has adopted it
+        // as its sole backing index (no auto-created `_foreign` index). Adding the explicit index, then
+        // dropping the `_foreign` one, makes MySQL reassign the foreign key to the explicit index.
+        if (! Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index')) {
+            Schema::table('church_service_items', function (Blueprint $table): void {
+                $table->index('livestream_service_section_id', 'church_service_items_livestream_service_section_id_index');
+            });
+        }
+        DB::statement('ALTER TABLE church_service_items DROP INDEX church_service_items_livestream_service_section_id_foreign');
+
+        $this->assertFalse(Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_foreign'));
+        $this->assertTrue(Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index'));
+
+        // Dropping the explicit index here would fail with errno 1553, so the migration must skip it.
+        $this->redundantLivestreamIndexMigration()->up();
+
+        $this->assertTrue($this->hasForeignKey('church_service_items', 'livestream_service_section_id', 'service_sections'));
+        $this->assertTrue(Schema::hasIndex('church_service_items', 'church_service_items_livestream_service_section_id_index'));
+    }
+
+    #[Test]
     public function it_drops_redundant_fk_duplicate_indexes_while_retaining_foreign_key_coverage(): void
     {
         if (! $this->isMySql()) {
@@ -251,6 +278,41 @@ class CorrectiveSchemaMigrationsTest extends TestCase
         $this->redundantFkIndexesMigration()->down();
 
         foreach ($cases as [$table, , , $explicitIndex]) {
+            $this->assertTrue(Schema::hasIndex($table, $explicitIndex));
+        }
+    }
+
+    #[Test]
+    public function it_leaves_fk_duplicate_indexes_in_place_when_they_are_the_foreign_keys_only_backing_index(): void
+    {
+        if (! $this->isMySql()) {
+            $this->markTestSkipped('Foreign-key auto-indexing behaviour requires MySQL.');
+        }
+
+        $cases = [
+            ['media_processing_logs', 'sermon_id', 'sermons', 'media_processing_logs_sermon_id_index', 'media_processing_logs_sermon_id_foreign'],
+            ['speaker_samples', 'media_processing_log_id', 'media_processing_logs', 'speaker_samples_media_processing_log_id_index', 'speaker_samples_media_processing_log_id_foreign'],
+        ];
+
+        // Reproduce the production state for each foreign key: the explicit index exists and the foreign
+        // key has adopted it as its sole backing index (no auto-created `_foreign` index).
+        foreach ($cases as [$table, $column, , $explicitIndex, $foreignIndex]) {
+            if (! Schema::hasIndex($table, $explicitIndex)) {
+                Schema::table($table, function (Blueprint $blueprint) use ($column, $explicitIndex): void {
+                    $blueprint->index($column, $explicitIndex);
+                });
+            }
+            DB::statement("ALTER TABLE {$table} DROP INDEX {$foreignIndex}");
+
+            $this->assertFalse(Schema::hasIndex($table, $foreignIndex));
+            $this->assertTrue(Schema::hasIndex($table, $explicitIndex));
+        }
+
+        // Dropping any explicit index here would fail with errno 1553, so the migration must skip them.
+        $this->redundantFkIndexesMigration()->up();
+
+        foreach ($cases as [$table, $column, $referencedTable, $explicitIndex]) {
+            $this->assertTrue($this->hasForeignKey($table, $column, $referencedTable));
             $this->assertTrue(Schema::hasIndex($table, $explicitIndex));
         }
     }
