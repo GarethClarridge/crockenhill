@@ -227,24 +227,24 @@ class SitemapService
         $results = collect();
 
         // The 'all' group is the latest 'Sermon' regardless of service.
-        $latestSermon = $sermons->where('content_type', SermonContentType::Sermon)->sortByDesc('date')->first();
+        $latestSermon = $sermons->first(fn (Sermon $s) => $s->getAttribute('type_group') === 'all' && (int) $s->getAttribute('type_rank') === 1);
         if ($latestSermon) {
             $results->put('all', $latestSermon);
         }
 
         // Morning and Evening latest sermons.
-        $latestMorning = $sermons->where('content_type', SermonContentType::Sermon)->where('service', SermonService::Morning)->first();
+        $latestMorning = $sermons->first(fn (Sermon $s) => $s->getAttribute('service_group') === 'morning' && (int) $s->getAttribute('service_rank') === 1);
         if ($latestMorning) {
             $results->put('morning', $latestMorning);
         }
 
-        $latestEvening = $sermons->where('content_type', SermonContentType::Sermon)->where('service', SermonService::Evening)->first();
+        $latestEvening = $sermons->first(fn (Sermon $s) => $s->getAttribute('service_group') === 'evening' && (int) $s->getAttribute('service_rank') === 1);
         if ($latestEvening) {
             $results->put('evening', $latestEvening);
         }
 
         // Children's Talk latest.
-        $latestTalk = $sermons->where('content_type', SermonContentType::ChildrensTalk)->first();
+        $latestTalk = $sermons->first(fn (Sermon $s) => $s->getAttribute('type_group') === 'childrens-talk' && (int) $s->getAttribute('type_rank') === 1);
         if ($latestTalk) {
             $results->put('childrens-talk', $latestTalk);
         }
