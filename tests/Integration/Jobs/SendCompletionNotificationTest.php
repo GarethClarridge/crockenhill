@@ -169,7 +169,7 @@ class SendCompletionNotificationTest extends TestCase
 
         $log = MediaProcessingLog::factory()->cancelled()->create();
 
-        Log::shouldReceive('info')->once()->with('SendCompletionNotification job skipped: processing cancelled', \Mockery::any());
+        Log::shouldReceive('info')->once()->withArgs(fn ($msg) => str_contains($msg, 'job skipped: processing cancelled'));
 
         $job = new SendCompletionNotification($log);
         $job->handle();

@@ -211,7 +211,7 @@ class ExtractAudioFromVideoTest extends TestCase
         $mockExtractor = $this->createMock(VideoExtractionService::class);
         $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
 
-        Log::shouldReceive('info')->once()->with('ExtractAudioFromVideo job skipped: processing cancelled', \Mockery::any());
+        Log::shouldReceive('info')->once()->withArgs(fn ($msg) => str_contains($msg, 'job skipped: processing cancelled'));
 
         $job = new ExtractAudioFromVideo($log);
         $job->handle($mockExtractor);

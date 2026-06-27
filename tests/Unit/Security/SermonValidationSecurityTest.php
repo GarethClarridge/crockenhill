@@ -163,14 +163,16 @@ class SermonValidationSecurityTest extends TestCase
     {
         // Mock the Livewire component and property name required by the Form constructor
         $component = \Mockery::mock(Component::class);
-        $form = new SermonFormData($component, 'form');
 
-        // We use reflection to access the protected rules() method
-        $reflection = new \ReflectionClass($form);
-        $method = $reflection->getMethod('rules');
-        $method->setAccessible(true);
+        // We use an anonymous class to expose the protected rules() method without reflection
+        $form = new class($component, 'form') extends SermonFormData {
+            public function getRules(): array
+            {
+                return $this->rules();
+            }
+        };
 
-        $rules = $method->invoke($form);
+        $rules = $form->getRules();
 
         $this->assertArrayHasKey('points.*', $rules);
         $this->assertContains('nullable', $rules['points.*']);
