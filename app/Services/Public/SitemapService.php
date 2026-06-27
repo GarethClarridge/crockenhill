@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Public;
 
 use App\Enums\PageArea;
+use App\Enums\SermonContentType;
+use App\Enums\SermonService;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
@@ -16,6 +18,7 @@ use App\Sitemap\PageSitemapPresenter;
 use App\Sitemap\PreacherSitemapPresenter;
 use App\Sitemap\SermonSitemapPresenter;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
@@ -67,6 +70,8 @@ class SitemapService
         $homepageImage = asset('/images/homepage/may2024wide.webp');
         $sermonsImage = asset('/images/headings/large/sermons.webp');
 
+        $representatives = $this->getRepresentativeSermonsForStaticUrls();
+
         $sitemap
             ->add(Url::create(route('home'))
                 ->setPriority(1.0)
@@ -91,11 +96,23 @@ class SitemapService
             ->add(Url::create(route('calendar.index'))
                 ->setPriority(0.5)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage($homepageImage, 'Church Calendar'))
-            ->add(Url::create(route('sermons.index'))
-                ->setPriority(0.8)
-                ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
-                ->addImage($sermonsImage, 'Sermons at Crockenhill Baptist Church'))
+                ->addImage($homepageImage, 'Church Calendar'));
+
+        $sermonsUrl = Url::create(route('sermons.index'))
+            ->setPriority(0.8)
+            ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY);
+
+        $latestAll = $representatives->get('all');
+        if ($latestAll?->updated_at && $latestAll->updated_at->year > 0) {
+            $sermonsUrl->setLastModificationDate($latestAll->updated_at);
+        }
+        $sermonsUrl->addImage(
+            ($latestAll ? $this->sermonViewPresenter->thumbnailUrl($latestAll) : null) ?: $sermonsImage,
+            'Sermons at Crockenhill Baptist Church'
+        );
+        $sitemap->add($sermonsUrl);
+
+        $sitemap
             ->add(Url::create(route('sermons.preachers'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
@@ -103,23 +120,136 @@ class SitemapService
             ->add(Url::create(route('sermons.series'))
                 ->setPriority(0.7)
                 ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
-                ->addImage($sermonsImage, 'Sermon Series'))
-            ->add(Url::create(route('sermons.service', 'morning'))
-                ->setPriority(0.7)
-                ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
-                ->addImage($sermonsImage, 'Sunday Morning Services'))
-            ->add(Url::create(route('sermons.service', 'evening'))
-                ->setPriority(0.7)
-                ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY)
-                ->addImage($sermonsImage, 'Sunday Evening Services'));
+                ->addImage($sermonsImage, 'Sermon Series'));
+
+        $morningUrl = Url::create(route('sermons.service', 'morning'))
+            ->setPriority(0.7)
+            ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY);
+        $latestMorning = $representatives->get('morning');
+        if ($latestMorning?->updated_at && $latestMorning->updated_at->year > 0) {
+            $morningUrl->setLastModificationDate($latestMorning->updated_at);
+        }
+        $morningUrl->addImage(
+            ($latestMorning ? $this->sermonViewPresenter->thumbnailUrl($latestMorning) : null) ?: $sermonsImage,
+            'Sunday Morning Services'
+        );
+        $sitemap->add($morningUrl);
+
+        $eveningUrl = Url::create(route('sermons.service', 'evening'))
+            ->setPriority(0.7)
+            ->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY);
+        $latestEvening = $representatives->get('evening');
+        if ($latestEvening?->updated_at && $latestEvening->updated_at->year > 0) {
+            $eveningUrl->setLastModificationDate($latestEvening->updated_at);
+        }
+        $eveningUrl->addImage(
+            ($latestEvening ? $this->sermonViewPresenter->thumbnailUrl($latestEvening) : null) ?: $sermonsImage,
+            'Sunday Evening Services'
+        );
+        $sitemap->add($eveningUrl);
 
         if ($this->exposurePolicy->childrensTalksArePublic()) {
-            $sitemap->add(
-                Url::create(route('childrens-corner.index'))
-                    ->setPriority(0.7)
-                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY)
+            $childrensUrl = Url::create(route('childrens-corner.index'))
+                ->setPriority(0.7)
+                ->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY);
+            $latestChildrens = $representatives->get('childrens-talk');
+            if ($latestChildrens?->updated_at && $latestChildrens->updated_at->year > 0) {
+                $childrensUrl->setLastModificationDate($latestChildrens->updated_at);
+            }
+            $childrensUrl->addImage(
+                ($latestChildrens ? $this->sermonViewPresenter->thumbnailUrl($latestChildrens) : null) ?: $sermonsImage,
+                "Children's Corner"
             );
+            $sitemap->add($childrensUrl);
         }
+    }
+
+    /**
+     * Fetch the latest representative sermons for the main archive landing pages.
+     *
+     * Performance Optimization: Uses a window function to retrieve the most recent
+     * sermon for multiple logical groupings in a single database round-trip,
+     * ensuring sitemap freshness without incurring N+1 overhead.
+     *
+     * @return Collection<string, Sermon>
+     */
+    private function getRepresentativeSermonsForStaticUrls(): Collection
+    {
+        $morning = SermonService::Morning->value;
+        $evening = SermonService::Evening->value;
+        $sermon = SermonContentType::Sermon->value;
+        $talk = SermonContentType::ChildrensTalk->value;
+
+        $subquery = Sermon::query()
+            ->whereVisibleInSitemap()
+            ->select([
+                'id',
+                'title',
+                'date',
+                'slug',
+                'service',
+                'content_type',
+                'thumbnail_file_path',
+                'thumbnail_generated_at',
+                'thumbnail_metadata',
+                'video_file_path',
+                'video_visibility_override',
+                'video_quality_status',
+                'updated_at',
+                'preacher',
+                'preacher_id',
+            ])
+            ->selectRaw("
+                CASE
+                    WHEN content_type = '{$sermon}' THEN 'all'
+                    WHEN content_type = '{$talk}' THEN 'childrens-talk'
+                    ELSE 'other'
+                END as type_group,
+                CASE
+                    WHEN content_type = '{$sermon}' AND service = '{$morning}' THEN 'morning'
+                    WHEN content_type = '{$sermon}' AND service = '{$evening}' THEN 'evening'
+                    ELSE 'none'
+                END as service_group
+            ")
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY content_type ORDER BY date DESC, id DESC) as type_rank')
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY content_type, service ORDER BY date DESC, id DESC) as service_rank');
+
+        /**
+         * Performance Optimization: Only eager load preacherProfile to avoid N+1
+         * when resolving thumbnails for the representative sermons.
+         */
+        $sermons = Sermon::query()
+            ->fromSub($subquery, 'ranked')
+            ->with(['preacherProfile:id,name,slug,image_path'])
+            ->where(fn ($q) => $q->where('type_rank', 1)->orWhere('service_rank', 1))
+            ->get();
+
+        $results = collect();
+
+        // The 'all' group is the latest 'Sermon' regardless of service.
+        $latestSermon = $sermons->first(fn (Sermon $s) => $s->getAttribute('type_group') === 'all' && (int) $s->getAttribute('type_rank') === 1);
+        if ($latestSermon) {
+            $results->put('all', $latestSermon);
+        }
+
+        // Morning and Evening latest sermons.
+        $latestMorning = $sermons->first(fn (Sermon $s) => $s->getAttribute('service_group') === 'morning' && (int) $s->getAttribute('service_rank') === 1);
+        if ($latestMorning) {
+            $results->put('morning', $latestMorning);
+        }
+
+        $latestEvening = $sermons->first(fn (Sermon $s) => $s->getAttribute('service_group') === 'evening' && (int) $s->getAttribute('service_rank') === 1);
+        if ($latestEvening) {
+            $results->put('evening', $latestEvening);
+        }
+
+        // Children's Talk latest.
+        $latestTalk = $sermons->first(fn (Sermon $s) => $s->getAttribute('type_group') === 'childrens-talk' && (int) $s->getAttribute('type_rank') === 1);
+        if ($latestTalk) {
+            $results->put('childrens-talk', $latestTalk);
+        }
+
+        return $results;
     }
 
     /**
