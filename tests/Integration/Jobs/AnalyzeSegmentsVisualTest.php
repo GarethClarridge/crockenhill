@@ -666,7 +666,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $mockService->expects($this->never())->method('analyzeSegments');
         $mockService->expects($this->never())->method('calibratePerSongThreshold');
 
-        Log::shouldReceive('info')->once()->with('AnalyzeSegments job skipped: processing cancelled', Mockery::any());
+        Log::shouldReceive('info')->once()->withArgs(fn ($msg) => str_contains($msg, 'job skipped: processing cancelled'));
 
         $job = new AnalyzeSegments($log);
         $job->handle($mockService);

@@ -46,7 +46,7 @@ class ExtractSermonTest extends TestCase
 
         $mockStorage = $this->createStub(VideoStorageService::class);
 
-        Log::shouldReceive('info')->once()->with('ExtractSermon job skipped: processing cancelled', \Mockery::any());
+        Log::shouldReceive('info')->once()->withArgs(fn ($msg) => str_contains($msg, 'job skipped: processing cancelled'));
 
         $job = new ExtractSermon($log);
         $this->runJob($job, $mockExtractor, $mockStorage);

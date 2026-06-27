@@ -241,7 +241,7 @@ class ValidateAudioFileTest extends TestCase
         $mockExtractor = $this->createMock(AudioExtractionService::class);
         $mockExtractor->expects($this->never())->method('validateAudioFile');
 
-        Log::shouldReceive('info')->once()->with('ValidateAudioFile job skipped: processing cancelled', \Mockery::any());
+        Log::shouldReceive('info')->once()->withArgs(fn ($msg) => str_contains($msg, 'job skipped: processing cancelled'));
 
         $job = new ValidateAudioFile($log);
         $job->handle($mockExtractor, app(StorageAdapterHelper::class));

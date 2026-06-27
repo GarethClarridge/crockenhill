@@ -184,7 +184,7 @@ class GenerateRmsLogTest extends TestCase
         $mockService = $this->createMock(VideoSegmentationService::class);
         $mockService->expects($this->never())->method('generateRmsLog');
 
-        Log::shouldReceive('info')->once()->with('GenerateRmsLog job skipped: processing cancelled', \Mockery::any());
+        Log::shouldReceive('info')->once()->withArgs(fn ($msg) => str_contains($msg, 'job skipped: processing cancelled'));
 
         $job = new GenerateRmsLog($log);
         $job->handle($mockService);

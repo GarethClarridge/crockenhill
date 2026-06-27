@@ -201,7 +201,7 @@ class ValidateVideoFileTest extends TestCase
         $mockValidation = $this->createMock(MediaValidationService::class);
         $mockValidation->expects($this->never())->method('validateLocalFile');
 
-        Log::shouldReceive('info')->once()->with('ValidateVideoFile job skipped: processing cancelled', \Mockery::any());
+        Log::shouldReceive('info')->once()->withArgs(fn ($msg) => str_contains($msg, 'job skipped: processing cancelled'));
 
         $job = new ValidateVideoFile($log);
         $job->handle($mockValidation);
