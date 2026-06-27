@@ -9,7 +9,7 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-admin.filter-bar>
+        <x-admin.filter-bar loading-target="search, serviceFilter, dateFrom, dateTo, resetFilters">
             <x-input
                 placeholder="Search title, canonical key, author, alternate title, CCLI..."
                 wire:model.live.debounce="search"
@@ -26,29 +26,21 @@
 
             <div class="flex items-center gap-2">
                 <label class="text-sm text-gray-600" for="songs-date-from">From</label>
-                <input
+                <x-input
                     id="songs-date-from"
                     type="date"
                     wire:model.live="dateFrom"
-                    class="rounded-md border-gray-300 shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal" />
+                    class="w-44" />
             </div>
 
             <div class="flex items-center gap-2">
                 <label class="text-sm text-gray-600" for="songs-date-to">To</label>
-                <input
+                <x-input
                     id="songs-date-to"
                     type="date"
                     wire:model.live="dateTo"
-                    class="rounded-md border-gray-300 shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal" />
+                    class="w-44" />
             </div>
-
-            <x-slot:actions>
-                <div x-show="$wire.hasFilters" x-transition x-cloak>
-                    <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
-                        Clear filters
-                    </x-form-button>
-                </div>
-            </x-slot:actions>
         </x-admin.filter-bar>
     </x-slot:filters>
 
