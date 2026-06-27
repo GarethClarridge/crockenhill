@@ -209,13 +209,20 @@ class ReviewInboxQuery
      */
     private function collectServiceItems(array &$groups): int
     {
+        /**
+         * Performance Optimization: Limits retrieved columns for services to required
+         * fields for group resolution and kind identification to reduce memory usage
+         * and DB I/O in the capped inbox view.
+         */
         $merges = ChurchService::query()
+            ->select(['id', 'date', 'service', 'pending_structure_merge_source', 'needs_review'])
             ->whereNotNull('pending_structure_merge_source')
             ->orderByDesc('date')
             ->limit(self::SOURCE_CAP)
             ->get();
 
         $flagged = ChurchService::query()
+            ->select(['id', 'date', 'service', 'pending_structure_merge_source', 'needs_review'])
             ->where('needs_review', true)
             ->orderByDesc('date')
             ->limit(self::SOURCE_CAP)

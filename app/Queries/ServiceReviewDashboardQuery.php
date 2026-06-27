@@ -218,11 +218,13 @@ class ServiceReviewDashboardQuery
      * Count of review-candidate sections, derived from the same seven-reason
      * predicate that builds reviewGroups() — never a cheaper SQL approximation,
      * so the hub strip, review inbox, and members-home badge cannot disagree.
+     *
+     * Performance Optimization: Uses a targeted count query on the base predicate
+     * to avoid the expensive grouping and relationship hydration of reviewGroups().
      */
     public function reviewCandidateSectionCount(): int
     {
-        return collect($this->reviewGroups())
-            ->sum(fn (array $group): int => count($group['sections']));
+        return $this->reviewCandidateSectionsBaseQuery()->count();
     }
 
     public function pendingMergeCount(): int
@@ -394,7 +396,29 @@ class ServiceReviewDashboardQuery
      */
     private function reviewSectionsQuery(): Builder
     {
-        return ServiceSection::query()
+        /**
+         * Performance Optimization: Limits retrieved columns for sections to only those
+         * required for dashboard and inbox rendering to reduce memory usage and DB I/O.
+         */
+        return $this->reviewCandidateSectionsBaseQuery()
+            ->select([
+                'id',
+                'church_service_item_id',
+                'media_processing_log_id',
+                'published_sermon_id',
+                'section_type',
+                'title',
+                'start_time',
+                'end_time',
+                'section_order',
+                'confidence',
+                'publication_status',
+                'needs_manual_review',
+                'metadata',
+                'extracted_audio_path',
+                'extracted_video_path',
+                'updated_at',
+            ])
             ->with([
                 'processingLog:id,processing_id,extracted_date,extracted_service,processing_metadata,church_service_id',
                 'processingLog.churchService:id,date,service,needs_review',
@@ -402,6 +426,17 @@ class ServiceReviewDashboardQuery
                 'churchServiceItem.churchService:id,date,service,needs_review',
                 'churchServiceItem.song:id,title',
             ])
+            ->orderByDesc('updated_at');
+    }
+
+    /**
+     * The base predicate for review-candidate sections (contract C1).
+     *
+     * @return Builder<ServiceSection>
+     */
+    private function reviewCandidateSectionsBaseQuery(): Builder
+    {
+        return ServiceSection::query()
             ->where(function (Builder $query): void {
                 $query->where('needs_manual_review', true)
                     ->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
@@ -414,8 +449,7 @@ class ServiceReviewDashboardQuery
                                     ->orWhereHas('churchServiceItem', fn (Builder $query): Builder => $query->whereNull('song_id'));
                             });
                     });
-            })
-            ->orderByDesc('updated_at');
+            });
     }
 
     /**
