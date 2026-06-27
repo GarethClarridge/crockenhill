@@ -945,6 +945,7 @@ CREATE TABLE `songs` (
   UNIQUE KEY `songs_canonical_key_unique` (`canonical_key`),
   KEY `songs_ccli_number_index` (`ccli_number`),
   KEY `songs_deleted_at_index` (`deleted_at`),
+  KEY `songs_title_index` (`title`),
   FULLTEXT KEY `songs_lyrics_plain_fulltext` (`lyrics_plain`),
   CONSTRAINT `songs_alternate_title_check` CHECK (((`alternate_title` is null) or ((cast(`alternate_title` as char charset binary) = trim(`alternate_title`)) and (`alternate_title` <> _utf8mb4'')))),
   CONSTRAINT `songs_canonical_key_check` CHECK (((cast(`canonical_key` as char charset binary) = lower(trim(regexp_replace(`canonical_key`,_utf8mb3'[[:space:]]+',_utf8mb4' ')))) and (`canonical_key` <> _utf8mb3'') and (locate(_utf8mb3'@',`canonical_key`) = 0))),
@@ -1216,3 +1217,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_16_054346_add_i
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_120000_drop_redundant_church_service_items_livestream_index',76);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_130000_drop_redundant_fk_indexes_from_media_processing_logs_and_speaker_samples',76);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_19_054923_add_preacher_id_date_index_to_sermons_table',77);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_27_065159_add_index_to_songs_title',78);

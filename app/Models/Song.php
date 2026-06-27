@@ -135,7 +135,7 @@ class Song extends Model
         return [
             // Security: Explicit length constraints are enforced on all text fields to provide
             // Defense in Depth against Denial of Service (DoS) attempts with oversized payloads.
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['required', 'string', 'max:100'],
             'slug' => $slugRule,
             'canonical_key' => ['required', 'string', 'max:255', $uniqueCanonicalKey],
             'alternate_title' => ['nullable', 'string', 'max:255'],
