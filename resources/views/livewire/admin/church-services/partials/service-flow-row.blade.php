@@ -77,7 +77,10 @@
                         class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
                         @if($item['review_reason']) title="{{ str_replace('_', ' ', $item['review_reason']) }}" @endif
                     >
-                        ⚠ Review
+                        <span aria-hidden="true">⚠</span> Review
+                        @if($item['review_reason'])
+                            <span class="sr-only">: {{ str_replace('_', ' ', $item['review_reason']) }}</span>
+                        @endif
                     </span>
                 @endif
 
@@ -100,9 +103,13 @@
                 @endif
 
                 @if($item['confidence_level'] === 'low')
-                    <span class="inline-block h-2 w-2 rounded-full bg-amber-400" title="Low confidence"></span>
+                    <span class="inline-block h-2 w-2 rounded-full bg-amber-400" title="Low confidence">
+                        <span class="sr-only">Low confidence</span>
+                    </span>
                 @elseif($item['confidence_level'] === 'none')
-                    <span class="inline-block h-2 w-2 rounded-full bg-rose-400" title="No confidence"></span>
+                    <span class="inline-block h-2 w-2 rounded-full bg-rose-400" title="No confidence">
+                        <span class="sr-only">No confidence</span>
+                    </span>
                 @endif
 
                 @if($item['publication_status'] instanceof ServiceSectionPublicationStatus && $item['publication_status'] !== ServiceSectionPublicationStatus::PendingApproval)

@@ -22,14 +22,18 @@
                     type="file"
                     wire:model="file"
                     accept=".osz,.zip,application/zip"
-                    class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal" />
+                    required
+                    aria-required="true"
+                    aria-describedby="file-help @error('file') file-error @enderror"
+                    @error('file') aria-invalid="true" @enderror
+                    class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2" />
 
-                <p class="mt-1 text-sm text-gray-500">
+                <p id="file-help" class="mt-1 text-sm text-gray-500">
                     Max size: {{ round(((int) config('service-tracking.upload.max_size_kb', 614400)) / 1024, 1) }} MB
                 </p>
 
                 @error('file')
-                    <p class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
+                    <p id="file-error" class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
                 @enderror
             </div>
 

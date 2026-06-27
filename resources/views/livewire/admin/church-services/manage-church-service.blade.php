@@ -119,7 +119,7 @@
                                             <button
                                                 type="button"
                                                 wire:click="selectSong({{ $index }}, {{ $suggestion['id'] }})"
-                                                class="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cbc-teal">
+                                                class="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal transition-all active:scale-[0.98]">
                                                 <span>{{ $suggestion['title'] }}</span>
                                                 <span class="text-xs text-gray-500">Use song</span>
                                             </button>
