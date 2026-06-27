@@ -242,10 +242,10 @@ class SermonValidationService
             }
         } catch (\Exception $e) {
             // If we can't check disk space, log but don't fail
-            Log::warning('Could not check disk space', [
-                'disk' => $this->sanitizeForLog(config('media-processing.storage.temp_disk', 'local')),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Could not check disk space', $this->sanitizeArrayForLog([
+                'disk' => config('media-processing.storage.temp_disk', 'local'),
+                'error' => $e->getMessage(),
+            ]));
         }
 
         // Check file format compatibility

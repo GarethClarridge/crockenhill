@@ -21,10 +21,10 @@ trait WithAdminDelete
     {
         $this->authorizeAdmin();
 
-        Log::warning($logAction, array_merge(
+        Log::warning($logAction, $this->sanitizeArrayForLog(array_merge(
             ['admin_id' => auth()->id()],
             $logFields,
-        ));
+        )));
 
         $model->delete();
     }

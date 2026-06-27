@@ -43,6 +43,9 @@ class ImportChurchServiceFromOpenLp
         return $this->importAsNewService($uploadedFile, $parsed);
     }
 
+    /**
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
     private function importIntoExistingService(
         UploadedFile $uploadedFile,
         OpenLpParseResult $parsed,
@@ -91,12 +94,12 @@ class ImportChurchServiceFromOpenLp
             $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
         }
 
-        Log::warning('Church service imported from OpenLP (existing)', [
+        Log::warning('Church service imported from OpenLP (existing)', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
             'church_service_id' => $existingService->id,
-            'filename' => $this->sanitizeForLog($uploadedFile->getClientOriginalName()),
+            'filename' => $uploadedFile->getClientOriginalName(),
             'was_merged' => $mergeResult->wasMerged,
-        ]);
+        ]));
 
         return new OpenLpImportResult(
             churchService: $mergeResult->churchService,
@@ -107,6 +110,9 @@ class ImportChurchServiceFromOpenLp
         );
     }
 
+    /**
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
     private function importAsNewService(
         UploadedFile $uploadedFile,
         OpenLpParseResult $parsed,
@@ -162,11 +168,11 @@ class ImportChurchServiceFromOpenLp
             $syncResult,
         );
 
-        Log::warning('Church service imported from OpenLP (new)', [
+        Log::warning('Church service imported from OpenLP (new)', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
             'church_service_id' => $churchService->id,
-            'filename' => $this->sanitizeForLog($uploadedFile->getClientOriginalName()),
-        ]);
+            'filename' => $uploadedFile->getClientOriginalName(),
+        ]));
 
         return new OpenLpImportResult(
             churchService: $churchService,

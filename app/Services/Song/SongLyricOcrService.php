@@ -83,9 +83,9 @@ class SongLyricOcrService
 
             return $this->parseOcrResponse($ocrText);
         } catch (\Throwable $throwable) {
-            Log::warning('SongLyricOcrService: OCR failed', [
-                'error' => $this->sanitizeForLog($throwable->getMessage()),
-            ]);
+            Log::warning('SongLyricOcrService: OCR failed', $this->sanitizeArrayForLog([
+                'error' => $throwable->getMessage(),
+            ]));
 
             return null;
         } finally {
@@ -131,11 +131,11 @@ class SongLyricOcrService
         $process->run();
 
         if (! $process->isSuccessful() || ! file_exists($fullFramePath) || filesize($fullFramePath) === 0) {
-            Log::warning('SongLyricOcrService: frame extraction failed', [
-                'video_path' => $this->sanitizeForLog($localVideoPath),
+            Log::warning('SongLyricOcrService: frame extraction failed', $this->sanitizeArrayForLog([
+                'video_path' => $localVideoPath,
                 'timestamp' => $timestamp,
-                'error' => $this->sanitizeForLog($process->getErrorOutput()),
-            ]);
+                'error' => $process->getErrorOutput(),
+            ]));
 
             return [null, null];
         }
@@ -203,10 +203,10 @@ class SongLyricOcrService
                 Storage::disk($tempDisk)->delete($framePath);
             }
         } catch (\Throwable $throwable) {
-            Log::warning('SongLyricOcrService: failed to clean up frame', [
-                'frame_path' => $this->sanitizeForLog((string) $framePath),
-                'error' => $this->sanitizeForLog($throwable->getMessage()),
-            ]);
+            Log::warning('SongLyricOcrService: failed to clean up frame', $this->sanitizeArrayForLog([
+                'frame_path' => (string) $framePath,
+                'error' => $throwable->getMessage(),
+            ]));
         }
     }
 }

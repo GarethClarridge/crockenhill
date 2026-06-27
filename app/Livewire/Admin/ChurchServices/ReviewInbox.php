@@ -132,13 +132,13 @@ class ReviewInbox extends Component
             return;
         }
 
-        Log::warning('Inbound email rejected by admin', [
+        Log::warning('Inbound email rejected by admin', $this->sanitizeArrayForLog([
             'admin_id' => $userId,
             'inbound_email_id' => $inboundEmail->id,
-            'message_id' => $this->sanitizeForLog((string) $inboundEmail->message_id),
-            'from' => $this->sanitizeForLog((string) $inboundEmail->from),
-            'subject' => $this->sanitizeForLog((string) $inboundEmail->subject),
-        ]);
+            'message_id' => (string) $inboundEmail->message_id,
+            'from' => (string) $inboundEmail->from,
+            'subject' => (string) $inboundEmail->subject,
+        ]));
 
         $action->execute($inboundEmail, $userId);
 

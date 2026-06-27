@@ -406,14 +406,14 @@ class SermonStorageService
 
             return true;
         } catch (Exception $e) {
-            Log::error('Failed to move sermon file', [
+            Log::error('Failed to move sermon file', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermon->id,
                 'from_disk' => $info['disk'],
                 'to_disk' => $targetDisk,
-                'path' => $this->sanitizeForLog($info['path']),
-                'error' => $this->sanitizeForLog($e->getMessage()),
+                'path' => $info['path'],
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             return false;
         }
@@ -519,6 +519,9 @@ class SermonStorageService
         );
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function resolveThumbnailDeliveryUrl(Sermon $sermon, mixed $path, string $type, string $routeName): ?string
     {
         if (! filled($path)) {
@@ -617,6 +620,9 @@ class SermonStorageService
         ]));
     }
 
+    /**
+     * @throws \InvalidArgumentException
+     */
     private function validatePath(?string $path, string $type): void
     {
         if (is_string($path) && Path::isUnsafe($path)) {
@@ -624,6 +630,9 @@ class SermonStorageService
         }
     }
 
+    /**
+     * @throws \LogicException
+     */
     private function ensurePubliclyResolvable(string $path, string $type): void
     {
         if ($this->requiresGuardedDelivery($path)) {
