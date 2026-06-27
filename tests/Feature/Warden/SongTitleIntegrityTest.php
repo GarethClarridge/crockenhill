@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Warden;
 
 use App\Models\Song;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
@@ -12,6 +13,8 @@ use Tests\TestCase;
 
 class SongTitleIntegrityTest extends TestCase
 {
+    use RefreshDatabase;
+
     #[Test]
     public function it_has_an_index_on_the_songs_title_column(): void
     {
@@ -27,12 +30,12 @@ class SongTitleIntegrityTest extends TestCase
         $rules = Song::validationRules();
 
         $this->assertArrayHasKey('title', $rules);
-        $this->assertContains('max:100', $rules['title'], 'The song title validation rule should match the database column length of 100.');
+        $this->assertContains('max:255', $rules['title'], 'The song title validation rule should match the database column length of 255.');
 
-        $longTitle = str_repeat('a', 101);
+        $longTitle = str_repeat('a', 256);
         $validator = Validator::make(['title' => $longTitle], ['title' => $rules['title']]);
 
-        $this->assertTrue($validator->fails(), 'Validation should fail for titles longer than 100 characters.');
+        $this->assertTrue($validator->fails(), 'Validation should fail for titles longer than 255 characters.');
         $this->assertArrayHasKey('title', $validator->errors()->toArray());
     }
 
@@ -44,6 +47,6 @@ class SongTitleIntegrityTest extends TestCase
 
         $validator = Validator::make(['title' => $validTitle], ['title' => $rules['title']]);
 
-        $this->assertFalse($validator->fails(), 'Validation should pass for a valid title within 100 characters.');
+        $this->assertFalse($validator->fails(), 'Validation should pass for a valid title within 255 characters.');
     }
 }
