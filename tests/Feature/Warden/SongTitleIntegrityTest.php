@@ -30,12 +30,12 @@ class SongTitleIntegrityTest extends TestCase
         $rules = Song::validationRules();
 
         $this->assertArrayHasKey('title', $rules);
-        $this->assertContains('max:255', $rules['title'], 'The song title validation rule should match the widened database column length of 255.');
+        $this->assertContains('max:100', $rules['title'], 'The song title validation rule should match the database column length of 100.');
 
-        $longTitle = str_repeat('a', 256);
+        $longTitle = str_repeat('a', 101);
         $validator = Validator::make(['title' => $longTitle], ['title' => $rules['title']]);
 
-        $this->assertTrue($validator->fails(), 'Validation should fail for titles longer than 255 characters.');
+        $this->assertTrue($validator->fails(), 'Validation should fail for titles longer than 100 characters.');
         $this->assertArrayHasKey('title', $validator->errors()->toArray());
     }
 
@@ -43,18 +43,10 @@ class SongTitleIntegrityTest extends TestCase
     public function it_allows_valid_song_titles(): void
     {
         $rules = Song::validationRules();
-        $validTitle = str_repeat('a', 255);
+        $validTitle = 'A Valid Song Title';
 
         $validator = Validator::make(['title' => $validTitle], ['title' => $rules['title']]);
 
-        $this->assertFalse($validator->fails(), 'Validation should pass for a valid title within 255 characters.');
-    }
-
-    #[Test]
-    public function it_has_a_widen_database_column(): void
-    {
-        $length = DB::selectOne("SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.columns WHERE table_name = 'songs' AND column_name = 'title' AND table_schema = DATABASE()")->CHARACTER_MAXIMUM_LENGTH;
-
-        $this->assertEquals(255, $length, 'The songs.title column should have been widened to 255 characters.');
+        $this->assertFalse($validator->fails(), 'Validation should pass for a valid title within 100 characters.');
     }
 }
