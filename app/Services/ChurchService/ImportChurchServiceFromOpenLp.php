@@ -10,6 +10,7 @@ use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
 use App\Services\Song\OpenLpServiceParser;
 use App\Traits\SanitizesLogData;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,9 @@ class ImportChurchServiceFromOpenLp
         return $this->importAsNewService($uploadedFile, $parsed);
     }
 
+    /**
+     * @throws ModelNotFoundException
+     */
     private function importIntoExistingService(
         UploadedFile $uploadedFile,
         OpenLpParseResult $parsed,
@@ -91,12 +95,12 @@ class ImportChurchServiceFromOpenLp
             $linkResult = $this->songLinker->linkForService($mergeResult->churchService);
         }
 
-        Log::warning('Church service imported from OpenLP (existing)', [
+        Log::warning('Church service imported from OpenLP (existing)', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
             'church_service_id' => $existingService->id,
-            'filename' => $this->sanitizeForLog($uploadedFile->getClientOriginalName()),
+            'filename' => $uploadedFile->getClientOriginalName(),
             'was_merged' => $mergeResult->wasMerged,
-        ]);
+        ]));
 
         return new OpenLpImportResult(
             churchService: $mergeResult->churchService,
@@ -107,6 +111,9 @@ class ImportChurchServiceFromOpenLp
         );
     }
 
+    /**
+     * @throws ModelNotFoundException
+     */
     private function importAsNewService(
         UploadedFile $uploadedFile,
         OpenLpParseResult $parsed,
@@ -162,11 +169,11 @@ class ImportChurchServiceFromOpenLp
             $syncResult,
         );
 
-        Log::warning('Church service imported from OpenLP (new)', [
+        Log::warning('Church service imported from OpenLP (new)', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
             'church_service_id' => $churchService->id,
-            'filename' => $this->sanitizeForLog($uploadedFile->getClientOriginalName()),
-        ]);
+            'filename' => $uploadedFile->getClientOriginalName(),
+        ]));
 
         return new OpenLpImportResult(
             churchService: $churchService,

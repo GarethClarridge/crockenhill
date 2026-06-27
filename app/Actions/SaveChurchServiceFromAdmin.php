@@ -38,6 +38,8 @@ class SaveChurchServiceFromAdmin
      *
      * @param  array{date:string,service:string}  $validated
      * @param  array<int, array{position:int,type:string,title:string,source_title:string,openlp_search_title:null,song_id:int|null,metadata:array<string,mixed>|null}>  $syncPayload  `openlp_search_title` is always null for manual-source items (no OpenLP title to carry over)
+     *
+     * @throws RuntimeException
      */
     public function execute(
         array $validated,
@@ -94,13 +96,13 @@ class SaveChurchServiceFromAdmin
             $syncResult,
         );
 
-        Log::warning('Church service saved by admin', [
+        Log::warning('Church service saved by admin', $this->sanitizeArrayForLog([
             'admin_id' => $userId,
             'church_service_id' => $churchService->id,
-            'date' => $this->sanitizeForLog($churchService->date->toDateString()),
-            'service' => $this->sanitizeForLog($churchService->service->value),
+            'date' => $churchService->date->toDateString(),
+            'service' => $churchService->service->value,
             'item_count' => count($syncPayload),
-        ]);
+        ]));
 
         if ($inboundEmailId !== null) {
             $inboundEmail = InboundEmail::query()->find($inboundEmailId);

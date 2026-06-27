@@ -11,6 +11,7 @@ use App\Models\SongVideo;
 use App\Services\Song\SongVideoService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -77,6 +78,9 @@ class ShowSong extends Component
         ]);
     }
 
+    /**
+     * @throws ModelNotFoundException
+     */
     public function featureVideo(int $videoId): void
     {
         $this->authorizeAdmin();
@@ -85,6 +89,9 @@ class ShowSong extends Component
         app(SongVideoService::class)->featureVideo($video);
     }
 
+    /**
+     * @throws ModelNotFoundException
+     */
     public function unfeatureVideo(int $videoId): void
     {
         $this->authorizeAdmin();
@@ -97,6 +104,8 @@ class ShowSong extends Component
      * Delete a video associated with the song.
      *
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
+     *
+     * @throws ModelNotFoundException
      */
     public function deleteVideo(int $videoId): void
     {
@@ -104,12 +113,12 @@ class ShowSong extends Component
 
         $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
 
-        Log::warning('Song video deleted by admin', [
+        Log::warning('Song video deleted by admin', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
             'video_id' => $video->id,
             'song_id' => $this->song->id,
-            'song_title' => $this->sanitizeForLog((string) $this->song->title),
-        ]);
+            'song_title' => (string) $this->song->title,
+        ]));
 
         app(SongVideoService::class)->deleteVideo($video);
     }

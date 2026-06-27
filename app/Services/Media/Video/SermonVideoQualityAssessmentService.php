@@ -58,13 +58,13 @@ class SermonVideoQualityAssessmentService
 
             return $this->assessLocalVideo($localVideoPath);
         } catch (\Throwable $e) {
-            Log::warning('Sermon video quality assessment failed', [
+            Log::warning('Sermon video quality assessment failed', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermon->id,
-                'video_path' => $this->sanitizeForLog($videoPath),
+                'video_path' => $videoPath,
                 'disk' => $disk,
-                'error' => $this->sanitizeForLog($e->getMessage()),
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             return SermonVideoQualityAssessmentResult::failed();
         } finally {
@@ -107,13 +107,13 @@ class SermonVideoQualityAssessmentService
                 'localVideoPath' => $isS3Download ? $localVideoPath : null,
             ];
         } catch (\Throwable $e) {
-            Log::warning('Sermon video quality assessment failed', [
+            Log::warning('Sermon video quality assessment failed', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermon->id,
-                'video_path' => $this->sanitizeForLog($videoPath),
+                'video_path' => $videoPath,
                 'disk' => $disk,
-                'error' => $this->sanitizeForLog($e->getMessage()),
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             return ['result' => SermonVideoQualityAssessmentResult::failed(), 'localVideoPath' => null];
         }
@@ -517,11 +517,11 @@ class SermonVideoQualityAssessmentService
                 Storage::disk($this->tempDisk)->delete($framePath);
             }
         } catch (\Throwable $e) {
-            Log::warning('Failed to cleanup video-quality frame', [
-                'frame_path' => $this->sanitizeForLog($framePath),
-                'error' => $this->sanitizeForLog($e->getMessage()),
+            Log::warning('Failed to cleanup video-quality frame', $this->sanitizeArrayForLog([
+                'frame_path' => $framePath,
+                'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
         }
     }
 
