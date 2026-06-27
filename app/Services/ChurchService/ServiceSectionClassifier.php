@@ -15,6 +15,30 @@ use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Support\Collection;
 
+/**
+ * Orchestrates the initial identification and classification of service sections.
+ *
+ * This service transforms raw livestream segments into a structured sequence of
+ * church service sections (Songs, Sermons, Readings, etc.). It currently implements
+ * an "audio-only" baseline strategy that relies on acoustic segmentation and
+ * preacher identification, which provides the foundation for later refinement
+ * through OoS alignment and visual analysis.
+ *
+ * @phpstan-type ClassifiedSection array{
+ *     church_service_item_id: int|null,
+ *     section_type: string,
+ *     section_order: int,
+ *     title: ?string,
+ *     start_time: float,
+ *     end_time: float,
+ *     duration: float,
+ *     confidence: float,
+ *     status: string,
+ *     needs_manual_review: bool,
+ *     source_segment_ids: array<int, int>,
+ *     metadata: array<string, mixed>
+ * }
+ */
 class ServiceSectionClassifier
 {
     private MediaProcessingIdentityResolver $identityResolver;
@@ -30,23 +54,13 @@ class ServiceSectionClassifier
     }
 
     /**
+     * Identifies and types all audible sections within a processing log.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log to analyze
      * @return array{
      *     skipped: bool,
      *     skip_reason: ?string,
-     *     sections: array<int, array{
-     *         church_service_item_id: int|null,
-     *         section_type: string,
-     *         section_order: int,
-     *         title: ?string,
-     *         start_time: float,
-     *         end_time: float,
-     *         duration: float,
-     *         confidence: float,
-     *         status: string,
-     *         needs_manual_review: bool,
-     *         source_segment_ids: array<int, int>,
-     *         metadata: array<string, mixed>
-     *     }>
+     *     sections: array<int, ClassifiedSection>
      * }
      */
     public function classify(MediaProcessingLog $processingLog): array
@@ -99,21 +113,10 @@ class ServiceSectionClassifier
     }
 
     /**
+     * Maps raw audible segments to their initial section classifications.
+     *
      * @param  Collection<int, LivestreamSegment>  $segments
-     * @return array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }>
+     * @return array<int, ClassifiedSection>
      */
     private function classifyFromAudioOnlySegments(Collection $segments): array
     {
@@ -176,22 +179,11 @@ class ServiceSectionClassifier
     }
 
     /**
+     * Helper to create a standardized classified section array from a segment.
+     *
      * @param  'high'|'low'|'none'  $confidenceLevel
      * @param  array<string, mixed>  $extraMetadata
-     * @return array{
-     *     church_service_item_id: null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: null,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }
+     * @return ClassifiedSection
      */
     private function makeAudioOnlySection(
         LivestreamSegment $segment,
