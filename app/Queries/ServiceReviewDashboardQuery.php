@@ -415,6 +415,7 @@ class ServiceReviewDashboardQuery
                 'publication_status',
                 'needs_manual_review',
                 'metadata',
+                'song_match_type',
                 'extracted_audio_path',
                 'extracted_video_path',
                 'updated_at',
@@ -442,7 +443,18 @@ class ServiceReviewDashboardQuery
                     ->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
                     ->orWhere('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD)
                     ->orWhereJsonContains('metadata->review_flags', 'heuristic_demotion')
+                    ->orWhereIn('song_match_type', [
+                        \App\Enums\ServiceSectionSongMatchType::Inferred->value,
+                        \App\Enums\ServiceSectionSongMatchType::Unmatched->value,
+                    ])
                     ->orWhere(function (Builder $query): void {
+                        // Speaker review: predicted but not yet reviewed
+                        $query->where('section_type', ServiceSectionType::ChildrensTalk->value)
+                            ->whereNotNull('metadata->childrens_talk_speaker->predicted')
+                            ->whereNull('metadata->childrens_talk_speaker->reviewed');
+                    })
+                    ->orWhere(function (Builder $query): void {
+                        // Legacy/fallback song match checks
                         $query->where('section_type', ServiceSectionType::Song->value)
                             ->where(function (Builder $query): void {
                                 $query->whereNull('church_service_item_id')
