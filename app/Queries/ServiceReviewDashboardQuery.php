@@ -6,6 +6,7 @@ namespace App\Queries;
 
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
@@ -444,8 +445,8 @@ class ServiceReviewDashboardQuery
                     ->orWhere('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD)
                     ->orWhereJsonContains('metadata->review_flags', 'heuristic_demotion')
                     ->orWhereIn('song_match_type', [
-                        \App\Enums\ServiceSectionSongMatchType::Inferred->value,
-                        \App\Enums\ServiceSectionSongMatchType::Unmatched->value,
+                        ServiceSectionSongMatchType::Inferred->value,
+                        ServiceSectionSongMatchType::Unmatched->value,
                     ])
                     ->orWhere(function (Builder $query): void {
                         // Speaker review: predicted but not yet reviewed
