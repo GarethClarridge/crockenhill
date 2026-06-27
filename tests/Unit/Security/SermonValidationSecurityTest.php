@@ -10,13 +10,14 @@ use App\Livewire\Forms\SermonFormData;
 use App\Rules\SermonPointElement;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Component;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonValidationSecurityTest extends TestCase
 {
     #[Test]
-    public function update_sermon_request_rejects_oversized_flat_points()
+    public function update_sermon_request_rejects_oversized_flat_points(): void
     {
         $request = new UpdateSermonRequest;
         $rules = $request->rules();
@@ -41,7 +42,7 @@ class SermonValidationSecurityTest extends TestCase
     }
 
     #[Test]
-    public function update_sermon_request_rejects_oversized_nested_points()
+    public function update_sermon_request_rejects_oversized_nested_points(): void
     {
         $request = new UpdateSermonRequest;
         $rules = $request->rules();
@@ -66,7 +67,7 @@ class SermonValidationSecurityTest extends TestCase
     }
 
     #[Test]
-    public function update_sermon_request_rejects_oversized_sub_points()
+    public function update_sermon_request_rejects_oversized_sub_points(): void
     {
         $request = new UpdateSermonRequest;
         $rules = $request->rules();
@@ -91,7 +92,7 @@ class SermonValidationSecurityTest extends TestCase
     }
 
     #[Test]
-    public function update_sermon_request_rejects_non_string_scalar_flat_points()
+    public function update_sermon_request_rejects_non_string_scalar_flat_points(): void
     {
         $request = new UpdateSermonRequest;
         $rules = $request->rules();
@@ -116,7 +117,7 @@ class SermonValidationSecurityTest extends TestCase
     }
 
     #[Test]
-    public function update_sermon_request_accepts_valid_mixed_points()
+    public function update_sermon_request_accepts_valid_mixed_points(): void
     {
         $request = new UpdateSermonRequest;
         $rules = $request->rules();
@@ -142,7 +143,7 @@ class SermonValidationSecurityTest extends TestCase
     }
 
     #[Test]
-    public function confirm_media_segment_request_rejects_overflow_id()
+    public function confirm_media_segment_request_rejects_overflow_id(): void
     {
         $request = new ConfirmMediaSegmentRequest;
         $rules = $request->rules();
@@ -159,13 +160,16 @@ class SermonValidationSecurityTest extends TestCase
     }
 
     #[Test]
-    public function sermon_form_data_rules_contain_points_limit()
+    public function sermon_form_data_rules_contain_points_limit(): void
     {
         // Mock the Livewire component and property name required by the Form constructor
+        /** @var Component&MockInterface $component */
         $component = \Mockery::mock(Component::class);
 
         // We use an anonymous class to expose the protected rules() method without reflection
-        $form = new class($component, 'form') extends SermonFormData {
+        $form = new class($component, 'form') extends SermonFormData
+        {
+            /** @return array<string, mixed> */
             public function getRules(): array
             {
                 return $this->rules();
