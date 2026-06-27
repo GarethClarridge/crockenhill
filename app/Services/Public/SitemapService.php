@@ -18,6 +18,7 @@ use App\Sitemap\PageSitemapPresenter;
 use App\Sitemap\PreacherSitemapPresenter;
 use App\Sitemap\SermonSitemapPresenter;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
@@ -106,7 +107,7 @@ class SitemapService
             $sermonsUrl->setLastModificationDate($latestAll->updated_at);
         }
         $sermonsUrl->addImage(
-            $latestAll ? $this->sermonViewPresenter->thumbnailUrl($latestAll) : $sermonsImage,
+            ($latestAll ? $this->sermonViewPresenter->thumbnailUrl($latestAll) : null) ?: $sermonsImage,
             'Sermons at Crockenhill Baptist Church'
         );
         $sitemap->add($sermonsUrl);
@@ -129,7 +130,7 @@ class SitemapService
             $morningUrl->setLastModificationDate($latestMorning->updated_at);
         }
         $morningUrl->addImage(
-            $latestMorning ? $this->sermonViewPresenter->thumbnailUrl($latestMorning) : $sermonsImage,
+            ($latestMorning ? $this->sermonViewPresenter->thumbnailUrl($latestMorning) : null) ?: $sermonsImage,
             'Sunday Morning Services'
         );
         $sitemap->add($morningUrl);
@@ -142,7 +143,7 @@ class SitemapService
             $eveningUrl->setLastModificationDate($latestEvening->updated_at);
         }
         $eveningUrl->addImage(
-            $latestEvening ? $this->sermonViewPresenter->thumbnailUrl($latestEvening) : $sermonsImage,
+            ($latestEvening ? $this->sermonViewPresenter->thumbnailUrl($latestEvening) : null) ?: $sermonsImage,
             'Sunday Evening Services'
         );
         $sitemap->add($eveningUrl);
@@ -156,7 +157,7 @@ class SitemapService
                 $childrensUrl->setLastModificationDate($latestChildrens->updated_at);
             }
             $childrensUrl->addImage(
-                $latestChildrens ? $this->sermonViewPresenter->thumbnailUrl($latestChildrens) : $sermonsImage,
+                ($latestChildrens ? $this->sermonViewPresenter->thumbnailUrl($latestChildrens) : null) ?: $sermonsImage,
                 "Children's Corner"
             );
             $sitemap->add($childrensUrl);
@@ -170,9 +171,9 @@ class SitemapService
      * sermon for multiple logical groupings in a single database round-trip,
      * ensuring sitemap freshness without incurring N+1 overhead.
      *
-     * @return \Illuminate\Support\Collection<string, Sermon>
+     * @return Collection<string, Sermon>
      */
-    private function getRepresentativeSermonsForStaticUrls(): \Illuminate\Support\Collection
+    private function getRepresentativeSermonsForStaticUrls(): Collection
     {
         $morning = SermonService::Morning->value;
         $evening = SermonService::Evening->value;
