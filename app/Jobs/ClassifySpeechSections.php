@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\ServiceSectionClassifier;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\SpeechSectionClassificationService;
 use App\Services\Song\SongTitleHintExtractor;
@@ -21,20 +22,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 /**
- * @phpstan-type SectionPayload array{
- *     church_service_item_id: int|null,
- *     section_type: string,
- *     section_order: int,
- *     title: ?string,
- *     start_time: float,
- *     end_time: float,
- *     duration: float,
- *     confidence: float,
- *     status: string,
- *     needs_manual_review: bool,
- *     source_segment_ids: array<int, int>,
- *     metadata: array<string, mixed>
- * }
+ * @phpstan-import-type ClassifiedSection from ServiceSectionClassifier
  */
 class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 {
@@ -167,20 +155,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * @return array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }
+     * @return ClassifiedSection
      */
     private function payloadFromExistingSection(ServiceSection $section): array
     {
@@ -211,20 +186,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
      *     needs_manual_review: bool,
      *     metadata: array<string, mixed>
      * }  $classifiedSection
-     * @return array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }
+     * @return ClassifiedSection
      */
     private function payloadFromClassifiedSection(
         ServiceSection $originalSection,
@@ -298,20 +260,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * @return array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }
+     * @return ClassifiedSection
      */
     private function fallbackPayload(ServiceSection $section, string $reason): array
     {
@@ -352,8 +301,8 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
      * After folding, if more than one sermon section remains, keep the longest as the primary
      * and demote any shorter ones (below the configured threshold) to childrens_talk.
      *
-     * @param  array<int, SectionPayload>  $sections
-     * @return array<int, SectionPayload>
+     * @param  array<int, ClassifiedSection>  $sections
+     * @return array<int, ClassifiedSection>
      */
     private function demoteSecondarySermons(array $sections): array
     {
@@ -403,8 +352,8 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * @param  SectionPayload  $section
-     * @return SectionPayload
+     * @param  ClassifiedSection  $section
+     * @return ClassifiedSection
      */
     private function demoteSectionToChildrensTalk(array $section): array
     {
@@ -430,8 +379,8 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * @param  SectionPayload  $section
-     * @return SectionPayload
+     * @param  ClassifiedSection  $section
+     * @return ClassifiedSection
      */
     private function flagSectionForMultipleSermonsReview(array $section): array
     {
@@ -454,34 +403,8 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * @param  array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }>  $sections
-     * @return array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }>
+     * @param  array<int, ClassifiedSection>  $sections
+     * @return array<int, ClassifiedSection>
      */
     private function foldShortSongsIntoSermon(array $sections): array
     {
@@ -582,34 +505,8 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
      * at least one side is short (below the configured threshold). Children's talk sections
      * are always merged regardless of duration.
      *
-     * @param  array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }>  $sections
-     * @return array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }>
+     * @param  array<int, ClassifiedSection>  $sections
+     * @return array<int, ClassifiedSection>
      */
     private function mergeAdjacentSameTypeSections(array $sections): array
     {
@@ -660,48 +557,9 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
      * Merge two same-type sections into one. The longer section is the primary and
      * carries its church_service_item_id, title, confidence, and metadata.
      *
-     * @param  array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }  $a
-     * @param  array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }  $b
-     * @return array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence: float,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }
+     * @param  ClassifiedSection  $a
+     * @param  ClassifiedSection  $b
+     * @return ClassifiedSection
      */
     private function mergeTwoSections(array $a, array $b): array
     {

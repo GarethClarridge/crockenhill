@@ -16,6 +16,16 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
+/**
+ * Synchronizes classified section data with the persistent database state.
+ *
+ * This service handles the idempotent upsert of service sections for a processing log,
+ * ensuring that material changes to a section's "signature" (type, timing, item link)
+ * trigger appropriate asset cleanup and publication notifications while preserving
+ * existing manual metadata edits where possible.
+ *
+ * @phpstan-import-type ClassifiedSection from ServiceSectionClassifier
+ */
 class ServiceSectionSyncService
 {
     use SanitizesLogData;
@@ -36,20 +46,9 @@ class ServiceSectionSyncService
     }
 
     /**
-     * @param  array<int, array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     section_order: int,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float,
-     *     duration: float,
-     *     confidence?: float|null,
-     *     status: string,
-     *     needs_manual_review: bool,
-     *     source_segment_ids: array<int, int>,
-     *     metadata: array<string, mixed>
-     * }>  $classifiedSections
+     * Perform an idempotent sync of all classified sections for a processing log.
+     *
+     * @param  array<int, ClassifiedSection>  $classifiedSections
      */
     public function sync(MediaProcessingLog $processingLog, array $classifiedSections): void
     {
