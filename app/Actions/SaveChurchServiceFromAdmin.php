@@ -39,7 +39,7 @@ class SaveChurchServiceFromAdmin
      * @param  array{date:string,service:string}  $validated
      * @param  array<int, array{position:int,type:string,title:string,source_title:string,openlp_search_title:null,song_id:int|null,metadata:array<string,mixed>|null}>  $syncPayload  `openlp_search_title` is always null for manual-source items (no OpenLP title to carry over)
      *
-     * @throws \RuntimeException
+     * @throws RuntimeException
      */
     public function execute(
         array $validated,

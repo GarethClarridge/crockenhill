@@ -11,6 +11,7 @@ use App\Models\SongVideo;
 use App\Services\Song\SongVideoService;
 use App\Traits\SanitizesLogData;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -78,7 +79,7 @@ class ShowSong extends Component
     }
 
     /**
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     * @throws ModelNotFoundException
      */
     public function featureVideo(int $videoId): void
     {
@@ -89,7 +90,7 @@ class ShowSong extends Component
     }
 
     /**
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     * @throws ModelNotFoundException
      */
     public function unfeatureVideo(int $videoId): void
     {
@@ -104,7 +105,7 @@ class ShowSong extends Component
      *
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      *
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     * @throws ModelNotFoundException
      */
     public function deleteVideo(int $videoId): void
     {

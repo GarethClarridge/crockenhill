@@ -10,6 +10,7 @@ use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
 use App\Services\Song\OpenLpServiceParser;
 use App\Traits\SanitizesLogData;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -44,7 +45,7 @@ class ImportChurchServiceFromOpenLp
     }
 
     /**
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     * @throws ModelNotFoundException
      */
     private function importIntoExistingService(
         UploadedFile $uploadedFile,
@@ -111,7 +112,7 @@ class ImportChurchServiceFromOpenLp
     }
 
     /**
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     * @throws ModelNotFoundException
      */
     private function importAsNewService(
         UploadedFile $uploadedFile,

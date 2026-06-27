@@ -520,7 +520,7 @@ class SermonStorageService
     }
 
     /**
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     private function resolveThumbnailDeliveryUrl(Sermon $sermon, mixed $path, string $type, string $routeName): ?string
     {
@@ -621,7 +621,7 @@ class SermonStorageService
     }
 
     /**
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     private function validatePath(?string $path, string $type): void
     {
@@ -631,7 +631,7 @@ class SermonStorageService
     }
 
     /**
-     * @throws \LogicException
+     * @throws LogicException
      */
     private function ensurePubliclyResolvable(string $path, string $type): void
     {
