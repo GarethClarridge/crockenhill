@@ -24,7 +24,7 @@ use Illuminate\Validation\Rule;
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Song> $songs
  *
- * @method static \Database\Factories\SongBookFactory factory(...$parameters)
+ * @method static SongBookFactory factory(...$parameters)
  * @method static Builder<SongBook> newModelQuery()
  * @method static Builder<SongBook> newQuery()
  * @method static Builder<SongBook> query()
