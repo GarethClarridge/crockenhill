@@ -16,6 +16,7 @@ use App\Services\Sermon\SermonExposurePolicy;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -40,7 +41,6 @@ class PodcastFeedServiceTest extends TestCase
             ),
             app(SermonRepository::class),
         );
-        Sermon::query()->delete();
         Cache::flush();
     }
 
@@ -233,35 +233,77 @@ class PodcastFeedServiceTest extends TestCase
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
-        $this->assertFalse(Cache::has('podcast_feed_morning'));
+        DB::enableQueryLog();
 
+        // First call should hit the database.
         $this->service->getSermonsForFeed(SermonService::Morning);
+        $queryCountAfterFirstCall = count(DB::getQueryLog());
+        $this->assertGreaterThan(0, $queryCountAfterFirstCall);
 
-        $this->assertTrue(Cache::has('podcast_feed_morning'));
+        // Second call should hit the cache and NOT trigger any new database queries.
+        $this->service->getSermonsForFeed(SermonService::Morning);
+        $this->assertCount($queryCountAfterFirstCall, DB::getQueryLog());
+
+        DB::disableQueryLog();
     }
 
     #[Test]
     public function clear_cache_removes_specific_service_type(): void
     {
-        Cache::put('podcast_feed_morning', 'test_data', 3600);
-        Cache::put('podcast_feed_evening', 'test_data', 3600);
+        config(['podcast.cache' => ['enabled' => true, 'ttl' => 3600, 'stale_ttl' => 7200]]);
+        Sermon::factory()->create(['service' => 'morning', 'audio_file_path' => 'test.mp3']);
+        Sermon::factory()->create(['service' => 'evening', 'audio_file_path' => 'test.mp3']);
 
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getFileSize')->willReturn(1024);
+
+        DB::enableQueryLog();
+
+        // Populate both caches
+        $this->service->getSermonsForFeed(SermonService::Morning);
+        $this->service->getSermonsForFeed(SermonService::Evening);
+        $initialQueryCount = count(DB::getQueryLog());
+
+        // Clear only morning
         $this->service->clearCache('morning');
 
-        $this->assertFalse(Cache::has('podcast_feed_morning'));
-        $this->assertTrue(Cache::has('podcast_feed_evening'));
+        // Morning should hit DB again
+        $this->service->getSermonsForFeed(SermonService::Morning);
+        $this->assertCount($initialQueryCount + 1, DB::getQueryLog());
+
+        // Evening should still be cached
+        $this->service->getSermonsForFeed(SermonService::Evening);
+        $this->assertCount($initialQueryCount + 1, DB::getQueryLog());
+
+        DB::disableQueryLog();
     }
 
     #[Test]
     public function clear_cache_removes_all_feeds_when_no_type_specified(): void
     {
-        Cache::put('podcast_feed_morning', 'test_data', 3600);
-        Cache::put('podcast_feed_evening', 'test_data', 3600);
+        config(['podcast.cache' => ['enabled' => true, 'ttl' => 3600, 'stale_ttl' => 7200]]);
+        Sermon::factory()->create(['service' => 'morning', 'audio_file_path' => 'test.mp3']);
+        Sermon::factory()->create(['service' => 'evening', 'audio_file_path' => 'test.mp3']);
 
+        $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getFileSize')->willReturn(1024);
+
+        DB::enableQueryLog();
+
+        // Populate both caches
+        $this->service->getSermonsForFeed(SermonService::Morning);
+        $this->service->getSermonsForFeed(SermonService::Evening);
+        $initialQueryCount = count(DB::getQueryLog());
+
+        // Clear all
         $this->service->clearCache();
 
-        $this->assertFalse(Cache::has('podcast_feed_morning'));
-        $this->assertFalse(Cache::has('podcast_feed_evening'));
+        // Both should hit DB again
+        $this->service->getSermonsForFeed(SermonService::Morning);
+        $this->service->getSermonsForFeed(SermonService::Evening);
+        $this->assertCount($initialQueryCount + 2, DB::getQueryLog());
+
+        DB::disableQueryLog();
     }
 
     #[Test]
