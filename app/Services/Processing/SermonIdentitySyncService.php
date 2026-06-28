@@ -12,12 +12,28 @@ use App\Models\Sermon;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use Illuminate\Support\Str;
 
+/**
+ * Service for coordinating the resolution and synchronization of preacher
+ * and scripture identities for Sermon models.
+ *
+ * Ensures that denormalized preacher names match registered Preacher records
+ * and that scripture references are consistently linked to canonical
+ * ScripturePassage entities before persistence.
+ */
 class SermonIdentitySyncService
 {
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferenceResolver,
     ) {}
 
+    /**
+     * Ensure identity consistency for preacher and scripture before saving.
+     *
+     * Delegates to specialized internal methods to sync denormalized
+     * preacher names with IDs and scripture references with passages.
+     *
+     * @param  Sermon  $sermon  The sermon model to synchronize
+     */
     public function syncForPersistence(Sermon $sermon): void
     {
         $this->syncPreacherIdentity($sermon);
@@ -26,6 +42,12 @@ class SermonIdentitySyncService
 
     /**
      * Retroactively link sermons to a preacher when a new alias is registered.
+     *
+     * Identifies unassigned sermons matching the alias name and updates them
+     * with the canonical preacher identity. Utilizes database-specific
+     * regex (on MySQL) to ensure whitespace-insensitive matching.
+     *
+     * @param  PreacherAlias  $alias  The newly registered preacher alias
      */
     public function backfillSermonsForAlias(PreacherAlias $alias): void
     {
@@ -52,6 +74,16 @@ class SermonIdentitySyncService
         ]);
     }
 
+    /**
+     * Resolve a raw scripture reference string to an existing passage.
+     *
+     * Implements a two-stage lookup: first attempts to match via a normalized
+     * reference string (derived from the ScriptureReferenceResolver), then
+     * falls back to a direct match on the display reference.
+     *
+     * @param  string|null  $rawReference  The scripture reference to resolve
+     * @return ScripturePassage|null The matched passage or null if not found
+     */
     public function findExistingScripturePassage(?string $rawReference): ?ScripturePassage
     {
         if (! is_string($rawReference)) {
