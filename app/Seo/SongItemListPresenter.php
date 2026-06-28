@@ -21,7 +21,7 @@ class SongItemListPresenter
         $orgId = $appUrl.'/#organization';
 
         $publisher = [
-            '@type' => ['Organization', 'Church'],
+            '@type' => 'Organization',
             'name' => $orgName,
             '@id' => $orgId,
             'logo' => [
