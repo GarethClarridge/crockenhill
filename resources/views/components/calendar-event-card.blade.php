@@ -6,8 +6,8 @@
     'showMeetingBadge' => true,
     'showDescription' => true,
     'descriptionLimit' => 150,
-    'dateFormat' => 'M j, Y',
-    'timeFormat' => 'g:i A'
+    'dateFormat' => 'j M Y',
+    'timeFormat' => 'g:ia'
 ])
 
 @php

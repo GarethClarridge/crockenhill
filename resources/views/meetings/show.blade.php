@@ -240,7 +240,7 @@
     {{-- Calendar Events --}}
     @if(isset($upcomingEvents) && $upcomingEvents->count() > 0)
         <hr class="my-8">
-        <x-h2>Upcoming Events</x-h2>
+        <x-h2>Upcoming meetings</x-h2>
 
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
             @foreach($upcomingEvents->take(6) as $event)
@@ -250,7 +250,7 @@
                     :meeting="$meeting"
                     :show-meeting-badge="false"
                     description-limit="80"
-                    date-format="M j, Y"
+                    date-format="j M Y"
                 />
             @endforeach
         </div>
@@ -258,7 +258,7 @@
         @if($upcomingEvents->count() > 6)
             <div class="text-center mb-6">
                 <a href="{{ route('meetings.events', $meeting) }}" wire:navigate class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cbc-teal">
-                    View all {{ $upcomingEvents->count() }} upcoming events
+                    View all {{ $upcomingEvents->count() }} upcoming meetings
                     <x-heroicon-o-arrow-right class="ml-2 h-4 w-4" aria-hidden="true" />
                 </a>
             </div>
@@ -268,7 +268,7 @@
     {{-- Recent Past Events --}}
     @if(isset($pastEvents) && $pastEvents->count() > 0)
         <div class="mb-8">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Events</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent meetings</h3>
             <div class="space-y-2">
                 @foreach($pastEvents->take(3) as $event)
                     <x-calendar-event-compact :event="$event" />
@@ -278,7 +278,7 @@
             @if($pastEvents->count() > 3)
                 <div class="mt-3">
                     <a href="{{ route('meetings.events', $meeting) }}" wire:navigate class="text-sm text-blue-600 hover:text-blue-500">
-                        View all past events &rarr;
+                        View all past meetings &rarr;
                     </a>
                 </div>
             @endif
