@@ -75,6 +75,7 @@
         @if ($formattedDuration)
           <span class="flex items-center text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 ml-2" title="Sermon duration">
             <x-heroicon-o-play-circle class="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+            <span class="sr-only">Duration: </span>
             {{ $formattedDuration }}
           </span>
         @endif

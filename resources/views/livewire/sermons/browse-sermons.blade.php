@@ -42,7 +42,7 @@
                     size="sm"
                     class="w-full justify-center sm:w-auto"
                     @click="expanded = !expanded"
-                    ::aria-expanded="expanded.toString()"
+                    x-bind:aria-expanded="expanded.toString()"
                     aria-controls="sermon-filters"
                 >
                     <span class="inline-flex items-center gap-2">
