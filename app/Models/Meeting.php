@@ -50,7 +50,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read string $heading
  * @property-read Page|null $page
  *
- * @method static \Database\Factories\MeetingFactory factory(...$parameters)
+ * @method static MeetingFactory factory(...$parameters)
  * @method static Builder|Meeting newModelQuery()
  * @method static Builder|Meeting newQuery()
  * @method static Builder|Meeting query()

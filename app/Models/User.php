@@ -36,7 +36,7 @@ use Laravel\Sanctum\PersonalAccessToken;
  * @property-read Collection|PersonalAccessToken[] $tokens
  * @property-read int|null $tokens_count
  *
- * @method static \Database\Factories\UserFactory factory(...$parameters)
+ * @method static UserFactory factory(...$parameters)
  * @method static \Illuminate\Database\Eloquent\Builder|User newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|User newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|User query()
