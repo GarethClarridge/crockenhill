@@ -1001,6 +1001,7 @@ CREATE TABLE `speaker_samples` (
   KEY `speaker_samples_speaker_profile_id_index` (`speaker_profile_id`),
   KEY `speaker_samples_sermon_id_index` (`sermon_id`),
   KEY `speaker_samples_profile_approved_index` (`speaker_profile_id`,`approved`),
+  KEY `speaker_samples_approved_index` (`approved`),
   CONSTRAINT `speaker_samples_media_processing_log_id_foreign` FOREIGN KEY (`media_processing_log_id`) REFERENCES `media_processing_logs` (`id`) ON DELETE SET NULL,
   CONSTRAINT `speaker_samples_sermon_id_foreign` FOREIGN KEY (`sermon_id`) REFERENCES `sermons` (`id`) ON DELETE SET NULL,
   CONSTRAINT `speaker_samples_speaker_profile_id_foreign` FOREIGN KEY (`speaker_profile_id`) REFERENCES `speaker_profiles` (`id`) ON DELETE CASCADE,
@@ -1218,3 +1219,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_120000_drop_
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_18_130000_drop_redundant_fk_indexes_from_media_processing_logs_and_speaker_samples',76);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_19_054923_add_preacher_id_date_index_to_sermons_table',77);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_27_065159_add_index_to_songs_title',78);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_06_28_192314_add_index_to_speaker_samples_approved',79);
