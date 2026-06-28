@@ -13,8 +13,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('songs', function (Blueprint $table) {
-            $table->index('title');
+        Schema::table('speaker_samples', function (Blueprint $table) {
+            $table->index('approved');
         });
     }
 
@@ -23,8 +23,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('songs', function (Blueprint $table) {
-            $table->dropIndex(['title']);
+        Schema::table('speaker_samples', function (Blueprint $table) {
+            $table->dropIndex(['approved']);
         });
     }
 };
