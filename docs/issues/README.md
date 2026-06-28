@@ -72,6 +72,20 @@ admin forms. Grep search returns zero production callers in `app/`, `resources/`
 
 ---
 
+### O9 · Dead media validation service (`SermonValidationService`)
+
+**Artefact:** `app/Services/Processing/SermonValidationService.php`
+
+Confirmed dead class with zero production callers. Responsibilities for file
+validation and storage checks have been superseded by `MediaValidationService`
+and `TempDiskSpace` respectively.
+
+**Risk:** Low — isolated and unreferenced.
+
+**Action:** Safe to remove, along with Unit and Integration tests for the service.
+
+---
+
 ## ✅ Recently resolved (2026-06-18 unless noted)
 
 - **O1 — Dead mailable `App\Mail\LivestreamProcessingCompleted`** — removed (class, view, test, `AGENTS.md` reference).
