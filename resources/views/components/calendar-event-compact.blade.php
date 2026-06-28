@@ -11,6 +11,6 @@
         @endif
     </div>
     <span class="text-sm text-gray-500">
-        {{ $event->start_datetime->format($showYear ? 'M j, Y' : 'M j') }}
+        {{ $event->start_datetime->format($showYear ? 'j M Y' : 'j M') }}
     </span>
 </div>

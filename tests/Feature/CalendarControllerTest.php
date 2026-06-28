@@ -162,7 +162,7 @@ class CalendarControllerTest extends TestCase
         $response->assertSee('Past Meeting Event 20');
         $response->assertDontSee('Past Meeting Event 21');
         $response->assertDontSee('Other Meeting Past Event');
-        $response->assertSee('Showing 20 most recent past events');
+        $response->assertSee('Showing 20 most recent past meetings');
     }
 
     #[Test]
