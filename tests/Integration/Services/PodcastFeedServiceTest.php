@@ -16,6 +16,7 @@ use App\Services\Sermon\SermonExposurePolicy;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -232,18 +233,18 @@ class PodcastFeedServiceTest extends TestCase
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
-        \Illuminate\Support\Facades\DB::enableQueryLog();
+        DB::enableQueryLog();
 
         // First call should hit the database.
         $this->service->getSermonsForFeed(SermonService::Morning);
-        $queryCountAfterFirstCall = count(\Illuminate\Support\Facades\DB::getQueryLog());
+        $queryCountAfterFirstCall = count(DB::getQueryLog());
         $this->assertGreaterThan(0, $queryCountAfterFirstCall);
 
         // Second call should hit the cache and NOT trigger any new database queries.
         $this->service->getSermonsForFeed(SermonService::Morning);
-        $this->assertCount($queryCountAfterFirstCall, \Illuminate\Support\Facades\DB::getQueryLog());
+        $this->assertCount($queryCountAfterFirstCall, DB::getQueryLog());
 
-        \Illuminate\Support\Facades\DB::disableQueryLog();
+        DB::disableQueryLog();
     }
 
     #[Test]
@@ -256,25 +257,25 @@ class PodcastFeedServiceTest extends TestCase
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
-        \Illuminate\Support\Facades\DB::enableQueryLog();
+        DB::enableQueryLog();
 
         // Populate both caches
         $this->service->getSermonsForFeed(SermonService::Morning);
         $this->service->getSermonsForFeed(SermonService::Evening);
-        $initialQueryCount = count(\Illuminate\Support\Facades\DB::getQueryLog());
+        $initialQueryCount = count(DB::getQueryLog());
 
         // Clear only morning
         $this->service->clearCache('morning');
 
         // Morning should hit DB again
         $this->service->getSermonsForFeed(SermonService::Morning);
-        $this->assertCount($initialQueryCount + 1, \Illuminate\Support\Facades\DB::getQueryLog());
+        $this->assertCount($initialQueryCount + 1, DB::getQueryLog());
 
         // Evening should still be cached
         $this->service->getSermonsForFeed(SermonService::Evening);
-        $this->assertCount($initialQueryCount + 1, \Illuminate\Support\Facades\DB::getQueryLog());
+        $this->assertCount($initialQueryCount + 1, DB::getQueryLog());
 
-        \Illuminate\Support\Facades\DB::disableQueryLog();
+        DB::disableQueryLog();
     }
 
     #[Test]
@@ -287,12 +288,12 @@ class PodcastFeedServiceTest extends TestCase
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
-        \Illuminate\Support\Facades\DB::enableQueryLog();
+        DB::enableQueryLog();
 
         // Populate both caches
         $this->service->getSermonsForFeed(SermonService::Morning);
         $this->service->getSermonsForFeed(SermonService::Evening);
-        $initialQueryCount = count(\Illuminate\Support\Facades\DB::getQueryLog());
+        $initialQueryCount = count(DB::getQueryLog());
 
         // Clear all
         $this->service->clearCache();
@@ -300,9 +301,9 @@ class PodcastFeedServiceTest extends TestCase
         // Both should hit DB again
         $this->service->getSermonsForFeed(SermonService::Morning);
         $this->service->getSermonsForFeed(SermonService::Evening);
-        $this->assertCount($initialQueryCount + 2, \Illuminate\Support\Facades\DB::getQueryLog());
+        $this->assertCount($initialQueryCount + 2, DB::getQueryLog());
 
-        \Illuminate\Support\Facades\DB::disableQueryLog();
+        DB::disableQueryLog();
     }
 
     #[Test]
