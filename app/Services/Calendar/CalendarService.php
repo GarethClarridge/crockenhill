@@ -10,6 +10,7 @@ use App\Traits\SanitizesLogData;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 
 class CalendarService
@@ -100,6 +101,9 @@ class CalendarService
             ->get();
     }
 
+    /**
+     * @throws ModelNotFoundException
+     */
     public function manuallyCategorizeEvent(int $eventId, string $meetingSlug): CalendarCategorizationResult
     {
         $event = CalendarEvent::query()->findOrFail($eventId);
@@ -109,18 +113,21 @@ class CalendarService
             'is_categorized_automatically' => false,
         ]);
 
-        Log::warning('Calendar event manually categorized', [
+        Log::warning('Calendar event manually categorized', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
             'event_id' => $event->id,
-            'event_title' => $this->sanitizeForLog($event->title),
-            'meeting_slug' => $this->sanitizeForLog($meetingSlug),
-        ]);
+            'event_title' => $event->title,
+            'meeting_slug' => $meetingSlug,
+        ]));
 
         $googleSynced = $this->googleSync->syncCategorizationToGoogle($event->google_event_id, $meetingSlug);
 
         return new CalendarCategorizationResult($event, $googleSynced);
     }
 
+    /**
+     * @throws ModelNotFoundException
+     */
     public function manuallyUnCategorizeEvent(int $eventId): CalendarCategorizationResult
     {
         $event = CalendarEvent::query()->findOrFail($eventId);
@@ -130,11 +137,11 @@ class CalendarService
             'is_categorized_automatically' => false,
         ]);
 
-        Log::warning('Calendar event un-categorized', [
+        Log::warning('Calendar event un-categorized', $this->sanitizeArrayForLog([
             'admin_id' => auth()->id(),
             'event_id' => $event->id,
-            'event_title' => $this->sanitizeForLog($event->title),
-        ]);
+            'event_title' => $event->title,
+        ]));
 
         $googleSynced = $this->googleSync->removeCategorizationFromGoogle($event->google_event_id);
 

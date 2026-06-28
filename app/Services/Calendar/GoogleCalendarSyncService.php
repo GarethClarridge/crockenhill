@@ -21,6 +21,8 @@ class GoogleCalendarSyncService
 
     /**
      * @return array<string, mixed>
+     *
+     * @throws \Exception
      */
     public function syncFromGoogleCalendar(): array
     {
@@ -30,9 +32,9 @@ class GoogleCalendarSyncService
         try {
             $googleEvents = $this->fetchEventsFromGoogle($startDate, $endDate);
         } catch (\Exception $e) {
-            Log::error('Failed to fetch events from Google Calendar', [
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::error('Failed to fetch events from Google Calendar', $this->sanitizeArrayForLog([
+                'error' => $e->getMessage(),
+            ]));
             throw $e;
         }
 
@@ -53,11 +55,11 @@ class GoogleCalendarSyncService
                 /** @phpstan-ignore-next-line */
                 $processedEventIds[] = $googleEvent->id;
             } catch (\Exception $e) {
-                Log::warning('Failed to sync single event', [
+                Log::warning('Failed to sync single event', $this->sanitizeArrayForLog([
                     /** @phpstan-ignore-next-line */
-                    'event_id' => $this->sanitizeForLog((string) $googleEvent->id),
-                    'error' => $this->sanitizeForLog($e->getMessage()),
-                ]);
+                    'event_id' => (string) $googleEvent->id,
+                    'error' => $e->getMessage(),
+                ]));
             }
         }
 
@@ -70,13 +72,13 @@ class GoogleCalendarSyncService
 
         $skippedEventIds = array_diff($seenUpstreamIds, $processedEventIds);
 
-        Log::info('Google Calendar sync completed', [
+        Log::info('Google Calendar sync completed', $this->sanitizeArrayForLog([
             'processed_events' => count($processedEventIds),
             'skipped_events' => count($skippedEventIds),
             'deleted_events' => count($deletedEventIds),
             'uncategorized_events' => $uncategorizedCount,
             'sync_window' => [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')],
-        ]);
+        ]));
 
         return [
             'processed_events' => count($processedEventIds),
@@ -173,10 +175,10 @@ class GoogleCalendarSyncService
 
             return true;
         } catch (\Exception $e) {
-            Log::warning('Failed to update Google Calendar extended property', [
-                'google_event_id' => $this->sanitizeForLog($googleEventId),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to update Google Calendar extended property', $this->sanitizeArrayForLog([
+                'google_event_id' => $googleEventId,
+                'error' => $e->getMessage(),
+            ]));
 
             return false;
         }
@@ -207,10 +209,10 @@ class GoogleCalendarSyncService
 
             return true;
         } catch (\Exception $e) {
-            Log::warning('Failed to clear Google Calendar extended property', [
-                'google_event_id' => $this->sanitizeForLog($googleEventId),
-                'error' => $this->sanitizeForLog($e->getMessage()),
-            ]);
+            Log::warning('Failed to clear Google Calendar extended property', $this->sanitizeArrayForLog([
+                'google_event_id' => $googleEventId,
+                'error' => $e->getMessage(),
+            ]));
 
             return false;
         }
