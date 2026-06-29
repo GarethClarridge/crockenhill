@@ -89,7 +89,7 @@ class AudioCompressionService
                 'permanent_disk' => $resolvedPermanentDisk,
                 'start_time' => $startTime,
                 'duration' => $duration,
-            ]);
+            ]));
 
             if (! file_exists($inputVideoPath)) {
                 throw new VideoProcessingException("Input video file not found: {$inputVideoPath}");
@@ -122,14 +122,14 @@ class AudioCompressionService
                 'validation_passed' => $validation['valid'],
                 'start_time' => $startTime,
                 'duration' => $duration,
-            ]);
+            ]));
 
             if (! $validation['valid']) {
                 Log::info('Audio file too large, applying fallback compression', $this->sanitizeArrayForLog([
                     'original_size' => $validation['file_size'],
                     'max_size' => $validation['max_size'],
                     'processing_path' => $processingPath,
-                ]);
+                ]));
 
                 $compressionResult = $this->compressAudioForTranscription($processingPath, $fallbackConfig);
                 $fallbackPath = $compressionResult['compressed_path'];
@@ -151,7 +151,7 @@ class AudioCompressionService
                     'final_size' => $finalValidation['file_size'],
                     'compression_ratio' => $compressionRatio,
                     'valid_for_transcription' => $finalValidation['valid'],
-                ]);
+                ]));
 
                 if ($useS3Processing) {
                     $this->uploadToPermanentStorage($fallbackPath, $permanentPath, $uploadHandler);
@@ -160,7 +160,7 @@ class AudioCompressionService
                     Log::info('S3 upload completed and temp files cleaned up', $this->sanitizeArrayForLog([
                         'permanent_path' => $permanentPath,
                         'compressed_used' => true,
-                    ]);
+                    ]));
                 }
 
                 return [
@@ -180,7 +180,7 @@ class AudioCompressionService
                 Log::info('S3 upload completed and temp file cleaned up', $this->sanitizeArrayForLog([
                     'permanent_path' => $permanentPath,
                     'compressed_used' => false,
-                ]);
+                ]));
             }
 
             Log::info('Optimized audio extracted from segment without compression', $this->sanitizeArrayForLog([
@@ -192,7 +192,7 @@ class AudioCompressionService
                 'duration' => $duration,
                 'valid_for_transcription' => $validation['valid'],
                 'uploaded_to_s3' => $useS3Processing,
-            ]);
+            ]));
 
             return [
                 'audio_path' => $permanentPath,
@@ -213,7 +213,7 @@ class AudioCompressionService
                 'segment_start' => $startTime,
                 'segment_duration' => $duration,
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             throw $e;
         }
@@ -284,7 +284,7 @@ class AudioCompressionService
                 'relative_path' => $relativePath,
                 'bitrate' => $compressionSettings['bitrate'],
                 'channels' => $compressionSettings['channels'],
-            ]);
+            ]));
 
             return [
                 'compressed_path' => $compressedPath,
@@ -296,7 +296,7 @@ class AudioCompressionService
                 'error' => $e->getMessage(),
                 'input_path' => $inputPath,
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             throw $e;
         }

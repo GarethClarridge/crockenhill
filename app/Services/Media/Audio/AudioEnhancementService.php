@@ -31,7 +31,7 @@ class AudioEnhancementService
             Log::warning('AudioEnhancementService: input file not found', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
                 'input_path' => $inputPath,
-            ]);
+            ]));
 
             return null;
         }
@@ -53,7 +53,7 @@ class AudioEnhancementService
             Log::info('AudioEnhancementService: enhancement complete', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
                 'output_path' => $outputPath,
-            ]);
+            ]));
 
             return $outputPath;
         } catch (\Throwable $e) {
@@ -61,7 +61,7 @@ class AudioEnhancementService
                 'processing_id' => $processingId,
                 'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             return null;
         }
@@ -106,7 +106,7 @@ class AudioEnhancementService
                 'measured_lufs' => $measuredStats['input_i'],
                 'target_lufs' => $targetLufs,
                 'tolerance_lufs' => config('media-processing.audio_enhancement.skip_tolerance_lufs', 2.0),
-            ]);
+            ]));
 
             return empty($filters) ? null : implode(',', $filters);
         }
@@ -182,7 +182,7 @@ class AudioEnhancementService
         if (! preg_match('/\{[^}]+\}/s', $stderr, $matches)) {
             Log::warning('AudioEnhancementService: could not parse loudnorm JSON', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
-            ]);
+            ]));
 
             return null;
         }
@@ -231,7 +231,7 @@ class AudioEnhancementService
         Log::info('AudioEnhancementService: running enhancement pass', $this->sanitizeArrayForLog([
             'processing_id' => $processingId,
             'filter_chain' => $filterChain,
-        ]);
+        ]));
 
         $process = new Process($command);
         $process->setTimeout(600);
@@ -266,7 +266,7 @@ class AudioEnhancementService
             Log::warning('AudioEnhancementService: video input file not found', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
                 'input_path' => $inputPath,
-            ]);
+            ]));
 
             return null;
         }
@@ -288,7 +288,7 @@ class AudioEnhancementService
             Log::info('AudioEnhancementService: video enhancement complete', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
                 'output_path' => $outputPath,
-            ]);
+            ]));
 
             return $outputPath;
         } catch (\Throwable $e) {
@@ -296,7 +296,7 @@ class AudioEnhancementService
                 'processing_id' => $processingId,
                 'error' => $e->getMessage(),
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]);
+            ]));
 
             return null;
         }
@@ -323,7 +323,7 @@ class AudioEnhancementService
         Log::info('AudioEnhancementService: running video enhancement pass', $this->sanitizeArrayForLog([
             'processing_id' => $processingId,
             'filter_chain' => $filterChain,
-        ]);
+        ]));
 
         $process = new Process($command);
         $process->setTimeout(600);

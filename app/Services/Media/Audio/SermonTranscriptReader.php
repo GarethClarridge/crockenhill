@@ -41,7 +41,7 @@ class SermonTranscriptReader
             Log::warning('Unsafe path detected in transcript path', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermon->id,
                 'path' => $path,
-            ]);
+            ]));
 
             return null;
         }
@@ -67,7 +67,7 @@ class SermonTranscriptReader
             'disks_checked' => $this->transcriptStorageService->getTranscriptReadDisks(),
             'sermon_id' => $sermon->id,
             'transcript_file_path' => $path,
-        ]);
+        ]));
 
         return null;
     }
