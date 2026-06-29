@@ -9,13 +9,21 @@
 <div class="relative">
   <div class="w-full grid grid-cols-7 justify-between bg-cbc-pattern bg-size-cover text-white lg:grid-cols-12">
 
-  <a class="p-2 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/" wire:navigate>
+  <a
+    class="p-2 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
+    href="/"
+    wire:navigate
+    x-bind:aria-hidden="expanded"
+    x-bind:inert="expanded"
+  >
     <img src="/svg/IconWhite.svg" class="inline-block max-h-8 align-top" alt="Crockenhill Baptist Church logo" width="30" height="32">
   </a>
 
   <a
     class="col-span-5 flex text-center font-display text-xl min-[400px]:text-2xl lg:col-start-2 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
-    :class="expanded ? 'lg:pointer-events-none lg:opacity-0' : 'lg:pointer-events-auto lg:opacity-100'"
+    x-bind:class="expanded ? 'lg:pointer-events-none lg:opacity-0' : 'lg:pointer-events-auto lg:opacity-100'"
+    x-bind:aria-hidden="expanded"
+    x-bind:inert="expanded"
     href="/"
     wire:navigate
   >
@@ -26,9 +34,9 @@
 
   <a
     class="absolute inset-y-0 left-16 right-16 z-10 hidden items-center justify-center text-center font-display text-xl opacity-0 transition-all duration-200 active:scale-95 min-[400px]:text-2xl lg:flex rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
-    :class="expanded ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'"
-    :aria-hidden="!expanded"
-    :inert="!expanded"
+    x-bind:class="expanded ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'"
+    x-bind:aria-hidden="!expanded"
+    x-bind:inert="!expanded"
     href="/"
     wire:navigate
   >
@@ -39,9 +47,9 @@
 
   <nav
     class="col-span-5 hidden h-full w-full self-stretch transition-opacity duration-150 lg:block"
-    :class="expanded ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'"
-    :aria-hidden="expanded"
-    :inert="expanded"
+    x-bind:class="expanded ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'"
+    x-bind:aria-hidden="expanded"
+    x-bind:inert="expanded"
     aria-label="Main navigation"
   >
     <ul class="mx-auto flex h-full items-stretch fill-white font-display text-l">
@@ -75,10 +83,10 @@
     class="ms-4 flex items-center justify-end rounded px-3 py-1 select-none whitespace-nowrap transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark lg:col-start-12"
     type="button"
     aria-label="Open navigation"
-    :aria-label="expanded ? 'Close navigation' : 'Open navigation'"
+    x-bind:aria-label="expanded ? 'Close navigation' : 'Open navigation'"
     @click="expanded = ! expanded"
     @keydown.window.escape="expanded = false"
-    :aria-expanded="expanded"
+    x-bind:aria-expanded="expanded"
     aria-controls="mobile-menu"
   >
     <x-heroicon-m-bars-3 x-show="!expanded" class="h-6 w-6" aria-hidden="true" />
