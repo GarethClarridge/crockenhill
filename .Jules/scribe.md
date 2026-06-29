@@ -17,3 +17,7 @@
 ## 2026-06-16 - [Presenter Memoization Testing]
 **Learning:** Testing memoization in presenters that use model identity (ID + `updated_at`) for cache keys requires either using `factory()->create()` or manually setting the `updated_at` timestamp. Without a persisted state or explicit timestamp, consecutive calls might yield different cache keys if the object hash or internal state changes.
 **Action:** Use `factory()->create()` for memoization tests that rely on `cacheKey()` logic, or explicitly mock the storage service to verify that it is only called once.
+
+## 2026-06-18 - [Logic-Dense Service Unit Testing]
+**Learning:** Testing services like `SectionItemAlignmentScorer` that perform complex scoring and string manipulation (tokenization) is most effective when done via isolated unit tests using unpersisted models (`new Model()`). This avoids database overhead and ensures the tests focus purely on the algorithmic logic.
+**Action:** Prefer `new Model()` over `factory()->create()` for unit tests of services that do not require database persistence or complex relationship resolution.
