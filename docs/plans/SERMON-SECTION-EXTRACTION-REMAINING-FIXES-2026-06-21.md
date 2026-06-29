@@ -99,7 +99,7 @@ end to end against a detected `childrens_talk` section: prepare candidates → a
 
 The classification-cluster findings (RMS bisecting songs/readings, micro-sections, catechism-vs-children's-talk,
 under-segmentation) are best fixed structurally by the spike in
-`docs/plans/LLM-SERVICE-STRUCTURE-SPIKE-2026-06-19.md` rather than by accreting more heuristics. **Two
+`docs/plans/LLM-SERVICE-SECTION-CLASSIFICATION-SPIKE-2026-06-19.md` rather than by accreting more heuristics. **Two
 prerequisites are blocking and must land first** (both verified during the review):
 
 - **Phase −1 — full-service transcript acquisition.** `TranscribeSpeechSegments`

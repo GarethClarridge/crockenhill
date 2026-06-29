@@ -1,5 +1,12 @@
 # June 2026 Review — Implementation Plan
 
+> **Archived 2026-06-29 — all in-scope phases done or consciously deferred.** Every
+> structural and correctness phase shipped; deferred phases (R4, P4, P5, the P6 tier)
+> carry written verdicts and re-open triggers. The one remaining hands-on item, P1's
+> Horizon **staging smoke test**, was carved out into
+> [docs/operations/horizon-staging-smoke-test.md](../operations/horizon-staging-smoke-test.md)
+> so it can be run on staging independently of this plan. Retained as the execution log.
+
 Created 2026-06-03. **Refreshed 2026-06-10** after a repo-state audit (own review + Codex review).
 **Re-verified 2026-06-18** — every completed phase's artifacts still hold against the repo (Phase 0
 fixes, R-track moves, Horizon/backup/health adoptions all present); the only stale data point was
@@ -345,8 +352,9 @@ Tasks:
 Tests / verification:
 
 - [x] Feature test: `/horizon` is 403 for guest/non-admin, 200 for admin.
-- [ ] Staging smoke test: one media-processing job end to end — appears in the dashboard, completes
+- [→] Staging smoke test: one media-processing job end to end — appears in the dashboard, completes
       **once**, and a deliberately-failed job lands in Failed Jobs and is retryable from the UI.
+      **Carved out (2026-06-29) into [docs/operations/horizon-staging-smoke-test.md](../operations/horizon-staging-smoke-test.md)** as a standalone ops task so this plan could be archived.
 
 Rollback: revert the supervisord block to `queue:work`, remove the package. No data/schema changes.
 
@@ -593,3 +601,5 @@ outstanding staging smoke test; P4/P5 stay deferred with named triggers.
   Each *deferred* phase (R4, P4, P5) and the P6 tier carries a written verdict + re-open trigger.
 - This plan moves to [docs/archived-plans/](../archived-plans/) once all in-scope phases are done or
   consciously deferred, with a short execution log (the ✅ execution notes above are its start).
+  **Archived 2026-06-29** — the only residual action, P1's staging smoke test, is now tracked
+  separately in [docs/operations/horizon-staging-smoke-test.md](../operations/horizon-staging-smoke-test.md).

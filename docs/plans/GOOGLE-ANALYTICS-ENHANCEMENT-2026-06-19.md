@@ -35,6 +35,25 @@ hit-counter into something that answers real questions about the preaching
 archive. GA1 is the highest *priority* (legal), and is technically independent of
 the rest, so it can land in parallel.
 
+## Status reconciliation (2026-06-29)
+
+The plan's per-phase "☐ Not started" markers were stale. Verified against the
+working tree:
+
+- **GA1–GA4 are implemented and shipped.** The whole integration now lives in
+  `resources/js/analytics.js` (Consent Mode v2 + `page_view` on
+  `livewire:navigated` + delegated events + content dimensions), with the
+  `<x-cookie-consent>` banner (`resources/views/components/cookie-consent.blade.php`),
+  the `share` hook in `resources/views/components/clipboard-button.blade.php`,
+  and the consent docs in `docs/operations/SEO_SETUP_GUIDE.md`. The Background
+  section below describes the *pre-implementation* state and is kept for rationale.
+- **GA5 (server-side Measurement Protocol) is not started** — optional, ship last.
+- **GA6 is partially done**: the SEO guide documents GA4 setup + consent, but the
+  one-off GA4-admin work (register event-scoped custom dimensions, mark key events
+  as conversions) is still outstanding and is a manual console task, not app code.
+
+Per-phase status lines below have been updated to match.
+
 ## Background — current state (measured 2026-06-19)
 
 - **The whole integration** is one block in
@@ -117,7 +136,7 @@ per `AGENTS.md`.
 
 ## Phase GA1 — Consent banner + Google Consent Mode v2
 
-**Priority: Highest (compliance) · Risk: Low · Effort: M · Status: ☐ Not started**
+**Priority: Highest (compliance) · Risk: Low · Effort: M · Status: ✅ Done (2026-06-29 audit)** — `<x-cookie-consent>` + Consent Mode v2 default-denied in `resources/js/analytics.js`.
 Technically independent of GA2–GA6; can land first or in parallel.
 
 ### Rationale
@@ -158,7 +177,7 @@ user opts in, at which point we update to `granted`.
 
 ## Phase GA2 — Pageview correctness + analytics module extraction
 
-**Priority: High · Risk: Low · Effort: S · Status: ☐ Not started**
+**Priority: High · Risk: Low · Effort: S · Status: ✅ Done (2026-06-29 audit)** — snippet extracted to `resources/js/analytics.js`; `page_view` fires on `livewire:navigated` with `send_page_view:false`.
 **Prerequisite for GA3 and GA4.**
 
 ### Root cause
@@ -196,7 +215,7 @@ re-trigger it (see Background → correctness problem 1).
 
 ## Phase GA3 — Client-side event tracking
 
-**Priority: High · Risk: Low · Effort: M · Status: ☐ Not started · Depends on GA2.**
+**Priority: High · Risk: Low · Effort: M · Status: ✅ Done (2026-06-29 audit)** — `sermon_play`, `sermon_download`, `transcript_download`, `podcast_subscribe`, and `share` (via `clipboard-button.blade.php`) all wired through the delegated listener.
 
 ### Rationale
 Native players and extension-less routes mean the core engagement is invisible
@@ -246,7 +265,7 @@ Native players and extension-less routes mean the core engagement is invisible
 
 ## Phase GA4 — Content grouping & custom dimensions
 
-**Priority: Medium · Risk: Low · Effort: S–M · Status: ☐ Not started · Depends on GA2/GA3.**
+**Priority: Medium · Risk: Low · Effort: S–M · Status: ✅ Done in app code (2026-06-29 audit)** — `preacher`/`series`/`service`/`content_type`/`content_group` flow from `<x-analytics-context>` into `page_view` and `sermon_play`. *Note:* the dimensions only become reportable once registered in the GA4 admin — that registration is GA6 and is still pending.
 
 ### Rationale
 Turns "page X got 200 views" into "Pastor Y is the most-listened preacher" and
@@ -284,7 +303,7 @@ via `App\Presenters\SermonViewPresenter`).
 
 ## Phase GA5 — Server-side Measurement Protocol (podcast & direct downloads)
 
-**Priority: Low · Risk: Medium · Effort: L · Status: ☐ Not started · Optional, ship last.**
+**Priority: Low · Risk: Medium · Effort: L · Status: ☐ Not started (confirmed 2026-06-29) · Optional, ship last.**
 
 ### Rationale
 Podcast apps fetch the RSS enclosure server-side and direct media hits may bypass
@@ -325,7 +344,7 @@ emit GA4 Measurement Protocol events from the controller that serves the bytes.
 
 ## Phase GA6 — GA4 property configuration & documentation
 
-**Priority: Medium (do alongside GA3–GA5) · Risk: None (no app code) · Status: ☐ Not started.**
+**Priority: Medium (do alongside GA3–GA5) · Risk: None (no app code) · Status: ◐ Partial (2026-06-29 audit)** — `docs/operations/SEO_SETUP_GUIDE.md` documents GA4 setup + consent; the manual GA4-admin work (register event-scoped custom dimensions for `preacher`/`series`/`service`/`content_type`, mark key events as conversions) is still outstanding.
 
 ### Rationale
 Custom event params are collected but **not reportable** until registered as

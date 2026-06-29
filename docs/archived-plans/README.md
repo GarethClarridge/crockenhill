@@ -23,6 +23,9 @@ This folder contains completed implementation plans and historical audit/refacto
 | **media-upload-combined-report-and-plan.md** | April 2026 | Historical combined audit and phased media-upload refactor plan after completed context was split out |
 | **livestream-derived-service-plan.md** | April 2026 | Livestream-first church service projection, staged merge review, and identity-first matching plan after delivery |
 | **SERVICE-UI-CONSOLIDATION-2026-06-10.md** | June 2026 | Service/livestream admin IA refactor consolidating 13 surfaces into 6 (services hub, workbench, review inbox); retired queue pages 302 to inbox filters |
+| **SERVICE-DETECTION-IMPROVEMENTS-2026-06-20.md** | June 2026 | Reading-reference resolution (`ResolveReadingReferences`), media-interlude detection (`MediaInterludeCueDetector`), and transition tagging; correctness follow-ups continue in the active `SERMON-SECTION-EXTRACTION-REMAINING-FIXES-2026-06-21.md` |
+| **TESTING-REMEDIATION-PLAN.md** | June 2026 | Suite runtime/flakiness remediation (R1–R9 → T1–T9): removed Pwned Passwords + DigitalOcean Spaces + stray-HTTP network calls from tests, re-levelled SEO assertions to presenters, standardised the per-directory DB trait, and cut PHPUnit notices/deprecations |
+| **JUNE-2026-REVIEW-IMPLEMENTATION-2026-06-03.md** | June 2026 | Project-wide review execution: Phase 0 correctness fixes, structural R-track moves (namespacing, DTOs, route-name standardisation), and package adoptions (Horizon, spatie/laravel-backup, spatie/laravel-health). One residual staging smoke test split out to `docs/operations/horizon-staging-smoke-test.md` |
 
 ## Historical Audits & Reports
 
