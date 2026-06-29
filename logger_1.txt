@@ -1,0 +1,120 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Processing;
+
+use App\Data\ProcessingReport;
+use App\Enums\LivestreamSegmentClassification;
+use App\Enums\ProcessingStatus;
+use App\Models\LivestreamSegment;
+use App\Models\MediaProcessingLog;
+use App\Traits\SanitizesLogData;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
+use Illuminate\Support\Str;
+
+/**
+ * Service for centralized logging, performance monitoring, and statistical
+ * analysis across the media processing pipeline.
+ *
+ * Provides a unified API for recording pipeline lifecycle events, API
+ * performance metrics, file operations, and health checks, with
+ * support for automated log sanitization.
+ *
+ * @phpstan-type HealthCheckResult array{
+ *     status: string,
+ *     message?: string,
+ * }
+ */
+class SermonProcessingLogger
+{
+    use SanitizesLogData;
+
+    /**
+     * Log the start of sermon processing with initial file metadata.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $filename  The original filename of the media
+     * @param  array<string, mixed>  $metadata  Initial metadata to record
+     */
+    public function logProcessingStart(string $processingId, string $filename, array $metadata = []): void
+    {
+        $context = [
+            'processing_id' => $processingId,
+            'filename' => $this->sanitizeForLog($filename),
+            'metadata' => $metadata,
+            'memory_usage' => memory_get_usage(true),
+            'peak_memory' => memory_get_peak_usage(true),
+            'timestamp' => now()->toISOString(),
+        ];
+
+        Log::info('Sermon processing started', $this->sanitizeArrayForLog($context));
+    }
+
+    /**
+     * Log a discrete processing step with performance and memory metrics.
+     *
+     * Automatically captures current memory usage, peak memory usage,
+     * and execution time relative to the request start.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $step  The identifier for the step being logged
+     * @param  string  $status  The outcome of the step (completed, failed, degraded)
+     * @param  array<string, mixed>  $metrics  Additional performance metrics to record
+     * @param  string|null  $errorMessage  Optional error detail for failed or degraded steps
+     */
+    public function logProcessingStep(
+        string $processingId,
+        string $step,
+        string $status,
+        array $metrics = [],
+        ?string $errorMessage = null
+    ): void {
+        $context = [
+            'processing_id' => $processingId,
+            'step' => $step,
+            'status' => $status,
+            'metrics' => array_merge($metrics, [
+                'memory_usage' => memory_get_usage(true),
+                'peak_memory' => memory_get_peak_usage(true),
+                'execution_time' => $this->getExecutionTime(),
+            ]),
+            'timestamp' => now()->toISOString(),
+        ];
+
+        if ($errorMessage) {
+            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+        }
+
+        $logLevel = match ($status) {
+            'completed' => 'info',
+            'failed', 'error' => 'error',
+            'degraded' => 'warning',
+            default => 'debug',
+        };
+
+        $sanitizedStep = $this->sanitizeForLog($step);
+        $sanitizedStatus = $this->sanitizeForLog($status);
+        Log::log($logLevel, "Processing step: {$sanitizedStep} - {$sanitizedStatus}", $this->sanitizeArrayForLog($context));
+    }
+
+    /**
+     * Log the performance and outcome of an external API call.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $service  The name of the external service (e.g. OpenAI, Pixian)
+     * @param  string  $endpoint  The API endpoint or action name
+     * @param  float  $responseTime  The round-trip time in seconds
+     * @param  int  $statusCode  The HTTP status code returned by the API
+     * @param  string|null  $errorMessage  Optional error message for non-200 responses
+     * @param  array<string, mixed>  $additionalContext  Extra metadata to include in the log context
+     */
+    public function logApiCall(
+        string $processingId,
+        string $service,
+        string $endpoint,
+        float $responseTime,
+        int $statusCode,
+        ?string $errorMessage = null,

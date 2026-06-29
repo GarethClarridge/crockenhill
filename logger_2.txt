@@ -1,0 +1,120 @@
+        array $additionalContext = []
+    ): void {
+        $context = array_merge([
+            'processing_id' => $processingId,
+            'service' => $this->sanitizeForLog($service),
+            'endpoint' => $endpoint,
+            'response_time_ms' => round($responseTime * 1000, 2),
+            'status_code' => $statusCode,
+            'timestamp' => now()->toISOString(),
+        ], $additionalContext);
+
+        if ($errorMessage) {
+            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+        }
+
+        $logLevel = $statusCode >= 400 ? 'error' : 'info';
+        $sanitizedService = $this->sanitizeForLog($service);
+        $sanitizedEndpoint = $this->sanitizeForLog($endpoint);
+        Log::log($logLevel, "API call to {$sanitizedService}: {$sanitizedEndpoint}", $this->sanitizeArrayForLog($context));
+    }
+
+    /**
+     * Log a filesystem operation with timing and size metadata.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $operation  The type of operation (e.g. upload, move, extract)
+     * @param  string  $filePath  The path to the file involved in the operation
+     * @param  int|null  $fileSize  The size of the file in bytes
+     * @param  float|null  $operationTime  The time taken for the operation in seconds
+     * @param  string|null  $errorMessage  Optional error detail if the operation failed
+     */
+    public function logFileOperation(
+        string $processingId,
+        string $operation,
+        string $filePath,
+        ?int $fileSize = null,
+        ?float $operationTime = null,
+        ?string $errorMessage = null
+    ): void {
+        $context = [
+            'processing_id' => $processingId,
+            'operation' => $this->sanitizeForLog($operation),
+            'file_path' => $this->sanitizeForLog($filePath),
+            'timestamp' => now()->toISOString(),
+        ];
+
+        if ($fileSize !== null) {
+            $context['file_size_bytes'] = $fileSize;
+            $context['file_size_human'] = $this->formatBytes($fileSize);
+        }
+
+        if ($operationTime !== null) {
+            $context['operation_time_ms'] = round($operationTime * 1000, 2);
+        }
+
+        if ($errorMessage) {
+            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+        }
+
+        $logLevel = $errorMessage ? 'error' : 'info';
+        $sanitizedOperation = $this->sanitizeForLog($operation);
+        Log::log($logLevel, "File operation: {$sanitizedOperation}", $this->sanitizeArrayForLog($context));
+    }
+
+    /**
+     * Log the completion or termination of a media processing run.
+     *
+     * Records final status, total execution time, and peak memory usage
+     * for the entire lifecycle.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  ProcessingStatus  $status  The terminal status (Completed, Failed, Cancelled)
+     * @param  array<string, mixed>  $statistics  Final processing statistics to record
+     * @param  string|null  $errorMessage  Optional error detail for non-successful completions
+     */
+    public function logProcessingComplete(
+        string $processingId,
+        ProcessingStatus $status,
+        array $statistics = [],
+        ?string $errorMessage = null
+    ): void {
+        $context = [
+            'processing_id' => $processingId,
+            'final_status' => $status->value,
+            'execution_time' => $this->getExecutionTime(),
+            'peak_memory_usage' => memory_get_peak_usage(true),
+            'statistics' => $statistics,
+            'timestamp' => now()->toISOString(),
+        ];
+
+        if ($errorMessage) {
+            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+        }
+
+        $logLevel = match ($status) {
+            ProcessingStatus::Completed => 'info',
+            ProcessingStatus::Cancelled => 'info',
+            default => 'error',
+        };
+
+        $statusLabel = $status->value;
+        Log::log($logLevel, "Sermon processing {$statusLabel}", $this->sanitizeArrayForLog($context));
+    }
+
+    /**
+     * Log a critical error with full exception context and stack trace.
+     *
+     * Automatically redacts sensitive information from stack traces and
+     * truncates them to a safe length before logging.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $step  The step where the error occurred
+     * @param  \Throwable  $exception  The exception that triggered the error
+     * @param  array<string, mixed>  $additionalContext  Extra metadata for troubleshooting
+     */
+    public function logError(
+        string $processingId,
+        string $step,
+        \Throwable $exception,
+        array $additionalContext = []

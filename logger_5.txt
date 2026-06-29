@@ -1,0 +1,120 @@
+            'completed_at' => $processing->completed_at,
+        ]);
+    }
+
+    /**
+     * Get a summary of recent livestream processing activity.
+     *
+     * @param  int  $hours  The number of recent hours to include in the summary
+     * @return array{
+     *     total_processed: int,
+     *     successful: int,
+     *     failed: int,
+     *     in_progress: int,
+     *     average_duration_minutes: float|null,
+     * }
+     */
+    public function getRecentProcessingActivity(int $hours = 24): array
+    {
+        $since = now()->subHours($hours);
+
+        $recentProcessing = MediaProcessingLog::query()
+            ->livestream()
+            ->where('created_at', '>=', $since)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return [
+            'total_processed' => $recentProcessing->count(),
+            'successful' => $recentProcessing->where('status', 'completed')->count(),
+            'failed' => $recentProcessing->where('status', 'failed')->count(),
+            'in_progress' => $recentProcessing->where('status', 'processing')->count(),
+            'average_duration_minutes' => $recentProcessing
+                ->whereNotNull('completed_at')
+                ->whereNotNull('created_at')
+                ->avg(function (MediaProcessingLog $log): float {
+                    $createdAt = $log->created_at;
+                    $completedAt = $log->completed_at;
+
+                    if ($createdAt === null || $completedAt === null) {
+                        return 0.0;
+                    }
+
+                    return $createdAt->diffInMinutes($completedAt);
+                }),
+        ];
+    }
+
+    /**
+     * @return Collection<int, array{timestamp: string, level: string, message: string}>
+     */
+    private function getLogsForReport(string $processingId): Collection
+    {
+        $logFile = storage_path('logs/laravel.log');
+
+        if (! file_exists($logFile)) {
+            return collect();
+        }
+
+        $logs = collect();
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            return $logs;
+        }
+
+        foreach ($lines as $line) {
+            if (str_contains($line, $processingId)) {
+                $parsed = $this->parseReportLogLine($line);
+                if ($parsed !== null) {
+                    $logs->push($parsed);
+                }
+            }
+        }
+
+        return $logs;
+    }
+
+    /**
+     * @return array{timestamp: string, level: string, message: string}|null
+     */
+    private function parseReportLogLine(string $line): ?array
+    {
+        if (preg_match('/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\].*\.(\w+):/', $line, $matches)) {
+            return [
+                'timestamp' => $matches[1],
+                'level' => strtolower($matches[2]),
+                'message' => $line,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  Collection<int, LivestreamSegment>  $segments
+     * @return array{
+     *     total_count: int,
+     *     song_segments: array{count: int, total_duration: float},
+     *     speech_segments: array{count: int, total_duration: float},
+     *     sermon_segment: array{start_time: float, end_time: float, duration: float}|null,
+     * }
+     */
+    private function buildSegmentSummary(Collection $segments): array
+    {
+        $songSegments = $segments->where('classification', LivestreamSegmentClassification::Song);
+        $speechSegments = $segments->where('classification', LivestreamSegmentClassification::Speech);
+        $sermonSegment = $segments->where('is_sermon_candidate', true)->first();
+
+        return [
+            'total_count' => $segments->count(),
+            'song_segments' => [
+                'count' => $songSegments->count(),
+                'total_duration' => round($songSegments->sum('duration'), 2),
+            ],
+            'speech_segments' => [
+                'count' => $speechSegments->count(),
+                'total_duration' => round($speechSegments->sum('duration'), 2),
+            ],
+            'sermon_segment' => $sermonSegment ? [
+                'start_time' => $sermonSegment->start_time,
+                'end_time' => $sermonSegment->end_time,

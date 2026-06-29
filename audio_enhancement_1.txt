@@ -1,0 +1,120 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Media\Audio;
+
+use App\Traits\SanitizesLogData;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\Process\Process;
+
+class AudioEnhancementService
+{
+    use SanitizesLogData;
+
+    /**
+     * Enhance an audio file using FFmpeg filters (noise reduction, dynamic normalisation,
+     * loudness normalisation) and write the result to a temp file.
+     *
+     * Returns the path to the enhanced file, or null if enhancement is disabled or fails.
+     * Failure is always non-fatal — callers should fall back to the original file.
+     *
+     * @throws \Throwable
+     */
+    public function enhance(string $inputPath, string $processingId): ?string
+    {
+        if (! config('media-processing.audio_enhancement.enabled', true)) {
+            return null;
+        }
+
+        if (! file_exists($inputPath)) {
+            Log::warning('AudioEnhancementService: input file not found', [
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'input_path' => $this->sanitizeForLog($inputPath),
+            ]);
+
+            return null;
+        }
+
+        try {
+            $outputPath = storage_path('app/temp/'.$processingId.'_enhanced.mp3');
+            $this->ensureTempDirectoryExists($outputPath);
+
+            $filterChain = $this->buildFilterChain($inputPath, $processingId);
+
+            if ($filterChain === null) {
+                return null;
+            }
+
+            $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
+
+            $this->runEnhancement($ffmpegPath, $inputPath, $filterChain, $outputPath, $processingId);
+
+            Log::info('AudioEnhancementService: enhancement complete', [
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'output_path' => $this->sanitizeForLog($outputPath),
+            ]);
+
+            return $outputPath;
+        } catch (\Throwable $e) {
+            Log::warning('AudioEnhancementService: enhancement failed, continuing with original', [
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'error' => $this->sanitizeForLog($e->getMessage()),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Build the FFmpeg -af filter chain string.
+     *
+     * When loudness_norm is enabled, a two-pass approach is used:
+     *   - Pass 1 measures the file's loudness stats via loudnorm's JSON output.
+     *   - Pass 2 applies linear gain using those measured values.
+     *
+     * Returns null if no filters are enabled (nothing to do).
+     */
+    public function buildFilterChain(string $inputPath, string $processingId): ?string
+    {
+        $filters = [];
+
+        if (config('media-processing.audio_enhancement.noise_reduction', true)) {
+            $filters[] = 'afftdn=nr=10:nf=-25';
+        }
+
+        if (config('media-processing.audio_enhancement.dynamic_norm', true)) {
+            $filters[] = 'dynaudnorm';
+        }
+
+        $loudnessEnabled = config('media-processing.audio_enhancement.loudness_norm', true);
+
+        if (! $loudnessEnabled) {
+            return empty($filters) ? null : implode(',', $filters);
+        }
+
+        $targetLufs = (float) (config('media-processing.audio_enhancement.target_lufs') ?? -16.0);
+        $truePeak = (float) (config('media-processing.audio_enhancement.true_peak') ?? -1.5);
+        $lra = (float) (config('media-processing.audio_enhancement.lra') ?? 11.0);
+
+        $measuredStats = $this->measureLoudness($inputPath, $processingId, $targetLufs, $truePeak, $lra);
+
+        if ($measuredStats !== null && $this->isAlreadyWithinTolerance($measuredStats['input_i'], $targetLufs)) {
+            Log::info('AudioEnhancementService: measured loudness within tolerance, skipping encode pass', [
+                'processing_id' => $this->sanitizeForLog($processingId),
+                'measured_lufs' => $measuredStats['input_i'],
+                'target_lufs' => $targetLufs,
+                'tolerance_lufs' => config('media-processing.audio_enhancement.skip_tolerance_lufs', 2.0),
+            ]);
+
+            return empty($filters) ? null : implode(',', $filters);
+        }
+
+        if ($measuredStats !== null) {
+            $filters[] = sprintf(
+                'loudnorm=I=%.1f:TP=%.1f:LRA=%.1f:measured_I=%.2f:measured_TP=%.2f:measured_LRA=%.2f:measured_thresh=%.2f:offset=%.2f:linear=true',
+                $targetLufs,
+                $truePeak,
+                $lra,
+                $measuredStats['input_i'],

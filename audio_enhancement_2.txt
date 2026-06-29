@@ -1,0 +1,120 @@
+                $measuredStats['input_tp'],
+                $measuredStats['input_lra'],
+                $measuredStats['input_thresh'],
+                $measuredStats['target_offset'],
+            );
+        } else {
+            // Fall back to single-pass loudnorm if measurement failed
+            $filters[] = sprintf('loudnorm=I=%.1f:TP=%.1f:LRA=%.1f', $targetLufs, $truePeak, $lra);
+        }
+
+        return implode(',', $filters);
+    }
+
+    /**
+     * Returns true when the measured integrated loudness is already within the configured
+     * tolerance of the target, meaning re-encoding would produce negligible audible change.
+     */
+    private function isAlreadyWithinTolerance(float $measuredLufs, float $targetLufs): bool
+    {
+        if (! config('media-processing.audio_enhancement.skip_if_within_tolerance', true)) {
+            return false;
+        }
+
+        $tolerance = (float) config('media-processing.audio_enhancement.skip_tolerance_lufs', 2.0);
+
+        return abs($measuredLufs - $targetLufs) <= $tolerance;
+    }
+
+    /**
+     * Run FFmpeg first-pass loudnorm measurement and return the stats array.
+     *
+     * FFmpeg prints loudnorm JSON stats to stderr. Returns null if the pass fails
+     * or the output cannot be parsed.
+     *
+     * @return array<string, float>|null
+     */
+    public function measureLoudness(string $inputPath, string $processingId, float $targetLufs, float $truePeak, float $lra): ?array
+    {
+        $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
+
+        $filter = sprintf('loudnorm=I=%.1f:TP=%.1f:LRA=%.1f:print_format=json', $targetLufs, $truePeak, $lra);
+
+        $command = [$ffmpegPath, '-i', $inputPath, '-af', $filter, '-f', 'null', '/dev/null'];
+
+        $process = new Process($command);
+        $process->setTimeout(120);
+        $process->run();
+
+        // loudnorm JSON is written to stderr regardless of exit code
+        $stderr = $process->getErrorOutput();
+
+        return $this->parseLoudnormJson($stderr, $processingId);
+    }
+
+    /**
+     * Extract and decode the loudnorm JSON block from FFmpeg stderr.
+     *
+     * @return array<string, float>|null
+     */
+    private function parseLoudnormJson(string $stderr, string $processingId): ?array
+    {
+        if (! preg_match('/\{[^}]+\}/s', $stderr, $matches)) {
+            Log::warning('AudioEnhancementService: could not parse loudnorm JSON', [
+                'processing_id' => $this->sanitizeForLog($processingId),
+            ]);
+
+            return null;
+        }
+
+        /** @var array<string, mixed>|null $data */
+        $data = json_decode($matches[0], true);
+
+        if (! is_array($data)) {
+            return null;
+        }
+
+        $required = ['input_i', 'input_tp', 'input_lra', 'input_thresh', 'target_offset'];
+
+        foreach ($required as $key) {
+            if (! isset($data[$key])) {
+                return null;
+            }
+        }
+
+        return [
+            'input_i' => (float) (is_numeric($data['input_i']) ? $data['input_i'] : 0),
+            'input_tp' => (float) (is_numeric($data['input_tp']) ? $data['input_tp'] : 0),
+            'input_lra' => (float) (is_numeric($data['input_lra']) ? $data['input_lra'] : 0),
+            'input_thresh' => (float) (is_numeric($data['input_thresh']) ? $data['input_thresh'] : 0),
+            'target_offset' => (float) (is_numeric($data['target_offset']) ? $data['target_offset'] : 0),
+        ];
+    }
+
+    /**
+     * Run the FFmpeg enhancement pass with the built filter chain.
+     *
+     * @throws \RuntimeException When FFmpeg exits with a non-zero code
+     */
+    private function runEnhancement(string $ffmpegPath, string $inputPath, string $filterChain, string $outputPath, string $processingId): void
+    {
+        $command = [
+            $ffmpegPath,
+            '-y',
+            '-i', $inputPath,
+            '-af', $filterChain,
+            '-c:a', 'libmp3lame',
+            '-b:a', '128k',
+            $outputPath,
+        ];
+
+        Log::info('AudioEnhancementService: running enhancement pass', [
+            'processing_id' => $this->sanitizeForLog($processingId),
+            'filter_chain' => $this->sanitizeForLog($filterChain),
+        ]);
+
+        $process = new Process($command);
+        $process->setTimeout(600);
+        $process->run();
+
+        if (! $process->isSuccessful()) {

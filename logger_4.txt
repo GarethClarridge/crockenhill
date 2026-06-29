@@ -1,0 +1,120 @@
+        $failedLogs = $logs->where('status', 'failed');
+        $errorCounts = [];
+        foreach ($failedLogs as $log) {
+            if ($log->error_message) {
+                $errorType = $this->categorizeError($log->error_message);
+                $errorCounts[$errorType] = ($errorCounts[$errorType] ?? 0) + 1;
+            }
+        }
+        $statistics['error_patterns'] = $errorCounts;
+
+        Log::info('Processing statistics generated', $this->sanitizeArrayForLog([
+            'statistics' => $statistics,
+            'timestamp' => now()->toISOString(),
+        ]));
+
+        return $statistics;
+    }
+
+    /**
+     * Format bytes into human-readable format.
+     */
+    private function formatBytes(int $bytes): string
+    {
+        return Number::fileSize($bytes, precision: 2);
+    }
+
+    /**
+     * Categorize error messages for pattern analysis.
+     */
+    private function categorizeError(string $errorMessage): string
+    {
+        $errorMessage = strtolower($errorMessage);
+
+        if (Str::contains($errorMessage, ['api', 'openai', 'rate limit', 'quota'])) {
+            return 'API_ERROR';
+        }
+
+        if (Str::contains($errorMessage, ['file', 'storage', 'disk', 'permission'])) {
+            return 'STORAGE_ERROR';
+        }
+
+        if (Str::contains($errorMessage, ['transcription', 'whisper', 'audio'])) {
+            return 'TRANSCRIPTION_ERROR';
+        }
+
+        if (Str::contains($errorMessage, ['analysis', 'parsing', 'json'])) {
+            return 'ANALYSIS_ERROR';
+        }
+
+        if (Str::contains($errorMessage, ['database', 'connection', 'query'])) {
+            return 'DATABASE_ERROR';
+        }
+
+        if (Str::contains($errorMessage, ['timeout', 'connection', 'network'])) {
+            return 'NETWORK_ERROR';
+        }
+
+        return 'OTHER_ERROR';
+    }
+
+    /**
+     * Log a non-terminal warning during media processing.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @param  string  $step  The step where the warning was triggered
+     * @param  string  $message  The warning reason
+     * @param  array<string, mixed>  $context  Additional context for the warning
+     */
+    public function logWarning(string $processingId, string $step, string $message, array $context = []): void
+    {
+        $sanitizedStep = $this->sanitizeForLog($step);
+        Log::warning("Processing warning in step: {$sanitizedStep}", $this->sanitizeArrayForLog([
+            'processing_id' => $processingId,
+            'step' => $sanitizedStep,
+            'warning_message' => $this->sanitizeForLog($message),
+            'timestamp' => now()->toISOString(),
+            'context' => $context,
+        ]));
+    }
+
+    /**
+     * Generate a comprehensive processing report for a livestream processing run.
+     *
+     * Aggregates database metadata, segment summaries, performance metrics,
+     * and parsed log entries into a single report object for administrative
+     * review and audit trails.
+     *
+     * @param  string  $processingId  The unique processing identifier
+     * @return ProcessingReport The aggregated processing report containing structured metadata and analysis
+     *
+     * @throws \Exception When the processing record is not found in the database.
+     */
+    public function generateProcessingReport(string $processingId): ProcessingReport
+    {
+        $processing = MediaProcessingLog::query()
+            ->with('segments')
+            ->where('processing_id', $processingId)
+            ->first();
+
+        if (! $processing) {
+            throw new \Exception("Processing record not found for ID: {$processingId}");
+        }
+
+        $logs = $this->getLogsForReport($processingId);
+
+        return new ProcessingReport([
+            'processing_id' => $processingId,
+            'status' => $processing->status->value,
+            'original_filename' => $processing->original_filename,
+            'file_size_mb' => round(($processing->file_size ?? 0) / 1024 / 1024, 2),
+            'duration_seconds' => $processing->duration,
+            'total_segments' => $processing->segments->count(),
+            'processing_duration_seconds' => $processing->completed_at?->diffInSeconds($processing->created_at),
+            'segment_summary' => $this->buildSegmentSummary($processing->segments),
+            'sermon_processing_status' => $processing->sermon_id ? 'completed' : 'not_started',
+            'sermon_id' => $processing->sermon_id,
+            'errors' => $logs->where('level', 'error')->toArray(),
+            'warnings' => $logs->where('level', 'warning')->toArray(),
+            'performance_metrics' => $this->buildPerformanceMetrics($logs),
+            'created_at' => $processing->created_at,
