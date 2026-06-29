@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Sermon;
+use App\Services\Public\SitemapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,7 @@ class SitemapCacheTest extends TestCase
         parent::setUp();
         DB::enableQueryLog();
 
-        $sitemapService = app(\App\Services\Public\SitemapService::class);
+        $sitemapService = app(SitemapService::class);
         @unlink($sitemapService->getFilePath());
 
         Cache::forget('sitemap');
@@ -35,7 +36,7 @@ class SitemapCacheTest extends TestCase
 
     protected function tearDown(): void
     {
-        $sitemapService = app(\App\Services\Public\SitemapService::class);
+        $sitemapService = app(SitemapService::class);
         @unlink($sitemapService->getFilePath());
 
         parent::tearDown();
