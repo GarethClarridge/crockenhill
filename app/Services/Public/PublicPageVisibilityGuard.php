@@ -8,6 +8,7 @@ use App\Enums\PageArea;
 use App\Models\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Service for enforcing visibility and authentication rules for public-facing pages.
@@ -28,7 +29,7 @@ class PublicPageVisibilityGuard
      * @param  Page|null  $page  The page to check visibility for
      * @return RedirectResponse|null A redirect if requirements aren't met, or null
      *
-     * @throws \Symfony\Component\HttpKernel\Exception\HttpException When admin access is denied
+     * @throws HttpException When admin access is denied
      */
     public function enforce(?Page $page): ?RedirectResponse
     {
