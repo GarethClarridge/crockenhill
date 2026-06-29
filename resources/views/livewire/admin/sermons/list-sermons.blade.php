@@ -129,7 +129,7 @@
                             <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                 wire:click="delete({{ $sermon->id }})"
                                 wire:target="delete({{ $sermon->id }})"
-                                wire:confirm="Delete this {{ strtolower($sermon->content_type->label()) }}?"
+                                wire:confirm="Delete '{{ $sermon->title }}'? This cannot be undone."
                                 aria-label="Delete {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
                         </div>
                     </td>

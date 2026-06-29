@@ -39,7 +39,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($events as $event)
-                <tr class="hover:bg-gray-50">
+                <tr wire:loading.class.delay.200ms="opacity-50" wire:target="categorize({{ $event->id }}, $event.target.value)" class="hover:bg-gray-50">
                     {{-- Title --}}
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $event->title }}</p>
@@ -70,14 +70,13 @@
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                     Uncategorised
                                 </span>
-                                <select wire:change="categorize({{ $event->id }}, $event.target.value)"
+                                <x-select
+                                    wire:change="categorize({{ $event->id }}, $event.target.value)"
                                     aria-label="Categorise event: {{ $event->title }}"
-                                    class="text-xs rounded-md border-gray-300 shadow-sm focus:border-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 w-40">
-                                    <option value="">Categorise...</option>
-                                    @foreach($meetings as $slug => $name)
-                                        <option value="{{ $slug }}">{{ $name }}</option>
-                                    @endforeach
-                                </select>
+                                    placeholder="Categorise..."
+                                    :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])->values()->toArray()"
+                                    class="w-40 text-xs"
+                                />
                             </div>
                         @endif
                     </td>
