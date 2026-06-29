@@ -85,6 +85,7 @@ final class VideoProcessingOptions
             'video_processing_mode' => [
                 'sometimes',
                 'string',
+                'max:255',
                 Rule::in([
                     MediaProcessingLog::VIDEO_PROCESSING_MODE_FULL_VIDEO,
                     MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM,

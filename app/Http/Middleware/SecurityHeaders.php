@@ -25,6 +25,9 @@ class SecurityHeaders
         // Security Header: Prevent Clickjacking (legacy browsers)
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
 
+        // Security Header: Prevent Internet Explorer from executing downloads in site's context
+        $response->headers->set('X-Download-Options', 'noopen');
+
         // Security Header: Disable legacy browser XSS filters in favor of CSP
         $response->headers->set('X-XSS-Protection', '0');
 
