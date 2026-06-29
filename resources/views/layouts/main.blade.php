@@ -19,6 +19,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="msvalidate.01" content="2EF7ECDA9644EAD5B1B36A960808B8DB" />
+  <meta name="robots" content="max-image-preview:large">
 
   {{-- Meta Description: @push from x-page.shell takes priority; @section is the alternate path for full-width and error views. --}}
   @php $pushedDescription = trim($__env->yieldPushContent('meta_description')); @endphp
