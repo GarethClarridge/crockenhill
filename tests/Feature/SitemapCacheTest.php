@@ -9,6 +9,7 @@ use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -20,15 +21,24 @@ class SitemapCacheTest extends TestCase
 
     protected $seed = true;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        DB::enableQueryLog();
+        Cache::forget('sitemap');
+        Cache::forget('nav_pages');
+    }
+
     #[Test]
     public function sitemap_cache_is_invalidated_when_sermon_is_created(): void
     {
         // Generate initial sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        // Cache should exist
-        $this->assertTrue(Cache::has('sitemap'));
+        // Verify next request is cached (zero DB queries)
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Create a new sermon
         Sermon::factory()->create([
@@ -36,8 +46,10 @@ class SitemapCacheTest extends TestCase
             'date' => now(),
         ]);
 
-        // Cache should be invalidated
-        $this->assertFalse(Cache::has('sitemap'));
+        // Request again, should hit DB because cache was invalidated
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after sermon creation.');
     }
 
     #[Test]
@@ -49,16 +61,19 @@ class SitemapCacheTest extends TestCase
         ]);
 
         // Generate sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        $this->assertTrue(Cache::has('sitemap'));
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Update the sermon
         $sermon->update(['title' => 'Updated Title']);
 
-        // Cache should be invalidated
-        $this->assertFalse(Cache::has('sitemap'));
+        // Request again, should hit DB
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after sermon update.');
     }
 
     #[Test]
@@ -70,26 +85,30 @@ class SitemapCacheTest extends TestCase
         ]);
 
         // Generate sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        $this->assertTrue(Cache::has('sitemap'));
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Delete the sermon
         $sermon->delete();
 
-        // Cache should be invalidated
-        $this->assertFalse(Cache::has('sitemap'));
+        // Request again, should hit DB
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after sermon deletion.');
     }
 
     #[Test]
     public function sitemap_cache_is_invalidated_when_page_is_created(): void
     {
         // Generate initial sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        $this->assertTrue(Cache::has('sitemap'));
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Create a new page
         Page::factory()->create([
@@ -98,8 +117,10 @@ class SitemapCacheTest extends TestCase
             'admin' => 'no',
         ]);
 
-        // Cache should be invalidated
-        $this->assertFalse(Cache::has('sitemap'));
+        // Request again, should hit DB
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after page creation.');
     }
 
     #[Test]
@@ -112,16 +133,19 @@ class SitemapCacheTest extends TestCase
         ]);
 
         // Generate sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        $this->assertTrue(Cache::has('sitemap'));
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Update the page
         $page->update(['heading' => 'Updated Heading']);
 
-        // Cache should be invalidated
-        $this->assertFalse(Cache::has('sitemap'));
+        // Request again, should hit DB
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after page update.');
     }
 
     #[Test]
@@ -134,34 +158,40 @@ class SitemapCacheTest extends TestCase
         ]);
 
         // Generate sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        $this->assertTrue(Cache::has('sitemap'));
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Delete the page
         $page->delete();
 
-        // Cache should be invalidated
-        $this->assertFalse(Cache::has('sitemap'));
+        // Request again, should hit DB
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after page deletion.');
     }
 
     #[Test]
     public function sitemap_cache_is_invalidated_when_meeting_is_created(): void
     {
         // Generate initial sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        $this->assertTrue(Cache::has('sitemap'));
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Create a new meeting
         Meeting::factory()->create([
             'slug' => 'new-meeting',
         ]);
 
-        // Cache should be invalidated
-        $this->assertFalse(Cache::has('sitemap'));
+        // Request again, should hit DB
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after meeting creation.');
     }
 
     #[Test]
@@ -172,16 +202,19 @@ class SitemapCacheTest extends TestCase
         ]);
 
         // Generate sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        $this->assertTrue(Cache::has('sitemap'));
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Update the meeting
         $meeting->update(['location' => 'Updated Location']);
 
-        // Cache should be invalidated
-        $this->assertFalse(Cache::has('sitemap'));
+        // Request again, should hit DB
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after meeting update.');
     }
 
     #[Test]
@@ -192,23 +225,25 @@ class SitemapCacheTest extends TestCase
         ]);
 
         // Generate sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        $this->assertTrue(Cache::has('sitemap'));
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Delete the meeting
         $meeting->delete();
 
-        // Cache should be invalidated
-        $this->assertFalse(Cache::has('sitemap'));
+        // Request again, should hit DB
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after meeting deletion.');
     }
 
     #[Test]
     public function sitemap_regenerates_with_new_content_after_cache_invalidation(): void
     {
         // Generate initial sitemap
-        Cache::forget('sitemap');
         $response1 = $this->get('/sitemap.xml');
         $content1 = $response1->getContent();
 
@@ -232,24 +267,27 @@ class SitemapCacheTest extends TestCase
     #[Test]
     public function nav_pages_cache_is_populated_on_first_header_request(): void
     {
-        Cache::forget('nav_pages');
-
-        $this->assertFalse(Cache::has('nav_pages'));
-
         $this->get('/');
 
-        $this->assertTrue(Cache::has('nav_pages'));
+        DB::flushQueryLog();
+        $this->get('/');
+        $this->assertCount(0, DB::getQueryLog(), 'Header navigation should be retrieved from cache.');
     }
 
     #[Test]
     public function nav_pages_cache_is_invalidated_when_page_is_created(): void
     {
         $this->get('/');
-        $this->assertTrue(Cache::has('nav_pages'));
+
+        DB::flushQueryLog();
+        $this->get('/');
+        $this->assertCount(0, DB::getQueryLog(), 'Header navigation should be retrieved from cache.');
 
         Page::factory()->create(['slug' => 'new-nav-page', 'area' => 'church', 'admin' => 'no']);
 
-        $this->assertFalse(Cache::has('nav_pages'));
+        DB::flushQueryLog();
+        $this->get('/');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Header navigation should hit database after page creation.');
     }
 
     #[Test]
@@ -258,11 +296,16 @@ class SitemapCacheTest extends TestCase
         $page = Page::factory()->create(['slug' => 'nav-page', 'area' => 'church', 'admin' => 'no']);
 
         $this->get('/');
-        $this->assertTrue(Cache::has('nav_pages'));
+
+        DB::flushQueryLog();
+        $this->get('/');
+        $this->assertCount(0, DB::getQueryLog(), 'Header navigation should be retrieved from cache.');
 
         $page->update(['heading' => 'Updated Heading']);
 
-        $this->assertFalse(Cache::has('nav_pages'));
+        DB::flushQueryLog();
+        $this->get('/');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Header navigation should hit database after page update.');
     }
 
     #[Test]
@@ -271,32 +314,37 @@ class SitemapCacheTest extends TestCase
         $page = Page::factory()->create(['slug' => 'nav-page', 'area' => 'church', 'admin' => 'no']);
 
         $this->get('/');
-        $this->assertTrue(Cache::has('nav_pages'));
+
+        DB::flushQueryLog();
+        $this->get('/');
+        $this->assertCount(0, DB::getQueryLog(), 'Header navigation should be retrieved from cache.');
 
         $page->delete();
 
-        $this->assertFalse(Cache::has('nav_pages'));
+        DB::flushQueryLog();
+        $this->get('/');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Header navigation should hit database after page deletion.');
     }
 
     #[Test]
     public function multiple_model_changes_only_invalidate_cache_once(): void
     {
         // Generate initial sitemap
-        Cache::forget('sitemap');
         $this->get('/sitemap.xml');
 
-        $this->assertTrue(Cache::has('sitemap'));
+        DB::flushQueryLog();
+        $this->get('/sitemap.xml');
+        $this->assertCount(0, DB::getQueryLog(), 'Sitemap should be retrieved from cache.');
 
         // Create multiple models
         Sermon::factory()->create(['slug' => 'sermon-1', 'date' => now()]);
         Page::factory()->create(['slug' => 'page-1', 'area' => 'church', 'admin' => 'no']);
         Meeting::factory()->create(['slug' => 'meeting-1']);
 
-        // Cache should still be gone (invalidated by first change)
-        $this->assertFalse(Cache::has('sitemap'));
-
-        // Regenerate sitemap
+        // Request again
+        DB::flushQueryLog();
         $response = $this->get('/sitemap.xml');
+        $this->assertGreaterThan(0, count(DB::getQueryLog()), 'Sitemap should hit database after multiple changes.');
 
         // All new content should be present
         $content = $response->getContent();
