@@ -25,7 +25,7 @@
                 <x-calendar-event-card
                     :event="$event"
                     variant="admin"
-                    date-format="l, F j, Y"
+                    date-format="l, j F Y"
                     description-limit="200"
                 >
                     <div class="flex-shrink-0 ml-6">
