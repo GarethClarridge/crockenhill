@@ -85,7 +85,7 @@ class SermonProcessingLogger
         ];
 
         if ($errorMessage) {
-            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+            $context['error_message'] = $errorMessage;
         }
 
         $logLevel = match ($status) {
@@ -130,7 +130,7 @@ class SermonProcessingLogger
         ], $additionalContext);
 
         if ($errorMessage) {
-            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+            $context['error_message'] = $errorMessage;
         }
 
         $logLevel = $statusCode >= 400 ? 'error' : 'info';
@@ -174,7 +174,7 @@ class SermonProcessingLogger
         }
 
         if ($errorMessage) {
-            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+            $context['error_message'] = $errorMessage;
         }
 
         $logLevel = $errorMessage ? 'error' : 'info';
@@ -209,7 +209,7 @@ class SermonProcessingLogger
         ];
 
         if ($errorMessage) {
-            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+            $context['error_message'] = $errorMessage;
         }
 
         $logLevel = match ($status) {

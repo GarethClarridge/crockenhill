@@ -294,7 +294,7 @@ class AudioCompressionService
         } catch (\Exception $e) {
             Log::error('Failed to apply fallback compression', $this->sanitizeArrayForLog([
                 'error' => $e->getMessage(),
-                'input_path' => $this->sanitizeForLog($inputPath),
+                'input_path' => $inputPath,
                 'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
             ]);
 
