@@ -14,3 +14,7 @@
 ## 2026-06-21 - Centralized Model Validation Synchronization
 **Learning:** Validation rules for models (e.g., Meeting) were incomplete and duplicated between the model and Livewire form objects. Centralizing these in a static `validationRules()` method on the model and consuming them in form objects ensures consistency and reduces technical debt.
 **Action:** When fortifying model validation, always check corresponding Livewire forms or Form Requests and refactor them to use the model's `validationRules()`. Ensure rules that reference other fields (e.g. `after_or_equal:start_time`) are correctly mapped to their form property equivalents (e.g. `after_or_equal:startTime`).
+
+## 2026-07-01 - Decoupling Model Integrity from UI-specific Defaults
+**Learning:** Adding a `required` validation rule to a model to mirror a database `NOT NULL` constraint can break UI components that intentionally allow empty inputs (which are later populated with application-level defaults during submission).
+**Action:** When a UI component needs to allow blank input for a required model field, dynamically filter the rule list in the component's `rules()` method (e.g. using `array_filter` to strip the `required` rule). This ensures the model remains the source of truth for schema-level integrity while allowing the UI to remain flexible.
