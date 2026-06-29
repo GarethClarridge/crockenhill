@@ -15,7 +15,7 @@ Do this **behind a fallback**, never load-bearing: when a valid sidecar is prese
 fall through to the existing Whisper path unchanged. The pipeline's most critical inputs must keep
 working when the operator forgets the sidecar, the plugin misbehaves, or the upload is a YouTube backup.
 
-This plan is **decoupled from** `docs/plans/LLM-SERVICE-STRUCTURE-SPIKE-2026-06-19.md`. The spike
+This plan is **decoupled from** `docs/plans/LLM-SERVICE-SECTION-CLASSIFICATION-SPIKE-2026-06-19.md`. The spike
 consumes a timestamped transcript regardless of its source; this plan only changes *where the transcript
 comes from*. They share the transcription seam but have no dependency, and ship in either order.
 

@@ -4,7 +4,7 @@
 > `app/Jobs/ResolveReadingReferences.php`; media-interlude detection shipped as
 > `app/Services/ChurchService/MediaInterludeCueDetector.php`. The correctness
 > follow-ups and remaining triage are tracked in the newer
-> [docs/plans/SECTION-EXTRACTION-FINDINGS-REMAINING-2026-06-21.md](../plans/SECTION-EXTRACTION-FINDINGS-REMAINING-2026-06-21.md),
+> [docs/plans/SERMON-SECTION-EXTRACTION-REMAINING-FIXES-2026-06-21.md](../plans/SERMON-SECTION-EXTRACTION-REMAINING-FIXES-2026-06-21.md),
 > which records F12 (reading references) and the related P1/P2 findings as
 > implemented, tested, and passing all four quality gates. Retained for design
 > rationale.
