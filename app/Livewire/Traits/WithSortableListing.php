@@ -24,10 +24,12 @@ trait WithSortableListing
 
         if ($this->sortBy === $column) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortBy = $column;
-            $this->sortDirection = 'asc';
+
+            return;
         }
+
+        $this->sortBy = $column;
+        $this->sortDirection = 'asc';
     }
 
     protected function sanitizeSorting(): void

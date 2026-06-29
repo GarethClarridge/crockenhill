@@ -89,20 +89,22 @@ class BritishEnglishConverter
         // Try to load from storage first
         $wordListPath = 'spelling/american-british-words.json';
 
-        if (Storage::exists($wordListPath)) {
-            try {
-                $content = Storage::get($wordListPath);
+        if (! Storage::exists($wordListPath)) {
+            return null;
+        }
 
-                if (! is_string($content)) {
-                    return null;
-                }
+        try {
+            $content = Storage::get($wordListPath);
 
-                $decoded = json_decode($content, true);
-
-                return is_array($decoded) ? $decoded : null;
-            } catch (\Exception $e) {
-                \Log::warning('Failed to load external word list', ['error' => $e->getMessage()]);
+            if (! is_string($content)) {
+                return null;
             }
+
+            $decoded = json_decode($content, true);
+
+            return is_array($decoded) ? $decoded : null;
+        } catch (\Exception $e) {
+            \Log::warning('Failed to load external word list', ['error' => $e->getMessage()]);
         }
 
         // Could also load from external API or package here
