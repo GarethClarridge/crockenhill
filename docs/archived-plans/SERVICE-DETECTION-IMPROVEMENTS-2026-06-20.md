@@ -1,5 +1,14 @@
 # Plan: Service-structure detection improvements (readings + alignment + media interludes + transitions)
 
+> **Archived 2026-06-29 — implemented / superseded.** Improvement 1 shipped as
+> `app/Jobs/ResolveReadingReferences.php`; media-interlude detection shipped as
+> `app/Services/ChurchService/MediaInterludeCueDetector.php`. The correctness
+> follow-ups and remaining triage are tracked in the newer
+> [docs/plans/SECTION-EXTRACTION-FINDINGS-REMAINING-2026-06-21.md](../plans/SECTION-EXTRACTION-FINDINGS-REMAINING-2026-06-21.md),
+> which records F12 (reading references) and the related P1/P2 findings as
+> implemented, tested, and passing all four quality gates. Retained for design
+> rationale.
+
 ## Context
 
 A clean re-run of the 2026-06-14 morning service (`MediaProcessingLog 890`, `ChurchService 790`) now classifies and auto-extracts the sermon correctly (sermon §11 `conf 0.98`, children's talk §5 `conf 0.95`, 5 hymns confirmed-matched, sermon media extracted, no manual-review halt). But several rows are still weak:
