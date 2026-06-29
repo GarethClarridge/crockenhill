@@ -86,6 +86,20 @@ and `TempDiskSpace` respectively.
 
 ---
 
+### O10 · Unused icon button primitive (`<x-icon-button>`)
+
+**Artefact:** `resources/views/components/icon-button.blade.php`
+
+A primitive component added in March 2026 that has zero production callers outside
+the component gallery. The rest of the UI has standardized on `<x-button variant="ghost">`
+for icon-only actions.
+
+**Risk:** Low — isolated UI component.
+
+**Action:** Safe to remove from the codebase and the component gallery.
+
+---
+
 ## ✅ Recently resolved (2026-06-18 unless noted)
 
 - **O1 — Dead mailable `App\Mail\LivestreamProcessingCompleted`** — removed (class, view, test, `AGENTS.md` reference).
