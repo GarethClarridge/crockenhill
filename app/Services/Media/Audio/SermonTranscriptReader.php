@@ -38,9 +38,9 @@ class SermonTranscriptReader
         $path = trim((string) $sermon->transcript_file_path);
 
         if (Path::isUnsafe($path)) {
-            Log::warning('Unsafe path detected in transcript path', [
+            Log::warning('Unsafe path detected in transcript path', $this->sanitizeArrayForLog([
                 'sermon_id' => $sermon->id,
-                'path' => $this->sanitizeForLog($path),
+                'path' => $path,
             ]);
 
             return null;
@@ -63,10 +63,10 @@ class SermonTranscriptReader
             return $transcript;
         }
 
-        Log::warning('Transcript file not found on any configured disk', [
+        Log::warning('Transcript file not found on any configured disk', $this->sanitizeArrayForLog([
             'disks_checked' => $this->transcriptStorageService->getTranscriptReadDisks(),
             'sermon_id' => $sermon->id,
-            'transcript_file_path' => $this->sanitizeForLog($path),
+            'transcript_file_path' => $path,
         ]);
 
         return null;
