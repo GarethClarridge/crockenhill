@@ -25,8 +25,20 @@ class SitemapCacheTest extends TestCase
     {
         parent::setUp();
         DB::enableQueryLog();
+
+        $sitemapService = app(\App\Services\Public\SitemapService::class);
+        @unlink($sitemapService->getFilePath());
+
         Cache::forget('sitemap');
         Cache::forget('nav_pages');
+    }
+
+    protected function tearDown(): void
+    {
+        $sitemapService = app(\App\Services\Public\SitemapService::class);
+        @unlink($sitemapService->getFilePath());
+
+        parent::tearDown();
     }
 
     #[Test]
