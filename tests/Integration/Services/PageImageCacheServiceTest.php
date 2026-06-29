@@ -79,6 +79,34 @@ class PageImageCacheServiceTest extends TestCase
         $this->assertStringContainsString('our-church.webp', $result['mobile']);
     }
 
+    #[Test]
+    public function it_resolves_public_fallback_urls_when_webp_files_exist_in_public_directory(): void
+    {
+        Storage::fake('public');
+
+        $page = Page::factory()->create(['slug' => 'public-page']);
+
+        // Create the directory in public path
+        $dir = public_path('images/headings/large');
+        if (! file_exists($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $filePath = "{$dir}/public-page.webp";
+        file_put_contents($filePath, 'fake-image-data');
+
+        try {
+            $result = $this->service->get($page);
+
+            $this->assertNotNull($result['desktop']);
+            $this->assertStringContainsString('images/headings/large/public-page.webp', $result['desktop']);
+        } finally {
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
+    }
+
     // ── Cache behaviour ───────────────────────────────────────────────────────
 
     #[Test]
