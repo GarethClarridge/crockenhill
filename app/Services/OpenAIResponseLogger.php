@@ -53,7 +53,7 @@ class OpenAIResponseLogger
             $logData['response_structure_valid'] = true;
         }
 
-        Log::warning('OpenAI API response type analysis', self::sanitizeArray($logData));
+        Log::warning('OpenAI API response type analysis', self::sanitizeArrayForLog($logData));
     }
 
     /**
@@ -86,25 +86,6 @@ class OpenAIResponseLogger
             }
         }
 
-        Log::error('OpenAI API transport layer error', self::sanitizeArray($logData));
-    }
-
-    /**
-     * Recursively sanitize all string values in an array for logging.
-     *
-     * @param  array<mixed>  $data
-     * @return array<mixed>
-     */
-    private static function sanitizeArray(array $data): array
-    {
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $data[$key] = self::sanitizeArray($value);
-            } elseif (is_string($value)) {
-                $data[$key] = self::sanitizeForLog($value);
-            }
-        }
-
-        return $data;
+        Log::error('OpenAI API transport layer error', self::sanitizeArrayForLog($logData));
     }
 }

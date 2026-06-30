@@ -23,11 +23,11 @@ trait SanitizesLogData
      * @param  array<mixed>  $data
      * @return array<mixed>
      */
-    protected function sanitizeArrayForLog(array $data): array
+    protected static function sanitizeArrayForLog(array $data): array
     {
         foreach ($data as $key => $value) {
             if (is_array($value)) {
-                $data[$key] = $this->sanitizeArrayForLog($value);
+                $data[$key] = self::sanitizeArrayForLog($value);
             } elseif (is_string($value)) {
                 // Security: Avoid double-sanitization of already-sanitized stack traces
                 // which would flatten them and reduce readability.
@@ -35,7 +35,7 @@ trait SanitizesLogData
                     continue;
                 }
 
-                $data[$key] = $this->sanitizeForLog($value);
+                $data[$key] = self::sanitizeForLog($value);
             }
         }
 
