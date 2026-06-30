@@ -141,16 +141,17 @@ class BritishEnglishConverter
             // Pattern-based corrections (more efficient than individual words)
 
             // -ize to -ise endings (with exceptions)
-            '/\b(?!capsize|seize|prize|maize|size|resize)([\w]{2,})ize\b/i' => '$1ise',
-            '/\b(?!capsize|seize|prize|maize|size|resize)([\w]{2,})ization\b/i' => '$1isation',
-            '/\b(?!capsize|seize|prize|maize|size|resize)([\w]{2,})izing\b/i' => '$1ising',
-            '/\b(?!capsize|seize|prize|maize|size|resize)([\w]{2,})ized\b/i' => '$1ised',
+            '/\b(?!capsize|seize|prize|maize|resize|oversize|downsize)([\w]{2,})ize\b/i' => '$1ise',
+            '/\b(?!capsize|seize|prize|maize|resize|oversize|downsize)([\w]{2,})ization\b/i' => '$1isation',
+            '/\b(?!capsize|seize|prize|maize|resize|oversize|downsize)([\w]{2,})izing\b/i' => '$1ising',
+            '/\b(?!capsize|seize|prize|maize|resize|oversize|downsize)([\w]{2,})ized\b/i' => '$1ised',
 
             // -or to -our endings
             '/\b(armo|behavio|colo|enamo|favo|flavo|glamo|harbo|hono|humo|labo|neighbo|rumo|savio|splendo|vigo)r\b/i' => '$1ur',
 
-            // -er to -re endings
-            '/\b(\w*(?:cent|met|theat|fib|goit|lit|lust|mano|mass|mit|nit|oct|salt|spect))er\b/i' => '$1re',
+            // -er to -re endings (supports compounds for common cases)
+            '/\b(\w*(?:cent|met|theat))er\b/i' => '$1re',
+            '/\b(fib|goit|lit|lust|mano|mass|mit|nit|oct|salt|spect)er\b/i' => '$1re',
 
             // -ense to -ence endings
             '/\b(defen|licen|offen|preten)se\b/i' => '$1ce',

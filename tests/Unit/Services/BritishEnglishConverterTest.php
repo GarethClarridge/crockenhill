@@ -107,6 +107,17 @@ class BritishEnglishConverterTest extends TestCase
     {
         $this->assertEquals('size', $this->converter->convert('size'));
         $this->assertEquals('resize', $this->converter->convert('resize'));
+        $this->assertEquals('oversize', $this->converter->convert('oversize'));
+        $this->assertEquals('capsized', $this->converter->convert('capsized'));
+        $this->assertEquals('prizes', $this->converter->convert('prizes'));
+    }
+
+    #[Test]
+    public function it_does_not_misconvert_er_words_like_smiter(): void
+    {
+        $this->assertEquals('smiter', $this->converter->convert('smiter'));
+        $this->assertEquals('limiter', $this->converter->convert('limiter'));
+        $this->assertEquals('bitter', $this->converter->convert('bitter'));
     }
 
     #[Test]
