@@ -7,6 +7,7 @@ namespace Tests\Unit\Services;
 use App\Services\BritishEnglishConverter;
 use App\Services\Sermon\SermonAnalysisValidator;
 use PHPUnit\Framework\Attributes\Test;
+use TechWilk\BibleVerseParser\BiblePassageParser;
 use Tests\TestCase;
 
 class SermonAnalysisValidatorTest extends TestCase
@@ -17,7 +18,10 @@ class SermonAnalysisValidatorTest extends TestCase
     {
         parent::setUp();
 
-        $this->validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $this->validator = new SermonAnalysisValidator(
+            app(BritishEnglishConverter::class),
+            new BiblePassageParser
+        );
     }
 
     #[Test]
@@ -109,14 +113,9 @@ class SermonAnalysisValidatorTest extends TestCase
         $this->assertNull($this->validator->validateBibleReference(''));
         $this->assertNull($this->validator->validateBibleReference('Book'));
         $this->assertNull($this->validator->validateBibleReference('123'));
-    }
-
-    #[Test]
-    public function it_rejects_prose_wrapped_around_a_bible_reference(): void
-    {
         $this->assertNull($this->validator->validateBibleReference('The passage is John 3:16'));
+        $this->assertNull($this->validator->validateBibleReference('John 3:16 is the verse'));
         $this->assertNull($this->validator->validateBibleReference('Not a reference 3'));
-        $this->assertNull($this->validator->validateBibleReference('This sermon expounds Romans 8'));
     }
 
     #[Test]

@@ -132,19 +132,20 @@ class BritishEnglishConverterTest extends TestCase
     {
         $this->assertEquals('kilometre', $this->converter->convert('kilometer'));
         $this->assertEquals('millimetre', $this->converter->convert('millimeter'));
-        $this->assertEquals('centimetre', $this->converter->convert('centimeter'));
         $this->assertEquals('epicentre', $this->converter->convert('epicenter'));
         $this->assertEquals('amphitheatre', $this->converter->convert('amphitheater'));
+        $this->assertEquals('nanometre', $this->converter->convert('nanometer'));
     }
 
     #[Test]
-    public function it_does_not_corrupt_meter_words_that_are_not_length_units(): void
+    public function it_leaves_measurement_devices_ending_in_meter_alone(): void
     {
+        $this->assertEquals('thermometer', $this->converter->convert('thermometer'));
+        $this->assertEquals('barometer', $this->converter->convert('barometer'));
         $this->assertEquals('parameter', $this->converter->convert('parameter'));
         $this->assertEquals('diameter', $this->converter->convert('diameter'));
         $this->assertEquals('perimeter', $this->converter->convert('perimeter'));
-        $this->assertEquals('thermometer', $this->converter->convert('thermometer'));
-        $this->assertEquals('barometer', $this->converter->convert('barometer'));
+        $this->assertEquals('altimeter', $this->converter->convert('altimeter'));
     }
 
     #[Test]

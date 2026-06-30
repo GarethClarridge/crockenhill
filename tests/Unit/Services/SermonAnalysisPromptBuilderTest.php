@@ -8,6 +8,7 @@ use App\Services\BritishEnglishConverter;
 use App\Services\Sermon\SermonAnalysisPromptBuilder;
 use App\Services\Sermon\SermonAnalysisValidator;
 use PHPUnit\Framework\Attributes\Test;
+use TechWilk\BibleVerseParser\BiblePassageParser;
 use Tests\TestCase;
 
 class SermonAnalysisPromptBuilderTest extends TestCase
@@ -18,7 +19,7 @@ class SermonAnalysisPromptBuilderTest extends TestCase
     {
         parent::setUp();
 
-        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class), new BiblePassageParser);
         $this->builder = new SermonAnalysisPromptBuilder($validator);
     }
 

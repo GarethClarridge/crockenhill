@@ -21,6 +21,7 @@ use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
+use TechWilk\BibleVerseParser\BiblePassageParser;
 use Tests\TestCase;
 
 class SermonAnalysisServiceTest extends TestCase
@@ -46,7 +47,7 @@ class SermonAnalysisServiceTest extends TestCase
 
         $logger = app(SermonProcessingLogger::class);
         $repository = app(SermonRepository::class);
-        $this->validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $this->validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class), new BiblePassageParser);
         $this->promptBuilder = new SermonAnalysisPromptBuilder($this->validator);
 
         $this->service = new SermonAnalysisService(
