@@ -105,4 +105,11 @@ class ScriptureReferenceResolverTest extends TestCase
         // A genuinely out-of-range chapter must still be rejected.
         $this->assertNull($this->resolver->normalize('John 99'));
     }
+
+    public function test_rewrites_single_chapter_parts_within_multi_part_references(): void
+    {
+        $this->assertSame('John 3:16, Jude 1:3', $this->resolver->normalizeAll('John 3:16; Jude 3'));
+        $this->assertSame('2 Peter 1:3, Philemon 1:6', $this->resolver->normalizeAll('2 Peter 1:3 and Philemon 6'));
+        $this->assertSame('Jude 1:3, Philemon 1:6', $this->resolver->normalizeAll('Jude 3 and Philemon 6'));
+    }
 }
