@@ -3,63 +3,42 @@
     <div class="flex items-center justify-between p-4 border-b">
         <div class="flex items-center space-x-3">
             <h3 class="text-lg font-semibold text-gray-900">Processing Details</h3>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                {{ $this->statusColor === 'green' ? 'bg-green-100 text-green-800' : '' }}
-                {{ $this->statusColor === 'blue' ? 'bg-blue-100 text-blue-800' : '' }}
-                {{ $this->statusColor === 'red' ? 'bg-red-100 text-red-800' : '' }}
-                {{ $this->statusColor === 'gray' ? 'bg-gray-100 text-gray-800' : '' }}
-            ">
+            <x-badge :variant="$this->statusColor" :pulse="in_array($statusData['status'] ?? '', ['processing', 'pending'])">
                 {{ ucfirst($statusData['status'] ?? 'Unknown') }}
-            </span>
+            </x-badge>
         </div>
 
         <div class="flex items-center space-x-2">
             {{-- Auto-refresh toggle --}}
-            <label class="flex items-center text-sm text-gray-600">
+            <label class="flex items-center text-sm text-gray-600 mr-2">
                 <input
                     type="checkbox"
                     wire:model.live="autoRefresh"
                     class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
                 >
-                <span class="ml-1">Auto-refresh</span>
+                <span class="ml-1.5">Auto-refresh</span>
             </label>
 
             {{-- Manual refresh button --}}
-            <button
+            <x-form-button
                 wire:click="refreshLogs"
-                wire:loading.attr="disabled"
-                aria-disabled="false"
-                wire:loading.attr="aria-disabled"
-                class="p-1 text-gray-500 hover:text-gray-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
+                variant="ghost"
+                size="xs"
+                icon="arrow-path"
                 aria-label="Refresh logs"
-            >
-                <svg wire:loading.remove wire:target="refreshLogs" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                <span wire:loading wire:target="refreshLogs" role="status" aria-live="polite">
-                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span class="sr-only">Refreshing logs...</span>
-                </span>
-            </button>
+            />
 
             {{-- Toggle expanded --}}
             <button
                 wire:click="toggleExpanded"
-                class="text-gray-500 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded"
+                class="flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded px-2 py-1 transition-colors"
                 :aria-expanded="$wire.expanded ? 'true' : 'false'"
                 aria-controls="processing-logs-content"
             >
-                <span x-show="!$wire.expanded" class="text-sm">Show Logs</span>
-                <span x-show="$wire.expanded" class="text-sm">Hide Logs</span>
-                <svg x-show="!$wire.expanded" class="inline w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-                <svg x-show="$wire.expanded" class="inline w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
-                </svg>
+                <span x-show="!$wire.expanded">Show Logs</span>
+                <span x-show="$wire.expanded">Hide Logs</span>
+                <x-heroicon-o-chevron-down x-show="!$wire.expanded" class="ml-1 h-4 w-4" />
+                <x-heroicon-o-chevron-up x-show="$wire.expanded" class="ml-1 h-4 w-4" x-cloak />
             </button>
         </div>
     </div>
@@ -86,6 +65,21 @@
         {{-- Filters --}}
         @if(!empty($logs))
             <div class="flex flex-wrap gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+                {{-- Clear filters --}}
+                <div class="flex items-center"
+                     x-show="$wire.hasActiveFilters"
+                     x-cloak
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95">
+                    <x-form-button variant="ghost" size="xs" icon="x-mark" wire:click="clearFilters">
+                        Clear Filters
+                    </x-form-button>
+                </div>
+
                 {{-- Log limit --}}
                 <div class="flex items-center space-x-2">
                     <label for="log-limit" class="text-sm font-medium text-gray-700">Limit:</label>
@@ -157,21 +151,13 @@
                         {{-- Icon --}}
                         <div class="flex-shrink-0 mt-0.5">
                             @if($log['level'] === 'error')
-                                <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                                </svg>
+                                <x-heroicon-s-x-circle class="w-5 h-5 text-red-500" aria-hidden="true" />
                             @elseif($log['level'] === 'warning')
-                                <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                </svg>
+                                <x-heroicon-s-exclamation-triangle class="w-5 h-5 text-yellow-500" aria-hidden="true" />
                             @elseif($log['level'] === 'info')
-                                <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                                </svg>
+                                <x-heroicon-s-information-circle class="w-5 h-5 text-blue-500" aria-hidden="true" />
                             @else
-                                <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                                </svg>
+                                <x-heroicon-s-check-circle class="w-5 h-5 text-gray-500" aria-hidden="true" />
                             @endif
                         </div>
 

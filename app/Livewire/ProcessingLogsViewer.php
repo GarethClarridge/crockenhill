@@ -174,6 +174,16 @@ class ProcessingLogsViewer extends Component
         ]);
     }
 
+    public function clearFilters(): void
+    {
+        $this->filterLevel = 'all';
+        $this->filterStep = 'all';
+
+        Log::debug('ProcessingLogsViewer: Filters cleared', [
+            'processing_id' => $this->processingId,
+        ]);
+    }
+
     /**
      * @return Collection<int, array<string, mixed>|non-empty-array<string, mixed>>
      */
@@ -250,12 +260,17 @@ class ProcessingLogsViewer extends Component
     public function getStatusColorProperty(): string
     {
         return match ($this->statusData['status'] ?? 'unknown') {
-            'completed' => 'green',
-            'processing', 'pending' => 'blue',
-            'failed' => 'red',
-            'cancelled' => 'gray',
-            default => 'gray',
+            'completed' => 'success',
+            'processing', 'pending' => 'info',
+            'failed' => 'danger',
+            'cancelled' => 'default',
+            default => 'default',
         };
+    }
+
+    public function getHasActiveFiltersProperty(): bool
+    {
+        return $this->filterLevel !== 'all' || ($this->filterStep !== 'all' && $this->filterStep !== '');
     }
 
     /**

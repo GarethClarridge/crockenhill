@@ -80,6 +80,24 @@ class ProcessingLogsViewerTest extends TestCase
     }
 
     #[Test]
+    public function it_can_clear_filters(): void
+    {
+        $this->actingAs($this->admin);
+        $this->mockStatusQueryResponse('processing', 50, [
+            ['message' => 'Error log', 'level' => 'error', 'step' => 'audio'],
+        ]);
+
+        Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
+            ->set('filterLevel', 'error')
+            ->set('filterStep', 'audio')
+            ->assertSet('hasActiveFilters', true)
+            ->call('clearFilters')
+            ->assertSet('filterLevel', 'all')
+            ->assertSet('filterStep', 'all')
+            ->assertSet('hasActiveFilters', false);
+    }
+
+    #[Test]
     public function it_renders_successfully_and_fetches_logs()
     {
         $this->actingAs($this->admin);
@@ -165,15 +183,15 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        // Test green for completed
+        // Test success for completed
         $this->mockStatusQueryResponse('completed');
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
-            ->assertSet('statusColor', 'green');
+            ->assertSet('statusColor', 'success');
 
-        // Test red for failed
+        // Test danger for failed
         $this->mockStatusQueryResponse('failed');
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
-            ->assertSet('statusColor', 'red');
+            ->assertSet('statusColor', 'danger');
     }
 
     #[Test]
