@@ -42,4 +42,35 @@ class ScriptureReferenceResolver
             return null;
         }
     }
+
+    /**
+     * Normalize a raw reference string to a canonical form, preserving every passage.
+     *
+     * Unlike {@see normalize()}, which returns only the first passage (for use as a
+     * single-reference cache key), this joins all parsed passages so multi-part
+     * references such as "John 3:16-18, 4:1-2" are kept whole ("John 3:16-18,
+     * John 4:1-2"). Returns null if the reference cannot be parsed.
+     */
+    public function normalizeAll(string $reference): ?string
+    {
+        $reference = trim($reference);
+
+        if ($reference === '') {
+            return null;
+        }
+
+        try {
+            $passages = $this->parser->parse($reference);
+
+            if (empty($passages)) {
+                return null;
+            }
+
+            return implode(', ', array_map(static fn ($passage): string => (string) $passage, $passages));
+        } catch (UnableToParseException) {
+            return null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
 }

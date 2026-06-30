@@ -115,6 +115,13 @@ class SermonAnalysisValidatorTest extends TestCase
     }
 
     #[Test]
+    public function it_preserves_every_passage_of_multi_part_references(): void
+    {
+        $this->assertEquals('John 3:16-18, John 4:1-2', $this->validator->validateBibleReference('John 3:16-18, 4:1-2'));
+        $this->assertEquals('1 Peter 2, 1 Peter 5', $this->validator->validateBibleReference('1 Peter 2, 5'));
+    }
+
+    #[Test]
     public function it_rejects_invalid_bible_references(): void
     {
         $this->assertNull($this->validator->validateBibleReference('Not a reference'));

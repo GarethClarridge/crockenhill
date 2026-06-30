@@ -70,4 +70,23 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertNotNull($result);
         $this->assertStringContainsString('John', $result);
     }
+
+    public function test_normalize_all_preserves_every_passage(): void
+    {
+        $this->assertSame('John 3:16-18, John 4:1-2', $this->resolver->normalizeAll('John 3:16-18, 4:1-2'));
+        $this->assertSame('1 Peter 2, 1 Peter 5', $this->resolver->normalizeAll('1 Peter 2, 5'));
+    }
+
+    public function test_normalize_all_returns_single_passage_unchanged(): void
+    {
+        $this->assertSame('John 3:16', $this->resolver->normalizeAll('John 3:16'));
+        $this->assertSame('John 3:16', $this->resolver->normalizeAll('Jn 3:16'));
+    }
+
+    public function test_normalize_all_returns_null_for_unparseable_input(): void
+    {
+        $this->assertNull($this->resolver->normalizeAll(''));
+        $this->assertNull($this->resolver->normalizeAll('The passage is John 3:16'));
+        $this->assertNull($this->resolver->normalizeAll('xyzzy 99:99'));
+    }
 }

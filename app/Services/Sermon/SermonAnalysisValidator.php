@@ -159,15 +159,16 @@ class SermonAnalysisValidator
      * Delegates to the shared scripture parser (techwilk/bible-verse-parser via
      * {@see ScriptureReferenceResolver}), which understands abbreviations such as
      * "Jn" or "1Jn", verse ranges, and "chapter/verse" wording, and rejects prose
-     * or gibberish. Returns the canonical reference (e.g. "Jn 3:16" -> "John 3:16")
-     * or null when the input is not a parseable Bible reference.
+     * or gibberish. Returns the canonical reference (e.g. "Jn 3:16" -> "John 3:16"),
+     * preserving every passage of multi-part references, or null when the input is
+     * not a parseable Bible reference.
      *
      * @param  string  $reference  Raw Bible reference
      * @return string|null Canonical reference or null if it cannot be parsed
      */
     public function validateBibleReference(string $reference): ?string
     {
-        return $this->scriptureReferenceResolver->normalize($reference);
+        return $this->scriptureReferenceResolver->normalizeAll($reference);
     }
 
     /**
