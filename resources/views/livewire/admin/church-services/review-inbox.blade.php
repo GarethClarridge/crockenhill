@@ -15,6 +15,9 @@
                 type="button"
                 wire:click="$set('filter', '{{ $chip['key'] }}')"
                 wire:key="inbox-filter-{{ $chip['key'] }}"
+                wire:loading.attr="disabled"
+                wire:loading.attr="aria-disabled"
+                aria-disabled="false"
                 aria-pressed="{{ $filter === $chip['key'] ? 'true' : 'false' }}"
                 class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 active:scale-95 {{ $filter === $chip['key'] ? 'bg-cbc-teal text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50' }}"
             >
@@ -35,7 +38,7 @@
         </p>
     @endif
 
-    <div class="mt-6 space-y-6" wire:loading.class.delay.200ms="opacity-50">
+    <div class="mt-6 space-y-6" wire:loading.class.delay.200ms="opacity-50" aria-busy="false" wire:loading.attr="aria-busy">
         @forelse($groups as $group)
             <x-card wire:key="inbox-group-{{ $group['key'] }}">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-3">

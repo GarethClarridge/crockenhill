@@ -11,6 +11,8 @@
     @if($sortable)
         <button wire:click="sort('{{ $column }}')"
                 wire:loading.attr="disabled"
+                wire:loading.attr="aria-disabled"
+                aria-disabled="false"
                 wire:target="sort('{{ $column }}')"
                 class="group inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded px-1 -mx-1 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 @if($sortBy === $column) aria-label="{{ $label }}: sorted {{ $sortDirection === 'asc' ? 'ascending' : 'descending' }}" @else aria-label="{{ $label }}: click to sort" @endif>

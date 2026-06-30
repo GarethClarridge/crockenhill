@@ -32,7 +32,7 @@
         </div>
     @endif
 
-    <x-card id="admin-list-results" tabindex="-1" wire:loading.class.delay.200ms="opacity-50" class="focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2">
+    <x-card id="admin-list-results" tabindex="-1" wire:loading.class.delay.200ms="opacity-50" aria-busy="false" wire:loading.attr="aria-busy" class="focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2">
         <div class="overflow-x-auto">
             {{ $slot }}
         </div>
