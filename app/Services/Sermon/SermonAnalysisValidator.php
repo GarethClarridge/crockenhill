@@ -19,6 +19,20 @@ class SermonAnalysisValidator
 
     private const MIN_TRANSCRIPT_LENGTH = 100;
 
+    /**
+     * Recognised Bible book names (with common variants) for reference validation.
+     * Multi-word and longer variants are listed before their prefixes so the
+     * alternation matches greedily (e.g. "Song of Solomon" before "Song").
+     */
+    private const BIBLE_BOOK_PATTERN = '(?:[1-3]\s+)?(?:'
+        .'Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|'
+        .'Ezra|Nehemiah|Esther|Job|Psalms|Psalm|Proverbs|Ecclesiastes|'
+        .'Song of Solomon|Song of Songs|Song|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|'
+        .'Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|'
+        .'Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|'
+        .'Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation'
+        .')';
+
     public function __construct(private readonly BritishEnglishConverter $britishEnglishConverter) {}
 
     /**
@@ -162,12 +176,14 @@ class SermonAnalysisValidator
     {
         $reference = trim($reference);
 
-        // Basic validation - should contain book name and numbers
-        if (preg_match('/^[1-3]?\s*[A-Za-z]+\s+\d+/', $reference)) {
+        // The reference must begin with a recognised Bible book name followed by a
+        // chapter number. Anchoring to the book list rejects AI prose such as
+        // "The passage is John 3:16" or "Not a reference 3" leaking through.
+        if (preg_match('/^'.self::BIBLE_BOOK_PATTERN.'\s+\d+/i', $reference)) {
             return $reference;
         }
 
-        // If it doesn't match basic pattern, return null
+        // If it doesn't match the book + chapter pattern, return null
         return null;
     }
 

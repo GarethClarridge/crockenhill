@@ -97,6 +97,8 @@ class SermonAnalysisValidatorTest extends TestCase
         $this->assertEquals('Romans 8:28-39', $this->validator->validateBibleReference('Romans 8:28-39'));
         $this->assertEquals('2 Corinthians 5:17', $this->validator->validateBibleReference('2 Corinthians 5:17'));
         $this->assertEquals('Psalm 23', $this->validator->validateBibleReference('Psalm 23'));
+        $this->assertEquals('Song of Solomon 1:1', $this->validator->validateBibleReference('Song of Solomon 1:1'));
+        $this->assertEquals('Song of Songs 2:10', $this->validator->validateBibleReference('Song of Songs 2:10'));
     }
 
     #[Test]
@@ -107,6 +109,14 @@ class SermonAnalysisValidatorTest extends TestCase
         $this->assertNull($this->validator->validateBibleReference(''));
         $this->assertNull($this->validator->validateBibleReference('Book'));
         $this->assertNull($this->validator->validateBibleReference('123'));
+    }
+
+    #[Test]
+    public function it_rejects_prose_wrapped_around_a_bible_reference(): void
+    {
+        $this->assertNull($this->validator->validateBibleReference('The passage is John 3:16'));
+        $this->assertNull($this->validator->validateBibleReference('Not a reference 3'));
+        $this->assertNull($this->validator->validateBibleReference('This sermon expounds Romans 8'));
     }
 
     #[Test]
