@@ -53,12 +53,6 @@ class ScriptureReferenceResolver
     /**
      * Parse a reference into passages, returning [] when it cannot be parsed.
      *
-     * For single-chapter books (Obadiah, Philemon, 2 John, 3 John, Jude) a bare
-     * "Book N" reference is conventionally verse N, but the parser reads N as a
-     * (non-existent) chapter and rejects it. When the initial parse fails, we
-     * retry with an explicit "1:" chapter so references like "Jude 3" or
-     * "Philemon 6" resolve.
-     *
      * @return array<int, BiblePassage>
      */
     private function parse(string $reference): array
@@ -70,69 +64,59 @@ class ScriptureReferenceResolver
         }
 
         try {
-            return $this->parser->parse($reference);
+            return $this->parser->parse($this->normaliseSingleChapterReferences($reference));
         } catch (\Throwable) {
-            $rewritten = $this->rewriteSingleChapterReference($reference);
-
-            if ($rewritten === null) {
-                return [];
-            }
-
-            try {
-                return $this->parser->parse($rewritten);
-            } catch (\Throwable) {
-                return [];
-            }
+            return [];
         }
     }
 
     /**
-     * Rewrite any bare single-chapter "Book N" parts of a reference to "Book 1:N".
+     * Insert an explicit "1:" chapter for single-chapter book verse references.
      *
-     * The reference is split on the same separators the parser uses, so a single
-     * offending part in an otherwise valid multi-part reference (e.g. the "Jude 3"
-     * in "John 3:16; Jude 3") is rewritten in place while the rest is preserved.
-     * Returns null when no part could be rewritten.
+     * For single-chapter books (Obadiah, Philemon, 2 John, 3 John, Jude) a bare
+     * "Book N" reference means verse N, but the parser reads N as a (non-existent)
+     * chapter and rejects it — and reads "Book 1" as the whole book rather than
+     * verse 1. Rewriting "Book N" to "Book 1:N" before parsing fixes both, while
+     * leaving the verse expression (ranges such as "3-5", "3–5" or "3 to 5", and
+     * verse lists) for the parser to normalise.
+     *
+     * Each separator-delimited section is handled independently, so a single
+     * offending part of a multi-part reference (e.g. the "Jude 3" in
+     * "John 3:16; Jude 3") is rewritten in place while the rest is preserved.
      */
-    private function rewriteSingleChapterReference(string $reference): ?string
+    private function normaliseSingleChapterReferences(string $reference): string
     {
         // Keep the separators (&, ",", ";", "and") so the reference can be reassembled.
         $tokens = preg_split('/(\s*(?:&|,|;|\band\b)\s*)/i', $reference, -1, PREG_SPLIT_DELIM_CAPTURE);
 
         if ($tokens === false) {
-            return null;
+            return $reference;
         }
-
-        $changed = false;
 
         // Section tokens are at even indices; captured separators sit between them.
         for ($index = 0; $index < count($tokens); $index += 2) {
-            $rewritten = $this->rewriteSingleChapterSection($tokens[$index]);
-
-            if ($rewritten !== null) {
-                $tokens[$index] = $rewritten;
-                $changed = true;
-            }
+            $tokens[$index] = $this->normaliseSingleChapterSection($tokens[$index]);
         }
 
-        return $changed ? implode('', $tokens) : null;
+        return implode('', $tokens);
     }
 
     /**
-     * Rewrite a single "Book N" section for a single-chapter book to "Book 1:N".
+     * Rewrite a "Book N" section for a single-chapter book to "Book 1:N".
      *
-     * Returns null when the section is not of that shape or the book is not a
-     * single-chapter book. Book recognition (including abbreviations) is delegated
-     * to the parser, so forms such as "Phlm 6" are handled.
+     * Returns the section unchanged when it is not of that shape, already names a
+     * chapter (contains ":"), or the book is not a single-chapter book. Book
+     * recognition (including abbreviations) is delegated to the parser, so forms
+     * such as "Phlm 6" are handled.
      */
-    private function rewriteSingleChapterSection(string $section): ?string
+    private function normaliseSingleChapterSection(string $section): string
     {
         $trimmed = trim($section);
 
-        // Split a trailing verse expression (digits, ranges and lists, no ":")
-        // from the book name, e.g. "3 John 4-8" -> book "3 John", verses "4-8".
-        if (! preg_match('/^(.+?)\s+(\d+(?:\s*[-,]\s*\d+)*)$/', $trimmed, $matches)) {
-            return null;
+        // Split a leading book name from a trailing verse expression that begins
+        // with a digit and does not already specify a chapter (no ":").
+        if (! preg_match('/^(.+?)\s+(\d[^:]*)$/', $trimmed, $matches)) {
+            return $section;
         }
 
         [, $bookName, $verses] = $matches;
@@ -140,11 +124,11 @@ class ScriptureReferenceResolver
         try {
             $bookPassages = $this->parser->parse($bookName);
         } catch (\Throwable) {
-            return null;
+            return $section;
         }
 
         if ($bookPassages === [] || $bookPassages[0]->from()->book()->chaptersInBook() !== 1) {
-            return null;
+            return $section;
         }
 
         return $bookName.' 1:'.$verses;
