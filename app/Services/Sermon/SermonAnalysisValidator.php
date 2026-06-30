@@ -163,12 +163,42 @@ class SermonAnalysisValidator
      * preserving every passage of multi-part references, or null when the input is
      * not a parseable Bible reference.
      *
+     * A bare whole-book reference (e.g. "John", "Genesis") is rejected: a primary
+     * sermon passage must identify at least a chapter, and a whole book belongs in
+     * the series field rather than the reference.
+     *
      * @param  string  $reference  Raw Bible reference
      * @return string|null Canonical reference or null if it cannot be parsed
      */
     public function validateBibleReference(string $reference): ?string
     {
-        return $this->scriptureReferenceResolver->normalizeAll($reference);
+        $normalized = $this->scriptureReferenceResolver->normalizeAll($reference);
+
+        if ($normalized === null || ! $this->referenceIncludesChapter($normalized)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Determine whether every passage in a canonical reference names a chapter.
+     *
+     * The parser collapses a whole-book passage to the bare book name (e.g. "John",
+     * "1 John"), so once any leading book ordinal is removed a chapter is present
+     * only when a digit remains.
+     */
+    private function referenceIncludesChapter(string $canonicalReference): bool
+    {
+        foreach (explode(',', $canonicalReference) as $passage) {
+            $withoutBookOrdinal = preg_replace('/^\s*[1-3]\s+/', '', trim($passage));
+
+            if (! preg_match('/\d/', (string) $withoutBookOrdinal)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

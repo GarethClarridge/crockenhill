@@ -132,6 +132,16 @@ class SermonAnalysisValidatorTest extends TestCase
     }
 
     #[Test]
+    public function it_rejects_whole_book_references_without_a_chapter(): void
+    {
+        // A bare book name belongs in the series field, not the primary reference.
+        $this->assertNull($this->validator->validateBibleReference('John'));
+        $this->assertNull($this->validator->validateBibleReference('Genesis'));
+        $this->assertNull($this->validator->validateBibleReference('1 John'));
+        $this->assertNull($this->validator->validateBibleReference('Psalms'));
+    }
+
+    #[Test]
     public function it_rejects_prose_wrapped_around_a_bible_reference(): void
     {
         $this->assertNull($this->validator->validateBibleReference('The passage is John 3:16'));
