@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\BritishEnglishConverter;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Sermon\SermonAnalysisPromptBuilder;
 use App\Services\Sermon\SermonAnalysisValidator;
 use PHPUnit\Framework\Attributes\Test;
@@ -18,7 +19,7 @@ class SermonAnalysisPromptBuilderTest extends TestCase
     {
         parent::setUp();
 
-        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class), app(ScriptureReferenceResolver::class));
         $this->builder = new SermonAnalysisPromptBuilder($validator);
     }
 

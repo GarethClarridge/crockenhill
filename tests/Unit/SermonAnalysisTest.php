@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Services\BritishEnglishConverter;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Public\SermonRepository;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Sermon\SermonAnalysisPromptBuilder;
 use App\Services\Sermon\SermonAnalysisService;
 use App\Services\Sermon\SermonAnalysisValidator;
@@ -21,7 +22,7 @@ class SermonAnalysisTest extends TestCase
 
         $logger = app(SermonProcessingLogger::class);
         $repository = app(SermonRepository::class);
-        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class), app(ScriptureReferenceResolver::class));
         $promptBuilder = new SermonAnalysisPromptBuilder($validator);
         $service = new SermonAnalysisService($logger, $repository, $validator, $promptBuilder);
         $this->assertInstanceOf(SermonAnalysisService::class, $service);
@@ -38,7 +39,7 @@ class SermonAnalysisTest extends TestCase
 
         $logger = app(SermonProcessingLogger::class);
         $repository = app(SermonRepository::class);
-        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class), app(ScriptureReferenceResolver::class));
         $promptBuilder = new SermonAnalysisPromptBuilder($validator);
         new SermonAnalysisService($logger, $repository, $validator, $promptBuilder);
     }

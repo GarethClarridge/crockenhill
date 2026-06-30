@@ -10,6 +10,7 @@ use App\Models\Sermon;
 use App\Services\BritishEnglishConverter;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Public\SermonRepository;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Sermon\SermonAnalysisPromptBuilder;
 use App\Services\Sermon\SermonAnalysisService;
 use App\Services\Sermon\SermonAnalysisValidator;
@@ -45,7 +46,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
 
         $logger = app(SermonProcessingLogger::class);
         $repository = app(SermonRepository::class);
-        $this->validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $this->validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class), app(ScriptureReferenceResolver::class));
         $this->promptBuilder = new SermonAnalysisPromptBuilder($this->validator);
         $this->service = new SermonAnalysisService($logger, $repository, $this->validator, $this->promptBuilder);
     }
@@ -64,7 +65,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
 
         $logger = app(SermonProcessingLogger::class);
         $repository = app(SermonRepository::class);
-        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class), app(ScriptureReferenceResolver::class));
         $promptBuilder = new SermonAnalysisPromptBuilder($validator);
         new SermonAnalysisService($logger, $repository, $validator, $promptBuilder);
     }
