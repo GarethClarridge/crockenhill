@@ -149,8 +149,11 @@ class BritishEnglishConverter
             // -or to -our endings
             '/\b(armo|behavio|colo|enamo|favo|flavo|glamo|harbo|hono|humo|labo|neighbo|rumo|savio|splendo|vigo)r\b/i' => '$1ur',
 
-            // -er to -re endings (supports compounds for common cases)
-            '/\b(\w*(?:cent|met|theat))er\b/i' => '$1re',
+            // -er to -re endings (supports compounds for known cases only)
+            // Length units take -tre, but instrument/measurement words such as
+            // "parameter", "diameter", "perimeter" and "thermometer" must be left alone.
+            '/\b((?:kilo|centi|milli|deci|nano)?met)er\b/i' => '$1re',
+            '/\b((?:epi)?cent|(?:amphi)?theat)er\b/i' => '$1re',
             '/\b(fib|goit|lit|lust|mano|mass|mit|nit|oct|salt|spect)er\b/i' => '$1re',
 
             // -ense to -ence endings

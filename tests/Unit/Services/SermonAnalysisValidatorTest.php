@@ -112,6 +112,14 @@ class SermonAnalysisValidatorTest extends TestCase
     }
 
     #[Test]
+    public function it_rejects_prose_wrapped_around_a_bible_reference(): void
+    {
+        $this->assertNull($this->validator->validateBibleReference('The passage is John 3:16'));
+        $this->assertNull($this->validator->validateBibleReference('Not a reference 3'));
+        $this->assertNull($this->validator->validateBibleReference('This sermon expounds Romans 8'));
+    }
+
+    #[Test]
     public function it_returns_null_summary_for_empty_or_too_short_input(): void
     {
         $this->assertNull($this->validator->validateAndCleanSummary(''));

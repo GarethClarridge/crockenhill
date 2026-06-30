@@ -132,6 +132,19 @@ class BritishEnglishConverterTest extends TestCase
     {
         $this->assertEquals('kilometre', $this->converter->convert('kilometer'));
         $this->assertEquals('millimetre', $this->converter->convert('millimeter'));
+        $this->assertEquals('centimetre', $this->converter->convert('centimeter'));
+        $this->assertEquals('epicentre', $this->converter->convert('epicenter'));
+        $this->assertEquals('amphitheatre', $this->converter->convert('amphitheater'));
+    }
+
+    #[Test]
+    public function it_does_not_corrupt_meter_words_that_are_not_length_units(): void
+    {
+        $this->assertEquals('parameter', $this->converter->convert('parameter'));
+        $this->assertEquals('diameter', $this->converter->convert('diameter'));
+        $this->assertEquals('perimeter', $this->converter->convert('perimeter'));
+        $this->assertEquals('thermometer', $this->converter->convert('thermometer'));
+        $this->assertEquals('barometer', $this->converter->convert('barometer'));
     }
 
     #[Test]
