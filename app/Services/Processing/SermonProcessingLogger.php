@@ -43,7 +43,7 @@ class SermonProcessingLogger
     {
         $context = [
             'processing_id' => $processingId,
-            'filename' => $this->sanitizeForLog($filename),
+            'filename' => $filename,
             'metadata' => $metadata,
             'memory_usage' => memory_get_usage(true),
             'peak_memory' => memory_get_peak_usage(true),
@@ -85,7 +85,7 @@ class SermonProcessingLogger
         ];
 
         if ($errorMessage) {
-            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+            $context['error_message'] = $errorMessage;
         }
 
         $logLevel = match ($status) {
@@ -122,7 +122,7 @@ class SermonProcessingLogger
     ): void {
         $context = array_merge([
             'processing_id' => $processingId,
-            'service' => $this->sanitizeForLog($service),
+            'service' => $service,
             'endpoint' => $endpoint,
             'response_time_ms' => round($responseTime * 1000, 2),
             'status_code' => $statusCode,
@@ -130,7 +130,7 @@ class SermonProcessingLogger
         ], $additionalContext);
 
         if ($errorMessage) {
-            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+            $context['error_message'] = $errorMessage;
         }
 
         $logLevel = $statusCode >= 400 ? 'error' : 'info';
@@ -159,8 +159,8 @@ class SermonProcessingLogger
     ): void {
         $context = [
             'processing_id' => $processingId,
-            'operation' => $this->sanitizeForLog($operation),
-            'file_path' => $this->sanitizeForLog($filePath),
+            'operation' => $operation,
+            'file_path' => $filePath,
             'timestamp' => now()->toISOString(),
         ];
 
@@ -174,7 +174,7 @@ class SermonProcessingLogger
         }
 
         if ($errorMessage) {
-            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+            $context['error_message'] = $errorMessage;
         }
 
         $logLevel = $errorMessage ? 'error' : 'info';
@@ -209,7 +209,7 @@ class SermonProcessingLogger
         ];
 
         if ($errorMessage) {
-            $context['error_message'] = $this->sanitizeForLog($errorMessage);
+            $context['error_message'] = $errorMessage;
         }
 
         $logLevel = match ($status) {
@@ -241,9 +241,9 @@ class SermonProcessingLogger
     ): void {
         $context = array_merge([
             'processing_id' => $processingId,
-            'step' => $this->sanitizeForLog($step),
+            'step' => $step,
             'exception_class' => get_class($exception),
-            'exception_message' => $this->sanitizeForLog($exception->getMessage()),
+            'exception_message' => $exception->getMessage(),
             'exception_code' => $exception->getCode(),
             'exception_file' => self::sanitizeStackTrace($exception->getFile()),
             'exception_line' => $exception->getLine(),
@@ -282,7 +282,7 @@ class SermonProcessingLogger
     public function logHealthCheck(string $checkName, array $result): void
     {
         $context = [
-            'health_check' => $this->sanitizeForLog($checkName),
+            'health_check' => $checkName,
             /** @phpstan-ignore nullCoalesce.offset */
             'status' => $result['status'] ?? 'unknown',
             'result' => $result,
@@ -432,7 +432,7 @@ class SermonProcessingLogger
         Log::warning("Processing warning in step: {$sanitizedStep}", $this->sanitizeArrayForLog([
             'processing_id' => $processingId,
             'step' => $sanitizedStep,
-            'warning_message' => $this->sanitizeForLog($message),
+            'warning_message' => $message,
             'timestamp' => now()->toISOString(),
             'context' => $context,
         ]));
