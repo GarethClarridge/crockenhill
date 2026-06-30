@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\BritishEnglishConverter;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Sermon\SermonAnalysisValidator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -17,7 +18,10 @@ class SermonAnalysisValidatorTest extends TestCase
     {
         parent::setUp();
 
-        $this->validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $this->validator = new SermonAnalysisValidator(
+            app(BritishEnglishConverter::class),
+            app(ScriptureReferenceResolver::class),
+        );
     }
 
     #[Test]
@@ -98,7 +102,32 @@ class SermonAnalysisValidatorTest extends TestCase
         $this->assertEquals('2 Corinthians 5:17', $this->validator->validateBibleReference('2 Corinthians 5:17'));
         $this->assertEquals('Psalm 23', $this->validator->validateBibleReference('Psalm 23'));
         $this->assertEquals('Song of Solomon 1:1', $this->validator->validateBibleReference('Song of Solomon 1:1'));
-        $this->assertEquals('Song of Songs 2:10', $this->validator->validateBibleReference('Song of Songs 2:10'));
+        // "Song of Songs" normalises to its canonical book name, "Song of Solomon".
+        $this->assertEquals('Song of Solomon 2:10', $this->validator->validateBibleReference('Song of Songs 2:10'));
+    }
+
+    #[Test]
+    public function it_expands_abbreviated_bible_references_to_canonical_form(): void
+    {
+        $this->assertEquals('John 3:16', $this->validator->validateBibleReference('Jn 3:16'));
+        $this->assertEquals('1 John 3:16-18', $this->validator->validateBibleReference('1Jn 3:16-18'));
+        $this->assertEquals('John 3:16', $this->validator->validateBibleReference('John chapter 3 verse 16'));
+    }
+
+    #[Test]
+    public function it_preserves_every_passage_of_multi_part_references(): void
+    {
+        $this->assertEquals('John 3:16-18, John 4:1-2', $this->validator->validateBibleReference('John 3:16-18, 4:1-2'));
+        $this->assertEquals('1 Peter 2, 1 Peter 5', $this->validator->validateBibleReference('1 Peter 2, 5'));
+    }
+
+    #[Test]
+    public function it_accepts_single_chapter_book_verse_references(): void
+    {
+        // "Jude 3" / "Philemon 6" are verse references, not whole-book references.
+        $this->assertEquals('Jude 1:3', $this->validator->validateBibleReference('Jude 3'));
+        $this->assertEquals('Philemon 1:6', $this->validator->validateBibleReference('Philemon 6'));
+        $this->assertEquals('3 John 1:4-8', $this->validator->validateBibleReference('3 John 4-8'));
     }
 
     #[Test]
@@ -109,6 +138,16 @@ class SermonAnalysisValidatorTest extends TestCase
         $this->assertNull($this->validator->validateBibleReference(''));
         $this->assertNull($this->validator->validateBibleReference('Book'));
         $this->assertNull($this->validator->validateBibleReference('123'));
+    }
+
+    #[Test]
+    public function it_rejects_whole_book_references_without_a_chapter(): void
+    {
+        // A bare book name belongs in the series field, not the primary reference.
+        $this->assertNull($this->validator->validateBibleReference('John'));
+        $this->assertNull($this->validator->validateBibleReference('Genesis'));
+        $this->assertNull($this->validator->validateBibleReference('1 John'));
+        $this->assertNull($this->validator->validateBibleReference('Psalms'));
     }
 
     #[Test]
