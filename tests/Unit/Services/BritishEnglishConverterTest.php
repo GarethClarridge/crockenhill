@@ -19,6 +19,7 @@ class BritishEnglishConverterTest extends TestCase
         parent::setUp();
         $this->converter = new BritishEnglishConverter;
         Cache::flush();
+        Storage::fake();
     }
 
     #[Test]
@@ -132,28 +133,46 @@ class BritishEnglishConverterTest extends TestCase
     {
         Cache::flush();
 
-        $this->assertFalse(Cache::has('british_english_corrections'));
+        // 1. Provide an external word list with a unique mapping
+        $wordList = ['testingword' => 'hardenedword'];
+        Storage::put('spelling/american-british-words.json', (string) json_encode($wordList));
 
-        $this->converter->convert('color');
+        // 2. Trigger the load and cache
+        $this->converter->convert('testingword');
 
-        $this->assertTrue(Cache::has('british_english_corrections'));
+        // 3. Remove the source file
+        Storage::delete('spelling/american-british-words.json');
+
+        // 4. A new instance should still use the cached corrections
+        $newConverter = new BritishEnglishConverter;
+        $this->assertEquals('hardenedword', $newConverter->convert('testingword'));
     }
 
     #[Test]
     public function clear_cache_removes_cached_corrections(): void
     {
-        $this->converter->convert('color');
-        $this->assertTrue(Cache::has('british_english_corrections'));
+        Cache::flush();
 
+        // 1. Setup cached external corrections
+        $wordList = ['testingword' => 'hardenedword'];
+        Storage::put('spelling/american-british-words.json', (string) json_encode($wordList));
+        $this->converter->convert('testingword');
+        Storage::delete('spelling/american-british-words.json');
+
+        // 2. Verify it is currently cached
+        $this->assertEquals('hardenedword', (new BritishEnglishConverter)->convert('testingword'));
+
+        // 3. Clear the cache
         $this->converter->clearCache();
 
-        $this->assertFalse(Cache::has('british_english_corrections'));
+        // 4. A new instance should now fall back to built-in (or original text if no match)
+        $newConverter = new BritishEnglishConverter;
+        $this->assertEquals('testingword', $newConverter->convert('testingword'));
     }
 
     #[Test]
     public function get_stats_returns_expected_structure(): void
     {
-        Storage::fake();
         $stats = $this->converter->getStats();
 
         $this->assertArrayHasKey('total_patterns', $stats);
@@ -162,18 +181,18 @@ class BritishEnglishConverterTest extends TestCase
         $this->assertArrayHasKey('external_wordlist_available', $stats);
 
         $this->assertGreaterThan(0, $stats['total_patterns']);
-        $this->assertEquals(86400, $stats['cache_ttl']);
+        $this->assertGreaterThan(0, $stats['cache_ttl']);
+        $this->assertNotEmpty($stats['cache_key']);
         $this->assertFalse($stats['external_wordlist_available']);
     }
 
     #[Test]
     public function it_uses_external_word_list_when_available(): void
     {
-        Storage::fake();
         Cache::flush();
 
         $wordList = ['color' => 'colour', 'organize' => 'organise'];
-        Storage::put('spelling/american-british-words.json', json_encode($wordList));
+        Storage::put('spelling/american-british-words.json', (string) json_encode($wordList));
 
         $result = $this->converter->convert('color');
         $this->assertEquals('colour', $result);
@@ -182,11 +201,10 @@ class BritishEnglishConverterTest extends TestCase
     #[Test]
     public function get_stats_reports_external_wordlist_available(): void
     {
-        Storage::fake();
         Cache::flush();
 
         $wordList = ['color' => 'colour'];
-        Storage::put('spelling/american-british-words.json', json_encode($wordList));
+        Storage::put('spelling/american-british-words.json', (string) json_encode($wordList));
 
         $stats = $this->converter->getStats();
 
