@@ -1,12 +1,12 @@
 <x-admin.list-shell
-    title="Sermons &amp; Talks"
+    title="Sermons &amp; talks"
     description="Manage sermon recordings and published children's talks."
     :paginator="$sermons"
     itemsName="sermon"
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
-            Upload Sermon
+            Upload sermon
         </x-button>
     </x-slot:actions>
 
@@ -27,9 +27,9 @@
                 :options="$seriesList->map(fn($s) => ['id' => $s, 'name' => $s])->toArray()"
                 class="w-48" />
 
-            <x-toggle label="Has Video" wire:model.live="hasVideoFilter" />
-            <x-toggle label="Needs Review" wire:model.live="needsReviewFilter" />
-            <x-toggle label="Last 12 Months" wire:model.live="last12Months" />
+            <x-toggle label="Has video" wire:model.live="hasVideoFilter" />
+            <x-toggle label="Needs review" wire:model.live="needsReviewFilter" />
+            <x-toggle label="Last 12 months" wire:model.live="last12Months" />
         </x-admin.filter-bar>
     </x-slot:filters>
 
@@ -142,7 +142,7 @@
                 >
                     @if(!$hasFilters)
                         <x-button link="{{ route('admin.services.upload-recording') }}" variant="primary" icon="cloud-arrow-up" inline>
-                            Upload Sermon
+                            Upload sermon
                         </x-button>
                     @endif
                 </x-admin.empty-state>

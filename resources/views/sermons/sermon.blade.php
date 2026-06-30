@@ -138,7 +138,7 @@
                         <x-clipboard-button
                             :content="$sermon->summary"
                             hideLabel
-                            label="Copy Summary"
+                            label="Copy summary"
                             title="Copy summary to clipboard"
                             icon="clipboard-document"
                             size="sm"
@@ -155,12 +155,12 @@
                     <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
                         <div class="flex items-center gap-2">
                             <x-heroicon-o-list-bullet class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
-                            <h2 class="font-display text-xl text-gray-900">Sermon Outline</h2>
+                            <h2 class="font-display text-xl text-gray-900">Sermon outline</h2>
                         </div>
                         <x-clipboard-button
                             :content="$sermonView['plain_text_outline']"
                             hideLabel
-                            label="Copy Outline"
+                            label="Copy outline"
                             title="Copy outline to clipboard"
                             icon="clipboard-document"
                             size="sm"
@@ -253,7 +253,7 @@
                             <div x-show="loaded" x-cloak>
                                 <x-clipboard-button
                                     js-content="plainText()"
-                                    label="Copy Transcript"
+                                    label="Copy transcript"
                                     icon="clipboard-document"
                                     size="sm"
                                 />
@@ -439,15 +439,15 @@
                     <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
                         <h2 class="font-display text-lg text-gray-900 mb-3 flex items-center gap-2">
                             <x-heroicon-o-signal class="h-4 w-4 text-cbc-teal" />
-                            Livestream Processing
+                            Livestream processing
                         </h2>
                         <div class="grid grid-cols-1 gap-4 text-sm">
                             <div>
-                                <span class="font-medium text-gray-700">Original File:</span>
+                                <span class="font-medium text-gray-700">Original file:</span>
                                 <span class="text-gray-600"> {{ $sermon->livestreamProcessing->original_filename }}</span>
                             </div>
                             <div>
-                                <span class="font-medium text-gray-700">Processing Date:</span>
+                                <span class="font-medium text-gray-700">Processing date:</span>
                                 <span class="text-gray-600"> {{ $sermon->livestreamProcessing->created_at->format('Y-m-d H:i:s') }}</span>
                             </div>
                             <div>
@@ -461,12 +461,12 @@
                                 </span>
                             </div>
                             <div>
-                                <span class="font-medium text-gray-700">Total Segments:</span>
+                                <span class="font-medium text-gray-700">Total segments:</span>
                                 <span class="text-gray-600"> {{ $sermon->livestreamProcessing->segments_count ?? 0 }}</span>
                             </div>
                             @if ($sermon->livestreamProcessing->duration)
                             <div>
-                                <span class="font-medium text-gray-700">Total Duration:</span>
+                                <span class="font-medium text-gray-700">Total duration:</span>
                                 <span class="text-gray-600"> {{ gmdate('H:i:s', (int) $sermon->livestreamProcessing->duration) }}</span>
                             </div>
                             @endif

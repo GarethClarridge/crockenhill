@@ -527,9 +527,9 @@ class EditSermonTest extends TestCase
             ->assertSee("Edit Children's Talk")
             ->assertSee('Speaker')
             ->assertSee("Children's talk notes")
-            ->assertDontSee('Bible Reference')
-            ->assertDontSee('AI-Generated Content')
-            ->assertDontSee('Display Options');
+            ->assertDontSee('Bible reference')
+            ->assertDontSee('AI-generated content')
+            ->assertDontSee('Display options');
     }
 
     #[Test]
