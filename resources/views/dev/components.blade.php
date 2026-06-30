@@ -649,42 +649,6 @@
     </section>
 
     {{-- ─────────────────────────────────────── --}}
-    {{-- ICON BUTTON — x-icon-button --}}
-    {{-- ─────────────────────────────────────── --}}
-    <section>
-        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Icon Button — <code class="text-lg font-mono">x-icon-button</code></h2>
-
-        <div class="bg-white rounded-lg p-8 shadow-sm border border-gray-200 space-y-6">
-            <div>
-                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Props: icon (required), label (required, sets aria-label + title), variant, size, type</p>
-                <div class="flex flex-wrap gap-3">
-                    <x-icon-button icon="pencil" label="Edit" />
-                    <x-icon-button icon="trash" label="Delete" variant="danger" />
-                    <x-icon-button icon="eye" label="View" variant="teal" />
-                    <x-icon-button icon="arrow-up" label="Move up" variant="outline" />
-                </div>
-            </div>
-            <div>
-                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Sizes</p>
-                <div class="flex flex-wrap items-center gap-3">
-                    <x-icon-button icon="pencil" label="Edit (xs)" size="xs" />
-                    <x-icon-button icon="pencil" label="Edit (sm)" size="sm" />
-                    <x-icon-button icon="pencil" label="Edit (md)" size="md" />
-                    <x-icon-button icon="pencil" label="Edit (lg)" size="lg" />
-                </div>
-            </div>
-            <div>
-                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Example: compact table action row</p>
-                <div class="flex gap-1">
-                    <x-icon-button icon="pencil" label="Edit sermon" size="sm" />
-                    <x-icon-button icon="eye" label="View sermon" size="sm" variant="teal" />
-                    <x-icon-button icon="trash" label="Delete sermon" size="sm" variant="danger" />
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {{-- ─────────────────────────────────────── --}}
     {{-- TOGGLE — x-toggle (updated) --}}
     {{-- ─────────────────────────────────────── --}}
     <section>
