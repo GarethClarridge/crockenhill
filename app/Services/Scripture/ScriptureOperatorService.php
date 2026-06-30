@@ -10,6 +10,7 @@ use App\Models\Sermon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -148,7 +149,7 @@ class ScriptureOperatorService
 
     /**
      * @return array{
-     *     passages: Collection<int, ScripturePassage>,
+     *     passages: LazyCollection<int, ScripturePassage>,
      *     summary: RefreshSummary,
      *     dry_run: bool,
      *     stopped_early: bool
@@ -157,9 +158,15 @@ class ScriptureOperatorService
     public function runRefresh(bool $dryRun = false, int $delayMs = 500, ?callable $progress = null): array
     {
         $refreshAfterDays = (int) config('services.api_bible.refresh_after_days', 28);
-        $passages = ScripturePassage::query()
-            ->where('fetched_at', '<', now()->subDays($refreshAfterDays))
-            ->get();
+        $query = ScripturePassage::query()
+            ->where('fetched_at', '<', now()->subDays($refreshAfterDays));
+
+        /**
+         * Performance Optimization: Use lazyById() to iterate through passages one by one,
+         * keeping memory usage low for background refresh tasks.
+         */
+        $totalCandidates = $query->clone()->count();
+        $passages = $query->lazyById(100);
 
         $summary = [
             'updated' => 0,
@@ -180,7 +187,7 @@ class ScriptureOperatorService
             }
 
             if (! $this->client->hasDailyBudget()) {
-                $summary['budget_exceeded'] += $passages->count() - $index;
+                $summary['budget_exceeded'] += $totalCandidates - $index;
                 $stoppedEarly = true;
                 if ($progress !== null) {
                     $progress('budget_exceeded', $passage, $passage->normalized_reference);
