@@ -11,6 +11,13 @@ use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 
+/**
+ * Centralised authority for sermon visibility, routing, and exposure rules.
+ *
+ * This policy governs how different content types (Sermons vs Children's Talks)
+ * are exposed to the public API, sitemaps, and search engines. It also enforces
+ * video quality standards and handles members-only content boundaries.
+ */
 class SermonExposurePolicy
 {
     private bool $childrensTalksArePublic;
@@ -19,6 +26,9 @@ class SermonExposurePolicy
 
     private bool $hideNeedsReviewVideo;
 
+    /**
+     * Initialise the policy with configuration-driven visibility rules.
+     */
     public function __construct()
     {
         /**
@@ -30,6 +40,12 @@ class SermonExposurePolicy
         $this->hideNeedsReviewVideo = (bool) config('media-processing.video_quality.hide_needs_review', false);
     }
 
+    /**
+     * Determine if Children's Talks should be visible to the general public.
+     *
+     * When false (default), these talks are restricted to authenticated members
+     * with verified emails, protecting content intended for the church family.
+     */
     public function childrensTalksArePublic(): bool
     {
         if (app()->environment('testing')) {
@@ -39,6 +55,14 @@ class SermonExposurePolicy
         return $this->childrensTalksArePublic;
     }
 
+    /**
+     * Check if a user is permitted to access the Children's Corner area.
+     *
+     * Non-public content is guarded by the same verified-email requirement
+     * that defines the site's members-area boundary.
+     *
+     * @param  Authenticatable|null  $user  The user to verify
+     */
     public function canAccessChildrensCorner(?Authenticatable $user): bool
     {
         // Non-public Children's Corner content requires authenticated + verified email,
@@ -46,22 +70,45 @@ class SermonExposurePolicy
         return $this->childrensTalksArePublic() || ($user instanceof User && $user->hasVerifiedEmail());
     }
 
+    /**
+     * Determine if a given sermon is classified as a Children's Talk.
+     */
     public function isChildrensTalk(Sermon $sermon): bool
     {
         return $sermon->content_type === SermonContentType::ChildrensTalk;
     }
 
+    /**
+     * Determine if a request for a generic sermon route should be redirected.
+     *
+     * When Children's Talks are public, they have their own dedicated routing
+     * (e.g., childrens-corner.show) and should not be accessed via the standard
+     * sermon archive routes to maintain clear content separation.
+     */
     public function shouldRedirectGenericSermonRoute(Sermon $sermon): bool
     {
         return $sermon->content_type === SermonContentType::ChildrensTalk
             && $this->childrensTalksArePublic();
     }
 
+    /**
+     * Determine if a sermon should be included in the public-facing API.
+     *
+     * Currently restricted to primary sermons to keep the API focused
+     * on the main teaching archive.
+     */
     public function shouldExposeOnSermonApi(Sermon $sermon): bool
     {
         return $sermon->content_type === SermonContentType::Sermon;
     }
 
+    /**
+     * Determine if a sermon's video should be visible to the public.
+     *
+     * Evaluates manual visibility overrides before falling back to automated
+     * quality-score enforcement. This ensures that only high-quality video
+     * is exposed by default.
+     */
     public function shouldExposeVideo(Sermon $sermon): bool
     {
         if (! $sermon->hasVideo()) {
@@ -75,11 +122,23 @@ class SermonExposurePolicy
         };
     }
 
+    /**
+     * Determine if the video thumbnail should be visible.
+     *
+     * Aligned with video exposure to prevent "ghost" thumbnails for
+     * rejected or hidden videos.
+     */
     public function shouldExposeVideoThumbnail(Sermon $sermon): bool
     {
         return $this->shouldExposeThumbnail($sermon);
     }
 
+    /**
+     * Determine if a sermon thumbnail should be visible.
+     *
+     * If a video is present, the thumbnail visibility follows the video
+     * visibility rules.
+     */
     public function shouldExposeThumbnail(Sermon $sermon): bool
     {
         if (! $sermon->hasVideo()) {
@@ -93,11 +152,17 @@ class SermonExposurePolicy
         return $this->shouldExposeVideo($sermon);
     }
 
+    /**
+     * Determine if a video thumbnail should be generated for this sermon.
+     */
     public function shouldGenerateVideoThumbnail(Sermon $sermon): bool
     {
         return $this->shouldExposeVideo($sermon);
     }
 
+    /**
+     * Determine if a sermon should be indexed by search engines via the sitemap.
+     */
     public function shouldIncludeInSitemap(Sermon $sermon): bool
     {
         if ($sermon->content_type === SermonContentType::Sermon) {
@@ -107,6 +172,9 @@ class SermonExposurePolicy
         return $this->childrensTalksArePublic();
     }
 
+    /**
+     * Resolve the canonical public route name for a sermon.
+     */
     public function publicRouteName(Sermon $sermon): string
     {
         return $sermon->content_type === SermonContentType::ChildrensTalk
@@ -115,13 +183,21 @@ class SermonExposurePolicy
     }
 
     /**
-     * @return array<string, string>
+     * Generate the parameters required for the sermon's public route.
+     *
+     * @return array{sermon: string}
      */
     public function publicRouteParameters(Sermon $sermon): array
     {
         return ['sermon' => $sermon->slug];
     }
 
+    /**
+     * Generate the absolute public URL for a sermon.
+     *
+     * Returns an empty string if the sermon lacks a slug, preventing
+     * RouteGenerationExceptions on incomplete records.
+     */
     public function publicUrl(Sermon $sermon): string
     {
         if (! filled($sermon->slug)) {
@@ -131,6 +207,11 @@ class SermonExposurePolicy
         return route($this->publicRouteName($sermon), $this->publicRouteParameters($sermon));
     }
 
+    /**
+     * Generate the canonical, date-prefixed URL for a sermon.
+     *
+     * Favors the SEO-friendly YYYY/MM/slug format for primary sermons.
+     */
     public function canonicalUrl(Sermon $sermon): string
     {
         if ($sermon->content_type === SermonContentType::ChildrensTalk) {
