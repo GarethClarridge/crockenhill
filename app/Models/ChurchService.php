@@ -129,7 +129,11 @@ class ChurchService extends Model
             'date' => ['required', 'date'],
             'service' => ['required', Rule::enum(SermonService::class)],
             'source' => ['required', 'string', 'max:255'],
+            'needs_review' => ['boolean'],
+            'review_state' => ['required', Rule::enum(ChurchServiceReviewState::class)],
             'manual_reviewed_by_user_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:users,id'],
+            'canonical_conflict_state' => ['required', Rule::enum(ChurchServiceCanonicalConflictState::class)],
+            'canonical_conflict_reason' => ['nullable', Rule::enum(ChurchServiceCanonicalConflictReason::class)],
         ];
     }
 
