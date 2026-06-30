@@ -103,6 +103,27 @@ class BritishEnglishConverterTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_convert_small_ize_words_like_size(): void
+    {
+        $this->assertEquals('size', $this->converter->convert('size'));
+        $this->assertEquals('resize', $this->converter->convert('resize'));
+    }
+
+    #[Test]
+    public function it_converts_savior_to_saviour(): void
+    {
+        $this->assertEquals('saviour', $this->converter->convert('savior'));
+        $this->assertEquals('Saviour', $this->converter->convert('Savior'));
+    }
+
+    #[Test]
+    public function it_converts_compound_er_words_to_re(): void
+    {
+        $this->assertEquals('kilometre', $this->converter->convert('kilometer'));
+        $this->assertEquals('millimetre', $this->converter->convert('millimeter'));
+    }
+
+    #[Test]
     public function it_converts_text_with_multiple_american_words(): void
     {
         $text = 'The organization will analyze the color of the theater program.';

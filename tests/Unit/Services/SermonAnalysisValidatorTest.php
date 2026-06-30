@@ -97,6 +97,8 @@ class SermonAnalysisValidatorTest extends TestCase
         $this->assertEquals('Romans 8:28-39', $this->validator->validateBibleReference('Romans 8:28-39'));
         $this->assertEquals('2 Corinthians 5:17', $this->validator->validateBibleReference('2 Corinthians 5:17'));
         $this->assertEquals('Psalm 23', $this->validator->validateBibleReference('Psalm 23'));
+        $this->assertEquals('Song of Solomon 1:1', $this->validator->validateBibleReference('Song of Solomon 1:1'));
+        $this->assertEquals('Song of Songs 2:10', $this->validator->validateBibleReference('Song of Songs 2:10'));
     }
 
     #[Test]

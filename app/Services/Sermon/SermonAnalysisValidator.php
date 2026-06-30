@@ -162,8 +162,9 @@ class SermonAnalysisValidator
     {
         $reference = trim($reference);
 
-        // Basic validation - should contain book name and numbers
-        if (preg_match('/^[1-3]?\s*[A-Za-z]+\s+\d+/', $reference)) {
+        // Basic validation - should contain book name and numbers.
+        // Supports multi-word books like "Song of Solomon" or "1 John".
+        if (preg_match('/^[1-3]?\s*[A-Za-z]+(?:\s+[A-Za-z]+)*\s+\d+/', $reference)) {
             return $reference;
         }
 
