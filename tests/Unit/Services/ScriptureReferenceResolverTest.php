@@ -89,4 +89,20 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertNull($this->resolver->normalizeAll('The passage is John 3:16'));
         $this->assertNull($this->resolver->normalizeAll('xyzzy 99:99'));
     }
+
+    public function test_resolves_single_chapter_book_verse_references(): void
+    {
+        // "Book N" for a single-chapter book is verse N, not chapter N.
+        $this->assertSame('Jude 1:3', $this->resolver->normalize('Jude 3'));
+        $this->assertSame('Philemon 1:6', $this->resolver->normalize('Philemon 6'));
+        $this->assertSame('Obadiah 1:2', $this->resolver->normalize('Obadiah 2'));
+        $this->assertSame('3 John 1:4-8', $this->resolver->normalizeAll('3 John 4-8'));
+        $this->assertSame('2 John 1:7', $this->resolver->normalizeAll('2 John 7'));
+    }
+
+    public function test_does_not_invent_chapters_for_multi_chapter_books(): void
+    {
+        // A genuinely out-of-range chapter must still be rejected.
+        $this->assertNull($this->resolver->normalize('John 99'));
+    }
 }

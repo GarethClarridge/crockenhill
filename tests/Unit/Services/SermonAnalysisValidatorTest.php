@@ -122,6 +122,15 @@ class SermonAnalysisValidatorTest extends TestCase
     }
 
     #[Test]
+    public function it_accepts_single_chapter_book_verse_references(): void
+    {
+        // "Jude 3" / "Philemon 6" are verse references, not whole-book references.
+        $this->assertEquals('Jude 1:3', $this->validator->validateBibleReference('Jude 3'));
+        $this->assertEquals('Philemon 1:6', $this->validator->validateBibleReference('Philemon 6'));
+        $this->assertEquals('3 John 1:4-8', $this->validator->validateBibleReference('3 John 4-8'));
+    }
+
+    #[Test]
     public function it_rejects_invalid_bible_references(): void
     {
         $this->assertNull($this->validator->validateBibleReference('Not a reference'));
