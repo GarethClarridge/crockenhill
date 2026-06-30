@@ -430,8 +430,8 @@ class SermonPagesTest extends TestCase
             ->get("/christ/sermons/{$sermon->slug}");
 
         $response->assertStatus(200);
-        $response->assertSee('Livestream Processing');
-        $response->assertSeeInOrder(['Total Segments:', '5']);
+        $response->assertSee('Livestream processing');
+        $response->assertSeeInOrder(['Total segments:', '5']);
     }
 
     #[Test]
@@ -454,7 +454,7 @@ class SermonPagesTest extends TestCase
         $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
 
         $response->assertStatus(200);
-        $response->assertDontSee('Livestream Processing');
+        $response->assertDontSee('Livestream processing');
         $response->assertDontSee('private-service.mp4');
     }
 }

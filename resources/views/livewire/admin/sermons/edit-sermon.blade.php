@@ -12,9 +12,9 @@
                 : route('sermons.show', ['sermon' => $sermon->slug]);
         @endphp
         <x-button :link="$publicUrl" variant="ghost" icon="eye" inline>
-            View Public
+            View public
         </x-button>
-        <x-clipboard-button :content="$publicUrl" label="Copy Link" title="Copy public link to clipboard" class="text-gray-500 hover:text-gray-700" />
+        <x-clipboard-button :content="$publicUrl" label="Copy link" title="Copy public link to clipboard" class="text-gray-500 hover:text-gray-700" />
         <x-button link="{{ route('admin.sermons.index') }}" variant="outline" inline>
             Cancel
         </x-button>
@@ -34,10 +34,10 @@
                         <x-input label="Slug" wire:model="form.slug" required maxlength="255"
                             hint="URL-friendly identifier (auto-generated from title)" />
                     </div>
-                    <x-clipboard-button js-content="$wire.form.slug" hideLabel label="Copy Slug" title="Copy slug to clipboard" class="mt-7" />
+                    <x-clipboard-button js-content="$wire.form.slug" hideLabel label="Copy slug" title="Copy slug to clipboard" class="mt-7" />
                 </div>
 
-                <x-input type="number" label="Download Count" wire:model="form.downloadCount"
+                <x-input type="number" label="Download count" wire:model="form.downloadCount"
                     hint="Incremented automatically when the audio is downloaded" />
             </div>
 
@@ -72,7 +72,7 @@
                 hint="Used when the {{ $isChildrensTalk ? 'speaker' : 'preacher' }} is not in the list above" />
 
             @unless($isChildrensTalk)
-                <x-input label="Bible Reference" wire:model="form.reference" maxlength="255"
+                <x-input label="Bible reference" wire:model="form.reference" maxlength="255"
                     placeholder="e.g., John 3:16-21" />
             @endunless
 
@@ -96,7 +96,7 @@
             </p>
         </x-card>
     @else
-        <x-card heading="AI-Generated Content">
+        <x-card heading="AI-generated content">
             <div class="space-y-4">
                 <x-textarea label="Summary" wire:model="form.summary" rows="5" maxlength="1000"
                     hint="AI-generated summary" autogrow />
@@ -148,10 +148,10 @@
         @unless($isChildrensTalk)
             <x-card heading="Display options">
                 <div class="space-y-4">
-                    <x-toggle label="Show Summary" wire:model="form.showSummary"
+                    <x-toggle label="Show summary" wire:model="form.showSummary"
                         hint="Display AI-generated summary on sermon page" />
 
-                    <x-toggle label="Show Points" wire:model="form.showPoints"
+                    <x-toggle label="Show points" wire:model="form.showPoints"
                         hint="Display AI-generated points on sermon page" />
                 </div>
             </x-card>
@@ -212,7 +212,7 @@
             @endif
         @endisland
 
-        <x-card heading="{{ $isChildrensTalk ? 'Published Media' : 'Media Files' }}">
+        <x-card heading="{{ $isChildrensTalk ? 'Published media' : 'Media files' }}">
             <div class="space-y-3">
                 @if($sermon->audio_file_path)
                     <div class="flex items-center gap-2">
