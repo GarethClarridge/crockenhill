@@ -18,6 +18,7 @@ final readonly class ServiceStructureSection extends JsonData
     /**
      * @param  list<string>  $notes
      * @param  list<string>  $reviewFlags
+     * @param  array{start: float, end: float}|null  $snapDeltas  Seconds each boundary moved during silence-snapping
      */
     public function __construct(
         public ServiceSectionType $type,
@@ -30,6 +31,7 @@ final readonly class ServiceStructureSection extends JsonData
         public ?string $readingReference,
         public array $notes = [],
         public array $reviewFlags = [],
+        public ?array $snapDeltas = null,
     ) {}
 
     /**
@@ -70,6 +72,9 @@ final readonly class ServiceStructureSection extends JsonData
 
         $confidence = self::floatOrNull($payload['confidence'] ?? null) ?? 0.0;
 
+        $snapStartDelta = self::floatOrNull(is_array($payload['snap_deltas'] ?? null) ? ($payload['snap_deltas']['start'] ?? null) : null);
+        $snapEndDelta = self::floatOrNull(is_array($payload['snap_deltas'] ?? null) ? ($payload['snap_deltas']['end'] ?? null) : null);
+
         return new self(
             type: $type,
             title: self::stringOrNull($payload['title'] ?? null),
@@ -81,6 +86,9 @@ final readonly class ServiceStructureSection extends JsonData
             readingReference: self::stringOrNull($payload['reading_reference'] ?? null),
             notes: $notes,
             reviewFlags: $reviewFlags,
+            snapDeltas: $snapStartDelta === null || $snapEndDelta === null
+                ? null
+                : ['start' => $snapStartDelta, 'end' => $snapEndDelta],
         );
     }
 
@@ -100,6 +108,7 @@ final readonly class ServiceStructureSection extends JsonData
             'reading_reference' => $this->readingReference,
             'notes' => $this->notes,
             'review_flags' => $this->reviewFlags,
+            'snap_deltas' => $this->snapDeltas,
         ];
     }
 
@@ -127,6 +136,7 @@ final readonly class ServiceStructureSection extends JsonData
             readingReference: $this->readingReference,
             notes: array_values([...$this->notes, ...$additionalNotes]),
             reviewFlags: $this->reviewFlags,
+            snapDeltas: $this->snapDeltas,
         );
     }
 
@@ -148,6 +158,27 @@ final readonly class ServiceStructureSection extends JsonData
             readingReference: $this->readingReference,
             notes: $this->notes,
             reviewFlags: array_values(array_unique([...$this->reviewFlags, ...$flags])),
+            snapDeltas: $this->snapDeltas,
+        );
+    }
+
+    /**
+     * A copy recording how far each boundary moved during silence-snapping.
+     */
+    public function withSnapDeltas(float $startDelta, float $endDelta): self
+    {
+        return new self(
+            type: $this->type,
+            title: $this->title,
+            startTime: $this->startTime,
+            endTime: $this->endTime,
+            confidence: $this->confidence,
+            oosItemId: $this->oosItemId,
+            songTitle: $this->songTitle,
+            readingReference: $this->readingReference,
+            notes: $this->notes,
+            reviewFlags: $this->reviewFlags,
+            snapDeltas: ['start' => $startDelta, 'end' => $endDelta],
         );
     }
 }

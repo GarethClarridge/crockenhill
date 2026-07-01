@@ -6,7 +6,7 @@
 |-------|--------|----|-------|
 | 1 — Full-service transcript | ✅ Done (2026-07-01) | #1046 (`claude/llm-first-service-structure-48b00v`) | See implementation notes below. |
 | 2 — Structure detection | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p2` (stacked on #1046) | See implementation notes below. |
-| 3 — Deterministic gate | Not started | — | |
+| 3 — Deterministic gate | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p3` (stacked on p2) | See implementation notes below. |
 | 4 — Pipeline wiring | Not started | — | |
 | 5 — Eval + shadow tooling | Not started | — | |
 | 6 — Promote and retire | Blocked on maintainer go | — | |
@@ -47,6 +47,37 @@
   transcript without stubbing.
 - `toClassifiedSections()` is deliberately absent from `ServiceStructure` until Phase 3, where the
   mapper's `source_segment_ids` decision is made against `ServiceSection::validationRules()`.
+
+### Phase 3 implementation notes (decisions the plan left open)
+
+- **`source_segment_ids` decision:** `sync()` does *not* tolerate an empty array —
+  `ServiceSection::validationRules()` marks the field `required`, which Laravel fails on `[]`. The
+  mapper therefore resolves ids by time overlap with the run's `LivestreamSegment` rows and, when a
+  section overlaps none, **synthesises a single covering segment** (marked
+  `synthesised_from_structure` in the segment's metadata and `synthesised_source_segment` in the
+  section's). This also keeps the manual segment-confirmation flow workable when the heuristic
+  segmenter never ran. Consequence for Phase 4: `AnalyzeSegments` **stays** in the primary chain.
+- Snap deltas are carried on `ServiceStructureSection` (`snap_deltas`, machine-readable) plus
+  human-readable notes; the mapper copies both into section metadata.
+- The gate's config knobs (`snap_window_seconds`, `min_section_seconds`, `coverage_floor`) landed
+  with this phase since the gate reads them; Phase 4 adds only `mode`.
+- Sermon-duration bounds: max shared from
+  `section_extraction.enhanced_sermon.max_sermon_duration_seconds` (F10), min from
+  `segmentation.min_sermon_duration` (300 s). Zero sermons is deliberately *not* a hard failure
+  (genuinely-absent case); more than one is.
+- OoS type-compatibility allows a semantic-`other` item (e.g. "Andrew Talk.pptx") to anchor any
+  section type — that is the F15 resolution working as intended.
+- F12 lives in the validator as the soft flag `structure_benediction_suspect`: a `bible_reading`
+  ≤ 60 s (`reading_references.benediction_max_duration_seconds`) ending within 120 s of the end of
+  the recording.
+- Soft flags (`structure_low_confidence`, `structure_micro_section`,
+  `structure_benediction_suspect`, `unknown_section_type`) are registered in
+  `SectionAlignmentBaselineRestorer::OOS_REVIEW_FLAGS/OOS_REVIEW_REASONS` (F18), and the mapper
+  always writes `metadata.review_flags` (even when empty) so a re-run's `sync()` metadata merge
+  replaces stale flags.
+- The mapper optionally embeds each section's transcript excerpt
+  (`metadata.transcript`, `transcript_scope = section_excerpt`) when given the full transcript, so
+  downstream evidence consumers (song matching fallback, review UI) keep working in primary mode.
 
 ## Goal
 

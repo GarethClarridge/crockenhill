@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Data;
 
+use App\Enums\LivestreamSegmentClassification;
+use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Models\LivestreamSegment;
+use App\Models\MediaProcessingLog;
 
 /**
  * A detected service structure: the LLM's typed, timed reading of the whole
@@ -90,5 +94,151 @@ final readonly class ServiceStructure extends JsonData
     public function isEmpty(): bool
     {
         return $this->sections === [];
+    }
+
+    /**
+     * Map this structure to the exact ClassifiedSection shape
+     * ServiceSectionSyncService::sync() expects (documented on
+     * ServiceSectionClassifier).
+     *
+     * source_segment_ids are resolved by time overlap with the run's
+     * LivestreamSegment rows. sync() validation requires a non-empty list, so
+     * a section overlapping no segment gets a single synthesised covering
+     * segment (marked in both the segment's and the section's metadata) —
+     * this also keeps the manual segment-confirmation flow workable.
+     *
+     * @param  ChurchServiceTranscript|null  $transcript  When given, each section carries its transcript excerpt for downstream evidence (song matching, reading resolution)
+     * @return array<int, array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     confidence: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }>
+     */
+    public function toClassifiedSections(MediaProcessingLog $processingLog, ?ChurchServiceTranscript $transcript = null): array
+    {
+        $segments = LivestreamSegment::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('segment_order')
+            ->orderBy('id')
+            ->get(['id', 'start_time', 'end_time', 'segment_index']);
+
+        $nextSegmentIndex = 1 + (int) $segments->max('segment_index');
+
+        $classified = [];
+
+        foreach ($this->sections as $index => $section) {
+            $sourceSegmentIds = $segments
+                ->filter(fn (LivestreamSegment $segment): bool => (float) $segment->start_time < $section->endTime
+                    && (float) $segment->end_time > $section->startTime)
+                ->pluck('id')
+                ->values()
+                ->all();
+
+            $synthesisedSegment = false;
+
+            if ($sourceSegmentIds === []) {
+                $sourceSegmentIds = [$this->synthesiseCoveringSegment($processingLog, $section, $nextSegmentIndex++)];
+                $synthesisedSegment = true;
+            }
+
+            $classified[] = [
+                'church_service_item_id' => $section->oosItemId,
+                'section_type' => $section->type->value,
+                'section_order' => $index + 1,
+                'title' => $section->title,
+                'start_time' => $section->startTime,
+                'end_time' => $section->endTime,
+                'duration' => $section->duration(),
+                'confidence' => $section->confidence,
+                'status' => ServiceSectionStatus::Identified->value,
+                'needs_manual_review' => $section->reviewFlags !== [],
+                'source_segment_ids' => $sourceSegmentIds,
+                'metadata' => $this->sectionMetadata($section, $transcript, $synthesisedSegment),
+            ];
+        }
+
+        return $classified;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sectionMetadata(
+        ServiceStructureSection $section,
+        ?ChurchServiceTranscript $transcript,
+        bool $synthesisedSegment,
+    ): array {
+        $metadata = [
+            'classification_mode' => 'llm_structure',
+            'confidence_source' => 'llm_structure',
+            'confidence_score' => $section->confidence,
+            'model' => $this->model,
+            'ai_notes' => $section->notes,
+            // Always present so a re-run's sync merge replaces stale flags.
+            'review_flags' => $section->reviewFlags,
+        ];
+
+        if ($section->reviewFlags !== []) {
+            $metadata['review_reason'] = $section->reviewFlags[0];
+        }
+
+        if ($section->snapDeltas !== null) {
+            $metadata['snap_deltas'] = $section->snapDeltas;
+        }
+
+        if ($section->readingReference !== null) {
+            $metadata['reading_reference'] = $section->readingReference;
+            $metadata['reading_reference_source'] = 'llm_structure';
+        }
+
+        if ($section->songTitle !== null) {
+            $metadata['song_title'] = $section->songTitle;
+        }
+
+        if ($synthesisedSegment) {
+            $metadata['synthesised_source_segment'] = true;
+        }
+
+        if ($transcript instanceof ChurchServiceTranscript) {
+            $excerpt = trim($transcript->sliceText($section->startTime, $section->endTime));
+
+            if ($excerpt !== '') {
+                $metadata['transcript'] = $excerpt;
+                $metadata['transcript_scope'] = 'section_excerpt';
+            }
+        }
+
+        return $metadata;
+    }
+
+    private function synthesiseCoveringSegment(
+        MediaProcessingLog $processingLog,
+        ServiceStructureSection $section,
+        int $segmentIndex,
+    ): int {
+        $segment = LivestreamSegment::query()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'segment_index' => $segmentIndex,
+            'segment_order' => $segmentIndex,
+            'start_time' => $section->startTime,
+            'end_time' => $section->endTime,
+            'duration' => $section->duration(),
+            'classification' => $section->type === ServiceSectionType::Song
+                ? LivestreamSegmentClassification::Song->value
+                : LivestreamSegmentClassification::Speech->value,
+            'is_sermon_candidate' => $section->type === ServiceSectionType::Sermon,
+            'metadata' => ['synthesised_from_structure' => true],
+        ]);
+
+        return (int) $segment->id;
     }
 }

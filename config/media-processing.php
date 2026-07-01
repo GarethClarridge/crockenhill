@@ -260,6 +260,12 @@ return [
         // Whisper model for the whole-recording pass. Must support verbose_json
         // segment timestamps (whisper-1); gpt-4o-transcribe does not.
         'transcription_model' => env('SERVICE_TRANSCRIPTION_MODEL', 'whisper-1'),
+        // Deterministic gate knobs: how far a boundary may snap to silence,
+        // the micro-section review threshold, and the hard floor on how much
+        // of the recording's speech the detected sections must cover.
+        'snap_window_seconds' => (int) env('SERVICE_STRUCTURE_SNAP_WINDOW', 30),
+        'min_section_seconds' => (int) env('SERVICE_STRUCTURE_MIN_SECTION', 15),
+        'coverage_floor' => (float) env('SERVICE_STRUCTURE_COVERAGE_FLOOR', 0.7),
     ],
 
     /*

@@ -27,6 +27,13 @@ class SectionAlignmentBaselineRestorer
         'ambiguous_childrens_talk',
         'inferred_childrens_talk',
         'presentation_positional_fallback',
+        // LLM-first structure pipeline flags (ServiceStructureValidator /
+        // ServiceStructureSection) — registered here so alignment re-runs
+        // clear stale copies instead of pinning sections in review (F18).
+        'structure_low_confidence',
+        'structure_micro_section',
+        'structure_benediction_suspect',
+        'unknown_section_type',
     ];
 
     /**
@@ -42,6 +49,10 @@ class SectionAlignmentBaselineRestorer
         'ambiguous_childrens_talk',
         'inferred_childrens_talk',
         'presentation_positional_fallback',
+        'structure_low_confidence',
+        'structure_micro_section',
+        'structure_benediction_suspect',
+        'unknown_section_type',
     ];
 
     /**
