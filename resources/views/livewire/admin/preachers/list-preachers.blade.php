@@ -81,7 +81,7 @@
                 >
                     @if(!$hasFilters)
                         <x-button link="{{ route('admin.preachers.create') }}" variant="primary" icon="plus" inline>
-                            Add Preacher
+                            Add preacher
                         </x-button>
                     @endif
                 </x-admin.empty-state>

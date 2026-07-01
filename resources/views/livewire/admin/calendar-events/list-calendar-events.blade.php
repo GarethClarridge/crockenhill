@@ -51,7 +51,7 @@
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ $event->start_datetime->format('j M Y') }}</p>
                         <p class="text-sm text-gray-500">
-                            {{ $event->start_datetime->format('H:i') }} - {{ $event->end_datetime->format('H:i') }}
+                            {{ $event->start_datetime->format('g:ia') }} - {{ $event->end_datetime->format('g:ia') }}
                         </p>
                     </td>
                     {{-- Meeting --}}

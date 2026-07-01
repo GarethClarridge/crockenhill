@@ -9,7 +9,7 @@
 >
     <x-slot:actions>
         <x-button link="{{ route('admin.calendar.patterns') }}" variant="outline" inline>
-            View Patterns
+            View patterns
         </x-button>
         <form method="POST" action="{{ route('admin.calendar.sync') }}" class="inline">
             @csrf
