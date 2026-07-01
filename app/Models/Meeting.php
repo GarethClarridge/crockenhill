@@ -184,7 +184,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
             'type' => ['required', Rule::enum(MeetingType::class)],
             'start_time' => ['nullable', 'date_format:H:i:s,H:i'],
             'end_time' => ['nullable', 'date_format:H:i:s,H:i', 'after_or_equal:start_time'],
-            'day' => ['nullable', 'string', 'max:255', new TrimmedText],
+            'day' => ['nullable', 'string', 'max:75', new TrimmedText],
             'location' => ['nullable', 'string', 'max:255', new TrimmedText],
             'who' => ['required', 'string', 'max:255', new TrimmedText],
             'pictures' => ['boolean'],

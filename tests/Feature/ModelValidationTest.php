@@ -93,7 +93,7 @@ class ModelValidationTest extends TestCase
 
         $this->assertArrayHasKey('processing_id', $rules);
         $this->assertContains('required', $rules['processing_id']);
-        $this->assertContains('size:36', $rules['processing_id']);
+        $this->assertContains('uuid', $rules['processing_id']);
 
         $this->assertArrayHasKey('processing_type', $rules);
         $this->assertContains('required', $rules['processing_type']);

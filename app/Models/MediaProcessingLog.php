@@ -648,18 +648,31 @@ class MediaProcessingLog extends Model
     /**
      * @return array<string, list<string|mixed>>
      */
-    public static function validationRules(): array
+    public static function validationRules(?self $log = null): array
     {
+        $uniqueProcessingId = Rule::unique('media_processing_logs', 'processing_id');
+
+        if ($log) {
+            $uniqueProcessingId->ignore($log->id);
+        }
+
         return [
-            'processing_id' => ['sometimes', 'required', 'string', 'size:36'],
+            'processing_id' => ['sometimes', 'required', 'uuid', $uniqueProcessingId],
             'processing_type' => ['sometimes', 'required', Rule::enum(MediaType::class)],
             'status' => ['sometimes', 'required', Rule::enum(ProcessingStatus::class)],
             'original_filename' => ['sometimes', 'required', 'string', 'max:255'],
             'file_hash' => ['nullable', 'string', 'max:64'],
             'file_size' => ['nullable', 'integer', 'min:0'],
             'duration' => ['nullable', 'numeric', 'min:0', 'max:9999999.999'],
+            'extracted_date' => ['nullable', 'date'],
+            'extracted_service' => ['nullable', Rule::enum(SermonService::class)],
             'sermon_start_time' => ['nullable', 'numeric', 'min:0', 'max:9999999.999'],
             'sermon_end_time' => ['nullable', 'numeric', 'min:0', 'max:9999999.999', 'gte:sermon_start_time'],
+            'ai_analysis' => ['nullable', 'array'],
+            'processing_metadata' => ['nullable', 'array'],
+            'rms_stats' => ['nullable', 'array'],
+            'visual_samples' => ['nullable', 'array'],
+            'song_clusters' => ['nullable', 'array'],
             'visual_sample_count' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
             'visual_processing_time' => ['nullable', 'numeric', 'min:0', 'max:9999999.999'],
             'sermon_id' => ['nullable', 'integer', 'min:1', 'max:4294967295', 'exists:sermons,id'],
@@ -679,6 +692,8 @@ class MediaProcessingLog extends Model
             'job_id' => ['nullable', 'string', 'max:255'],
             'dedup_key' => ['nullable', 'string', 'max:128'],
             'attempt_count' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'started_at' => ['nullable', 'date'],
+            'completed_at' => ['nullable', 'date'],
             'is_degraded_completion' => ['nullable', 'boolean'],
         ];
     }
