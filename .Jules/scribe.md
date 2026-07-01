@@ -21,3 +21,7 @@
 ## 2026-06-18 - [Logic-Dense Service Unit Testing]
 **Learning:** Testing services like `SectionItemAlignmentScorer` that perform complex scoring and string manipulation (tokenization) is most effective when done via isolated unit tests using unpersisted models (`new Model()`). This avoids database overhead and ensures the tests focus purely on the algorithmic logic.
 **Action:** Prefer `new Model()` over `factory()->create()` for unit tests of services that do not require database persistence or complex relationship resolution.
+
+## 2026-06-19 - [Pure Logic Service Testing]
+**Learning:** Unit testing a pure-logic service like `MediaInterludeCueDetector` that performs simple keyword matching is straightforward but essential for ensuring the robust detection of media interludes during structural section alignment.
+**Action:** Use descriptive test names that reflect the business rules (e.g., case-insensitivity, embedded phrases) and prefer `new Class` instantiation for services with no dependencies.
