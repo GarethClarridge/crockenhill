@@ -90,7 +90,7 @@
                             @endif
                             <div>
                                 <p class="text-gray-500">Imported</p>
-                                <p class="font-medium">{{ $churchService->updated_at?->format('j M Y H:i') }}</p>
+                                <p class="font-medium">{{ $churchService->updated_at?->format('j M Y g:ia') }}</p>
                             </div>
                             <div>
                                 <p class="text-gray-500">Review status</p>

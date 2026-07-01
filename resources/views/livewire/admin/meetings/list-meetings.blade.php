@@ -60,9 +60,9 @@
                         <p class="font-medium">{{ $meeting->day }}</p>
                         @if($meeting->start_time)
                             <p class="text-sm text-gray-500">
-                                {{ $meeting->start_time->format('H:i') }}
+                                {{ $meeting->start_time->format('g:ia') }}
                                 @if($meeting->end_time)
-                                    - {{ $meeting->end_time->format('H:i') }}
+                                    - {{ $meeting->end_time->format('g:ia') }}
                                 @endif
                             </p>
                         @endif
@@ -108,7 +108,7 @@
                 >
                     @if(!$hasFilters)
                         <x-button link="{{ route('admin.meetings.create') }}" variant="primary" icon="plus" inline>
-                            Create Meeting
+                            Create meeting
                         </x-button>
                     @endif
                 </x-admin.empty-state>
