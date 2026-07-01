@@ -14,8 +14,7 @@
                 wire:loading.attr="aria-disabled"
                 aria-disabled="false"
                 wire:target="sort('{{ $column }}')"
-                class="group inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded px-1 -mx-1 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                @if($sortBy === $column) aria-label="{{ $label }}: sorted {{ $sortDirection === 'asc' ? 'ascending' : 'descending' }}" @else aria-label="{{ $label }}: click to sort" @endif>
+                class="group inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded px-1 -mx-1 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
             <span>{{ $label }}</span>
             <span class="flex-none rounded bg-gray-100 text-gray-900 group-hover:bg-gray-200 transition-colors">
                 <span wire:loading.remove wire:target="sort('{{ $column }}')">
