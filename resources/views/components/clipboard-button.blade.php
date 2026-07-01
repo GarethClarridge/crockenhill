@@ -61,6 +61,7 @@ $resolvedIconSize = $iconSizeClasses[$hideLabel ? 'xs' : $size] ?? $iconSizeClas
         });
     "
     {{ $attributes->merge(['class' => $classes]) }}
+    :aria-label="copied ? {{ \Illuminate\Support\Js::from($copiedLabel) }} : {{ \Illuminate\Support\Js::from($ariaLabel) }}"
     :title="copied ? {{ \Illuminate\Support\Js::from($copiedLabel) }} : {{ \Illuminate\Support\Js::from($title) }}"
     x-cloak
 >

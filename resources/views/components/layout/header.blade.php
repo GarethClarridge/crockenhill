@@ -10,23 +10,23 @@
   <div class="w-full grid grid-cols-7 justify-between bg-cbc-pattern bg-size-cover text-white lg:grid-cols-12">
 
   <a
-    class="col-span-6 grid grid-cols-6 items-center p-2 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
+    class="col-span-6 flex items-center p-2 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
     href="/"
     wire:navigate
     x-bind:aria-hidden="expanded"
     x-bind:inert="expanded"
   >
-    <div class="col-span-1">
-      <img src="/svg/IconWhite.svg" class="max-h-8 align-top" alt="" aria-hidden="true" width="30" height="32">
-    </div>
-    <div
-      class="col-span-5 text-center font-display text-xl min-[400px]:text-2xl pb-1"
-      x-bind:class="expanded ? 'lg:opacity-0' : 'lg:opacity-100'"
+    <img src="/svg/IconWhite.svg" class="max-h-8 align-top" alt="" aria-hidden="true" width="30" height="32">
+    <span
+      class="flex-1 text-center font-display text-xl min-[400px]:text-2xl pb-1"
+      x-bind:class="expanded ? 'lg:pointer-events-none lg:opacity-0' : 'lg:pointer-events-auto lg:opacity-100'"
+      x-bind:aria-hidden="expanded"
+      x-bind:inert="expanded"
     >
-      <span class="mx-auto my-auto inline-block align-middle">
+      <span class="mx-auto my-auto inline-block align-middle pb-1">
         Crockenhill Baptist Church
       </span>
-    </div>
+    </span>
   </a>
 
   <a
