@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presenters;
 
+use App\Models\Sermon;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Services\Public\SermonRepository;
 use App\Support\BibleCanon;
@@ -117,6 +118,14 @@ class BreadcrumbPresenter
 
             if ($this->request->routeIs('sermons.index')) {
                 $items = array_merge($items, $this->buildSermonFilterItems());
+            }
+
+            if ($this->request->routeIs(['sermons.show', 'sermons.show.dated'])) {
+                $sermon = $this->request->route('sermon');
+                if ($sermon instanceof Sermon && filled($sermon->series)) {
+                    $items[] = ['name' => 'Series', 'item' => route('sermons.series')];
+                    $items[] = ['name' => $sermon->series, 'item' => route('sermons.series.show', ['series' => Str::slug($sermon->series)])];
+                }
             }
         } elseif ($segment2 === 'members') {
             $items[] = ['name' => 'Members', 'item' => url('church/members')];
