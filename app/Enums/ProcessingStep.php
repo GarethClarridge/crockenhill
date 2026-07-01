@@ -41,6 +41,7 @@ enum ProcessingStep: string
     case SectionClassificationComplete = 'section_classification_complete';
     case SectionClassificationSkipped = 'section_classification_skipped';
     case TranscribeSpeechSegments = 'transcribe_speech_segments';
+    case TranscribeFullService = 'transcribe_full_service';
     case ClassifySpeechSections = 'classify_speech_sections';
     case ProjectLivestreamServiceStructure = 'project_livestream_service_structure';
     case AlignWithOos = 'align_with_oos';

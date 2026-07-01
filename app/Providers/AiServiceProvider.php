@@ -6,14 +6,19 @@ namespace App\Providers;
 
 use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\SermonAnalysisInterface;
+use App\Contracts\ServiceTranscriptionInterface;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
 use App\Services\Media\Audio\AudioTranscriptionService;
+use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
 use App\Services\Media\Audio\LocalWhisperTranscriptionService;
+use App\Services\Media\Audio\MockServiceTranscriptionService;
 use App\Services\Media\Audio\MockTranscriptionService;
+use App\Services\Media\Audio\OpenAiServiceTranscriptionService;
 use App\Services\Sermon\MockSermonAnalysisService;
 use App\Services\Sermon\SermonAnalysisService;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 
 class AiServiceProvider extends ServiceProvider
 {
@@ -36,6 +41,19 @@ class AiServiceProvider extends ServiceProvider
                 'mock' => $app->make(MockTranscriptionService::class),
                 'local' => $app->make(LocalWhisperTranscriptionService::class),
                 default => $app->make(AudioTranscriptionService::class),
+            };
+        });
+
+        $this->app->bind(ServiceTranscriptionInterface::class, function ($app): ServiceTranscriptionInterface {
+            $serviceType = (string) config('media-processing.service_structure.transcription_service', 'mock');
+
+            return match ($serviceType) {
+                'mock' => $app->make(MockServiceTranscriptionService::class),
+                'local' => $app->make(LocalWhisperServiceTranscriptionService::class),
+                'openai' => $app->make(OpenAiServiceTranscriptionService::class),
+                default => throw new InvalidArgumentException(
+                    "Unknown service structure transcription service [{$serviceType}]; expected mock, local or openai."
+                ),
             };
         });
 

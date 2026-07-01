@@ -242,6 +242,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | LLM-First Service Structure Pipeline
+    |--------------------------------------------------------------------------
+    | Full-service transcription + one-call LLM structure detection, replacing
+    | the heuristic classification cluster once promoted. Rolled out via `mode`
+    | (off → shadow → primary); everything defaults dark. Unknown values throw
+    | at resolution time — there is deliberately no silent fallback.
+    */
+    'service_structure' => [
+        // mock|openai|local — the ServiceTranscriptionInterface binding.
+        'transcription_service' => env('SERVICE_TRANSCRIPTION_SERVICE', 'mock'),
+        // Whisper model for the whole-recording pass. Must support verbose_json
+        // segment timestamps (whisper-1); gpt-4o-transcribe does not.
+        'transcription_model' => env('SERVICE_TRANSCRIPTION_MODEL', 'whisper-1'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Media / Video Interludes (Improvement #5)
     |--------------------------------------------------------------------------
     | Tags detected blocks that align to an OoS `media` item (e.g. "Bibles.mp4")

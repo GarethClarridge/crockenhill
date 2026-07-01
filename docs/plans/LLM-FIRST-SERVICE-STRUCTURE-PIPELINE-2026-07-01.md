@@ -1,5 +1,34 @@
 # LLM-First Service Structure Pipeline — Implementation Plan (2026-07-01)
 
+## Progress log
+
+| Phase | Status | PR | Notes |
+|-------|--------|----|-------|
+| 1 — Full-service transcript | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v` | See implementation notes below. |
+| 2 — Structure detection | Not started | — | |
+| 3 — Deterministic gate | Not started | — | |
+| 4 — Pipeline wiring | Not started | — | |
+| 5 — Eval + shadow tooling | Not started | — | |
+| 6 — Promote and retire | Blocked on maintainer go | — | |
+
+### Phase 1 implementation notes (deviations from plan text)
+
+- The `service_structure` config block landed early with only the transcription knobs
+  (`transcription_service`, `transcription_model`); `mode`/`detector`/thresholds arrive with
+  Phase 4 wiring so no dead knobs exist in between. `transcription_model` defaults to `whisper-1` —
+  the only OpenAI model that returns `verbose_json` segment timestamps.
+- Oversized-audio chunking reuses `AudioChunkingService` (fixed 6-min windows, 15 s overlap)
+  rather than bespoke RMS-silence chunking: cue times are re-offset per chunk and cues inside the
+  repeated overlap window are dropped, unit-tested against faked verbose_json responses. Silence
+  data still shapes boundaries later via Phase 3 snapping, where it actually matters.
+- The transcript is stored as `temp/service_transcript_{processing_id}.json` on the temp disk
+  (idempotent overwrite), recorded in `processing_metadata['service_transcript_path']`, and added
+  to `MediaProcessingLog::temporaryFilePaths()` so run cleanup removes it.
+- `TranscribeFullService` currently propagates failures (retry → failed run) like its siblings;
+  the shadow-mode "never fail the run" guard belongs to Phase 4, where `mode` exists to consult.
+- `MockServiceTranscriptionService::useTranscript()` is static per-test fixture state; tests that
+  set it reset it in tearDown.
+
 ## Goal
 
 Make sermon/talk/song extraction from livestream recordings reliable by restructuring the middle of

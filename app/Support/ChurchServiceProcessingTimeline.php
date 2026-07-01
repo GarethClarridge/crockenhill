@@ -10,6 +10,10 @@ final class ChurchServiceProcessingTimeline
 
     public const TRANSCRIBE_SPEECH_SEGMENTS = 'transcribe_speech_segments';
 
+    // LLM-first structure pipeline step; joins steps() display when the
+    // pipeline is wired into the chains (service_structure.mode != off).
+    public const TRANSCRIBE_FULL_SERVICE = 'transcribe_full_service';
+
     public const CLASSIFY_SPEECH_SECTIONS = 'classify_speech_sections';
 
     public const PROJECT_LIVESTREAM_SERVICE_STRUCTURE = 'project_livestream_service_structure';
