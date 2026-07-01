@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Exceptions\NonRetryableTranscriptionException;
+use App\Exceptions\TranscriptionException;
 use App\Services\BritishEnglishConverter;
 use App\Services\Media\Audio\AudioChunkingService;
 use App\Services\Media\Audio\AudioTranscriptionService;
@@ -16,6 +18,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Exceptions\ErrorException;
+use OpenAI\Laravel\Facades\OpenAI;
 use Tests\TestCase;
 
 class AudioTranscriptionServiceValidationTest extends TestCase
@@ -25,6 +28,8 @@ class AudioTranscriptionServiceValidationTest extends TestCase
     protected AudioTranscriptionService $service;
 
     protected SermonProcessingLogger $mockLogger;
+
+    protected AudioChunkingService $mockChunkingService;
 
     protected function setUp(): void
     {
@@ -48,8 +53,12 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
         $storageService = app(TranscriptStorageService::class);
         $formatter = new TranscriptFormatterService(app(BritishEnglishConverter::class));
-        $chunkingService = new AudioChunkingService($this->mockLogger);
-        $this->service = new AudioTranscriptionService($this->mockLogger, $storageService, $chunkingService, $formatter);
+        $this->mockChunkingService = $this->createMock(AudioChunkingService::class);
+        $this->mockChunkingService->method('getAudioDuration')->willReturn(100.0);
+        $this->mockChunkingService->method('needsChunking')->willReturn(false);
+        $this->mockChunkingService->method('compressAudioForTranscription')->willReturnArgument(0);
+
+        $this->service = new AudioTranscriptionService($this->mockLogger, $storageService, $this->mockChunkingService, $formatter);
     }
 
     public function test_service_requires_openai_api_key(): void
@@ -214,6 +223,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
                 'Failed to get audio duration',
                 'Unable to probe',
                 'Audio file too large',
+                'Transcription failed',
             ];
 
             $hasValidFailure = false;
@@ -233,41 +243,55 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
     public function test_is_non_retryable_error_correctly_detects_non_retryable_status_codes(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('isNonRetryableError');
+        $testFilePath = 'test_api_error.mp3';
+        Storage::disk('local')->put($testFilePath, 'mock content');
 
-        // OpenAI's ErrorException stores the HTTP status code in $statusCode, accessible
-        // via getStatusCode(). getCode() always returns 0 (no code passed to parent::__construct),
-        // so isNonRetryableError() must use getStatusCode() — not getCode().
         $nonRetryableCodes = [400, 401, 413];
         foreach ($nonRetryableCodes as $code) {
-            $exception = new ErrorException([
-                'message' => 'Test error',
-                'type' => 'test_error',
-                'code' => (string) $code,
-            ], new Response($code));
+            OpenAI::fake([
+                new ErrorException([
+                    'message' => "Test error {$code}",
+                    'type' => 'test_error',
+                    'code' => (string) $code,
+                ], new Response($code)),
+            ]);
 
-            $this->assertEquals(0, $exception->getCode());
-            $this->assertEquals($code, $exception->getStatusCode());
-            $this->assertTrue($method->invoke($this->service, $exception), "Expected status {$code} to be non-retryable");
+            try {
+                $this->service->transcribe($testFilePath, 'test-proc-id');
+                $this->fail("Expected NonRetryableTranscriptionException for status {$code}");
+            } catch (NonRetryableTranscriptionException $e) {
+                $this->assertStringContainsString((string) $code, $e->getMessage());
+            }
         }
+
+        Storage::disk('local')->delete($testFilePath);
     }
 
     public function test_is_non_retryable_error_treats_retryable_status_codes_as_retryable(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('isNonRetryableError');
+        $testFilePath = 'test_api_retryable_error.mp3';
+        Storage::disk('local')->put($testFilePath, 'mock content');
 
         $retryableCodes = [429, 500, 503];
         foreach ($retryableCodes as $code) {
-            $exception = new ErrorException([
-                'message' => 'Transient error',
-                'type' => 'server_error',
-                'code' => null,
-            ], new Response($code));
+            OpenAI::fake([
+                new ErrorException([
+                    'message' => "Transient error {$code}",
+                    'type' => 'server_error',
+                    'code' => null,
+                ], new Response($code)),
+            ]);
 
-            $this->assertFalse($method->invoke($this->service, $exception), "Expected status {$code} to be retryable");
+            try {
+                $this->service->transcribe($testFilePath, 'test-proc-id');
+                $this->fail("Expected TranscriptionException for status {$code}");
+            } catch (TranscriptionException $e) {
+                $this->assertNotInstanceOf(NonRetryableTranscriptionException::class, $e);
+                $this->assertStringContainsString((string) $code, $e->getMessage());
+            }
         }
+
+        Storage::disk('local')->delete($testFilePath);
     }
 
     protected function tearDown(): void
