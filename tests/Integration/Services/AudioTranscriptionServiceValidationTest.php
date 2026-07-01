@@ -207,34 +207,38 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
     public function test_error_message_includes_compression_guidance(): void
     {
-        // Create an oversized file
-        Config::set('media-processing.transcription.max_file_size', 1024); // 1KB
+        // Force the file over the transcription size limit using the key the
+        // service actually reads, so it attempts compression.
+        Config::set('media-processing.audio_extraction.transcription_optimized.max_file_size', 1024); // 1KB
+
+        // A chunking service whose compression step fails deterministically, so
+        // we exercise the "compression failed" branch that surfaces the
+        // operator-facing guidance — without falling through to the OpenAI client.
+        $failingChunkingService = $this->createMock(AudioChunkingService::class);
+        $failingChunkingService->method('getAudioDuration')->willReturn(100.0);
+        $failingChunkingService->method('needsChunking')->willReturn(false);
+        $failingChunkingService->method('compressAudioForTranscription')
+            ->willThrowException(new \RuntimeException('ffmpeg unavailable'));
+
+        $service = new AudioTranscriptionService(
+            $this->mockLogger,
+            app(TranscriptStorageService::class),
+            $failingChunkingService,
+            new TranscriptFormatterService(app(BritishEnglishConverter::class)),
+        );
+
         $testFilePath = 'test_guidance_audio.mp3';
-        Storage::disk('public')->put($testFilePath, str_repeat('a', 2048)); // 2KB
+        Storage::disk('public')->put($testFilePath, str_repeat('a', 2048)); // 2KB > 1KB limit
 
         try {
-            $this->service->transcribe($testFilePath, 'test-processing-id');
-            $this->fail('Expected exception was not thrown');
-        } catch (Exception $e) {
-            $message = $e->getMessage();
-            // The service may fail at different validation stages
-            $validFailureReasons = [
+            $service->transcribe($testFilePath, 'test-processing-id');
+            $this->fail('Expected a TranscriptionException was not thrown');
+        } catch (TranscriptionException $e) {
+            // The failure must guide the operator toward compressing the audio.
+            $this->assertStringContainsString(
                 'Please ensure audio is compressed for transcription',
-                'Failed to get audio duration',
-                'Unable to probe',
-                'Audio file too large',
-                'Transcription failed',
-            ];
-
-            $hasValidFailure = false;
-            foreach ($validFailureReasons as $reason) {
-                if (str_contains($message, $reason)) {
-                    $hasValidFailure = true;
-                    break;
-                }
-            }
-
-            $this->assertTrue($hasValidFailure, 'Expected a valid failure reason, got: '.$message);
+                $e->getMessage(),
+            );
         }
 
         // Cleanup
@@ -249,10 +253,14 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         $nonRetryableCodes = [400, 401, 413];
         foreach ($nonRetryableCodes as $code) {
             OpenAI::fake([
+                // Only the HTTP status (via the Response) should drive the
+                // non-retryable classification. Keep the payload `code` null so
+                // the test fails if the classifier regresses to reading it
+                // instead of the response status.
                 new ErrorException([
                     'message' => "Test error {$code}",
                     'type' => 'test_error',
-                    'code' => (string) $code,
+                    'code' => null,
                 ], new Response($code)),
             ]);
 
