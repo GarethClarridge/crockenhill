@@ -60,28 +60,26 @@ class SermonStorageMaintenanceService
                 default => Sermon::query()->whereRaw('1 = 0'),
             };
 
-            foreach ($query->get()->chunk($batchSize) as $chunk) {
-                foreach ($chunk as $sermon) {
-                    $summary['examined']++;
-                    $migration = $this->migrateSermonRecord($sermon, $targetDisk, $dryRun);
-                    $summary[$migration['summary_key']]++;
-                    $item = [
-                        'status' => $migration['status'],
-                        'label' => "[{$pattern}] {$migration['label']}",
-                    ];
-                    $items[] = $item;
-                    if ($progress !== null) {
-                        $progress($item);
-                    }
+            foreach ($query->lazy($batchSize) as $sermon) {
+                $summary['examined']++;
+                $migration = $this->migrateSermonRecord($sermon, $targetDisk, $dryRun);
+                $summary[$migration['summary_key']]++;
+                $item = [
+                    'status' => $migration['status'],
+                    'label' => "[{$pattern}] {$migration['label']}",
+                ];
+                $items[] = $item;
+                if ($progress !== null) {
+                    $progress($item);
+                }
 
-                    if (
-                        ! $dryRun
-                        && $delayMs > 0
-                        && $migration['summary_key'] === 'migrated'
-                        && $this->isEventuallyConsistentDisk($targetDisk)
-                    ) {
-                        usleep($delayMs * 1000);
-                    }
+                if (
+                    ! $dryRun
+                    && $delayMs > 0
+                    && $migration['summary_key'] === 'migrated'
+                    && $this->isEventuallyConsistentDisk($targetDisk)
+                ) {
+                    usleep($delayMs * 1000);
                 }
             }
         }
@@ -110,7 +108,7 @@ class SermonStorageMaintenanceService
             ->whereNotNull('audio_file_path')
             ->where('audio_file_path', 'LIKE', 'sermons/____/__/%.mp3')
             ->orderByDesc('created_at')
-            ->get();
+            ->lazy();
 
         foreach ($sermons as $sermon) {
             $summary['examined']++;
