@@ -152,7 +152,7 @@ class AudioEnhancementService
      * FFmpeg prints loudnorm JSON stats to stderr. Returns null if the pass fails
      * or the output cannot be parsed.
      *
-     * @return array<string, float>|null
+     * @return array{input_i: float, input_tp: float, input_lra: float, input_thresh: float, target_offset: float}|null
      */
     public function measureLoudness(string $inputPath, string $processingId, float $targetLufs, float $truePeak, float $lra): ?array
     {
@@ -175,7 +175,7 @@ class AudioEnhancementService
     /**
      * Extract and decode the loudnorm JSON block from FFmpeg stderr.
      *
-     * @return array<string, float>|null
+     * @return array{input_i: float, input_tp: float, input_lra: float, input_thresh: float, target_offset: float}|null
      */
     private function parseLoudnormJson(string $stderr, string $processingId): ?array
     {
