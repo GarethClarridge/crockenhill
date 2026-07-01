@@ -70,14 +70,7 @@
                 <x-content-wrapper class="mx-auto max-w-7xl px-6 md:px-8">
                     <div class="flex items-center justify-between gap-4">
                         <div class="hidden sm:block">
-                            <div wire:dirty.remove class="flex items-center gap-2 text-sm font-medium text-gray-500">
-                                <x-heroicon-o-pencil-square class="h-4 w-4 text-gray-400" aria-hidden="true" />
-                                <span>Editing <span class="text-gray-900">{{ $title }}</span></span>
-                            </div>
-                            <div wire:dirty class="flex items-center gap-2 text-sm font-semibold text-amber-700" role="alert">
-                                <x-heroicon-o-exclamation-triangle class="h-4 w-4 text-amber-500" aria-hidden="true" />
-                                <span>Unsaved changes on <span class="text-gray-900">{{ $title }}</span></span>
-                            </div>
+                            <p class="text-sm font-medium text-gray-500">Unsaved changes on <span class="text-gray-900">{{ $title }}</span></p>
                         </div>
                         <div class="flex flex-1 sm:flex-none items-center justify-end gap-2">
                             {{ $actions }}
