@@ -1,0 +1,58 @@
+{
+    "_comment": "CI fixture manifest: one entry whose expectations match what the mock detector derives from the transcript, and one deliberately-wrong entry that must produce non-zero deltas and sub-100% rates.",
+    "services": [
+        {
+            "label": "accurate expectations",
+            "transcript_file": "transcript-2026-06-07-am.json",
+            "oos_items": [
+                { "id": 1, "position": 1, "type": "welcome", "title": "Welcome", "song_id": null },
+                { "id": 2, "position": 2, "type": "song", "title": "Praise My Soul the King of Heaven", "song_id": 42 },
+                { "id": 3, "position": 3, "type": "bible_reading", "title": "Joshua 1:1-9", "song_id": null },
+                { "id": 4, "position": 4, "type": "sermon", "title": "The faithfulness of God", "song_id": null },
+                { "id": 5, "position": 5, "type": "prayer", "title": "Closing prayer", "song_id": null }
+            ],
+            "expected": {
+                "sections": [
+                    { "type": "welcome", "start_time": 0, "end_time": 20, "tolerance_seconds": 15 },
+                    { "type": "song", "start_time": 60, "end_time": 240, "tolerance_seconds": 15 },
+                    { "type": "bible_reading", "start_time": 245, "end_time": 420, "tolerance_seconds": 15 },
+                    { "type": "sermon", "start_time": 430, "end_time": 2200, "tolerance_seconds": 30 },
+                    { "type": "prayer", "start_time": 2210, "end_time": 2400, "tolerance_seconds": 15 }
+                ],
+                "sermon": { "start_time": 430, "end_time": 2200 },
+                "song_titles": ["Praise my soul the King of heaven"],
+                "reading_references": [],
+                "oos_anchorings": [
+                    { "type": "welcome", "oos_item_id": 1 },
+                    { "type": "song", "oos_item_id": 2 },
+                    { "type": "bible_reading", "oos_item_id": 3 },
+                    { "type": "sermon", "oos_item_id": 4 },
+                    { "type": "prayer", "oos_item_id": 5 }
+                ]
+            }
+        },
+        {
+            "label": "deliberately wrong expectations",
+            "transcript_file": "transcript-2026-06-07-am.json",
+            "oos_items": [
+                { "id": 1, "position": 1, "type": "welcome", "title": "Welcome", "song_id": null },
+                { "id": 2, "position": 2, "type": "song", "title": "Praise My Soul the King of Heaven", "song_id": 42 },
+                { "id": 3, "position": 3, "type": "bible_reading", "title": "Joshua 1:1-9", "song_id": null },
+                { "id": 4, "position": 4, "type": "sermon", "title": "The faithfulness of God", "song_id": null },
+                { "id": 5, "position": 5, "type": "prayer", "title": "Closing prayer", "song_id": null }
+            ],
+            "expected": {
+                "sections": [
+                    { "type": "notices", "start_time": 0, "end_time": 20, "tolerance_seconds": 15 },
+                    { "type": "song", "start_time": 60, "end_time": 240, "tolerance_seconds": 15 }
+                ],
+                "sermon": { "start_time": 700, "end_time": 2100 },
+                "song_titles": ["How Great Thou Art"],
+                "reading_references": ["Joshua 1:1-9"],
+                "oos_anchorings": [
+                    { "type": "sermon", "oos_item_id": 9 }
+                ]
+            }
+        }
+    ]
+}

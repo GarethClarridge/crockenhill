@@ -8,8 +8,8 @@
 | 2 — Structure detection | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p2` (stacked on #1046) | See implementation notes below. |
 | 3 — Deterministic gate | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p3` (stacked on p2) | See implementation notes below. |
 | 4 — Pipeline wiring | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p4` (stacked on p3) | See implementation notes below. |
-| 5 — Eval + shadow tooling | Not started | — | |
-| 6 — Promote and retire | Blocked on maintainer go | — | |
+| 5 — Eval + shadow tooling | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p5` (stacked on p4) | See implementation notes below. |
+| 6 — Promote and retire | Blocked on maintainer go | — | Next actions for the maintainer: merge the PR stack (#1046 → #1047 → #1048 → #1049 → p5), set `SERVICE_STRUCTURE_MODE=shadow` + `SERVICE_TRANSCRIPTION_SERVICE=openai` + `SERVICE_STRUCTURE_DETECTOR=openai` in production, let Sundays accumulate, run `structure:shadow-report`, fill a real manifest for `structure:evaluate`, then flip to `primary` when the gate numbers hold. |
 
 ### Phase 1 implementation notes (deviations from plan text)
 
@@ -114,6 +114,27 @@
 - The new timeline steps intentionally do **not** join `ChurchServiceProcessingTimeline::steps()`
   yet (the off-mode UI would show permanently-pending entries); they join the display at promotion.
 - Auto-trim pipelines and both post-review chains are pinned mode-independent by tests.
+
+### Phase 5 implementation notes
+
+- `structure:evaluate` accepts manifest entries (transcript file + inline OoS items + expectations)
+  and/or `--processing-id` entries (stored transcript/OoS/RMS from the run; expectations optional —
+  without them the entry contributes detection + validation results only). Manifest format is
+  documented in the command docblock and `docs/operations/structure-eval-manifest.example.json`.
+- Metrics: sermon Δstart/Δend with within-15 s/30 s rates (both boundaries must qualify),
+  per-section type accuracy within per-expectation tolerances + ordering match, OoS-anchoring
+  precision/recall, song-title and reading-reference match rates (normalised, case-insensitive),
+  hard/soft validation trigger counts, and **latency** per call. **Cost is not computed** — the
+  detector doesn't currently surface token usage; latency + the known per-model pricing cover the
+  go/no-go maths for now.
+- `structure:shadow-report` aggregates `service_structure_shadow` across runs (`--since`,
+  `--processing-id` filters): validation pass rate, type-sequence agreement, sermon delta stats,
+  OoS agreement rate, hard-failure histogram and a would-have-flagged count (validation failure or
+  any section carrying review flags). Errored shadow runs are counted, not hidden.
+- Both commands are console-only, run in CI against the mock detector and the committed fixture
+  manifest (`tests/Fixtures/StructureEval/`), including a deliberately-wrong entry asserting
+  non-zero deltas and sub-100% rates, and support `--report=` JSON output for keeping dated
+  snapshots.
 
 ## Goal
 
