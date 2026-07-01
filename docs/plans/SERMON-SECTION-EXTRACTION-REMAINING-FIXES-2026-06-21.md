@@ -15,13 +15,15 @@ implemented, tested, and pass all four quality gates** (Pint, PHPStan, parallel 
   `song_name_reference_only`; `Song::matchKeyVariants()` "O/Oh" comparison-time variants.
 - Stale `SectionExtractionScriptsTest` updated to the nine-scenario contract.
 
-This document covers the **three remaining pieces**, all deliberately deferred because each warrants focused
+This document covered **three remaining pieces**, all deliberately deferred because each warranted focused
 attention rather than being rushed alongside the correctness fixes:
 
-1. **Workstream D — F15** presentation-item positional fallback (P3, traceability only).
-2. **Part 3 — F2** end-to-end children's-talk publication test (P3, test-only).
+1. **Workstream D — F15** presentation-item positional fallback (P3, traceability only). **✅ Implemented and
+   merged** (`StructuralSectionAligner`, `SectionAlignmentBaselineRestorer`, `StructuralSectionAlignerTest`).
+2. **Part 3 — F2** end-to-end children's-talk publication test (P3, test-only). **✅ Implemented and merged**
+   (`tests/Feature/Operations/ChildrensTalkPublicationWorkflowTest.php`).
 3. **Part 2 — the LLM service-structure spike** (gated; owns the classification-cluster findings
-   **F1, F7, F11, F16**).
+   **F1, F7, F11, F16**). **⏳ Still gated — the only outstanding work in this document.**
 
 **Retracted / no-action:** F4, F6 (retracted); F8 (correct no-match on an OoS omission); **F14 deferred to
 investigation** — the reading-reference extractor is designed to name passages from *unannounced* recited
@@ -30,7 +32,14 @@ semantic passage validation after inspecting the stored transcript + raw model r
 
 ---
 
-## Workstream D — F15: positional fallback for presentation-type OoS items (P3)
+## Workstream D — F15: positional fallback for presentation-type OoS items (P3) — ✅ DONE
+
+**Status.** Implemented and merged. The additive fallback pass lives in
+`StructuralSectionAligner::applyPositionalFallback()` / `linkPositionalFallback()` (DP untouched);
+`presentation_positional_fallback` is registered in **both** `SectionAlignmentBaselineRestorer::OOS_REVIEW_FLAGS`
+and `OOS_REVIEW_REASONS`; and all four prescribed cases are covered in `StructuralSectionAlignerTest`
+(single-candidate link, already-aligned negative, two-candidate ambiguity negative, rerun idempotency). The
+original design notes below are retained for reference.
 
 **Problem.** Presentation items with generic slide names ("Andrew Talk.pptx", "epap.pptx", "Isaiah.pptx",
 "Slide1.JPG") never content-anchor, so `StructuralSectionAligner` leaves them as `item_gap` (unaligned). The
@@ -76,7 +85,15 @@ items/sections; confirm the existing `StructuralSectionAlignerTest` and `OosAlig
 
 ---
 
-## Part 3 — F2: end-to-end children's-talk publication test (P3, test-only)
+## Part 3 — F2: end-to-end children's-talk publication test (P3, test-only) — ✅ DONE
+
+**Status.** Implemented and merged as
+`tests/Feature/Operations/ChildrensTalkPublicationWorkflowTest.php`. It drives the full prepare → approve →
+publish chain (`PrepareSectionPublicationCandidates` → `ApproveSectionForPublication` →
+`PublishApprovedServiceSection`) against a detected `childrens_talk` section, mocking only ffmpeg extraction and
+the speaker-identification provider, and asserts a published `Sermon` with `content_type = childrens_talk` and
+the section reaching `ServiceSectionPublicationStatus::Published` with `published_sermon_id` set. The original
+design notes below are retained for reference.
 
 **Gap.** The content-type assertion already exists
 (`PublishApprovedServiceSectionTest::it_publishes_childrens_talk_sections_with_childrens_talk_content_type`).
