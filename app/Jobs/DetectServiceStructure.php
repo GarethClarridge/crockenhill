@@ -1,0 +1,434 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Jobs;
+
+use App\Contracts\ServiceStructureInterface;
+use App\Data\ChurchServiceTranscript;
+use App\Data\ServiceStructure;
+use App\Enums\MediaType;
+use App\Enums\ProcessingStep;
+use App\Enums\ServiceSectionType;
+use App\Enums\ServiceStructureMode;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
+use App\Services\ChurchService\ServiceSectionSyncService;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\ChurchService\Structure\ValidationContext;
+use App\Services\ChurchService\Structure\ValidationResult;
+use App\Services\Processing\MediaProcessingIdentityResolver;
+use App\Services\Sermon\SermonCandidateConfidenceService;
+use App\Support\ChurchServiceProcessingTimeline;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * One LLM call turns the full-service transcript plus the order of service
+ * into typed, timed sections — then deterministic code takes over: silence
+ * snapping, structural validation, and only then persistence.
+ *
+ * In shadow mode the heuristic sections stay authoritative: the proposal is
+ * written to run metadata with a structured diff, and no failure here ever
+ * fails the run. In primary mode a hard validation failure routes the run to
+ * the existing manual segment-confirmation flow.
+ */
+class DetectServiceStructure extends ProcessingJob implements ShouldQueue
+{
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
+
+    public int $tries = 3;
+
+    public int $timeout = 900;
+
+    public function __construct(
+        private MediaProcessingLog $processingLog
+    ) {}
+
+    /**
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping('detect-service-structure-'.$this->processingLog->id))
+                ->releaseAfter(30)
+                ->expireAfter($this->timeout + 120),
+        ];
+    }
+
+    public function handle(
+        ServiceStructureInterface $detector,
+        SilenceSnapService $snapService,
+        ServiceStructureValidator $validator,
+        ServiceSectionSyncService $syncService,
+        SermonCandidateConfidenceService $sermonConfidenceService,
+    ): void {
+        $mode = ServiceStructureMode::fromConfig();
+
+        if ($mode === ServiceStructureMode::Off) {
+            return;
+        }
+
+        if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
+            return;
+        }
+
+        if ($this->processingLog->processing_type !== MediaType::Livestream) {
+            $this->logStepSkipped(
+                ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
+                'Structure detection only runs for livestream processing'
+            );
+
+            return;
+        }
+
+        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::DetectServiceStructure->value);
+        $this->logStepStart(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE);
+
+        if ($mode === ServiceStructureMode::Shadow) {
+            $this->runShadow($detector, $snapService, $validator);
+
+            return;
+        }
+
+        $this->runPrimary($detector, $snapService, $validator, $syncService, $sermonConfidenceService);
+    }
+
+    protected function onJobFailure(\Throwable $exception): void
+    {
+        $this->initializeStepLogging($this->processingLog->processing_id);
+        $this->logStepFailed(
+            ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
+            $exception->getMessage()
+        );
+    }
+
+    /**
+     * Shadow: detect, gate, record — never touch service_sections, never fail the run.
+     */
+    private function runShadow(
+        ServiceStructureInterface $detector,
+        SilenceSnapService $snapService,
+        ServiceStructureValidator $validator,
+    ): void {
+        try {
+            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+
+            $classified = $result->structure->toClassifiedSections(
+                $this->processingLog,
+                $transcript,
+                allowSegmentSynthesis: false,
+            );
+
+            $diff = $this->diffAgainstAuthoritativeSections($result->structure);
+
+            $this->putShadowMetadata([
+                'generated_at' => now()->toIso8601String(),
+                'model' => $result->structure->model,
+                'passed_validation' => $result->passed(),
+                'hard_failures' => $result->hardFailures,
+                'unmatched_oos_item_ids' => $result->unmatchedOosItemIds,
+                'sections' => array_map(
+                    static fn (array $section): array => collect($section)->except('metadata')->all()
+                        + ['metadata' => collect($section['metadata'])->except('transcript')->all()],
+                    $classified
+                ),
+                'diff' => $diff,
+            ]);
+
+            Log::info('Service structure shadow diff', [
+                'processing_id' => $this->processingLog->processing_id,
+                'passed_validation' => $result->passed(),
+                'hard_failure_codes' => $result->failureCodes(),
+                ...$diff,
+            ]);
+
+            $this->logStepComplete(
+                ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
+                sprintf('Shadow proposal recorded (%d section(s), validation %s)', count($classified), $result->passed() ? 'passed' : 'failed')
+            );
+        } catch (\Throwable $throwable) {
+            Log::warning('Service structure shadow run failed; heuristic pipeline unaffected', [
+                'processing_id' => $this->processingLog->processing_id,
+                'error' => $throwable->getMessage(),
+            ]);
+
+            $this->putShadowMetadata([
+                'generated_at' => now()->toIso8601String(),
+                'error' => $throwable->getMessage(),
+            ]);
+
+            $this->logStepSkipped(
+                ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
+                'Shadow structure detection failed: '.$throwable->getMessage()
+            );
+        }
+    }
+
+    /**
+     * Primary: the gate decides — sync on pass, manual review on hard failure.
+     */
+    private function runPrimary(
+        ServiceStructureInterface $detector,
+        SilenceSnapService $snapService,
+        ServiceStructureValidator $validator,
+        ServiceSectionSyncService $syncService,
+        SermonCandidateConfidenceService $sermonConfidenceService,
+    ): void {
+        [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+
+        if (! $result->passed()) {
+            $reasonMessage = 'Detected service structure failed validation: '.$result->failureSummary();
+            $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
+
+            $this->markProcessingRunForManualReview(
+                $this->processingLog,
+                'llm_structure_validation_failed',
+                $reasonMessage,
+                $evaluation['speech_segments']
+            );
+
+            // Stop the remaining chained jobs; the operator resumes via the
+            // existing segment-confirmation flow (post-review chain).
+            $this->chained = [];
+
+            $this->logStepFailed(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $reasonMessage);
+
+            Log::warning('Service structure detection routed to manual review', [
+                'processing_id' => $this->processingLog->processing_id,
+                'failure_codes' => $result->failureCodes(),
+            ]);
+
+            return;
+        }
+
+        $classified = $result->structure->toClassifiedSections($this->processingLog, $transcript);
+
+        $syncService->sync($this->processingLog, $classified);
+
+        $this->logStepComplete(
+            ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
+            sprintf('Persisted %d LLM-detected section(s)', count($classified))
+        );
+    }
+
+    /**
+     * @return array{0: ValidationResult, 1: ChurchServiceTranscript}
+     */
+    private function detectAndValidate(
+        ServiceStructureInterface $detector,
+        SilenceSnapService $snapService,
+        ServiceStructureValidator $validator,
+    ): array {
+        $transcript = $this->loadTranscript();
+        $oosItems = $this->loadOosItems();
+
+        $structure = $detector->detect(
+            $transcript,
+            $this->oosItemPayloads($oosItems),
+            $this->processingLog->processing_id
+        );
+
+        $structure = $this->snapToSilences($structure, $snapService);
+
+        $result = $validator->validate($structure, ValidationContext::for($transcript, $oosItems));
+
+        return [$result, $transcript];
+    }
+
+    private function loadTranscript(): ChurchServiceTranscript
+    {
+        $transcriptPath = $this->processingLog->serviceTranscriptPath();
+
+        if ($transcriptPath === null) {
+            throw new \RuntimeException('No full-service transcript recorded for this run; TranscribeFullService must run first.');
+        }
+
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        if (! Storage::disk($tempDisk)->exists($transcriptPath)) {
+            throw new \RuntimeException("Full-service transcript artifact missing: {$transcriptPath}");
+        }
+
+        $transcript = ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk($tempDisk)->get($transcriptPath), true)
+        );
+
+        if ($transcript->isEmpty()) {
+            throw new \RuntimeException('Stored full-service transcript contains no cues.');
+        }
+
+        return $transcript;
+    }
+
+    /**
+     * @return list<ChurchServiceItem>
+     */
+    private function loadOosItems(): array
+    {
+        $churchService = $this->resolveChurchService();
+
+        if (! $churchService instanceof ChurchService) {
+            return [];
+        }
+
+        return $churchService->items()
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get()
+            ->all();
+    }
+
+    private function resolveChurchService(): ?ChurchService
+    {
+        if ($this->processingLog->church_service_id !== null) {
+            return $this->processingLog->churchService()->first();
+        }
+
+        $identity = app(MediaProcessingIdentityResolver::class)->resolve($this->processingLog);
+
+        if ($identity === null) {
+            return null;
+        }
+
+        $churchService = ChurchService::query()
+            ->where('date', $identity['date'])
+            ->where('service', $identity['service']->value)
+            ->first();
+
+        if ($churchService instanceof ChurchService) {
+            $this->processingLog->forceFill([
+                'church_service_id' => $churchService->id,
+            ])->saveQuietly();
+        }
+
+        return $churchService;
+    }
+
+    /**
+     * @param  list<ChurchServiceItem>  $items
+     * @return array<int, array{id: int, position: int, type: string, title: ?string, song_id: ?int}>
+     */
+    private function oosItemPayloads(array $items): array
+    {
+        return array_map(
+            static fn (ChurchServiceItem $item): array => [
+                'id' => (int) $item->id,
+                'position' => (int) $item->position,
+                'type' => $item->semanticSectionType()->value,
+                'title' => $item->title,
+                'song_id' => $item->song_id === null ? null : (int) $item->song_id,
+            ],
+            $items
+        );
+    }
+
+    private function snapToSilences(ServiceStructure $structure, SilenceSnapService $snapService): ServiceStructure
+    {
+        $rmsLogPath = $this->processingLog->rms_log_path;
+
+        if (! is_string($rmsLogPath) || $rmsLogPath === '') {
+            return $structure;
+        }
+
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        if (! Storage::disk($tempDisk)->exists($rmsLogPath)) {
+            return $structure;
+        }
+
+        return $snapService->snap($structure, (string) Storage::disk($tempDisk)->get($rmsLogPath));
+    }
+
+    /**
+     * Structured comparison of the LLM proposal against the authoritative
+     * heuristic service_sections — the shadow-mode evidence stream.
+     *
+     * @return array<string, mixed>
+     */
+    private function diffAgainstAuthoritativeSections(ServiceStructure $structure): array
+    {
+        $heuristicSections = ServiceSection::query()
+            ->where('media_processing_log_id', $this->processingLog->id)
+            ->orderBy('section_order')
+            ->orderBy('id')
+            ->get();
+
+        $heuristicTypes = $heuristicSections->pluck('section_type')->map(fn ($type) => $type->value)->all();
+        $llmTypes = array_map(static fn ($section) => $section->type->value, $structure->sections);
+
+        $diff = [
+            'heuristic_section_count' => count($heuristicTypes),
+            'llm_section_count' => count($llmTypes),
+            'heuristic_types' => $heuristicTypes,
+            'llm_types' => $llmTypes,
+            'type_sequence_match' => $heuristicTypes === $llmTypes,
+            'sermon' => null,
+            'boundary_deltas' => null,
+            'oos_anchoring' => null,
+        ];
+
+        $heuristicSermon = $heuristicSections->firstWhere('section_type', ServiceSectionType::Sermon);
+        $llmSermons = $structure->sectionsOfType(ServiceSectionType::Sermon);
+
+        if ($heuristicSermon instanceof ServiceSection && $llmSermons !== []) {
+            $diff['sermon'] = [
+                'heuristic_start' => (float) $heuristicSermon->start_time,
+                'heuristic_end' => (float) $heuristicSermon->end_time,
+                'llm_start' => $llmSermons[0]->startTime,
+                'llm_end' => $llmSermons[0]->endTime,
+                'start_delta' => round($llmSermons[0]->startTime - (float) $heuristicSermon->start_time, 2),
+                'end_delta' => round($llmSermons[0]->endTime - (float) $heuristicSermon->end_time, 2),
+            ];
+        }
+
+        if ($diff['type_sequence_match']) {
+            $boundaryDeltas = [];
+            $oosMatches = 0;
+            $oosConflicts = 0;
+
+            foreach ($structure->sections as $index => $section) {
+                $heuristic = $heuristicSections[$index];
+
+                $boundaryDeltas[] = [
+                    'type' => $section->type->value,
+                    'start_delta' => round($section->startTime - (float) $heuristic->start_time, 2),
+                    'end_delta' => round($section->endTime - (float) $heuristic->end_time, 2),
+                ];
+
+                if ($section->oosItemId === $heuristic->church_service_item_id) {
+                    $oosMatches++;
+                } else {
+                    $oosConflicts++;
+                }
+            }
+
+            $diff['boundary_deltas'] = $boundaryDeltas;
+            $diff['oos_anchoring'] = ['agreements' => $oosMatches, 'disagreements' => $oosConflicts];
+        }
+
+        return $diff;
+    }
+
+    /**
+     * @param  array<string, mixed>  $shadow
+     */
+    private function putShadowMetadata(array $shadow): void
+    {
+        $metadata = $this->processingLog->processing_metadata?->toArray() ?? [];
+        $metadata['service_structure_shadow'] = $shadow;
+
+        $this->processingLog->forceFill(['processing_metadata' => $metadata])->save();
+    }
+}

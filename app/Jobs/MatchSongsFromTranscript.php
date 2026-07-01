@@ -10,6 +10,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
+use App\Enums\ServiceStructureMode;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -163,9 +164,11 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             }
         }
 
-        if ($matchedCount > 0) {
+        if ($matchedCount > 0 && ServiceStructureMode::fromConfig() !== ServiceStructureMode::Primary) {
             // Re-run the full OoS alignment so the new catalog-backed matches link
             // sections to their order-of-service items and review state is rebuilt.
+            // In primary mode the LLM detector owns OoS anchoring, so the heuristic
+            // aligner must not rewrite it — matches stand on their own metadata.
             $alignmentService->alignForProcessingLog($this->processingLog);
         }
 

@@ -871,4 +871,58 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertNull($section->metadata['transcript_song_match'] ?? null);
     }
+
+    // ---- LLM-first primary mode ----
+
+    #[Test]
+    public function it_confirms_an_llm_proposed_song_title_without_rerunning_oos_alignment_in_primary_mode(): void
+    {
+        config(['media-processing.service_structure.mode' => 'primary']);
+
+        $song = Song::factory()->create([
+            'title' => 'Praise My Soul the King of Heaven',
+            'canonical_key' => 'praise my soul the king of heaven',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        // The shape DetectServiceStructure persists: LLM anchoring already on
+        // the section, the sung title carried as the first-choice hint.
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => null,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'classification_mode' => 'llm_structure',
+                'song_title' => 'Praise My Soul the King of Heaven',
+                'song_title_hint' => 'Praise My Soul the King of Heaven',
+                'review_flags' => [],
+            ],
+        ]);
+
+        // In primary mode the LLM owns OoS anchoring — the heuristic aligner
+        // must not run and rewrite it.
+        $alignmentService = $this->mock(OosAlignmentService::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('alignForProcessingLog');
+        });
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            $alignmentService,
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $match = $section->metadata['transcript_song_match'] ?? null;
+        $this->assertIsArray($match);
+        $this->assertSame($song->id, $match['song_id']);
+        $this->assertSame('title_hint_canonical', $match['match_source']);
+    }
 }

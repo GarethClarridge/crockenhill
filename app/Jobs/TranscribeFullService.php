@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Enums\ProcessingStep;
+use App\Enums\ServiceStructureMode;
 use App\Models\MediaProcessingLog;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -97,6 +98,19 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $throwable->getMessage(),
             ]);
+
+            // In shadow mode the heuristic pipeline stays authoritative: a
+            // transcription failure is recorded and swallowed so it can never
+            // fail the run. DetectServiceStructure will find no transcript and
+            // record its own shadow error.
+            if (ServiceStructureMode::fromConfig() === ServiceStructureMode::Shadow) {
+                $this->logStepSkipped(
+                    ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
+                    'Shadow transcription failed: '.$throwable->getMessage()
+                );
+
+                return;
+            }
 
             throw $throwable;
         } finally {

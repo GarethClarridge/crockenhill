@@ -7,7 +7,7 @@
 | 1 — Full-service transcript | ✅ Done (2026-07-01) | #1046 (`claude/llm-first-service-structure-48b00v`) | See implementation notes below. |
 | 2 — Structure detection | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p2` (stacked on #1046) | See implementation notes below. |
 | 3 — Deterministic gate | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p3` (stacked on p2) | See implementation notes below. |
-| 4 — Pipeline wiring | Not started | — | |
+| 4 — Pipeline wiring | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p4` (stacked on p3) | See implementation notes below. |
 | 5 — Eval + shadow tooling | Not started | — | |
 | 6 — Promote and retire | Blocked on maintainer go | — | |
 
@@ -78,6 +78,42 @@
 - The mapper optionally embeds each section's transcript excerpt
   (`metadata.transcript`, `transcript_scope = section_excerpt`) when given the full transcript, so
   downstream evidence consumers (song matching fallback, review UI) keep working in primary mode.
+
+### Phase 4 implementation notes (audit outcomes and decisions)
+
+- **`ProjectLivestreamServiceStructure` audit → retained** in the primary chain (after
+  `DetectServiceStructure`): it is load-bearing beyond classification — it creates/links the
+  canonical `ChurchService` when no OoS import exists, projecting from the persisted sections
+  (which the LLM path now writes), and self-skips when a real OoS import is present.
+- **`AnalyzeSegments` stays** in the primary livestream chain (per the Phase 3
+  `source_segment_ids` decision); the reclassification chain omits it because segments already
+  exist on a re-run. Primary livestream chain:
+  `AnalyzeSegments → TranscribeFullService → DetectServiceStructure →
+  ProjectLivestreamServiceStructure → MatchSongsFromTranscript → ExtractSermon → (tail unchanged)`.
+- Shadow inserts `TranscribeFullService → DetectServiceStructure` after
+  `ReclassifyIntroOutroSections` (the true end of the heuristic cluster including song matching),
+  immediately before `ExtractSermon`, so the diff compares final heuristic output.
+- Shadow safety: `TranscribeFullService` swallows failures in shadow mode; `DetectServiceStructure`
+  wraps its whole shadow run and records errors to `service_structure_shadow.error`; the shadow
+  mapper call passes `allowSegmentSynthesis: false` so shadow never writes segments. The stored
+  shadow sections omit per-section transcript excerpts to keep run metadata bounded.
+- Primary hard-validation failure calls `markProcessingRunForManualReview` with reason code
+  `llm_structure_validation_failed` and the speech-segment summaries (so the existing
+  segment-confirmation UI works), then clears `$this->chained` — same stop pattern as
+  `ExtractSermon`.
+- **Song-title confirmation** reuses the existing seam wholesale: the Phase 3 mapper writes the
+  LLM title to `metadata.song_title_hint`, which is already `MatchSongsFromTranscript`'s
+  first-choice input (canonical-key then fuzzy lyrics matching) ahead of OCR/transcription. The
+  only job change: in primary mode the post-match `OosAlignmentService` re-run is skipped — the
+  LLM owns OoS anchoring and the heuristic aligner must not rewrite it (`applyMatch` still links
+  the anchored item's `song_id` directly).
+- Reading-reference parity confirmed: consumers read `metadata.reading_reference` (e.g.
+  `ServiceFlowBuilder`); the mapper writes it with `reading_reference_source = llm_structure`.
+  `SermonExtractionPlanResolver` ranks readings off section rows + OoS linkage, not metadata, so
+  omitting `ResolveReadingReferences` in primary mode loses nothing.
+- The new timeline steps intentionally do **not** join `ChurchServiceProcessingTimeline::steps()`
+  yet (the off-mode UI would show permanently-pending entries); they join the display at promotion.
+- Auto-trim pipelines and both post-review chains are pinned mode-independent by tests.
 
 ## Goal
 

@@ -108,6 +108,7 @@ final readonly class ServiceStructure extends JsonData
      * this also keeps the manual segment-confirmation flow workable.
      *
      * @param  ChurchServiceTranscript|null  $transcript  When given, each section carries its transcript excerpt for downstream evidence (song matching, reading resolution)
+     * @param  bool  $allowSegmentSynthesis  Shadow mode passes false so mapping never writes to the database; unresolved sections keep an empty id list (they never reach sync)
      * @return array<int, array{
      *     church_service_item_id: int|null,
      *     section_type: string,
@@ -123,8 +124,11 @@ final readonly class ServiceStructure extends JsonData
      *     metadata: array<string, mixed>
      * }>
      */
-    public function toClassifiedSections(MediaProcessingLog $processingLog, ?ChurchServiceTranscript $transcript = null): array
-    {
+    public function toClassifiedSections(
+        MediaProcessingLog $processingLog,
+        ?ChurchServiceTranscript $transcript = null,
+        bool $allowSegmentSynthesis = true,
+    ): array {
         $segments = LivestreamSegment::query()
             ->where('media_processing_log_id', $processingLog->id)
             ->orderBy('segment_order')
@@ -145,7 +149,7 @@ final readonly class ServiceStructure extends JsonData
 
             $synthesisedSegment = false;
 
-            if ($sourceSegmentIds === []) {
+            if ($sourceSegmentIds === [] && $allowSegmentSynthesis) {
                 $sourceSegmentIds = [$this->synthesiseCoveringSegment($processingLog, $section, $nextSegmentIndex++)];
                 $synthesisedSegment = true;
             }
@@ -162,7 +166,7 @@ final readonly class ServiceStructure extends JsonData
                 'status' => ServiceSectionStatus::Identified->value,
                 'needs_manual_review' => $section->reviewFlags !== [],
                 'source_segment_ids' => $sourceSegmentIds,
-                'metadata' => $this->sectionMetadata($section, $transcript, $synthesisedSegment),
+                'metadata' => $this->sectionMetadata($section, $transcript, $synthesisedSegment, $sourceSegmentIds === []),
             ];
         }
 
@@ -176,6 +180,7 @@ final readonly class ServiceStructure extends JsonData
         ServiceStructureSection $section,
         ?ChurchServiceTranscript $transcript,
         bool $synthesisedSegment,
+        bool $segmentsUnresolved = false,
     ): array {
         $metadata = [
             'classification_mode' => 'llm_structure',
@@ -202,10 +207,18 @@ final readonly class ServiceStructure extends JsonData
 
         if ($section->songTitle !== null) {
             $metadata['song_title'] = $section->songTitle;
+            // MatchSongsFromTranscript's first-choice input: its title-hint
+            // path confirms this against the songs table via the existing
+            // normalised matching before any OCR or transcription fallback.
+            $metadata['song_title_hint'] = $section->songTitle;
         }
 
         if ($synthesisedSegment) {
             $metadata['synthesised_source_segment'] = true;
+        }
+
+        if ($segmentsUnresolved) {
+            $metadata['source_segments_unresolved'] = true;
         }
 
         if ($transcript instanceof ChurchServiceTranscript) {

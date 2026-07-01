@@ -124,6 +124,11 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
 
         $song = $sections->firstWhere('section_type', ServiceSectionType::Song);
         $this->assertSame('Praise My Soul the King of Heaven', $song->metadata['song_title']);
+        $this->assertSame(
+            'Praise My Soul the King of Heaven',
+            $song->metadata['song_title_hint'],
+            'The LLM title feeds MatchSongsFromTranscript as its first-choice hint.'
+        );
 
         // Golden path: the resolver prefers the high-confidence sermon section
         // and pairs the preceding reading, exactly as the heuristic path does.

@@ -250,6 +250,8 @@ return [
     | at resolution time — there is deliberately no silent fallback.
     */
     'service_structure' => [
+        // off|shadow|primary — the rollout switch (ServiceStructureMode).
+        'mode' => env('SERVICE_STRUCTURE_MODE', 'off'),
         // mock|openai — the ServiceStructureInterface binding.
         'detector' => env('SERVICE_STRUCTURE_DETECTOR', 'mock'),
         // Owns the sermon-vs-children's-talk judgement, so it defaults to the
