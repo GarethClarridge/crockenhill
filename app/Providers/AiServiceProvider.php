@@ -6,8 +6,11 @@ namespace App\Providers;
 
 use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\SermonAnalysisInterface;
+use App\Contracts\ServiceStructureInterface;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Contracts\TranscriptionServiceInterface;
+use App\Services\ChurchService\Structure\MockServiceStructureService;
+use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
 use App\Services\Media\Audio\AudioTranscriptionService;
 use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
@@ -53,6 +56,18 @@ class AiServiceProvider extends ServiceProvider
                 'openai' => $app->make(OpenAiServiceTranscriptionService::class),
                 default => throw new InvalidArgumentException(
                     "Unknown service structure transcription service [{$serviceType}]; expected mock, local or openai."
+                ),
+            };
+        });
+
+        $this->app->bind(ServiceStructureInterface::class, function ($app): ServiceStructureInterface {
+            $detector = (string) config('media-processing.service_structure.detector', 'mock');
+
+            return match ($detector) {
+                'mock' => $app->make(MockServiceStructureService::class),
+                'openai' => $app->make(OpenAiServiceStructureService::class),
+                default => throw new InvalidArgumentException(
+                    "Unknown service structure detector [{$detector}]; expected mock or openai."
                 ),
             };
         });

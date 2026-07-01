@@ -4,8 +4,8 @@
 
 | Phase | Status | PR | Notes |
 |-------|--------|----|-------|
-| 1 — Full-service transcript | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v` | See implementation notes below. |
-| 2 — Structure detection | Not started | — | |
+| 1 — Full-service transcript | ✅ Done (2026-07-01) | #1046 (`claude/llm-first-service-structure-48b00v`) | See implementation notes below. |
+| 2 — Structure detection | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p2` (stacked on #1046) | See implementation notes below. |
 | 3 — Deterministic gate | Not started | — | |
 | 4 — Pipeline wiring | Not started | — | |
 | 5 — Eval + shadow tooling | Not started | — | |
@@ -28,6 +28,25 @@
   the shadow-mode "never fail the run" guard belongs to Phase 4, where `mode` exists to consult.
 - `MockServiceTranscriptionService::useTranscript()` is static per-test fixture state; tests that
   set it reset it in tearDown.
+
+### Phase 2 implementation notes (deviations from plan text)
+
+- Detector implementations live in `App\Services\ChurchService\Structure\` (the namespace Phase 3
+  already earmarks for the gate), keeping the whole structure pipeline together.
+- `ServiceStructureSection` carries an explicit `reviewFlags` list alongside `notes` — the unknown
+  section-type normalisation ("→ `other` + review flag") writes `unknown_section_type` there, and
+  the Phase 3 validator will append its soft-failure flags to the same list. `withTimes()` /
+  `withReviewFlags()` copy-mutators exist for the snapping/validation layer.
+- Sections without numeric times are dropped with a run-level note (strict `json_schema` makes this
+  near-impossible); if *no* usable section remains the adapter throws, which the Phase 4 job maps to
+  shadow-noop / manual review. Malformed JSON, missing `sections`, an empty response, a missing API
+  key and an empty transcript all throw `RuntimeException` (tested).
+- `MockServiceStructureService` prefers a per-test fixture (`useStructure()`, static, reset in
+  tearDown) and otherwise derives a deterministic structure from transcript keyword markers, using
+  each OoS item id at most once — so Phase 4/5 tests get plausible output from any fixture
+  transcript without stubbing.
+- `toClassifiedSections()` is deliberately absent from `ServiceStructure` until Phase 3, where the
+  mapper's `source_segment_ids` decision is made against `ServiceSection::validationRules()`.
 
 ## Goal
 

@@ -6,8 +6,11 @@ namespace Tests\Unit\Providers;
 
 use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\SermonAnalysisInterface;
+use App\Contracts\ServiceStructureInterface;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Contracts\TranscriptionServiceInterface;
+use App\Services\ChurchService\Structure\MockServiceStructureService;
+use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
 use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
@@ -78,5 +81,36 @@ class AiServiceProviderTest extends TestCase
         $this->expectExceptionMessage('carrier-pigeon');
 
         $this->app->make(ServiceTranscriptionInterface::class);
+    }
+
+    #[Test]
+    public function service_structure_interface_defaults_to_mock(): void
+    {
+        $this->assertInstanceOf(
+            MockServiceStructureService::class,
+            $this->app->make(ServiceStructureInterface::class)
+        );
+    }
+
+    #[Test]
+    public function service_structure_interface_resolves_the_openai_detector(): void
+    {
+        config()->set('media-processing.service_structure.detector', 'openai');
+
+        $this->assertInstanceOf(
+            OpenAiServiceStructureService::class,
+            $this->app->make(ServiceStructureInterface::class)
+        );
+    }
+
+    #[Test]
+    public function service_structure_interface_throws_on_an_unknown_detector(): void
+    {
+        config()->set('media-processing.service_structure.detector', 'crystal-ball');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('crystal-ball');
+
+        $this->app->make(ServiceStructureInterface::class);
     }
 }

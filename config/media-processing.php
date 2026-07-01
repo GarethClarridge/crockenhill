@@ -250,6 +250,11 @@ return [
     | at resolution time — there is deliberately no silent fallback.
     */
     'service_structure' => [
+        // mock|openai — the ServiceStructureInterface binding.
+        'detector' => env('SERVICE_STRUCTURE_DETECTOR', 'mock'),
+        // Owns the sermon-vs-children's-talk judgement, so it defaults to the
+        // flagship reasoning model (same reasoning as section_classification.model).
+        'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5'),
         // mock|openai|local — the ServiceTranscriptionInterface binding.
         'transcription_service' => env('SERVICE_TRANSCRIPTION_SERVICE', 'mock'),
         // Whisper model for the whole-recording pass. Must support verbose_json
