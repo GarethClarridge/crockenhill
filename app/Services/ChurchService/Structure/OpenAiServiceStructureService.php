@@ -42,7 +42,9 @@ Rules:
   a second sermon into existence.
 - oos_item_id: the id of the matching order-of-service item. Use each id AT MOST ONCE across all
   sections, and use null when no item clearly matches. Match on both the OoS text and the words
-  actually spoken.
+  actually spoken. Claimed ids must follow the planned order: never claim an item whose position
+  precedes an item a previous section already claimed. If the service genuinely deviated from the
+  printed order, use null instead of anchoring out of order.
 - song_title: only for type=song — the sung title as heard in the transcript, for database
   confirmation. Null otherwise.
 - reading_reference: only for type=bible_reading — the passage read, e.g. "Joshua 1:1-9". Null otherwise.
