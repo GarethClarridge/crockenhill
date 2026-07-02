@@ -10,16 +10,22 @@
   <div class="w-full grid grid-cols-7 justify-between bg-cbc-pattern bg-size-cover text-white lg:grid-cols-12">
 
   <a
-    class="col-span-6 flex items-center gap-2 p-2 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark lg:col-span-6"
-    x-bind:class="expanded ? 'lg:pointer-events-none lg:opacity-0' : 'lg:pointer-events-auto lg:opacity-100'"
+    class="col-span-6 grid grid-cols-6 items-center rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark lg:col-span-6"
     x-bind:aria-hidden="expanded"
     x-bind:inert="expanded"
     href="/"
     wire:navigate
   >
-    <img src="/svg/IconWhite.svg" class="inline-block max-h-8 align-top" alt="" width="30" height="32">
-    <span class="font-display text-xl min-[400px]:text-2xl pb-1 lg:text-2xl">
-      Crockenhill Baptist Church
+    <div class="col-span-1 p-2">
+      <img src="/svg/IconWhite.svg" class="inline-block max-h-8 align-top" alt="" width="30" height="32">
+    </div>
+    <span
+      class="col-span-5 flex text-center font-display text-xl min-[400px]:text-2xl lg:text-2xl transition-opacity duration-150"
+      x-bind:class="expanded ? 'lg:pointer-events-none lg:opacity-0' : 'lg:pointer-events-auto lg:opacity-100'"
+    >
+      <span class="mx-auto my-auto inline-block align-middle pb-1">
+        Crockenhill Baptist Church
+      </span>
     </span>
   </a>
 
