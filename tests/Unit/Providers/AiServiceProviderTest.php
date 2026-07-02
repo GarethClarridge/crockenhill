@@ -6,10 +6,18 @@ namespace Tests\Unit\Providers;
 
 use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\SermonAnalysisInterface;
+use App\Contracts\ServiceStructureInterface;
+use App\Contracts\ServiceTranscriptionInterface;
 use App\Contracts\TranscriptionServiceInterface;
+use App\Services\ChurchService\Structure\MockServiceStructureService;
+use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\Email\OpenAiOosEmailItemExtractor;
+use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
+use App\Services\Media\Audio\MockServiceTranscriptionService;
 use App\Services\Media\Audio\MockTranscriptionService;
+use App\Services\Media\Audio\OpenAiServiceTranscriptionService;
 use App\Services\Sermon\MockSermonAnalysisService;
+use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -37,5 +45,72 @@ class AiServiceProviderTest extends TestCase
     public function oos_email_item_extractor_resolves_to_openai_implementation(): void
     {
         $this->assertInstanceOf(OpenAiOosEmailItemExtractor::class, $this->app->make(OosEmailItemExtractor::class));
+    }
+
+    #[Test]
+    public function service_transcription_interface_defaults_to_mock(): void
+    {
+        $this->assertInstanceOf(
+            MockServiceTranscriptionService::class,
+            $this->app->make(ServiceTranscriptionInterface::class)
+        );
+    }
+
+    #[Test]
+    public function service_transcription_interface_resolves_openai_and_local_implementations(): void
+    {
+        config()->set('media-processing.service_structure.transcription_service', 'openai');
+        $this->assertInstanceOf(
+            OpenAiServiceTranscriptionService::class,
+            $this->app->make(ServiceTranscriptionInterface::class)
+        );
+
+        config()->set('media-processing.service_structure.transcription_service', 'local');
+        $this->assertInstanceOf(
+            LocalWhisperServiceTranscriptionService::class,
+            $this->app->make(ServiceTranscriptionInterface::class)
+        );
+    }
+
+    #[Test]
+    public function service_transcription_interface_throws_on_an_unknown_service(): void
+    {
+        config()->set('media-processing.service_structure.transcription_service', 'carrier-pigeon');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('carrier-pigeon');
+
+        $this->app->make(ServiceTranscriptionInterface::class);
+    }
+
+    #[Test]
+    public function service_structure_interface_defaults_to_mock(): void
+    {
+        $this->assertInstanceOf(
+            MockServiceStructureService::class,
+            $this->app->make(ServiceStructureInterface::class)
+        );
+    }
+
+    #[Test]
+    public function service_structure_interface_resolves_the_openai_detector(): void
+    {
+        config()->set('media-processing.service_structure.detector', 'openai');
+
+        $this->assertInstanceOf(
+            OpenAiServiceStructureService::class,
+            $this->app->make(ServiceStructureInterface::class)
+        );
+    }
+
+    #[Test]
+    public function service_structure_interface_throws_on_an_unknown_detector(): void
+    {
+        config()->set('media-processing.service_structure.detector', 'crystal-ball');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('crystal-ball');
+
+        $this->app->make(ServiceStructureInterface::class);
     }
 }

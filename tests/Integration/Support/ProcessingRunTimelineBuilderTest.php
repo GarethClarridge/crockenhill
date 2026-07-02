@@ -245,4 +245,50 @@ class ProcessingRunTimelineBuilderTest extends TestCase
         $this->assertSame('Trimmed message', collect($timeline)->firstWhere('label', 'Classify service sections')['message']);
         $this->assertNull(collect($timeline)->firstWhere('label', 'Transcribe speech segments')['message']);
     }
+
+    #[Test]
+    public function timeline_steps_follow_the_service_structure_mode(): void
+    {
+        config(['media-processing.service_structure.mode' => 'off']);
+        $this->assertNotContains(
+            ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
+            ChurchServiceProcessingTimeline::stepKeys()
+        );
+
+        config(['media-processing.service_structure.mode' => 'shadow']);
+        $shadowKeys = ChurchServiceProcessingTimeline::stepKeys();
+        $this->assertContains(ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE, $shadowKeys);
+        $this->assertContains(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $shadowKeys);
+        // Shadow keeps the heuristic cluster and appends the LLM steps after it.
+        $this->assertContains(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS, $shadowKeys);
+        $this->assertGreaterThan(
+            array_search(ChurchServiceProcessingTimeline::RECLASSIFY_INTRO_OUTRO, $shadowKeys, true),
+            array_search(ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE, $shadowKeys, true)
+        );
+
+        config(['media-processing.service_structure.mode' => 'primary']);
+        $primaryKeys = ChurchServiceProcessingTimeline::stepKeys();
+        $this->assertContains(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $primaryKeys);
+        // Primary drops the heuristic-cluster steps that will never log.
+        $this->assertNotContains(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS, $primaryKeys);
+        $this->assertNotContains(ChurchServiceProcessingTimeline::ALIGN_WITH_OOS, $primaryKeys);
+        $this->assertContains(ChurchServiceProcessingTimeline::EXTRACT_SERMON, $primaryKeys);
+    }
+
+    #[Test]
+    public function the_full_service_transcription_step_shows_as_running_in_primary_mode(): void
+    {
+        config(['media-processing.service_structure.mode' => 'primary']);
+
+        $run = MediaProcessingLog::factory()->processing()->create([
+            'current_step' => 'transcribe_full_service',
+        ]);
+
+        $timeline = ProcessingRunTimelineBuilder::buildForRun($run);
+
+        $this->assertSame(
+            'running',
+            collect($timeline)->firstWhere('label', 'Transcribe full service')['status']
+        );
+    }
 }

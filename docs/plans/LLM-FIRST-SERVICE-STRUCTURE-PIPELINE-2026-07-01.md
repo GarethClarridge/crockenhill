@@ -1,5 +1,189 @@
 # LLM-First Service Structure Pipeline — Implementation Plan (2026-07-01)
 
+## Progress log
+
+| Phase | Status | PR | Notes |
+|-------|--------|----|-------|
+| 1 — Full-service transcript | ✅ Done (2026-07-01) | #1046 (`claude/llm-first-service-structure-48b00v`) | See implementation notes below. |
+| 2 — Structure detection | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p2` (stacked on #1046) | See implementation notes below. |
+| 3 — Deterministic gate | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p3` (stacked on p2) | See implementation notes below. |
+| 4 — Pipeline wiring | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p4` (stacked on p3) | See implementation notes below. |
+| 5 — Eval + shadow tooling | ✅ Done (2026-07-01) | `claude/llm-first-service-structure-48b00v-p5` (stacked on p4) | See implementation notes below. |
+| 6 — Promote and retire | Blocked on maintainer go | — | Next actions for the maintainer: merge the PR stack (#1046 → #1047 → #1048 → #1049 → p5), set `SERVICE_STRUCTURE_MODE=shadow` + `SERVICE_TRANSCRIPTION_SERVICE=openai` + `SERVICE_STRUCTURE_DETECTOR=openai` in production, let Sundays accumulate, run `structure:shadow-report`, fill a real manifest for `structure:evaluate`, then flip to `primary` when the gate numbers hold. |
+
+### Phase 1 implementation notes (deviations from plan text)
+
+- The `service_structure` config block landed early with only the transcription knobs
+  (`transcription_service`, `transcription_model`); `mode`/`detector`/thresholds arrive with
+  Phase 4 wiring so no dead knobs exist in between. `transcription_model` defaults to `whisper-1` —
+  the only OpenAI model that returns `verbose_json` segment timestamps.
+- Oversized-audio chunking reuses `AudioChunkingService` (fixed 6-min windows, 15 s overlap)
+  rather than bespoke RMS-silence chunking: cue times are re-offset per chunk and cues inside the
+  repeated overlap window are dropped, unit-tested against faked verbose_json responses. Silence
+  data still shapes boundaries later via Phase 3 snapping, where it actually matters.
+- The transcript is stored as `temp/service_transcript_{processing_id}.json` on the temp disk
+  (idempotent overwrite), recorded in `processing_metadata['service_transcript_path']`, and added
+  to `MediaProcessingLog::temporaryFilePaths()` so run cleanup removes it.
+- `TranscribeFullService` currently propagates failures (retry → failed run) like its siblings;
+  the shadow-mode "never fail the run" guard belongs to Phase 4, where `mode` exists to consult.
+- `MockServiceTranscriptionService::useTranscript()` is static per-test fixture state; tests that
+  set it reset it in tearDown.
+
+### Phase 2 implementation notes (deviations from plan text)
+
+- Detector implementations live in `App\Services\ChurchService\Structure\` (the namespace Phase 3
+  already earmarks for the gate), keeping the whole structure pipeline together.
+- `ServiceStructureSection` carries an explicit `reviewFlags` list alongside `notes` — the unknown
+  section-type normalisation ("→ `other` + review flag") writes `unknown_section_type` there, and
+  the Phase 3 validator will append its soft-failure flags to the same list. `withTimes()` /
+  `withReviewFlags()` copy-mutators exist for the snapping/validation layer.
+- Sections without numeric times are dropped with a run-level note (strict `json_schema` makes this
+  near-impossible); if *no* usable section remains the adapter throws, which the Phase 4 job maps to
+  shadow-noop / manual review. Malformed JSON, missing `sections`, an empty response, a missing API
+  key and an empty transcript all throw `RuntimeException` (tested).
+- `MockServiceStructureService` prefers a per-test fixture (`useStructure()`, static, reset in
+  tearDown) and otherwise derives a deterministic structure from transcript keyword markers, using
+  each OoS item id at most once — so Phase 4/5 tests get plausible output from any fixture
+  transcript without stubbing.
+- `toClassifiedSections()` is deliberately absent from `ServiceStructure` until Phase 3, where the
+  mapper's `source_segment_ids` decision is made against `ServiceSection::validationRules()`.
+
+### Phase 3 implementation notes (decisions the plan left open)
+
+- **`source_segment_ids` decision:** `sync()` does *not* tolerate an empty array —
+  `ServiceSection::validationRules()` marks the field `required`, which Laravel fails on `[]`. The
+  mapper therefore resolves ids by time overlap with the run's `LivestreamSegment` rows and, when a
+  section overlaps none, **synthesises a single covering segment** (marked
+  `synthesised_from_structure` in the segment's metadata and `synthesised_source_segment` in the
+  section's). This also keeps the manual segment-confirmation flow workable when the heuristic
+  segmenter never ran. Consequence for Phase 4: `AnalyzeSegments` **stays** in the primary chain.
+- Snap deltas are carried on `ServiceStructureSection` (`snap_deltas`, machine-readable) plus
+  human-readable notes; the mapper copies both into section metadata.
+- The gate's config knobs (`snap_window_seconds`, `min_section_seconds`, `coverage_floor`) landed
+  with this phase since the gate reads them; Phase 4 adds only `mode`.
+- Sermon-duration bounds: max shared from
+  `section_extraction.enhanced_sermon.max_sermon_duration_seconds` (F10), min from
+  `segmentation.min_sermon_duration` (300 s). Zero sermons is deliberately *not* a hard failure
+  (genuinely-absent case); more than one is.
+- OoS type-compatibility allows a semantic-`other` item (e.g. "Andrew Talk.pptx") to anchor any
+  section type — that is the F15 resolution working as intended.
+- F12 lives in the validator as the soft flag `structure_benediction_suspect`: a `bible_reading`
+  ≤ 60 s (`reading_references.benediction_max_duration_seconds`) ending within 120 s of the end of
+  the recording.
+- Soft flags (`structure_low_confidence`, `structure_micro_section`,
+  `structure_benediction_suspect`, `unknown_section_type`) are registered in
+  `SectionAlignmentBaselineRestorer::OOS_REVIEW_FLAGS/OOS_REVIEW_REASONS` (F18), and the mapper
+  always writes `metadata.review_flags` (even when empty) so a re-run's `sync()` metadata merge
+  replaces stale flags.
+- The mapper optionally embeds each section's transcript excerpt
+  (`metadata.transcript`, `transcript_scope = section_excerpt`) when given the full transcript, so
+  downstream evidence consumers (song matching fallback, review UI) keep working in primary mode.
+
+### Phase 4 implementation notes (audit outcomes and decisions)
+
+- **`ProjectLivestreamServiceStructure` audit → retained** in the primary chain (after
+  `DetectServiceStructure`): it is load-bearing beyond classification — it creates/links the
+  canonical `ChurchService` when no OoS import exists, projecting from the persisted sections
+  (which the LLM path now writes), and self-skips when a real OoS import is present.
+- **`AnalyzeSegments` stays** in the primary livestream chain (per the Phase 3
+  `source_segment_ids` decision); the reclassification chain omits it because segments already
+  exist on a re-run. Primary livestream chain:
+  `AnalyzeSegments → TranscribeFullService → DetectServiceStructure →
+  ProjectLivestreamServiceStructure → MatchSongsFromTranscript → ExtractSermon → (tail unchanged)`.
+- Shadow inserts `TranscribeFullService → DetectServiceStructure` after
+  `ReclassifyIntroOutroSections` (the true end of the heuristic cluster including song matching),
+  immediately before `ExtractSermon`, so the diff compares final heuristic output.
+- Shadow safety: `TranscribeFullService` swallows failures in shadow mode; `DetectServiceStructure`
+  wraps its whole shadow run and records errors to `service_structure_shadow.error`; the shadow
+  mapper call passes `allowSegmentSynthesis: false` so shadow never writes segments. The stored
+  shadow sections omit per-section transcript excerpts to keep run metadata bounded.
+- Primary hard-validation failure calls `markProcessingRunForManualReview` with reason code
+  `llm_structure_validation_failed` and the speech-segment summaries (so the existing
+  segment-confirmation UI works), then clears `$this->chained` — same stop pattern as
+  `ExtractSermon`.
+- **Song-title confirmation** reuses the existing seam wholesale: the Phase 3 mapper writes the
+  LLM title to `metadata.song_title_hint`, which is already `MatchSongsFromTranscript`'s
+  first-choice input (canonical-key then fuzzy lyrics matching) ahead of OCR/transcription. The
+  only job change: in primary mode the post-match `OosAlignmentService` re-run is skipped — the
+  LLM owns OoS anchoring and the heuristic aligner must not rewrite it (`applyMatch` still links
+  the anchored item's `song_id` directly).
+- Reading-reference parity confirmed: consumers read `metadata.reading_reference` (e.g.
+  `ServiceFlowBuilder`); the mapper writes it with `reading_reference_source = llm_structure`.
+  `SermonExtractionPlanResolver` ranks readings off section rows + OoS linkage, not metadata, so
+  omitting `ResolveReadingReferences` in primary mode loses nothing.
+- The new timeline steps intentionally do **not** join `ChurchServiceProcessingTimeline::steps()`
+  yet (the off-mode UI would show permanently-pending entries); they join the display at promotion.
+- Auto-trim pipelines and both post-review chains are pinned mode-independent by tests.
+
+### Phase 5 implementation notes
+
+- `structure:evaluate` accepts manifest entries (transcript file + inline OoS items + expectations)
+  and/or `--processing-id` entries (stored transcript/OoS/RMS from the run; expectations optional —
+  without them the entry contributes detection + validation results only). Manifest format is
+  documented in the command docblock and `docs/operations/structure-eval-manifest.example.json`.
+- Metrics: sermon Δstart/Δend with within-15 s/30 s rates (both boundaries must qualify),
+  per-section type accuracy within per-expectation tolerances + ordering match, OoS-anchoring
+  precision/recall, song-title and reading-reference match rates (normalised, case-insensitive),
+  hard/soft validation trigger counts, and **latency** per call. **Cost is not computed** — the
+  detector doesn't currently surface token usage; latency + the known per-model pricing cover the
+  go/no-go maths for now.
+- `structure:shadow-report` aggregates `service_structure_shadow` across runs (`--since`,
+  `--processing-id` filters): validation pass rate, type-sequence agreement, sermon delta stats,
+  OoS agreement rate, hard-failure histogram and a would-have-flagged count (validation failure or
+  any section carrying review flags). Errored shadow runs are counted, not hidden.
+- Both commands are console-only, run in CI against the mock detector and the committed fixture
+  manifest (`tests/Fixtures/StructureEval/`), including a deliberately-wrong entry asserting
+  non-zero deltas and sub-100% rates, and support `--report=` JSON output for keeping dated
+  snapshots.
+
+### Post-review fixes (2026-07-02, applied across the stack before merge)
+
+Code review (including the codex comments on #1046–#1051) surfaced eight defects, fixed in one
+pass on top of Phase 5:
+
+- **Chunked transcription dedupe** — the duplicated window at each chunk joint is two overlap
+  windows (the previous chunk runs 15 s past the nominal boundary *and* the next starts 15 s
+  early); cues are now dropped until the previous chunk's true end, not just the first 15 s.
+- **Cue end times in the detector prompt** — `toPromptText()` emits `[start-end]` ranges so the
+  "timestamps MUST come from supplied cues" rule is actually satisfiable for section ends.
+- **Calibrated silence snapping** — `SilenceSnapService` uses the same
+  `RmsAnalysisService::determineThreshold()` (adaptive) path as segmentation, falling back to the
+  fixed threshold when adaptive calculation cannot run, so shadow boundary deltas compare like
+  with like.
+- **Coverage measures cue overlap** — the validator's coverage floor now sums each transcript
+  cue's overlap with the proposed sections; a long section in the silent part of the recording no
+  longer satisfies the floor on wall-clock duration alone.
+- **Mode-aware retry offsets** — `ProcessingPhaseRegistry` livestream phases anchor to job
+  classes and resolve offsets from `ProcessingPipelineBuilder::livestreamChainJobClasses()` for
+  the current mode; the LLM steps got their own retryable phases, and a phase whose anchor job
+  left the chain (mode changed between failure and retry) falls back to a full restart instead of
+  resuming at the wrong job.
+- **Unmatched-song review in primary mode** — `MatchSongsFromTranscript` now applies
+  `UnmatchedSongReviewApplicator` itself when the OoS aligner is suppressed, so uncatalogued songs
+  still reach manual review.
+- **Mode-aware processing timeline** — `ChurchServiceProcessingTimeline::steps()` includes the
+  LLM steps in shadow/primary (and drops the heuristic-only steps in primary), and
+  `fromCurrentStep()` maps both new steps, so the UI shows the long transcription/detection phase
+  as running.
+- **Transcript artifact survives cleanup** — `service_transcript_path` left
+  `temporaryFilePaths()`: the stored transcript is the input `structure:evaluate --processing-id`
+  needs after a run completes (re-runs still overwrite it in place).
+
+The pass also fixed the seven PHPStan errors the stack carried (CI never ran on the stacked PRs —
+`pr.yml` only triggers against `master`).
+
+A second codex pass on the pre-merge PR (#1052) surfaced two more, fixed on
+`claude/pr-1052-feedback-merge-mjmdgf`:
+
+- **Boundary-crossing cues survive dedupe** — a chunk cue is discarded only when it *ends* inside
+  the duplicated window (fully covered by the previous chunk); a cue that starts inside it but
+  runs past the previous chunk's true end is kept whole, so the first words after every chunk
+  joint are never lost (a few overlapped words may repeat instead).
+- **Primary-mode gate failures alert the admin** — `DetectServiceStructure` queues the same
+  `ManualReviewRequired` mailable as `ExtractSermon`'s manual-review path after
+  `markProcessingRunForManualReview()`, so a hard validation failure never sits awaiting an
+  operator unnoticed.
+
 ## Goal
 
 Make sermon/talk/song extraction from livestream recordings reliable by restructuring the middle of

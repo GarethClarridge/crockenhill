@@ -1,0 +1,11 @@
+{
+    "cues": [
+        { "start": 0.0, "end": 20.0, "text": "Good morning everyone and a very warm welcome to the service." },
+        { "start": 60.0, "end": 240.0, "text": "Praise my soul the King of heaven. To his feet thy tribute bring." },
+        { "start": 245.0, "end": 420.0, "text": "Our reading this morning is from Joshua chapter one, verses one to nine." },
+        { "start": 430.0, "end": 2200.0, "text": "Please turn with me to our passage in Joshua chapter one. Our first point this morning is the faithfulness of God." },
+        { "start": 2210.0, "end": 2400.0, "text": "Let us pray. Heavenly Father, we thank you for your word this morning." }
+    ],
+    "duration": 2430.0,
+    "source": "mock"
+}

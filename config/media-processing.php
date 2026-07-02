@@ -242,6 +242,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | LLM-First Service Structure Pipeline
+    |--------------------------------------------------------------------------
+    | Full-service transcription + one-call LLM structure detection, replacing
+    | the heuristic classification cluster once promoted. Rolled out via `mode`
+    | (off → shadow → primary); everything defaults dark. Unknown values throw
+    | at resolution time — there is deliberately no silent fallback.
+    */
+    'service_structure' => [
+        // off|shadow|primary — the rollout switch (ServiceStructureMode).
+        'mode' => env('SERVICE_STRUCTURE_MODE', 'off'),
+        // mock|openai — the ServiceStructureInterface binding.
+        'detector' => env('SERVICE_STRUCTURE_DETECTOR', 'mock'),
+        // Owns the sermon-vs-children's-talk judgement, so it defaults to the
+        // flagship reasoning model (same reasoning as section_classification.model).
+        'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5'),
+        // mock|openai|local — the ServiceTranscriptionInterface binding.
+        'transcription_service' => env('SERVICE_TRANSCRIPTION_SERVICE', 'mock'),
+        // Whisper model for the whole-recording pass. Must support verbose_json
+        // segment timestamps (whisper-1); gpt-4o-transcribe does not.
+        'transcription_model' => env('SERVICE_TRANSCRIPTION_MODEL', 'whisper-1'),
+        // Deterministic gate knobs: how far a boundary may snap to silence,
+        // the micro-section review threshold, and the hard floor on how much
+        // of the recording's speech the detected sections must cover.
+        'snap_window_seconds' => (int) env('SERVICE_STRUCTURE_SNAP_WINDOW', 30),
+        'min_section_seconds' => (int) env('SERVICE_STRUCTURE_MIN_SECTION', 15),
+        'coverage_floor' => (float) env('SERVICE_STRUCTURE_COVERAGE_FLOOR', 0.7),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Media / Video Interludes (Improvement #5)
     |--------------------------------------------------------------------------
     | Tags detected blocks that align to an OoS `media` item (e.g. "Bibles.mp4")

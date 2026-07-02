@@ -479,6 +479,26 @@ class MediaProcessingLog extends Model
         $this->forceFill(['processing_metadata' => $processingMetadata])->save();
     }
 
+    /**
+     * Temp-disk-relative path of the stored full-service transcript JSON, if
+     * the LLM-first structure pipeline has produced one for this run.
+     */
+    public function serviceTranscriptPath(): ?string
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+        $path = $metadata['service_transcript_path'] ?? null;
+
+        return is_string($path) && trim($path) !== '' ? $path : null;
+    }
+
+    public function putServiceTranscriptPath(string $path): void
+    {
+        $processingMetadata = $this->processing_metadata?->toArray() ?? [];
+        $processingMetadata['service_transcript_path'] = $path;
+
+        $this->forceFill(['processing_metadata' => $processingMetadata])->save();
+    }
+
     public function isAutoTrimVideoRun(): bool
     {
         return $this->processing_type === MediaType::Video
@@ -628,6 +648,10 @@ class MediaProcessingLog extends Model
 
         $metadata = $this->processing_metadata?->toArray() ?? [];
 
+        // service_transcript_path is deliberately absent: the full-service
+        // transcript is a small JSON artifact that `structure:evaluate
+        // --processing-id` loads after the run completes, so run cleanup must
+        // not delete it. Re-runs overwrite it in place (keyed by processing id).
         foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {
             $path = $metadata[$key] ?? null;
             if (filled($path) && is_string($path)) {
