@@ -54,3 +54,7 @@
 ## 2026-04-12 - Pulse Effects for Urgent Administrative Items
 **Learning:** Highlighting items that require immediate attention (like recordings needing review) in a dense admin list improves efficiency. Adding a decorative `pulse` effect to the `x-badge` component using `animate-ping` provides a subtle but clear visual cue. To maintain accessibility, the animation must be wrapped in `motion-safe` and the dot container marked `aria-hidden="true"`. Using `bg-current` ensures the pulse always matches the badge's semantic color.
 **Action:** Add a `pulse` boolean prop to the base `x-badge` component. Apply it to status badges in admin views that indicate a required user action.
+
+## 2026-07-02 - Dynamic Dirty State Feedback for Persistent UI
+**Learning:** Using `wire:dirty` in a sticky footer provides clear, persistent feedback about the form's state as the user navigates long pages. Combining text changes with subtle background color transitions (amber) creates a more responsive and intuitive editing experience that keeps the user informed of unsaved work regardless of their scroll position.
+**Action:** Implement `wire:dirty` feedback on persistent UI elements (like sticky headers or footers) for long forms. Use `wire:dirty.class` for color cues and `wire:dirty.remove`/`wire:dirty` for descriptive text labels.
