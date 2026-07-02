@@ -134,7 +134,7 @@ final readonly class ServiceStructureSection extends JsonData
             oosItemId: $this->oosItemId,
             songTitle: $this->songTitle,
             readingReference: $this->readingReference,
-            notes: array_values([...$this->notes, ...$additionalNotes]),
+            notes: [...$this->notes, ...$additionalNotes],
             reviewFlags: $this->reviewFlags,
             snapDeltas: $this->snapDeltas,
         );

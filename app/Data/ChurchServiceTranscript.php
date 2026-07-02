@@ -104,19 +104,28 @@ final readonly class ChurchServiceTranscript extends JsonData
     }
 
     /**
-     * Compact `[mm:ss] text` lines for inclusion in an LLM prompt.
+     * Compact `[mm:ss-mm:ss] text` lines for inclusion in an LLM prompt.
      *
+     * Each cue carries both its start and end so the detector can ground every
+     * section boundary — including section ends — in a supplied timestamp.
      * Minutes count up past 59 (e.g. `[92:15]`) so every timestamp stays a
      * simple minutes-and-seconds pair regardless of recording length.
      */
     public function toPromptText(): string
     {
-        $lines = array_map(
-            static function (array $cue): string {
-                $totalSeconds = (int) floor($cue['start']);
+        $format = static function (float $seconds): string {
+            $totalSeconds = (int) floor($seconds);
 
-                return sprintf('[%d:%02d] %s', intdiv($totalSeconds, 60), $totalSeconds % 60, $cue['text']);
-            },
+            return sprintf('%d:%02d', intdiv($totalSeconds, 60), $totalSeconds % 60);
+        };
+
+        $lines = array_map(
+            static fn (array $cue): string => sprintf(
+                '[%s-%s] %s',
+                $format($cue['start']),
+                $format($cue['end']),
+                $cue['text']
+            ),
             $this->cues
         );
 

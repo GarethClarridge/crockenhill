@@ -283,11 +283,11 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             return [];
         }
 
-        return $churchService->items()
+        return array_values($churchService->items()
             ->orderBy('position')
             ->orderBy('id')
             ->get()
-            ->all();
+            ->all());
     }
 
     private function resolveChurchService(): ?ChurchService
@@ -399,7 +399,11 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             $oosConflicts = 0;
 
             foreach ($structure->sections as $index => $section) {
-                $heuristic = $heuristicSections[$index];
+                $heuristic = $heuristicSections->get($index);
+
+                if (! $heuristic instanceof ServiceSection) {
+                    continue;
+                }
 
                 $boundaryDeltas[] = [
                     'type' => $section->type->value,

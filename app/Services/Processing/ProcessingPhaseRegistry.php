@@ -5,6 +5,27 @@ declare(strict_types=1);
 namespace App\Services\Processing;
 
 use App\Enums\MediaType;
+use App\Enums\ServiceStructureMode;
+use App\Jobs\AlignWithOos;
+use App\Jobs\AnalyzeSegments;
+use App\Jobs\AssessSermonVideoQuality;
+use App\Jobs\ClassifyServiceSections;
+use App\Jobs\ClassifySpeechSections;
+use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\DetectServiceStructure;
+use App\Jobs\ExtractSermon;
+use App\Jobs\GenerateThumbnail;
+use App\Jobs\MatchSongsFromTranscript;
+use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\ReclassifyIntroOutroSections;
+use App\Jobs\ResolveReadingReferences;
+use App\Jobs\SendCompletionNotification;
+use App\Jobs\SubmitToProcessing;
+use App\Jobs\TranscribeAudio;
+use App\Jobs\TranscribeFullService;
+use App\Jobs\TranscribeSpeechSegments;
 use App\Models\MediaProcessingLog;
 
 /**
@@ -17,7 +38,7 @@ use App\Models\MediaProcessingLog;
  * @phpstan-type ProcessingPhase array{
  *     key: string,
  *     progress: int,
- *     job_offset: int,
+ *     job_offset: int|null,
  *     steps: list<string>,
  *     retry_action?: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream',
  *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
@@ -53,6 +74,18 @@ use App\Models\MediaProcessingLog;
  */
 class ProcessingPhaseRegistry
 {
+    /**
+     * Livestream job offsets per service-structure mode, memoised because the
+     * phase tables are rebuilt on every progress lookup.
+     *
+     * @var array<string, array<class-string, int>>
+     */
+    private array $livestreamJobOffsetsByMode = [];
+
+    public function __construct(
+        private readonly ProcessingPipelineBuilder $pipelineBuilder,
+    ) {}
+
     /**
      * Retrieve the ordered collection of phases for a specific pipeline profile.
      *
@@ -159,7 +192,11 @@ class ProcessingPhaseRegistry
         $pipeline = $this->pipelineForLog($processingLog);
         $phase = $this->phaseForPipelineStep($pipeline, $normalizedStep);
 
-        if ($phase !== null) {
+        // A null job offset means the phase's anchor job is not part of the
+        // current mode's chain (the service-structure mode changed since the
+        // run failed) — resuming mid-chain would land on the wrong job, so
+        // fall through to a full restart / manual review instead.
+        if ($phase !== null && $phase['job_offset'] !== null) {
             $action = $phase['retry_action'] ?? 'dispatch_chain';
 
             return [
@@ -709,10 +746,18 @@ class ProcessingPhaseRegistry
     }
 
     /**
+     * The livestream chain differs per service-structure mode, so every phase
+     * anchors to the job class it resumes from and the offset is resolved
+     * against the chain ProcessingPipelineBuilder actually builds. A phase
+     * whose anchor job is absent from the current mode's chain gets a null
+     * offset — retryPlanFor() falls back to a full livestream restart.
+     *
      * @return list<ProcessingPhase>
      */
     private function livestreamPhases(): array
     {
+        $offset = fn (string $jobClass): ?int => $this->livestreamJobOffset($jobClass);
+
         return [
             [
                 'key' => 'parallel_start',
@@ -741,7 +786,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'analyze_segments',
                 'progress' => 30,
-                'job_offset' => 0,
+                'job_offset' => $offset(AnalyzeSegments::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'targeted_reset',
                 'reset_scope' => 'analyze_segments',
@@ -752,7 +797,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'segment_analysis',
                 'progress' => 40,
-                'job_offset' => 0,
+                'job_offset' => $offset(AnalyzeSegments::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'targeted_reset',
                 'reset_scope' => 'analyze_segments',
@@ -764,7 +809,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'classify_sections',
                 'progress' => 45,
-                'job_offset' => 1,
+                'job_offset' => $offset(ClassifyServiceSections::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -775,7 +820,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'classified_sections',
                 'progress' => 52,
-                'job_offset' => 1,
+                'job_offset' => $offset(ClassifyServiceSections::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -787,7 +832,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'transcribe_speech_segments',
                 'progress' => 53,
-                'job_offset' => 2,
+                'job_offset' => $offset(TranscribeSpeechSegments::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -798,7 +843,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'classify_speech_sections',
                 'progress' => 54,
-                'job_offset' => 3,
+                'job_offset' => $offset(ClassifySpeechSections::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -807,9 +852,31 @@ class ProcessingPhaseRegistry
                 ],
             ],
             [
+                'key' => 'transcribe_full_service',
+                'progress' => 52,
+                'job_offset' => $offset(TranscribeFullService::class),
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'transcribe_full_service',
+                ],
+            ],
+            [
+                'key' => 'detect_service_structure',
+                'progress' => 54,
+                'job_offset' => $offset(DetectServiceStructure::class),
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
+                'steps' => [
+                    'detect_service_structure',
+                ],
+            ],
+            [
                 'key' => 'project_livestream_service_structure',
                 'progress' => 54,
-                'job_offset' => 4,
+                'job_offset' => $offset(ProjectLivestreamServiceStructure::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -820,7 +887,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'align_with_oos',
                 'progress' => 55,
-                'job_offset' => 5,
+                'job_offset' => $offset(AlignWithOos::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -831,7 +898,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'resolve_reading_references',
                 'progress' => 55,
-                'job_offset' => 6,
+                'job_offset' => $offset(ResolveReadingReferences::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -842,7 +909,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'match_songs_from_transcript',
                 'progress' => 55,
-                'job_offset' => 7,
+                'job_offset' => $offset(MatchSongsFromTranscript::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -853,7 +920,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'reclassify_intro_outro',
                 'progress' => 55,
-                'job_offset' => 8,
+                'job_offset' => $offset(ReclassifyIntroOutroSections::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -864,7 +931,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'manual_review',
                 'progress' => 55,
-                'job_offset' => 9,
+                'job_offset' => $offset(ExtractSermon::class),
                 'steps' => [
                     'manual_review_required',
                 ],
@@ -872,7 +939,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'manual_review_confirmed',
                 'progress' => 56,
-                'job_offset' => 9,
+                'job_offset' => $offset(ExtractSermon::class),
                 'steps' => [
                     'manual_review_confirmed',
                 ],
@@ -880,7 +947,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'extract_sermon',
                 'progress' => 57,
-                'job_offset' => 9,
+                'job_offset' => $offset(ExtractSermon::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -892,7 +959,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'extraction_complete',
                 'progress' => 59,
-                'job_offset' => 9,
+                'job_offset' => $offset(ExtractSermon::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -903,7 +970,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'submit_to_processing',
                 'progress' => 60,
-                'job_offset' => 10,
+                'job_offset' => $offset(SubmitToProcessing::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'targeted_reset',
                 'reset_scope' => 'submit_to_processing',
@@ -915,7 +982,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'transcription',
                 'progress' => 70,
-                'job_offset' => 13,
+                'job_offset' => $offset(TranscribeAudio::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -929,7 +996,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'analysis',
                 'progress' => 85,
-                'job_offset' => 14,
+                'job_offset' => $offset(ProcessTranscriptWithAI::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -943,7 +1010,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'assess_video_quality',
                 'progress' => 89,
-                'job_offset' => 15,
+                'job_offset' => $offset(AssessSermonVideoQuality::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -954,7 +1021,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'thumbnail',
                 'progress' => 90,
-                'job_offset' => 16,
+                'job_offset' => $offset(GenerateThumbnail::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -965,7 +1032,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'prepare_section_publication_candidates',
                 'progress' => 91,
-                'job_offset' => 17,
+                'job_offset' => $offset(PrepareSectionPublicationCandidates::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 // The job owns its own provenance-aware rerun rules, so no
@@ -978,7 +1045,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'send_notification',
                 'progress' => 92,
-                'job_offset' => 18,
+                'job_offset' => $offset(SendCompletionNotification::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -989,7 +1056,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'notification_complete',
                 'progress' => 93,
-                'job_offset' => 18,
+                'job_offset' => $offset(SendCompletionNotification::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -1003,7 +1070,7 @@ class ProcessingPhaseRegistry
             [
                 'key' => 'cleanup',
                 'progress' => 95,
-                'job_offset' => 19,
+                'job_offset' => $offset(CleanupTemporaryFiles::class),
                 'retry_action' => 'dispatch_livestream_chain',
                 'rerun_strategy' => 'safe_to_rerun',
                 'reset_scope' => 'none',
@@ -1012,5 +1079,19 @@ class ProcessingPhaseRegistry
                 ],
             ],
         ];
+    }
+
+    /**
+     * Where a job class sits in the current mode's livestream chain — null
+     * when the job is not part of it (for example a heuristic-cluster job
+     * under primary mode, or an LLM job under off mode).
+     */
+    private function livestreamJobOffset(string $jobClass): ?int
+    {
+        $mode = ServiceStructureMode::fromConfig()->value;
+
+        $this->livestreamJobOffsetsByMode[$mode] ??= array_flip($this->pipelineBuilder->livestreamChainJobClasses());
+
+        return $this->livestreamJobOffsetsByMode[$mode][$jobClass] ?? null;
     }
 }

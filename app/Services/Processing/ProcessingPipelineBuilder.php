@@ -205,6 +205,22 @@ class ProcessingPipelineBuilder
     }
 
     /**
+     * The job classes of the current mode's livestream chain, in order.
+     *
+     * ProcessingPhaseRegistry resolves its retry offsets from this list, so a
+     * mode change can never leave the retry table pointing at the wrong job.
+     *
+     * @return non-empty-list<class-string>
+     */
+    public function livestreamChainJobClasses(): array
+    {
+        return array_map(
+            static fn (object $job): string => $job::class,
+            $this->buildLivestreamChainJobs(new MediaProcessingLog)
+        );
+    }
+
+    /**
      * Resume chain for livestream runs after manual sermon segment confirmation.
      * Starts at ExtractSermon, skipping all upstream segmentation and analysis steps.
      *

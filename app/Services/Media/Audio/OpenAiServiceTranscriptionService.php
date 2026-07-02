@@ -96,7 +96,10 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
             throw new TranscriptionException('Audio chunking produced no chunks for service transcription');
         }
 
-        $overlapSeconds = (float) $this->chunkingService->getChunkOverlapSeconds();
+        // The previous chunk runs one overlap window past its nominal boundary
+        // and the next chunk starts one overlap window before it, so the
+        // duplicated audio at every joint is two overlap windows long.
+        $duplicatedWindowSeconds = 2.0 * (float) $this->chunkingService->getChunkOverlapSeconds();
         $cues = [];
 
         try {
@@ -105,10 +108,9 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
                 $response = $this->requestVerboseTranscription($chunkPath, $processingId);
 
                 foreach ($this->cuesFromResponse($response, $chunkStart) as $cue) {
-                    // Chunks after the first repeat the previous chunk's final
-                    // overlap window; those cues are already covered, so keep
-                    // only the ones past the overlap boundary.
-                    if ($index > 0 && ($cue['start'] - $chunkStart) < $overlapSeconds) {
+                    // Cues inside the duplicated window were already covered by
+                    // the previous chunk; keep only the ones past its true end.
+                    if ($index > 0 && ($cue['start'] - $chunkStart) < $duplicatedWindowSeconds) {
                         continue;
                     }
 

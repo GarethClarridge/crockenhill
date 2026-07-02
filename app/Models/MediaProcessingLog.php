@@ -648,7 +648,11 @@ class MediaProcessingLog extends Model
 
         $metadata = $this->processing_metadata?->toArray() ?? [];
 
-        foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path', 'service_transcript_path'] as $key) {
+        // service_transcript_path is deliberately absent: the full-service
+        // transcript is a small JSON artifact that `structure:evaluate
+        // --processing-id` loads after the run completes, so run cleanup must
+        // not delete it. Re-runs overwrite it in place (keyed by processing id).
+        foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {
             $path = $metadata[$key] ?? null;
             if (filled($path) && is_string($path)) {
                 $tempFiles[] = $path;

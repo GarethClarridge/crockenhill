@@ -47,7 +47,8 @@ Rules:
   confirmation. Null otherwise.
 - reading_reference: only for type=bible_reading — the passage read, e.g. "Joshua 1:1-9". Null otherwise.
 - start_time and end_time are seconds into the recording and MUST come from the supplied cue
-  timestamps. Never estimate a time that no cue supports.
+  timestamps — each transcript line gives its cue's start and end. Never estimate a time that no
+  cue supports.
 - confidence (0 to 1) reflects the section TYPE label. Be decisive when the type is unmistakable.
 - Use British English in all titles and notes.
 TEXT;
@@ -162,7 +163,7 @@ TEXT;
             }
         }
 
-        $lines[] = 'Timestamped transcript ([minutes:seconds] spoken text):';
+        $lines[] = 'Timestamped transcript ([start-end] as minutes:seconds, then the spoken text):';
         $lines[] = $transcript->toPromptText();
 
         return [

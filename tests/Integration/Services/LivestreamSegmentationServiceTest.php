@@ -53,6 +53,12 @@ class LivestreamSegmentationServiceTest extends TestCase
         $this->storageService = Mockery::mock(VideoStorageService::class);
         $this->segmentationService = Mockery::mock(VideoSegmentationService::class);
         $this->pipelineBuilder = Mockery::mock(ProcessingPipelineBuilder::class);
+        // ProcessingPhaseRegistry resolves its livestream retry offsets from
+        // the builder, which this suite replaces in the container — answer
+        // with the real chain's classes so retry plans stay realistic.
+        $this->pipelineBuilder->shouldReceive('livestreamChainJobClasses')
+            ->andReturn((new ProcessingPipelineBuilder)->livestreamChainJobClasses())
+            ->byDefault();
         $this->processingInitiator = Mockery::mock(ProcessingInitiator::class);
         $this->app->instance(VideoStorageService::class, $this->storageService);
         $this->app->instance(ProcessingPipelineBuilder::class, $this->pipelineBuilder);

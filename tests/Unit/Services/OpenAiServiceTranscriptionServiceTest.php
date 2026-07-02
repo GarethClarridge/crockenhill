@@ -120,8 +120,9 @@ class OpenAiServiceTranscriptionServiceTest extends TestCase
             ->once()
             ->with([$chunkOne, $chunkTwo], 'proc-2');
 
-        // Chunk 1 covers 0–360 s; chunk 2 restarts 15 s earlier at 330 s, so its
-        // first cue (local 0–14 s) duplicates chunk 1 content and must be dropped.
+        // Chunk 1 covers 0–360 s; chunk 2 restarts 15 s earlier at 330 s, so
+        // chunk 1 content repeats until 360 s — a 30 s (two-overlap) duplicated
+        // window. Every chunk-2 cue starting inside it must be dropped.
         OpenAI::fake([
             TranscriptionResponse::fake([
                 'duration' => 360.0,
@@ -134,8 +135,9 @@ class OpenAiServiceTranscriptionServiceTest extends TestCase
                 'duration' => 370.0,
                 'segments' => [
                     $this->segment(0, 0.0, 14.0, 'Overlap repeat — dropped.'),
-                    $this->segment(1, 15.0, 200.0, 'Second chunk, kept cue.'),
-                    $this->segment(2, 200.0, 370.0, 'Second chunk, final cue.'),
+                    $this->segment(1, 15.0, 29.0, 'Still inside the duplicated window — dropped.'),
+                    $this->segment(2, 30.0, 200.0, 'Second chunk, kept cue.'),
+                    $this->segment(3, 200.0, 370.0, 'Second chunk, final cue.'),
                 ],
             ]),
         ]);
@@ -146,8 +148,9 @@ class OpenAiServiceTranscriptionServiceTest extends TestCase
             [
                 ['start' => 0.0, 'end' => 180.0, 'text' => 'First chunk, first cue.'],
                 ['start' => 180.0, 'end' => 360.0, 'text' => 'First chunk, second cue.'],
-                // Chunk 2 starts at 1 × (360 − 15) − 15 = 330 s into the recording.
-                ['start' => 345.0, 'end' => 530.0, 'text' => 'Second chunk, kept cue.'],
+                // Chunk 2 starts at 1 × (360 − 15) − 15 = 330 s into the
+                // recording; chunk 1 already covered everything up to 360 s.
+                ['start' => 360.0, 'end' => 530.0, 'text' => 'Second chunk, kept cue.'],
                 ['start' => 530.0, 'end' => 700.0, 'text' => 'Second chunk, final cue.'],
             ],
             $transcript->cues

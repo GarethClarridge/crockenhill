@@ -34,14 +34,12 @@ final readonly class ServiceStructure extends JsonData
      */
     public static function fromSections(array $sections, array $notes = [], ?string $model = null): self
     {
-        $ordered = array_values($sections);
-
         usort(
-            $ordered,
+            $sections,
             static fn (ServiceStructureSection $left, ServiceStructureSection $right): int => $left->startTime <=> $right->startTime
         );
 
-        return new self($ordered, array_values($notes), $model);
+        return new self($sections, $notes, $model);
     }
 
     public static function fromArray(mixed $value): self

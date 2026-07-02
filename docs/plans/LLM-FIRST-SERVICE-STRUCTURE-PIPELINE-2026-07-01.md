@@ -136,6 +136,42 @@
   non-zero deltas and sub-100% rates, and support `--report=` JSON output for keeping dated
   snapshots.
 
+### Post-review fixes (2026-07-02, applied across the stack before merge)
+
+Code review (including the codex comments on #1046–#1051) surfaced eight defects, fixed in one
+pass on top of Phase 5:
+
+- **Chunked transcription dedupe** — the duplicated window at each chunk joint is two overlap
+  windows (the previous chunk runs 15 s past the nominal boundary *and* the next starts 15 s
+  early); cues are now dropped until the previous chunk's true end, not just the first 15 s.
+- **Cue end times in the detector prompt** — `toPromptText()` emits `[start-end]` ranges so the
+  "timestamps MUST come from supplied cues" rule is actually satisfiable for section ends.
+- **Calibrated silence snapping** — `SilenceSnapService` uses the same
+  `RmsAnalysisService::determineThreshold()` (adaptive) path as segmentation, falling back to the
+  fixed threshold when adaptive calculation cannot run, so shadow boundary deltas compare like
+  with like.
+- **Coverage measures cue overlap** — the validator's coverage floor now sums each transcript
+  cue's overlap with the proposed sections; a long section in the silent part of the recording no
+  longer satisfies the floor on wall-clock duration alone.
+- **Mode-aware retry offsets** — `ProcessingPhaseRegistry` livestream phases anchor to job
+  classes and resolve offsets from `ProcessingPipelineBuilder::livestreamChainJobClasses()` for
+  the current mode; the LLM steps got their own retryable phases, and a phase whose anchor job
+  left the chain (mode changed between failure and retry) falls back to a full restart instead of
+  resuming at the wrong job.
+- **Unmatched-song review in primary mode** — `MatchSongsFromTranscript` now applies
+  `UnmatchedSongReviewApplicator` itself when the OoS aligner is suppressed, so uncatalogued songs
+  still reach manual review.
+- **Mode-aware processing timeline** — `ChurchServiceProcessingTimeline::steps()` includes the
+  LLM steps in shadow/primary (and drops the heuristic-only steps in primary), and
+  `fromCurrentStep()` maps both new steps, so the UI shows the long transcription/detection phase
+  as running.
+- **Transcript artifact survives cleanup** — `service_transcript_path` left
+  `temporaryFilePaths()`: the stored transcript is the input `structure:evaluate --processing-id`
+  needs after a run completes (re-runs still overwrite it in place).
+
+The pass also fixed the seven PHPStan errors the stack carried (CI never ran on the stacked PRs —
+`pr.yml` only triggers against `master`).
+
 ## Goal
 
 Make sermon/talk/song extraction from livestream recordings reliable by restructuring the middle of

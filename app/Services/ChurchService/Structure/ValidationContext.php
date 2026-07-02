@@ -16,11 +16,13 @@ final readonly class ValidationContext
 {
     /**
      * @param  array<int, ServiceSectionType>  $oosItemTypes  ChurchServiceItem id → semantic section type
+     * @param  list<array{start: float, end: float, text: string}>  $cues  Transcript cues, so coverage can measure the speech time sections actually overlap
      */
     public function __construct(
         public float $recordingDuration,
         public float $speechDuration,
         public array $oosItemTypes = [],
+        public array $cues = [],
     ) {}
 
     /**
@@ -38,6 +40,7 @@ final readonly class ValidationContext
             recordingDuration: $transcript->duration,
             speechDuration: $transcript->speechDuration(),
             oosItemTypes: $oosItemTypes,
+            cues: $transcript->cues,
         );
     }
 }

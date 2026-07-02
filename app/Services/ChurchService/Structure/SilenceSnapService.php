@@ -6,6 +6,7 @@ namespace App\Services\ChurchService\Structure;
 
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Exceptions\SegmentationException;
 use App\Services\Media\Audio\RmsAnalysisService;
 
 /**
@@ -81,11 +82,20 @@ class SilenceSnapService
     /**
      * Sample times whose RMS level sits at or below the silence threshold.
      *
+     * Uses the same per-recording calibrated threshold as the segmentation
+     * pipeline (adaptive by default), so the snapper sees the same silences
+     * the heuristic path does; falls back to the fixed threshold when the
+     * adaptive calculation cannot run.
+     *
      * @return list<float>
      */
     private function silenceTimes(string $rmsLogContent): array
     {
-        $threshold = $this->rmsAnalysisService->getRmsThreshold();
+        try {
+            $threshold = (float) $this->rmsAnalysisService->determineThreshold($rmsLogContent)['threshold'];
+        } catch (SegmentationException) {
+            $threshold = $this->rmsAnalysisService->getRmsThreshold();
+        }
 
         $times = [];
 

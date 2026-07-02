@@ -142,13 +142,8 @@ class ServiceStructureValidator
             return;
         }
 
-        $covered = array_sum(array_map(
-            static fn (ServiceStructureSection $section): float => $section->duration(),
-            $structure->sections
-        ));
-
         $floor = (float) config('media-processing.service_structure.coverage_floor', 0.7);
-        $coverage = $covered / $context->speechDuration;
+        $coverage = $this->coveredSpeechSeconds($structure, $context) / $context->speechDuration;
 
         if ($coverage < $floor) {
             $hardFailures[] = [
@@ -161,6 +156,43 @@ class ServiceStructureValidator
                 ),
             ];
         }
+    }
+
+    /**
+     * The speech time the sections actually cover: the sum of each transcript
+     * cue's overlap with the proposed sections. Raw section duration would let
+     * a long section in the wrong (silent) part of the recording satisfy the
+     * floor despite covering none of what was said. Contexts built without
+     * cues fall back to summing section durations.
+     */
+    private function coveredSpeechSeconds(ServiceStructure $structure, ValidationContext $context): float
+    {
+        if ($context->cues === []) {
+            return array_sum(array_map(
+                static fn (ServiceStructureSection $section): float => $section->duration(),
+                $structure->sections
+            ));
+        }
+
+        $covered = 0.0;
+
+        foreach ($context->cues as $cue) {
+            $cueCovered = 0.0;
+
+            foreach ($structure->sections as $section) {
+                $overlap = min($cue['end'], $section->endTime) - max($cue['start'], $section->startTime);
+
+                if ($overlap > 0.0) {
+                    $cueCovered += $overlap;
+                }
+            }
+
+            // Overlapping sections (a hard failure in their own right) must
+            // not let a cue count for more than its own length.
+            $covered += min($cueCovered, $cue['end'] - $cue['start']);
+        }
+
+        return $covered;
     }
 
     /**

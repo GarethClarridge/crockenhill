@@ -15,8 +15,10 @@ use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
+use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\ResolveReadingReferences;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
@@ -269,5 +271,100 @@ class ProcessingPhaseRegistryTest extends TestCase
                 );
             }
         }
+    }
+
+    #[Test]
+    public function livestream_retry_offsets_follow_the_service_structure_mode(): void
+    {
+        $registry = app(ProcessingPhaseRegistry::class);
+        $builder = app(ProcessingPipelineBuilder::class);
+
+        // Every retryable livestream phase must resume at the job it is
+        // anchored to in the chain the current mode actually builds.
+        $stepToJobClass = [
+            'project_livestream_service_structure' => ProjectLivestreamServiceStructure::class,
+            'match_songs_from_transcript' => MatchSongsFromTranscript::class,
+            'extraction' => ExtractSermon::class,
+            'cleanup' => CleanupTemporaryFiles::class,
+        ];
+
+        foreach (['off', 'shadow', 'primary'] as $mode) {
+            config(['media-processing.service_structure.mode' => $mode]);
+
+            $chainClasses = array_map(
+                static fn (object $job): string => $job::class,
+                $builder->buildLivestreamChainJobs(MediaProcessingLog::factory()->livestream()->make())
+            );
+
+            foreach ($stepToJobClass as $step => $jobClass) {
+                $log = MediaProcessingLog::factory()->livestream()->create([
+                    'status' => ProcessingStatus::Failed,
+                    'current_step' => $step,
+                ]);
+
+                $plan = $registry->retryPlanFor($log);
+
+                $this->assertSame('dispatch_livestream_chain', $plan['action'], "step {$step} in mode {$mode}");
+                $this->assertSame(
+                    array_search($jobClass, $chainClasses, true),
+                    $plan['job_offset'],
+                    "Retrying step {$step} in mode {$mode} must resume at {$jobClass}"
+                );
+            }
+        }
+    }
+
+    #[Test]
+    public function llm_structure_steps_are_retryable_when_their_jobs_are_in_the_chain(): void
+    {
+        $registry = app(ProcessingPhaseRegistry::class);
+
+        config(['media-processing.service_structure.mode' => 'shadow']);
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::Failed,
+            'current_step' => 'transcribe_full_service',
+        ]);
+
+        $plan = $registry->retryPlanFor($log);
+
+        $this->assertSame('dispatch_livestream_chain', $plan['action']);
+        // Shadow inserts the LLM jobs after the nine heuristic-cluster jobs.
+        $this->assertSame(9, $plan['job_offset']);
+
+        $detectLog = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::Failed,
+            'current_step' => 'detect_service_structure',
+        ]);
+
+        $this->assertSame(10, $registry->retryPlanFor($detectLog)['job_offset']);
+    }
+
+    #[Test]
+    public function a_step_whose_job_left_the_chain_falls_back_to_a_full_livestream_restart(): void
+    {
+        $registry = app(ProcessingPhaseRegistry::class);
+
+        // A heuristic-cluster failure retried after the flip to primary must
+        // not resume mid-chain — the heuristic jobs are no longer in it.
+        config(['media-processing.service_structure.mode' => 'primary']);
+
+        $heuristicLog = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::Failed,
+            'current_step' => 'classifying_sections',
+        ]);
+
+        $this->assertSame(['action' => 'restart_livestream'], $registry->retryPlanFor($heuristicLog));
+
+        // And an LLM-step failure retried after dropping back to off mode
+        // restarts rather than resuming at a job the chain no longer has.
+        config(['media-processing.service_structure.mode' => 'off']);
+
+        $llmLog = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::Failed,
+            'current_step' => 'detect_service_structure',
+        ]);
+
+        $this->assertSame(['action' => 'restart_livestream'], $registry->retryPlanFor($llmLog));
     }
 }

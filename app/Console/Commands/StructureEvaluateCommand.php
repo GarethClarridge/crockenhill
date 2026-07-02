@@ -142,7 +142,7 @@ class StructureEvaluateCommand extends Command
 
             $result = $validator->validate(
                 $structure,
-                new ValidationContext($transcript->duration, $transcript->speechDuration(), $oosItemTypes)
+                new ValidationContext($transcript->duration, $transcript->speechDuration(), $oosItemTypes, $transcript->cues)
             );
 
             $expected = is_array($entry['expected'] ?? null) ? $entry['expected'] : [];

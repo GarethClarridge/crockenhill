@@ -108,6 +108,39 @@ class ServiceStructureValidatorTest extends TestCase
     }
 
     #[Test]
+    public function coverage_measures_cue_overlap_not_raw_section_duration(): void
+    {
+        // All 2,000 s of speech happen in the first 2,000 s; the proposal is
+        // one long section in the silent back half of the recording. Its raw
+        // duration would satisfy the floor — its cue overlap is zero.
+        $context = new ValidationContext(
+            recordingDuration: 6000.0,
+            speechDuration: 2000.0,
+            cues: [
+                ['start' => 0.0, 'end' => 1000.0, 'text' => 'First half of the service.'],
+                ['start' => 1000.0, 'end' => 2000.0, 'text' => 'Second half of the service.'],
+            ],
+        );
+
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 3500.0, 5500.0),
+        ]);
+
+        $result = $this->validator->validate($structure, $context);
+
+        $this->assertContains('insufficient_coverage', $result->failureCodes());
+
+        // The same section placed over the actual speech passes the floor.
+        $coveringStructure = ServiceStructure::fromSections([
+            $this->section('sermon', 0.0, 2000.0),
+        ]);
+
+        $coveringResult = $this->validator->validate($coveringStructure, $context);
+
+        $this->assertNotContains('insufficient_coverage', $coveringResult->failureCodes());
+    }
+
+    #[Test]
     public function two_sermons_fail_hard(): void
     {
         $structure = ServiceStructure::fromSections([

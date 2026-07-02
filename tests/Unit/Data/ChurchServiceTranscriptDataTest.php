@@ -68,7 +68,7 @@ class ChurchServiceTranscriptDataTest extends TestCase
     }
 
     #[Test]
-    public function prompt_text_renders_compact_minute_second_lines(): void
+    public function prompt_text_renders_compact_minute_second_ranges(): void
     {
         $transcript = ChurchServiceTranscript::fromCues([
             ['start' => 0.0, 'end' => 5.0, 'text' => 'Welcome everyone.'],
@@ -77,7 +77,7 @@ class ChurchServiceTranscriptDataTest extends TestCase
         ], 5600.0, ChurchServiceTranscript::SOURCE_MOCK);
 
         $this->assertSame(
-            "[0:00] Welcome everyone.\n[1:05] Our first hymn.\n[92:05] A closing word.",
+            "[0:00-0:05] Welcome everyone.\n[1:05-1:10] Our first hymn.\n[92:05-92:10] A closing word.",
             $transcript->toPromptText()
         );
     }

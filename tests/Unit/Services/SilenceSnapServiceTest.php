@@ -141,6 +141,37 @@ class SilenceSnapServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_uses_the_calibrated_adaptive_threshold_when_the_log_has_enough_samples(): void
+    {
+        // 1,000+ samples engage the same adaptive thresholding the
+        // segmentation pipeline uses. The bottom 30% of this log sits at
+        // -55 dB, so the calibrated threshold is -55 — under the fixed -45
+        // threshold the -48 dB dip at 100 s would wrongly count as silence.
+        $samples = [];
+
+        for ($time = 0; $time < 1050; $time++) {
+            $samples[] = [(float) $time, match (true) {
+                $time === 100 => -48.0,
+                $time >= 700 => -55.0,
+                default => -25.0,
+            }];
+        }
+
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 110.0),
+            $this->section('song', 110.0, 220.0),
+        ]);
+
+        $snapped = $this->service->snap($structure, $this->rmsLog($samples));
+
+        // The -48 dB dip is not silence under the calibrated threshold and no
+        // true silence is within the window, so the boundary stays put.
+        $this->assertSame(110.0, $snapped->sections[0]->endTime);
+        $this->assertSame(110.0, $snapped->sections[1]->startTime);
+        $this->assertStringContainsString('left unsnapped', implode(' ', $snapped->sections[0]->notes));
+    }
+
+    #[Test]
     public function an_empty_or_silence_free_log_leaves_the_structure_untouched(): void
     {
         $structure = ServiceStructure::fromSections([

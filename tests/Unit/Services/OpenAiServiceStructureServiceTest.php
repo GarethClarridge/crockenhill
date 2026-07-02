@@ -218,8 +218,8 @@ class OpenAiServiceStructureServiceTest extends TestCase
         // The user message must ground the model in the OoS ids and cue timings.
         $this->assertStringContainsString('id 1 | position 1 | type welcome', $prompt['user']);
         $this->assertStringContainsString('id 4 | position 4 | type sermon | title "The faithfulness of God"', $prompt['user']);
-        $this->assertStringContainsString('[0:00] Good morning everyone and a warm welcome.', $prompt['user']);
-        $this->assertStringContainsString('[7:10] Please turn with me to Joshua chapter one.', $prompt['user']);
+        $this->assertStringContainsString('[0:00-0:30] Good morning everyone and a warm welcome.', $prompt['user']);
+        $this->assertStringContainsString('[7:10-7:40] Please turn with me to Joshua chapter one.', $prompt['user']);
         $this->assertStringContainsString('Recording duration: 2400 seconds', $prompt['user']);
 
         // The system message must state every structural invariant the

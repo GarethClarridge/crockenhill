@@ -103,7 +103,7 @@ class TranscribeFullServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_includes_the_transcript_in_temporary_file_cleanup(): void
+    public function it_keeps_the_transcript_out_of_temporary_file_cleanup(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
         Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
@@ -111,7 +111,10 @@ class TranscribeFullServiceTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $this->assertContains((string) $log->serviceTranscriptPath(), $log->temporaryFilePaths());
+        // The stored transcript must survive run cleanup: structure:evaluate
+        // --processing-id reads it after the run completes.
+        $this->assertNotNull($log->serviceTranscriptPath());
+        $this->assertNotContains((string) $log->serviceTranscriptPath(), $log->temporaryFilePaths());
     }
 
     private function runJob(MediaProcessingLog $log): void

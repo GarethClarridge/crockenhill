@@ -19,6 +19,7 @@ use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
+use App\Services\Song\UnmatchedSongReviewApplicator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -64,6 +65,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
     }
@@ -83,6 +85,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
     }
 
@@ -105,6 +108,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         // No unmatched sections exist, so the job leaves the confirmed section as-is.
@@ -147,6 +151,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -198,6 +203,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -241,6 +247,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -308,6 +315,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -391,6 +399,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             $transcriptionService,
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
             $localWhisper,
         );
 
@@ -456,6 +465,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             $transcriptionService,
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
             $localWhisper,
         );
 
@@ -500,6 +510,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $unmatchedSection->refresh();
@@ -545,6 +556,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -602,6 +614,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -672,6 +685,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -709,6 +723,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             $mockOcr,
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         // OCR was skipped (Mockery's shouldNotReceive guards the call), so the
@@ -774,6 +789,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -823,6 +839,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -863,6 +880,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -915,6 +933,7 @@ class MatchSongsFromTranscriptTest extends TestCase
             app(StorageAdapterHelper::class),
             app(TranscriptionServiceInterface::class),
             app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
         );
 
         $section->refresh();
@@ -924,5 +943,53 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertIsArray($match);
         $this->assertSame($song->id, $match['song_id']);
         $this->assertSame('title_hint_canonical', $match['match_source']);
+    }
+
+    #[Test]
+    public function it_flags_a_song_that_stays_unmatched_for_review_in_primary_mode(): void
+    {
+        config(['media-processing.service_structure.mode' => 'primary']);
+        Config::set('media-processing.song_matching.ocr_enabled', false);
+        Config::set('media-processing.song_matching.transcribe_song_openings', false);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        // An LLM-proposed title with no catalogue counterpart: every matching
+        // strategy fails, so the section must still reach manual review even
+        // though the heuristic aligner (which normally applies the flag in
+        // OosAlignmentService) is suppressed in primary mode.
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => null,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'classification_mode' => 'llm_structure',
+                'song_title' => 'A Hymn Nobody Has Catalogued',
+                'song_title_hint' => 'A Hymn Nobody Has Catalogued',
+                'review_flags' => [],
+            ],
+        ]);
+
+        $alignmentService = $this->mock(OosAlignmentService::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('alignForProcessingLog');
+        });
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            $alignmentService,
+            app(VideoExtractionService::class),
+            app(StorageAdapterHelper::class),
+            app(TranscriptionServiceInterface::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+
+        $this->assertTrue($section->needs_manual_review);
+        $this->assertSame(ServiceSectionSongMatchType::Unmatched, $section->song_match_type);
+        $this->assertContains('unmatched_song_section', $section->metadata['review_flags'] ?? []);
+        $this->assertSame('unmatched_song_section', $section->metadata['review_reason'] ?? null);
     }
 }

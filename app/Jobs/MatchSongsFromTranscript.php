@@ -21,6 +21,7 @@ use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
+use App\Services\Song\UnmatchedSongReviewApplicator;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -69,6 +70,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         StorageAdapterHelper $storageHelper,
         TranscriptionServiceInterface $transcriptionService,
         SongLyricOcrService $ocrService,
+        UnmatchedSongReviewApplicator $unmatchedSongReviewApplicator,
         ?LocalWhisperTranscriptionService $localWhisperTranscriptionService = null
     ): void {
         if (! (bool) config('media-processing.song_matching.enabled', true)) {
@@ -164,11 +166,22 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             }
         }
 
-        if ($matchedCount > 0 && ServiceStructureMode::fromConfig() !== ServiceStructureMode::Primary) {
+        if (ServiceStructureMode::fromConfig() === ServiceStructureMode::Primary) {
+            // The LLM detector owns OoS anchoring in primary mode, so the
+            // heuristic aligner must not rewrite it — but songs that still
+            // failed to match must reach manual review exactly as they do on
+            // the heuristic path, where OosAlignmentService applies this.
+            $matchedSectionIds = $sections
+                ->reject(fn (ServiceSection $section): bool => $this->needsSongMatching($section))
+                ->pluck('id')
+                ->all();
+
+            foreach ($unmatchedSongReviewApplicator->apply($sections, $matchedSectionIds) as $section) {
+                $section->save();
+            }
+        } elseif ($matchedCount > 0) {
             // Re-run the full OoS alignment so the new catalog-backed matches link
             // sections to their order-of-service items and review state is rebuilt.
-            // In primary mode the LLM detector owns OoS anchoring, so the heuristic
-            // aligner must not rewrite it — matches stand on their own metadata.
             $alignmentService->alignForProcessingLog($this->processingLog);
         }
 
