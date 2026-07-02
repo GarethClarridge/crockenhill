@@ -178,7 +178,7 @@ processing output" becomes a one-line chain edit (see O3).
 | Item | Size | Evidence |
 |---|---:|---|
 | `SermonValidationService` | 380 + 758 test lines | Zero production callers; full audit already exists at `docs/issues/2026-07-01-dead-sermon-validation-service-audit.md`. The stale comment naming it survives at `config/media-processing.php:60`. |
-| `UpdateSermonRecord` job | 268 + 2 test files | No dispatch site anywhere in `app/`; referenced only by its tests, the registry's ghost phase, and two `ProcessingStep` enum cases (`updating_sermon_record`, `updating_sermon_record_failed`). |
+| `UpdateSermonRecord` job | 268 + 2 dedicated test files | No dispatch site anywhere in `app/`; referenced only by tests, the registry's ghost phase, and two `ProcessingStep` enum cases (`updating_sermon_record`, `updating_sermon_record_failed`). Beyond the two dedicated files, seven more test files instantiate the job or pin its step strings — see quick win 2 for the full fixture list. |
 | Dead half of `SermonProcessingLogger` + `App\Data\ProcessingReport` | ~350 | Seven zero-caller public methods (F2); `ProcessingReport` referenced only by the dead method. |
 | `sermon-processing` log channel + `SermonProcessingLogFormatter` | 99 + config | No `Log::channel('sermon-processing')` call exists (F2). |
 | `VideoStorageService` orphan methods (`cleanupExpiredFiles`, `storeTemporary`, `moveToPermanent`, `getAudioUrl`) | ~80 | Zero callers outside the class. |
@@ -308,8 +308,15 @@ Weighted equally with removals, per the plan.
 
 1. Delete `SermonValidationService` + its two test files + the stale comment at
    `config/media-processing.php:60` (pre-audited in the 2026-07-01 mortician doc).
-2. Delete `UpdateSermonRecord` job, its two test files, the `update_sermon_record` phase in
-   `ProcessingPhaseRegistry::audioPhases()`, and the two orphaned `ProcessingStep` cases.
+2. Delete `UpdateSermonRecord` job, its two dedicated test files, the `update_sermon_record` phase
+   in `ProcessingPhaseRegistry::audioPhases()`, and the two orphaned `ProcessingStep` cases. The
+   same commit must also sweep the seven other test files that instantiate the job or pin its step
+   strings, or the suite fails / keeps stale coverage: `SermonProcessingJobChainTest` (imports the
+   job, drives it via a helper, pins `updating_sermon_record` in five places),
+   `SermonProcessingErrorHandlingTest` (instantiates the job), `UnifiedMediaProcessorTest`
+   (instantiates it in three fake chains), `ProcessingPhaseRegistryTest` (asserts the ghost phase
+   and its progress value), `StandardProcessingResponseTest`, `MediaProcessingStatusTransitionsTest`
+   (two data-provider rows), and `CompletionOutcomePreservationTest` (fixture `current_step`).
 3. Delete the seven dead `SermonProcessingLogger` methods, `App\Data\ProcessingReport`, and the
    corresponding test sections.
 4. Delete the `sermon-processing` channel from `config/logging.php` and
