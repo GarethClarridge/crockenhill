@@ -67,8 +67,9 @@ Every session's output follows this structure:
 | 6 | Admin & Livewire surface | Medium | 52 components; consistency and fragmentation |
 | 7 | Platform, operations & housekeeping | Medium | The residue no domain owns |
 | 8 | Wrap-up: consolidation & decisions | — | Backlog + removal sign-offs |
+| 9 | Technical code-quality review | Medium | Gated: runs after the Phase 8 backlog's structural work has landed, so it reviews the surviving code |
 
-Phases 1–3 are the deep ones and each deserves an unhurried session. Phases 4–7 should be lighter. Sessions are independent — any order works if priorities shift — but the listed order front-loads the biggest complexity.
+Phases 1–3 are the deep ones and each deserves an unhurried session. Phases 4–7 should be lighter. Sessions 1–7 are independent — any order works if priorities shift — but the listed order front-loads the biggest complexity. **Phase 9 is the one gated phase**: it deliberately waits until the agreed structural simplification has been implemented, because quality-polishing code that is about to be deleted or consolidated is wasted effort.
 
 ## 4. Session briefs
 
@@ -172,7 +173,7 @@ Each brief below is self-contained and intended to be pasted as the opening prom
 
 ### Phase 8 — Wrap-up: consolidation & decisions
 
-> Consolidate the July 2026 simplification review, as its final phase. Read every findings doc in `docs/reviews/july-2026-simplification/` plus the active trackers (`docs/plans/SIMPLIFICATION-PLAN.md`, `docs/architecture/simplification-backlog.md`).
+> Consolidate the July 2026 simplification review, as its wrap-up phase (Phase 9, the code-quality review, follows separately once the resulting structural work has landed). Read every findings doc in `docs/reviews/july-2026-simplification/` plus the active trackers (`docs/plans/SIMPLIFICATION-PLAN.md`, `docs/architecture/simplification-backlog.md`).
 >
 > Produce **one prioritized backlog** at `docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-<date>.md` (successor in style to `docs/archived-plans/APRIL-2026-REVIEW-BACKLOG-2026-04-16.md`), reconciling with and superseding overlapping items in the existing trackers rather than duplicating them.
 >
@@ -180,10 +181,34 @@ Each brief below is self-contained and intended to be pasted as the opening prom
 
 ---
 
+### Phase 9 — Technical code-quality review (gated: after structural work lands)
+
+> Run a technical code-quality review of this Laravel church-site project, as Phase 9 of the July 2026 simplification review. Follow the ground rules and findings-doc template in `docs/plans/JULY-2026-SIMPLIFICATION-REVIEW-PLAN-2026-07-02.md`. Output a findings doc at `docs/reviews/july-2026-simplification/code-quality-review-<date>.md`. No code changes in this session.
+>
+> **Precondition — check before starting:** the structural simplification work agreed in the Phase 8 backlog (`docs/plans/JULY-2026-SIMPLIFICATION-BACKLOG-*.md`) should have substantially landed. If large deletions/consolidations are still pending, flag this to the user before proceeding — reviewing code that is scheduled for removal is wasted effort.
+>
+> **This phase is deliberately different in kind** from Phases 1–7: those asked "should this exist, and what's its simplest shape?"; this one asks "is the surviving code well made?" Line-level and idiom-level attention is in scope here and only here.
+>
+> **Axes:**
+>
+> 1. **Static-analysis ratchet.** Larastan currently runs at level 8 (`phpstan.neon`) with an effectively empty baseline. Trial level 9 (`vendor/bin/sail composer phpstan` after bumping `level:`), triage the findings, and recommend: fix, or consciously baseline with per-entry justification. Assess whether level 10 is realistic. The near-zero baseline is an asset — keep it that way.
+> 2. **Standards & idioms.** Spatie guideline conformance, PHP 8.4 idioms (constructor promotion, readonly properties, enums over constants), framework modernization. Reconcile with `docs/architecture/laravel-12-modernization-backlog.md` — update/supersede it rather than duplicating it.
+> 3. **Dead code.** Unreferenced classes and methods, orphaned `app/Data/` objects, unused config keys, views no route renders, dead routes. Grep-based reference checks are fine; note confidence per item.
+> 4. **Test quality.** Slow or flaky tests, over-mocking, weak assertions (asserting no exception vs. asserting behavior), duplicate coverage across Unit/Integration/Feature layers. Build on the per-domain test-proportionality notes from Phases 1–7 and Phase 8's roll-up — don't re-derive them.
+> 5. **Dependency hygiene.** Unused or outdated composer and npm packages; open security advisories (there is at least one open Dependabot alert on the default branch).
+> 6. **Performance smells.** N+1 queries and hot read paths — the in-repo Debugbar tooling (`debug-using-debugbar` workflow) can capture real request profiles.
+>
+> **Output:** the standard findings-doc template, **plus a distinguished "Mechanical fixes" section** — items so safe and rote (formatting, dead imports, obvious dead files, baseline-free level-9 fixes) that they can be executed wholesale in a single implementation session without per-item sign-off. Judgment calls and anything behavior-adjacent stay in the normal findings/removal sections.
+>
+> **Quality gates:** `vendor/bin/sail composer phpstan` (must stay at 0 errors), `vendor/bin/sail bin pint --dirty`, `vendor/bin/sail artisan test --compact`.
+
+---
+
 ## 5. Practical notes
 
 - **One session per phase.** Each brief is self-contained; a fresh session needs only the brief and this document.
 - **The reviewer sets the date** in findings-doc filenames to the actual session date.
-- **Depth calibration:** Phases 1–3 deep, 4 light, 5–7 medium. If a light phase turns out to be deeper than expected, finish the inventory, record the surprise, and recommend a follow-up rather than overrunning.
+- **Depth calibration:** Phases 1–3 deep, 4 light, 5–7 and 9 medium. If a light phase turns out to be deeper than expected, finish the inventory, record the surprise, and recommend a follow-up rather than overrunning.
+- **Phases 1–7 do not chase line-level quality.** Idiom, style, and static-analysis issues that aren't egregious get parked for Phase 9 (note them under "Out of scope, noted for Phase 9" if worth recording at all). This keeps the domain sessions focused on existence and shape, not polish.
 - **Test-suite architecture is not a separate phase** (April covered it); each domain session assesses its own tests' proportionality and Phase 8 rolls up anything suite-wide.
 - **Weekly change reviews continue independently** — this review is a point-in-time structural pass, not a replacement for the ongoing tech-debt rollups.
