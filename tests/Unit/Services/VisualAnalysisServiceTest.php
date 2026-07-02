@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\Media\Video\VisualAnalysisService;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -18,6 +19,11 @@ class VisualAnalysisServiceTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
+        Storage::fake('public');
+
+        config(['media-processing.ffmpeg.ffmpeg_path' => base_path('scripts/testing/ffmpeg-stub.sh')]);
+        config(['media-processing.storage.temp_disk' => 'local']);
+
         $this->service = new VisualAnalysisService;
     }
 
@@ -132,58 +138,51 @@ lavfi.signalstats.YHIGH=80.0
 lavfi.signalstats.YLOW=20.0
 EOF;
 
-        $tempDir = Storage::disk('local')->path('temp');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
+        $videoFile = 'temp/test_video_'.Str::uuid().'.mp4';
+        $stubFile = $videoFile.'.stub';
+
+        Storage::disk('local')->put($videoFile, 'fake video content');
+        Storage::disk('local')->put($stubFile, $metadataOutput);
+
+        try {
+            $metrics = $this->service->extractFrameMetrics(Storage::disk('local')->path($videoFile), 10);
+
+            $this->assertCount(3, $metrics);
+
+            $this->assertEquals(0.0, $metrics[0]['timestamp']);
+            $this->assertEqualsWithDelta(0.5, $metrics[0]['brightness'], 0.01);
+            $this->assertEqualsWithDelta(0.314, $metrics[0]['ylow'], 0.01);
+            $this->assertEqualsWithDelta(0.471, $metrics[0]['percentile_span'], 0.01);
+
+            $this->assertEquals(10.0, $metrics[1]['timestamp']);
+            $this->assertEqualsWithDelta(0.706, $metrics[1]['brightness'], 0.01);
+            $this->assertEqualsWithDelta(0.157, $metrics[1]['ylow'], 0.01);
+            $this->assertEqualsWithDelta(0.706, $metrics[1]['percentile_span'], 0.01);
+
+            $this->assertEquals(20.0, $metrics[2]['timestamp']);
+            $this->assertEqualsWithDelta(0.196, $metrics[2]['brightness'], 0.01);
+            $this->assertEqualsWithDelta(0.078, $metrics[2]['ylow'], 0.01);
+            $this->assertEqualsWithDelta(0.235, $metrics[2]['percentile_span'], 0.01);
+        } finally {
+            Storage::disk('local')->delete([$videoFile, $stubFile]);
         }
-        $tempFile = $tempDir.'/test_metrics.log';
-        file_put_contents($tempFile, $metadataOutput);
-
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('parseMetricsLog');
-        $method->setAccessible(true);
-
-        $metrics = $method->invoke($this->service, $tempFile);
-
-        $this->assertCount(3, $metrics);
-
-        $this->assertEquals(0.0, $metrics[0]['timestamp']);
-        $this->assertEqualsWithDelta(0.5, $metrics[0]['brightness'], 0.01);
-        $this->assertEqualsWithDelta(0.314, $metrics[0]['ylow'], 0.01);
-        $this->assertEqualsWithDelta(0.471, $metrics[0]['percentile_span'], 0.01);
-
-        $this->assertEquals(10.0, $metrics[1]['timestamp']);
-        $this->assertEqualsWithDelta(0.706, $metrics[1]['brightness'], 0.01);
-        $this->assertEqualsWithDelta(0.157, $metrics[1]['ylow'], 0.01);
-        $this->assertEqualsWithDelta(0.706, $metrics[1]['percentile_span'], 0.01);
-
-        $this->assertEquals(20.0, $metrics[2]['timestamp']);
-        $this->assertEqualsWithDelta(0.196, $metrics[2]['brightness'], 0.01);
-        $this->assertEqualsWithDelta(0.078, $metrics[2]['ylow'], 0.01);
-        $this->assertEqualsWithDelta(0.235, $metrics[2]['percentile_span'], 0.01);
-
-        @unlink($tempFile);
     }
 
     #[Test]
     public function it_handles_empty_metrics_gracefully(): void
     {
-        $tempDir = Storage::disk('local')->path('temp');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
+        $videoFile = 'temp/empty_video_'.Str::uuid().'.mp4';
+        Storage::disk('local')->put($videoFile, 'fake video content');
+
+        try {
+            // We expect an exception when the log is empty as per extractFrameMetrics implementation
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage('Frame metrics log is empty or does not exist');
+
+            $this->service->extractFrameMetrics(Storage::disk('local')->path($videoFile), 10);
+        } finally {
+            Storage::disk('local')->delete($videoFile);
         }
-        $tempFile = $tempDir.'/empty_metrics.log';
-        file_put_contents($tempFile, '');
-
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('parseMetricsLog');
-        $method->setAccessible(true);
-
-        $metrics = $method->invoke($this->service, $tempFile);
-
-        $this->assertEmpty($metrics);
-
-        @unlink($tempFile);
     }
 
     #[Test]
@@ -477,24 +476,28 @@ lavfi.signalstats.YHIGH=230.0
 lavfi.signalstats.YLOW=45.0
 EOF;
 
-        $tempDir = Storage::disk('local')->path('temp');
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
+        $videoFile = 'temp/region_video_'.Str::uuid().'.mp4';
+        $stubFile = $videoFile.'.stub';
+
+        Storage::disk('local')->put($videoFile, 'fake video content');
+        Storage::disk('local')->put($stubFile, $metadataOutput);
+
+        try {
+            $startTime = 100.0;
+            $endTime = 110.0;
+            $metrics = $this->service->extractFrameMetricsInRegion(Storage::disk('local')->path($videoFile), $startTime, $endTime, 1);
+
+            $this->assertCount(2, $metrics);
+
+            // extractFrameMetricsInRegion should add startTime to the timestamps from the log
+            $this->assertEquals(100.0, $metrics[0]['timestamp']);
+            $this->assertEquals(101.0, $metrics[1]['timestamp']);
+
+            $this->assertArrayHasKey('ylow', $metrics[0]);
+            $this->assertArrayHasKey('percentile_span', $metrics[0]);
+        } finally {
+            Storage::disk('local')->delete([$videoFile, $stubFile]);
         }
-        $tempFile = $tempDir.'/test_region_metrics.log';
-        file_put_contents($tempFile, $metadataOutput);
-
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('parseMetricsLog');
-        $method->setAccessible(true);
-        $metrics = $method->invoke($this->service, $tempFile);
-
-        $this->assertEquals(0.0, $metrics[0]['timestamp']);
-        $this->assertEquals(1.0, $metrics[1]['timestamp']);
-        $this->assertArrayHasKey('ylow', $metrics[0]);
-        $this->assertArrayHasKey('percentile_span', $metrics[0]);
-
-        @unlink($tempFile);
     }
 
     /**
