@@ -172,6 +172,18 @@ pass on top of Phase 5:
 The pass also fixed the seven PHPStan errors the stack carried (CI never ran on the stacked PRs —
 `pr.yml` only triggers against `master`).
 
+A second codex pass on the pre-merge PR (#1052) surfaced two more, fixed on
+`claude/pr-1052-feedback-merge-mjmdgf`:
+
+- **Boundary-crossing cues survive dedupe** — a chunk cue is discarded only when it *ends* inside
+  the duplicated window (fully covered by the previous chunk); a cue that starts inside it but
+  runs past the previous chunk's true end is kept whole, so the first words after every chunk
+  joint are never lost (a few overlapped words may repeat instead).
+- **Primary-mode gate failures alert the admin** — `DetectServiceStructure` queues the same
+  `ManualReviewRequired` mailable as `ExtractSermon`'s manual-review path after
+  `markProcessingRunForManualReview()`, so a hard validation failure never sits awaiting an
+  operator unnoticed.
+
 ## Goal
 
 Make sermon/talk/song extraction from livestream recordings reliable by restructuring the middle of

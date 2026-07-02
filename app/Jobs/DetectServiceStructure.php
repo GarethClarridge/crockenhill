@@ -11,6 +11,7 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionType;
 use App\Enums\ServiceStructureMode;
+use App\Mail\ManualReviewRequired;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
@@ -29,6 +30,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -199,6 +201,8 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 $evaluation['speech_segments']
             );
 
+            $this->notifyManualReviewRequired($reasonMessage, $evaluation['speech_segments']);
+
             // Stop the remaining chained jobs; the operator resumes via the
             // existing segment-confirmation flow (post-review chain).
             $this->chained = [];
@@ -221,6 +225,26 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
             sprintf('Persisted %d LLM-detected section(s)', count($classified))
         );
+    }
+
+    /**
+     * Queue the same admin alert the heuristic manual-review path sends, so a
+     * primary-mode gate failure never sits awaiting an operator unnoticed.
+     *
+     * @param  array<int, array{segment_id: int, start_time: float, end_time: float, duration: float}>  $speechSegments
+     */
+    private function notifyManualReviewRequired(string $reason, array $speechSegments): void
+    {
+        try {
+            Mail::to(config('media-processing.email.admin_email'))
+                ->queue(new ManualReviewRequired($this->processingLog->processing_id, $reason, $speechSegments));
+        } catch (\Exception $exception) {
+            Log::warning('Failed to queue manual review required email, continuing', [
+                'processing_id' => $this->processingLog->processing_id,
+                'reason' => $reason,
+                'email_error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     /**

@@ -108,9 +108,12 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
                 $response = $this->requestVerboseTranscription($chunkPath, $processingId);
 
                 foreach ($this->cuesFromResponse($response, $chunkStart) as $cue) {
-                    // Cues inside the duplicated window were already covered by
-                    // the previous chunk; keep only the ones past its true end.
-                    if ($index > 0 && ($cue['start'] - $chunkStart) < $duplicatedWindowSeconds) {
+                    // Cues ending inside the duplicated window were already
+                    // covered in full by the previous chunk. A cue that starts
+                    // inside it but runs past the previous chunk's true end is
+                    // kept whole: better to repeat a few overlapped words than
+                    // to lose the first speech after every chunk joint.
+                    if ($index > 0 && ($cue['end'] - $chunkStart) <= $duplicatedWindowSeconds) {
                         continue;
                     }
 

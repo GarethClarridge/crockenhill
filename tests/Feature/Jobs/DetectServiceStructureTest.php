@@ -10,6 +10,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ProcessingStatus;
 use App\Jobs\DetectServiceStructure;
+use App\Mail\ManualReviewRequired;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -20,6 +21,7 @@ use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -144,6 +146,8 @@ class DetectServiceStructureTest extends TestCase
     public function primary_mode_routes_hard_validation_failures_to_manual_review(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.email.admin_email', 'admin@example.com');
+        Mail::fake();
 
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
         $this->storeTranscript($log);
@@ -170,6 +174,12 @@ class DetectServiceStructureTest extends TestCase
         $this->assertStringContainsString('sermon', (string) $log->error_message);
         $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
         $this->assertSame([], $job->chained, 'The remaining chained jobs are cancelled.');
+
+        Mail::assertQueued(
+            ManualReviewRequired::class,
+            fn (ManualReviewRequired $mail): bool => $mail->processingId === $log->processing_id
+                && $mail->hasTo('admin@example.com')
+        );
     }
 
     private function runJob(MediaProcessingLog $log): void
