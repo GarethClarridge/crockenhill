@@ -13,16 +13,28 @@ use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
+/**
+ * Terminal error handler for the media processing pipeline.
+ *
+ * This service orchestrates the cleanup and state transitions required when a
+ * background media processing run fails. It ensures that temporary files are
+ * removed (to prevent disk exhaustion) and that administrators are notified
+ * of critical failures via email.
+ */
 class ProcessingRunFailureHandler
 {
     use SanitizesLogData;
 
+    /** Failure profile for standard audio processing runs. */
     public const PROFILE_AUDIO = 'audio';
 
+    /** Failure profile for standard video processing runs. */
     public const PROFILE_VIDEO = 'video';
 
+    /** Failure profile for video auto-trim runs (segmentation-based). */
     public const PROFILE_VIDEO_AUTO_TRIM = 'video_auto_trim';
 
+    /** Failure profile for livestream processing runs (segmentation-based + email alerts). */
     public const PROFILE_LIVESTREAM = 'livestream';
 
     public function __construct(
@@ -30,6 +42,17 @@ class ProcessingRunFailureHandler
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
     ) {}
 
+    /**
+     * Handle a processing run failure by transitioning state and performing cleanup.
+     *
+     * Identifies the related MediaProcessingLog and dispatches the failure
+     * logic appropriate for the given profile. If the run has already been
+     * cancelled, failure handling is skipped to prevent state corruption.
+     *
+     * @param  string  $processingId  The unique identifier of the failed processing run
+     * @param  \Throwable  $exception  The exception that triggered the failure
+     * @param  string  $profile  The pipeline profile (audio, video, video_auto_trim, livestream)
+     */
     public function handle(string $processingId, \Throwable $exception, string $profile): void
     {
         Log::error('Processing run failure', $this->sanitizeArrayForLog([
