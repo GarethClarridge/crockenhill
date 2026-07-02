@@ -31,12 +31,12 @@ use Illuminate\Support\Carbon;
  *     completed_at: Carbon|null,
  * }
  */
-class ProcessingReport
+readonly class ProcessingReport
 {
     /**
      * @param  ProcessingReportData  $data
      */
-    public function __construct(public readonly array $data) {}
+    public function __construct(public array $data) {}
 
     /**
      * @return ProcessingReportData
