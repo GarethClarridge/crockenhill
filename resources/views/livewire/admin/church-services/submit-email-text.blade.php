@@ -17,7 +17,7 @@
                 wire:click="submit"
                 icon="paper-airplane"
             >
-                Import email
+                Import email text
             </x-form-button>
         @endunless
     </x-slot:actions>
@@ -29,15 +29,15 @@
                     <x-heroicon-o-check-circle class="h-8 w-8 text-green-600" />
                 </div>
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Email imported for review</h2>
-                    <p class="mt-1 text-sm text-gray-600">The email has been queued for processing. Check the review inbox to see the parsed result.</p>
+                    <h2 class="text-lg font-semibold text-gray-900">Email text imported for review</h2>
+                    <p class="mt-1 text-sm text-gray-600">The email text has been queued for processing. Check the review inbox to see the parsed result.</p>
                 </div>
                 <div class="flex justify-center gap-3">
                     <x-button link="{{ route('admin.services.inbox', ['filter' => 'emails']) }}" variant="primary" inline>
                         View in review inbox
                     </x-button>
                     <x-form-button type="button" variant="outline" wire:click="$set('submitted', false)">
-                        Import another email
+                        Import more email text
                     </x-form-button>
                 </div>
             </div>
