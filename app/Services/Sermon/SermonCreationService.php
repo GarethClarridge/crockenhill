@@ -7,8 +7,10 @@ namespace App\Services\Sermon;
 use App\Data\SermonCreationOptions;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
+use App\Enums\SermonRichnessLevel;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\SermonUpsertAction;
 use App\Enums\TitleGenerationStrategy;
 use App\Exceptions\SermonRichnessDowngradeException;
 use App\Models\MediaProcessingLog;
@@ -68,9 +70,9 @@ class SermonCreationService
         $action = $this->decideUpsertAction($existingLevel, $incomingLevel);
 
         return match ($action) {
-            UpsertAction::Enrich => $this->enrichExisting($existing, $processingLog, $options),
-            UpsertAction::Replace => $this->replaceExisting($existing, $processingLog, $options),
-            UpsertAction::Reject => $this->rejectOrForce(
+            SermonUpsertAction::Enrich => $this->enrichExisting($existing, $processingLog, $options),
+            SermonUpsertAction::Replace => $this->replaceExisting($existing, $processingLog, $options),
+            SermonUpsertAction::Reject => $this->rejectOrForce(
                 $existing,
                 $processingLog,
                 $options,
@@ -89,8 +91,8 @@ class SermonCreationService
         MediaProcessingLog $processingLog,
         SermonCreationOptions $options,
         SermonService $service,
-        RichnessLevel $existingLevel,
-        RichnessLevel $incomingLevel,
+        SermonRichnessLevel $existingLevel,
+        SermonRichnessLevel $incomingLevel,
     ): Sermon {
         if ($options->forceOverwrite) {
             Log::warning('SermonCreationService: forceOverwrite bypassed richness downgrade rejection', $this->sanitizeArrayForLog([
@@ -117,25 +119,25 @@ class SermonCreationService
         );
     }
 
-    private function detectExistingRichness(Sermon $existing): RichnessLevel
+    private function detectExistingRichness(Sermon $existing): SermonRichnessLevel
     {
         if (filled($existing->livestream_processing_id)) {
-            return RichnessLevel::Livestream;
+            return SermonRichnessLevel::Livestream;
         }
 
         if (filled($existing->video_file_path)) {
-            return RichnessLevel::Video;
+            return SermonRichnessLevel::Video;
         }
 
-        return RichnessLevel::Audio;
+        return SermonRichnessLevel::Audio;
     }
 
-    private function detectIncomingRichness(MediaProcessingLog $processingLog, SermonCreationOptions $options): RichnessLevel
+    private function detectIncomingRichness(MediaProcessingLog $processingLog, SermonCreationOptions $options): SermonRichnessLevel
     {
         return match ($this->incomingMediaType($processingLog, $options)) {
-            MediaType::Livestream => RichnessLevel::Livestream,
-            MediaType::Video => RichnessLevel::Video,
-            MediaType::Audio => RichnessLevel::Audio,
+            MediaType::Livestream => SermonRichnessLevel::Livestream,
+            MediaType::Video => SermonRichnessLevel::Video,
+            MediaType::Audio => SermonRichnessLevel::Audio,
         };
     }
 
@@ -144,17 +146,17 @@ class SermonCreationService
         return $processingLog->processing_type;
     }
 
-    private function decideUpsertAction(RichnessLevel $existing, RichnessLevel $incoming): UpsertAction
+    private function decideUpsertAction(SermonRichnessLevel $existing, SermonRichnessLevel $incoming): SermonUpsertAction
     {
         if ($incoming->value > $existing->value) {
-            return UpsertAction::Enrich;
+            return SermonUpsertAction::Enrich;
         }
 
         if ($incoming->value === $existing->value) {
-            return UpsertAction::Replace;
+            return SermonUpsertAction::Replace;
         }
 
-        return UpsertAction::Reject;
+        return SermonUpsertAction::Reject;
     }
 
     /**
@@ -724,24 +726,4 @@ class SermonCreationService
         // Match strings composed only of digits, whitespace, and separators (-, _, :)
         return preg_match('/^[\d\s:_-]+$/', $normalized) === 1;
     }
-}
-
-/**
- * @internal Ranks for the SermonCreationService upsert matrix. Higher value = richer.
- */
-enum RichnessLevel: int
-{
-    case Audio = 1;
-    case Video = 2;
-    case Livestream = 3;
-}
-
-/**
- * @internal The three outcomes for SermonCreationService when an existing record matches.
- */
-enum UpsertAction
-{
-    case Enrich;
-    case Replace;
-    case Reject;
 }
