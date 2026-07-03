@@ -127,7 +127,10 @@ in 4.2. Files whose only consumers are inside the cluster (safe to delete at pha
 (190), `AlignWithOos` (78).
 
 **Plus:** the heuristic branches of `ProcessingPipelineBuilder::buildLivestreamChainJobs()` /
-`buildSectionReclassificationChainJobs()`, the `Off` case of `ServiceStructureMode`,
+`buildSectionReclassificationChainJobs()`, **the auto-trim pipeline** (`buildAutoTrimVideoPipeline()`
+and `buildAutoTrimVideoPostReviewChainJobs()`, which instantiate `ClassifyServiceSections`,
+`TranscribeSpeechSegments`, `ClassifySpeechSections`, and `ReclassifyIntroOutroSections`
+unconditionally — see seam 5 in 4.2), the `Off` case of `ServiceStructureMode`,
 `scripts/section-extraction/` (1,123 lines) with `SectionExtractionScriptsTest`, and ~8,900 lines of
 heuristic-path tests (list in 4.9).
 
@@ -150,11 +153,12 @@ non-cluster consumers before deletion" — this is that audit):
    `MatchSongsFromTranscript` uses directly. Nothing in the aligner is reused. No carve-out needed.
 4. **Two type/constant homes must move before their hosts are deleted** — detailed in 4.2.
 
-### 4.2 Four load-bearing seams the retirement must handle first
+### 4.2 Five load-bearing seams the retirement must handle first
 
-These are the concrete blockers between "flip to primary" and "delete the cluster". None is large;
-all four should be done as preparatory commits *before* the deletion pass so each deletion is purely
-subtractive.
+These are the concrete blockers between "flip to primary" and "delete the cluster". None of the
+first four is large; all should be done as preparatory commits *before* the deletion pass so each
+deletion is purely subtractive. Seam 5 (auto-trim) is larger and is the real gate on deleting the
+four classification jobs.
 
 1. **`ReconcileServiceSections` is not mode-aware — the late-OOS-arrival path re-runs the heuristic
    aligner in primary mode.** When an OOS email lands after a run has completed,
@@ -183,11 +187,24 @@ subtractive.
    `LivestreamChurchServiceProjectionService` (verified: `needs_review` propagation at lines
    143–174). Confirm during the soak that no review trigger is lost when the aligner stops running —
    then the synchronizer's only callers are the projection path and upload deletion.
+5. **The auto-trim pipeline is a second, un-gated consumer of the classification jobs.**
+   `ProcessingPipelineBuilder::buildAutoTrimVideoPipeline()` and
+   `buildAutoTrimVideoPostReviewChainJobs()` instantiate `ClassifyServiceSections`,
+   `TranscribeSpeechSegments`, `ClassifySpeechSections`, and `ReclassifyIntroOutroSections`
+   directly and with **no `ServiceStructureMode` gate at all** (`ProcessingPipelineBuilder.php:99-119,
+   251-320`) — the mode-gating that phase 4 added lives only on the livestream chain. So the four
+   classification jobs are not deletable while auto-trim depends on them: doing so would either break
+   the auto-trim entry point (a pre-trimmed video that still needs section understanding) or silently
+   drop its structure detection. Before the deletion pass, auto-trim must either be migrated onto the
+   LLM detector (`TranscribeFullService` → `DetectServiceStructure` in place of the four heuristic
+   jobs) or, if auto-trim uploads are no longer used, retired as its own decision (open question,
+   4.9). This is the real gate on jobs → services deletion, above and beyond the livestream soak.
 
 **The concrete path to retiring the heuristic classifier**, restated as a sequence:
 merge the stack → set `mode=shadow` + real detector/transcriber in production → accumulate Sundays →
-`structure:shadow-report` + fill a real manifest for `structure:evaluate` → land the four
-preparatory items above → flip `mode=primary` → soak (~8 services, plan's suggested gate) → delete
+`structure:shadow-report` + fill a real manifest for `structure:evaluate` → land the five
+preparatory items above (including migrating or retiring the auto-trim pipeline, seam 5) →
+flip `mode=primary` → soak (~8 services, plan's suggested gate) → delete
 in dependency order (jobs → services → builder branches → collapse `ServiceStructureMode` →
 heuristic tests and `scripts/section-extraction/`). Each deletion is its own commit with a green
 suite. Nothing else in the codebase blocks it.
@@ -280,13 +297,26 @@ seam itself stays as-is until the 4.3 reassessment.
 ### 4.8 Shadow/eval tooling: keep both — they are the regression suite for every future model change
 
 `StructureEvaluateCommand` (568) is permanent infrastructure by the plan's own phase 6 note ("model
-upgrades are an eval run, not a config flip") — agreed. `StructureShadowReportCommand` (226) is
-*almost* scaffolding, but `mode` deliberately collapses to `shadow|primary` (not just `primary`), so
-shadow remains the mechanism for re-validating a prompt/model change against live Sundays before
-flipping it. 226 lines for a production-evidence instrument is proportionate. Keep both; retire
-`scripts/section-extraction/` instead (already in the plan). One nit for phase 6: the eval command's
-`--detector=openai` default means a bare local run costs money; defaulting to the bound detector
-(mock in CI) would be safer — park for the implementation pass.
+upgrades are an eval run, not a config flip") — agreed, and it is the tool that survives cleanly
+because it evaluates against a fixed manifest, not against the heuristic pipeline.
+
+`StructureShadowReportCommand` (226) and shadow *mode* are a different case. Shadow is worth keeping
+in principle — `mode` deliberately collapses to `shadow|primary` (not just `primary`) — but it
+**cannot be marked permanent as-implemented**, because its baseline is the very cluster R1 deletes.
+Shadow runs the heuristic chain first and then appends `TranscribeFullService`/`DetectServiceStructure`,
+and `DetectServiceStructure::diffAgainstAuthoritativeSections()` compares the LLM proposal to the
+heuristic `service_sections` (the job's own docblock, `DetectServiceStructure.php:41,380-384`:
+"the heuristic sections stay authoritative"). Once the heuristic cluster is gone there is no
+authoritative baseline to diff against, so re-using `shadow` to validate a future prompt/model change
+requires **redefining the baseline first** — diff the candidate model against the currently-bound
+model's stored output, or against a curated `structure:evaluate` manifest, rather than against a
+heuristic that no longer runs. Treat that redesign as part of the phase 6 work, not a keep-as-is:
+keep the `shadow|primary` mode switch and the report command, but re-point the diff before the
+heuristic pipeline is deleted, or shadow mode ships broken. `StructureEvaluateCommand`'s
+manifest-based path is the natural home for that new baseline. Retire `scripts/section-extraction/`
+instead (already in the plan). One nit for phase 6: the eval command's `--detector=openai` default
+means a bare local run costs money; defaulting to the bound detector (mock in CI) would be safer —
+park for the implementation pass.
 
 ### 4.9 Tests: proportionate to the bridge, heavy after it
 
