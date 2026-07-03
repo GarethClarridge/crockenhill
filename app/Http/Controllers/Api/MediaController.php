@@ -240,7 +240,7 @@ class MediaController extends Controller
      * Security: Log data is sanitized to prevent log injection from user-controlled metadata.
      * Stack traces are sanitized to prevent information leakage.
      *
-     * @throws \Exception If the retry initiation fails
+     * @throws \Throwable If the retry initiation fails
      */
     public function retry(RetryMediaProcessingRequest $request, string $processingId): JsonResponse
     {

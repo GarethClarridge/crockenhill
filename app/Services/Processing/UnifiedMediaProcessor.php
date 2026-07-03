@@ -170,6 +170,8 @@ class UnifiedMediaProcessor
      *
      * @param  string  $processingId  The unique processing identifier
      * @return ProcessingResult The result of the retry initiation
+     *
+     * @throws \Throwable
      */
     public function retry(string $processingId): ProcessingResult
     {
@@ -205,6 +207,8 @@ class UnifiedMediaProcessor
      * that never touch livestream) to eagerly build the livestream service
      * graph — which is wasteful and breaks targeted-binding tests that
      * assert livestream is not touched on read paths.
+     *
+     * @throws \Illuminate\Contracts\Container\BindingResolutionException
      */
     private function livestreamService(): LivestreamSegmentationService
     {
