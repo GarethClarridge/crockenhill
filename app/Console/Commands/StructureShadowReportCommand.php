@@ -25,7 +25,8 @@ class StructureShadowReportCommand extends Command
     {
         $query = MediaProcessingLog::query()
             ->whereNotNull('processing_metadata->service_structure_shadow')
-            ->orderBy('created_at');
+            ->orderBy('created_at')
+            ->orderBy('id');
 
         $since = $this->option('since');
 
