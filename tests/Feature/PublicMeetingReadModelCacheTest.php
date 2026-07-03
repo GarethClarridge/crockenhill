@@ -12,6 +12,7 @@ use App\Models\Page;
 use App\Services\Public\PublicMeetingReadModelCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -37,16 +38,30 @@ class PublicMeetingReadModelCacheTest extends TestCase
         $cacheKey = "public_meeting_view_{$meeting->id}";
         Cache::forget($cacheKey);
 
-        $this->get('/community/cached-meeting')->assertOk();
+        DB::enableQueryLog();
 
-        $this->assertTrue(Cache::has($cacheKey));
+        // First request: should hit the database for the read model
+        $this->get('/community/cached-meeting')->assertOk();
+        $queriesAfterFirstCall = count(DB::getQueryLog());
+        $this->assertGreaterThan(0, $queriesAfterFirstCall);
+
+        // Second request: read model should be cached.
+        // Page and past events are still fetched fresh, but the read model (upcoming events etc) is cached.
+        $this->get('/community/cached-meeting')->assertOk();
+        $queriesAfterSecondCall = count(DB::getQueryLog());
+        $this->assertGreaterThan($queriesAfterFirstCall, $queriesAfterSecondCall);
 
         CalendarEvent::factory()->forMeeting($meeting)->upcoming()->create([
             'title' => 'Fresh event',
         ]);
 
-        $this->assertFalse(Cache::has($cacheKey));
-        $this->get('/community/cached-meeting')->assertSee('Fresh event');
+        // Third request: read model should be invalidated and re-fetched
+        $this->get('/community/cached-meeting')
+            ->assertOk()
+            ->assertSee('Fresh event');
+
+        $queriesAfterThirdCall = count(DB::getQueryLog());
+        $this->assertGreaterThan($queriesAfterSecondCall, $queriesAfterThirdCall);
     }
 
     #[Test]

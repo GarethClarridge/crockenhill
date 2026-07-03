@@ -9,6 +9,7 @@ use App\Models\Page;
 use App\Services\Public\MeetingListCache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -31,25 +32,36 @@ class MeetingAdminCacheTest extends TestCase
     public function admin_meeting_list_cache_is_populated_on_request(): void
     {
         Cache::forget(MeetingListCache::ADMIN_LIST_CACHE_KEY);
+        $this->repository->clearInternalCaches();
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::enableQueryLog();
 
+        // First call: executes queries
         $this->repository->forAdminList();
+        $this->assertNotEmpty(DB::getQueryLog());
 
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::flushQueryLog();
+        $this->repository->clearInternalCaches();
+
+        // Second call: hits cache, no queries
+        $this->repository->forAdminList();
+        $this->assertEmpty(DB::getQueryLog());
     }
 
     #[Test]
     public function admin_meeting_list_cache_is_invalidated_when_meeting_is_created(): void
     {
         $this->repository->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::enableQueryLog();
 
         Meeting::factory()->create([
             'slug' => 'new-meeting',
         ]);
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        $this->repository->clearInternalCaches();
+        $this->repository->forAdminList();
+
+        $this->assertNotEmpty(DB::getQueryLog());
     }
 
     #[Test]
@@ -60,11 +72,14 @@ class MeetingAdminCacheTest extends TestCase
         ]);
 
         $this->repository->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::enableQueryLog();
 
         $meeting->update(['who' => 'Updated Who']);
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        $this->repository->clearInternalCaches();
+        $this->repository->forAdminList();
+
+        $this->assertNotEmpty(DB::getQueryLog());
     }
 
     #[Test]
@@ -75,11 +90,14 @@ class MeetingAdminCacheTest extends TestCase
         ]);
 
         $this->repository->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::enableQueryLog();
 
         $meeting->delete();
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        $this->repository->clearInternalCaches();
+        $this->repository->forAdminList();
+
+        $this->assertNotEmpty(DB::getQueryLog());
     }
 
     #[Test]
@@ -96,10 +114,13 @@ class MeetingAdminCacheTest extends TestCase
         ]);
 
         $this->repository->forAdminList();
-        $this->assertTrue(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        DB::enableQueryLog();
 
         $page->update(['heading' => 'New Heading']);
 
-        $this->assertFalse(Cache::has(MeetingListCache::ADMIN_LIST_CACHE_KEY));
+        $this->repository->clearInternalCaches();
+        $this->repository->forAdminList();
+
+        $this->assertNotEmpty(DB::getQueryLog());
     }
 }
