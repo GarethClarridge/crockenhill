@@ -44,12 +44,13 @@ class PublicPageReadModelCacheTest extends TestCase
 
         // Update page: should invalidate cache
         $page->update(['heading' => 'Updated heading']);
+        DB::flushQueryLog();
 
         // Third request: should hit the database again
         $this->get('/church/cached-public-page')
             ->assertOk()
             ->assertSee('Updated heading');
 
-        $this->assertGreaterThan($queriesAfterFirstCall, count(DB::getQueryLog()));
+        $this->assertNotEmpty(DB::getQueryLog());
     }
 }

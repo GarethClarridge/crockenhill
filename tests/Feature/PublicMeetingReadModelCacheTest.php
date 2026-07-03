@@ -54,14 +54,14 @@ class PublicMeetingReadModelCacheTest extends TestCase
         CalendarEvent::factory()->forMeeting($meeting)->upcoming()->create([
             'title' => 'Fresh event',
         ]);
+        DB::flushQueryLog();
 
         // Third request: read model should be invalidated and re-fetched
         $this->get('/community/cached-meeting')
             ->assertOk()
             ->assertSee('Fresh event');
 
-        $queriesAfterThirdCall = count(DB::getQueryLog());
-        $this->assertGreaterThan($queriesAfterSecondCall, $queriesAfterThirdCall);
+        $this->assertNotEmpty(DB::getQueryLog());
     }
 
     #[Test]

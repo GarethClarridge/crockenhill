@@ -60,6 +60,7 @@ class MeetingAdminCacheTest extends TestCase
 
         $this->repository->clearInternalCaches();
         DB::flushQueryLog();
+
         $this->repository->forAdminList();
 
         $this->assertNotEmpty(DB::getQueryLog());
@@ -79,6 +80,7 @@ class MeetingAdminCacheTest extends TestCase
 
         $this->repository->clearInternalCaches();
         DB::flushQueryLog();
+
         $this->repository->forAdminList();
 
         $this->assertNotEmpty(DB::getQueryLog());
@@ -98,6 +100,7 @@ class MeetingAdminCacheTest extends TestCase
 
         $this->repository->clearInternalCaches();
         DB::flushQueryLog();
+
         $this->repository->forAdminList();
 
         $this->assertNotEmpty(DB::getQueryLog());
@@ -123,6 +126,7 @@ class MeetingAdminCacheTest extends TestCase
 
         $this->repository->clearInternalCaches();
         DB::flushQueryLog();
+
         $this->repository->forAdminList();
 
         $this->assertNotEmpty(DB::getQueryLog());
