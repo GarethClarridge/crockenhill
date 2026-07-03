@@ -8,6 +8,7 @@ use App\Enums\PageArea;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -28,13 +29,28 @@ class PublicPageReadModelCacheTest extends TestCase
         $cacheKey = "public_page_view_{$page->id}";
         Cache::forget($cacheKey);
 
+        DB::enableQueryLog();
+
+        // First request: should hit the database
         $this->get('/church/cached-public-page')->assertOk();
+        $queriesAfterFirstCall = count(DB::getQueryLog());
+        $this->assertGreaterThan(0, $queriesAfterFirstCall);
 
-        $this->assertTrue(Cache::has($cacheKey));
+        // Second request: should use the read model from cache, but still
+        // performs the initial page lookup to verify existence and visibility.
+        // We expect only 1 query (the Page::firstOrFail() in PageController).
+        $this->get('/church/cached-public-page')->assertOk();
+        $this->assertCount($queriesAfterFirstCall + 1, DB::getQueryLog());
 
+        // Update page: should invalidate cache
         $page->update(['heading' => 'Updated heading']);
+        DB::flushQueryLog();
 
-        $this->assertFalse(Cache::has($cacheKey));
-        $this->get('/church/cached-public-page')->assertSee('Updated heading');
+        // Third request: should hit the database again
+        $this->get('/church/cached-public-page')
+            ->assertOk()
+            ->assertSee('Updated heading');
+
+        $this->assertNotEmpty(DB::getQueryLog());
     }
 }
