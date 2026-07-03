@@ -139,4 +139,34 @@ class InboundEmailTest extends TestCase
             'updated_at' => now(),
         ]);
     }
+
+    #[Test]
+    public function it_validates_message_id_uniqueness(): void
+    {
+        InboundEmail::factory()->create(['message_id' => '<duplicate@example.com>']);
+
+        $rules = InboundEmail::validationRules();
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            ['message_id' => '<duplicate@example.com>'],
+            ['message_id' => $rules['message_id']]
+        );
+
+        $this->assertTrue($validator->fails());
+        $this->assertEquals('The message id has already been taken.', $validator->errors()->first('message_id'));
+    }
+
+    #[Test]
+    public function it_validates_required_fields(): void
+    {
+        $rules = InboundEmail::validationRules();
+
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            ['from' => '', 'subject' => ''],
+            ['from' => $rules['from'], 'subject' => $rules['subject']]
+        );
+
+        $this->assertTrue($validator->fails());
+        $this->assertEquals('The from field is required.', $validator->errors()->first('from'));
+        $this->assertEquals('The subject field is required.', $validator->errors()->first('subject'));
+    }
 }

@@ -87,12 +87,19 @@ class InboundEmail extends Model
     /**
      * @return array<string, list<string|mixed>>
      */
-    public static function validationRules(): array
+    public static function validationRules(?self $email = null): array
     {
+        $messageIdRule = ['required', 'string', 'max:512'];
+        $uniqueRule = Rule::unique('inbound_emails', 'message_id');
+        if ($email) {
+            $uniqueRule->ignore($email->id);
+        }
+        $messageIdRule[] = $uniqueRule;
+
         return [
-            'message_id' => ['required', 'string', 'max:512'],
-            'from' => ['string', 'max:255'],
-            'subject' => ['string', 'max:255'],
+            'message_id' => $messageIdRule,
+            'from' => ['required', 'string', 'max:255'],
+            'subject' => ['required', 'string', 'max:255'],
             'body_plain' => ['nullable', 'string', 'max:500000'],
             'body_html' => ['nullable', 'string', 'max:500000'],
             'received_at' => ['required', 'date'],
