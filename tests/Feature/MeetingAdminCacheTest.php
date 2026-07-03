@@ -59,6 +59,7 @@ class MeetingAdminCacheTest extends TestCase
         ]);
 
         $this->repository->clearInternalCaches();
+        DB::flushQueryLog();
         $this->repository->forAdminList();
 
         $this->assertNotEmpty(DB::getQueryLog());
@@ -77,6 +78,7 @@ class MeetingAdminCacheTest extends TestCase
         $meeting->update(['who' => 'Updated Who']);
 
         $this->repository->clearInternalCaches();
+        DB::flushQueryLog();
         $this->repository->forAdminList();
 
         $this->assertNotEmpty(DB::getQueryLog());
@@ -95,6 +97,7 @@ class MeetingAdminCacheTest extends TestCase
         $meeting->delete();
 
         $this->repository->clearInternalCaches();
+        DB::flushQueryLog();
         $this->repository->forAdminList();
 
         $this->assertNotEmpty(DB::getQueryLog());
@@ -119,6 +122,7 @@ class MeetingAdminCacheTest extends TestCase
         $page->update(['heading' => 'New Heading']);
 
         $this->repository->clearInternalCaches();
+        DB::flushQueryLog();
         $this->repository->forAdminList();
 
         $this->assertNotEmpty(DB::getQueryLog());
