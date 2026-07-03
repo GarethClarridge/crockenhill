@@ -120,11 +120,13 @@ this finding covers only the media-side stack beneath them.
    `logFileOperation` (2). Its other **seven public methods have zero production callers**:
    `logProcessingStart`, `logProcessingComplete`, `logPerformanceMetrics`, `logHealthCheck`,
    `generateProcessingStatistics`, `generateProcessingReport`, `getRecentProcessingActivity` —
-   roughly 300 lines including a private log-file parser, kept alive only by
-   `SermonProcessingLoggerTest` (636 lines) and one assertion in
+   roughly 300 lines including a private log-file parser, kept alive by
+   `SermonProcessingLoggerTest` (636 lines), `SermonProcessingLoggerSecurityTest` (calls
+   `logProcessingStart`/`logProcessingComplete`/`logHealthCheck`), and one assertion in
    `LivestreamProcessingIntegrationTest`. `App\Data\ProcessingReport` exists only for the dead
-   report method. The parking-lot verdict that logger and log service are "complementary
-   writer/reader" misses that the writer contains its own second reader, and both are unused.
+   report method and is pinned directly by `ProcessingReportTest`. The parking-lot verdict that
+   logger and log service are "complementary writer/reader" misses that the writer contains its own
+   second reader, and both are unused.
 3. **Log-line re-parsing** — `ProcessingLogService` (468 lines) streams the whole of
    `storage/logs/laravel.log` on every logs-included status request
    (`getResolvedLogPath()`/`parseLogsFromFile()`), regex-parses lines back into
@@ -318,11 +320,19 @@ Weighted equally with removals, per the plan.
    and its progress value), `StandardProcessingResponseTest`, `MediaProcessingStatusTransitionsTest`
    (two data-provider rows), and `CompletionOutcomePreservationTest` (fixture `current_step`).
 3. Delete the seven dead `SermonProcessingLogger` methods, `App\Data\ProcessingReport`, and the
-   corresponding test sections.
+   corresponding test sections. The same commit must sweep every fixture that pins the deleted
+   surface, or the suite fails: the dead-method sections of `SermonProcessingLoggerTest`, the
+   whole of `SermonProcessingLoggerSecurityTest` (built entirely around `logProcessingStart`/
+   `logProcessingComplete`/`logHealthCheck`), `ProcessingReportTest` (instantiates
+   `App\Data\ProcessingReport`), and the `LivestreamProcessingIntegrationTest` assertion.
 4. Delete the `sermon-processing` channel from `config/logging.php` and
    `app/Logging/SermonProcessingLogFormatter.php` (after confirming production `LOG_CHANNEL`, §8 Q5).
 5. Delete `VideoStorageService::{cleanupExpiredFiles, storeTemporary, moveToPermanent, getAudioUrl}`
-   and the `@deprecated` `VideoExtractionService::extractOptimizedAudioFromSegment` alias.
+   and the `@deprecated` `VideoExtractionService::extractOptimizedAudioFromSegment` alias. The same
+   commit must update or delete the fixtures that exercise those surfaces, or the suite fails:
+   `VideoStorageServiceTest` (calls `cleanupExpiredFiles()` and `storeTemporary()`),
+   `VideoStorageServiceCompressionTest` (calls `extractOptimizedAudioFromSegment()`), and the
+   `LivestreamAudioCompressionTest` assertion that the alias `method_exists`.
 6. Mode-gate `PerformVisualAnalysis` in `buildLivestreamParallelJobs()` so primary mode stops
    paying for visual analysis it doesn't consume (keeps off/shadow byte-identical).
 
