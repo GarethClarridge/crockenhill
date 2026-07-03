@@ -79,9 +79,14 @@ concrete answer in the wiring:
 
 - `ProcessingPipelineBuilder::buildLivestreamParallelJobs()` (`app/Services/Processing/ProcessingPipelineBuilder.php:128`)
   dispatches `PerformVisualAnalysis` **regardless of `service_structure.mode`** — visual song
-  detection runs even in primary mode, where nothing downstream consumes song clusters for
-  classification (the LLM owns section types and song titles; `MatchSongsFromTranscript` prefers
-  `song_title_hint`).
+  detection runs even in primary mode, where nothing downstream consumes song clusters *for
+  classification* (the LLM owns section types and song titles; `MatchSongsFromTranscript` prefers
+  `song_title_hint`). But note the clusters are still consumed for *segmentation* —
+  `AnalyzeSegments::getVisualClusters()` reads `song_clusters` and, when present, runs
+  `analyzeWithVisualGuidance()` instead of RMS-only segmentation (`AnalyzeSegments.php:67-82`); the
+  resulting `LivestreamSegment` boundaries are what `ServiceStructure` resolves `source_segment_ids`
+  against by time overlap (`ServiceStructure.php:130-166`). So the producer is not consumer-free in
+  primary mode — see the risk note on quick win 6.
 - In primary mode `AnalyzeSegments` (647 lines) is retained solely so `LivestreamSegment` rows
   exist to back `source_segment_ids` and the manual segment-confirmation flow — yet the Phase 3
   mapper can already **synthesise** a covering segment when none overlaps
@@ -99,11 +104,18 @@ classifiers: `VisualAnalysisService` (881), the visual/cluster half of `VideoSeg
 (~400 of 757), `PerformVisualAnalysis` (326), `ExportVisualMetricsCommand`, the visual-merge half
 of `AnalyzeSegments` (~350 of 647), and the `song_clusters`/`visual_confidence`/
 `visual_sample_count`/`calibration_method` columns and their `LivestreamSegment` model surface.
-Interim step available now at zero risk: mode-gate `PerformVisualAnalysis` out of the primary
-chain the way the classification cluster already is. This is the single largest simplification in
-the codebase (~2,000+ lines plus tests) and it is already sanctioned in spirit by the exemplar
-plan — it just isn't on that plan's Phase 6 deletion list, which names only church-service jobs
-and services.
+Interim step available now: mode-gate `PerformVisualAnalysis` out of the primary chain the way the
+classification cluster already is — but this is *not* byte-identical for primary runs and must be
+treated as a segmentation migration, not a free deletion. Removing the `song_clusters` producer
+makes `AnalyzeSegments` fall back to RMS-only segmentation in primary mode, which changes the
+`LivestreamSegment` boundaries and therefore the `source_segment_ids` that `DetectServiceStructure`
+maps LLM sections onto (and the speech blocks shown in manual review). The interim change must
+either accept and characterise that shift (the Phase 3 mapper can already `synthesise` a covering
+segment, so the practical impact may be small — but it needs a test), or remove/replace the
+visual-guided branch in `AnalyzeSegments` in the same change. Off/shadow mode stay byte-identical
+regardless. This is still the single largest simplification in the codebase (~2,000+ lines plus
+tests) and it is already sanctioned in spirit by the exemplar plan — it just isn't on that plan's
+Phase 6 deletion list, which names only church-service jobs and services.
 
 *Cross-phase note:* the heuristic classification jobs themselves (`ClassifyServiceSections`,
 `ClassifySpeechSections`, `TranscribeSpeechSegments`, `AlignWithOos`, `ResolveReadingReferences`,
@@ -250,10 +262,15 @@ to a real outcome — branded thumbnails on every sermon page and podcast/social
 operator override — and the June technical-debt review's "do not refactor stable complexity"
 verdict (1–3 commits/90d) is a fair counterweight to its size.
 
-Two genuine questions remain: whether all **three** canvas styles are used in production (the
-config default is `centered`; if `main`/`card` layouts have no consumer, a few hundred composer
-lines and their tests go), and whether the **Pixian** paid API's foreground cut-out visibly earns
-its keep on the finished thumbnails. Both are operator/product questions, not code questions —
+Two genuine questions remain. The first is bounded to **`main` vs `centered`**, not all three
+styles: the `card` layout is *live* — `ThumbnailGenerationService` calls
+`ThumbnailCanvasComposer::buildCardThumbnailCanvas()` unconditionally for every generated thumbnail
+(`ThumbnailGenerationService.php:557`), stores `card_thumbnail_path` (`:189,:491`), and sermon card
+surfaces serve it. Only `main` is a candidate for "no consumer" (config default is `centered`); if
+`main` has no live surface, a smaller slice of composer lines and their tests go. Deleting `card`
+would break card thumbnails, so any audit must scope to `main` or first plan a replacement for the
+card variant. The second question is whether the **Pixian** paid API's foreground cut-out visibly
+earns its keep on the finished thumbnails. Both are operator/product questions, not code questions —
 parked in §8. Test weight is also top-heavy here: 17 test files including a `Performance` suite
 (see §"Tests" below).
 
@@ -334,7 +351,12 @@ Weighted equally with removals, per the plan.
    `VideoStorageServiceCompressionTest` (calls `extractOptimizedAudioFromSegment()`), and the
    `LivestreamAudioCompressionTest` assertion that the alias `method_exists`.
 6. Mode-gate `PerformVisualAnalysis` in `buildLivestreamParallelJobs()` so primary mode stops
-   paying for visual analysis it doesn't consume (keeps off/shadow byte-identical).
+   paying for visual analysis it doesn't consume *for classification* (keeps off/shadow
+   byte-identical). **Not zero-risk for primary, and not a one-hour win as stated above:** the
+   clusters are still consumed for *segmentation*, so dropping the producer flips `AnalyzeSegments`
+   to RMS-only, changing `LivestreamSegment` boundaries and the `source_segment_ids` the LLM sections
+   map onto (F1). Land it with a characterisation test on primary-mode segments, or remove the
+   `AnalyzeSegments` visual branch in the same change — do not treat it as a pure no-op deletion.
 
 ## 8. Open questions for the user
 
@@ -343,9 +365,10 @@ Weighted equally with removals, per the plan.
    children's-talk speaker naming still a near-term goal? (Decides R2.)
 2. **Historic video import** — is the 275 GB drive import finished for good? (Decides R1; same
    sign-off batch as SIMPLIFICATION-PLAN Phase 25.)
-3. **Thumbnail styles** — production uses `THUMBNAIL_STYLE=centered`? Are the `main` and `card`
-   composer styles rendered anywhere operators or visitors actually see, and does the Pixian
-   foreground cut-out visibly earn its per-image cost? (Scopes F7.)
+3. **Thumbnail styles** — production uses `THUMBNAIL_STYLE=centered`? Is the `main` composer style
+   rendered anywhere operators or visitors actually see? (`card` is already known-live — it is built
+   unconditionally and served as `card_thumbnail_path`, so it is *not* in scope for removal.) And
+   does the Pixian foreground cut-out visibly earn its per-image cost? (Scopes F7.)
 4. **Processing logs viewer** — do you actually open `ProcessingLogsViewer` when a run misbehaves,
    or is the church-service timeline (steps table) the working surface? (Decides how much R4 must
    preserve.)
