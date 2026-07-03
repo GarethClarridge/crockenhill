@@ -241,6 +241,8 @@ class ServiceStructureValidator
     private function checkOosAnchoring(ServiceStructure $structure, ValidationContext $context, array &$hardFailures): void
     {
         $claimed = [];
+        $lastClaimedItemId = null;
+        $lastClaimedPosition = null;
 
         foreach ($structure->sections as $index => $section) {
             $itemId = $section->oosItemId;
@@ -268,6 +270,31 @@ class ServiceStructureValidator
             }
 
             $claimed[] = $itemId;
+
+            // Sections are chronological, so claimed items must follow the
+            // planned order. Types alone cannot catch two same-type items
+            // (e.g. two songs) swapped by the detector, which would persist
+            // each section against the wrong service item.
+            $position = $context->oosItemPositions[$itemId] ?? null;
+
+            if ($position !== null) {
+                if ($lastClaimedPosition !== null && $position < $lastClaimedPosition) {
+                    $hardFailures[] = [
+                        'code' => 'out_of_order_oos_items',
+                        'message' => sprintf(
+                            'Section %d claims OoS item %d (position %d) after item %d (position %d); claimed items must follow the planned order.',
+                            $index + 1,
+                            $itemId,
+                            $position,
+                            (int) $lastClaimedItemId,
+                            $lastClaimedPosition
+                        ),
+                    ];
+                } else {
+                    $lastClaimedItemId = $itemId;
+                    $lastClaimedPosition = $position;
+                }
+            }
 
             $itemType = $context->oosItemTypes[$itemId];
 

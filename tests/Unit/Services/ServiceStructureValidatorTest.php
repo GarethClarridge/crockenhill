@@ -237,6 +237,37 @@ class ServiceStructureValidatorTest extends TestCase
     }
 
     #[Test]
+    public function same_type_oos_items_claimed_out_of_planned_order_fail_hard(): void
+    {
+        // Two songs swapped by the detector pass the existence, duplicate and
+        // type checks — only their planned positions expose the mix-up.
+        $structure = ServiceStructure::fromSections([
+            $this->section('bible_reading', 0.0, 200.0, oosItemId: 3),
+            $this->section('song', 300.0, 700.0, oosItemId: 2),
+            $this->section('welcome', 800.0, 1000.0, oosItemId: 1),
+            $this->section('sermon', 1100.0, 2300.0, oosItemId: 4),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertContains('out_of_order_oos_items', $result->failureCodes());
+    }
+
+    #[Test]
+    public function items_claimed_in_planned_order_with_gaps_pass(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('song', 0.0, 400.0, oosItemId: 2),
+            $this->section('sermon', 500.0, 2200.0, oosItemId: 4),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertNotContains('out_of_order_oos_items', $result->failureCodes());
+        $this->assertTrue($result->passed(), $result->failureSummary());
+    }
+
+    #[Test]
     public function a_generic_other_oos_item_may_anchor_any_section_type(): void
     {
         // Item 5 is semantic type "other" ("Andrew Talk.pptx") anchoring the sermon — F15.
@@ -332,7 +363,8 @@ class ServiceStructureValidatorTest extends TestCase
     }
 
     /**
-     * 2430 s recording with 2300 s of speech; OoS items 1–5 (5 is generic "other").
+     * 2430 s recording with 2300 s of speech; OoS items 1–5 in planned order
+     * (5 is generic "other").
      */
     private function context(): ValidationContext
     {
@@ -346,6 +378,7 @@ class ServiceStructureValidatorTest extends TestCase
                 4 => ServiceSectionType::Sermon,
                 5 => ServiceSectionType::Other,
             ],
+            oosItemPositions: [1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5],
         );
     }
 

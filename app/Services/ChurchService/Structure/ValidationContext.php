@@ -17,12 +17,14 @@ final readonly class ValidationContext
     /**
      * @param  array<int, ServiceSectionType>  $oosItemTypes  ChurchServiceItem id → semantic section type
      * @param  list<array{start: float, end: float, text: string}>  $cues  Transcript cues, so coverage can measure the speech time sections actually overlap
+     * @param  array<int, int>  $oosItemPositions  ChurchServiceItem id → planned position, so anchoring can reject same-type items claimed out of order
      */
     public function __construct(
         public float $recordingDuration,
         public float $speechDuration,
         public array $oosItemTypes = [],
         public array $cues = [],
+        public array $oosItemPositions = [],
     ) {}
 
     /**
@@ -31,9 +33,11 @@ final readonly class ValidationContext
     public static function for(ChurchServiceTranscript $transcript, iterable $oosItems = []): self
     {
         $oosItemTypes = [];
+        $oosItemPositions = [];
 
         foreach ($oosItems as $item) {
             $oosItemTypes[(int) $item->id] = $item->semanticSectionType();
+            $oosItemPositions[(int) $item->id] = (int) $item->position;
         }
 
         return new self(
@@ -41,6 +45,7 @@ final readonly class ValidationContext
             speechDuration: $transcript->speechDuration(),
             oosItemTypes: $oosItemTypes,
             cues: $transcript->cues,
+            oosItemPositions: $oosItemPositions,
         );
     }
 }
