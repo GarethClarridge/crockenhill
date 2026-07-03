@@ -196,9 +196,19 @@ four classification jobs.
    classification jobs are not deletable while auto-trim depends on them: doing so would either break
    the auto-trim entry point (a pre-trimmed video that still needs section understanding) or silently
    drop its structure detection. Before the deletion pass, auto-trim must either be migrated onto the
-   LLM detector (`TranscribeFullService` → `DetectServiceStructure` in place of the four heuristic
-   jobs) or, if auto-trim uploads are no longer used, retired as its own decision (open question,
-   4.9). This is the real gate on jobs → services deletion, above and beyond the livestream soak.
+   LLM detector or, if auto-trim uploads are no longer used, retired as its own decision (open
+   question, 4.9). **The migration is not a straight job swap**, because the LLM path is
+   livestream-only by guard: auto-trim runs are `MediaType::Video`, but `DetectServiceStructure::handle()`
+   skips anything whose `processing_type !== MediaType::Livestream` (`DetectServiceStructure.php:88-95`),
+   and the downstream projection/song/publication jobs carry the same livestream-only guard
+   (`ProjectLivestreamServiceStructure`, `MatchSongsFromTranscript`, `AlignWithOos`,
+   `PrepareSectionPublicationCandidates`, `PublishApprovedServiceSection`, `CreateSermonRecord`,
+   `EnhanceAudio`, `GenerateThumbnail`, `IdentifySpeaker`). So dropping in `TranscribeFullService` →
+   `DetectServiceStructure` as-is would let an auto-trim upload run but produce **no LLM sections and
+   no service linkage**. The migration must first widen those guards to cover the auto-trim media
+   type (or add a dedicated auto-trim LLM path) — a real design task, not a rename — before the four
+   heuristic jobs can be deleted. This is the real gate on jobs → services deletion, above and beyond
+   the livestream soak.
 
 **The concrete path to retiring the heuristic classifier**, restated as a sequence:
 merge the stack → set `mode=shadow` + real detector/transcriber in production → accumulate Sundays →
