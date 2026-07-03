@@ -215,9 +215,20 @@ merge the stack → set `mode=shadow` + real detector/transcriber in production 
 `structure:shadow-report` + fill a real manifest for `structure:evaluate` → land the five
 preparatory items above (including migrating or retiring the auto-trim pipeline, seam 5) →
 flip `mode=primary` → soak (~8 services, plan's suggested gate) → delete
-in dependency order (jobs → services → builder branches → collapse `ServiceStructureMode` →
-heuristic tests and `scripts/section-extraction/`). Each deletion is its own commit with a green
-suite. Nothing else in the codebase blocks it.
+in dependency order (jobs → services → builder branches → **`ProcessingPhaseRegistry` cleanup** →
+collapse `ServiceStructureMode` → heuristic tests and `scripts/section-extraction/`). Each deletion
+is its own commit with a green suite.
+
+One more consumer sits in that chain and must not be forgotten: `ProcessingPhaseRegistry` is a live
+class (it backs `StandardProcessingResponse::progressForLog()`, `StandardProcessingResponse.php:330`)
+that **imports and anchors every job being deleted** — `ClassifyServiceSections`,
+`ClassifySpeechSections`, `TranscribeSpeechSegments`, `ReclassifyIntroOutroSections`, `AlignWithOos`,
+and `ResolveReadingReferences` all appear in its `use` block and phase tables
+(`ProcessingPhaseRegistry.php:9-28` and the livestream/reclassification phase entries). Deleting the
+job classes without pruning the registry's imports, phase rows, and progress anchors in the same step
+leaves dangling references that fail PHPStan and the suite — so registry/timeline cleanup is an
+explicit deletion step, not an afterthought. With that step included, nothing else in the codebase
+blocks it.
 
 ### 4.3 `ChurchServiceItemSyncService` (912 lines) — proportionate today, over-general tomorrow
 
