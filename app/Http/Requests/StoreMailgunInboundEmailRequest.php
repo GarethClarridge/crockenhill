@@ -8,6 +8,7 @@ use App\Models\InboundEmail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\Validator;
 
 class StoreMailgunInboundEmailRequest extends FormRequest
@@ -40,7 +41,7 @@ class StoreMailgunInboundEmailRequest extends FormRequest
             // We also exclude the unique rule because the controller handles duplicates gracefully.
             'Message-Id' => [
                 'nullable',
-                ...array_filter($modelRules['message_id'], fn ($rule) => $rule !== 'required' && ! ($rule instanceof \Illuminate\Validation\Rules\Unique)),
+                ...array_filter($modelRules['message_id'], fn ($rule) => $rule !== 'required' && ! ($rule instanceof Unique)),
             ],
             'message-headers' => ['nullable', 'string', 'max:100000'],
             'body-plain' => ['nullable', 'string', 'max:500000'],

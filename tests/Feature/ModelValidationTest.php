@@ -10,6 +10,7 @@ use App\Enums\MeetingType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SampleSource;
 use App\Enums\SermonContentType;
+use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\Meeting;
 use App\Models\Sermon;
@@ -19,6 +20,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Validation\Rules\Unique;
 use Tests\TestCase;
 
 class ModelValidationTest extends TestCase
@@ -124,7 +126,7 @@ class ModelValidationTest extends TestCase
      */
     public function test_inbound_email_validation_rules_are_robust(): void
     {
-        $rules = \App\Models\InboundEmail::validationRules();
+        $rules = InboundEmail::validationRules();
 
         $this->assertArrayHasKey('message_id', $rules);
         $this->assertContains('required', $rules['message_id']);
@@ -139,20 +141,20 @@ class ModelValidationTest extends TestCase
         $this->assertContains('max:255', $rules['subject']);
 
         // Functional test: unique message_id fails
-        \App\Models\InboundEmail::factory()->create(['message_id' => 'duplicate@example.com']);
-        $data = \App\Models\InboundEmail::factory()->raw(['message_id' => 'duplicate@example.com']);
+        InboundEmail::factory()->create(['message_id' => 'duplicate@example.com']);
+        $data = InboundEmail::factory()->raw(['message_id' => 'duplicate@example.com']);
         $validator = Validator::make($data, $rules);
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('message_id', $validator->errors()->toArray());
 
         // Functional test: missing from fails
-        $data = \App\Models\InboundEmail::factory()->raw(['from' => '']);
+        $data = InboundEmail::factory()->raw(['from' => '']);
         $validator = Validator::make($data, $rules);
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('from', $validator->errors()->toArray());
 
         // Functional test: valid data passes
-        $data = \App\Models\InboundEmail::factory()->raw(['message_id' => 'unique@example.com']);
+        $data = InboundEmail::factory()->raw(['message_id' => 'unique@example.com']);
         $validator = Validator::make($data, $rules);
         $this->assertFalse($validator->fails(), print_r($validator->errors()->all(), true));
     }
@@ -218,7 +220,7 @@ class ModelValidationTest extends TestCase
         }
 
         foreach ($rules as $rule) {
-            if ($rule instanceof \Illuminate\Validation\Rules\Unique) {
+            if ($rule instanceof Unique) {
                 return true;
             }
             if (is_string($rule) && str_starts_with($rule, 'unique:')) {
