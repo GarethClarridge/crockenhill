@@ -93,6 +93,47 @@ class PageListCache
     }
 
     /**
+     * Get and cache public links by their slugs across all non-member areas.
+     *
+     * Performance Optimization: Implements request-level memoization and flexible caching.
+     *
+     * @param  list<string>  $slugs
+     * @return Collection<int, Page>
+     */
+    public function getLinksBySlugs(array $slugs, string $cacheKey): Collection
+    {
+        $orderedSlugs = array_values(array_unique($slugs));
+
+        if ($orderedSlugs === []) {
+            return collect();
+        }
+
+        if (isset($this->computed[$cacheKey])) {
+            /** @var Collection<int, Page> */
+            return $this->memoizedPresents[$cacheKey];
+        }
+
+        $links = Cache::flexible($cacheKey, [86400, 172800], function () use ($orderedSlugs) {
+            return Page::query()
+                ->public()
+                ->select(['id', 'slug', 'heading', 'area', 'description', 'admin', 'navigation'])
+                ->where('area', '!=', PageArea::Members)
+                ->whereIn('slug', $orderedSlugs)
+                ->get()
+                ->sortBy(function (Page $page) use ($orderedSlugs): int {
+                    $position = array_search($page->slug, $orderedSlugs, true);
+
+                    return $position === false ? PHP_INT_MAX : $position;
+                })
+                ->values();
+        });
+
+        $this->computed[$cacheKey] = true;
+
+        return $this->memoizedPresents[$cacheKey] = $links;
+    }
+
+    /**
      * Clear all internal memoization caches.
      * Useful for long-running processes or tests.
      */
