@@ -10,6 +10,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -138,5 +139,51 @@ class InboundEmailTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    #[Test]
+    public function it_has_correct_validation_rules(): void
+    {
+        $rules = InboundEmail::validationRules();
+
+        $this->assertContains('required', $rules['message_id']);
+        $this->assertContains('required', $rules['from']);
+        $this->assertContains('required', $rules['subject']);
+
+        $uniqueRule = collect($rules['message_id'])->first(fn ($rule) => str_starts_with((string) $rule, 'unique:inbound_emails,message_id'));
+        $this->assertNotNull($uniqueRule);
+    }
+
+    #[Test]
+    public function it_validates_required_fields(): void
+    {
+        $validator = Validator::make([], InboundEmail::validationRules());
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('message_id', $validator->errors()->toArray());
+        $this->assertArrayHasKey('from', $validator->errors()->toArray());
+        $this->assertArrayHasKey('subject', $validator->errors()->toArray());
+    }
+
+    #[Test]
+    public function it_validates_message_id_uniqueness(): void
+    {
+        $existing = InboundEmail::factory()->create(['message_id' => '<duplicate@example.com>']);
+
+        $validator = Validator::make(
+            ['message_id' => '<duplicate@example.com>', 'from' => 'Sender', 'subject' => 'Subject', 'received_at' => now(), 'status' => InboundEmailStatus::Pending->value],
+            InboundEmail::validationRules()
+        );
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('message_id', $validator->errors()->toArray());
+
+        // Test ignore
+        $validatorIgnore = Validator::make(
+            ['message_id' => '<duplicate@example.com>', 'from' => 'Sender', 'subject' => 'Subject', 'received_at' => now(), 'status' => InboundEmailStatus::Pending->value],
+            InboundEmail::validationRules($existing)
+        );
+
+        $this->assertFalse($validatorIgnore->fails());
     }
 }
