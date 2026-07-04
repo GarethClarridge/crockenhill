@@ -62,23 +62,33 @@
                                 'startDate' => $event->start_datetime->toIso8601String(),
                                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                                 'eventStatus' => 'https://schema.org/EventScheduled',
-                                'location' => [
-                                    '@type' => 'Place',
-                                    'name' => $event->location ?? ($event->meeting?->location ?? 'Crockenhill Baptist Church'),
-                                    'address' => [
-                                        '@type' => 'PostalAddress',
-                                        'streetAddress' => $orgStreet,
-                                        'addressLocality' => $orgLocality,
-                                        'addressRegion' => $orgRegion,
-                                        'postalCode' => $orgPostalCode,
-                                        'addressCountry' => $orgCountry,
-                                    ],
-                                    'geo' => [
-                                        '@type' => 'GeoCoordinates',
-                                        'latitude' => $orgLatitude,
-                                        'longitude' => $orgLongitude,
-                                    ],
-                                ],
+                                'location' => (function() use ($event, $orgName, $orgStreet, $orgLocality, $orgRegion, $orgPostalCode, $orgCountry, $orgLatitude, $orgLongitude) {
+                                    $locName = $event->location ?? ($event->meeting?->location ?? $orgName);
+                                    $isOnsite = ! ($event->location ?? $event->meeting?->location) || \Illuminate\Support\Str::contains($locName, ['Church', 'hall'], ignoreCase: true);
+
+                                    $location = [
+                                        '@type' => 'Place',
+                                        'name' => $locName,
+                                    ];
+
+                                    if ($isOnsite) {
+                                        $location['address'] = [
+                                            '@type' => 'PostalAddress',
+                                            'streetAddress' => $orgStreet,
+                                            'addressLocality' => $orgLocality,
+                                            'addressRegion' => $orgRegion,
+                                            'postalCode' => $orgPostalCode,
+                                            'addressCountry' => $orgCountry,
+                                        ];
+                                        $location['geo'] = [
+                                            '@type' => 'GeoCoordinates',
+                                            'latitude' => $orgLatitude,
+                                            'longitude' => $orgLongitude,
+                                        ];
+                                    }
+
+                                    return $location;
+                                })(),
                                 'image' => $primaryImage,
                                 'organizer' => [
                                     '@type' => 'Organization',

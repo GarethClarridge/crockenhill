@@ -60,23 +60,31 @@
                     '@id' => url()->current() . '#event-' . \Illuminate\Support\Str::slug($event['name']),
                     'name' => $event['name'],
                     'startDate' => $event['startDate'],
-                    'location' => [
-                        '@type' => 'Place',
-                        'name' => $event['location'] ?? config('organization.name'),
-                        'address' => [
-                            '@type' => 'PostalAddress',
-                            'streetAddress' => config('organization.address.street'),
-                            'addressLocality' => config('organization.address.locality'),
-                            'addressRegion' => config('organization.address.region'),
-                            'postalCode' => config('organization.address.postal_code'),
-                            'addressCountry' => config('organization.address.country'),
-                        ],
-                        'geo' => [
-                            '@type' => 'GeoCoordinates',
-                            'latitude' => config('organization.geo.latitude'),
-                            'longitude' => config('organization.geo.longitude'),
-                        ],
-                    ],
+                    'location' => (function() use ($event) {
+                        $isOffsite = isset($event['location']);
+                        $location = [
+                            '@type' => 'Place',
+                            'name' => $event['location'] ?? config('organization.name'),
+                        ];
+
+                        if (! $isOffsite) {
+                            $location['address'] = [
+                                '@type' => 'PostalAddress',
+                                'streetAddress' => config('organization.address.street'),
+                                'addressLocality' => config('organization.address.locality'),
+                                'addressRegion' => config('organization.address.region'),
+                                'postalCode' => config('organization.address.postal_code'),
+                                'addressCountry' => config('organization.address.country'),
+                            ];
+                            $location['geo'] = [
+                                '@type' => 'GeoCoordinates',
+                                'latitude' => config('organization.geo.latitude'),
+                                'longitude' => config('organization.geo.longitude'),
+                            ];
+                        }
+
+                        return $location;
+                    })(),
                     'image' => asset('/images/homepage/christmas2023.webp'),
                     'organizer' => [
                         '@type' => 'Organization',

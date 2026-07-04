@@ -50,23 +50,33 @@
                     'image' => $headingpicture ?? asset('images/Primary.png'),
                     'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                     'eventStatus' => 'https://schema.org/EventScheduled',
-                    'location' => [
-                        '@type' => 'Place',
-                        'name' => $meeting->location ?? config('organization.name'),
-                        'address' => [
-                            '@type' => 'PostalAddress',
-                            'streetAddress' => config('organization.address.street'),
-                            'addressLocality' => config('organization.address.locality'),
-                            'addressRegion' => config('organization.address.region'),
-                            'postalCode' => config('organization.address.postal_code'),
-                            'addressCountry' => config('organization.address.country'),
-                        ],
-                        'geo' => [
-                            '@type' => 'GeoCoordinates',
-                            'latitude' => config('organization.geo.latitude'),
-                            'longitude' => config('organization.geo.longitude'),
-                        ],
-                    ],
+                    'location' => (function() use ($meeting) {
+                        $locName = $meeting->location ?? config('organization.name');
+                        $isOnsite = blank($meeting->location) || \Illuminate\Support\Str::contains($meeting->location, ['Church', 'hall'], ignoreCase: true);
+
+                        $location = [
+                            '@type' => 'Place',
+                            'name' => $locName,
+                        ];
+
+                        if ($isOnsite) {
+                            $location['address'] = [
+                                '@type' => 'PostalAddress',
+                                'streetAddress' => config('organization.address.street'),
+                                'addressLocality' => config('organization.address.locality'),
+                                'addressRegion' => config('organization.address.region'),
+                                'postalCode' => config('organization.address.postal_code'),
+                                'addressCountry' => config('organization.address.country'),
+                            ];
+                            $location['geo'] = [
+                                '@type' => 'GeoCoordinates',
+                                'latitude' => config('organization.geo.latitude'),
+                                'longitude' => config('organization.geo.longitude'),
+                            ];
+                        }
+
+                        return $location;
+                    })(),
                     'organizer' => [
                         '@type' => 'Organization',
                         'name' => config('organization.name'),
@@ -123,23 +133,33 @@
                                 'startDate' => $event->start_datetime->toIso8601String(),
                                 'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
                                 'eventStatus' => 'https://schema.org/EventScheduled',
-                                'location' => [
-                                    '@type' => 'Place',
-                                    'name' => $event->location ?? $meeting->location ?? 'Crockenhill Baptist Church',
-                                    'address' => [
-                                        '@type' => 'PostalAddress',
-                                        'streetAddress' => config('organization.address.street'),
-                                        'addressLocality' => config('organization.address.locality'),
-                                        'addressRegion' => config('organization.address.region'),
-                                        'postalCode' => config('organization.address.postal_code'),
-                                        'addressCountry' => config('organization.address.country'),
-                                    ],
-                                    'geo' => [
-                                        '@type' => 'GeoCoordinates',
-                                        'latitude' => config('organization.geo.latitude'),
-                                        'longitude' => config('organization.geo.longitude'),
-                                    ],
-                                ],
+                                'location' => (function() use ($event, $meeting) {
+                                    $locName = $event->location ?? $meeting->location ?? 'Crockenhill Baptist Church';
+                                    $isOnsite = ! ($event->location ?? $meeting->location) || \Illuminate\Support\Str::contains($locName, ['Church', 'hall'], ignoreCase: true);
+
+                                    $location = [
+                                        '@type' => 'Place',
+                                        'name' => $locName,
+                                    ];
+
+                                    if ($isOnsite) {
+                                        $location['address'] = [
+                                            '@type' => 'PostalAddress',
+                                            'streetAddress' => config('organization.address.street'),
+                                            'addressLocality' => config('organization.address.locality'),
+                                            'addressRegion' => config('organization.address.region'),
+                                            'postalCode' => config('organization.address.postal_code'),
+                                            'addressCountry' => config('organization.address.country'),
+                                        ];
+                                        $location['geo'] = [
+                                            '@type' => 'GeoCoordinates',
+                                            'latitude' => config('organization.geo.latitude'),
+                                            'longitude' => config('organization.geo.longitude'),
+                                        ];
+                                    }
+
+                                    return $location;
+                                })(),
                                 'image' => $headingpicture ?? asset('images/Primary.png'),
                                 'organizer' => [
                                     '@type' => 'Organization',
