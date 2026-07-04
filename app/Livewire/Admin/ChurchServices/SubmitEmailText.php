@@ -37,8 +37,8 @@ class SubmitEmailText extends Component
         $modelRules = InboundEmail::validationRules();
 
         return [
-            'from' => ['nullable', ...$modelRules['from']],
-            'subject' => ['nullable', ...$modelRules['subject']],
+            'from' => ['nullable', ...array_filter($modelRules['from'], fn ($rule) => $rule !== 'required')],
+            'subject' => ['nullable', ...array_filter($modelRules['subject'], fn ($rule) => $rule !== 'required')],
             'bodyPlain' => ['required', 'string', 'min:20', 'max:50000'],
         ];
     }
