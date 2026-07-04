@@ -9,11 +9,28 @@ use App\Models\PreacherAlias;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
+/**
+ * Service for resolving preacher names to canonical model records.
+ *
+ * Implements a multi-layered lookup strategy using normalized aliases,
+ * existing preacher profiles, and slug-based matching. It ensures preacher
+ * identity consistency across the application by mapping variant name
+ * spellings to a single canonical preacher record, creating new records
+ * on-the-fly when no match is found.
+ */
 class PreacherResolutionService
 {
     /**
      * Resolve a preacher name to a canonical Preacher model.
-     * Looks up via PreacherAlias, then by slug. Creates the record on the fly if not found.
+     *
+     * Looks up the preacher via the aliases table (normalized), then by
+     * name/slug match. Creates the preacher and the alias record on-the-fly
+     * if they do not exist.
+     *
+     * @param  string  $name  The preacher name to resolve
+     * @return Preacher The resolved or newly created canonical preacher model
+     *
+     * @throws QueryException If record creation fails
      */
     public function resolve(string $name): Preacher
     {
@@ -43,11 +60,25 @@ class PreacherResolutionService
         return $preacher;
     }
 
+    /**
+     * Normalize a preacher name for use as a database lookup alias.
+     *
+     * Converts to lowercase and collapses internal whitespace to a single space.
+     *
+     * @param  string  $value  The raw preacher name
+     * @return string The normalized alias string
+     */
     public function normalizeAlias(string $value): string
     {
         return strtolower($this->normalizeWhitespace($value));
     }
 
+    /**
+     * Trim and collapse multiple whitespace characters in a string.
+     *
+     * @param  string  $value  The input string
+     * @return string The cleaned string
+     */
     public function normalizeWhitespace(string $value): string
     {
         return trim(preg_replace('/\s+/', ' ', $value) ?? $value);
