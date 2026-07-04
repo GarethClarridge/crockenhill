@@ -8,6 +8,7 @@ use App\Models\Page;
 use App\Services\Public\PageImageCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -88,9 +89,18 @@ class PageImageCacheServiceTest extends TestCase
 
         $page = Page::factory()->create(['slug' => 'cached-page']);
 
+        // First call populates cache
         $this->service->get($page);
 
-        $this->assertTrue(Cache::has("public_page_images_{$page->id}"));
+        // Second call should hit cache and trigger zero queries.
+        // We fetch a fresh instance *before* enabling the query log to ensure
+        // the select query for the page model itself isn't counted, while still
+        // bypassing memoized relationships on the original $page instance.
+        $freshPage = $page->fresh();
+        DB::enableQueryLog();
+        $this->service->get($freshPage);
+        $this->assertCount(0, DB::getQueryLog());
+        DB::disableQueryLog();
     }
 
     #[Test]
@@ -112,13 +122,21 @@ class PageImageCacheServiceTest extends TestCase
         Storage::fake('public');
 
         $page = Page::factory()->create();
-        $this->service->get($page);
 
-        $this->assertTrue(Cache::has("public_page_images_{$page->id}"));
+        // Populate cache
+        $this->service->get($page);
 
         $this->service->forget($page);
 
-        $this->assertFalse(Cache::has("public_page_images_{$page->id}"));
+        // Subsequent call should trigger a query because cache was cleared.
+        // We use fresh() *before* enabling the query log to bypass memoization
+        // on the original instance without counting the fresh fetch query.
+        $freshPage = $page->fresh();
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->service->get($freshPage);
+        $this->assertNotCount(0, DB::getQueryLog());
+        DB::disableQueryLog();
     }
 
     #[Test]
@@ -127,12 +145,20 @@ class PageImageCacheServiceTest extends TestCase
         Storage::fake('public');
 
         $page = Page::factory()->create();
-        $this->service->get($page);
 
-        $this->assertTrue(Cache::has("public_page_images_{$page->id}"));
+        // Populate cache
+        $this->service->get($page);
 
         $this->service->forget($page->id);
 
-        $this->assertFalse(Cache::has("public_page_images_{$page->id}"));
+        // Subsequent call should trigger a query because cache was cleared.
+        // We use fresh() *before* enabling the query log to bypass memoization
+        // on the original instance without counting the fresh fetch query.
+        $freshPage = $page->fresh();
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->service->get($freshPage);
+        $this->assertNotCount(0, DB::getQueryLog());
+        DB::disableQueryLog();
     }
 }
