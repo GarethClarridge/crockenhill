@@ -31,7 +31,7 @@ class AudioEnhancementService
      * @param  string  $processingId  Processing ID for log correlation and output naming
      * @return string|null Path to the enhanced MP3 file, or null if failed or disabled
      *
-     * @throws \Throwable For unexpected system failures
+     * @throws \Throwable For unexpected system failures or re-thrown enhancement errors
      */
     public function enhance(string $inputPath, string $processingId): ?string
     {
@@ -40,9 +40,8 @@ class AudioEnhancementService
         }
 
         if (! file_exists($inputPath)) {
-            Log::warning('AudioEnhancementService: input file not found', $this->sanitizeArrayForLog([
+            Log::warning('AudioEnhancementService: input file not found: '.$this->sanitizeForLog($inputPath), $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
-                'input_path' => $inputPath,
             ]));
 
             return null;
@@ -230,6 +229,9 @@ class AudioEnhancementService
         ];
     }
 
+    /**
+     * @throws \RuntimeException If the FFmpeg process fails
+     */
     private function runEnhancement(string $ffmpegPath, string $inputPath, string $filterChain, string $outputPath, string $processingId): void
     {
         $command = [
@@ -270,7 +272,7 @@ class AudioEnhancementService
      * @param  string  $processingId  Processing ID for log correlation and output naming
      * @return string|null Path to the enhanced MP4 file, or null if failed or disabled
      *
-     * @throws \Throwable For unexpected system failures
+     * @throws \Throwable For unexpected system failures or re-thrown enhancement errors
      */
     public function enhanceVideo(string $inputPath, string $processingId): ?string
     {
@@ -279,9 +281,8 @@ class AudioEnhancementService
         }
 
         if (! file_exists($inputPath)) {
-            Log::warning('AudioEnhancementService: video input file not found', $this->sanitizeArrayForLog([
+            Log::warning('AudioEnhancementService: video input file not found: '.$this->sanitizeForLog($inputPath), $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
-                'input_path' => $inputPath,
             ]));
 
             return null;
@@ -318,6 +319,9 @@ class AudioEnhancementService
         }
     }
 
+    /**
+     * @throws \RuntimeException If the FFmpeg process fails
+     */
     private function runVideoEnhancement(string $ffmpegPath, string $inputPath, string $filterChain, string $outputPath, string $processingId): void
     {
         $command = [
