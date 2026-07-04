@@ -87,10 +87,24 @@ concrete answer in the wiring:
   resulting `LivestreamSegment` boundaries are what `ServiceStructure` resolves `source_segment_ids`
   against by time overlap (`ServiceStructure.php:130-166`). So the producer is not consumer-free in
   primary mode — see the risk note on quick win 6.
-- In primary mode `AnalyzeSegments` (647 lines) is retained solely so `LivestreamSegment` rows
-  exist to back `source_segment_ids` and the manual segment-confirmation flow — yet the Phase 3
-  mapper can already **synthesise** a covering segment when none overlaps
-  (`synthesised_from_structure`). The job drags the whole visual-guided machinery with it:
+- In primary mode `AnalyzeSegments` (647 lines) is retained partly so `LivestreamSegment` rows
+  exist to back `source_segment_ids` and the manual segment-confirmation flow — and for that role
+  the Phase 3 mapper can already **synthesise** a covering segment when none overlaps
+  (`synthesised_from_structure`). But it is **not** retained *solely* for segment rows, and the
+  builder runs it *before* `TranscribeFullService`/`DetectServiceStructure` in the primary chain
+  (`buildLivestreamChainJobs()`: `AnalyzeSegments` → `TranscribeFullService` →
+  `DetectServiceStructure`, `ProcessingPipelineBuilder.php:150-159`), so two pre-LLM
+  responsibilities have to be re-homed before it can be dropped:
+  (a) it is a **gate** — `handle()` calls `findSermonCandidate()` and `markAsFailed()`s the whole
+  run ("No sermon candidate found…") when the longest speech segment misses the minimum duration
+  (`AnalyzeSegments.php:108-143`), so primary-mode uploads with no heuristic candidate fail here
+  before the LLM ever sees the transcript; and
+  (b) it writes `sermon_start_time`/`sermon_end_time` on the run (`AnalyzeSegments.php:115-119`),
+  which `SermonExtractionPlanResolver::baselinePlan()` reads as the extraction fallback
+  (`SermonExtractionPlanResolver.php:261-262`). Any deletion plan built only around
+  `ServiceStructure::synthesiseCoveringSegment()` must also replace this failure gate and the
+  baseline time source (e.g. derive both from the LLM structure) or primary-mode runs with a weak
+  heuristic candidate break. The job also drags the whole visual-guided machinery with it:
   per-song threshold calibration (`VideoSegmentationService::calibratePerSongThreshold`),
   cluster boundary detection (`detectBoundariesForCluster`), visual/RMS merge logic
   (`AnalyzeSegments::mergeVisualAndRmsSongSegments`), and gap-filling.
@@ -146,10 +160,16 @@ this finding covers only the media-side stack beneath them.
    review's P1 diagnosis still standing: operator diagnostics reconstructed from a rotating text
    file. Since April, the run record gained `queue_name`/`job_id`/`attempt_count`
    (`ProcessingJob::captureQueueCorrelation`) — the structured alternative exists and is populated.
-4. **A dead log channel** — `config/logging.php` defines a `sermon-processing` daily channel with
-   the 99-line `SermonProcessingLogFormatter` tap, but **no code ever writes to it**: there is no
-   `Log::channel('sermon-processing')` call anywhere in `app/`. (The backlog's PR 7 note "not
-   dead: registered as tap" is true but vacuous — the channel it taps is unused.)
+4. **A likely-dead log channel** — `config/logging.php` defines a `sermon-processing` daily channel
+   with the 99-line `SermonProcessingLogFormatter` tap, but **no code explicitly writes to it**:
+   there is no `Log::channel('sermon-processing')` call anywhere in `app/`. One caveat before
+   deleting: the default channel is `env('LOG_CHANNEL', 'stack')` (`config/logging.php:18`) and the
+   `stack` channel lists only `['single']` (`:35-38`), so the *only* way plain `Log::…` calls reach
+   this formatter is a production `LOG_CHANNEL=sermon-processing`. That would route the entire app's
+   logs through it — an unusual setting — but it must be checked against the production/staging env
+   before removal, since the absence of an explicit `Log::channel()` call doesn't prove the channel
+   is unreachable. (The backlog's PR 7 note "not dead: registered as tap" is true but vacuous — the
+   channel it taps has no explicit writer.)
 
 **Direction (one seam):** the durable pair — `SermonProcessingStep` + `processing_metadata` +
 queue-correlation columns — becomes the *only* operator-facing read path. Delete the dead logger
@@ -194,7 +214,7 @@ processing output" becomes a one-line chain edit (see O3).
 | `SermonValidationService` | 380 + 758 test lines | Zero production callers; full audit already exists at `docs/issues/2026-07-01-dead-sermon-validation-service-audit.md`. The stale comment naming it survives at `config/media-processing.php:60`. |
 | `UpdateSermonRecord` job | 268 + 2 dedicated test files | No dispatch site anywhere in `app/`; referenced only by tests, the registry's ghost phase, and two `ProcessingStep` enum cases (`updating_sermon_record`, `updating_sermon_record_failed`). Beyond the two dedicated files, seven more test files instantiate the job or pin its step strings — see quick win 2 for the full fixture list. |
 | Dead half of `SermonProcessingLogger` + `App\Data\ProcessingReport` | ~350 | Seven zero-caller public methods (F2); `ProcessingReport` referenced only by the dead method. |
-| `sermon-processing` log channel + `SermonProcessingLogFormatter` | 99 + config | No `Log::channel('sermon-processing')` call exists (F2). |
+| `sermon-processing` log channel + `SermonProcessingLogFormatter` | 99 + config | No explicit `Log::channel('sermon-processing')` call exists (F2). **Verify prod `LOG_CHANNEL` first** — it is the only way plain `Log::` calls could still reach this formatter. |
 | `VideoStorageService` orphan methods (`cleanupExpiredFiles`, `storeTemporary`, `moveToPermanent`, `getAudioUrl`) | ~80 | Zero callers outside the class. |
 | `VideoExtractionService::extractOptimizedAudioFromSegment` | ~20 | Self-described `@deprecated` alias. |
 
@@ -318,7 +338,7 @@ Weighted equally with removals, per the plan.
 | # | Candidate | Cost of keeping | Cost/risk of removing |
 |---|---|---|---|
 | R1 | `HistoricVideoImporter` (1,141) + `ImportHistoricVideoBatchCommand` + 2 test files (~1,500 lines total) | Largest file in the domain, maintained and PHPStan-checked forever for a one-shot import (275 GB drive, plan archived 2026-06). Same category as the Phase 25 legacy importers. | If the drive import is unfinished or may re-run, deletion forces a git-archaeology restore. Zero runtime risk — nothing else references it. |
-| R2 | Speaker-identification stack (~1,700 lines: job, two providers, two models, bootstrap command, python script, config, queue; `ChildrensTalkSpeakerService` assessed separately since publication flows call it) | A dark voice-biometrics subsystem with three enable switches; PR 19 already deferred it once. Every pipeline run pays a no-op job dispatch. | If children's-talk speaker naming is imminent and voice-matching genuinely outperforms transcript inference, deleting now means rebuilding. Mitigation: O4 covers the mainline case; models/tables could be dropped last. |
+| R2 | Speaker-identification stack (~1,700 lines: job, two providers, two models, bootstrap command, python script, config, queue; `ChildrensTalkSpeakerService` assessed separately since publication flows call it) | A dark voice-biometrics subsystem with three enable switches; PR 19 already deferred it once. Every pipeline run pays a no-op job dispatch. | If children's-talk speaker naming is imminent and voice-matching genuinely outperforms transcript inference, deleting now means rebuilding. **`ChildrensTalkSpeakerService` is a hard transitive blocker on part of this stack:** it is injected live by `SermonPublicationHandler`, `ApproveSectionForPublication`, and `SaveServiceSection`, and it depends on the `SpeakerIdentificationInterface` binding (constructor), the `media-processing.speaker_identification.*` config keys, and the `SpeakerProfile` model/table (`ChildrensTalkSpeakerService.php:19-20,137-203`). So the "two providers, two models, config" cannot all be swept in the same commit while this service is kept — the interface binding, that config block, and `SpeakerProfile` must survive, or children's-talk speaker resolution must be migrated to O4/transcript metadata *first*. Mitigation: O4 covers the mainline case; models/tables dropped last, after the children's-talk migration. |
 | R3 | Visual song-detection stack (~2,000+ lines, F1) | Runs on every livestream in all modes; its output is unused in primary mode; it is precisely the heuristic cluster the doctrine says to retire. | Gated on LLM promotion (Phase 6 of the exemplar plan). Until `mode=primary` soaks, it is the authoritative path — interim mitigation is mode-gating `PerformVisualAnalysis`. |
 | R4 | `ProcessingLogService` + log-parsing read path (468 lines + `ProcessingLogEntry`/`ProcessingLogCollection` + viewer wiring) | Fragile whole-file log parse per status request; duplicated step-extraction regexes; breaks silently on log rotation/format change. | Needs the one consumer (`ProcessingLogsViewer` / status-with-logs API) re-pointed at `SermonProcessingStep` + metadata first — small but real UI work. |
 | R5 | Dead code batch (F4): `SermonValidationService`, `UpdateSermonRecord`, dead logger half + `ProcessingReport`, `sermon-processing` channel + formatter, `VideoStorageService` orphans (~1,200 + ~1,900 test lines) | Pure carrying cost; misleads readers (ghost registry phase, stale config comment). | Effectively none; each item is grep-verified zero-caller. Needs only the standing approval to delete tests with their subjects. |
