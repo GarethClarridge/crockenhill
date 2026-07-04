@@ -8,18 +8,30 @@ use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
+/**
+ * Service for automated audio enhancement using FFmpeg.
+ *
+ * Provides a pipeline for noise reduction, dynamic range compression, and
+ * two-pass loudness normalization (EBU R128) tailored for church recordings.
+ * Failures in this service are designed to be non-fatal, allowing the media
+ * processing pipeline to continue with original assets if enhancement fails.
+ */
 class AudioEnhancementService
 {
     use SanitizesLogData;
 
     /**
-     * Enhance an audio file using FFmpeg filters (noise reduction, dynamic normalisation,
-     * loudness normalisation) and write the result to a temp file.
+     * Enhance an audio file using FFmpeg filters and write the result to a temp file.
      *
-     * Returns the path to the enhanced file, or null if enhancement is disabled or fails.
-     * Failure is always non-fatal — callers should fall back to the original file.
+     * Coordinates the enhancement process: directory preparation, filter chain
+     * construction, and FFmpeg execution. Failures are logged as warnings and
+     * return null to signal that the caller should fall back to the original file.
      *
-     * @throws \Throwable
+     * @param  string  $inputPath  Absolute path to the source audio file
+     * @param  string  $processingId  Processing ID for log correlation and output naming
+     * @return string|null Path to the enhanced MP3 file, or null if failed or disabled
+     *
+     * @throws \Throwable For unexpected system failures
      */
     public function enhance(string $inputPath, string $processingId): ?string
     {
@@ -70,11 +82,14 @@ class AudioEnhancementService
     /**
      * Build the FFmpeg -af filter chain string.
      *
-     * When loudness_norm is enabled, a two-pass approach is used:
-     *   - Pass 1 measures the file's loudness stats via loudnorm's JSON output.
-     *   - Pass 2 applies linear gain using those measured values.
+     * Aggregates noise reduction, dynamic normalization, and loudness normalization
+     * filters based on configuration. When loudness normalization is enabled, a
+     * measurement pass (Pass 1) is executed first to determine the file's current
+     * integrated loudness, allowing Pass 2 to apply precise gain.
      *
-     * Returns null if no filters are enabled (nothing to do).
+     * @param  string  $inputPath  Absolute path to the source file
+     * @param  string  $processingId  Processing ID for logging
+     * @return string|null The constructed filter chain, or null if no filters are active
      */
     public function buildFilterChain(string $inputPath, string $processingId): ?string
     {
@@ -149,9 +164,15 @@ class AudioEnhancementService
     /**
      * Run FFmpeg first-pass loudnorm measurement and return the stats array.
      *
-     * FFmpeg prints loudnorm JSON stats to stderr. Returns null if the pass fails
-     * or the output cannot be parsed.
+     * Executes FFmpeg with the `loudnorm` filter set to `print_format=json`.
+     * The measurement result is captured from stderr and parsed into a
+     * structured array.
      *
+     * @param  string  $inputPath  Absolute path to the source file
+     * @param  string  $processingId  Processing ID for logging
+     * @param  float  $targetLufs  Target integrated loudness (LUFS)
+     * @param  float  $truePeak  Target true peak (dBTP)
+     * @param  float  $lra  Target loudness range (LU)
      * @return array{input_i: float, input_tp: float, input_lra: float, input_thresh: float, target_offset: float}|null
      */
     public function measureLoudness(string $inputPath, string $processingId, float $targetLufs, float $truePeak, float $lra): ?array
@@ -173,8 +194,6 @@ class AudioEnhancementService
     }
 
     /**
-     * Extract and decode the loudnorm JSON block from FFmpeg stderr.
-     *
      * @return array{input_i: float, input_tp: float, input_lra: float, input_thresh: float, target_offset: float}|null
      */
     private function parseLoudnormJson(string $stderr, string $processingId): ?array
@@ -211,11 +230,6 @@ class AudioEnhancementService
         ];
     }
 
-    /**
-     * Run the FFmpeg enhancement pass with the built filter chain.
-     *
-     * @throws \RuntimeException When FFmpeg exits with a non-zero code
-     */
     private function runEnhancement(string $ffmpegPath, string $inputPath, string $filterChain, string $outputPath, string $processingId): void
     {
         $command = [
@@ -247,14 +261,16 @@ class AudioEnhancementService
     /**
      * Enhance the audio track of an MP4 video file using FFmpeg filters.
      *
-     * The video stream is copied unchanged (`-c:v copy`); only the audio is re-encoded
-     * to AAC to produce an MP4-compatible output. Reuses the same filter chain and
-     * config toggles as enhance().
+     * The video stream is copied unchanged (`-c:v copy`) to avoid expensive and
+     * quality-degrading re-encoding; only the audio stream is enhanced and
+     * re-encoded to AAC for MP4 compatibility. Reuses the same filter chain and
+     * configuration toggles as {@see enhance()}.
      *
-     * Returns the path to the enhanced MP4 file, or null if enhancement is disabled or fails.
-     * Failure is always non-fatal — callers should fall back to the original file.
+     * @param  string  $inputPath  Absolute path to the source MP4 video file
+     * @param  string  $processingId  Processing ID for log correlation and output naming
+     * @return string|null Path to the enhanced MP4 file, or null if failed or disabled
      *
-     * @throws \Throwable
+     * @throws \Throwable For unexpected system failures
      */
     public function enhanceVideo(string $inputPath, string $processingId): ?string
     {
@@ -302,11 +318,6 @@ class AudioEnhancementService
         }
     }
 
-    /**
-     * Run the FFmpeg video enhancement pass: copy the video stream, re-encode audio to AAC.
-     *
-     * @throws \RuntimeException When FFmpeg exits with a non-zero code
-     */
     private function runVideoEnhancement(string $ffmpegPath, string $inputPath, string $filterChain, string $outputPath, string $processingId): void
     {
         $command = [

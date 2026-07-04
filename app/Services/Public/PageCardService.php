@@ -52,7 +52,7 @@ class PageCardService
      */
     public function forHome(): Collection
     {
-        return $this->communityPages(self::HOME_CARD_SLUGS, 'page_card_rail_home');
+        return $this->pagesBySlugs(self::HOME_CARD_SLUGS, 'page_card_rail_home');
     }
 
     /**
@@ -60,7 +60,7 @@ class PageCardService
      */
     public function forCommunity(): Collection
     {
-        return $this->communityPages(self::COMMUNITY_CARD_SLUGS, 'page_card_rail_community');
+        return $this->pagesBySlugs(self::COMMUNITY_CARD_SLUGS, 'page_card_rail_community');
     }
 
     /**
@@ -68,7 +68,7 @@ class PageCardService
      */
     public function forChurch(): Collection
     {
-        return $this->communityPages(self::CHURCH_CARD_SLUGS, 'page_card_rail_church');
+        return $this->pagesBySlugs(self::CHURCH_CARD_SLUGS, 'page_card_rail_church');
     }
 
     /**
@@ -81,7 +81,8 @@ class PageCardService
          */
         $pages = $this->pageRepository->getAllLinksForArea(PageArea::Church)
             ->filter(function (Page $page) {
-                return $page->slug !== 'privacy-policy'
+                return $page->slug !== 'privacy-notice'
+                    && $page->slug !== 'privacy-policy'
                     && $page->slug !== 'safeguarding-policy'
                     && $page->admin !== 'yes';
             })
@@ -94,9 +95,9 @@ class PageCardService
      * @param  list<string>  $slugs
      * @return Collection<int, array{area: string, description: string|null, heading: string, image_url: string, slug: string, url: string}>
      */
-    private function communityPages(array $slugs, string $cacheKey): Collection
+    private function pagesBySlugs(array $slugs, string $cacheKey): Collection
     {
-        $pages = $this->pageRepository->getLinksForAreaSlugs(PageArea::Community, $slugs, $cacheKey);
+        $pages = $this->pageRepository->getLinksBySlugs($slugs, $cacheKey);
 
         return $this->pageCardPresenter->presentCollection($pages);
     }
