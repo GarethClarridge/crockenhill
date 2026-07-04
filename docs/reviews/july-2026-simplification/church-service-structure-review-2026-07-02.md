@@ -249,9 +249,15 @@ merge the stack → set `mode=shadow` + real detector/transcriber in production 
 `structure:shadow-report` + fill a real manifest for `structure:evaluate` → land the five
 preparatory items above (including migrating or retiring the auto-trim pipeline, seam 5) →
 flip `mode=primary` → soak (~8 services, plan's suggested gate) → delete
-in dependency order (jobs → services → builder branches → **`ProcessingPhaseRegistry` cleanup** →
-collapse `ServiceStructureMode` → heuristic tests and `scripts/section-extraction/`). Each deletion
-is its own commit with a green suite.
+**references before referents** so every commit lands green. The job classes are still referenced by
+two retained files: `ProcessingPipelineBuilder` instantiates them in its heuristic chains
+(imports at lines 11–33) and `ProcessingPhaseRegistry` imports/anchors them (lines 9–28). So each
+job-class deletion must, **in the same commit** (or a commit before), strip that job's heuristic
+builder branch **and** prune its registry imports, phase rows, and progress anchors — deleting the
+jobs first fails PHPStan and the suite on class-not-found (see the next paragraph). Concretely:
+builder-branch + registry cleanup alongside the job deletions → then the now-unreferenced services →
+collapse `ServiceStructureMode` → heuristic tests and `scripts/section-extraction/`. Each commit is
+its own green suite precisely because no reference outlives the class it points at.
 
 One more consumer sits in that chain and must not be forgotten: `ProcessingPhaseRegistry` is a live
 class (it backs `StandardProcessingResponse::progressForLog()`, `StandardProcessingResponse.php:330`)
