@@ -28,7 +28,7 @@
                 <x-calendar-event-card
                     :event="$event"
                     variant="admin"
-                    date-format="l, F j, Y"
+                    date-format="l, j F Y"
                 />
             @endforeach
         </div>

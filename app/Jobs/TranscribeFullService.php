@@ -77,7 +77,24 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
         $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::TranscribeFullService->value);
         $this->logStepStart(ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE);
 
-        [$localSourcePath, $cleanupSourcePath] = $this->resolveLocalSourceVideoPath($storageHelper);
+        try {
+            [$localSourcePath, $cleanupSourcePath] = $this->resolveLocalSourceVideoPath($storageHelper);
+        } catch (\RuntimeException $exception) {
+            // Reclassification of a completed run: the temp source video is
+            // usually long cleaned up, but the stored transcript survives
+            // cleanup for exactly this purpose — the recording has not
+            // changed, so it is still valid evidence for detection.
+            if ($this->hasStoredTranscript()) {
+                $this->logStepSkipped(
+                    ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
+                    'Source media unavailable; reusing the stored full-service transcript'
+                );
+
+                return;
+            }
+
+            throw $exception;
+        }
 
         try {
             $transcript = $transcriptionService->transcribeService(
@@ -127,6 +144,19 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
             $exception->getMessage()
         );
+    }
+
+    private function hasStoredTranscript(): bool
+    {
+        $transcriptPath = $this->processingLog->serviceTranscriptPath();
+
+        if ($transcriptPath === null) {
+            return false;
+        }
+
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        return Storage::disk($tempDisk)->exists($transcriptPath);
     }
 
     /**

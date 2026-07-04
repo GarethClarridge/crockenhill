@@ -93,6 +93,41 @@ class TranscribeFullServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_reuses_the_stored_transcript_when_the_source_media_is_gone(): void
+    {
+        // A reclassification run: the temp source video was cleaned up when
+        // the original run completed, but its transcript artifact survives.
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $transcriptPath = 'temp/service_transcript_'.$log->processing_id.'.json';
+        Storage::disk('local')->put($transcriptPath, (string) json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 30.0, 'text' => 'Original run transcript.'],
+        ], 100.0, ChurchServiceTranscript::SOURCE_MOCK)->toArray()));
+        $log->putServiceTranscriptPath($transcriptPath);
+
+        MockServiceTranscriptionService::useTranscript(ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 10.0, 'text' => 'A fresh transcription that must not run.'],
+        ], 50.0, ChurchServiceTranscript::SOURCE_MOCK));
+
+        $this->runJob($log->refresh());
+
+        $stored = ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk('local')->get($transcriptPath), true)
+        );
+        $this->assertSame('Original run transcript.', $stored->cues[0]['text']);
+        $this->assertSame(100.0, $stored->duration);
+    }
+
+    #[Test]
+    public function it_still_fails_when_neither_source_media_nor_a_stored_transcript_exists(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->runJob($log);
+    }
+
+    #[Test]
     public function it_skips_runs_outside_the_segmentation_pipeline(): void
     {
         $log = MediaProcessingLog::factory()->audio()->pending()->create();

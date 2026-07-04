@@ -25,7 +25,8 @@ class StructureShadowReportCommand extends Command
     {
         $query = MediaProcessingLog::query()
             ->whereNotNull('processing_metadata->service_structure_shadow')
-            ->orderBy('created_at');
+            ->orderBy('created_at')
+            ->orderBy('id');
 
         $since = $this->option('since');
 
@@ -41,7 +42,11 @@ class StructureShadowReportCommand extends Command
 
         $runs = [];
 
-        foreach ($query->get() as $log) {
+        /**
+         * Performance Optimization: Use lazy() to iterate through logs one by one,
+         * keeping memory usage low as the media_processing_logs table grows.
+         */
+        foreach ($query->lazy() as $log) {
             $shadow = $log->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
 
             if (! is_array($shadow)) {

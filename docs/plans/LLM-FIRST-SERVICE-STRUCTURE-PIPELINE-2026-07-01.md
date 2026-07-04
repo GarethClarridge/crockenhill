@@ -184,6 +184,20 @@ A second codex pass on the pre-merge PR (#1052) surfaced two more, fixed on
   `markProcessingRunForManualReview()`, so a hard validation failure never sits awaiting an
   operator unnoticed.
 
+A third codex pass (on #1056, the PR that landed the stack) surfaced two more, fixed in a
+follow-up PR after the merge:
+
+- **Source-less reclassification survives in primary/shadow mode** — `TranscribeFullService`
+  falls back to the stored transcript artifact when the source media cannot be resolved (the temp
+  source video is usually cleaned up once the original run completes), instead of throwing before
+  `DetectServiceStructure` ever gets to use the transcript that survives cleanup for exactly this
+  purpose. When the source *is* available a re-run still re-transcribes and overwrites.
+- **OoS anchoring validates planned order, not just type** — `ValidationContext` carries item
+  id → position; `checkOosAnchoring()` hard-fails (`out_of_order_oos_items`) when a section claims
+  an item whose position precedes one already claimed, catching two same-type items (e.g. two
+  songs) swapped by the detector. The system prompt states the invariant and tells the model to
+  prefer `null` over out-of-order anchors when the service deviated from the printed order.
+
 ## Goal
 
 Make sermon/talk/song extraction from livestream recordings reliable by restructuring the middle of

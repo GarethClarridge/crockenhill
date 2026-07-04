@@ -132,7 +132,7 @@ class StructureEvaluateCommand extends Command
         try {
             $log = $this->resolveProcessingLog($entry);
             $transcript = $this->resolveTranscript($entry, $log);
-            [$oosPayloads, $oosItemTypes] = $this->resolveOosItems($entry, $log);
+            [$oosPayloads, $oosItemTypes, $oosItemPositions] = $this->resolveOosItems($entry, $log);
 
             $startedAt = microtime(true);
             $structure = $detector->detect($transcript, $oosPayloads, $log?->processing_id);
@@ -142,7 +142,7 @@ class StructureEvaluateCommand extends Command
 
             $result = $validator->validate(
                 $structure,
-                new ValidationContext($transcript->duration, $transcript->speechDuration(), $oosItemTypes, $transcript->cues)
+                new ValidationContext($transcript->duration, $transcript->speechDuration(), $oosItemTypes, $transcript->cues, $oosItemPositions)
             );
 
             $expected = is_array($entry['expected'] ?? null) ? $entry['expected'] : [];
@@ -230,13 +230,14 @@ class StructureEvaluateCommand extends Command
 
     /**
      * @param  array<string, mixed>  $entry
-     * @return array{0: array<int, array{id: int, position: int, type: string, title: ?string, song_id: ?int}>, 1: array<int, ServiceSectionType>}
+     * @return array{0: array<int, array{id: int, position: int, type: string, title: ?string, song_id: ?int}>, 1: array<int, ServiceSectionType>, 2: array<int, int>}
      */
     private function resolveOosItems(array $entry, ?MediaProcessingLog $log): array
     {
         if (is_array($entry['oos_items'] ?? null)) {
             $payloads = [];
             $types = [];
+            $positions = [];
 
             foreach ($entry['oos_items'] as $item) {
                 if (! is_array($item) || ! is_numeric($item['id'] ?? null)) {
@@ -251,15 +252,16 @@ class StructureEvaluateCommand extends Command
                     'song_id' => is_numeric($item['song_id'] ?? null) ? (int) $item['song_id'] : null,
                 ];
                 $types[(int) $item['id']] = ServiceSectionType::tryFrom((string) ($item['type'] ?? 'other')) ?? ServiceSectionType::Other;
+                $positions[(int) $item['id']] = (int) ($item['position'] ?? 0);
             }
 
-            return [$payloads, $types];
+            return [$payloads, $types, $positions];
         }
 
         $churchService = $log?->churchService()->first();
 
         if ($churchService === null) {
-            return [[], []];
+            return [[], [], []];
         }
 
         $items = $churchService->items()->orderBy('position')->orderBy('id')->get();
@@ -276,7 +278,11 @@ class StructureEvaluateCommand extends Command
             static fn (ChurchServiceItem $item): array => [(int) $item->id => $item->semanticSectionType()]
         )->all();
 
-        return [$payloads, $types];
+        $positions = $items->mapWithKeys(
+            static fn (ChurchServiceItem $item): array => [(int) $item->id => (int) $item->position]
+        )->all();
+
+        return [$payloads, $types, $positions];
     }
 
     private function snapIfPossible(
