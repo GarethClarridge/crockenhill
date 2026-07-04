@@ -230,19 +230,24 @@ four classification jobs.
    LLM detector or, if auto-trim uploads are no longer used, retired as its own decision (open
    question, 4.9). **The migration is not a straight job swap**, because the LLM path is
    livestream-only by guard: auto-trim runs are `MediaType::Video`, but `DetectServiceStructure::handle()`
-   skips anything whose `processing_type !== MediaType::Livestream` (`DetectServiceStructure.php:88-95`),
-   and the downstream structure/projection/song/publication jobs carry the same livestream-only guard
-   (`ProjectLivestreamServiceStructure`, `MatchSongsFromTranscript`, `AlignWithOos`,
-   `PrepareSectionPublicationCandidates`, `PublishApprovedServiceSection` — each verified to `return`
-   early on `processing_type !== MediaType::Livestream`). Note the *audio/thumbnail/record* jobs are
-   **not** in this set and are **not** blockers: `CreateSermonRecord`, `EnhanceAudio`,
-   `GenerateThumbnail`, and `IdentifySpeaker` already carry explicit `MediaType::Video` branches, so
-   they process auto-trim (Video) runs today — don't spend the migration widening them. So dropping in `TranscribeFullService` →
-   `DetectServiceStructure` as-is would let an auto-trim upload run but produce **no LLM sections and
-   no service linkage**. The migration must first widen those guards to cover the auto-trim media
-   type (or add a dedicated auto-trim LLM path) — a real design task, not a rename — before the four
-   heuristic jobs can be deleted. This is the real gate on jobs → services deletion, above and beyond
-   the livestream soak.
+   skips anything whose `processing_type !== MediaType::Livestream` (`DetectServiceStructure.php:88-95`).
+   But scope the fix to what auto-trim actually runs. Its chain is classification jobs →
+   `ExtractSermon` → the sermon tail; it **never** runs `ProjectLivestreamServiceStructure`,
+   `MatchSongsFromTranscript`, `AlignWithOos`, `PrepareSectionPublicationCandidates`, or
+   `PublishApprovedServiceSection` — those live only in the livestream/reclassification chains (and
+   each also `return`s early on `processing_type !== MediaType::Livestream`). So the migration needs
+   only the **minimal section-detection path that feeds `ExtractSermon`**: replace the four
+   classification jobs with `TranscribeFullService` → `DetectServiceStructure` and widen *those*
+   guards to accept the auto-trim `MediaType::Video` run (or add a dedicated auto-trim LLM path). Do
+   **not** widen the projection/song/publication guards — those jobs aren't in the auto-trim chain,
+   and pulling them in would add church-service linkage, song-matching, and publication side effects
+   that sermon-video auto-trim runs don't have today. The *audio/thumbnail/record* jobs are likewise
+   **not** blockers: `CreateSermonRecord`, `EnhanceAudio`, `GenerateThumbnail`, and `IdentifySpeaker`
+   already carry explicit `MediaType::Video` branches, so they process auto-trim (Video) runs today.
+   Dropping in `TranscribeFullService` → `DetectServiceStructure` *without* widening its guard would
+   let an auto-trim upload run but produce **no LLM sections** for `ExtractSermon` to use — a real
+   design task, not a rename, before the four heuristic jobs can be deleted. This is the real gate on
+   jobs → services deletion, above and beyond the livestream soak.
 
 **The concrete path to retiring the heuristic classifier**, restated as a sequence:
 merge the stack → set `mode=shadow` + real detector/transcriber in production → accumulate Sundays →
