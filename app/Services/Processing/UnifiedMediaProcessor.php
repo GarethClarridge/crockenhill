@@ -16,6 +16,7 @@ use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Services\Sermon\LivestreamSegmentationService;
 use App\Traits\SanitizesLogData;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -208,7 +209,7 @@ class UnifiedMediaProcessor
      * graph — which is wasteful and breaks targeted-binding tests that
      * assert livestream is not touched on read paths.
      *
-     * @throws \Illuminate\Contracts\Container\BindingResolutionException
+     * @throws BindingResolutionException
      */
     private function livestreamService(): LivestreamSegmentationService
     {
