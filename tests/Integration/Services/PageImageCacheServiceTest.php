@@ -129,11 +129,12 @@ class PageImageCacheServiceTest extends TestCase
         $this->service->forget($page);
 
         // Subsequent call should trigger a query because cache was cleared.
-        // We use fresh() to ensure the 'media' relationship is not already
-        // memoized on the model instance from the previous get() call.
+        // We use fresh() *before* enabling the query log to bypass memoization
+        // on the original instance without counting the fresh fetch query.
+        $freshPage = $page->fresh();
         DB::flushQueryLog();
         DB::enableQueryLog();
-        $this->service->get($page->fresh());
+        $this->service->get($freshPage);
         $this->assertNotCount(0, DB::getQueryLog());
         DB::disableQueryLog();
     }
@@ -151,11 +152,12 @@ class PageImageCacheServiceTest extends TestCase
         $this->service->forget($page->id);
 
         // Subsequent call should trigger a query because cache was cleared.
-        // We use fresh() to ensure the 'media' relationship is not already
-        // memoized on the model instance from the previous get() call.
+        // We use fresh() *before* enabling the query log to bypass memoization
+        // on the original instance without counting the fresh fetch query.
+        $freshPage = $page->fresh();
         DB::flushQueryLog();
         DB::enableQueryLog();
-        $this->service->get($page->fresh());
+        $this->service->get($freshPage);
         $this->assertNotCount(0, DB::getQueryLog());
         DB::disableQueryLog();
     }
