@@ -109,12 +109,12 @@ in 4.2 (the fifth being the auto-trim pipeline). Files whose only consumers are 
 
 **Services (11, 3,324 lines):**
 
-| File | Lines | Consumers (all in-cluster) |
+| File | Lines | Consumers (in-cluster unless marked) |
 |------|------:|----------------------------|
 | `StructuralSectionAligner` | 777 | `OosAlignmentService` |
 | `SpeechSectionClassificationService` | 616 | `ClassifySpeechSections` |
 | `SongSectionAligner` | 549 | `OosAlignmentService` |
-| `OosAlignmentService` | 264 | `AlignWithOos`, `MatchSongsFromTranscript` (mode-gated), `ReconcileServiceSections` |
+| `OosAlignmentService` | 264 | `AlignWithOos` (in-cluster); **+ two _retained_ jobs** — `MatchSongsFromTranscript` (type-hints it; call gated to non-primary) & `ReconcileServiceSections` (calls it unconditionally). Strip both before deleting — see seam 1 |
 | `ServiceSectionClassifier` | 222 | `ClassifyServiceSections`, `ClassifySpeechSections` (+ type-only imports, see 4.2) |
 | `ReadingReferenceExtractor` | 211 | `ResolveReadingReferences` |
 | `SectionItemAlignmentScorer` | 166 | `StructuralSectionAligner` |
@@ -173,6 +173,15 @@ four classification jobs.
    deliberately survives cleanup) with the newly-arrived OOS items — no media access, one LLM call,
    and the heuristic reconcile path dies with the cluster. Until then this is a live correctness
    gap for the primary-mode soak: a late OOS email will degrade an LLM-anchored run.
+   `ReconcileServiceSections` is not the only *retained* job bound to `OosAlignmentService`:
+   `MatchSongsFromTranscript` also imports and type-hints it
+   (`app/Jobs/MatchSongsFromTranscript.php:18,68`). That job is already mode-aware — its
+   `alignForProcessingLog()` call (line 185) only fires in the non-primary branch — but the
+   constructor type-hint keeps the class reference alive regardless of mode. So `OosAlignmentService`
+   cannot be deleted until **both** retained jobs are cut loose: fix `ReconcileServiceSections` as
+   above **and** strip the now-dead non-primary branch plus the `OosAlignmentService`
+   type-hint/import from `MatchSongsFromTranscript`. Skip either and DI resolution and PHPStan break
+   on a dangling class reference the moment the service is removed.
 2. **The seam contract type lives on a class scheduled for deletion.** The `ClassifiedSection`
    array shape — the very contract of the `sync()` seam — is a `@phpstan-type` defined on
    `ServiceSectionClassifier` (line 27). Two files carry a real `@phpstan-import-type ClassifiedSection
@@ -192,12 +201,21 @@ four classification jobs.
    soft flags (`structure_low_confidence`, `structure_micro_section`, etc.) are registered so
    re-runs clear stale flags idempotently (the F18 trap). Move the registry into
    `Structure/` (e.g. onto the validator) before deleting the restorer.
-4. **Service-level review sync after the aligner dies.** `ChurchServiceReviewSynchronizer` (kept —
-   `DeleteLivestreamUpload` also uses it) is today invoked from `OosAlignmentService`. In primary
-   mode, section flags reach the service-level `needs_review` via
-   `LivestreamChurchServiceProjectionService` (verified: `needs_review` propagation at lines
-   143–174). Confirm during the soak that no review trigger is lost when the aligner stops running —
-   then the synchronizer's only callers are the projection path and upload deletion.
+4. **Service-level review sync silently drops OOS-backed services when the aligner dies.**
+   `ChurchServiceReviewSynchronizer` (kept — `DeleteLivestreamUpload` also uses it) is today invoked
+   from `OosAlignmentService`. In primary mode, section flags are *supposed* to reach the
+   service-level `needs_review` via `LivestreamChurchServiceProjectionService` (`needs_review`
+   propagation at lines 143–174) — **but only on the projection path.** When the matching service
+   already holds non-livestream items, `project()` returns early at lines 54–61
+   (`hasNonLivestreamItems()` — any item with `source != livestream`) **before** it ever reaches that
+   propagation. Every OOS-email-backed service holds such items, so its runs always take the
+   early-return branch. The consequence in primary mode: an OOS-backed run with low-confidence LLM
+   sections gets section-level `review_flags` from `DetectServiceStructure` but **no** service-level
+   inbox flag once `OosAlignmentService` stops calling the synchronizer. This is not a "confirm during
+   soak" item — it is a concrete gap. Phase 6 must add an explicit service-level
+   `needs_review`/synchronizer update on the OOS-backed (early-return) branch — or lift the review
+   roll-up out of the projection path entirely — **before** the aligner is retired. Then the
+   synchronizer's callers are the projection path, the new OOS-backed roll-up, and upload deletion.
 5. **The auto-trim pipeline is a second, un-gated consumer of the classification jobs.**
    `ProcessingPipelineBuilder::buildAutoTrimVideoPipeline()` instantiates `ClassifyServiceSections`,
    `TranscribeSpeechSegments`, `ClassifySpeechSections`, and `ReclassifyIntroOutroSections`
