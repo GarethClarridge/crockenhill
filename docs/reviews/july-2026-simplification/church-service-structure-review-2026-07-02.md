@@ -259,10 +259,20 @@ two retained files: `ProcessingPipelineBuilder` instantiates them in its heurist
 (imports at lines 11–33) and `ProcessingPhaseRegistry` imports/anchors them (lines 9–28). So each
 job-class deletion must, **in the same commit** (or a commit before), strip that job's heuristic
 builder branch **and** prune its registry imports, phase rows, and progress anchors — deleting the
-jobs first fails PHPStan and the suite on class-not-found (see the next paragraph). Concretely:
-builder-branch + registry cleanup alongside the job deletions → then the now-unreferenced services →
-collapse `ServiceStructureMode` → heuristic tests and `scripts/section-extraction/`. Each commit is
-its own green suite precisely because no reference outlives the class it points at.
+jobs first fails PHPStan and the suite on class-not-found (see the next paragraph). The same trap
+catches the **tests and scripts**: 14 test files import these job classes directly
+(`tests/Integration/Jobs/*` plus shared suites like `ProcessingPipelineBuilderTest` and
+`ProcessingPhaseRegistryTest`), and `scripts/section-extraction/{run-init,run-step2,run-downstream}.php`
+import them too. The per-job test files are deleted wholesale, but the shared suites must be *updated*
+in the same commit — leave any test referencing a deleted class and the suite goes red on load.
+(The `scripts/` files sit outside PHPStan's `app/`-only paths and are only read as *text* by
+`SectionExtractionScriptsTest` — never autoloaded — so deleting a job they reference won't fail the
+green gate; but that test asserts the scripts *exist*, so drop the scripts and
+`SectionExtractionScriptsTest` together in the same pass, since both are cluster-only.) Concretely, each
+job-class deletion commit must bundle: strip that job's builder branch, prune its registry
+imports/phase-rows/anchors, delete its dedicated test, and update the shared tests — all together →
+then the now-unreferenced services → collapse `ServiceStructureMode` → drop `scripts/section-extraction/`.
+Each commit is its own green suite precisely because no reference outlives the class it points at.
 
 One more consumer sits in that chain and must not be forgotten: `ProcessingPhaseRegistry` is a live
 class (it backs `StandardProcessingResponse::progressForLog()`, `StandardProcessingResponse.php:330`)
