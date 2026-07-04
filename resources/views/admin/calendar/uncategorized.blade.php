@@ -27,6 +27,7 @@
                     variant="admin"
                     date-format="l, j F Y"
                     description-limit="200"
+                    heading-level="h2"
                 >
                     <div class="flex-shrink-0 ml-6">
                         <form method="POST" action="{{ route('admin.calendar.categorize') }}" class="flex items-center gap-2">

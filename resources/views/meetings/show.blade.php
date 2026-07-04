@@ -251,6 +251,7 @@
                     :show-meeting-badge="false"
                     description-limit="80"
                     date-format="j M Y"
+                    heading-level="h3"
                 />
             @endforeach
         </div>
@@ -268,7 +269,7 @@
     {{-- Recent Past Events --}}
     @if(isset($pastEvents) && $pastEvents->count() > 0)
         <div class="mb-8">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent meetings</h3>
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Recent meetings</h2>
             <div class="space-y-2">
                 @foreach($pastEvents->take(3) as $event)
                     <x-calendar-event-compact :event="$event" />
