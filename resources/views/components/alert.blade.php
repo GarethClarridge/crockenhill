@@ -51,7 +51,7 @@ $v = $variants[$type] ?? $variants['info'];
                 class="shrink-0 rounded transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-1"
                 aria-label="Dismiss"
             >
-                <x-heroicon-o-x-mark class="h-4 w-4 opacity-60 hover:opacity-100" />
+                <x-heroicon-o-x-mark class="h-4 w-4 opacity-60 hover:opacity-100" aria-hidden="true" />
             </button>
         @endif
     </div>
