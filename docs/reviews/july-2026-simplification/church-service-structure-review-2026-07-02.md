@@ -200,10 +200,13 @@ four classification jobs.
    question, 4.9). **The migration is not a straight job swap**, because the LLM path is
    livestream-only by guard: auto-trim runs are `MediaType::Video`, but `DetectServiceStructure::handle()`
    skips anything whose `processing_type !== MediaType::Livestream` (`DetectServiceStructure.php:88-95`),
-   and the downstream projection/song/publication jobs carry the same livestream-only guard
+   and the downstream structure/projection/song/publication jobs carry the same livestream-only guard
    (`ProjectLivestreamServiceStructure`, `MatchSongsFromTranscript`, `AlignWithOos`,
-   `PrepareSectionPublicationCandidates`, `PublishApprovedServiceSection`, `CreateSermonRecord`,
-   `EnhanceAudio`, `GenerateThumbnail`, `IdentifySpeaker`). So dropping in `TranscribeFullService` →
+   `PrepareSectionPublicationCandidates`, `PublishApprovedServiceSection` — each verified to `return`
+   early on `processing_type !== MediaType::Livestream`). Note the *audio/thumbnail/record* jobs are
+   **not** in this set and are **not** blockers: `CreateSermonRecord`, `EnhanceAudio`,
+   `GenerateThumbnail`, and `IdentifySpeaker` already carry explicit `MediaType::Video` branches, so
+   they process auto-trim (Video) runs today — don't spend the migration widening them. So dropping in `TranscribeFullService` →
    `DetectServiceStructure` as-is would let an auto-trim upload run but produce **no LLM sections and
    no service linkage**. The migration must first widen those guards to cover the auto-trim media
    type (or add a dedicated auto-trim LLM path) — a real design task, not a rename — before the four
