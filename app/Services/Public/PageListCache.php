@@ -117,7 +117,7 @@ class PageListCache
             return Page::query()
                 ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin', 'navigation'])
-                ->where('area', '!=', PageArea::Members)
+                ->whereNot('area', PageArea::Members)
                 ->whereIn('slug', $orderedSlugs)
                 ->get()
                 ->sortBy(function (Page $page) use ($orderedSlugs): int {
