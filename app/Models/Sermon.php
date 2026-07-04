@@ -460,26 +460,6 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * Get the full path to the transcript file
-     *
-     * @return string|null The full storage path or null if not set
-     */
-    public function getTranscriptPath(): ?string
-    {
-        return $this->transcript_file_path;
-    }
-
-    /**
-     * Set the transcript path for this sermon
-     *
-     * @param  string|null  $path  The storage path to the transcript file
-     */
-    public function setTranscriptPath(?string $path): void
-    {
-        $this->transcript_file_path = $path;
-    }
-
-    /**
      * Check if this sermon was created through automated processing.
      * Logic aligned with SermonBuilder::automated() criteria.
      *
