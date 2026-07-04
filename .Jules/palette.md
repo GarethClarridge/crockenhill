@@ -54,3 +54,7 @@
 ## 2026-04-12 - Pulse Effects for Urgent Administrative Items
 **Learning:** Highlighting items that require immediate attention (like recordings needing review) in a dense admin list improves efficiency. Adding a decorative `pulse` effect to the `x-badge` component using `animate-ping` provides a subtle but clear visual cue. To maintain accessibility, the animation must be wrapped in `motion-safe` and the dot container marked `aria-hidden="true"`. Using `bg-current` ensures the pulse always matches the badge's semantic color.
 **Action:** Add a `pulse` boolean prop to the base `x-badge` component. Apply it to status badges in admin views that indicate a required user action.
+
+## 2026-07-04 - Unsaved Changes Feedback in Form Shells
+**Learning:** In long admin forms, users often lose track of whether they have pending changes, especially when scrolling. Enhancing the `x-admin.form-shell` sticky footer with `wire:dirty` logic provides real-time, persistent feedback. Transitioning the footer from a neutral "Editing..." state to an amber-highlighted "Unsaved changes..." state (with a pulsing indicator and color shift) provides a clear call to action. This reinforces the importance of the "Save" button and reduces accidental data loss.
+**Action:** Use `wire:dirty` and `wire:dirty.remove` in the `x-admin.form-shell` component to toggle visual states and microcopy based on form dirtiness. Ensure smooth transitions using Tailwind's `transition-all` and separate indicators with proper `aria-hidden` or `style="display:none"` to prevent layout shift.
